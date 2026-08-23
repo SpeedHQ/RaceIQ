@@ -7,5 +7,5 @@ export const TELEMETRY_PARSER_VERSIONS: Readonly<Record<GameId, string>> = {
   "f1-2025": "f1-2025-udp@1",
   acc: "acc-shared-memory@1.9",
   "ac-evo": "ac-evo-shared-memory@0.6",
-  iracing: "iracing-source-frame@3",
+  iracing: "iracing-source-frame@4",
 };

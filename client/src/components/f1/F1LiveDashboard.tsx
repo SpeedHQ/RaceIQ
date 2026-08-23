@@ -17,8 +17,6 @@ import { Button } from "../ui/button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-
-
 const WEATHER_LABELS: Record<number, string> = {
   0: m.f1live_weather_clear(),
   1: m.f1live_weather_light_cloud(),
@@ -54,7 +52,11 @@ export function F1LiveDashboard() {
   const { data: carName } = useCarName(view?.identity.carOrdinal);
 
   if (!view || !f1) {
-    return <div className="flex-1 flex flex-col"><NoDataView /></div>;
+    return (
+      <div className="flex-1 flex flex-col">
+        <NoDataView />
+      </div>
+    );
   }
 
   return (
@@ -96,7 +98,16 @@ export function F1LiveDashboard() {
       </div>
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
-        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} totalLaps={typeof f1.totalLaps === "number" ? f1.totalLaps : undefined} sessionType={typeof f1.sessionType === "string" ? f1.sessionType : undefined} showTrackMap={false} showSectors={true} />
+        <RaceInfo
+          view={view}
+          sectors={sectors}
+          trackName={trackName}
+          carName={carName}
+          totalLaps={typeof f1.totalLaps === "number" ? f1.totalLaps : undefined}
+          sessionType={typeof f1.sessionType === "string" ? f1.sessionType : undefined}
+          showTrackMap={false}
+          showSectors={true}
+        />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>
@@ -141,8 +152,15 @@ function CarDamageSection({ f1 }: { f1: Required<LiveF1Extension> }) {
     { label: m.f1live_damage_sidepod(), value: f1.sidepodDamage },
   ];
 
-  const hasDamage = parts.some((p) => p.value > 0);
-  const dmgColor = (value: number) => severityRangeColor(value, [1, 30, 60]);
+  const availableParts: { label: string; value: number }[] = [];
+  for (const part of parts) {
+    if (typeof part.value === "number" && Number.isFinite(part.value)) {
+      availableParts.push({ label: part.label, value: part.value });
+    }
+  }
+  if (availableParts.length === 0) return null;
+  const hasDamage = availableParts.some((part) => part.value > 0);
+  const dmgColor = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? severityRangeColor(value, [1, 30, 60]) : "var(--app-border)");
 
   return (
     <div className="border-b border-app-border">
@@ -186,7 +204,7 @@ function CarDamageSection({ f1 }: { f1: Required<LiveF1Extension> }) {
 
         {/* Damage values */}
         <div className="flex-1 grid grid-cols-2 gap-x-3 gap-y-1.5">
-          {parts.map((p) => (
+          {availableParts.map((p) => (
             <div key={p.label} className="flex items-center justify-between">
               <span className="text-xs text-app-text-muted">{p.label}</span>
               <span className="text-sm font-mono font-bold tabular-nums" style={{ color: dmgColor(p.value) }}>

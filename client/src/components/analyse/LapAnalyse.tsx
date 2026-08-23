@@ -1,15 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../../shared/racing/quality/policies";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
+import type { FindingEvidenceRef, FindingNarrative, FindingRecord } from "../../../../shared/racing/findings/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
 import type { AnalyseSearch } from "../../lib/game-routes";
+import { lapAiStateKey } from "../../lib/lap-ai-state-key";
 import { client } from "../../lib/rpc";
+import { rpcJson } from "../../lib/rpc-json";
 import { useRequiredGameId } from "../../stores/game";
 import type { ChartsPanelHandle } from "./AnalyseChartsPanel";
 import { AnalyseLapHeader } from "./AnalyseLapHeader";
@@ -226,6 +229,14 @@ function LapAnalyseInner() {
     [updateOverlays],
   );
 
+  const handleFindingEvidence = useCallback(
+    (evidence: FindingEvidenceRef) => {
+      if (evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
+      handleChartClick(evidence.startFrameIndex);
+    },
+    [handleChartClick],
+  );
+
   const handleScrubStart = useCallback(() => {
     setPlaying(false);
     playRef.current = false;
@@ -248,9 +259,15 @@ function LapAnalyseInner() {
     });
     return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
   }, [currentFrame, cursorIdx, telemetry]);
-  const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
+  const findings = useMemo<FindingRecord[]>(() => semanticReplay?.findings ?? [], [semanticReplay]);
+  const narratives = useMemo<FindingNarrative[]>(() => semanticReplay?.narratives ?? [], [semanticReplay]);
+  const findingReceipt = semanticReplay?.findingReceipt ?? null;
+  const findingPending = lapError instanceof Error && "pendingStatus" in lapError && (lapError as Error & { pendingStatus?: unknown }).pendingStatus === "backfilling";
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const selectedLap = laps.find((l) => l.id === selectedLapId);
+  const qualityStateKey = selectedLap ? lapAiStateKey({ ...selectedLap, findingReceipt }) : null;
+  const analysisDecision = selectedLap ? resolveEligibilityDecision(selectedLap, "corner-trace") : undefined;
+  const analysisUsable = isEligibilityUsable(analysisDecision);
   const totalTime = selectedLap?.lapTime ?? 0;
 
   // Tune selector
@@ -261,11 +278,13 @@ function LapAnalyseInner() {
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
-    queryFn: async () => {
-      const response = await fetch(`/api/laps/${selectedLapId}/setup`, { headers: { "X-Game-Id": gameId } });
-      if (!response.ok) throw new Error("Failed to load lap setup");
-      return response.json() as Promise<{ setup: F1CarSetup | null }>;
-    },
+    queryFn: async () =>
+      rpcJson<{ setup: F1CarSetup | null }>(
+        await client.api.laps[":id"].setup.$get(
+          { param: { id: String(selectedLapId) } },
+          { headers: { "X-Game-Id": gameId } },
+        ),
+      ),
     enabled: gameId === "f1-2025" && selectedLapId != null,
   });
 
@@ -403,7 +422,7 @@ function LapAnalyseInner() {
             displayTelemetry: semanticFrames,
             lapLine,
             units,
-            aiPanelOpen,
+            aiPanelOpen: aiPanelOpen && analysisUsable,
             aiHighlights,
             rotateWithCar,
             trackOverlay,
@@ -456,13 +475,18 @@ function LapAnalyseInner() {
             gameId,
             units,
             wearRate,
-            lapInsights,
-            onJumpToFrame: handleChartClick,
+            findingReceipt,
+            findingPending,
+            findings,
+            narratives,
+            onEvidenceSelect: handleFindingEvidence,
           }}
           aiSidebarProps={
-            aiPanelOpen && selectedLapId
+            aiPanelOpen && analysisUsable && selectedLapId && qualityStateKey
               ? {
                   lapId: selectedLapId,
+                  gameId,
+                  qualityStateKey,
                   trackName,
                   carName,
                   segments,

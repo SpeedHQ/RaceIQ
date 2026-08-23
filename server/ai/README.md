@@ -7,13 +7,15 @@ Collect all AI-facing logic: deterministic telemetry symptom extraction, prompt 
 - Deterministic symptom layer: `tune-symptoms.ts`, `tune-tire-symptoms.ts`, `tune-damper-symptoms.ts`, `tune-weight-transfer.ts`.
 - Auto-tune pipeline: `tune-intent.ts`, `tune-recommend.ts`, `tune-writer.ts`.
 - AI provider/response path: `providers.ts`, `schemas.ts`, `google-provider-options.ts`.
-- Prompt formatting and coaching entry points: `tune-*` prompt files, `chat-prompt.ts`, `compare-chat-prompt.ts`, `analyst-prompt.ts`, `inputs-compare-prompt.ts`.
+- Prompt formatting and coaching entry points: `tune-*` prompt files, `chat-prompt.ts`, `compare-chat-prompt.ts`, `analyst-prompt.ts`, and `inputs-compare-prompt.ts`.
+  `quality-context.ts` renders exact eligibility status, reasons, and generation identity for analyst, lap-chat, comparison-chat, and inputs-comparison prompts.
 - Chat persistence/state: `chat-agent.ts`.
 - Track knowledge bridge: `track-guides.ts`.
 
 ## Boundaries and invariants
 - Public contracts kept stable unless proven unused across repository.
 - Deterministic symptom builders return `null` when required channels are unavailable instead of throwing.
+- Quality context is evidence, not a second policy engine. Prompts and Mastra tools must not reinterpret unknown or ineligible laps as usable evidence, and cached analysis stays tied to quality generation and policy identity.
 - Provider calls are side-effect isolated; formatting/parsing functions own schema expectations.
 - `writeSetupFile` enforces setup-path confinement before writing.
 - `chat-agent` owns thread-id conventions and generation ordering.

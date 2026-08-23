@@ -1,5 +1,4 @@
 import type { F1CarSetup } from "../../shared/telemetry/f1-2025";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 /**
  * Setup-identity helpers for F1 2025 "Add laps from history" auto-sort
@@ -19,27 +18,9 @@ function safeParseF1Setup(raw: string): F1CarSetup | null {
   }
 }
 
-/** Scan telemetry packets for the first `f1.setup` object. */
-function firstPacketF1Setup(packets: TelemetryPacket[]): F1CarSetup | null {
-  for (const p of packets) {
-    const s = p.f1?.setup;
-    if (s && typeof s === "object") return s as unknown as F1CarSetup;
-  }
-  return null;
-}
-
-/**
- * Resolve the setup for a lap: prefer the stored `carSetup` snapshot, falling
- * back to the first telemetry packet's `f1.setup` when the snapshot is
- * missing (older laps predate the column, or the packet write raced the
- * lap-complete write).
- */
-export function resolveLapF1Setup(lap: { carSetup?: string | null; telemetry?: TelemetryPacket[] }): F1CarSetup | null {
-  if (lap.carSetup) {
-    const parsed = safeParseF1Setup(lap.carSetup);
-    if (parsed) return parsed;
-  }
-  return firstPacketF1Setup(lap.telemetry ?? []);
+/** Resolve F1 setup only from persisted lap metadata. */
+export function resolveLapF1Setup(carSetup: string | null | undefined): F1CarSetup | null {
+  return carSetup ? safeParseF1Setup(carSetup) : null;
 }
 
 function round1(n: number): number {

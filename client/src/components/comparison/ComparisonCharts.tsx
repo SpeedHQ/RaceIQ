@@ -1,12 +1,17 @@
-import type { ComparisonData, SemanticTelemetrySample } from "@shared/racing/comparison/types";
+import type { ComparisonData } from "@shared/racing/comparison/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { FindingEvidenceRef } from "@shared/racing/findings/types";
+import { FindingPanel } from "@/components/FindingPanel";
 import { TelemetryChart } from "@/components/TelemetryChart";
 import { TimeDelta } from "@/components/TimeDelta";
 import { COLOR_A, COLOR_B } from "@/lib/comparison-utils";
 import { m } from "@/paraglide/messages";
 
-const numericSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"]) => samples.map((sample) => (typeof sample.values[id] === "number" ? sample.values[id] as number : Number.NaN))
+const numericSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"]) =>
+  samples.map((sample) => (typeof sample.values[id] === "number" ? (sample.values[id] as number) : Number.NaN));
 const interpolateSeries = (samples: SemanticTelemetrySample[], id: keyof SemanticTelemetrySample["values"], grid: number[]) => {
-  const points = samples.map((sample) => ({ x: sample.values["timing.distance-traveled"], y: sample.values[id] }))
+  const points = samples
+    .map((sample) => ({ x: sample.values["timing.distance-traveled"], y: sample.values[id] }))
     .filter((point): point is { x: number; y: number } => typeof point.x === "number" && typeof point.y === "number");
   return grid.map((x) => {
     if (points.length === 0) return Number.NaN;
@@ -18,17 +23,23 @@ const interpolateSeries = (samples: SemanticTelemetrySample[], id: keyof Semanti
     const span = next.x - left.x;
     return span > 0 ? left.y + ((next.y - left.y) * (x - left.x)) / span : next.y;
   });
-}
+};
 const hasValues = (series: number[]) => series.some(Number.isFinite);
+
+export function ComparisonFindings({ comparison, onEvidenceSelect }: { comparison: Pick<ComparisonData, "findings">; onEvidenceSelect: (evidence: FindingEvidenceRef) => void }) {
+  return <FindingPanel findings={comparison.findings} onEvidenceSelect={onEvidenceSelect} />;
+}
 
 export function ComparisonCharts({
   comparison,
   units,
   onCursorMove,
+  onEvidenceSelect,
 }: {
   comparison: ComparisonData;
   units: { fromMph: (value: number) => number; speedLabel: string };
   onCursorMove: (distance: number | null) => void;
+  onEvidenceSelect: (evidence: FindingEvidenceRef) => void;
 }) {
   const distance = numericSeries(comparison.telemetryA, "timing.distance-traveled").filter(Number.isFinite);
   const speedA = interpolateSeries(comparison.telemetryA, "motion.speed", distance);
@@ -43,7 +54,7 @@ export function ComparisonCharts({
   const tireWearB = interpolateSeries(comparison.telemetryB, "tires.tire-wear", distance);
   const lapA = interpolateSeries(comparison.telemetryA, "timing.current-lap", distance);
   const lapB = interpolateSeries(comparison.telemetryB, "timing.current-lap", distance);
-  const semanticTimeDelta = lapA.map((value, index) => Number.isFinite(value) && Number.isFinite(lapB[index]) ? lapB[index] - value : Number.NaN);
+  const semanticTimeDelta = lapA.map((value, index) => (Number.isFinite(value) && Number.isFinite(lapB[index]) ? lapB[index] - value : Number.NaN));
   return (
     <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
       <div className="rounded-lg border border-app-border p-1 shrink-0">
@@ -109,6 +120,12 @@ export function ComparisonCharts({
               />
             </div>
           )}
+          <section aria-labelledby="comparison-findings-title" className="rounded-lg border border-app-border bg-app-surface p-3">
+            <h2 id="comparison-findings-title" className="mb-3 text-app-subtext font-semibold text-app-text">
+              Comparison findings
+            </h2>
+            <ComparisonFindings comparison={comparison} onEvidenceSelect={onEvidenceSelect} />
+          </section>
         </div>
       </div>
     </div>

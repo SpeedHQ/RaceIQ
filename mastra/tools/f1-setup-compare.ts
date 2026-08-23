@@ -13,45 +13,25 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { getLapById } from "../../server/db/lap-read-queries";
-import {
-  topCatalogReferences,
-  getCatalogFolderForTrack,
-  getCatalogDisplayName,
-  normalizePacketSetup,
-  type F1Setup,
-} from "../../server/ai/f1-setup-catalog";
+import { getLapMetaById } from "../../server/db/lap-read-queries";
+import { topCatalogReferences, getCatalogFolderForTrack, getCatalogDisplayName, normalizePacketSetup, type F1Setup } from "../../server/ai/f1-setup-catalog";
+import { GameIdSchema } from "../../shared/games/ids";
 
 const SetupRecord = z.record(z.string(), z.number());
 
 export const compareF1SetupToCatalogTool = createTool({
   id: "compare-f1-setup-to-catalog",
   description:
-    "For an F1 2025 lap, fetch the driver's current car setup and compare it against " +
+    "For an F1 2025 lap, fetch the persisted car setup and compare it against " +
     "the top-N fastest community setups (via f1laps) for the same track. Returns the " +
     "current setup, each reference setup, and the per-field delta (reference - current). " +
     "Use this before making tuning recommendations so suggestions are grounded in what " +
     "fast drivers actually run. If `available` is false, skip the comparison and rely " +
     "on general F1 tuning heuristics.",
   inputSchema: z.object({
-    lapId: z
-      .number()
-      .int()
-      .positive()
-      .describe("Database ID of the F1 2025 lap being analysed."),
-    // NOTE: Don't combine `.default()` with the surrounding JSON-schema
-    // emission — Mastra + LM Studio marked the field as `required` while
-    // also declaring a default, which made the validator reject calls that
-    // omit `limit` with "expected number, received undefined". Keep it
-    // optional and apply the default inside execute.
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(10)
-      .optional()
-      .describe("How many reference setups to return, ranked by lap time. Defaults to 5."),
+    lapId: z.number().int().positive().describe("Database ID of F1 2025 lap being analysed."),
+    gameId: GameIdSchema.describe("Game owning lap; must match persisted lap game."),
+    limit: z.number().int().min(1).max(10).optional().describe("How many reference setups to return, ranked by lap time. Defaults to 5."),
   }),
   outputSchema: z.object({
     available: z.boolean(),
@@ -77,25 +57,18 @@ export const compareF1SetupToCatalogTool = createTool({
       .default([]),
   }),
   execute: async (inputData) => {
-    const { lapId, limit: rawLimit } = inputData;
+    const { lapId, gameId, limit: rawLimit } = inputData;
     const limit = rawLimit ?? 5;
-    const lap = await getLapById(lapId);
+    const lap = await getLapMetaById(lapId);
 
-    if (!lap) {
-      return emptyResult(lapId, "lap not found");
-    }
-    if (lap.gameId !== "f1-2025") {
-      return emptyResult(lapId, `lap ${lapId} is ${lap.gameId ?? "unknown game"}, not f1-2025`);
+    if (!lap) return emptyResult(lapId, "lap not found");
+    if (lap.gameId !== gameId) return emptyResult(lapId, "lap belongs to a different game");
+    if (gameId !== "f1-2025") {
+      return emptyResult(lapId, `lap ${lapId} is ${gameId}, not f1-2025`);
     }
 
-    // carSetup JSON column is populated on lap save. Older laps predate that
-    // capture, but the telemetry packets themselves carry `f1.setup` on every
-    // frame — scan as a fallback so the tool still works on historical laps.
-    const currentSetup =
-      parseSetup(lap.carSetup) ?? extractSetupFromTelemetry(lap.telemetry);
-    if (!currentSetup) {
-      return emptyResult(lapId, "lap has no carSetup column and no f1.setup on telemetry packets");
-    }
+    const currentSetup = parseSetup(lap.carSetup);
+    if (!currentSetup) return emptyResult(lapId, "lap has no persisted carSetup metadata");
 
     const trackOrdinal = lap.trackOrdinal;
     if (trackOrdinal === undefined || trackOrdinal === null) {
@@ -148,21 +121,7 @@ function emptyResult(lapId: number, reason: string) {
   };
 }
 
-function extractSetupFromTelemetry(
-  packets: TelemetryPacket[] | undefined,
-): F1Setup | null {
-  if (!packets || packets.length === 0) return null;
-  for (const p of packets) {
-    const s = p.f1?.setup;
-    if (s && typeof s === "object") {
-      const normalised = normalizePacketSetup(s as unknown as Record<string, unknown>);
-      if (Object.keys(normalised).length > 0) return normalised;
-    }
-  }
-  return null;
-}
-
-function parseSetup(raw: string | undefined): F1Setup | null {
+function parseSetup(raw: string | null | undefined): F1Setup | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);

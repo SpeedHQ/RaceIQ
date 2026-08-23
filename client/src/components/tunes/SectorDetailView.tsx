@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
@@ -12,7 +12,7 @@ interface SectorTimes {
 }
 
 interface SectorDetailViewProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticAnalysisFrame[];
   sectorTimes: SectorTimes | null;
   sectorIndex: number;
   trackOrdinal?: number;
@@ -36,14 +36,14 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
   const [markFrac, setMarkFrac] = useState<number | null>(null);
   const cursorFrame = hoverIdx != null ? telemetry[hoverIdx] : null;
 
-  const readout = (frame: TelemetryPacket) =>
+  const readout = (frame: SemanticAnalysisFrame) =>
     CORNERS.map((c) => {
       const v = METRICS[0].sel[c](frame);
       const ok = v != null && Number.isFinite(v);
-      return { label: c, value: ok ? `${v!.toFixed(1)} °C` : "—", color: ok ? bandColor(v!) : undefined };
+      return { label: c, value: ok ? `${v.toFixed(1)} °C` : "—", color: ok ? bandColor(v) : undefined };
     });
 
-  const cursorFor = (sel: Record<CornerKey, (p: TelemetryPacket) => number | undefined>): Partial<Record<CornerKey, number>> | undefined => {
+  const cursorFor = (sel: Record<CornerKey, (p: SemanticAnalysisFrame) => number | undefined>): Partial<Record<CornerKey, number>> | undefined => {
     if (!cursorFrame) return undefined;
     const out: Partial<Record<CornerKey, number>> = {};
     for (const c of CORNERS) {

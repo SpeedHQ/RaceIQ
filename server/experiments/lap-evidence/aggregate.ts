@@ -20,19 +20,50 @@
  * Phase 1 only strengthens the multi-lap case, it never regresses the
  * single-lap one.
  */
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { getLapById } from "../../db/lap-read-queries";
+import type { EligibilityDecision, EligibilityReason, EligibilityStatus, QualityReasonCode } from "../../../shared/racing/quality/contracts";
+import { selectEvaluationLaps, type EvaluationReason, type EvaluationSelection } from "../../../shared/racing/laps/review-selection";
+import { resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 import { getLapsForExperiment, getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
-import { resolveLapCorners } from "../../tracks/corner-resolution";
+import { resolveSemanticLapCorners } from "../../tracks/corner-resolution";
 import { resolveActiveTestId } from "../../db/experiment-version-queries";
-import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "../../ai/tune-symptoms";
-import { telemetryToTrackConditions, type TrackConditions } from "../../ai/track-conditions";
-import { loadRepresentativeLap } from "../representative-lap";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
+import { telemetryToSymptoms, TUNE_SYMPTOM_SEMANTIC_IDS, type TuneSymptoms, type TyreDeltas } from "../../ai/tune-symptoms";
+import { telemetryToTrackConditions, TRACK_CONDITION_SEMANTIC_IDS, type TrackConditions } from "../../ai/track-conditions";
+import { loadRepresentativeLapTelemetry } from "../representative-lap";
 import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "../../lap-analysis/consistency";
 import { stddevPopulation } from "../../lap-analysis/stats";
 import { medianSorted, percentileSorted as percentile } from "../statistics";
 import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
+
+/** Exact semantic evidence required for every loaded clean lap. */
+export const CLEAN_LAP_AGGREGATE_SEMANTIC_IDS = [
+  ...TUNE_SYMPTOM_SEMANTIC_IDS,
+  ...TRACK_CONDITION_SEMANTIC_IDS,
+  "engine.boost",
+  "engine.current-engine-rpm",
+  "engine.engine-max-rpm",
+  "engine.power",
+  "fuel.fuel",
+  "inputs.accel",
+  "inputs.gear",
+  "inputs.steer",
+  "motion.angular-velocity-y",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.velocity-x",
+  "motion.velocity-y",
+  "motion.velocity-z",
+  "suspension.suspension-travel-m",
+  "tire.temperature.average",
+  "tires.normalized-tire-slip-angle",
+  "tires.tire-combined-slip",
+  "tires.tire-wear",
+  "tires.wheel-on-rumble-strip",
+  "tires.wheel-rotation-speed",
+] as const;
 
 /** Overall confidence in the clean-lap pool backing an aggregate. */
 export type Confidence = "high" | "medium" | "low" | "very-low";
@@ -53,11 +84,23 @@ export interface ConsistencyReport {
   lineSpread: LineSpreadTrace | null;
 }
 
+export interface LapPolicyProvenance {
+  status: EligibilityStatus;
+  reasons: EligibilityReason[];
+}
+
 export interface LapBreakdownRow {
   lapId: number;
   lapTimeSec: number;
   valid: boolean;
-  reason: "clean" | "invalid" | "user-excluded" | "auto-outlier";
+  reason: "clean" | "invalid" | "non-pace" | "user-excluded" | "auto-outlier";
+  /** Exact policy reasons; empty for manual, structural, and statistical drops. */
+  reasonCodes: QualityReasonCode[];
+  qualityGeneration: string | null;
+  normalPace: LapPolicyProvenance;
+  cornerTrace: LapPolicyProvenance;
+  selectionReason: EvaluationReason;
+  selectionReasonCodes: QualityReasonCode[];
   imported: boolean;
 }
 
@@ -68,6 +111,8 @@ export interface CleanLapAggregate {
   trackConditions: TrackConditions | null;
   consistency: ConsistencyReport;
   fallbackSingleLap: boolean;
+  /** Shared policy-owned decision for the selected setup evidence pool. */
+  setupDecision: EligibilityDecision;
   sourceScope: "branch" | "session-baseline";
   /** Laps stamped to the active head test (any cleanliness), or null when no
    *  active head test exists. 0 + "session-baseline" means the current setup
@@ -82,14 +127,9 @@ export interface CleanLapAggregate {
  * back to the session baseline pool while an active head test exists with zero
  * laps of its own — i.e. the laps shown are NOT this setup version's laps.
  */
-export function baselineFallbackNote(
-  agg: Pick<CleanLapAggregate, "sourceScope" | "headOwnLapCount">,
-): string | null {
+export function baselineFallbackNote(agg: Pick<CleanLapAggregate, "sourceScope" | "headOwnLapCount">): string | null {
   if (agg.sourceScope !== "session-baseline" || agg.headOwnLapCount !== 0) return null;
-  return (
-    "NOTE: no laps recorded on this setup version yet — laps below are the session baseline " +
-    "(earlier versions). Drive laps on this version before judging changes."
-  );
+  return "NOTE: no laps recorded on this setup version yet — laps below are the session baseline " + "(earlier versions). Drive laps on this version before judging changes.";
 }
 
 // Cap on how many clean laps feed the symptom aggregate — beyond this the
@@ -97,6 +137,23 @@ export function baselineFallbackNote(
 // worth it.
 const MAX_CLEAN_LAPS = 8;
 
+function lapBreakdownRow(lap: LapMeta, reason: LapBreakdownRow["reason"], reasonCodes: QualityReasonCode[], selection: EvaluationSelection<LapMeta>): LapBreakdownRow {
+  const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+  const cornerTrace = resolveEligibilityDecision(lap, "corner-trace");
+  return {
+    lapId: lap.id,
+    lapTimeSec: lap.lapTime,
+    valid: lap.isValid,
+    reason,
+    reasonCodes,
+    imported: lap.experimentVersionId == null,
+    qualityGeneration: lap.qualityGeneration ?? lap.quality?.provenance.outputGeneration ?? null,
+    normalPace: { status: normalPace.status, reasons: normalPace.reasons },
+    cornerTrace: { status: cornerTrace.status, reasons: cornerTrace.reasons },
+    selectionReason: selection.reasonById.get(lap.id) ?? "invalid",
+    selectionReasonCodes: [...(selection.reasonCodesById.get(lap.id) ?? [])],
+  };
+}
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -107,7 +164,7 @@ function median(values: number[]): number | null {
  * Split a session/branch's laps into a clean candidate pool and the dropped
  * ones, with a full per-lap breakdown of why. Pure — no DB.
  *
- * Candidacy: isValid && lapTime > 0. Among candidates, user-excluded laps are
+ * Candidacy: valid pace lap with lapTime > 0. User-excluded candidates are
  * dropped, then a blunder rule (median + 1.5*IQR, floored at best*1.02) drops
  * statistical outliers. Everything else survives as "clean".
  */
@@ -115,31 +172,31 @@ export function selectCleanLaps(laps: LapMeta[]): {
   clean: LapMeta[];
   dropped: LapMeta[];
   breakdown: LapBreakdownRow[];
+  setupDecision: EligibilityDecision;
 } {
+  const selection = selectEvaluationLaps(laps, Number.POSITIVE_INFINITY);
   const candidates: LapMeta[] = [];
   const breakdown: LapBreakdownRow[] = [];
 
   for (const lap of laps) {
-    const imported = lap.experimentVersionId == null;
-    if (!(lap.isValid === true && lap.lapTime > 0)) {
-      breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "invalid", imported });
+    const selectionReason = selection.reasonById.get(lap.id);
+    if (selectionReason === "manual") {
+      breakdown.push(lapBreakdownRow(lap, "user-excluded", [], selection));
+      continue;
+    }
+    if (selectionReason === "invalid") {
+      breakdown.push(lapBreakdownRow(lap, "invalid", [], selection));
+      continue;
+    }
+    if (!selection.chosenIds.has(lap.id)) {
+      breakdown.push(lapBreakdownRow(lap, "non-pace", [...(selection.reasonCodesById.get(lap.id) ?? [])], selection));
       continue;
     }
     candidates.push(lap);
   }
 
-  const notExcluded: LapMeta[] = [];
-  for (const lap of candidates) {
-    const imported = lap.experimentVersionId == null;
-    if (lap.experimentExcluded === true) {
-      breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "user-excluded", imported });
-      continue;
-    }
-    notExcluded.push(lap);
-  }
-
   // Blunder rule over the surviving candidates' lap times.
-  const times = notExcluded.map((l) => l.lapTime).sort((a, b) => a - b);
+  const times = candidates.map((lap) => lap.lapTime).sort((a, b) => a - b);
   const best = times.length > 0 ? times[0] : 0;
   const q1 = percentile(times, 0.25);
   const q3 = percentile(times, 0.75);
@@ -149,18 +206,17 @@ export function selectCleanLaps(laps: LapMeta[]): {
 
   const clean: LapMeta[] = [];
   const dropped: LapMeta[] = [];
-  for (const lap of notExcluded) {
-    const imported = lap.experimentVersionId == null;
+  for (const lap of candidates) {
     if (times.length > 1 && lap.lapTime > threshold) {
-      breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "auto-outlier", imported });
+      breakdown.push(lapBreakdownRow(lap, "auto-outlier", [], selection));
       dropped.push(lap);
       continue;
     }
-    breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "clean", imported });
+    breakdown.push(lapBreakdownRow(lap, "clean", [], selection));
     clean.push(lap);
   }
 
-  return { clean, dropped, breakdown };
+  return { clean, dropped, breakdown, setupDecision: selection.setupDecision };
 }
 
 /**
@@ -168,12 +224,7 @@ export function selectCleanLaps(laps: LapMeta[]): {
  * a coarse confidence band on raw lap-time repeatability (not track-scaled;
  * that's what `consistencyRating` in lap-analysis/stats.ts is for elsewhere).
  */
-export function computeConsistency(
-  cleanLaps: LapMeta[],
-  cornerConsistency: CornerConsistency[] | null,
-  droppedOutliers: number,
-  lineSpread: LineSpreadTrace | null = null,
-): ConsistencyReport {
+export function computeConsistency(cleanLaps: LapMeta[], cornerConsistency: CornerConsistency[] | null, droppedOutliers: number, lineSpread: LineSpreadTrace | null = null): ConsistencyReport {
   const times = cleanLaps.map((l) => l.lapTime);
   const cleanLapCount = times.length;
   const bestLapSec = cleanLapCount > 0 ? Math.min(...times) : null;
@@ -292,9 +343,10 @@ async function representativeLapFallback(
   sourceScope: CleanLapAggregate["sourceScope"],
   headOwnLapCount: number | null,
   lapBreakdown: LapBreakdownRow[],
+  setupDecision: EligibilityDecision,
 ): Promise<CleanLapAggregate> {
-  const lap = await loadRepresentativeLap(sessionId);
-  if (!lap) {
+  const representative = await loadRepresentativeLapTelemetry(sessionId, CLEAN_LAP_AGGREGATE_SEMANTIC_IDS);
+  if (!representative) {
     return {
       ok: false,
       lapIds: [],
@@ -302,20 +354,23 @@ async function representativeLapFallback(
       trackConditions: null,
       consistency: emptyConsistency("very-low"),
       fallbackSingleLap: true,
+      setupDecision,
       sourceScope,
       headOwnLapCount,
       lapBreakdown,
     };
   }
 
-  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
+  const { lap, samples } = representative;
+  const corners = await resolveSemanticLapCorners(lap.trackOrdinal, lap.gameId, samples);
   return {
     ok: true,
     lapIds: [lap.id],
-    symptoms: telemetryToSymptoms(lap.telemetry, corners),
-    trackConditions: telemetryToTrackConditions(lap.telemetry),
+    symptoms: lap.gameId ? telemetryToSymptoms(lap.gameId, samples, corners) : null,
+    trackConditions: telemetryToTrackConditions(samples),
     consistency: emptyConsistency("very-low"),
     fallbackSingleLap: true,
+    setupDecision,
     sourceScope,
     headOwnLapCount,
     lapBreakdown,
@@ -329,10 +384,7 @@ async function representativeLapFallback(
  * session baseline pool. Falls back further to the single-representative-lap
  * path when even the baseline pool has fewer than 2 clean laps.
  */
-export async function loadCleanLapAggregate(
-  sessionId: number,
-  opts?: { versionId?: number },
-): Promise<CleanLapAggregate> {
+export async function loadCleanLapAggregate(sessionId: number, opts?: { versionId?: number }): Promise<CleanLapAggregate> {
   const headVersionId = opts?.versionId ?? (await resolveActiveTestId(sessionId));
 
   let pool: LapMeta[] = [];
@@ -353,47 +405,47 @@ export async function loadCleanLapAggregate(
     pool = await getLapsForExperiment(sessionId);
   }
 
-  const { clean, breakdown } = selectCleanLaps(pool);
+  const { clean, breakdown, setupDecision } = selectCleanLaps(pool);
   const droppedOutliers = breakdown.filter((r) => r.reason === "auto-outlier").length;
 
   if (clean.length < 2) {
-    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
+    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown, setupDecision);
   }
 
   // Fastest-first, capped.
   const cleanSorted = [...clean].sort((a, b) => a.lapTime - b.lapTime).slice(0, MAX_CLEAN_LAPS);
   const fastestMeta = cleanSorted[0]!;
 
-  const loadedLaps: { meta: LapMeta; telemetry: TelemetryPacket[] }[] = [];
+  const loadedLaps: { meta: LapMeta; samples: SemanticTelemetrySample[] }[] = [];
   for (const meta of cleanSorted) {
-    const lap = await getLapById(meta.id);
-    if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) continue;
-    loadedLaps.push({ meta, telemetry: lap.telemetry });
+    if (!meta.gameId) continue;
+    const replay = await queryLapTelemetryBySemanticId(meta.id, CLEAN_LAP_AGGREGATE_SEMANTIC_IDS);
+    if (!replay) continue;
+    const samples = semanticSamplesFromReplay(replay);
+    if (samples.length < MIN_TELEMETRY_FRAMES) continue;
+    loadedLaps.push({ meta, samples });
   }
 
   if (loadedLaps.length < 2) {
-    // Telemetry too thin to analyse as a pool — fall back to the single
+    // Semantic replay too thin to analyse as a pool — fall back to the single
     // representative lap rather than aggregating over <2 laps.
-    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
+    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown, setupDecision);
   }
 
-  const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
+  const fastestLoaded = loadedLaps.find((lap) => lap.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
+  const corners = await resolveSemanticLapCorners(fastestLoaded.meta.trackOrdinal, fastestLoaded.meta.gameId, fastestLoaded.samples);
 
-  const corners = await resolveLapCorners(
-    fastestLoaded.meta.trackOrdinal,
-    fastestLoaded.meta.gameId,
-    fastestLoaded.telemetry,
+  const symptoms = aggregateSymptoms(loadedLaps.map((lap) => telemetryToSymptoms(lap.meta.gameId!, lap.samples, corners)));
+  const trackConditions = telemetryToTrackConditions(fastestLoaded.samples);
+
+  const cornerConsistencyDelta = computeLapConsistencyDelta(
+    loadedLaps.map((lap) => lap.samples),
+    corners,
   );
-
-  const perLapSymptoms = loadedLaps.map((l) => telemetryToSymptoms(l.telemetry, corners));
-  const symptoms = aggregateSymptoms(perLapSymptoms);
-  const trackConditions = telemetryToTrackConditions(fastestLoaded.telemetry);
-
-  const cornerConsistencyDelta = computeLapConsistencyDelta(loadedLaps.map((l) => l.telemetry), corners);
   const cornerConsistency = cornerConsistencyDelta.perCorner.length > 0 ? cornerConsistencyDelta.perCorner : null;
   const lineSpread = computeLineSpreadTrace(
-    loadedLaps.map((l) => l.telemetry),
-    loadedLaps.map((l) => l.meta.id),
+    loadedLaps.map((lap) => lap.samples),
+    loadedLaps.map((lap) => lap.meta.id),
     corners,
   );
 
@@ -417,6 +469,7 @@ export async function loadCleanLapAggregate(
     trackConditions,
     consistency,
     fallbackSingleLap: false,
+    setupDecision,
     sourceScope,
     headOwnLapCount,
     lapBreakdown: breakdown,

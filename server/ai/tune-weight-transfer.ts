@@ -1,107 +1,68 @@
 /**
- * weightTransferSymptoms — deterministic weight-transfer diagnosis for the
- * auto-tune pipeline (feature #8).
- *
- * The per-corner vertical wheel load (N) is the most direct evidence for
- * mechanical balance there is. Two reads matter for setup:
- *
- *   - **Lateral load-transfer distribution (LLTD)** — under cornering, load
- *     shifts from the inside to the outside wheels. The *share* of that
- *     transfer taken by the front axle vs the rear is what roll-stiffness tools
- *     (ARBs, spring split, roll centres) move. A front-biased LLTD loads the
- *     outer front harder and pushes the car toward understeer; a rear bias
- *     pushes it toward oversteer. This is the single richest balance signal and
- *     it's meaningful *per corner*, so it's attached to each CornerSymptom.
- *   - **Longitudinal transfer** — braking pitches load onto the front axle
- *     (dive), throttle onto the rear (squat). The peak front-axle load gain
- *     under braking corroborates brake-bias and front-spring reads.
- *
- * Like the other symptom modules this holds no setup knowledge — only
- * observations. The tune-intent LLM turns "LLTD 58% front" into an ARB click.
- * Everything is averaged over loaded, on-track frames so a single event can't
- * skew a read.
- *
- * The wheelLoad channel (physics offsets 72-84) is ACC/AC-EVO only. When it's
- * absent {@link weightTransferSymptoms} still returns the g-force envelope from
- * AccelerationX/Y (present on every game) but leaves the load-derived fields
- * null, and callers omit the LLTD context.
+ * Resolver-backed weight-transfer diagnosis. Acceleration is canonical m/s²;
+ * wheel-load values must be complete FL, FR, RL, RR arrays in canonical N.
  */
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { semanticFixedNumbers, semanticNumber } from "../telemetry/semantic-samples";
 
 type BalanceLean = "front" | "rear" | "even";
 
-interface CornerLoad {
-  /** Front share of lateral load transfer during the corner (0..1); null when
-   *  the wheelLoad channel is absent. >0.5 = front-biased → understeer-prone. */
+export interface CornerLoad {
   lltdFront: number | null;
-  /** Peak lateral g magnitude during the corner. */
-  peakLatG: number;
+  peakLatG: number | null;
 }
 
-interface WeightTransferSymptoms {
-  /** Mean front share of lateral load transfer across loaded frames (0..1);
-   *  null when wheelLoad is absent. >0.5 = front roll stiffness bias. */
+export interface WeightTransferSymptoms {
   lltdFront: number | null;
-  /** Coarse read of {@link lltdFront} vs an even 50/50 split. */
   lltdLean: BalanceLean;
-  /** Static front weight distribution from near-zero-g frames (0..1); null
-   *  when wheelLoad is absent. */
   frontStaticBias: number | null;
-  /** Peak lateral g magnitude in the stint. */
-  peakLatG: number;
-  /** Peak braking g (positive magnitude). */
-  peakBrakeG: number;
-  /** Peak acceleration g (positive magnitude). */
-  peakAccelG: number;
-  /** Mean front-axle load gain under braking vs the static baseline, N; null
-   *  when wheelLoad is absent. */
+  peakLatG: number | null;
+  peakBrakeG: number | null;
+  peakAccelG: number | null;
   brakeDiveLoadN: number | null;
 }
 
-// Lateral g above which a frame is "cornering" and its lateral transfer counts
-// toward the LLTD. Below this the inner/outer split is sensor noise.
 const CORNER_LAT_G = 0.4;
-// Longitudinal g magnitude above which a frame is braking / accelerating.
 const LONG_G = 0.3;
-// |LLTD − 0.5| beyond which the balance is called front/rear rather than even.
 const LLTD_LEAN_BAND = 0.04;
-// Lateral + longitudinal g both under this ⇒ load is ~static (baseline).
 const STATIC_G = 0.15;
-// Minimum frames before a read is trusted.
 const MIN_FRAMES = 30;
-// gravity, m/s² — AccelerationX/Y are m/s²; convert to g for readable output.
 const G = 9.81;
+const WHEELS = 4;
 
-function mean(xs: number[]): number {
-  if (xs.length === 0) return 0;
-  let s = 0;
-  for (const x of xs) s += x;
-  return s / xs.length;
+function mean(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  let total = 0;
+  for (const value of values) total += value;
+  return total / values.length;
 }
 
-/** Lateral g magnitude of a frame (AccelerationY is lateral, m/s²). */
-function latG(p: TelemetryPacket): number {
-  return Math.abs(p.AccelerationY ?? 0) / G;
-}
-/** Longitudinal g (signed: +ve accel, −ve braking). */
-function longG(p: TelemetryPacket): number {
-  return (p.AccelerationX ?? 0) / G;
+function latG(sample: SemanticTelemetrySample): number | null {
+  const acceleration = semanticNumber(sample, "motion.acceleration-y");
+  return acceleration == null ? null : Math.abs(acceleration) / G;
 }
 
-/**
- * Front share of lateral load transfer over a set of cornering frames, or null
- * when the wheelLoad channel is absent. Per frame the front transfer is the
- * inner/outer load gap on the front axle, likewise the rear; the front share is
- * meanFront / (meanFront + meanRear).
- */
-function lltdFrontOf(frames: TelemetryPacket[]): number | null {
-  const loaded = frames.filter((p) => p.acc?.wheelLoad != null && latG(p) > CORNER_LAT_G);
-  if (loaded.length < 3) return null;
-  const frontTransfer = mean(loaded.map((p) => Math.abs(p.acc!.wheelLoad![0] - p.acc!.wheelLoad![1])));
-  const rearTransfer = mean(loaded.map((p) => Math.abs(p.acc!.wheelLoad![2] - p.acc!.wheelLoad![3])));
-  const total = frontTransfer + rearTransfer;
-  if (total <= 0) return null;
-  return frontTransfer / total;
+function longG(sample: SemanticTelemetrySample): number | null {
+  const acceleration = semanticNumber(sample, "motion.acceleration-x");
+  return acceleration == null ? null : acceleration / G;
+}
+
+function lltdFrontOf(frames: readonly SemanticTelemetrySample[]): number | null {
+  const frontTransfer: number[] = [];
+  const rearTransfer: number[] = [];
+  for (const frame of frames) {
+    const lateralG = latG(frame);
+    const wheelLoad = semanticFixedNumbers(frame, "suspension.wheel-load", WHEELS);
+    if (lateralG == null || lateralG <= CORNER_LAT_G || !wheelLoad) continue;
+    frontTransfer.push(Math.abs(wheelLoad[0] - wheelLoad[1]));
+    rearTransfer.push(Math.abs(wheelLoad[2] - wheelLoad[3]));
+  }
+  if (frontTransfer.length < 3) return null;
+  const front = mean(frontTransfer);
+  const rear = mean(rearTransfer);
+  if (front == null || rear == null || front + rear <= 0) return null;
+  return front / (front + rear);
 }
 
 function lltdLean(lltdFront: number | null): BalanceLean {
@@ -111,67 +72,67 @@ function lltdLean(lltdFront: number | null): BalanceLean {
   return "even";
 }
 
-/** Per-corner load read for a corner's frames, for CornerSymptom integration. */
-export function cornerWeightTransfer(frames: TelemetryPacket[]): CornerLoad {
-  const peakLatG = frames.reduce((m, p) => Math.max(m, latG(p)), 0);
-  return { lltdFront: lltdFrontOf(frames), peakLatG };
+function peak(frames: readonly SemanticTelemetrySample[], valueOf: (frame: SemanticTelemetrySample) => number | null): number | null {
+  let result: number | null = null;
+  for (const frame of frames) {
+    const value = valueOf(frame);
+    if (value != null && (result == null || value > result)) result = value;
+  }
+  return result;
 }
 
-/**
- * Reduce a stint to a weight-transfer symptom report. Returns the g-force
- * envelope always (AccelerationX/Y are universal); the load-derived LLTD and
- * dive fields are null when the wheelLoad channel is absent.
- */
-export function weightTransferSymptoms(packets: TelemetryPacket[]): WeightTransferSymptoms | null {
-  const moving = packets.filter((p) => (p.Speed ?? 0) > 5);
+export function cornerWeightTransfer(gameId: GameId, frames: readonly SemanticTelemetrySample[]): CornerLoad {
+  if (!gameId) throw new Error("gameId is required for weight-transfer analysis");
+  return { lltdFront: lltdFrontOf(frames), peakLatG: peak(frames, latG) };
+}
+
+export function weightTransferSymptoms(gameId: GameId, samples: readonly SemanticTelemetrySample[]): WeightTransferSymptoms | null {
+  if (!gameId) throw new Error("gameId is required for weight-transfer analysis");
+  const moving: SemanticTelemetrySample[] = [];
+  for (const sample of samples) {
+    const speed = semanticNumber(sample, "motion.speed");
+    if (speed != null && speed > 5) moving.push(sample);
+  }
   if (moving.length < MIN_FRAMES) return null;
 
-  const peakLatG = moving.reduce((m, p) => Math.max(m, latG(p)), 0);
-  const peakBrakeG = moving.reduce((m, p) => Math.max(m, Math.max(0, -longG(p))), 0);
-  const peakAccelG = moving.reduce((m, p) => Math.max(m, Math.max(0, longG(p))), 0);
-
   const lltdFront = lltdFrontOf(moving);
-
-  // Static front weight share from near-stationary-load frames.
-  const hasLoad = moving.some((p) => p.acc?.wheelLoad != null);
-  let frontStaticBias: number | null = null;
-  let brakeDiveLoadN: number | null = null;
-  if (hasLoad) {
-    const staticFrames = moving.filter(
-      (p) => p.acc?.wheelLoad != null && latG(p) < STATIC_G && Math.abs(longG(p)) < STATIC_G,
-    );
-    if (staticFrames.length >= 3) {
-      const frontStatic = mean(staticFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1]));
-      const totalStatic = mean(
-        staticFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1] + p.acc!.wheelLoad![2] + p.acc!.wheelLoad![3]),
-      );
-      frontStaticBias = totalStatic > 0 ? frontStatic / totalStatic : null;
-
-      // Front-axle load gain under braking vs that static baseline.
-      const brakeFrames = moving.filter((p) => p.acc?.wheelLoad != null && longG(p) < -LONG_G);
-      if (brakeFrames.length >= 3) {
-        const frontBraking = mean(brakeFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1]));
-        brakeDiveLoadN = frontBraking - frontStatic;
-      }
+  const staticFrontLoads: number[] = [];
+  const staticTotals: number[] = [];
+  const brakingFrontLoads: number[] = [];
+  for (const sample of moving) {
+    const lateralG = latG(sample);
+    const longitudinalG = longG(sample);
+    const wheelLoad = semanticFixedNumbers(sample, "suspension.wheel-load", WHEELS);
+    if (lateralG == null || longitudinalG == null || !wheelLoad) continue;
+    const frontLoad = wheelLoad[0] + wheelLoad[1];
+    if (lateralG < STATIC_G && Math.abs(longitudinalG) < STATIC_G) {
+      staticFrontLoads.push(frontLoad);
+      staticTotals.push(frontLoad + wheelLoad[2] + wheelLoad[3]);
     }
+    if (longitudinalG < -LONG_G) brakingFrontLoads.push(frontLoad);
   }
 
+  const staticFront = staticFrontLoads.length >= 3 ? mean(staticFrontLoads) : null;
+  const staticTotal = staticTotals.length >= 3 ? mean(staticTotals) : null;
+  const frontStaticBias = staticFront != null && staticTotal != null && staticTotal > 0 ? staticFront / staticTotal : null;
+  const brakingFront = brakingFrontLoads.length >= 3 ? mean(brakingFrontLoads) : null;
   return {
     lltdFront,
     lltdLean: lltdLean(lltdFront),
     frontStaticBias,
-    peakLatG,
-    peakBrakeG,
-    peakAccelG,
-    brakeDiveLoadN,
+    peakLatG: peak(moving, latG),
+    peakBrakeG: peak(moving, (sample) => {
+      const value = longG(sample);
+      return value == null ? null : Math.max(0, -value);
+    }),
+    peakAccelG: peak(moving, (sample) => {
+      const value = longG(sample);
+      return value == null ? null : Math.max(0, value);
+    }),
+    brakeDiveLoadN: staticFront != null && brakingFront != null ? brakingFront - staticFront : null,
   };
 }
 
-/**
- * Render a weight-transfer report as prompt prose. Shared by the tune-intent
- * and setup-engineer/tune-chat symptom formatters. `null` collapses to a
- * single unavailable line.
- */
 export function formatWeightTransferSymptoms(w: WeightTransferSymptoms | null): string {
   if (!w) return "Weight-transfer data unavailable for this game.";
   const leanWord: Record<BalanceLean, string> = {
@@ -179,19 +140,12 @@ export function formatWeightTransferSymptoms(w: WeightTransferSymptoms | null): 
     rear: "rear-biased (oversteer-prone)",
     even: "even",
   };
-  const parts = [
-    `peak g: ${w.peakLatG.toFixed(1)} lat, ${w.peakBrakeG.toFixed(1)} brake, ${w.peakAccelG.toFixed(1)} accel`,
-  ];
-  if (w.lltdFront != null) {
-    parts.push(
-      `LLTD ${(w.lltdFront * 100).toFixed(0)}% front (${leanWord[w.lltdLean]})`,
-    );
+  const parts: string[] = [];
+  if (w.peakLatG != null || w.peakBrakeG != null || w.peakAccelG != null) {
+    parts.push(`peak g: ${w.peakLatG?.toFixed(1) ?? "unavailable"} lat, ${w.peakBrakeG?.toFixed(1) ?? "unavailable"} brake, ${w.peakAccelG?.toFixed(1) ?? "unavailable"} accel`);
   }
-  if (w.frontStaticBias != null) {
-    parts.push(`static ${(w.frontStaticBias * 100).toFixed(0)}% front`);
-  }
-  if (w.brakeDiveLoadN != null) {
-    parts.push(`brake dive +${w.brakeDiveLoadN.toFixed(0)}N front`);
-  }
-  return `Weight transfer: ${parts.join("; ")}.`;
+  if (w.lltdFront != null) parts.push(`LLTD ${(w.lltdFront * 100).toFixed(0)}% front (${leanWord[w.lltdLean]})`);
+  if (w.frontStaticBias != null) parts.push(`static ${(w.frontStaticBias * 100).toFixed(0)}% front`);
+  if (w.brakeDiveLoadN != null) parts.push(`brake dive +${w.brakeDiveLoadN.toFixed(0)}N front`);
+  return `Weight transfer: ${parts.length > 0 ? parts.join("; ") : "data unavailable"}.`;
 }

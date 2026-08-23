@@ -7,77 +7,49 @@ owning domain directory; keep reusable code under `test/support/<domain>/`.
 
 `bunfig.toml` sets `test.root = "./test"`, so Bun recursively discovers files
 ending in `*.test.ts` and `*.test.tsx` below `test/`. Files ending in
-`*.ai-eval.ts` are not part of normal discovery. Ordinary tests are explicitly
-partitioned by manifests:
+`*.ai-eval.ts` are not part of normal discovery. AI evaluation is an explicit
+entry point:
 
 ```sh
-bun run test:unit
-bun run test:integration
 bun run test
 bun test test/games/shared/parser.test.ts --timeout 30000
 bun run test:ai
 bun run bench
 ```
 
-`bun run test:unit` runs only `scripts/test/unit-files.txt`. It is DB-free:
-there is no DB preload, and Bun may run workers in parallel. `bun run
-test:integration` runs only `scripts/test/integration-files.txt`; by default it
-initializes shared state in isolated `.data-test` (when `DATA_DIR` is unset),
-uses the DB preload, and limits Bun worker concurrency to 2. Callers and CI may
-provide their own isolated `DATA_DIR` override. `bun run test` runs unit first,
-then initializes the shared integration database; the combined command stops on
-its first failure.
-
-Focused command runs one final-path file. `bun run test:ai` runs
+`bun run test` is standard suite. Focused command runs one final-path file;
+Bun preload still isolates `DATA_DIR` in `.data-test`. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
-runs `test/benchmarks/pipeline.bench.ts`; AI evaluations and benchmarks are
-explicit entry points, outside ordinary manifests.
-
-## Unit and integration classification
-
-Classify a test as **unit** only when it exercises deterministic logic and has
-no direct or indirect `server/db` dependency, preload side effects, network or
-live-game access, persistent settings, server singleton, pipeline maintenance
-task, or shared output directory.
-
-Classify a test as **integration** when it has any direct or indirect database or
-shared-runtime dependency, persistence-backed route, replay or persistence flow,
-destructive table cleanup, experiment, driver profile, discovered entity,
-migration or seed, or settings-backed behavior. Uncertain cases stay integration
-until the dependency boundary is refactored.
-
-Every ordinary `test/**/*.test.ts` and `test/**/*.test.tsx` file must appear
-exactly once across `scripts/test/unit-files.txt` and
-`scripts/test/integration-files.txt`; duplicate paths are forbidden. Keep
-explicit AI evals and benchmarks outside both manifests.
+runs `test/benchmarks/pipeline.bench.ts`; benchmarks are explicit scripts, not
+ordinary tests.
 
 ## Top-level map
 
-| Path | Boundary and purpose |
-| --- | --- |
-| `ai/` | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
-| `client/` | Client-side logic and component contract tests |
-| `db/` | Database migrations, seeds, and persistence integration |
-| `driver-profile/` | Driver-profile domain tests |
-| `e2e/` | Recording-backed end-to-end checks and rendered outputs |
-| `experiments/` | Experiment and drill behavior |
-| `games/` | Per-game parsers, recorders, SDKs, and shared game contracts |
-| `lap-analysis/` | Lap quality, detection, recap, segments, and stint analysis |
-| `live-strategy/` | Live sector and pit strategy behavior |
-| `motec/` | MoTeC import and visualization behavior |
-| `race-results/` | Race-result capture, storage, source, and derivation |
-| `routes/` | Server route contracts and request behavior |
-| `runtime/` | Runtime options, settings, updates, and supervision |
-| `session-capture/` | Session recording, compression, and binary storage |
-| `setups/` | Setup formats, tuning, and setup engineering |
-| `telemetry/` | Telemetry models, pipelines, resolver, catalog, and catalog E2E |
-| `tooling/` | Developer tooling and UI-diff contracts |
-| `tracks/` | Track models, guides, coverage, and visualization |
-| `benchmarks/` | Explicit performance scripts (`*.bench.ts`) |
-| `support/` | Shared test-only helpers; no test cases |
-| `fixtures/` | Small committed deterministic inputs and golden files |
-| `ai-fixtures/` | Curated AI-eval inputs, packets, and score baselines |
-| `artifacts/` | Generated or captured local outputs; not source fixtures |
+| Path               | Boundary and purpose                                                |
+| ------------------ | ------------------------------------------------------------------- |
+| `ai/`              | AI unit and prompt/provider tests; explicit evals under `ai/evals/` |
+| `client/`          | Client-side logic and component contract tests                      |
+| `db/`              | Database migrations, seeds, and persistence integration             |
+| `driver-profile/`  | Driver-profile domain tests                                         |
+| `e2e/`             | Recording-backed end-to-end checks and rendered outputs             |
+| `experiments/`     | Experiment and drill behavior                                       |
+| `games/`           | Per-game parsers, recorders, SDKs, and shared game contracts        |
+| `lap-analysis/`    | Lap quality, detection, recap, segments, and stint analysis         |
+| `live-strategy/`   | Live sector and pit strategy behavior                               |
+| `motec/`           | MoTeC import and visualization behavior                             |
+| `race-results/`    | Race-result capture, storage, source, and derivation                |
+| `routes/`          | Server route contracts and request behavior                         |
+| `runtime/`         | Runtime options, settings, updates, and supervision                 |
+| `session-capture/` | Session recording, compression, and binary storage                  |
+| `setups/`          | Setup formats, tuning, and setup engineering                        |
+| `telemetry/`       | Telemetry models, pipelines, resolver, catalog, and catalog E2E     |
+| `tooling/`         | Developer tooling and UI-diff contracts                             |
+| `tracks/`          | Track models, guides, coverage, and visualization                   |
+| `benchmarks/`      | Explicit performance scripts (`*.bench.ts`)                         |
+| `support/`         | Shared test-only helpers; no test cases                             |
+| `fixtures/`        | Small committed deterministic inputs and golden files               |
+| `ai-fixtures/`     | Curated AI-eval inputs, packets, and score baselines                |
+| `artifacts/`       | Generated or captured local outputs; not source fixtures            |
 
 ## Test boundaries
 

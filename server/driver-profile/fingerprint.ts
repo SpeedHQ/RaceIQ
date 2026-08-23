@@ -10,15 +10,8 @@ import type { LapInsight } from "../../shared/racing/analysis/laps/insights/type
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { Confidence } from "../experiments/lap-evidence/aggregate";
-import {
-  computeStyleAxes,
-  MIN_LAPS_FOR_STYLE,
-  rankWeaknesses,
-  rollUpDetectors,
-  type DetectorStat,
-  type RankedWeakness,
-  type StyleAxes,
-} from "./detectors";
+import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
+import { computeStyleAxes, MIN_LAPS_FOR_STYLE, rankWeaknesses, rollUpDetectors, type DetectorStat, type RankedWeakness, type StyleAxes } from "./detectors";
 import { buildDriverTrend, type DriverTrend } from "./trend";
 
 type ProfileScopeKind = "car-track" | "global";
@@ -42,6 +35,7 @@ export interface DriverFingerprint {
   scope: ProfileScope;
   laps: LapPoolReport;
   confidence: Confidence;
+  eligibility: EligibilityDecision | null;
   style: StyleAxes | null;
   trend: DriverTrend;
   weaknesses: RankedWeakness[];
@@ -57,17 +51,13 @@ function confidenceFor(lapCount: number): Confidence {
   return "very-low";
 }
 
-export function emptyFingerprint(
-  scope: ProfileScope,
-  laps: Partial<LapPoolReport> = {},
-  notes: string[] = [],
-  trend: DriverTrend = buildDriverTrend([]),
-): DriverFingerprint {
+export function emptyFingerprint(scope: ProfileScope, laps: Partial<LapPoolReport> = {}, notes: string[] = [], trend: DriverTrend = buildDriverTrend([])): DriverFingerprint {
   return {
     ok: trend.recent.total > 0,
     scope,
     laps: { lapIds: [], analyzed: 0, candidates: 0, droppedNoTelemetry: 0, ...laps },
     confidence: "very-low",
+    eligibility: null,
     style: null,
     trend,
     weaknesses: [],
@@ -82,6 +72,7 @@ export function emptyFingerprint(
  * Sorting by lap id makes output stable when input order differs.
  */
 export function buildDriverFingerprint(input: {
+  eligibility?: EligibilityDecision | null;
   scope: ProfileScope;
   laps: readonly LapMeta[];
   perLapInsights: readonly (readonly LapInsight[])[];
@@ -93,9 +84,7 @@ export function buildDriverFingerprint(input: {
   const { scope } = input;
   const notes = [...(input.notes ?? [])];
   const trend = input.trend ?? buildDriverTrend(input.laps);
-  const paired = input.laps
-    .map((lap, i) => ({ lap, insights: input.perLapInsights[i] ?? [], style: input.perLapStyle?.[i] }))
-    .sort((a, b) => a.lap.id - b.lap.id);
+  const paired = input.laps.map((lap, i) => ({ lap, insights: input.perLapInsights[i] ?? [], style: input.perLapStyle?.[i] })).sort((a, b) => a.lap.id - b.lap.id);
   const laps = paired.map((p) => p.lap);
   const perLapInsights = paired.map((p) => p.insights);
   const styleSummaries = paired.map((p) => p.style).filter((s): s is LapStyleSummary => s !== undefined);
@@ -130,6 +119,7 @@ export function buildDriverFingerprint(input: {
       droppedNoTelemetry: pool.droppedNoTelemetry ?? 0,
     },
     confidence: confidenceFor(lapCount),
+    eligibility: input.eligibility ?? null,
     style,
     trend,
     weaknesses,

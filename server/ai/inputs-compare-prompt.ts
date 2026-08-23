@@ -11,6 +11,8 @@ import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
 import { segmentPromptNames } from "../../shared/racing/tracks/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { buildQualityPromptContext } from "./quality-context";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -57,6 +59,9 @@ interface LapInfo {
   carOrdinal?: number;
   trackOrdinal?: number;
   gameId?: GameId;
+  quality?: LapQualitySummary | null;
+  eligibility?: EligibilityDecisionSet | null;
+  qualityGeneration?: string | null;
 }
 
 export interface PromptSegment {
@@ -112,10 +117,7 @@ function formatSegmentTable(
 }
 
 /** Build server-authoritative per-segment timing rows for any compare flow. */
-export function buildSegmentTimingTable(
-  comparison: ComparisonResult,
-  segments: PromptSegment[] | null,
-): string {
+export function buildSegmentTimingTable(comparison: ComparisonResult, segments: PromptSegment[] | null): string {
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
   const distances = comparison.distances;
   const totalDist = distances[distances.length - 1] - distances[0] || 1;
@@ -168,8 +170,8 @@ export function buildInputsComparePrompt(
   segments: PromptSegment[] | null,
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
-  /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
-  precomputedInsights?: string,
+  /** Deterministic per-lap FindingRecord context. */
+  findingsContext?: string,
 ): string {
   const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
   const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
@@ -258,6 +260,8 @@ export function buildInputsComparePrompt(
   // Build the explicit list of expected segment names so the model can't forget them
   const segNames = segLabels.map((l) => `"${l}"`).join(", ");
   const expectedCount = useSegs.length;
+  const qualityContextA = buildQualityPromptContext(lapA, ["lap-comparison", "corner-trace", "transient-event"]);
+  const qualityContextB = buildQualityPromptContext(lapB, ["lap-comparison", "corner-trace", "transient-event"]);
 
   // No persona prefix here: this string is sent as the USER message, and
   // compareEngineerAgent already carries the persona (built from the same
@@ -297,6 +301,10 @@ Rules:
 - Top-level "coaching" is for the overall lap, max 5 tips, target the slower lap unless a meaningful issue exists on the faster lap.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
+Lap A:
+${qualityContextA}
+Lap B:
+${qualityContextB}
 ${trackGuide}
 Per-segment timings (positive Δ = Lap A is slower):
 ${formatSegmentTable(tableRows)}
@@ -310,7 +318,7 @@ Per-segment notes:
 
 To produce a concrete "action", you MUST diff the events/speed rows between Lap A and Lap B for the same segment and quote the resulting numbers. If the slower lap brakes 120m into a corner and the faster lap brakes at 132m, the action is "Brake 12m later into T1 (current brake point 120m, target 132m)." Do not produce actions without such numeric evidence.
 
-${precomputedInsights ?? ""}
+${findingsContext ?? ""}
 Segments to analyse (${expectedCount} total — produce EXACTLY ${expectedCount} entries in your "segments" array):
 ${segLines.join("\n\n")}`;
 }

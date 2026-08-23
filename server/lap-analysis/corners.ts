@@ -1,4 +1,5 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { semanticLapFrames } from "../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import { speedMphFromPacket, steerScaleFor } from "./metrics";
 
 export interface Corner {
@@ -35,7 +36,6 @@ function rollingAverage(data: number[], window: number): number[] {
   return result;
 }
 
-
 /**
  * Auto-detect corners from telemetry packets using the algorithm from the spec:
  *
@@ -48,38 +48,47 @@ function rollingAverage(data: number[], window: number): number[] {
  *
  * Labels corners T1, T2, etc. Straights are S1, S2, etc. (not returned, implicit between corners).
  */
-export function detectCorners(packets: TelemetryPacket[]): Corner[] {
+export function detectCorners(samples: readonly SemanticTelemetrySample[], gameId: string): Corner[] {
+  const packets = semanticLapFrames(samples);
   if (packets.length < 30) return [];
 
   // Resolve steering scale from the same adapter-backed helper as input metrics.
-  const { center: steerCenter, range: steerRange } = steerScaleFor(packets[0].gameId);
+  const { center: steerCenter, range: steerRange } = steerScaleFor(gameId);
 
   // Scale thresholds relative to steering range (15/127 and 10/127 of full range)
   const entryThreshold = (15 / 127) * steerRange;
   const exitThreshold = (10 / 127) * steerRange;
 
-  const distanceAtLapStart = packets[0].DistanceTraveled;
-
-  // Extract raw data
-  const rawSpeeds = packets.map(speedMphFromPacket);
-  const rawSteering = packets.map((p) => p.Steer);
-  const distances = packets.map((p) => p.DistanceTraveled - distanceAtLapStart);
-
-  // Step 1 & 2: Smooth speed and steering
-  const WINDOW = 15;
-  const smoothSpeed = rollingAverage(rawSpeeds, WINDOW);
-  const smoothSteer = rollingAverage(rawSteering, WINDOW);
+  const rawSpeeds: number[] = [];
+  const rawSteering: number[] = [];
+  const distances: number[] = [];
+  let firstDistance: number | undefined;
+  for (const packet of packets) {
+    const speed = speedMphFromPacket(packet);
+    const distance = packet.distanceM;
+    const steering = packet.steeringInput;
+    if (speed === undefined || !Number.isFinite(speed) || typeof steering !== "number" || !Number.isFinite(steering) || typeof distance !== "number" || !Number.isFinite(distance)) {
+      continue;
+    }
+    firstDistance ??= distance;
+    rawSpeeds.push(speed);
+    rawSteering.push(steering);
+    distances.push(distance - firstDistance);
+  }
+  if (rawSpeeds.length < 30) return [];
+  const smoothSpeed = rollingAverage(rawSpeeds, 15);
+  const smoothSteer = rollingAverage(rawSteering, 15);
 
   // Step 3 & 4: Detect corner entry/exit
   const rawCorners: { distanceStart: number; distanceEnd: number }[] = [];
   let inCorner = false;
   let localMax = smoothSpeed[0];
-  let cornerStartDist = 0;
+  let cornerStartDist: number | undefined;
 
-  for (let i = 1; i < packets.length; i++) {
+  for (let i = 1; i < rawSpeeds.length; i++) {
     const speed = smoothSpeed[i];
     const steerDev = Math.abs(smoothSteer[i] - steerCenter);
-    const dist = distances[i];
+    const distance = distances[i];
 
     if (!inCorner) {
       // Track local max speed while on straight
@@ -91,21 +100,22 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
       const speedDrop = localMax - speed;
       if (speedDrop > 15 && steerDev > entryThreshold) {
         inCorner = true;
-        cornerStartDist = dist;
+        cornerStartDist = distance;
       }
     } else {
       // Corner exit: speed is rising AND steering is within exit threshold of center
       const prevSpeed = smoothSpeed[i - 1];
-      if (speed > prevSpeed && steerDev < exitThreshold) {
+      if (speed > prevSpeed && steerDev < exitThreshold && cornerStartDist !== undefined) {
         inCorner = false;
-        rawCorners.push({ distanceStart: cornerStartDist, distanceEnd: dist });
+        rawCorners.push({ distanceStart: cornerStartDist, distanceEnd: distance });
+        cornerStartDist = undefined;
         localMax = speed; // Reset local max for next straight
       }
     }
   }
 
   // Close any open corner at end of lap
-  if (inCorner) {
+  if (inCorner && cornerStartDist !== undefined) {
     rawCorners.push({
       distanceStart: cornerStartDist,
       distanceEnd: distances[distances.length - 1],
@@ -115,10 +125,7 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
   // Step 5: Merge corners <50m apart
   const merged: { distanceStart: number; distanceEnd: number }[] = [];
   for (const c of rawCorners) {
-    if (
-      merged.length > 0 &&
-      c.distanceStart - merged[merged.length - 1].distanceEnd < 50
-    ) {
+    if (merged.length > 0 && c.distanceStart - merged[merged.length - 1].distanceEnd < 50) {
       // Merge with previous
       merged[merged.length - 1].distanceEnd = c.distanceEnd;
     } else {
@@ -127,9 +134,7 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
   }
 
   // Step 6: Discard corners <30m
-  const filtered = merged.filter(
-    (c) => c.distanceEnd - c.distanceStart >= 30
-  );
+  const filtered = merged.filter((c) => c.distanceEnd - c.distanceStart >= 30);
 
   // Label sequentially. Record the slowest smoothed speed (the apex) within
   // each corner span for speed-band classification downstream. distances[] and
@@ -150,9 +155,7 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
       label: `T${i + 1}`,
       distanceStart: Math.round(c.distanceStart * 10) / 10,
       distanceEnd: Math.round(c.distanceEnd * 10) / 10,
-      minSpeedKph: Number.isFinite(minMph)
-        ? Math.round(minMph * MPH_TO_KPH * 10) / 10
-        : undefined,
+      minSpeedKph: Number.isFinite(minMph) ? Math.round(minMph * MPH_TO_KPH * 10) / 10 : undefined,
       apexDistance: Math.round(apexDist * 10) / 10,
     };
   });

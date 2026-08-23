@@ -8,20 +8,26 @@ import type { LapInsight } from "../../shared/racing/analysis/laps/insights/type
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
 import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { semanticLapFrames, type SemanticLapFrame } from "../../shared/racing/analysis/laps/semantic-frame";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { LapQualitySummary } from "../../shared/racing/quality/contracts";
 
 /**
  * Bump when any detector or segment-stat definition changes, so cached rows
  * from the old definition are discarded instead of silently mixing with new
  * ones inside a single experiment.
  */
-export const LAP_METRICS_ALGO_VERSION = 1;
+export const LAP_METRICS_ALGO_VERSION = 2;
 
 const MPH_TO_KMH = 1.609344;
 
-/** Convert one packet's velocity vector from metres per second to miles per hour. */
-export function speedMphFromPacket(packet: TelemetryPacket): number {
-  return Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) * 2.237;
+/** Convert one packet's finite velocity vector from metres per second to miles per hour. */
+export function speedMphFromPacket(packet: SemanticLapFrame): number | undefined {
+  const [x, y, z] = packet.velocityMps;
+  if (typeof x !== "number" || !Number.isFinite(x) || typeof y !== "number" || !Number.isFinite(y) || typeof z !== "number" || !Number.isFinite(z)) {
+    return undefined;
+  }
+  return Math.sqrt(x * x + y * y + z * z) * 2.237;
 }
 
 /** ~20-feature input descriptor for one slice of a lap. */
@@ -109,16 +115,7 @@ export function steerScaleFor(gameId: string | undefined): SteerScale {
  * own index bounds, and re-deriving them from distances inside here would make
  * the resampled case do a redundant search.
  */
-export function computeStatsRange(
-  throttle: number[],
-  brake: number[],
-  steer: number[],
-  speedMph: number[],
-  distances: number[],
-  startIdx: number,
-  endIdx: number,
-  steerScale: SteerScale,
-): InputStats {
+export function computeStatsRange(throttle: number[], brake: number[], steer: number[], speedMph: number[], distances: number[], startIdx: number, endIdx: number, steerScale: SteerScale): InputStats {
   const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
   const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
   const n = hi - lo;
@@ -211,9 +208,9 @@ export function computeStatsRange(
     peakBrakeDist,
     fullThrottleDist,
     liftOffThrottleDist,
-    minSpeed: Number.isFinite(minSpeed) ? minSpeed : 0,
+    minSpeed,
     minSpeedDist,
-    maxSpeed: Number.isFinite(maxSpeed) ? maxSpeed : 0,
+    maxSpeed,
     maxSpeedDist,
   };
 }
@@ -231,10 +228,13 @@ interface LapChannels {
   speedMph: number[];
 }
 
-function extractChannels(packets: TelemetryPacket[]): LapChannels {
+function extractChannels(packets: SemanticLapFrame[]): LapChannels | null {
   const first = packets[0];
-  const d0 = first.DistanceTraveled;
-  const t0 = first.TimestampMS;
+  if (!first || typeof first.distanceM !== "number" || !Number.isFinite(first.distanceM) || !Number.isFinite(first.observedAtMs)) {
+    return null;
+  }
+  const d0 = first.distanceM;
+  const t0 = first.observedAtMs;
   const channels: LapChannels = {
     distances: new Array(packets.length),
     elapsed: new Array(packets.length),
@@ -246,12 +246,28 @@ function extractChannels(packets: TelemetryPacket[]): LapChannels {
 
   for (let index = 0; index < packets.length; index++) {
     const packet = packets[index];
-    channels.distances[index] = packet.DistanceTraveled - d0;
-    channels.elapsed[index] = (packet.TimestampMS - t0) / 1000;
-    channels.throttle[index] = packet.Accel / 255;
-    channels.brake[index] = packet.Brake / 255;
-    channels.steer[index] = packet.Steer;
-    channels.speedMph[index] = speedMphFromPacket(packet);
+    const speedMph = packet ? speedMphFromPacket(packet) : undefined;
+    if (
+      !packet ||
+      typeof packet.distanceM !== "number" ||
+      !Number.isFinite(packet.distanceM) ||
+      !Number.isFinite(packet.observedAtMs) ||
+      typeof packet.throttleInput !== "number" ||
+      !Number.isFinite(packet.throttleInput) ||
+      typeof packet.brakeInput !== "number" ||
+      !Number.isFinite(packet.brakeInput) ||
+      typeof packet.steeringInput !== "number" ||
+      !Number.isFinite(packet.steeringInput) ||
+      speedMph === undefined
+    ) {
+      return null;
+    }
+    channels.distances[index] = packet.distanceM - d0;
+    channels.elapsed[index] = (packet.observedAtMs - t0) / 1000;
+    channels.throttle[index] = packet.throttleInput / 255;
+    channels.brake[index] = packet.brakeInput / 255;
+    channels.steer[index] = packet.steeringInput;
+    channels.speedMph[index] = speedMph;
   }
 
   return channels;
@@ -267,16 +283,15 @@ function extractChannels(packets: TelemetryPacket[]): LapChannels {
  *
  * Pure: no DB, no track lookup. `getOrComputeLapMetrics` supplies the segments.
  */
-function computeLapSegmentStats(
-  packets: TelemetryPacket[],
-  segments: NamedSegment[],
-  steerScale: SteerScale,
-): SegmentStat[] {
+function computeLapSegmentStats(packets: SemanticLapFrame[], segments: NamedSegment[], steerScale: SteerScale): SegmentStat[] {
   if (packets.length < 2 || segments.length === 0) return [];
 
   const ch = extractChannels(packets);
+  if (!ch) return [];
   const startDist = ch.distances[0];
-  const totalDist = ch.distances[ch.distances.length - 1] - startDist || 1;
+  const lastDist = ch.distances[ch.distances.length - 1];
+  if (startDist === undefined || lastDist === undefined || lastDist <= startDist) return [];
+  const totalDist = lastDist - startDist;
 
   const out: SegmentStat[] = [];
   for (const seg of segments) {
@@ -292,6 +307,9 @@ function computeLapSegmentStats(
     // matches the compare path rather than emitting a zero-width row.
     if (hi - lo < 2) continue;
 
+    const endElapsed = ch.elapsed[hi - 1];
+    const startElapsed = ch.elapsed[lo];
+    if (endElapsed === undefined || startElapsed === undefined || endElapsed < startElapsed) continue;
     out.push({
       name: seg.name,
       type: seg.type,
@@ -299,7 +317,7 @@ function computeLapSegmentStats(
       ...(seg.covers?.length ? { covers: seg.covers } : {}),
       startFrac: seg.startFrac,
       endFrac: seg.endFrac,
-      timeSec: (ch.elapsed[hi - 1] ?? 0) - (ch.elapsed[lo] ?? 0),
+      timeSec: endElapsed - startElapsed,
       stats: computeStatsRange(ch.throttle, ch.brake, ch.steer, ch.speedMph, ch.distances, lo, hi, steerScale),
     });
   }
@@ -307,16 +325,12 @@ function computeLapSegmentStats(
 }
 
 /** Compute (but do not persist) metrics for an already-decoded lap. */
-export function computeLapMetrics(
-  lapId: number,
-  packets: TelemetryPacket[],
-  gameId: GameId,
-  segments: NamedSegment[],
-): LapMetrics {
+export function computeLapMetrics(lapId: number, samples: readonly SemanticTelemetrySample[], gameId: GameId, segments: NamedSegment[], quality: LapQualitySummary | null | undefined): LapMetrics {
+  const packets = semanticLapFrames(samples);
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,
-    insights: analyzeLap(packets, gameId),
+    insights: analyzeLap(samples, gameId, quality),
     segmentStats: computeLapSegmentStats(packets, segments, steerScaleFor(gameId)),
     computedAt: new Date().toISOString(),
   };
@@ -353,18 +367,13 @@ function round2(n: number): number {
  * Returns undefined when neither source is usable — including legacy laps with no
  * stored telemetry — so the caller omits the metric instead of reporting 0.
  */
-export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined {
+export function deriveFuelPerLap(samples: readonly SemanticTelemetrySample[]): number | undefined {
+  const packets = semanticLapFrames(samples);
   if (packets.length < 2) return undefined;
 
-  // Prefer the game-computed per-lap fuel field, latest positive reading.
-  for (let i = packets.length - 1; i >= 0; i--) {
-    const f = packets[i].acc?.fuelPerLap;
-    if (typeof f === "number" && Number.isFinite(f) && f > 0) return round2(f);
-  }
-
   // Fallback: fuel burned = remaining at lap start − remaining at lap end.
-  const first = packets[0].Fuel;
-  const last = packets[packets.length - 1].Fuel;
+  const first = packets[0].fuel;
+  const last = packets[packets.length - 1].fuel;
   if (typeof first === "number" && typeof last === "number") {
     const delta = first - last;
     // Guard against noise/refuels: a real GT lap burns a few litres, never
@@ -388,13 +397,14 @@ export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined
  * stored telemetry, or games without a wear channel — so the caller omits the
  * metric instead of reporting 0.
  */
-export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
+export function deriveTyreWear(samples: readonly SemanticTelemetrySample[]): number | undefined {
+  const packets = semanticLapFrames(samples);
   for (let i = packets.length - 1; i >= 0; i--) {
     const packet = packets[i];
-    const frontLeft = packet.TireWearFL;
-    const frontRight = packet.TireWearFR;
-    const rearLeft = packet.TireWearRL;
-    const rearRight = packet.TireWearRR;
+    const frontLeft = packet.tireWear[0];
+    const frontRight = packet.tireWear[1];
+    const rearLeft = packet.tireWear[2];
+    const rearRight = packet.tireWear[3];
     if (
       typeof frontLeft !== "number" ||
       !Number.isFinite(frontLeft) ||
@@ -415,4 +425,3 @@ export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
   }
   return undefined;
 }
-

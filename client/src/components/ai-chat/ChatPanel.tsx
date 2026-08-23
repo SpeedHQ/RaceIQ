@@ -6,17 +6,32 @@ import type { ThreadProps } from "@/components/assistant-ui/thread";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiConfigured } from "@/lib/is-ai-configured";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
+export interface ChatHistoryResult {
+  messages: UIMessage[];
+  threadId?: string | null;
+}
+const MAX_CHAT_HISTORY_RETRIES = 20;
+const CHAT_HISTORY_RETRY_MS = 1500;
+type ChatHistoryError = Error & { statusCode?: number; retryable?: boolean; pendingStatus?: string };
+
+function shouldRetryChatHistory(failureCount: number, error: unknown): boolean {
+  const pending = error as ChatHistoryError;
+  return pending.statusCode === 409 && pending.pendingStatus === "backfilling" && pending.retryable === true && failureCount < MAX_CHAT_HISTORY_RETRIES;
+}
 
 export interface ChatPanelProps {
   api: string;
   clearChatApi?: string;
-  fetchHistory: (gen?: number) => Promise<UIMessage[]>;
+  onClearChat?: () => Promise<void>;
+  fetchHistory: (gen?: number) => Promise<ChatHistoryResult>;
   historyQueryKey: unknown[];
+  headers?: Record<string, string>;
   remountKey?: string;
   onFinish?: () => void;
   components?: ThreadProps["components"];
@@ -27,7 +42,7 @@ export interface ChatPanelProps {
   compactThreadId?: string;
 }
 
-export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
+export function ChatPanel({ api, clearChatApi, onClearChat, fetchHistory, historyQueryKey, headers, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
@@ -35,41 +50,57 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   const [clearVersion, setClearVersion] = useState(0);
   const [regenerateVersion, setRegenerateVersion] = useState(0);
   const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
+  const [viewingGen, setViewingGen] = useState<number | null>(null);
 
   const clearChat = async () => {
     try {
-      await fetch(clearChatApi ?? api, { method: "DELETE" });
+      if (onClearChat) await onClearChat();
+      else await fetch(clearChatApi ?? api, { method: "DELETE", headers });
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
     } finally {
       setClearVersion((version) => version + 1);
     }
   };
 
+  const {
+    data: bootstrapHistory,
+    isSuccess: bootstrapHistorySuccess,
+    isError: bootstrapHistoryError,
+    error: bootstrapError,
+  } = useQuery({
+    queryKey: [...historyQueryKey, 1],
+    queryFn: () => fetchHistory(1),
+    retry: shouldRetryChatHistory,
+    retryDelay: CHAT_HISTORY_RETRY_MS,
+  });
+  const gameIdHeader = headers?.["X-Game-Id"] ?? null;
+  const canonicalThreadId = bootstrapHistory?.threadId ?? compactThreadId;
   const { data: gensData } = useQuery({
-    queryKey: ["chat-generations", compactThreadId],
-    queryFn: () => fetchChatGenerations(compactThreadId!),
-    enabled: !!compactThreadId,
+    queryKey: ["chat-generations", gameIdHeader, canonicalThreadId],
+    queryFn: () => fetchChatGenerations(canonicalThreadId!, headers),
+    enabled: !!canonicalThreadId,
     staleTime: 5_000,
   });
-  const generations: ChatGeneration[] = gensData?.generations ?? (compactThreadId ? [{ threadId: compactThreadId, generation: 1, active: true }] : []);
+  const generations: ChatGeneration[] = gensData?.generations ?? (canonicalThreadId ? [{ threadId: canonicalThreadId, generation: 1, active: true }] : []);
   const activeGen = generations.length ? generations[generations.length - 1].generation : 1;
-  const activeThreadId = gensData?.activeThreadId ?? compactThreadId;
-  const [viewingGen, setViewingGen] = useState<number | null>(null);
+  const activeThreadId = gensData?.activeThreadId ?? canonicalThreadId;
   const effectiveGen = viewingGen ?? activeGen;
-  const readOnly = !!compactThreadId && effectiveGen !== activeGen;
+  const readOnly = !!canonicalThreadId && effectiveGen !== activeGen;
   const fullHistoryQueryKey = [...historyQueryKey, effectiveGen];
-  const {
-    data: history,
-    isSuccess,
-    isError,
-    error: historyError,
-  } = useQuery({
+  const laterHistoryQuery = useQuery({
     queryKey: fullHistoryQueryKey,
-    queryFn: () => fetchHistory(effectiveGen > 1 ? effectiveGen : undefined),
+    queryFn: () => fetchHistory(effectiveGen),
+    enabled: effectiveGen > 1,
+    retry: shouldRetryChatHistory,
+    retryDelay: CHAT_HISTORY_RETRY_MS,
   });
+  const historyError = effectiveGen === 1 ? bootstrapError : laterHistoryQuery.error;
+  const history = effectiveGen === 1 ? bootstrapHistory : laterHistoryQuery.data;
+  const isSuccess = effectiveGen === 1 ? bootstrapHistorySuccess : laterHistoryQuery.isSuccess;
+  const isError = effectiveGen === 1 ? bootstrapHistoryError : laterHistoryQuery.isError;
   const { data: runStatus, isFetched: runStatusFetched } = useQuery({
-    queryKey: ["chat-run-status", activeThreadId],
-    queryFn: () => fetchChatRunStatus(activeThreadId!),
+    queryKey: ["chat-run-status", gameIdHeader, activeThreadId],
+    queryFn: () => fetchChatRunStatus(activeThreadId!, headers),
     enabled: !!activeThreadId,
     staleTime: 0,
     gcTime: 0,
@@ -82,11 +113,10 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   const regenerateChat = async (messageId: string, prompt: string) => {
     if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
     try {
-      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId }),
-      });
+      const res = await client.api.chats[":threadId"].regenerate.$post(
+        { param: { threadId: activeThreadId }, json: { messageId } },
+        { headers },
+      );
       const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
       if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
@@ -116,19 +146,20 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
       </div>
     );
   }
-  if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
+  if (!isSuccess || (!!canonicalThreadId && !runStatusFetched)) {
     return <div className="flex h-full min-h-0 flex-col gap-1.5 pt-2 text-app-compact text-app-text-dim">{m.common_loading()}</div>;
   }
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
-      initialMessages={history ?? []}
+      key={`${remountKey ?? ""}:${effectiveGen}:${history?.messages.length ?? 0}:${clearVersion}:${regenerateVersion}`}
+      initialMessages={history?.messages ?? []}
       api={api}
+      headers={headers}
       onFinish={onFinish}
       components={components}
       className={className}
       extraBody={extraBody}
-      compactThreadId={compactThreadId}
+      compactThreadId={canonicalThreadId}
       historyQueryKey={fullHistoryQueryKey}
       generations={generations}
       viewingGen={effectiveGen}

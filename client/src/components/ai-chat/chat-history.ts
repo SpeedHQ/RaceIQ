@@ -1,11 +1,13 @@
+import { client } from "@/lib/rpc";
+
 export interface ChatRunStatus {
   status: "none" | "active" | "finished";
   runId?: string;
 }
 
-export async function fetchChatRunStatus(threadId: string): Promise<ChatRunStatus> {
+export async function fetchChatRunStatus(threadId: string, headers?: Record<string, string>): Promise<ChatRunStatus> {
   try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/run`);
+    const res = await client.api.chats[":threadId"].run.$get({ param: { threadId } }, { headers });
     if (!res.ok) return { status: "none" };
     return (await res.json()) as ChatRunStatus;
   } catch {
@@ -24,9 +26,9 @@ export interface ChatGenerationsResponse {
   generations: ChatGeneration[];
 }
 
-export async function fetchChatGenerations(base: string): Promise<ChatGenerationsResponse> {
+export async function fetchChatGenerations(base: string, headers?: Record<string, string>): Promise<ChatGenerationsResponse> {
   try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(base)}/generations`);
+    const res = await client.api.chats[":threadId"].generations.$get({ param: { threadId: base } }, { headers });
     if (!res.ok) return { activeThreadId: base, generations: [{ threadId: base, generation: 1, active: true }] };
     return (await res.json()) as ChatGenerationsResponse;
   } catch {

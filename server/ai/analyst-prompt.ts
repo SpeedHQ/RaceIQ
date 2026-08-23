@@ -1,14 +1,18 @@
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { FindingRecord } from "../../shared/racing/findings/types";
+
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { buildQualityPromptContext } from "./quality-context";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { buildFindingsContext } from "./findings-context";
+import { assessSemanticAnalysisInput } from "./insight-format";
 import { formatTuneForPrompt } from "./format-tune";
-import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
@@ -126,25 +130,27 @@ RULES:
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
 
-function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: TemperatureUnit, language: string): string {
+function getSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, language: string): string {
   const speedDistanceWeight = unit === "metric" ? "km/h, meters, kg, bar" : "mph, feet, lb, psi";
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
-  const adapter = tryGetServerGame(gameId);
-  const base = adapter ? adapter.aiSystemPrompt : GENERIC_ANALYST_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
+  return `${GENERIC_ANALYST_SYSTEM_PROMPT.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
   lap: {
     id?: number;
+    sessionId?: string | number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
     carOrdinal?: number;
     trackOrdinal?: number;
     gameId?: GameId;
+    quality?: LapQualitySummary | null;
+    eligibility?: EligibilityDecisionSet | null;
+    qualityGeneration?: string | null;
   },
-  packets: TelemetryPacket[],
+  samples: readonly SemanticTelemetrySample[],
   corners: CornerDef[],
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
@@ -156,33 +162,25 @@ export function buildAnalystPrompt(
   language: string = "en",
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: PromptSectors,
+  /** Persisted deterministic records for this lap's current generation. */
+  storedFindings?: readonly FindingRecord[],
 ): string {
-  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
-  const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
+  const carName = lap.carOrdinal == null ? "Unavailable" : resolveCarName(lap.carOrdinal, lap.gameId);
+  const trackName = lap.trackOrdinal == null ? "Unavailable" : resolveTrackName(lap.trackOrdinal, lap.gameId);
 
   // F1 uses adapter-specific compact context; generic export is Forza-specific.
-  const exportText = lap.gameId === "f1-2025"
-    ? ""
-    : generateExport(lap, packets, unit, temperatureUnit);
-  const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
+  const exportText = lap.gameId === "f1-2025" ? "" : generateExport(lap, samples, unit, temperatureUnit);
+  const cornerData = buildCornerData(samples, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Run precomputed insight analysis
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
-    insightsText += "These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
-    for (const insight of insights) {
-      // Convert frame index to approximate lap timestamp
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
-      const count = insight.frameIndices.length;
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
-      insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
+  const semanticQuality = assessSemanticAnalysisInput(samples, lap.gameId, lap.lapTime);
+  const persistedQualityValid = lap.quality?.complete === true && lap.quality.structurallyValid;
+  const quality = {
+    valid: persistedQualityValid && semanticQuality.valid,
+    reason: semanticQuality.reason ?? lap.quality?.invalidReason ?? (lap.quality ? "recording incomplete" : "quality evidence unavailable"),
+  };
+  const findingsContext = storedFindings ? buildFindingsContext(storedFindings) : "";
+  const qualityAbstention = quality.valid ? "" : `[ABSTENTION] Lap recording quality rejected: ${quality.reason}; do not make lap-performance claims from this telemetry.`;
+  const findingsText = [qualityAbstention, findingsContext].filter(Boolean).join("\n");
 
   let tuneText = "";
   if (tune) {
@@ -240,16 +238,12 @@ export function buildAnalystPrompt(
       const covers = inSector(index);
       sectorsText += `S${n}: ${t.toFixed(3)}s${covers ? ` — covers ${covers}` : ""}\n`;
     }
-    const boundaries = sectorStarts
-      .slice(1)
-      .map(
-        (start, index) =>
-          `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
-      );
+    const boundaries = sectorStarts.slice(1).map((start, index) => `S${index + 1} ends at ${(start * 100).toFixed(1)}%`);
     sectorsText += `Boundaries: ${boundaries.join(", ")} of the lap.\n`;
   }
 
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+  if (!lap.gameId) throw new Error("Lap gameId is required for analyst prompt");
+  const gameId: GameId = lap.gameId;
 
   const { slug } = resolveTrack(gameId, lap.trackOrdinal);
 
@@ -265,7 +259,7 @@ export function buildAnalystPrompt(
       : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
 
   // Get car specs for additional context
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
+  const carOrdinal = lap.carOrdinal ?? 0;
   const specs = fmCarSpecsCatalog.get(carOrdinal);
   let carDetailsText = `Car: ${carName}`;
   if (specs) {
@@ -278,37 +272,28 @@ export function buildAnalystPrompt(
 
   // Weather / surface conditions, so the model can attribute a slow lap to the
   // environment (cold, green, or wet track) rather than the driver or setup.
-  const conditions = telemetryToTrackConditions(packets);
+  const conditions = telemetryToTrackConditions(samples);
   const conditionsText = conditions
     ? `\n--- Track Conditions ---\n${formatTrackConditions(conditions)}\nWeigh these before blaming pace on the driver or setup — a cold, green, or wet surface costs grip everywhere.\n`
     : "";
+  const qualityContext = buildQualityPromptContext(lap, ["official-timing", "normal-pace", "corner-trace", "transient-event", "fuel-burn", "tire-analysis"]);
 
   const context = `${carDetailsText}
 Track: ${trackName}
+${qualityContext}
 ${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
-${insightsText}`;
+${findingsText ? `\n${findingsText}` : ""}`;
 
-  const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit, language);
-
-  // Build game-specific extended context via adapter
-  let f1ExtendedContext = "";
-  const serverAdapter = tryGetServerGame(gameId);
-  if (serverAdapter?.buildAiContext && packets.length > 0) {
-    f1ExtendedContext = serverAdapter.buildAiContext(packets);
-  }
+  const systemPrompt = getSystemPrompt(unit, temperatureUnit, language);
 
   const lapIdLine = lap.id !== undefined ? `Lap ID: ${lap.id}\n` : "";
-  // Session type affects how the model should interpret strategy-dependent
-  // signals (e.g. for F1 one-shot qualifying we expect ERS reserve near 0%
-  // at the line; in race trim the same reading would be a red flag).
-  const sessionType = packets[0]?.f1?.sessionType;
-  const sessionTypeLine = sessionType ? `Session Type: ${sessionType}\n` : "";
+  const sessionTypeLine = "";
 
   return `${systemPrompt}
 
 --- TELEMETRY DATA ---
 
-${lapIdLine}${sessionTypeLine}${context}${f1ExtendedContext}`;
+${lapIdLine}${sessionTypeLine}${context}`;
 }

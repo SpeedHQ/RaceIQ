@@ -2421,5 +2421,55 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE compare_analyses ADD COLUMN finding_generation_key TEXT`,
     ],
   },
+  // v67: Preserve ordered A/B identity for comparison analysis cache rows.
+  {
+    version: 67,
+    name: "preserve directional comparison analysis caches",
+    sql: [
+      `CREATE TABLE compare_analyses_v67 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lap_a_id INTEGER NOT NULL,
+        lap_b_id INTEGER NOT NULL,
+        request_lap_a_id INTEGER,
+        request_lap_b_id INTEGER,
+        kind TEXT NOT NULL DEFAULT 'inputs',
+        analysis TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd REAL NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        model TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        quality_generation TEXT,
+        quality_policy_version TEXT,
+        finding_generation_key TEXT
+      )`,
+      `INSERT INTO compare_analyses_v67 (
+        id, lap_a_id, lap_b_id, request_lap_a_id, request_lap_b_id, kind,
+        analysis, input_tokens, output_tokens, cost_usd, duration_ms, model,
+        created_at, quality_generation, quality_policy_version, finding_generation_key
+      )
+      SELECT
+        id, lap_a_id, lap_b_id, lap_a_id, lap_b_id, kind,
+        analysis, input_tokens, output_tokens, cost_usd, duration_ms, model,
+        created_at, quality_generation, quality_policy_version, finding_generation_key
+      FROM compare_analyses`,
+      `DROP TABLE compare_analyses`,
+      `ALTER TABLE compare_analyses_v67 RENAME TO compare_analyses`,
+      `CREATE UNIQUE INDEX compare_analyses_directional_unique
+        ON compare_analyses (request_lap_a_id, request_lap_b_id, kind)`,
+    ],
+  },
+  // v68: Keep stale finding generations queryable alongside current generation.
+  {
+    version: 68,
+    name: "allow stale finding generation history",
+    sql: [
+      `DROP INDEX IF EXISTS finding_generations_one_current_idx`,
+      `CREATE UNIQUE INDEX finding_generations_one_current_idx
+        ON finding_generations (scope_key)
+        WHERE status = 'current'`,
+    ],
+  },
 ];
 

@@ -475,9 +475,9 @@ function transientEvent(quality: LapQualitySummary, options: EligibilityEvaluati
 function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
   const fuel = channelById(quality, "fuel.fuel");
   const reasons: EligibilityReason[] = [];
-  if (!quality.complete) {
-    const partial = factsFor(quality, ["partial_lap"]).map(reasonFromFact);
-    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("partial_lap")]));
+  if (!quality.complete || quality.lifecycleState === "incomplete") {
+    const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("recording_incomplete")]));
   }
   if (!fuel || fuel.mappingStatus === "unavailable") reasons.push(syntheticReason("channel_unavailable", ["fuel.fuel"]));
   else {
@@ -485,6 +485,7 @@ function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
       reasons.push(syntheticReason("channel_missing", ["fuel.fuel"]));
     }
     if (fuel.freshnessCounts.stale > 0) reasons.push(syntheticReason("channel_stale", ["fuel.fuel"]));
+    if (fuel.resolutionCounts.missing > 0) reasons.push(syntheticReason("channel_missing", ["fuel.fuel"]));
     if (fuel.resolutionCounts.invalid > 0 || fuel.resolutionCounts.error > 0) reasons.push(syntheticReason("channel_invalid", ["fuel.fuel"]));
   }
   if (reasons.length > 0) return decision("fuel-burn", quality, "ineligible", reasons, ["fuel.fuel"]);
@@ -496,6 +497,10 @@ function tireAnalysis(quality: LapQualitySummary, tireMode: EligibilityEvaluatio
   const requiredChannels = QUALITY_POLICY_CONFIG_V1.requiredChannels["tire-analysis"];
   const reasons: EligibilityReason[] = [];
   const warnings: EligibilityReason[] = [];
+  if (!quality.complete || quality.lifecycleState === "incomplete") {
+    const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("recording_incomplete")]));
+  }
   const continuous = tireMode === "continuous";
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);

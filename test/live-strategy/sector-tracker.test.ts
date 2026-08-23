@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { SectorTracker } from "../../server/live-strategy/sector-tracker";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 
 /** Build a minimal telemetry packet for testing. */
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
@@ -20,16 +21,22 @@ function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   } as TelemetryPacket;
 }
 
+function semanticSample(values: Record<string, unknown>, observedAtMs = 0): SemanticTelemetrySample {
+  return { sequence: "1", observedAtMs, values: values as SemanticTelemetrySample["values"] };
+}
+
 /** Generate a reference lap: uniform pace over trackLength in lapTime seconds. */
 function makeRefPackets(trackLength: number, lapTime: number, count: number, distOffset = 0): TelemetryPacket[] {
   const packets: TelemetryPacket[] = [];
   for (let i = 0; i < count; i++) {
     const frac = i / (count - 1);
-    packets.push(pkt({
-      DistanceTraveled: distOffset + frac * trackLength,
-      CurrentLap: frac * lapTime,
-      LapNumber: 1,
-    }));
+    packets.push(
+      pkt({
+        DistanceTraveled: distOffset + frac * trackLength,
+        CurrentLap: frac * lapTime,
+        LapNumber: 1,
+      }),
+    );
   }
   return packets;
 }
@@ -168,9 +175,7 @@ describe("SectorTracker estimated lap & delta", () => {
       const frac = i / 100;
       const dist = frac * 1000;
       // Slow first half, fast second half
-      const time = dist <= 500
-        ? (dist / 500) * 60
-        : 60 + ((dist - 500) / 500) * 30;
+      const time = dist <= 500 ? (dist / 500) * 60 : 60 + ((dist - 500) / 500) * 30;
       refPackets.push(pkt({ DistanceTraveled: dist, CurrentLap: time }));
     }
     tracker.updateRefLap(refPackets, 90);
@@ -232,5 +237,39 @@ describe("SectorTracker sector detection", () => {
     // CurrentLap reset (time trial mode — LapNumber stays same)
     const r = tracker.feed(pkt({ DistanceTraveled: 3000, CurrentLap: 0, LapNumber: 1, LastLap: 85 }));
     expect(r!.currentSector).toBe(0);
+  });
+});
+
+describe("SectorTracker semantic timing", () => {
+  test("uses simulation elapsed time and canonical sector index", () => {
+    const tracker = new SectorTracker();
+    tracker._initForTest({ s1End: 0.33, s2End: 0.66, trackLength: 3000 });
+
+    tracker.feedSemantic(
+      semanticSample(
+        {
+          "timing.distance-traveled": 0,
+          "timing.lap-number": 1,
+          "timing.current-lap": 5,
+          "timing.sector.current-index": 0,
+        },
+        1_000_000,
+      ),
+    );
+    const result = tracker.feedSemantic(
+      semanticSample(
+        {
+          "timing.distance-traveled": 100,
+          "timing.lap-number": 1,
+          "timing.current-lap": 15,
+          "timing.sector.current-index": 2,
+        },
+        1_000_001,
+      ),
+    );
+
+    expect(result?.currentSector).toBe(2);
+    expect(result?.currentSectorTime).toBe(0);
+    expect(result?.currentTimes[0]).toBe(10);
   });
 });

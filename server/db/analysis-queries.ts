@@ -1,11 +1,13 @@
+import { createHash } from "node:crypto";
 import { eq, and, inArray, sql } from "drizzle-orm";
-import { db } from "./index";
-import { lapAnalyses, compareAnalyses, laps } from "./schema";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  type LapQualitySummary,
-} from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, type EligibilityDecisionSet, type LapQualitySummary } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 import { combineQualityGenerations } from "../lap-analysis/quality-generation";
+import { db } from "./index";
+import { findingGenerations, lapAnalyses, compareAnalyses, laps } from "./schema";
+import type { FindingGenerationExpectation } from "../findings/store";
+import { canonicalJson } from "../../shared/racing/findings/identity";
+export type { FindingGenerationExpectation };
 
 interface AnalysisRow {
   analysis: string;
@@ -14,6 +16,214 @@ interface AnalysisRow {
   costUsd: number;
   durationMs: number;
   model: string;
+}
+export interface QualityCacheIdentity {
+  generation: string;
+  policyVersion: string;
+}
+export interface LapQualityCacheEvidence {
+  qualityGeneration?: string | null;
+  qualityStale?: boolean;
+  qualitySchemaVersion?: string | null;
+  qualityPolicyVersion?: string | null;
+  qualityConfigVersion?: string | null;
+  quality?: LapQualitySummary | null;
+  eligibility?: Partial<EligibilityDecisionSet> | null;
+}
+
+export type FindingGenerationCacheKey = string & { readonly __findingGenerationCacheKey: unique symbol };
+
+export interface FindingGenerationCacheReceipt {
+  generationId: string;
+  contentHash: string;
+}
+
+export interface ComparisonFindingGenerationCacheInput {
+  lapId: number;
+  receipt: FindingGenerationCacheReceipt;
+}
+
+function findingGenerationCacheKey(value: unknown): FindingGenerationCacheKey {
+  return `sha256:${createHash("sha256").update(JSON.stringify(value)).digest("hex")}` as FindingGenerationCacheKey;
+}
+
+/**
+ * Fences a lap cache entry to one stored finding-generation receipt.
+ */
+export function lapFindingGenerationCacheKey(receipt: FindingGenerationCacheReceipt): FindingGenerationCacheKey {
+  return findingGenerationCacheKey({
+    generationId: receipt.generationId,
+    contentHash: receipt.contentHash,
+  });
+}
+
+/**
+ * Fences a comparison cache entry to its two stored finding-generation receipts.
+ * Lap ids make A/B ordering canonical even when callers receive them reversed.
+ */
+export function compareFindingGenerationCacheKey(
+  inputs: readonly [ComparisonFindingGenerationCacheInput, ComparisonFindingGenerationCacheInput],
+): FindingGenerationCacheKey {
+  return findingGenerationCacheKey(
+    [...inputs]
+      .sort((left, right) => left.lapId - right.lapId)
+      .map(({ receipt }) => ({
+        generationId: receipt.generationId,
+        contentHash: receipt.contentHash,
+      })),
+  );
+}
+
+export function qualityCacheIdentityForLap(evidence: LapQualityCacheEvidence): QualityCacheIdentity | null {
+  if (!isEligibilitySnapshotCurrent(evidence)) return null;
+  return {
+    generation: evidence.qualityGeneration!,
+    policyVersion: ELIGIBILITY_POLICY_VERSION,
+  };
+}
+
+export function qualityCacheIdentityForComparison(evidence: readonly [LapQualityCacheEvidence, LapQualityCacheEvidence]): QualityCacheIdentity | null {
+  return combineCompareIdentityRows(
+    evidence.map((lap) => (isEligibilitySnapshotCurrent(lap) ? { generation: lap.qualityGeneration ?? null, policyVersion: ELIGIBILITY_POLICY_VERSION } : { generation: null, policyVersion: null })),
+  );
+}
+
+interface PersistedQualityIdentityRow {
+  generation: string | null;
+  policyVersion: string | null;
+  schemaVersion: string | null;
+  configurationVersion: string | null;
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+}
+
+function currentQualityCacheIdentity(row: PersistedQualityIdentityRow | null | undefined): QualityCacheIdentity | null {
+  if (
+    !row?.quality ||
+    !row.generation ||
+    !isEligibilitySnapshotCurrent({
+      quality: row.quality,
+      eligibility: row.eligibility,
+      qualityGeneration: row.generation,
+      qualitySchemaVersion: row.schemaVersion,
+      qualityPolicyVersion: row.policyVersion,
+      qualityConfigVersion: row.configurationVersion,
+    })
+  ) {
+    return null;
+  }
+  return { generation: row.generation, policyVersion: ELIGIBILITY_POLICY_VERSION };
+}
+
+function combineCompareIdentityRows(rows: Array<{ generation: string | null; policyVersion: string | null }>): QualityCacheIdentity | null {
+  if (rows.length !== 2) return null;
+  if (rows.some(({ policyVersion }) => policyVersion !== ELIGIBILITY_POLICY_VERSION)) return null;
+  if (rows.some(({ generation }) => !generation)) return null;
+  return {
+    generation: combineQualityGenerations(rows.map(({ generation }) => generation!)),
+    policyVersion: ELIGIBILITY_POLICY_VERSION,
+  };
+}
+
+type AnalysisDatabase = Pick<typeof db, "select" | "insert" | "update" | "delete">;
+
+function expectationCacheKey(expectation: FindingGenerationExpectation): FindingGenerationCacheKey {
+  return findingGenerationCacheKey({
+    generationId: expectation.generationId,
+    contentHash: expectation.contentHash,
+  });
+}
+
+async function hasCurrentFindingGeneration(
+  database: AnalysisDatabase,
+  expectation: FindingGenerationExpectation,
+): Promise<boolean> {
+  const row = await database
+    .select({ id: findingGenerations.id })
+    .from(findingGenerations)
+    .where(
+      and(
+        eq(findingGenerations.id, expectation.generationId),
+        eq(findingGenerations.scopeKey, canonicalJson(expectation.scope)),
+        eq(findingGenerations.contentHash, expectation.contentHash),
+        eq(findingGenerations.status, "current"),
+      ),
+    )
+    .get();
+  return !!row;
+}
+
+async function currentLapQualityIdentity(
+  database: AnalysisDatabase,
+  lapId: number,
+): Promise<QualityCacheIdentity | null> {
+  const row = await database
+    .select({
+      generation: laps.qualityGeneration,
+      policyVersion: laps.qualityPolicyVersion,
+      schemaVersion: laps.qualitySchemaVersion,
+      configurationVersion: laps.qualityConfigVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+    })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  return currentQualityCacheIdentity(row);
+}
+
+async function currentCompareQualityIdentity(
+  database: AnalysisDatabase,
+  idA: number,
+  idB: number,
+): Promise<QualityCacheIdentity | null> {
+  const rows = await database
+    .select({
+      id: laps.id,
+      generation: laps.qualityGeneration,
+      policyVersion: laps.qualityPolicyVersion,
+      schemaVersion: laps.qualitySchemaVersion,
+      configurationVersion: laps.qualityConfigVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+    })
+    .from(laps)
+    .where(inArray(laps.id, [idA, idB]))
+    .all();
+  return combineCompareIdentityRows(rows.map((row) => currentQualityCacheIdentity(row) ?? { generation: null, policyVersion: null }));
+}
+
+export async function getLapQualityIdentity(lapId: number): Promise<QualityCacheIdentity | null> {
+  const row = await db
+    .select({
+      generation: laps.qualityGeneration,
+      policyVersion: laps.qualityPolicyVersion,
+      schemaVersion: laps.qualitySchemaVersion,
+      configurationVersion: laps.qualityConfigVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+    })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  return currentQualityCacheIdentity(row);
+}
+
+export async function getCompareQualityIdentity(idA: number, idB: number): Promise<QualityCacheIdentity | null> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      generation: laps.qualityGeneration,
+      policyVersion: laps.qualityPolicyVersion,
+      schemaVersion: laps.qualitySchemaVersion,
+      configurationVersion: laps.qualityConfigVersion,
+      quality: laps.quality,
+      eligibility: laps.eligibility,
+    })
+    .from(laps)
+    .where(inArray(laps.id, [idA, idB]))
+    .all();
+  return combineCompareIdentityRows(rows.map((row) => currentQualityCacheIdentity(row) ?? { generation: null, policyVersion: null }));
 }
 
 /**
@@ -28,147 +238,19 @@ export interface AnalysisUsage {
   model: string;
 }
 
-type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-interface CacheIdentity {
-  qualityGeneration: string | null;
-  qualityPolicyVersion: string | null;
-}
-
-interface PersistedLapIdentity {
-  quality: LapQualitySummary | null;
-  qualityGeneration: string | null;
-  qualityPolicyVersion: string | null;
-}
-
-export interface AnalysisQualityIdentity extends CacheIdentity {
-  hasQuality: boolean;
-}
-
-const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
-
-export function analysisQualityIdentityForLap(lap: {
-  quality?: LapQualitySummary | null;
-  qualityGeneration?: string | null;
-}): AnalysisQualityIdentity {
-  return {
-    hasQuality: lap.quality != null,
-    qualityGeneration: lap.qualityGeneration ?? null,
-    qualityPolicyVersion: lap.quality?.provenance.policyVersion ?? null,
-  };
-}
-
-function currentPersistedLapIdentity(
-  row: PersistedLapIdentity | undefined,
-): CacheIdentity | undefined {
-  if (!row) return undefined;
-  if (!row.quality) {
-    return row.qualityGeneration == null && row.qualityPolicyVersion == null
-      ? { qualityGeneration: null, qualityPolicyVersion: null }
-      : undefined;
-  }
-  if (
-    row.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-    row.quality.provenance.policyVersion !== ELIGIBILITY_POLICY_VERSION ||
-    row.quality.provenance.outputGeneration !== row.qualityGeneration ||
-    !row.qualityGeneration ||
-    !FINALIZED_QUALITY_GENERATION_PATTERN.test(row.qualityGeneration)
-  ) {
-    return undefined;
-  }
-  return {
-    qualityGeneration: row.qualityGeneration,
-    qualityPolicyVersion: row.qualityPolicyVersion,
-  };
-}
-
-function currentExpectedLapIdentity(
-  identity: AnalysisQualityIdentity,
-): CacheIdentity | undefined {
-  if (!identity.hasQuality) {
-    return identity.qualityGeneration == null &&
-      identity.qualityPolicyVersion == null
-      ? { qualityGeneration: null, qualityPolicyVersion: null }
-      : undefined;
-  }
-  if (
-    identity.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-    !identity.qualityGeneration ||
-    !FINALIZED_QUALITY_GENERATION_PATTERN.test(identity.qualityGeneration)
-  ) {
-    return undefined;
-  }
-  return {
-    qualityGeneration: identity.qualityGeneration,
-    qualityPolicyVersion: identity.qualityPolicyVersion,
-  };
-}
-
-function sameIdentity(
-  left: CacheIdentity,
-  right: CacheIdentity,
-): boolean {
-  return (
-    left.qualityGeneration === right.qualityGeneration &&
-    left.qualityPolicyVersion === right.qualityPolicyVersion
-  );
-}
-
-function compareIdentity(
-  left: CacheIdentity | undefined,
-  right: CacheIdentity | undefined,
-): CacheIdentity | undefined {
-  if (!left || !right) return undefined;
-  if (
-    left.qualityGeneration == null ||
-    right.qualityGeneration == null
-  ) {
-    return left.qualityGeneration == null &&
-      right.qualityGeneration == null &&
-      left.qualityPolicyVersion == null &&
-      right.qualityPolicyVersion == null
-      ? { qualityGeneration: null, qualityPolicyVersion: null }
-      : undefined;
-  }
-  return {
-    qualityGeneration: combineQualityGenerations([
-      left.qualityGeneration,
-      right.qualityGeneration,
-    ]),
-    qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
-  };
-}
-
-async function readLapIdentities(
-  tx: DbTransaction,
-  lapIds: readonly number[],
-): Promise<Map<number, CacheIdentity | undefined>> {
-  const rows = await tx
-    .select({
-      id: laps.id,
-      quality: laps.quality,
-      qualityGeneration: laps.qualityGeneration,
-      qualityPolicyVersion: laps.qualityPolicyVersion,
-    })
-    .from(laps)
-    .where(inArray(laps.id, [...lapIds]))
-    .all();
-  const result = new Map<number, CacheIdentity | undefined>();
-  for (const row of rows) {
-    result.set(row.id, currentPersistedLapIdentity(row));
-  }
-  return result;
-}
-
 /**
  * Save or replace AI analysis for a lap.
  */
 
-export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
+export async function getAnalysis(
+  lapId: number,
+  expectedFindingGeneration: FindingGenerationExpectation,
+): Promise<AnalysisRow | null> {
+  if (!expectationMatchesLap(expectedFindingGeneration, lapId)) return null;
   return db.transaction(async (tx) => {
-    const identities = await readLapIdentities(tx, [lapId]);
-    const identity = identities.get(lapId);
-    if (!identity) return null;
+    if (!(await hasCurrentFindingGeneration(tx, expectedFindingGeneration))) return null;
+    const identity = await currentLapQualityIdentity(tx, lapId);
+    if (!identity || identity.policyVersion !== ELIGIBILITY_POLICY_VERSION) return null;
     const row = await tx
       .select({
         analysis: lapAnalyses.analysis,
@@ -177,33 +259,36 @@ export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
         costUsd: lapAnalyses.costUsd,
         durationMs: lapAnalyses.durationMs,
         model: lapAnalyses.model,
-        qualityGeneration: lapAnalyses.qualityGeneration,
-        qualityPolicyVersion: lapAnalyses.qualityPolicyVersion,
       })
       .from(lapAnalyses)
-      .where(eq(lapAnalyses.lapId, lapId))
+      .where(
+        and(
+          eq(lapAnalyses.lapId, lapId),
+          eq(lapAnalyses.qualityGeneration, identity.generation),
+          eq(lapAnalyses.qualityPolicyVersion, identity.policyVersion),
+          eq(lapAnalyses.findingGenerationKey, expectationCacheKey(expectedFindingGeneration)),
+        ),
+      )
       .get();
-    return row && sameIdentity(row, identity) ? row : null;
+    return row ?? null;
   });
 }
-
 
 export async function saveAnalysis(
   lapId: number,
   analysis: string,
   usage: AnalysisUsage,
-  expectedIdentity: AnalysisQualityIdentity,
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    const identities = await readLapIdentities(tx, [lapId]);
-    const identity = identities.get(lapId);
-    const expected = currentExpectedLapIdentity(expectedIdentity);
-    if (!identity || !expected || !sameIdentity(identity, expected)) return;
-    const existing = await tx
-      .select({ id: lapAnalyses.id })
-      .from(lapAnalyses)
-      .where(eq(lapAnalyses.lapId, lapId))
-      .get();
+  expectedIdentity: QualityCacheIdentity,
+  expectedFindingGeneration: FindingGenerationExpectation,
+): Promise<boolean> {
+  if (!expectationMatchesLap(expectedFindingGeneration, lapId)) return false;
+  return db.transaction(async (tx) => {
+    if (!(await hasCurrentFindingGeneration(tx, expectedFindingGeneration))) return false;
+    const currentIdentity = await currentLapQualityIdentity(tx, lapId);
+    if (!currentIdentity || expectedIdentity.generation !== currentIdentity.generation || expectedIdentity.policyVersion !== currentIdentity.policyVersion) {
+      return false;
+    }
+    const existing = await tx.select({ id: lapAnalyses.id }).from(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).get();
     const values = {
       analysis,
       inputTokens: usage.inputTokens,
@@ -212,43 +297,64 @@ export async function saveAnalysis(
       durationMs: usage.durationMs,
       model: usage.model,
       createdAt: sql`(datetime('now'))`,
-      ...identity,
+      qualityGeneration: expectedIdentity.generation,
+      qualityPolicyVersion: expectedIdentity.policyVersion,
+      findingGenerationKey: expectationCacheKey(expectedFindingGeneration),
     };
     if (existing) {
-      await tx
-        .update(lapAnalyses)
-        .set(values)
-        .where(eq(lapAnalyses.lapId, lapId))
-        .run();
+      await tx.update(lapAnalyses).set(values).where(eq(lapAnalyses.lapId, lapId)).run();
     } else {
       await tx.insert(lapAnalyses).values({ lapId, ...values }).run();
     }
+    return true;
   });
 }
-
-/**
- * Delete cached AI analysis for a lap.
- */
 
 export async function deleteAnalysis(lapId: number): Promise<void> {
   await db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).run();
 }
+export type FindingGenerationExpectationPair = readonly [
+  FindingGenerationExpectation,
+  FindingGenerationExpectation,
+];
 
-/**
- * Look up a cached compare-analysis for a lap pair.
- * The pair key is canonical (min, max) so the order of arguments doesn't matter.
- */
+function expectationLapId(expectation: FindingGenerationExpectation): number | null {
+  const value = expectation.scope.lapId;
+  if (!value || !/^[1-9]\d*$/.test(value)) return null;
+  const id = Number(value);
+  return Number.isSafeInteger(id) ? id : null;
+}
+
+function compareExpectationCacheKey(
+  pair: FindingGenerationExpectationPair,
+): FindingGenerationCacheKey {
+  return findingGenerationCacheKey(
+    [...pair]
+      .sort((left, right) => (expectationLapId(left) ?? 0) - (expectationLapId(right) ?? 0))
+      .map(({ generationId, contentHash }) => ({ generationId, contentHash })),
+  );
+}
+
+function expectationMatchesLap(expectation: FindingGenerationExpectation, lapId: number): boolean {
+  return expectation.scope.kind === "lap" && expectationLapId(expectation) === lapId;
+}
 
 export async function getCompareAnalysis(
   idA: number,
   idB: number,
+  expectedFindingGenerations: FindingGenerationExpectationPair,
   kind: string = "inputs",
 ): Promise<AnalysisRow | null> {
+  if (
+    !expectationMatchesLap(expectedFindingGenerations[0], idA) ||
+    !expectationMatchesLap(expectedFindingGenerations[1], idB)
+  ) return null;
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
   return db.transaction(async (tx) => {
-    const identities = await readLapIdentities(tx, [lo, hi]);
-    const identity = compareIdentity(identities.get(lo), identities.get(hi));
+    if (!(await hasCurrentFindingGeneration(tx, expectedFindingGenerations[0])) ||
+        !(await hasCurrentFindingGeneration(tx, expectedFindingGenerations[1]))) return null;
+    const identity = await currentCompareQualityIdentity(tx, lo, hi);
     if (!identity) return null;
     const row = await tx
       .select({
@@ -258,54 +364,55 @@ export async function getCompareAnalysis(
         costUsd: compareAnalyses.costUsd,
         durationMs: compareAnalyses.durationMs,
         model: compareAnalyses.model,
-        qualityGeneration: compareAnalyses.qualityGeneration,
-        qualityPolicyVersion: compareAnalyses.qualityPolicyVersion,
       })
       .from(compareAnalyses)
       .where(
         and(
           eq(compareAnalyses.lapAId, lo),
           eq(compareAnalyses.lapBId, hi),
+          eq(compareAnalyses.requestLapAId, idA),
+          eq(compareAnalyses.requestLapBId, idB),
           eq(compareAnalyses.kind, kind),
+          eq(compareAnalyses.qualityGeneration, identity.generation),
+          eq(compareAnalyses.qualityPolicyVersion, identity.policyVersion),
+          eq(compareAnalyses.findingGenerationKey, compareExpectationCacheKey(expectedFindingGenerations)),
         ),
       )
       .get();
-    return row && sameIdentity(row, identity) ? row : null;
+    return row ?? null;
   });
 }
-
 
 export async function saveCompareAnalysis(
   idA: number,
   idB: number,
   analysis: string,
   usage: AnalysisUsage,
-  expectedIdentities: readonly [
-    AnalysisQualityIdentity,
-    AnalysisQualityIdentity,
-  ],
+  expectedIdentity: QualityCacheIdentity,
+  expectedFindingGenerations: FindingGenerationExpectationPair,
   kind: string = "inputs",
-): Promise<void> {
+): Promise<boolean> {
+  if (
+    !expectationMatchesLap(expectedFindingGenerations[0], idA) ||
+    !expectationMatchesLap(expectedFindingGenerations[1], idB)
+  ) return false;
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  await db.transaction(async (tx) => {
-    const identities = await readLapIdentities(tx, [lo, hi]);
-    const identity = compareIdentity(identities.get(lo), identities.get(hi));
-    const expected = compareIdentity(
-      currentExpectedLapIdentity(expectedIdentities[0]),
-      currentExpectedLapIdentity(expectedIdentities[1]),
-    );
-    if (!identity || !expected || !sameIdentity(identity, expected)) return;
+  return db.transaction(async (tx) => {
+    if (!(await hasCurrentFindingGeneration(tx, expectedFindingGenerations[0])) ||
+        !(await hasCurrentFindingGeneration(tx, expectedFindingGenerations[1]))) return false;
+    const currentIdentity = await currentCompareQualityIdentity(tx, lo, hi);
+    if (!currentIdentity || expectedIdentity.generation !== currentIdentity.generation || expectedIdentity.policyVersion !== currentIdentity.policyVersion) {
+      return false;
+    }
     const existing = await tx
       .select({ id: compareAnalyses.id })
       .from(compareAnalyses)
-      .where(
-        and(
-          eq(compareAnalyses.lapAId, lo),
-          eq(compareAnalyses.lapBId, hi),
-          eq(compareAnalyses.kind, kind),
-        ),
-      )
+      .where(and(
+        eq(compareAnalyses.requestLapAId, idA),
+        eq(compareAnalyses.requestLapBId, idB),
+        eq(compareAnalyses.kind, kind),
+      ))
       .get();
     const values = {
       analysis,
@@ -315,44 +422,41 @@ export async function saveCompareAnalysis(
       durationMs: usage.durationMs,
       model: usage.model,
       createdAt: sql`(datetime('now'))`,
-      ...identity,
+      qualityGeneration: expectedIdentity.generation,
+      findingGenerationKey: compareExpectationCacheKey(expectedFindingGenerations),
+      qualityPolicyVersion: expectedIdentity.policyVersion,
     };
     if (existing) {
       await tx
         .update(compareAnalyses)
         .set(values)
-        .where(
-          and(
-            eq(compareAnalyses.lapAId, lo),
-            eq(compareAnalyses.lapBId, hi),
-            eq(compareAnalyses.kind, kind),
-          ),
-        )
+        .where(eq(compareAnalyses.id, existing.id))
         .run();
     } else {
-      await tx
-        .insert(compareAnalyses)
-        .values({ lapAId: lo, lapBId: hi, kind, ...values })
-        .run();
+      await tx.insert(compareAnalyses).values({
+        lapAId: lo,
+        lapBId: hi,
+        requestLapAId: idA,
+        requestLapBId: idB,
+        kind,
+        ...values,
+      }).run();
     }
+    return true;
   });
 }
 
-
-export async function deleteCompareAnalysis(
-  idA: number,
-  idB: number,
-  kind: string = "inputs",
-): Promise<void> {
+export async function deleteCompareAnalysis(idA: number, idB: number, kind: string = "inputs"): Promise<void> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  await db.delete(compareAnalyses)
-    .where(
-      and(
-        eq(compareAnalyses.lapAId, lo),
-        eq(compareAnalyses.lapBId, hi),
-        eq(compareAnalyses.kind, kind),
-      ),
-    )
+  await db
+    .delete(compareAnalyses)
+    .where(and(
+      eq(compareAnalyses.lapAId, lo),
+      eq(compareAnalyses.lapBId, hi),
+      eq(compareAnalyses.requestLapAId, idA),
+      eq(compareAnalyses.requestLapBId, idB),
+      eq(compareAnalyses.kind, kind),
+    ))
     .run();
 }

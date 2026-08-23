@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  getLapAnalysisToolFor,
-  parseCachedLapAnalysis,
-} from "../../../mastra/tools/lap-analysis";
+import { getLapAnalysisToolFor, parseCachedLapAnalysis } from "../../../mastra/tools/lap-analysis";
+import { lapFindingGenerationCacheKey } from "../../../server/db/analysis-queries";
+import { FINDING_RECEIPT_FENCE_CONTEXT_KEY } from "../../../server/ai/chat-message-context";
 import { buildCompareChatSystemPrompt } from "../../../server/ai/compare-chat-prompt";
 
 const lap = {
@@ -39,11 +38,7 @@ function isLapResult(value: unknown): value is LapResult {
     lapId?: unknown;
     readable?: unknown;
   };
-  return (
-    typeof result.available === "boolean" &&
-    typeof result.lapId === "number" &&
-    typeof result.readable === "string"
-  );
+  return typeof result.available === "boolean" && typeof result.lapId === "number" && typeof result.readable === "string";
 }
 
 const comparison = {
@@ -51,6 +46,23 @@ const comparison = {
   distances: [0, 100],
   cornerDeltas: [],
 } as never;
+
+const findingDeps = {
+  getLapMetaById: async (lapId: number) =>
+    ({
+      id: lapId,
+      gameId: "fm-2023" as const,
+      sessionId: 17,
+    }) as never,
+  getCurrentFindingGeneration: async () =>
+    ({
+      receipt: {
+        generationId: "generation-4",
+        contentHash: "content-4",
+      },
+      findings: [],
+    }) as never,
+};
 
 describe("lap analysis retrieval contract", () => {
   test("parses cached structured analysis for tool output", () => {
@@ -70,19 +82,18 @@ describe("lap analysis retrieval contract", () => {
   });
 
   test("rejects null, arrays, and schema-invalid cached rows", async () => {
-    for (const analysis of [
-      "null",
-      "[]",
-      JSON.stringify({ verdict: "missing required fields" }),
-    ]) {
-      const tool = getLapAnalysisToolFor(async () => ({
-        analysis,
-        inputTokens: 1,
-        outputTokens: 1,
-        costUsd: 0,
-        durationMs: 1,
-        model: "test-model",
-      }));
+    for (const analysis of ["null", "[]", JSON.stringify({ verdict: "missing required fields" })]) {
+      const tool = getLapAnalysisToolFor(
+        async () => ({
+          analysis,
+          inputTokens: 1,
+          outputTokens: 1,
+          costUsd: 0,
+          durationMs: 1,
+          model: "test-model",
+        }),
+        findingDeps,
+      );
       const execute = tool.execute;
       if (!execute) throw new Error("Lap analysis tool has no execute function");
       const rawResult = await execute({ lapId: 4 }, {} as never);
@@ -93,15 +104,71 @@ describe("lap analysis retrieval contract", () => {
       expect(result.error).toContain("schema");
     }
   });
-  test("does not embed cached analysis in compare prompts", () => {
-    const comparePrompt = buildCompareChatSystemPrompt(
-      lap,
-      { ...lap, lapNumber: 5 },
-      comparison,
-      "metric",
-      "C",
-      "en",
+
+  test("abstains before cache lookup when current findings are missing", async () => {
+    let cacheRead = false;
+    const tool = getLapAnalysisToolFor(
+      async () => {
+        cacheRead = true;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => null,
+      },
     );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Lap analysis tool has no execute function");
+    const rawResult = await execute({ lapId: 4 }, {} as never);
+    if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
+
+    expect(cacheRead).toBe(false);
+    expect(rawResult.available).toBe(false);
+    expect(rawResult.error).toBe("Finding generation not found");
+  });
+
+  test("uses the request-bound receipt fence without loading a newer generation", async () => {
+    const receipt = { generationId: "bound-generation-4", contentHash: "bound-content-4" };
+    const cacheKey = lapFindingGenerationCacheKey(receipt);
+    let receivedExpectation: unknown;
+    const tool = getLapAnalysisToolFor(
+      async (_lapId, expectation) => {
+        receivedExpectation = expectation;
+        return null;
+      },
+      {
+        ...findingDeps,
+        getCurrentFindingGeneration: async () => {
+          throw new Error("must not load latest generation");
+        },
+      },
+    );
+    const execute = tool.execute;
+    if (!execute) throw new Error("Lap analysis tool has no execute function");
+    const rawResult = await execute({ lapId: 4 }, {
+      requestContext: {
+        get(key: string) {
+          return key === FINDING_RECEIPT_FENCE_CONTEXT_KEY
+            ? {
+                kind: "lap",
+                gameId: "fm-2023",
+                cacheKey,
+                laps: [{ lapId: 4, ...receipt }],
+              }
+            : undefined;
+        },
+      },
+    } as never);
+    if (!isLapResult(rawResult)) throw new Error("Unexpected lap analysis tool result");
+
+    expect(receivedExpectation).toEqual({
+      scope: { kind: "lap", gameId: "fm-2023", sessionId: "17", lapId: "4" },
+      generationId: receipt.generationId,
+      contentHash: receipt.contentHash,
+    });
+  });
+  test("does not embed cached analysis in compare prompts", () => {
+    const comparePrompt = buildCompareChatSystemPrompt(lap, { ...lap, lapNumber: 5 }, comparison, "metric", "C", "en");
     expect(comparePrompt).not.toContain("LAP A ANALYSIS");
     expect(comparePrompt).not.toContain("LAP B ANALYSIS");
     expect(comparePrompt).toContain("get_lap_analysis");

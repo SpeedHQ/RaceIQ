@@ -20,7 +20,8 @@ import { loadRawCaptureIdentity } from "../../server/session-capture/identity";
 import { ImportCaptureAdapter, IncompleteImportError, importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { currentTelemetryVersionIdentity, NullSessionRecorderAdapter, NullWsAdapter, RealDbAdapter } from "../../server/telemetry/pipeline-ports";
+import { NullSessionRecorderAdapter, NullWsAdapter, RealDbAdapter } from "../../server/telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../server/telemetry/version-identity";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
 initGameAdapters();
 initServerGameAdapters();
@@ -57,6 +58,7 @@ const FIXTURE_LANDMARKS = [
   "pit_entry",
   "pit_service_started",
   "fuel_service_observed",
+  "repair_service_observed",
   "pit_service_completed",
   "pit_exit",
 ] as const satisfies readonly RaceEventType[];
@@ -196,26 +198,13 @@ function semanticLap(lap: typeof laps.$inferSelect) {
 }
 
 function semanticRun(run: typeof sessionRuns.$inferSelect) {
-  const {
-    analysisGenerationId: _analysisGenerationId,
-    sourceGeneration: _sourceGeneration,
-    startLapId: _startLapId,
-    endLapId: _endLapId,
-    createdAt: _createdAt,
-    ...semantic
-  } = run;
+  const { analysisGenerationId: _analysisGenerationId, sourceGeneration: _sourceGeneration, startLapId: _startLapId, endLapId: _endLapId, createdAt: _createdAt, ...semantic } = run;
   return semantic;
 }
 
 function semanticResult(result: typeof sessionResults.$inferSelect | undefined) {
   if (!result) return result;
-  const {
-    analysisGenerationId: _analysisGenerationId,
-    provenance: _provenance,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    ...semantic
-  } = result;
+  const { analysisGenerationId: _analysisGenerationId, provenance: _provenance, createdAt: _createdAt, updatedAt: _updatedAt, ...semantic } = result;
   return semantic;
 }
 
@@ -384,6 +373,7 @@ function assertFixtureLandmarks(events: readonly RaceEvent[]): void {
     "pit_stall_arrival",
     "pit_service_started",
     "fuel_service_observed",
+    "repair_service_observed",
     "pit_service_completed",
     "pit_stall_departure",
     "pit_exit",
@@ -415,17 +405,11 @@ describe("raw race-event replay parity", () => {
     const second = await rebuildRaceEventTimeline(input);
 
     expect(first.events.length).toBeGreaterThan(0);
-    expect(second.events.map(({ eventId }) => eventId)).toEqual(
-      first.events.map(({ eventId }) => eventId),
-    );
-    expect(second.events.map(({ contentHash }) => contentHash)).toEqual(
-      first.events.map(({ contentHash }) => contentHash),
-    );
+    expect(second.events.map(({ eventId }) => eventId)).toEqual(first.events.map(({ eventId }) => eventId));
+    expect(second.events.map(({ contentHash }) => contentHash)).toEqual(first.events.map(({ contentHash }) => contentHash));
     expect(first.events.every(({ sourceGeneration }) => sourceGeneration === CANONICAL_VERIFICATION.sourceGeneration)).toBe(true);
     expect(first.events.every(({ analysisGenerationId }) => analysisGenerationId === input.analysisGenerationId)).toBe(true);
-    expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(
-      first.laps.map(({ lapNumber }) => lapNumber),
-    );
+    expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(first.laps.map(({ lapNumber }) => lapNumber));
     expect(first.runs.length).toBeGreaterThan(0);
     expect(first.runs.every(({ analysisGenerationId }) => analysisGenerationId === input.analysisGenerationId)).toBe(true);
     expect(first.memberships.every(({ runId }) => first.runs.some((run) => run.runId === runId))).toBe(true);
@@ -481,12 +465,7 @@ describe("raw race-event replay parity", () => {
         await reprocessSession(imported.sessionId);
         const rawRebuilt = await persistedSessionParity(imported.sessionId);
 
-
-        const rawCapture = await db
-          .select({ rawFile: sessions.rawFile })
-          .from(sessions)
-          .where(eq(sessions.id, imported.sessionId))
-          .get();
+        const rawCapture = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, imported.sessionId)).get();
         if (!rawCapture?.rawFile) throw new Error("Imported parity session has no raw capture");
         const sourceIdentity = await loadRawCaptureIdentity(rawCapture.rawFile);
         if (!sourceIdentity) throw new Error("Imported parity raw capture is unreadable");

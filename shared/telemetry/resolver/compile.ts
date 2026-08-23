@@ -1,7 +1,10 @@
 import type { GameId } from "../../games/ids";
 import type { TelemetryCatalogData, TelemetryVariableDefinition } from "../catalog/contracts";
 import { TELEMETRY_CATALOG } from "../catalog/data";
-import { getBuiltinTelemetryDerivation, TELEMETRY_DERIVATION_VERSION } from "../derivations/builtins";
+import {
+  getBuiltinTelemetryDerivation,
+  telemetryDerivationVersionIdentity,
+} from "../derivations/builtins";
 import type { TelemetryDerivation } from "../derivations/contracts";
 import type { TelemetryPacket } from "../types";
 import type { CompiledTelemetryResolver, ResolverCompileOptions, SemanticSlot, SourceObservation, TelemetryFrameView } from "./contracts";
@@ -28,7 +31,7 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
   readonly parserId: string;
   readonly parserVersion: string;
   readonly resolverVersion = TELEMETRY_RESOLVER_VERSION;
-  readonly derivationVersion = TELEMETRY_DERIVATION_VERSION;
+  readonly derivationVersion: string;
   private readonly slots = new Map<string, SemanticSlot>();
   constructor(catalog: TelemetryCatalogData, options: ResolverCompileOptions) {
     const metadata = (catalog as RuntimeCatalog).metadata;
@@ -43,6 +46,9 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
     );
     const custom = new Map<string, TelemetryDerivation>(
       (options.derivations ?? []).map((definition) => [definition.output.semanticId, definition]),
+    );
+    this.derivationVersion = telemetryDerivationVersionIdentity(
+      options.derivations ?? [],
     );
     const visiting = new Set<string>();
     const ordered = new Set<string>();

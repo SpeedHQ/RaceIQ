@@ -17,7 +17,7 @@ export interface MappingInputRequirement {
 export interface DerivationOutput {
   semanticId: string;
   unit: string;
-  valueType: "number" | "boolean" | "enum" | "string";
+  valueType: "number" | "boolean" | "enum" | "string" | "structured";
 }
 
 export interface DerivationWindow {
@@ -52,6 +52,7 @@ export interface DerivationContext {
   number(semanticId: string): number | undefined;
   boolean(semanticId: string): boolean | undefined;
   text(semanticId: string): string | undefined;
+  structured(semanticId: string): Readonly<Record<string, unknown>> | undefined;
   unavailable(reason?: string): DerivationResult;
   value<T>(value: T): DerivationResult<T>;
 }

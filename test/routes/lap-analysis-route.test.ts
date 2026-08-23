@@ -31,10 +31,7 @@ test("semantic replay requests every Analyse Data panel dependency", () => {
 
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {
-    const response = await lapRoutes.request(
-      "/api/laps/999999/analyse?regenerate=true",
-      { method: "POST" },
-    );
+    const response = await lapRoutes.request("/api/laps/999999/analyse?regenerate=true", { method: "POST" });
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Lap not found" });
@@ -62,12 +59,36 @@ describe("GET /api/laps/:id/analyse/status", () => {
 });
 
 describe("GET /api/laps/:id1/compare/:id2/inputs-analyse/status", () => {
-  test("reports no active run for idle comparison", async () => {
-    const response = await lapRoutes.request(
-      "/api/laps/1/compare/2/inputs-analyse/status",
-    );
+  test("requires game identity for comparison status", async () => {
+    const response = await lapRoutes.request("/api/laps/1/compare/2/inputs-analyse/status");
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "none" });
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
+  });
+});
+
+describe("quality-scoped chat history", () => {
+  test("requires game identity before loading lap chat history", async () => {
+    const response = await lapRoutes.request("/api/laps/999999/chat");
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
+  });
+
+  test("requires game identity for comparison chat history", async () => {
+    const response = await lapRoutes.request("/api/laps/999998/compare/999999/chat");
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Missing or invalid X-Game-Id header" });
+  });
+});
+
+describe("comparison chat generation query", () => {
+  test("rejects unsafe generation numbers before loading comparison data", async () => {
+    const response = await lapRoutes.request("/api/laps/1/compare/2/chat?gen=9007199254740992", {
+      headers: { "X-Game-Id": "fm-2023" },
+    });
+
+    expect(response.status).toBe(400);
   });
 });

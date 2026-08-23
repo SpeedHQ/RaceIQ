@@ -17,20 +17,11 @@ import {
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import { QUALITY_POLICY_CONFIG_V1 } from "../../shared/racing/quality/policies";
-import {
-  ANALYSIS_RECEIPT_SCHEMA_VERSION,
-  type AnalysisComponentIdentity,
-  type AnalysisVerificationCheckId,
-} from "../../shared/racing/provenance/contracts";
+import { ANALYSIS_RECEIPT_SCHEMA_VERSION, type AnalysisComponentIdentity, type AnalysisVerificationCheckId } from "../../shared/racing/provenance/contracts";
 import { getActiveAnalysisReceipt, type AnalysisReceiptRow } from "../db/analysis-receipt-queries";
 import { db } from "../db/index";
 import { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";
-import {
-  assertCanonicalArchiveJobLease,
-  enqueueCanonicalArchiveJob,
-  getActiveVerifiedCanonicalArchive,
-  type CanonicalArchiveJobLease,
-} from "../db/canonical-archive-queries";
+import { assertCanonicalArchiveJobLease, enqueueCanonicalArchiveJob, getActiveVerifiedCanonicalArchive, type CanonicalArchiveJobLease } from "../db/canonical-archive-queries";
 import { getCorners } from "../db/track-queries";
 import { canonicalArchiveNodes, canonicalArchives, laps, sessionRuns, sessions } from "../db/schema";
 import { getSessionRawFile } from "../db/telemetry-replay-storage";
@@ -149,7 +140,10 @@ function generationPath(sessionId: number, generationId: string): string {
 
 function sourceTime(packet: TelemetryPacket): number {
   const value = Number(packet.TimestampMS);
-  return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Canonical archive packet has invalid timestamp");
+  }
+  return Math.trunc(value);
 }
 
 function packetDistance(packet: TelemetryPacket): number | null {
@@ -166,21 +160,17 @@ function packetNumericValue(packet: TelemetryPacket, field: "Speed" | "Accel"): 
   return Number.isFinite(value) ? value : null;
 }
 
-function participantForTime(
-  timeMs: number,
-  runs: readonly { participantId: string | null; startSourceTimeMs: number | null; endSourceTimeMs: number | null }[],
-): string | null {
-  const match = runs.find((run) =>
-    run.participantId != null &&
-    (run.startSourceTimeMs == null || timeMs >= run.startSourceTimeMs) &&
-    (run.endSourceTimeMs == null || timeMs <= run.endSourceTimeMs),
-  );
+function participantForTime(timeMs: number, runs: readonly { participantId: string | null; startSourceTimeMs: number | null; endSourceTimeMs: number | null }[]): string | null {
+  const match = runs.find((run) => run.participantId != null && (run.startSourceTimeMs == null || timeMs >= run.startSourceTimeMs) && (run.endSourceTimeMs == null || timeMs <= run.endSourceTimeMs));
   if (match) return match.participantId;
   const known = [...new Set(runs.map((run) => run.participantId).filter((id): id is string => id != null))];
   return known.length === 1 ? known[0] : null;
 }
 
-function nodeRange(samples: readonly SampleRow[], indexes: readonly number[]): { start: number; end: number; startTime: number | null; endTime: number | null; startDistance: number | null; endDistance: number | null } {
+function nodeRange(
+  samples: readonly SampleRow[],
+  indexes: readonly number[],
+): { start: number; end: number; startTime: number | null; endTime: number | null; startDistance: number | null; endDistance: number | null } {
   let firstIndex = indexes[0]!;
   let lastIndex = firstIndex;
   let startTime: number | null = null;
@@ -281,12 +271,7 @@ function actualSemanticIds(gameId: GameId, packets: readonly TelemetryPacket[], 
   return candidates.filter((id) => available.has(id));
 }
 
-
-async function writeParquet(
-  stagePath: string,
-  samples: readonly SampleRow[],
-  packets: readonly TelemetryPacket[],
-): Promise<void> {
+async function writeParquet(stagePath: string, samples: readonly SampleRow[], packets: readonly TelemetryPacket[]): Promise<void> {
   const spillDir = `${stagePath}.spill`;
   await mkdir(spillDir, { recursive: true });
   const instance = await DuckDBInstance.create(":memory:");
@@ -456,28 +441,43 @@ async function readCanonicalRawPackets(rawFile: string, gameId: GameId): Promise
   return packets;
 }
 
-async function buildRows(sessionId: number, packets: readonly TelemetryPacket[]): Promise<{ samples: SampleRow[]; nodes: CanonicalArchiveNode[]; semanticIds: string[]; completeness: "complete" | "partial"; context: ArchiveWriteResult["context"] }> {
-  const session = await db.select({
-    gameId: sessions.gameId,
-    trackOrdinal: sessions.trackOrdinal,
-    source: sessions.source,
-    sourceChannelProfile: sessions.sourceChannelProfile,
-  }).from(sessions).where(eq(sessions.id, sessionId)).get();
+async function buildRows(
+  sessionId: number,
+  packets: readonly TelemetryPacket[],
+): Promise<{ samples: SampleRow[]; nodes: CanonicalArchiveNode[]; semanticIds: string[]; completeness: "complete" | "partial"; context: ArchiveWriteResult["context"] }> {
+  const session = await db
+    .select({
+      gameId: sessions.gameId,
+      trackOrdinal: sessions.trackOrdinal,
+      source: sessions.source,
+      sourceChannelProfile: sessions.sourceChannelProfile,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .get();
   if (!session) throw new Error(`Session ${sessionId} not found`);
-  const runs = await db.select({
-    runId: sessionRuns.runId,
-    participantId: sessionRuns.participantId,
-    status: sessionRuns.status,
-    startSourceTimeMs: sessionRuns.startSourceTimeMs,
-    endSourceTimeMs: sessionRuns.endSourceTimeMs,
-  }).from(sessionRuns).where(eq(sessionRuns.sessionId, sessionId)).orderBy(asc(sessionRuns.openingSequence));
-  const persistedLaps = await db.select({
-    id: laps.id,
-    lapNumber: laps.lapNumber,
-    isValid: laps.isValid,
-    phase: laps.phase,
-  }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(asc(laps.lapNumber), asc(laps.id));
-  const lapByNumber = new Map<number, typeof persistedLaps[number]>();
+  const runs = await db
+    .select({
+      runId: sessionRuns.runId,
+      participantId: sessionRuns.participantId,
+      status: sessionRuns.status,
+      startSourceTimeMs: sessionRuns.startSourceTimeMs,
+      endSourceTimeMs: sessionRuns.endSourceTimeMs,
+    })
+    .from(sessionRuns)
+    .where(eq(sessionRuns.sessionId, sessionId))
+    .orderBy(asc(sessionRuns.openingSequence));
+  const persistedLaps = await db
+    .select({
+      id: laps.id,
+      lapNumber: laps.lapNumber,
+      isValid: laps.isValid,
+      phase: laps.phase,
+    })
+    .from(laps)
+    .where(eq(laps.sessionId, sessionId))
+    .orderBy(asc(laps.lapNumber), asc(laps.id));
+  const lapByNumber = new Map<number, (typeof persistedLaps)[number]>();
   for (const lap of persistedLaps) if (!lapByNumber.has(lap.lapNumber)) lapByNumber.set(lap.lapNumber, lap);
   const samples: SampleRow[] = new Array(packets.length);
   for (let sampleOrdinal = 0; sampleOrdinal < packets.length; sampleOrdinal += 1) {
@@ -513,34 +513,37 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
     const participantId = key === "unknown" ? null : key;
     const nodeId = `participant:${key}`;
     participantNodeByKey.set(key, nodeId);
-    nodes.push(nodeFromRange({ archiveId, nodeId, parentNodeId: null, level: "participant", semanticKind: "participant", stableKey: key, ordinal, participantId, status: "complete", samples, indexes }));
+    nodes.push(
+      nodeFromRange({ archiveId, nodeId, parentNodeId: null, level: "participant", semanticKind: "participant", stableKey: key, ordinal, participantId, status: "complete", samples, indexes }),
+    );
   }
   const stintNodeByRunId = new Map<string, string>();
   for (const [ordinal, run] of runs.entries()) {
     const indexes = samples.flatMap((sample, index) => {
       const inParticipant = run.participantId == null || sample.participantId === run.participantId;
-      const inTime = (run.startSourceTimeMs == null || sample.sourceTimeMs >= run.startSourceTimeMs) &&
-        (run.endSourceTimeMs == null || sample.sourceTimeMs <= run.endSourceTimeMs);
+      const inTime = (run.startSourceTimeMs == null || sample.sourceTimeMs >= run.startSourceTimeMs) && (run.endSourceTimeMs == null || sample.sourceTimeMs <= run.endSourceTimeMs);
       return inParticipant && inTime ? [index] : [];
     });
     if (indexes.length === 0) continue;
     const participantKey = run.participantId ?? "unknown";
     const nodeId = `stint:${run.runId}`;
     stintNodeByRunId.set(run.runId, nodeId);
-    nodes.push(nodeFromRange({
-      archiveId,
-      nodeId,
-      parentNodeId: participantNodeByKey.get(participantKey) ?? null,
-      level: "stint",
-      semanticKind: "stint",
-      stableKey: run.runId,
-      ordinal,
-      participantId: run.participantId,
-      sessionRunId: run.runId,
-      status: run.status === "complete" ? "complete" : "partial",
-      samples,
-      indexes,
-    }));
+    nodes.push(
+      nodeFromRange({
+        archiveId,
+        nodeId,
+        parentNodeId: participantNodeByKey.get(participantKey) ?? null,
+        level: "stint",
+        semanticKind: "stint",
+        stableKey: run.runId,
+        ordinal,
+        participantId: run.participantId,
+        sessionRunId: run.runId,
+        status: run.status === "complete" ? "complete" : "partial",
+        samples,
+        indexes,
+      }),
+    );
   }
   const lapGroups = new Map<string, number[]>();
   for (let index = 0; index < samples.length; index += 1) {
@@ -557,16 +560,31 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
     const lap = lapByNumber.get(lapNumber);
     const participantId = participantKey === "unknown" ? null : participantKey;
     const firstSample = samples[indexes[0]!]!;
-    const run = runs.find((candidate) =>
-      (candidate.participantId == null || candidate.participantId === participantId) &&
-      (candidate.startSourceTimeMs == null || firstSample.sourceTimeMs >= candidate.startSourceTimeMs) &&
-      (candidate.endSourceTimeMs == null || firstSample.sourceTimeMs <= candidate.endSourceTimeMs),
+    const run = runs.find(
+      (candidate) =>
+        (candidate.participantId == null || candidate.participantId === participantId) &&
+        (candidate.startSourceTimeMs == null || firstSample.sourceTimeMs >= candidate.startSourceTimeMs) &&
+        (candidate.endSourceTimeMs == null || firstSample.sourceTimeMs <= candidate.endSourceTimeMs),
     );
-    const parentNodeId = run
-      ? stintNodeByRunId.get(run.runId) ?? participantNodeByKey.get(participantKey) ?? null
-      : participantNodeByKey.get(participantKey) ?? null;
+    const parentNodeId = run ? (stintNodeByRunId.get(run.runId) ?? participantNodeByKey.get(participantKey) ?? null) : (participantNodeByKey.get(participantKey) ?? null);
     const status = lap == null ? "unknown" : lap.isValid ? (lap.phase === "flying" ? "valid" : lap.phase) : "invalid";
-    nodes.push(nodeFromRange({ archiveId, nodeId: `lap:${key}`, parentNodeId, level: "lap", semanticKind: "lap", stableKey: key, ordinal, participantId, sessionRunId: run?.runId ?? null, lapId: lap?.id ?? null, status, samples, indexes }));
+    nodes.push(
+      nodeFromRange({
+        archiveId,
+        nodeId: `lap:${key}`,
+        parentNodeId,
+        level: "lap",
+        semanticKind: "lap",
+        stableKey: key,
+        ordinal,
+        participantId,
+        sessionRunId: run?.runId ?? null,
+        lapId: lap?.id ?? null,
+        status,
+        samples,
+        indexes,
+      }),
+    );
   }
   const track = resolveTrack(session.gameId, session.trackOrdinal);
   const corners = await getCorners(session.trackOrdinal, session.gameId as GameId);
@@ -582,14 +600,13 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
     const wrapped = ((sample.trackDistanceM % trackLength) + trackLength) % trackLength;
     return wrapped / trackLength;
   };
-  const indexesForSegment = (startFrac: number, endFrac: number): number[] => samples.flatMap((sample, index) => {
-    const fraction = distanceFraction(sample);
-    if (fraction == null) return [];
-    const inRange = startFrac <= endFrac
-      ? fraction >= startFrac && fraction <= endFrac
-      : fraction >= startFrac || fraction <= endFrac;
-    return inRange ? [index] : [];
-  });
+  const indexesForSegment = (startFrac: number, endFrac: number): number[] =>
+    samples.flatMap((sample, index) => {
+      const fraction = distanceFraction(sample);
+      if (fraction == null) return [];
+      const inRange = startFrac <= endFrac ? fraction >= startFrac && fraction <= endFrac : fraction >= startFrac || fraction <= endFrac;
+      return inRange ? [index] : [];
+    });
   for (const [ordinal, segment] of track.segments.entries()) {
     const indexes = indexesForSegment(segment.startFrac, segment.endFrac);
     if (indexes.length === 0) continue;
@@ -597,20 +614,22 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
     const cornerNodeId = `corner:${segmentKey}`;
     const parentNodeId = segment.type === "corner" ? cornerNodeId : null;
     if (segment.type === "corner") {
-      nodes.push(nodeFromRange({
-        archiveId,
-        nodeId: cornerNodeId,
-        parentNodeId: null,
-        level: "corner",
-        semanticKind: "corner",
-        stableKey: segmentKey,
-        ordinal,
-        participantId: null,
-        status: "authoritative",
-        definitionHash: cornerDefinitionHash,
-        samples,
-        indexes,
-      }));
+      nodes.push(
+        nodeFromRange({
+          archiveId,
+          nodeId: cornerNodeId,
+          parentNodeId: null,
+          level: "corner",
+          semanticKind: "corner",
+          stableKey: segmentKey,
+          ordinal,
+          participantId: null,
+          status: "authoritative",
+          definitionHash: cornerDefinitionHash,
+          samples,
+          indexes,
+        }),
+      );
       const apexIndex = indexes.reduce((best, index) => {
         const speed = samples[index]!.speed;
         const bestSpeed = samples[best]!.speed;
@@ -624,36 +643,40 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
       ];
       for (const phase of phaseRanges) {
         if (phase.indexes.length === 0) continue;
-        nodes.push(nodeFromRange({
-          archiveId,
-          nodeId: `segment:${segmentKey}:${phase.kind}`,
-          parentNodeId,
-          level: "segment",
-          semanticKind: phase.kind,
-          stableKey: `${segmentKey}:${phase.kind}`,
-          ordinal,
-          participantId: null,
-          status: "derived",
-          definitionHash: cornerDefinitionHash,
-          samples,
-          indexes: phase.indexes,
-        }));
+        nodes.push(
+          nodeFromRange({
+            archiveId,
+            nodeId: `segment:${segmentKey}:${phase.kind}`,
+            parentNodeId,
+            level: "segment",
+            semanticKind: phase.kind,
+            stableKey: `${segmentKey}:${phase.kind}`,
+            ordinal,
+            participantId: null,
+            status: "derived",
+            definitionHash: cornerDefinitionHash,
+            samples,
+            indexes: phase.indexes,
+          }),
+        );
       }
     } else {
-      nodes.push(nodeFromRange({
-        archiveId,
-        nodeId: `segment:${segmentKey}`,
-        parentNodeId,
-        level: "segment",
-        semanticKind: "straight",
-        stableKey: segmentKey,
-        ordinal,
-        participantId: null,
-        status: "authoritative",
-        definitionHash: trackDefinitionHash,
-        samples,
-        indexes,
-      }));
+      nodes.push(
+        nodeFromRange({
+          archiveId,
+          nodeId: `segment:${segmentKey}`,
+          parentNodeId,
+          level: "segment",
+          semanticKind: "straight",
+          stableKey: segmentKey,
+          ordinal,
+          participantId: null,
+          status: "authoritative",
+          definitionHash: trackDefinitionHash,
+          samples,
+          indexes,
+        }),
+      );
     }
   }
   // Complete means every readable raw packet reached canonical storage. Session
@@ -677,13 +700,7 @@ async function buildRows(sessionId: number, packets: readonly TelemetryPacket[])
   };
 }
 
-async function writeArchive(input: {
-  sessionId: number;
-  gameId: GameId;
-  sourceContentHash: string;
-  generationId: string;
-  packets: readonly TelemetryPacket[];
-}): Promise<ArchiveWriteResult> {
+async function writeArchive(input: { sessionId: number; gameId: GameId; sourceContentHash: string; generationId: string; packets: readonly TelemetryPacket[] }): Promise<ArchiveWriteResult> {
   const archiveId = archiveIdFor(input.sessionId, input.sourceContentHash, input.generationId);
   const base = generationPath(input.sessionId, input.generationId);
   const finalPath = join(base, "telemetry.parquet");
@@ -738,7 +755,17 @@ async function writeArchive(input: {
 
 function receiptChecks(input: Pick<ArchiveWriteResult, "semanticIds" | "samples" | "nodes" | "outputContentHash">): Array<{ id: AnalysisVerificationCheckId; status: "passed"; details: string }> {
   const ids = [
-    "source_hash", "schema_supported", "session_identity", "participant_identity", "ordering", "coverage", "channel_inventory", "partitions_readable", "analyse_read", "compare_read", "storage_state",
+    "source_hash",
+    "schema_supported",
+    "session_identity",
+    "participant_identity",
+    "ordering",
+    "coverage",
+    "channel_inventory",
+    "partitions_readable",
+    "analyse_read",
+    "compare_read",
+    "storage_state",
   ] as const satisfies readonly AnalysisVerificationCheckId[];
   if (input.samples.length === 0 || input.nodes.some((node) => node.startRow < 0 || node.endRow > input.samples.length || node.endRow < node.startRow)) {
     throw new Error("Canonical archive verification found invalid row coverage");
@@ -749,7 +776,17 @@ function receiptChecks(input: Pick<ArchiveWriteResult, "semanticIds" | "samples"
   return ids.map((id) => ({ id, status: "passed", details: `Verified archive ${id}` }));
 }
 function sourceKind(value: string | null): "native-live" | "raceiq-raw" | "raceiq-archive" | "canonical-archive" | "iracing-ibt" | "motec" | "remote-collector" | "external-log" | "unknown" {
-  if (value === "native-live" || value === "raceiq-raw" || value === "raceiq-archive" || value === "canonical-archive" || value === "iracing-ibt" || value === "motec" || value === "remote-collector" || value === "external-log") return value;
+  if (
+    value === "native-live" ||
+    value === "raceiq-raw" ||
+    value === "raceiq-archive" ||
+    value === "canonical-archive" ||
+    value === "iracing-ibt" ||
+    value === "motec" ||
+    value === "remote-collector" ||
+    value === "external-log"
+  )
+    return value;
   return "unknown";
 }
 
@@ -769,191 +806,232 @@ function participantCoverage(samples: readonly SampleRow[]): string[] {
   return [...participants];
 }
 
-
-async function buildAndActivate(input: { sessionId: number; sourceContentHash: string; gameId: GameId; sourceChannelProfile: typeof sessions.$inferSelect["sourceChannelProfile"]; rawFile: string; lease: CanonicalArchiveJobLease }): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> { let written: ArchiveWriteResult | null = null;
-let archiveWritten = false;
-const contract = currentAnalysisContract(input.gameId, input.sourceChannelProfile);
-const analysisComponents: AnalysisComponentIdentity[] = [
-  ...contract.analysisComponents,
-  {
-    id: "canonical-archive",
-    version: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
-    schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-  },
-].sort((left, right) => left.id.localeCompare(right.id));
-const contractHash = analysisContractHash({
-  receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
-  telemetryVersion: contract.telemetryVersion,
-  analysisComponents,
-});
-let receipt: AnalysisReceiptRow;
-try {
-  receipt = await activateCanonicalArchiveReceipt({
-    sessionId: input.sessionId,
-    sourceContentHash: input.sourceContentHash,
-    contractHash,
-    configurationHash: contract.configurationHash,
-    buildReceipt: async (attempt) => {
-      const identityBefore = await inspectRawCaptureIdentity(input.rawFile);
-      if (!identityBefore || identityBefore.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed before build");
-      const packets = await readCanonicalRawPackets(input.rawFile, input.gameId);
-      written = await writeArchive({ sessionId: input.sessionId, gameId: input.gameId, sourceContentHash: input.sourceContentHash, generationId: attempt.generationId, packets });
-      archiveWritten = true;
-      await canonicalArchiveBuildHookForTest?.();
-      const identityAfter = await inspectRawCaptureIdentity(input.rawFile);
-      if (!identityAfter || identityAfter.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed during build");
-    const archiveBuild = written;
-    if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
-    await db.transaction(async (tx) => {
-      await assertCanonicalArchiveJobLease(input.lease, tx);
-      await tx.insert(canonicalArchives).values([{
-      archiveId: archiveBuild.archiveId,
-      sessionId: input.sessionId,
-      generationId: attempt.generationId,
-      status: "building",
-      archivePath: archiveBuild.finalPath,
+async function buildAndActivate(input: {
+  sessionId: number;
+  sourceContentHash: string;
+  gameId: GameId;
+  sourceChannelProfile: (typeof sessions.$inferSelect)["sourceChannelProfile"];
+  rawFile: string;
+  lease: CanonicalArchiveJobLease;
+}): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow }> {
+  let written: ArchiveWriteResult | null = null;
+  let archiveWritten = false;
+  const contract = currentAnalysisContract(input.gameId, input.sourceChannelProfile);
+  const analysisComponents: AnalysisComponentIdentity[] = [
+    ...contract.analysisComponents,
+    {
+      id: "canonical-archive",
+      version: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
       schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-      algorithmVersion: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
-      sourceContentHash: input.sourceContentHash,
-      outputContentHash: archiveBuild.outputContentHash,
-      byteSize: archiveBuild.byteSize,
-      sampleCount: archiveBuild.samples.length,
-      nodeCount: archiveBuild.nodes.length,
-      semanticIds: archiveBuild.semanticIds,
-      context: archiveBuild.context,
-      manifest: archiveBuild.manifest,
-      completeness: archiveBuild.manifest.completeness,
-      verification: { status: "passed", checks: receiptChecks(archiveBuild), verifiedAt: new Date().toISOString(), details: null },
-      createdAt: archiveBuild.manifest.createdAt,
-      verifiedAt: null,
-      failure: null,
-      }]);
-      await tx.insert(canonicalArchiveNodes).values(archiveBuild.nodes.map((node) => ({
-      nodeId: node.nodeId,
-      archiveId: archiveBuild.archiveId,
-      parentNodeId: node.parentNodeId,
-      level: node.level,
-      semanticKind: node.semanticKind,
-      stableKey: node.stableKey,
-      ordinal: node.ordinal,
-      participantId: node.participantId,
-      sessionRunId: node.sessionRunId,
-      lapId: node.lapId,
-      startRow: node.startRow,
-      endRow: node.endRow,
-      startSourceTimeMs: node.startSourceTimeMs,
-      endSourceTimeMs: node.endSourceTimeMs,
-      startTrackDistanceM: node.startTrackDistanceM,
-      endTrackDistanceM: node.endTrackDistanceM,
-      status: node.status,
-      definitionHash: node.definitionHash,
-      boundaryAlgorithmVersion: node.boundaryAlgorithmVersion,
-      })));
-    });
-    return {
-      receiptSchemaVersion: "analysis-receipt-v1",
-      generationId: attempt.generationId,
-      artifactSetId: attempt.artifactSetId,
-      artifactSetType: "canonical_archive",
-      generation: attempt.generation,
-      lifecycle: "active",
-      sessionId: input.sessionId,
-      participantId: null,
-      evidence: {
-        kind: "canonical-archive",
-        originalSourceKind: sourceKind(archiveBuild.context.sourceKind),
-        objectId: archiveBuild.archiveId,
-        contentHash: archiveBuild.outputContentHash,
-        byteSize: archiveBuild.byteSize,
-        formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-        recordCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
-      },
-      telemetryVersion: contract.telemetryVersion,
-      analysisComponents,
-      configuration: { hash: contract.configurationHash, effective: JSON.parse(JSON.stringify(contract.effectiveConfiguration)) },
-      context: {
-        gameId: archiveBuild.context.gameId,
-        trackId: archiveBuild.context.trackId,
-        layoutId: archiveBuild.context.layoutId,
-        trackDefinitionHash: archiveBuild.context.trackDefinitionHash,
-        cornerDefinitionHash: archiveBuild.context.cornerDefinitionHash,
-      },
-      sourceFidelity: { profileVersion: null, decisions: [] },
-      outputs: [{ name: "telemetry.parquet", artifactType: "canonical_archive", schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION, count: archiveBuild.samples.length, contentHash: archiveBuild.outputContentHash, timeCoverageMs: { start: archiveBuild.samples[0].sourceTimeMs, end: archiveBuild.samples.at(-1)!.sourceTimeMs }, lapCoverage: lapCoverage(archiveBuild.samples), participantCoverage: participantCoverage(archiveBuild.samples), trackDistanceCoverageM: { start: archiveBuild.samples.find((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null, end: archiveBuild.samples.findLast((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null }}],
-      canonicalInventory: { semanticIds: archiveBuild.semanticIds, eventIds: archiveBuild.eventIds, rowCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length } },
-      warnings: [],
-      unsupportedFields: [],
-      rebuildCapability: { mode: "limited", sourceKind: "canonical-archive", rebuildableArtifacts: ["canonical_archive", "laps", "race_events", "session_runs", "race_result", "quality", "lap_metrics", "findings", "lap_analysis", "comparison_analysis", "report"], unavailableArtifacts: ["driver_profile"], limitations: ["Exact native-source reprocessing requires retained raw evidence"] },
-      verification: receiptChecks(archiveBuild),
-      contractHash,
-      startedAt: attempt.startedAt,
-      completedAt: new Date().toISOString(),
-      activatedAt: new Date().toISOString(),
-    };
     },
-    beforeActivate: async (tx) => {
-      const archiveBuild = written;
-      if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
-      await assertCanonicalArchiveJobLease(input.lease, tx);
-      const session = await tx.select({ recordingQuality: sessions.recordingQuality })
-        .from(sessions)
-        .where(eq(sessions.id, input.sessionId))
-        .get();
-      if (!session) throw new Error(`Session ${input.sessionId} not found`);
-      if (session.recordingQuality) {
-        await tx.update(sessions).set({
-          recordingQuality: {
-            ...session.recordingQuality,
-            canonicalVerification: {
-              state: "verified",
-              sourceGeneration: archiveBuild.outputContentHash,
-              details: "Verified canonical Parquet output",
-            },
-          },
-        }).where(eq(sessions.id, input.sessionId));
-      }
-      const activated = await tx.update(canonicalArchives).set({
-        status: archiveBuild.manifest.completeness === "partial" ? "partial" : "verified",
-        verifiedAt: new Date().toISOString(),
-      }).where(and(
-        eq(canonicalArchives.archiveId, archiveBuild.archiveId),
-        eq(canonicalArchives.status, "building"),
-      )).returning({ archiveId: canonicalArchives.archiveId });
-      if (activated.length !== 1) throw new Error("Canonical archive was not ready for activation");
-    },
+  ].sort((left, right) => left.id.localeCompare(right.id));
+  const contractHash = analysisContractHash({
+    receiptSchemaVersion: ANALYSIS_RECEIPT_SCHEMA_VERSION,
+    telemetryVersion: contract.telemetryVersion,
+    analysisComponents,
   });
-} catch (error) {
-  if (archiveWritten) {
-    const failedArchive = written as unknown as ArchiveWriteResult;
-    await rm(failedArchive.finalPath, { force: true }).catch(() => undefined);
-    await db.update(canonicalArchives).set({ status: "failed", failure: error instanceof Error ? error.message : String(error) }).where(eq(canonicalArchives.archiveId, failedArchive.archiveId));
+  let receipt: AnalysisReceiptRow;
+  try {
+    receipt = await activateCanonicalArchiveReceipt({
+      sessionId: input.sessionId,
+      sourceContentHash: input.sourceContentHash,
+      contractHash,
+      configurationHash: contract.configurationHash,
+      buildReceipt: async (attempt) => {
+        const identityBefore = await inspectRawCaptureIdentity(input.rawFile);
+        if (!identityBefore || identityBefore.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed before build");
+        const packets = await readCanonicalRawPackets(input.rawFile, input.gameId);
+        written = await writeArchive({ sessionId: input.sessionId, gameId: input.gameId, sourceContentHash: input.sourceContentHash, generationId: attempt.generationId, packets });
+        archiveWritten = true;
+        await canonicalArchiveBuildHookForTest?.();
+        const identityAfter = await inspectRawCaptureIdentity(input.rawFile);
+        if (!identityAfter || identityAfter.contentHash !== input.sourceContentHash) throw new Error("Canonical archive source hash changed during build");
+        const archiveBuild = written;
+        if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
+        await db.transaction(async (tx) => {
+          await assertCanonicalArchiveJobLease(input.lease, tx);
+          await tx.insert(canonicalArchives).values([
+            {
+              archiveId: archiveBuild.archiveId,
+              sessionId: input.sessionId,
+              generationId: attempt.generationId,
+              status: "building",
+              archivePath: archiveBuild.finalPath,
+              schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+              algorithmVersion: CANONICAL_ARCHIVE_ALGORITHM_VERSION,
+              sourceContentHash: input.sourceContentHash,
+              outputContentHash: archiveBuild.outputContentHash,
+              byteSize: archiveBuild.byteSize,
+              sampleCount: archiveBuild.samples.length,
+              nodeCount: archiveBuild.nodes.length,
+              semanticIds: archiveBuild.semanticIds,
+              context: archiveBuild.context,
+              manifest: archiveBuild.manifest,
+              completeness: archiveBuild.manifest.completeness,
+              verification: { status: "passed", checks: receiptChecks(archiveBuild), verifiedAt: new Date().toISOString(), details: null },
+              createdAt: archiveBuild.manifest.createdAt,
+              verifiedAt: null,
+              failure: null,
+            },
+          ]);
+          await tx.insert(canonicalArchiveNodes).values(
+            archiveBuild.nodes.map((node) => ({
+              nodeId: node.nodeId,
+              archiveId: archiveBuild.archiveId,
+              parentNodeId: node.parentNodeId,
+              level: node.level,
+              semanticKind: node.semanticKind,
+              stableKey: node.stableKey,
+              ordinal: node.ordinal,
+              participantId: node.participantId,
+              sessionRunId: node.sessionRunId,
+              lapId: node.lapId,
+              startRow: node.startRow,
+              endRow: node.endRow,
+              startSourceTimeMs: node.startSourceTimeMs,
+              endSourceTimeMs: node.endSourceTimeMs,
+              startTrackDistanceM: node.startTrackDistanceM,
+              endTrackDistanceM: node.endTrackDistanceM,
+              status: node.status,
+              definitionHash: node.definitionHash,
+              boundaryAlgorithmVersion: node.boundaryAlgorithmVersion,
+            })),
+          );
+        });
+        return {
+          receiptSchemaVersion: "analysis-receipt-v1",
+          generationId: attempt.generationId,
+          artifactSetId: attempt.artifactSetId,
+          artifactSetType: "canonical_archive",
+          generation: attempt.generation,
+          lifecycle: "active",
+          sessionId: input.sessionId,
+          participantId: null,
+          evidence: {
+            kind: "canonical-archive",
+            originalSourceKind: sourceKind(archiveBuild.context.sourceKind),
+            objectId: archiveBuild.archiveId,
+            contentHash: archiveBuild.outputContentHash,
+            byteSize: archiveBuild.byteSize,
+            formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+            recordCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
+          },
+          telemetryVersion: contract.telemetryVersion,
+          analysisComponents,
+          configuration: { hash: contract.configurationHash, effective: JSON.parse(JSON.stringify(contract.effectiveConfiguration)) },
+          context: {
+            gameId: archiveBuild.context.gameId,
+            trackId: archiveBuild.context.trackId,
+            layoutId: archiveBuild.context.layoutId,
+            trackDefinitionHash: archiveBuild.context.trackDefinitionHash,
+            cornerDefinitionHash: archiveBuild.context.cornerDefinitionHash,
+          },
+          sourceFidelity: { profileVersion: null, decisions: [] },
+          outputs: [
+            {
+              name: "telemetry.parquet",
+              artifactType: "canonical_archive",
+              schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+              count: archiveBuild.samples.length,
+              contentHash: archiveBuild.outputContentHash,
+              timeCoverageMs: { start: archiveBuild.samples[0].sourceTimeMs, end: archiveBuild.samples.at(-1)!.sourceTimeMs },
+              lapCoverage: lapCoverage(archiveBuild.samples),
+              participantCoverage: participantCoverage(archiveBuild.samples),
+              trackDistanceCoverageM: {
+                start: archiveBuild.samples.find((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null,
+                end: archiveBuild.samples.findLast((sample) => sample.trackDistanceM != null)?.trackDistanceM ?? null,
+              },
+            },
+          ],
+          canonicalInventory: {
+            semanticIds: archiveBuild.semanticIds,
+            eventIds: archiveBuild.eventIds,
+            rowCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
+          },
+          warnings: [],
+          unsupportedFields: [],
+          rebuildCapability: {
+            mode: "limited",
+            sourceKind: "canonical-archive",
+            rebuildableArtifacts: ["canonical_archive", "laps", "race_events", "session_runs", "race_result", "quality", "lap_metrics", "findings", "lap_analysis", "comparison_analysis", "report"],
+            unavailableArtifacts: ["driver_profile"],
+            limitations: ["Exact native-source reprocessing requires retained raw evidence"],
+          },
+          verification: receiptChecks(archiveBuild),
+          contractHash,
+          startedAt: attempt.startedAt,
+          completedAt: new Date().toISOString(),
+          activatedAt: new Date().toISOString(),
+        };
+      },
+      beforeActivate: async (tx) => {
+        const archiveBuild = written;
+        if (!archiveBuild) throw new Error("Canonical archive build returned no archive");
+        await assertCanonicalArchiveJobLease(input.lease, tx);
+        const session = await tx.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
+        if (!session) throw new Error(`Session ${input.sessionId} not found`);
+        if (session.recordingQuality) {
+          await tx
+            .update(sessions)
+            .set({
+              recordingQuality: {
+                ...session.recordingQuality,
+                canonicalVerification: {
+                  state: "verified",
+                  sourceGeneration: archiveBuild.outputContentHash,
+                  details: "Verified canonical Parquet output",
+                },
+              },
+            })
+            .where(eq(sessions.id, input.sessionId));
+        }
+        const activated = await tx
+          .update(canonicalArchives)
+          .set({
+            status: archiveBuild.manifest.completeness === "partial" ? "partial" : "verified",
+            verifiedAt: new Date().toISOString(),
+          })
+          .where(and(eq(canonicalArchives.archiveId, archiveBuild.archiveId), eq(canonicalArchives.status, "building")))
+          .returning({ archiveId: canonicalArchives.archiveId });
+        if (activated.length !== 1) throw new Error("Canonical archive was not ready for activation");
+      },
+    });
+  } catch (error) {
+    if (archiveWritten) {
+      const failedArchive = written as unknown as ArchiveWriteResult;
+      await rm(failedArchive.finalPath, { force: true }).catch(() => undefined);
+      await db
+        .update(canonicalArchives)
+        .set({ status: "failed", failure: error instanceof Error ? error.message : String(error) })
+        .where(eq(canonicalArchives.archiveId, failedArchive.archiveId));
+    }
+    throw error;
   }
-  throw error;
+  const builtArchive = written as unknown as ArchiveWriteResult;
+  const archive = await db.select().from(canonicalArchives).where(eq(canonicalArchives.archiveId, builtArchive.archiveId)).get();
+  if (!archive) throw new Error("Canonical archive row missing after activation");
+  return { archive, receipt };
 }
-const builtArchive = written as unknown as ArchiveWriteResult;
-const archive = await db.select().from(canonicalArchives).where(eq(canonicalArchives.archiveId, builtArchive.archiveId)).get();
-if (!archive) throw new Error("Canonical archive row missing after activation");
-return { archive, receipt }; }
 
-async function existingVerifiedArchive(
-  sessionId: number,
-  sourceContentHash: string,
-): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow } | null> {
+async function existingVerifiedArchive(sessionId: number, sourceContentHash: string): Promise<{ archive: typeof canonicalArchives.$inferSelect; receipt: AnalysisReceiptRow } | null> {
   const archive = await getActiveVerifiedCanonicalArchive(sessionId, { verifyOutput: true });
   const active = await getActiveAnalysisReceipt({ sessionId, artifactSetType: "canonical_archive" });
   if (archive?.sourceContentHash === sourceContentHash && active?.receipt) {
     return { archive, receipt: active };
   }
-  const existing = await db.select({ archiveId: canonicalArchives.archiveId }).from(canonicalArchives).where(and(
-    eq(canonicalArchives.sessionId, sessionId),
-    eq(canonicalArchives.sourceContentHash, sourceContentHash),
-    inArray(canonicalArchives.status, ["verified", "partial", "building"]),
-  )).get();
+  const existing = await db
+    .select({ archiveId: canonicalArchives.archiveId })
+    .from(canonicalArchives)
+    .where(and(eq(canonicalArchives.sessionId, sessionId), eq(canonicalArchives.sourceContentHash, sourceContentHash), inArray(canonicalArchives.status, ["verified", "partial", "building"])))
+    .get();
   if (existing) {
-    await db.update(canonicalArchives).set({
-      status: "failed",
-      failure: "Canonical archive file, receipt, or output identity is unavailable",
-    }).where(eq(canonicalArchives.archiveId, existing.archiveId));
+    await db
+      .update(canonicalArchives)
+      .set({
+        status: "failed",
+        failure: "Canonical archive file, receipt, or output identity is unavailable",
+      })
+      .where(eq(canonicalArchives.archiveId, existing.archiveId));
   }
   return null;
 }

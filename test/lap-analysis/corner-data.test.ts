@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { computeCornerMetrics, type CornerDef } from "../../server/ai/corner-data";
 
@@ -12,8 +13,8 @@ import { computeCornerMetrics, type CornerDef } from "../../server/ai/corner-dat
  * By keeping Vy = Vz = 0 the speed of a packet is simply `|Vx| * factor`.
  */
 
-function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
-  return {
+function pkt(overrides: Partial<TelemetryPacket>): SemanticTelemetrySample {
+  const packet = {
     gameId: "f1-2025",
     IsRaceOn: 1,
     TimestampMS: 0,
@@ -30,6 +31,20 @@ function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
     TireSlipAngleRR: 0,
     ...overrides,
   } as TelemetryPacket;
+  return {
+    values: {
+      "timing.distance-traveled": packet.DistanceTraveled,
+      "motion.velocity-x": packet.VelocityX,
+      "motion.velocity-y": packet.VelocityY,
+      "motion.velocity-z": packet.VelocityZ,
+      "inputs.gear": packet.Gear,
+      "inputs.accel": packet.Accel,
+      "inputs.brake": packet.Brake,
+      "tires.tire-slip-angle": [packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR],
+    },
+    sequence: String(packet.TimestampMS),
+    observedAtMs: packet.TimestampMS,
+  };
 }
 
 // One corner spanning DistanceTraveled 100..200.
@@ -37,20 +52,25 @@ const corner: CornerDef = { index: 1, label: "T1", distanceStart: 100, distanceE
 
 // Approach packets (0..80) then corner packets (100..200).
 // Braking (Brake=200) at 60 and 80 only -> contiguous braking ends 40m before apex.
-const speedPackets = () => [
-  pkt({ DistanceTraveled: 0, VelocityX: 60, Brake: 0 }),
-  pkt({ DistanceTraveled: 20, VelocityX: 60, Brake: 0 }),
-  pkt({ DistanceTraveled: 40, VelocityX: 60, Brake: 0 }),
-  pkt({ DistanceTraveled: 60, VelocityX: 55, Brake: 200 }),
-  pkt({ DistanceTraveled: 80, VelocityX: 52, Brake: 200 }),
-  // corner packets (in range 100..200)
-  pkt({ DistanceTraveled: 100, VelocityX: 50, Gear: 4, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-  pkt({ DistanceTraveled: 120, VelocityX: 30, Gear: 3, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-  pkt({ DistanceTraveled: 140, VelocityX: 20, Gear: 2, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-  pkt({ DistanceTraveled: 160, VelocityX: 25, Gear: 2, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-  pkt({ DistanceTraveled: 180, VelocityX: 35, Gear: 3, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-  pkt({ DistanceTraveled: 200, VelocityX: 45, Gear: 4, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
-];
+const speedPackets = () =>
+  [
+    pkt({ DistanceTraveled: 0, VelocityX: 60, Brake: 0 }),
+    pkt({ DistanceTraveled: 20, VelocityX: 60, Brake: 0 }),
+    pkt({ DistanceTraveled: 40, VelocityX: 60, Brake: 0 }),
+    pkt({ DistanceTraveled: 60, VelocityX: 55, Brake: 200 }),
+    pkt({ DistanceTraveled: 80, VelocityX: 52, Brake: 200 }),
+    // corner packets (in range 100..200)
+    pkt({ DistanceTraveled: 100, VelocityX: 50, Gear: 4, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+    pkt({ DistanceTraveled: 120, VelocityX: 30, Gear: 3, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+    pkt({ DistanceTraveled: 140, VelocityX: 20, Gear: 2, Accel: 0, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+    pkt({ DistanceTraveled: 160, VelocityX: 25, Gear: 2, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+    pkt({ DistanceTraveled: 180, VelocityX: 35, Gear: 3, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+    pkt({ DistanceTraveled: 200, VelocityX: 45, Gear: 4, Accel: 200, TireSlipAngleFL: 10, TireSlipAngleFR: 10, TireSlipAngleRL: 2, TireSlipAngleRR: 2 }),
+  ].map((sample, index) => ({
+    ...sample,
+    sequence: String(index),
+    observedAtMs: index * 20,
+  }));
 
 describe("computeCornerMetrics", () => {
   test("returns [] for empty corners or empty packets", () => {
@@ -96,10 +116,9 @@ describe("computeCornerMetrics", () => {
     expect(m.throttleOnDist).toBeCloseTo(60, 5);
   });
 
-  test("derives time-in-corner from packet count at 60Hz", () => {
-    // 6 packets in range -> 0.1s
+  test("derives time-in-corner from semantic observation timestamps", () => {
     const [m] = computeCornerMetrics(speedPackets(), [corner]);
-    expect(m.timeInCorner).toBeCloseTo(6 / 60, 5);
+    expect(m.timeInCorner).toBeCloseTo(0.1, 5);
   });
 
   test("classifies balance as understeer when front slip dominates", () => {
@@ -119,5 +138,23 @@ describe("computeCornerMetrics", () => {
     ];
     expect(computeCornerMetrics(over, [base])[0].balance).toBe("oversteer");
     expect(computeCornerMetrics(neutral, [base])[0].balance).toBe("neutral");
+  });
+
+  test("keeps unavailable gear and slip balance unavailable", () => {
+    const samples: SemanticTelemetrySample[] = [
+      {
+        values: {
+          "timing.distance-traveled": 120,
+          "motion.velocity-x": 30,
+          "motion.velocity-y": 0,
+          "motion.velocity-z": 0,
+        },
+        sequence: "1",
+        observedAtMs: 16,
+      },
+    ];
+    const [metrics] = computeCornerMetrics(samples, [corner]);
+    expect(metrics.gear).toBeNull();
+    expect(metrics.balance).toBeNull();
   });
 });

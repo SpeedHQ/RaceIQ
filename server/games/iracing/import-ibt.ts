@@ -8,12 +8,8 @@ import { registerImportedIRacingIdentity } from "./identity";
 import { parseIRacingSessionInfo } from "./session-info";
 import { IRacingSourceFrameEncoder, type IRacingSessionSnapshot, type IRacingValue } from "./source-frame";
 import { importSessionFrames, type ImportedLap } from "../../session-capture/import-pipeline";
-import { currentTelemetryVersionIdentity } from "../../telemetry/pipeline-ports";
-import {
-  SOURCE_CHANNEL_PROFILE_VERSION,
-  type SourceChannelProfile,
-  type SourceChannelProfileEntry,
-} from "../../../shared/racing/quality/contracts";
+import { currentTelemetryVersionIdentity } from "../../telemetry/version-identity";
+import { SOURCE_CHANNEL_PROFILE_VERSION, type SourceChannelProfile, type SourceChannelProfileEntry } from "../../../shared/racing/quality/contracts";
 import type { SessionOwnership } from "../../../shared/racing/sessions/types";
 import type { TelemetryVariableId } from "../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 
@@ -44,30 +40,15 @@ const IBT_SOURCE_CHANNELS: readonly IbtSourceChannel[] = [
   { semanticId: "fuel.fuel", sourceVariables: ["FuelLevel"] },
   {
     semanticId: "tire.temperature.average",
-    sourceVariables: [
-      "LFtempCL", "LFtempCM", "LFtempCR",
-      "RFtempCL", "RFtempCM", "RFtempCR",
-      "LRtempCL", "LRtempCM", "LRtempCR",
-      "RRtempCL", "RRtempCM", "RRtempCR",
-    ],
+    sourceVariables: ["LFtempCL", "LFtempCM", "LFtempCR", "RFtempCL", "RFtempCM", "RFtempCR", "LRtempCL", "LRtempCM", "LRtempCR", "RRtempCL", "RRtempCM", "RRtempCR"],
   },
   {
     semanticId: "tires.tire-wear",
-    sourceVariables: [
-      "LFwearL", "LFwearM", "LFwearR",
-      "RFwearL", "RFwearM", "RFwearR",
-      "LRwearL", "LRwearM", "LRwearR",
-      "RRwearL", "RRwearM", "RRwearR",
-    ],
+    sourceVariables: ["LFwearL", "LFwearM", "LFwearR", "RFwearL", "RFwearM", "RFwearR", "LRwearL", "LRwearM", "LRwearR", "RRwearL", "RRwearM", "RRwearR"],
   },
   {
     semanticId: "tires.tire-pressure",
-    sourceVariables: [
-      "LFcoldPressure",
-      "RFcoldPressure",
-      "LRcoldPressure",
-      "RRcoldPressure",
-    ],
+    sourceVariables: ["LFcoldPressure", "RFcoldPressure", "LRcoldPressure", "RRcoldPressure"],
   },
 ];
 
@@ -181,15 +162,11 @@ function truthy(values: Record<string, IRacingValue>, name: string): boolean {
   return value === true || (typeof value === "number" && Number.isFinite(value) && value !== 0);
 }
 
-export function buildIbtSourceChannelProfile(
-  preview: Pick<IbtImportPreview, "missingRaceIQVariables" | "tickRate">,
-): SourceChannelProfile {
+export function buildIbtSourceChannelProfile(preview: Pick<IbtImportPreview, "missingRaceIQVariables" | "tickRate">): SourceChannelProfile {
   const missingVariables = new Set(preview.missingRaceIQVariables);
   const channels: SourceChannelProfile["channels"] = {};
   for (const { semanticId, sourceVariables } of IBT_SOURCE_CHANNELS) {
-    const missingSources = sourceVariables.filter((name) =>
-      missingVariables.has(name)
-    );
+    const missingSources = sourceVariables.filter((name) => missingVariables.has(name));
     if (missingSources.length === 0) continue;
 
     const entry: SourceChannelProfileEntry = {
@@ -202,9 +179,7 @@ export function buildIbtSourceChannelProfile(
           declaredHz: preview.tickRate,
           effectiveHz: preview.tickRate,
         })),
-      limitations: [
-        `iRacing IBT does not provide required source channel${missingSources.length === 1 ? "" : "s"}: ${missingSources.join(", ")}.`,
-      ],
+      limitations: [`iRacing IBT does not provide required source channel${missingSources.length === 1 ? "" : "s"}: ${missingSources.join(", ")}.`],
       evidenceId: `source-channel-profile:${SOURCE_CHANNEL_PROFILE_VERSION}:iracing-ibt:${semanticId}`,
     };
     channels[semanticId] = entry;
@@ -216,10 +191,7 @@ export function buildIbtSourceChannelProfile(
   };
 }
 
-export function composeIbtParserVersion(
-  preview: Pick<IbtImportPreview, "ibtSchemaVersion" | "tickRate">,
-  semanticParserVersion = currentTelemetryVersionIdentity("iracing").parserVersion,
-): string {
+export function composeIbtParserVersion(preview: Pick<IbtImportPreview, "ibtSchemaVersion" | "tickRate">, semanticParserVersion = currentTelemetryVersionIdentity("iracing").parserVersion): string {
   return `${semanticParserVersion}+iracing-ibt@${preview.ibtSchemaVersion}:${preview.tickRate}hz`;
 }
 

@@ -1,5 +1,21 @@
 import type { ComparisonData } from "@shared/racing/comparison/types";
-const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; }
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { FindingEvidenceRef } from "@shared/racing/findings/types";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
+const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => {
+  const value = sample.values[id];
+  return typeof value === "number" ? value : undefined;
+};
+
+export function telemetryForFindingEvidence(comparison: Pick<ComparisonData, "lapA" | "lapB" | "telemetryA" | "telemetryB">, evidence: FindingEvidenceRef): SemanticTelemetrySample[] | null {
+  if (evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return null;
+  if (evidence.lapId == null && evidence.sessionId == null) return null;
+  const matches = (lap: ComparisonData["lapA"]) => (evidence.lapId == null || evidence.lapId === String(lap.id)) && (evidence.sessionId == null || evidence.sessionId === String(lap.sessionId));
+  const matchesA = matches(comparison.lapA);
+  const matchesB = matches(comparison.lapB);
+  if (matchesA === matchesB) return null;
+  return matchesA ? comparison.telemetryA : comparison.telemetryB;
+}
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +28,7 @@ import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import type { CompareAiPanelHandle } from "./CompareAiPanel";
@@ -78,6 +95,32 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const mapResizeCleanupRef = useRef<(() => void) | null>(null);
+  const comparisonFindingPollsRef = useRef(0);
+  const comparisonFindingTimerRef = useRef<number | null>(null);
+  const comparisonIdentityRef = useRef("");
+  const comparisonRequestSequenceRef = useRef(0);
+  const comparisonAbortControllerRef = useRef<AbortController | null>(null);
+  const comparisonIdentity = `${gameId ?? ""}:${lapAId ?? ""}:${lapBId ?? ""}`;
+  comparisonIdentityRef.current = comparisonIdentity;
+  useEffect(() => {
+    comparisonFindingPollsRef.current = 0;
+    if (comparisonFindingTimerRef.current != null) {
+      window.clearTimeout(comparisonFindingTimerRef.current);
+      comparisonFindingTimerRef.current = null;
+    }
+    comparisonAbortControllerRef.current?.abort();
+    comparisonAbortControllerRef.current = null;
+    comparisonIdentityRef.current = comparisonIdentity;
+    comparisonRequestSequenceRef.current += 1;
+  }, [comparisonIdentity]);
+  useEffect(
+    () => () => {
+      comparisonAbortControllerRef.current?.abort();
+      if (comparisonFindingTimerRef.current != null) window.clearTimeout(comparisonFindingTimerRef.current);
+      comparisonRequestSequenceRef.current += 1;
+    },
+    [],
+  );
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
@@ -131,6 +174,18 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [comparison],
   );
+  const handleFindingEvidence = useCallback(
+    (evidence: FindingEvidenceRef) => {
+      if (!comparison || evidence.kind !== "telemetry-range" || evidence.startFrameIndex == null) return;
+      const telemetry = telemetryForFindingEvidence(comparison, evidence);
+      const sample = telemetry?.[evidence.startFrameIndex];
+      const distance = sample && semanticNumber(sample, "timing.distance-traveled");
+      if (distance == null || !Number.isFinite(distance)) return;
+      hoveredDistanceRef.current = distance;
+      mapRedrawRef.current?.();
+    },
+    [comparison],
+  );
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -171,6 +226,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     async function buildGroups() {
       const byTrack = new Map<number, LapMeta[]>();
       for (const lap of laps) {
+        if (!isTimedLapEligibilityUsable(lap)) continue;
         const t = lap.trackOrdinal!;
         if (!byTrack.has(t)) byTrack.set(t, []);
         byTrack.get(t)!.push(lap);
@@ -255,32 +311,72 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   // Laps filtered by car
   const carALaps = trackLaps.filter((l) => l.carOrdinal === carAOrd);
   const carBLaps = trackLaps.filter((l) => l.carOrdinal === carBOrd);
+  const selectedLapA = allLaps.find((lap) => lap.id === lapAId);
+  const selectedLapB = allLaps.find((lap) => lap.id === lapBId);
 
   // Fetch comparison when both laps selected
   const fetchComparison = useCallback(async () => {
-    if (!lapAId || !lapBId || lapAId === lapBId) {
-      setComparison(null);
+    const requestIdentity = `${gameId ?? ""}:${lapAId ?? ""}:${lapBId ?? ""}`;
+    const requestSequence = comparisonRequestSequenceRef.current + 1;
+    comparisonRequestSequenceRef.current = requestSequence;
+    comparisonAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    comparisonAbortControllerRef.current = controller;
+    comparisonIdentityRef.current = requestIdentity;
+    const isCurrentRequest = () => comparisonRequestSequenceRef.current === requestSequence && comparisonIdentityRef.current === requestIdentity && !controller.signal.aborted;
+
+    if (comparisonFindingTimerRef.current != null) window.clearTimeout(comparisonFindingTimerRef.current);
+    comparisonFindingTimerRef.current = null;
+    if (!lapAId || !lapBId || lapAId === lapBId || !gameId) {
+      comparisonFindingPollsRef.current = 0;
+      if (isCurrentRequest()) {
+        setLoading(false);
+        setComparison(null);
+      }
       return;
     }
+    if (!isCurrentRequest()) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
+      const res = await client.api.laps[":id1"].compare[":id2"].$get(
+        { param: { id1: String(lapAId), id2: String(lapBId) } },
+        { headers: { "X-Game-Id": gameId }, init: { signal: controller.signal } },
+      );
+      if (!isCurrentRequest()) return;
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string; status?: string; retryable?: boolean };
+        if (!isCurrentRequest()) return;
+        if (res.status === 409 && body.status === "backfilling" && body.retryable === true && comparisonFindingPollsRef.current < 20) {
+          comparisonFindingPollsRef.current += 1;
+          setError("Findings are backfilling. Results will update automatically.");
+          setComparison(null);
+          comparisonFindingTimerRef.current = window.setTimeout(() => {
+            if (isCurrentRequest()) void fetchComparison();
+          }, 1500);
+          return;
+        }
+        comparisonFindingPollsRef.current = 0;
         const msg = body.error ?? m.compare_load_failed();
         setError(msg.includes("no telemetry") ? m.compare_telemetry_unavailable() : msg);
         setComparison(null);
         return;
       }
-      setComparison((await res.json()) as unknown as ComparisonData);
+      const comparisonData = await rpcJson<ComparisonData>(res);
+      if (!isCurrentRequest()) return;
+      if (comparisonData.gameId !== gameId) throw new Error("Comparison game does not match request");
+      comparisonFindingPollsRef.current = 0;
+      setComparison(comparisonData);
     } catch {
+      if (!isCurrentRequest()) return;
       setError(m.compare_load_failed());
       setComparison(null);
     } finally {
-      setLoading(false);
+      if (isCurrentRequest()) {
+        setLoading(false);
+      }
     }
-  }, [lapAId, lapBId]);
+  }, [lapAId, lapBId, gameId]);
 
   useEffect(() => {
     fetchComparison();
@@ -432,20 +528,39 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             }}
           />
 
-          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
+          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} onEvidenceSelect={handleFindingEvidence} />
 
           {/* AI compare sidebar */}
-          {aiPanelOpen && (
+          {aiPanelOpen && gameId && selectedLapA && selectedLapB && (
             <CompareAiSidebar
+              gameId={gameId}
               lapA={{
-                id: lapAId!,
-                label: `${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
+                id: selectedLapA.id,
+                label: `${carNames.get(comparison.lapA.carOrdinal ?? -1) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
                 lapTime: comparison.lapA.lapTime,
+                sessionId: selectedLapA.sessionId,
+                quality: selectedLapA.quality,
+                eligibility: selectedLapA.eligibility,
+                qualityGeneration: selectedLapA.qualityGeneration,
+                analysisGenerationId: selectedLapA.analysisGenerationId,
+                findingGenerationId: comparison.findingReceipts.lapA.generationId,
+                findingContentHash: comparison.findingReceipts.lapA.contentHash,
+                findingStatus: comparison.findingReceipts.lapA.status,
+                source: selectedLapA.source,
               }}
               lapB={{
-                id: lapBId!,
-                label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
+                id: selectedLapB.id,
+                label: `${carNames.get(comparison.lapB.carOrdinal ?? -1) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
+                sessionId: selectedLapB.sessionId,
+                quality: selectedLapB.quality,
+                eligibility: selectedLapB.eligibility,
+                qualityGeneration: selectedLapB.qualityGeneration,
+                analysisGenerationId: selectedLapB.analysisGenerationId,
+                findingGenerationId: comparison.findingReceipts.lapB.generationId,
+                findingContentHash: comparison.findingReceipts.lapB.contentHash,
+                findingStatus: comparison.findingReceipts.lapB.status,
+                source: selectedLapB.source,
               }}
               panelRef={aiPanelRef}
               onClose={toggleAiPanel}
@@ -454,7 +569,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
-      ) : comparison ? <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div> : null}
+      ) : comparison ? (
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
+      ) : null}
     </div>
   );
 }

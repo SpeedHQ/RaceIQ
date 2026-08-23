@@ -7,6 +7,7 @@
  */
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { cancelChatRun } from "./chat-run-registry";
 import type { ChatTurnMessage } from "./chat-message-context";
@@ -40,10 +41,7 @@ export function getChatMemory() {
  * Map app settings (aiProvider + aiModel) to a Mastra model ID string.
  * Mastra uses the format "provider/model-name".
  */
-export function getMastraModelId(
-  aiProvider: string,
-  aiModel: string,
-): string {
+export function getMastraModelId(aiProvider: string, aiModel: string): string {
   switch (aiProvider) {
     case "gemini":
       return `google/${aiModel || "gemini-flash-latest"}`;
@@ -65,9 +63,10 @@ export function getMastraModelId(
   }
 }
 
-/** Build the threadId for a lap's chat. */
-export function chatThreadId(lapId: number): string {
-  return `lap-${lapId}`;
+/** Build the threadId for a lap's chat and current quality identity. */
+export function chatThreadId(lapId: number, qualityIdentity: string): string {
+  const qualityHash = createHash("sha256").update(qualityIdentity).digest("hex");
+  return `lap-${lapId}~q${qualityHash}`;
 }
 
 /** Build the threadId for a experiment's setup chat (plan Phase D). */
@@ -76,13 +75,23 @@ export function tuneSessionThreadId(sessionId: number): string {
 }
 
 /**
- * Build the threadId for a compare chat between two laps.
- * Uses canonical ordering (min,max) so order of selection doesn't matter.
+ * Build the threadId for a compare chat between two laps and one quality
+ * identity. Preserve requested lap order: A→B and B→A are distinct
+ * conversations even when they share the same canonical receipt-set fence.
  */
-export function compareChatThreadId(idA: number, idB: number): string {
-  const lo = Math.min(idA, idB);
-  const hi = Math.max(idA, idB);
-  return `compare-${lo}-${hi}`;
+export function compareChatThreadId(idA: number, idB: number, qualityIdentity: string): string {
+  const qualityHash = createHash("sha256").update(qualityIdentity).digest("hex");
+  return `compare-${idA}-${idB}~q${qualityHash}`;
+}
+
+export function parseCompareChatThreadId(threadId: string): readonly [number, number] | null {
+  const base = parseThreadGeneration(threadId).base;
+  if (!base.startsWith("compare-")) return null;
+  const pair = base.slice("compare-".length).split("~q", 1)[0];
+  const parts = pair.split("-");
+  if (parts.length !== 2) return null;
+  const ids = parts.map(Number);
+  return ids.every(Number.isFinite) ? [ids[0], ids[1]] : null;
 }
 
 /** The resource ID used for all chat threads. */
@@ -105,11 +114,7 @@ export type ChatExportMemory = {
 type ChatThreadRecord = { id: string; title?: string; metadata?: Record<string, unknown> };
 
 /** Persist initial prompt in thread metadata, once per generation. */
-export async function ensureSystemPrompt(
-  threadId: string,
-  systemPrompt: string,
-  mem: ChatExportMemory = memory as unknown as ChatExportMemory,
-): Promise<void> {
+export async function ensureSystemPrompt(threadId: string, systemPrompt: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<void> {
   if (!systemPrompt.trim() || !mem.getThreadById) return;
   const thread = (await mem.getThreadById({ threadId })) as ChatThreadRecord | null;
   if (!thread) {
@@ -147,11 +152,15 @@ export function chatMemoryMessagesToUiMessages(messages: unknown[]): ChatTurnMes
         parts: parts.map((part) => {
           const candidate = part as { type?: unknown; text?: unknown; reasoning?: unknown; details?: unknown[] };
           if (candidate.type !== "reasoning" || typeof candidate.text === "string") return part;
-          const text = typeof candidate.reasoning === "string"
-            ? candidate.reasoning
-            : Array.isArray(candidate.details)
-              ? candidate.details.filter((detail) => (detail as { type?: unknown })?.type === "text").map((detail) => (detail as { text?: unknown }).text ?? "").join("")
-              : "";
+          const text =
+            typeof candidate.reasoning === "string"
+              ? candidate.reasoning
+              : Array.isArray(candidate.details)
+                ? candidate.details
+                    .filter((detail) => (detail as { type?: unknown })?.type === "text")
+                    .map((detail) => (detail as { text?: unknown }).text ?? "")
+                    .join("")
+                : "";
           return text ? { ...(part as object), text } : part;
         }),
       };
@@ -162,16 +171,25 @@ export function buildChatExport(messages: unknown[]): { messages: unknown[] };
 export function buildChatExport(systemPromptOrMessages: string | undefined | unknown[], maybeMessages?: unknown[]) {
   const systemPrompt = typeof systemPromptOrMessages === "string" || systemPromptOrMessages === undefined ? systemPromptOrMessages : undefined;
   const messages = Array.isArray(systemPromptOrMessages) ? systemPromptOrMessages : (maybeMessages ?? []);
-  const system = systemPrompt === undefined ? [] : [{
-    role: "system",
-    content: { format: 2, parts: [{ type: "text", text: systemPrompt }], content: systemPrompt },
-  }];
-  return { messages: [...system, ...messages.filter((message) => {
-    const role = (message as { role?: unknown })?.role;
-    return role === "user" || role === "assistant";
-  })] };
+  const system =
+    systemPrompt === undefined
+      ? []
+      : [
+          {
+            role: "system",
+            content: { format: 2, parts: [{ type: "text", text: systemPrompt }], content: systemPrompt },
+          },
+        ];
+  return {
+    messages: [
+      ...system,
+      ...messages.filter((message) => {
+        const role = (message as { role?: unknown })?.role;
+        return role === "user" || role === "assistant";
+      }),
+    ],
+  };
 }
-
 
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
@@ -189,18 +207,38 @@ export function buildChatExport(systemPromptOrMessages: string | undefined | unk
 
 const GEN_SEP = "~g";
 
+/** Keep generation probes finite and thread ids canonical. */
+export const MAX_THREAD_GENERATION = 1_000_000;
+
+function isCanonicalGenerationSuffix(suffix: string): boolean {
+  if (!/^[2-9]\d*$/.test(suffix)) return false;
+  const generation = Number(suffix);
+  return Number.isSafeInteger(generation) && generation <= MAX_THREAD_GENERATION;
+}
+
 /** Split a (possibly suffixed) thread id into its base id and generation number. */
 export function parseThreadGeneration(threadId: string): { base: string; gen: number } {
   const idx = threadId.lastIndexOf(GEN_SEP);
-  if (idx === -1) return { base: threadId, gen: 1 };
-  const gen = Number(threadId.slice(idx + GEN_SEP.length));
-  if (!Number.isInteger(gen) || gen < 2) return { base: threadId, gen: 1 };
-  return { base: threadId.slice(0, idx), gen };
+  if (idx <= 0) return { base: threadId, gen: 1 };
+  const base = threadId.slice(0, idx);
+  const suffix = threadId.slice(idx + GEN_SEP.length);
+  if (base.includes(GEN_SEP) || !isCanonicalGenerationSuffix(suffix)) return { base: threadId, gen: 1 };
+  return { base, gen: Number(suffix) };
+}
+
+/** True when id has no malformed or out-of-range generation suffix. */
+export function isCanonicalThreadId(threadId: string): boolean {
+  const parsed = parseThreadGeneration(threadId);
+  return !threadId.includes(GEN_SEP) || parsed.base !== threadId;
 }
 
 /** Build the thread id for a given base + generation. Gen 1 is the bare base. */
 export function generationThreadId(base: string, gen: number): string {
-  return gen <= 1 ? base : `${base}${GEN_SEP}${gen}`;
+  if (gen === 1) return base;
+  if (!Number.isSafeInteger(gen) || gen < 2 || gen > MAX_THREAD_GENERATION) {
+    throw new RangeError(`Chat thread generation must be an integer between 1 and ${MAX_THREAD_GENERATION}`);
+  }
+  return `${base}${GEN_SEP}${gen}`;
 }
 
 /**
@@ -222,12 +260,9 @@ export type ThreadProbeMemory = {
  * `mem` defaults to the shared `getChatMemory()` singleton; pass a fake to
  * probe an alternate store (tests).
  */
-export async function listThreadGenerations(
-  base: string,
-  mem: ThreadProbeMemory = getChatMemory(),
-): Promise<Array<{ threadId: string; generation: number }>> {
+export async function listThreadGenerations(base: string, mem: ThreadProbeMemory = getChatMemory()): Promise<Array<{ threadId: string; generation: number }>> {
   const out: Array<{ threadId: string; generation: number }> = [];
-  for (let gen = 1; ; gen++) {
+  for (let gen = 1; gen <= MAX_THREAD_GENERATION; gen++) {
     const threadId = generationThreadId(base, gen);
     const thread = await mem.getThreadById({ threadId });
     if (!thread) break;
@@ -252,10 +287,7 @@ export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMem
  * (gen 1) when nothing exists yet, so a first POST auto-creates gen 1 exactly
  * as before.
  */
-export async function resolveActiveThread(
-  base: string,
-  mem: ThreadProbeMemory = getChatMemory(),
-): Promise<string> {
+export async function resolveActiveThread(base: string, mem: ThreadProbeMemory = getChatMemory()): Promise<string> {
   const gens = await listThreadGenerations(base, mem);
   return gens.length ? gens[gens.length - 1].threadId : base;
 }
@@ -279,10 +311,7 @@ export async function saveAssistantChatMessage(threadId: string, markdown: strin
  * MessageList reader collapsing consecutive same-role messages into one entry,
  * so a user+assistant pair renders as two separate turns.
  */
-export async function saveChatMessages(
-  threadId: string,
-  entries: Array<{ role: "user" | "assistant"; markdown: string }>,
-): Promise<string[]> {
+export async function saveChatMessages(threadId: string, entries: Array<{ role: "user" | "assistant"; markdown: string }>): Promise<string[]> {
   const mem = getChatMemory();
   const existing = await mem.getThreadById({ threadId });
   if (!existing) {
@@ -327,16 +356,15 @@ function messageText(message: any): string {
   if (typeof message?.content === "string") return message.content;
   if (typeof message?.content?.content === "string") return message.content.content;
   return Array.isArray(message?.content?.parts)
-    ? message.content.parts.filter((part: any) => part?.type === "text").map((part: any) => part.text ?? "").join("")
+    ? message.content.parts
+        .filter((part: any) => part?.type === "text")
+        .map((part: any) => part.text ?? "")
+        .join("")
     : "";
 }
 
 /** Retain history through one user prompt and remove its response and all later messages. */
-export async function truncateChatAfterUserMessage(
-  threadId: string,
-  messageId: string,
-  mem: ChatMutationMemory = getChatMemory(),
-): Promise<{ messages: unknown[]; prompt: string }> {
+export async function truncateChatAfterUserMessage(threadId: string, messageId: string, mem: ChatMutationMemory = getChatMemory()): Promise<{ messages: unknown[]; prompt: string }> {
   const messages = (await mem.recall({ threadId, perPage: false })).messages ?? [];
   const selectedIndex = messages.findIndex((message: any) => message?.id === messageId && message?.role === "user");
   if (selectedIndex < 0) throw new Error("User message not found");

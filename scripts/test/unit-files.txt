@@ -49,3 +49,5 @@ test/findings/aggregation.test.ts
 test/findings/contract.test.ts
 test/findings/identity.test.ts
 test/findings/render.test.ts
+test/findings/adapters.test.ts
+test/findings/comparison-adapter.test.ts

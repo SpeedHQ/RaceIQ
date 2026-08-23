@@ -1,8 +1,11 @@
 import type { GameId } from "@shared/games/ids";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import type { SemanticTelemetrySample } from "@shared/racing/comparison/types";
-const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id]
-const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => { const x=value(p,id); return typeof x === "number" ? x : undefined; }
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+const value = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): any => p.values[id];
+const numberValue = (p: SemanticTelemetrySample, id: keyof SemanticTelemetrySample["values"]): number | undefined => {
+  const x = value(p, id);
+  return typeof x === "number" ? x : undefined;
+};
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { type BoundaryData, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, type Point } from "@/lib/comparison-utils";
@@ -98,7 +101,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     // Extract telemetry positions from lap A
     const telPts: Point[] = [];
     for (const p of telemetryA) {
-      if ((numberValue(p, "motion.position-x") ?? 0) !== 0 || (numberValue(p, "motion.position-z") ?? 0) !== 0) telPts.push({ x: (numberValue(p, "motion.position-x") ?? 0), z: (numberValue(p, "motion.position-z") ?? 0) });
+      if ((numberValue(p, "motion.position-x") ?? 0) !== 0 || (numberValue(p, "motion.position-z") ?? 0) !== 0)
+        telPts.push({ x: numberValue(p, "motion.position-x") ?? 0, z: numberValue(p, "motion.position-z") ?? 0 });
     }
     if (telPts.length < 20 || outline.length < 10) {
       return { alignedOutline: outline, alignedBoundaries: boundaries, telXFn: identity, trackRange: computeRange(outline) };
@@ -285,7 +289,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 .map((s) => {
                   const idx = Math.round(s.startFrac * (telemetryA.length - 1));
                   const p = telemetryA[idx];
-                  return { x: telXFn((numberValue(p, "motion.position-x") ?? 0)), z: (numberValue(p, "motion.position-z") ?? 0), type: s.type, label: s.name };
+                  return { x: telXFn(numberValue(p, "motion.position-x") ?? 0), z: numberValue(p, "motion.position-z") ?? 0, type: s.type, label: s.name };
                 })
                 .filter((sp) => sp.x !== 0 || sp.z !== 0)
             : undefined;

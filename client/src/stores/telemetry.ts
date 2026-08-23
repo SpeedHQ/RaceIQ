@@ -171,7 +171,7 @@ interface TelemetryState {
   devStatePaused: boolean;
   setDevState: (state: unknown) => void;
   toggleDevStatePause: () => void;
-  /** Update display units — re-converts current packet */
+  /** Update display units for semantic telemetry rendering. */
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
@@ -225,13 +225,20 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     })),
   setTelemetrySchema: (telemetrySchema) =>
     set((prev) =>
-      prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
-        ? { telemetrySchema }
-        : { telemetrySchema, telemetryFrame: null, telemetryView: null },
+      prev.telemetrySchema?.schemaId === telemetrySchema.schemaId ? { telemetrySchema } : { telemetrySchema, telemetryFrame: null, telemetryView: null, sectors: null, pit: null, liveIssues: [] },
     ),
   setTelemetryFrame: (telemetryFrame) =>
-    set((prev) => ({ telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
-  clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null }),
+    set((prev) => {
+      const context = telemetryFrame.context ?? {};
+      return {
+        telemetryFrame,
+        telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView) : prev.telemetryView,
+        sectors: context.sectors ?? null,
+        pit: context.pit ?? null,
+        liveIssues: context.liveIssues ? [...context.liveIssues] : [],
+      };
+    }),
+  clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] }),
   setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
   setServerStatus: (status: ServerStatus | null) =>
     set(

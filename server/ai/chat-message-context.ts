@@ -1,17 +1,54 @@
+import { GameIdSchema, type GameId } from "../../shared/games/ids";
+
 export type ChatTurnMessage = {
   role?: string;
   parts?: unknown[];
   content?: unknown;
 };
 
-
 export const CHAT_TURN_CONTEXT_KEY = "raceiq.chatTurnContext";
 export const CHAT_TURN_MESSAGES_KEY = "raceiq.chatTurnMessages";
+export const FINDING_RECEIPT_FENCE_CONTEXT_KEY = "raceiq.findingReceiptFence";
+
+export type FindingReceiptFence = {
+  kind: "lap" | "comparison";
+  gameId: GameId;
+  cacheKey: string;
+  laps: readonly {
+    lapId: number;
+    generationId: string;
+    contentHash: string;
+  }[];
+};
 
 export function getChatTurnContext(requestContext?: { get: (key: string) => unknown }): string {
   if (!requestContext) return "";
   const value = requestContext.get(CHAT_TURN_CONTEXT_KEY);
   return typeof value === "string" ? value : "";
+}
+
+export function getFindingReceiptFence(requestContext?: { get: (key: string) => unknown }): FindingReceiptFence | undefined {
+  const value = requestContext?.get(FINDING_RECEIPT_FENCE_CONTEXT_KEY);
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as { kind?: unknown; gameId?: unknown; cacheKey?: unknown; laps?: unknown };
+  if (
+    (candidate.kind !== "lap" && candidate.kind !== "comparison") ||
+    typeof candidate.cacheKey !== "string" ||
+    candidate.cacheKey.length === 0 ||
+    !Array.isArray(candidate.laps) ||
+    candidate.laps.length < 1
+  ) return undefined;
+  const gameId = GameIdSchema.safeParse(candidate.gameId);
+  if (!gameId.success) return undefined;
+  const laps = candidate.laps.filter((lap: unknown): lap is { lapId: number; generationId: string; contentHash: string } => {
+    if (!lap || typeof lap !== "object") return false;
+    const record = lap as Record<string, unknown>;
+    return Number.isSafeInteger(record.lapId) && typeof record.generationId === "string" && typeof record.contentHash === "string";
+  });
+  const kind = candidate.kind === "lap" ? "lap" : "comparison";
+  return laps.length === candidate.laps.length
+    ? { kind, gameId: gameId.data, cacheKey: candidate.cacheKey, laps }
+    : undefined;
 }
 export type ConfirmableChange = {
   component: string;

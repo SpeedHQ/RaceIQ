@@ -1,12 +1,7 @@
 import { z } from "zod";
 
 import { GameIdSchema } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import {
-  getCatalogDisplayName,
-  normalizePacketSetup,
-  topCatalogReferences,
-} from "../../ai/f1-setup-catalog";
+import { getCatalogDisplayName, normalizePacketSetup, topCatalogReferences } from "../../ai/f1-setup-catalog";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 
 export const CompareParamsSchema = z.object({
@@ -28,6 +23,20 @@ export const AnalyseQuerySchema = z.object({
     .transform((v) => v === "true")
     .optional(),
 });
+export const ChatHistoryQuerySchema = z.object({
+  gen: z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .transform(Number)
+    .pipe(z.number().finite().int().positive().safe())
+    .optional(),
+});
+
+export const FindingGenerationBackfilling = {
+  error: "Finding generation is backfilling",
+  status: "backfilling" as const,
+  retryable: true,
+};
 
 export const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
@@ -46,7 +55,7 @@ const IdListSchema = z
     (v ?? "")
       .split(",")
       .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n) && n > 0)
+      .filter((n) => Number.isInteger(n) && n > 0),
   );
 
 export const ExportZipQuerySchema = z.object({
@@ -64,8 +73,8 @@ export const ChatBodySchema = z.object({
  * `compare-f1-setup-to-catalog` tool returns, but inline so local models
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
-export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
-  const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
+export function buildF1SetupReferenceBlock(carSetupJson: string | undefined, trackOrdinal: number): string {
+  const setup = resolveLapF1Setup(carSetupJson);
   if (!setup || trackOrdinal < 0) return "";
   const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
   const refs = topCatalogReferences(trackOrdinal, 5, current);

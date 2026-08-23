@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { f1SetupFingerprint, summarizeF1Setup } from "../../../server/ai/f1-setup-identity";
+import { f1SetupFingerprint, resolveLapF1Setup, summarizeF1Setup } from "../../../server/ai/f1-setup-identity";
 import type { F1CarSetup } from "../../../shared/telemetry/f1-2025";
 
 function baseSetup(overrides: Partial<F1CarSetup> = {}): F1CarSetup {
@@ -47,6 +47,18 @@ describe("f1SetupFingerprint", () => {
     const a = baseSetup({ frontWing: 25 });
     const b = baseSetup({ frontWing: 26 });
     expect(f1SetupFingerprint(a)).not.toBe(f1SetupFingerprint(b));
+  });
+});
+
+describe("resolveLapF1Setup", () => {
+  test("reads persisted carSetup metadata", () => {
+    const setup = baseSetup();
+    expect(resolveLapF1Setup(JSON.stringify(setup))).toEqual(setup);
+  });
+
+  test("keeps unavailable and malformed setup metadata unavailable", () => {
+    expect(resolveLapF1Setup(null)).toBeNull();
+    expect(resolveLapF1Setup("{not-json")).toBeNull();
   });
 });
 

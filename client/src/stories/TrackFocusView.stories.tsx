@@ -1,37 +1,68 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { LapTrace } from "../../../shared/racing/laps/trace/types";
 import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
 import { TrackFocusViewInner } from "../components/tunes/track-focus/TrackFocusView";
-import { downsampleLap, stintStats } from "../lib/stint-traces";
+import { stintStats } from "../lib/stint-traces";
 
-function makePacket(i: number, n: number, lapTime: number, wobble: number): TelemetryPacket {
+function makeFrame(i: number, n: number, lapTime: number, wobble: number): SemanticAnalysisFrame {
   const f = i / (n - 1);
   const dist = f * 3000;
-  const speed = (60 + 40 * Math.sin(f * Math.PI * 3) + wobble * Math.sin(f * 40)) / 3.6;
+  const speedMps = (60 + 40 * Math.sin(f * Math.PI * 3) + wobble * Math.sin(f * 40)) / 3.6;
   return {
-    TimestampMS: Math.round(f * lapTime * 1000),
-    DistanceTraveled: dist,
-    PositionX: Math.sin(f * Math.PI * 2) * 400 + Math.sin(f * 9) * 20,
-    PositionZ: Math.cos(f * Math.PI * 2) * 250 + Math.cos(f * 7) * 15,
-    Speed: speed,
-    Accel: Math.max(0, Math.min(255, 180 + 60 * Math.sin(f * Math.PI * 5))),
-    Brake: Math.max(0, Math.min(255, f % 0.3 < 0.05 ? 200 : 0)),
-    Steer: Math.round(Math.sin(f * Math.PI * 6) * 100 + wobble * 8),
-    TireTempFL: 85 + 8 * Math.sin(f * 5) + wobble,
-    TireTempFR: 87 + 8 * Math.sin(f * 5 + 1) + wobble,
-    TireTempRL: 82 + 6 * Math.sin(f * 5 + 2) + wobble,
-    TireTempRR: 84 + 6 * Math.sin(f * 5 + 3) + wobble,
-    TirePressureFrontLeft: 27.5 + 0.2 * Math.sin(f * 3),
-    TirePressureFrontRight: 27.6 + 0.2 * Math.sin(f * 3 + 1),
-    TirePressureRearLeft: 26.8 + 0.2 * Math.sin(f * 3 + 2),
-    TirePressureRearRight: 26.9 + 0.2 * Math.sin(f * 3 + 3),
-  } as unknown as TelemetryPacket;
+    values: {
+      "timing.distance-traveled": dist,
+      "motion.position-x": Math.sin(f * Math.PI * 2) * 400 + Math.sin(f * 9) * 20,
+      "motion.position-z": Math.cos(f * Math.PI * 2) * 250 + Math.cos(f * 7) * 15,
+      "motion.speed": speedMps,
+      "inputs.accel": Math.max(0, Math.min(1, 0.7 + 0.2 * Math.sin(f * Math.PI * 5))) * 255,
+      "inputs.brake": (f % 0.3 < 0.05 ? 0.8 : 0) * 255,
+      "inputs.steer": (Math.sin(f * Math.PI * 6) + wobble * 0.06) * 127,
+      "timing.current-lap": f * lapTime,
+      "tire.temperature.average": [85 + 8 * Math.sin(f * 5) + wobble, 87 + 8 * Math.sin(f * 5 + 1) + wobble, 82 + 6 * Math.sin(f * 5 + 2) + wobble, 84 + 6 * Math.sin(f * 5 + 3) + wobble],
+      "tires.tire-pressure": [27.5 + 0.2 * Math.sin(f * 3), 27.6 + 0.2 * Math.sin(f * 3 + 1), 26.8 + 0.2 * Math.sin(f * 3 + 2), 26.9 + 0.2 * Math.sin(f * 3 + 3)],
+    },
+    states: {},
+    freshness: {},
+  };
 }
 
-function makeLapTelemetry(lapTime: number, wobble: number): TelemetryPacket[] {
+function makeLapTelemetry(lapTime: number, wobble: number): SemanticAnalysisFrame[] {
   const n = 400;
-  return Array.from({ length: n }, (_, i) => makePacket(i, n, lapTime, wobble));
+  return Array.from({ length: n }, (_, i) => makeFrame(i, n, lapTime, wobble));
+}
+
+function makeLapTrace(lapId: number, lapNumber: number, isValid: boolean, telemetry: SemanticAnalysisFrame[]): LapTrace {
+  const n = telemetry.length;
+  const values = (frame: SemanticAnalysisFrame, id: string) => frame.values[id];
+  const nums = (id: string) => Float32Array.from(telemetry, (frame) => Number(values(frame, id) ?? 0));
+  const temps = telemetry.map((frame) => values(frame, "tire.temperature.average") as number[]);
+  const pressure = telemetry.map((frame) => values(frame, "tires.tire-pressure") as number[]);
+  const avg = (rows: number[][], index: number) => rows.reduce((sum, row) => sum + row[index], 0) / rows.length;
+  return {
+    lapId,
+    lapNumber,
+    isValid,
+    n,
+    frac: Float32Array.from({ length: n }, (_, i) => i / (n - 1)),
+    throttle: Float32Array.from(telemetry, (frame) => Number(values(frame, "inputs.accel") ?? 0) / 255),
+    brake: Float32Array.from(telemetry, (frame) => Number(values(frame, "inputs.brake") ?? 0) / 255),
+    steer: Float32Array.from(telemetry, (frame) => Number(values(frame, "inputs.steer") ?? 0) / 127),
+    speedKmh: Float32Array.from(telemetry, (frame) => Number(values(frame, "motion.speed") ?? 0) * 3.6),
+    timeS: Float32Array.from(telemetry, (frame) => Number(values(frame, "timing.current-lap") ?? 0)),
+    tire: { FL: avg(temps, 0), FR: avg(temps, 1), RL: avg(temps, 2), RR: avg(temps, 3) },
+    pressure: { FL: avg(pressure, 0), FR: avg(pressure, 1), RL: avg(pressure, 2), RR: avg(pressure, 3) },
+    tireTempTrace: null,
+    pressureTrace: null,
+    balance: null,
+    latG: null,
+    longG: null,
+    suspTravel: null,
+    combinedSlip: null,
+    brakeTemp: null,
+    brakeTempTrace: null,
+  };
 }
 
 const LAP_TIMES = [92.4, 91.8, 91.55, 91.9, 91.3, 92.1];
@@ -41,13 +72,16 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapNumber: i + 1,
   lapTime: t,
   isValid: i !== 3,
+  phase: "flying",
+  conditions: [],
+  paceEligibility: "eligible",
   createdAt: new Date().toISOString(),
   sectorTimes: [t * 0.32, t * 0.4, t * 0.28],
 }));
 
 const telemetryByLap = new Map(laps.map((l, i) => [l.id, makeLapTelemetry(l.lapTime, i === 3 ? 40 : 6)]));
 
-const traces = laps.map((l) => downsampleLap(l.id, l.lapNumber, l.isValid, telemetryByLap.get(l.id)!, null));
+const traces = laps.map((l) => makeLapTrace(l.id, l.lapNumber, l.isValid, telemetryByLap.get(l.id)!));
 
 const bestLap = laps.reduce((a, b) => (b.isValid && b.lapTime < a.lapTime ? b : a), laps[0]);
 
@@ -72,6 +106,7 @@ export const Default: Story = {
     bestLapId: bestLap.id,
     focusLapId: bestLap.id,
     onFocusLap: () => {},
+    lineSpread: null,
     focusTelemetry: telemetryByLap.get(bestLap.id) ?? null,
     focusSectorTimes: null,
     edges: null,
@@ -100,6 +135,7 @@ export const Empty: Story = {
     bestLapId: null,
     focusLapId: null,
     onFocusLap: () => {},
+    lineSpread: null,
     focusTelemetry: null,
     focusSectorTimes: null,
     edges: null,

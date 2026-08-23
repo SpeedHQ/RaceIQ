@@ -15,10 +15,12 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.tyreVisualCompound": "tires.tire-compound-code",
   "f1.trackLength": "timing.track-length",
   "f1.pitSpeedLimit": "race.pit-speed-limit",
+  "f1.pitStatus": "race.player-pit-code",
   "f1.weather": "weather.weather-type",
   "f1.trackTemperature": "weather.track-temp",
   "f1.airTemperature": "weather.air-temp",
   "f1.rainPercentage": "weather.rain-percent",
+  "f1.resultSource": "diagnostics.result-source",
   "f1.drsAllowed": "aero.drs-available",
   "f1.frontBrakeBias": "brakes.brake-bias",
   "f1.tractionControl": "electronics.traction-control-level",
@@ -166,6 +168,10 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     description: "F1 session packet track length.",
     freshness: "session-update",
   },
+  "f1.pitStatus": {
+    unit: "count",
+    description: "Native player pit code: 0=none, 1=pitting, 2=pit area.",
+  },
   "f1.pitSpeedLimit": {
     unit: "km/h",
     description: "F1 session packet pit-lane speed limit.",
@@ -173,6 +179,10 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.fuelRemainingLaps": {
     unit: "count",
     description: "F1 estimated laps remaining at current fuel usage.",
+  },
+  "f1.resultSource": {
+    unit: "enum",
+    description: "Whether F1 result status comes from live lap data or final classification.",
   },
   "f1.tractionControl": {
     unit: "level",
@@ -371,7 +381,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "iracing.sectorStarts": {
     unit: "fraction",
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
-    freshness: "session-update",
+    freshness: "static",
   },
 };
 

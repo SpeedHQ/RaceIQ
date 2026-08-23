@@ -1,12 +1,23 @@
-import { slipBalanceDeg } from "@shared/racing/analysis/laps/physics/vehicle";
+import { slipBalanceDegFromAngles } from "@shared/racing/analysis/laps/physics/vehicle";
 import { clamp } from "@shared/core/numbers";
-import type { TelemetryPacket } from "@shared/telemetry/types";
+import type { SemanticLapFrame } from "@shared/racing/analysis/laps/semantic-frame";
 import type { LapTrace, TireAverages, TireTraces } from "./types";
+
+type TraceFrame = SemanticLapFrame;
+
+type CompleteTraceFrame = TraceFrame & {
+  readonly distanceM: number;
+  readonly throttleInput: number;
+  readonly brakeInput: number;
+  readonly steeringInput: number;
+  readonly speedMps: number;
+};
 
 /** u32 wraps at 2^32 ms (~49.7 days) — TimestampMS resets mid-session on long
  *  runs. A single lap never spans that long, but consecutive packets can
  *  still straddle the wrap boundary. */
 const U32_MAX = 4294967296;
+const WHEEL_CORNERS = ["FL", "FR", "RL", "RR"] as const;
 
 /** Normalize a 0-255 (or already-normalized 0-1) input channel. */
 function normChannel(v: number): number {
@@ -18,32 +29,40 @@ function normSteer(v: number): number {
   return clamp(v / 128, -1, 1);
 }
 
-function avgSkippingZero(vals: number[]): number | null {
-  let sum = 0;
-  let n = 0;
-  for (const v of vals) {
-    if (v > 0) {
-      sum += v;
-      n++;
-    }
-  }
-  return n > 0 ? sum / n : null;
+function finiteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
-function tireAverages(pkts: TelemetryPacket[], sel: (p: TelemetryPacket, corner: "FL" | "FR" | "RL" | "RR") => number | undefined): TireAverages | null {
-  const corners: ("FL" | "FR" | "RL" | "RR")[] = ["FL", "FR", "RL", "RR"];
-  const out: Partial<TireAverages> = {};
-  let anyMissing = false;
-  for (const c of corners) {
-    const avg = avgSkippingZero(pkts.map((p) => sel(p, c) ?? 0));
-    if (avg == null) {
-      anyMissing = true;
-      break;
+function completeTraceFrame(frame: TraceFrame): frame is CompleteTraceFrame {
+  return (
+    finiteNumber(frame.observedAtMs) &&
+    finiteNumber(frame.distanceM) &&
+    finiteNumber(frame.throttleInput) &&
+    finiteNumber(frame.brakeInput) &&
+    finiteNumber(frame.steeringInput) &&
+    finiteNumber(frame.speedMps)
+  );
+}
+
+function tireAverage(frames: readonly TraceFrame[], select: (frame: TraceFrame) => number | undefined): number | null {
+  let sum = 0;
+  let count = 0;
+  for (const frame of frames) {
+    const value = select(frame);
+    if (finiteNumber(value) && value > 0) {
+      sum += value;
+      count++;
     }
-    out[c] = avg;
   }
-  if (anyMissing) return null;
-  return out as TireAverages;
+  return count > 0 ? sum / count : null;
+}
+
+function tireAverages(frames: readonly TraceFrame[], select: (frame: TraceFrame, corner: (typeof WHEEL_CORNERS)[number]) => number | undefined): TireAverages | null {
+  const FL = tireAverage(frames, (frame) => select(frame, "FL"));
+  const FR = tireAverage(frames, (frame) => select(frame, "FR"));
+  const RL = tireAverage(frames, (frame) => select(frame, "RL"));
+  const RR = tireAverage(frames, (frame) => select(frame, "RR"));
+  return FL == null || FR == null || RL == null || RR == null ? null : { FL, FR, RL, RR };
 }
 
 /**
@@ -54,12 +73,16 @@ function tireAverages(pkts: TelemetryPacket[], sel: (p: TelemetryPacket, corner:
  * lapDist when available, else the packet array's own span), so the rendered
  * line is exactly the recorded signal.
  */
-export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean, telemetry: TelemetryPacket[], sectorTimes: { firstDist: number; lapDist: number } | null): LapTrace | null {
-  if (telemetry.length === 0) return null;
+export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean, telemetry: readonly TraceFrame[], sectorTimes: { firstDist: number; lapDist: number } | null): LapTrace | null {
+  const frames = telemetry.filter(completeTraceFrame);
+  const firstFrame = frames[0];
+  const lastFrame = frames[frames.length - 1];
+  if (!firstFrame || !lastFrame) return null;
 
-  const firstDist = sectorTimes?.firstDist ?? telemetry[0].DistanceTraveled;
-  const lapDist = sectorTimes?.lapDist ?? telemetry[telemetry.length - 1].DistanceTraveled - firstDist;
-  if (!(lapDist > 0)) return null;
+  const suppliedDistances = sectorTimes && finiteNumber(sectorTimes.firstDist) && finiteNumber(sectorTimes.lapDist) && sectorTimes.lapDist > 0 ? sectorTimes : null;
+  const firstDist = suppliedDistances?.firstDist ?? firstFrame.distanceM;
+  const lapDist = suppliedDistances?.lapDist ?? lastFrame.distanceM - firstDist;
+  if (!(lapDist > 0) || !Number.isFinite(lapDist)) return null;
 
   // Elapsed-time source, mirroring the server's sector-time logic
   // (lap-routes): prefer CurrentLap (in-game current lap time, seconds) when
@@ -67,17 +90,22 @@ export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean
   // TimestampMS with wall-clock Date.now() at parse time, which collapses to
   // near-zero spans for imported/replayed sessions. Fall back to unwrapping
   // TimestampMS (u32, wrap-corrected) when CurrentLap is unreliable.
-  const lapProgression = telemetry[telemetry.length - 1].CurrentLap - telemetry[0].CurrentLap;
-  const useCurrentLap = lapProgression >= 1;
-  const tsMs: number[] = new Array(telemetry.length);
+  const lapElapsed: number[] = [];
+  for (const frame of frames) {
+    if (!finiteNumber(frame.lapElapsedSeconds)) break;
+    lapElapsed.push(frame.lapElapsedSeconds);
+  }
+  const useCurrentLap = lapElapsed.length === frames.length && lapElapsed.length > 0 && lapElapsed[lapElapsed.length - 1] - lapElapsed[0] >= 1;
+  const rawN = frames.length;
+  const tsMs: number[] = new Array(rawN);
   tsMs[0] = 0;
   if (useCurrentLap) {
-    const t0 = telemetry[0].CurrentLap;
-    for (let i = 1; i < telemetry.length; i++) tsMs[i] = (telemetry[i].CurrentLap - t0) * 1000;
+    const t0 = lapElapsed[0];
+    for (let i = 1; i < rawN; i++) tsMs[i] = (lapElapsed[i] - t0) * 1000;
   } else {
-    let prevRaw = telemetry[0].TimestampMS;
-    for (let i = 1; i < telemetry.length; i++) {
-      const curRaw = telemetry[i].TimestampMS;
+    let prevRaw = firstFrame.observedAtMs;
+    for (let i = 1; i < rawN; i++) {
+      const curRaw = frames[i].observedAtMs;
       let delta = curRaw - prevRaw;
       if (delta < 0) delta += U32_MAX;
       tsMs[i] = tsMs[i - 1] + delta;
@@ -85,12 +113,9 @@ export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean
     }
   }
 
-  // Keep EVERY recorded frame — no bucketing, no resampling, no interpolation.
-  // Each output sample is one real telemetry frame at its true distance
-  // fraction, so the rendered line is exactly the recorded signal. `frac` is
-  // monotonic but not uniformly spaced (dense in slow corners, sparse on
-  // straights); consumers locate a fraction via `sampleAt`'s frac search.
-  const rawN = telemetry.length;
+  // Keep every complete recorded frame — no bucketing, resampling, or
+  // interpolation. Each output sample has finite primary evidence at its true
+  // distance fraction.
   const frac = new Float32Array(rawN);
   const throttle = new Float32Array(rawN);
   const brake = new Float32Array(rawN);
@@ -99,128 +124,137 @@ export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean
   const timeS = new Float32Array(rawN);
 
   for (let i = 0; i < rawN; i++) {
-    const p = telemetry[i];
-    frac[i] = clamp((p.DistanceTraveled - firstDist) / lapDist, 0, 1);
-    throttle[i] = normChannel(p.Accel);
-    brake[i] = normChannel(p.Brake);
-    steer[i] = normSteer(p.Steer);
-    speedKmh[i] = p.Speed * 3.6;
+    const frame = frames[i];
+    frac[i] = clamp((frame.distanceM - firstDist) / lapDist, 0, 1);
+    throttle[i] = normChannel(frame.throttleInput);
+    brake[i] = normChannel(frame.brakeInput);
+    steer[i] = normSteer(frame.steeringInput);
+    speedKmh[i] = frame.speedMps * 3.6;
     timeS[i] = tsMs[i] / 1000;
   }
 
-  // Per-corner tire traces — again one value per real frame. Zero readings
-  // (sensor absent that frame) are held from the last non-zero value so a
-  // dropout doesn't spike the line to zero; a corner with no readings at all
-  // drops the whole set to null.
-  function tireTraceBins(sel: (p: TelemetryPacket, corner: "FL" | "FR" | "RL" | "RR") => number | undefined): TireTraces | null {
-    const corners: ("FL" | "FR" | "RL" | "RR")[] = ["FL", "FR", "RL", "RR"];
-    const out: Partial<TireTraces> = {};
-    let anyMissing = false;
-    for (const c of corners) {
-      const arr = new Float32Array(rawN);
+  // Per-corner tire traces — one value per complete recorded frame. A reported
+  // zero is held from the last non-zero value so a sensor dropout does not
+  // spike the line to zero; a corner with no readings drops the set to null.
+  function tireTraceBins(select: (frame: TraceFrame, corner: (typeof WHEEL_CORNERS)[number]) => number | undefined): TireTraces | null {
+    const traces: Float32Array[] = [];
+    for (const corner of WHEEL_CORNERS) {
+      const trace = new Float32Array(rawN);
       let last = 0;
-      let anySeeded = false;
-      for (let i = 0; i < rawN; i++) {
-        const v = sel(telemetry[i], c) ?? 0;
-        if (v !== 0) {
-          last = v;
-          anySeeded = true;
+      let seeded = false;
+      for (let index = 0; index < rawN; index++) {
+        const value = select(frames[index], corner);
+        if (finiteNumber(value) && value !== 0) {
+          last = value;
+          seeded = true;
         }
-        arr[i] = last;
+        trace[index] = last;
       }
-      if (!anySeeded) {
-        anyMissing = true;
-        break;
+      if (!seeded) return null;
+      if (trace[0] === 0) {
+        let firstValue = 0;
+        while (firstValue < rawN && trace[firstValue] === 0) firstValue++;
+        for (let index = 0; index < firstValue; index++) trace[index] = trace[firstValue];
       }
-      // Backfill any leading zeros (before the first reading) with the first
-      // real value so the trace doesn't start at zero.
-      if (arr[0] === 0) {
-        let firstIdx = 0;
-        while (firstIdx < rawN && arr[firstIdx] === 0) firstIdx++;
-        if (firstIdx < rawN) for (let i = 0; i < firstIdx; i++) arr[i] = arr[firstIdx];
-      }
-      out[c] = arr;
+      traces.push(trace);
     }
-    return anyMissing ? null : (out as TireTraces);
+    const [FL, FR, RL, RR] = traces;
+    if (!FL || !FR || !RL || !RR) return null;
+    return { FL, FR, RL, RR };
   }
 
-  const tire = tireAverages(telemetry, (p, c) => (p as unknown as Record<string, number>)[`TireTemp${c}`]);
-  const pressure = tireAverages(telemetry, (p, c) => {
-    const key = c === "FL" ? "TirePressureFrontLeft" : c === "FR" ? "TirePressureFrontRight" : c === "RL" ? "TirePressureRearLeft" : "TirePressureRearRight";
-    return (p as unknown as Record<string, number | undefined>)[key];
-  });
+  const tire = tireAverages(frames, (frame, corner) =>
+    corner === "FL" ? frame.tireTemperature[0] : corner === "FR" ? frame.tireTemperature[1] : corner === "RL" ? frame.tireTemperature[2] : frame.tireTemperature[3],
+  );
+  const pressure = tireAverages(frames, (frame, corner) =>
+    corner === "FL" ? frame.tirePressure[0] : corner === "FR" ? frame.tirePressure[1] : corner === "RL" ? frame.tirePressure[2] : frame.tirePressure[3],
+  );
+  const tireTempTrace = tireTraceBins((frame, corner) =>
+    corner === "FL" ? frame.tireTemperature[0] : corner === "FR" ? frame.tireTemperature[1] : corner === "RL" ? frame.tireTemperature[2] : frame.tireTemperature[3],
+  );
+  const pressureTrace = tireTraceBins((frame, corner) =>
+    corner === "FL" ? frame.tirePressure[0] : corner === "FR" ? frame.tirePressure[1] : corner === "RL" ? frame.tirePressure[2] : frame.tirePressure[3],
+  );
 
-  const tireTempTrace = tireTraceBins((p, c) => (p as unknown as Record<string, number>)[`TireTemp${c}`]);
-  const pressureTrace = tireTraceBins((p, c) => {
-    const key = c === "FL" ? "TirePressureFrontLeft" : c === "FR" ? "TirePressureFrontRight" : c === "RL" ? "TirePressureRearLeft" : "TirePressureRearRight";
-    return (p as unknown as Record<string, number | undefined>)[key];
-  });
-
-  // Per-corner traces with no carry-forward: unlike tire temp/pressure, a
-  // frame reading exactly 0 (full droop, zero slip) is a real value, not a
-  // sensor dropout. The whole channel drops to null only when every frame
-  // across every corner is exactly 0 — the same sentinel games without the
-  // field use (e.g. F1 hardcodes NormSuspensionTravel* to 0).
-  function rawTireTraceBins(sel: (p: TelemetryPacket, corner: "FL" | "FR" | "RL" | "RR") => number | undefined): TireTraces | null {
-    const corners: ("FL" | "FR" | "RL" | "RR")[] = ["FL", "FR", "RL", "RR"];
-    const out: Partial<TireTraces> = {};
+  // Per-corner traces with no carry-forward: zero suspension travel or slip is
+  // real. An incomplete channel abstains rather than encoding an absence as NaN.
+  function directTireTraceBins(select: (frame: TraceFrame, corner: (typeof WHEEL_CORNERS)[number]) => number | undefined): TireTraces | null {
+    const traces: Float32Array[] = [];
     let anyNonZero = false;
-    for (const c of corners) {
-      const arr = new Float32Array(rawN);
-      for (let i = 0; i < rawN; i++) {
-        const v = sel(telemetry[i], c) ?? 0;
-        arr[i] = v;
-        if (v !== 0) anyNonZero = true;
+    for (const corner of WHEEL_CORNERS) {
+      const trace = new Float32Array(rawN);
+      for (let index = 0; index < rawN; index++) {
+        const value = select(frames[index], corner);
+        if (!finiteNumber(value)) return null;
+        trace[index] = value;
+        if (value !== 0) anyNonZero = true;
       }
-      out[c] = arr;
+      traces.push(trace);
     }
-    return anyNonZero ? (out as TireTraces) : null;
+    if (!anyNonZero) return null;
+    const [FL, FR, RL, RR] = traces;
+    return FL && FR && RL && RR ? { FL, FR, RL, RR } : null;
   }
 
-  // Balance: signed axle slip delta in degrees. The shared physics helper is
-  // also used by steering-balance analysis, so review traces and analysis
-  // cannot drift. Null when every corner reports exactly zero on every frame.
+  // Balance: signed axle slip delta in degrees. Shared physics primitive keeps
+  // review traces and steering-balance analysis aligned. Incomplete or all-zero
+  // evidence abstains.
+  let balanceComplete = true;
   let balanceAnyNonZero = false;
   const balance = new Float32Array(rawN);
-  for (let i = 0; i < rawN; i++) {
-    const p = telemetry[i];
-    const sFL = p.TireSlipAngleFL ?? 0;
-    const sFR = p.TireSlipAngleFR ?? 0;
-    const sRL = p.TireSlipAngleRL ?? 0;
-    const sRR = p.TireSlipAngleRR ?? 0;
-    if (sFL !== 0 || sFR !== 0 || sRL !== 0 || sRR !== 0) balanceAnyNonZero = true;
-    balance[i] = slipBalanceDeg(p);
+  for (let index = 0; index < rawN; index++) {
+    const value = slipBalanceDegFromAngles(frames[index].tireSlipAngleRad);
+    if (value === null) {
+      balanceComplete = false;
+      break;
+    }
+    balance[index] = value;
+    if (value !== 0) balanceAnyNonZero = true;
   }
 
   // Lateral/longitudinal g. Axis mapping verified against ACC/AC Evo shared
-  // memory's Y-up, Z-forward local coordinate frame: AccelerationX is the
-  // lateral (right) component, AccelerationZ is the longitudinal (forward)
-  // component — braking produces a negative AccelerationZ, matching the
-  // parsers' own comments on acceleration/velocity/angular-velocity axis
-  // order (server/games/acc/parser.ts, server/games/ac-evo/parser.ts).
+  // memory's Y-up, Z-forward local coordinate frame: AccelerationX is lateral,
+  // AccelerationZ is longitudinal; braking produces negative AccelerationZ.
+  let latGComplete = true;
+  let longGComplete = true;
   let latGAnyNonZero = false;
   let longGAnyNonZero = false;
   const latG = new Float32Array(rawN);
   const longG = new Float32Array(rawN);
-  for (let i = 0; i < rawN; i++) {
-    const p = telemetry[i] as unknown as Record<string, number | undefined>;
-    const accX = p.AccelerationX ?? 0;
-    const accZ = p.AccelerationZ ?? 0;
-    if (accX !== 0) latGAnyNonZero = true;
-    if (accZ !== 0) longGAnyNonZero = true;
-    latG[i] = accX / 9.81;
-    longG[i] = accZ / 9.81;
+  for (let index = 0; index < rawN; index++) {
+    const frame = frames[index];
+    if (!finiteNumber(frame.accelerationXMps2)) latGComplete = false;
+    else {
+      latG[index] = frame.accelerationXMps2 / 9.81;
+      if (frame.accelerationXMps2 !== 0) latGAnyNonZero = true;
+    }
+    if (!finiteNumber(frame.accelerationZMps2)) longGComplete = false;
+    else {
+      longG[index] = frame.accelerationZMps2 / 9.81;
+      if (frame.accelerationZMps2 !== 0) longGAnyNonZero = true;
+    }
   }
 
-  const suspTravel = rawTireTraceBins((p, c) => (p as unknown as Record<string, number>)[`NormSuspensionTravel${c}`]);
-  const combinedSlip = rawTireTraceBins((p, c) => (p as unknown as Record<string, number>)[`TireCombinedSlip${c}`]);
+  const suspTravel = directTireTraceBins((frame, corner) =>
+    corner === "FL"
+      ? frame.normalizedSuspensionTravel[0]
+      : corner === "FR"
+        ? frame.normalizedSuspensionTravel[1]
+        : corner === "RL"
+          ? frame.normalizedSuspensionTravel[2]
+          : frame.normalizedSuspensionTravel[3],
+  );
+  const combinedSlip = directTireTraceBins((frame, corner) =>
+    corner === "FL" ? frame.tireCombinedSlip[0] : corner === "FR" ? frame.tireCombinedSlip[1] : corner === "RL" ? frame.tireCombinedSlip[2] : frame.tireCombinedSlip[3],
+  );
 
-  // Brake temp: same corner->field mapping as pressure, and it's a temperature
-  // so a zero reading is a sensor dropout — carry-forward via tireTraceBins.
-  const brakeTempKey = (c: "FL" | "FR" | "RL" | "RR") =>
-    c === "FL" ? "BrakeTempFrontLeft" : c === "FR" ? "BrakeTempFrontRight" : c === "RL" ? "BrakeTempRearLeft" : "BrakeTempRearRight";
-  const brakeTemp = tireAverages(telemetry, (p, c) => (p as unknown as Record<string, number | undefined>)[brakeTempKey(c)]);
-  const brakeTempTrace = tireTraceBins((p, c) => (p as unknown as Record<string, number | undefined>)[brakeTempKey(c)]);
+  // Brake temperatures are carry-forward traces; a zero frame is a dropout.
+  const brakeTemp = tireAverages(frames, (frame, corner) =>
+    corner === "FL" ? frame.brakeTemperature[0] : corner === "FR" ? frame.brakeTemperature[1] : corner === "RL" ? frame.brakeTemperature[2] : frame.brakeTemperature[3],
+  );
+  const brakeTempTrace = tireTraceBins((frame, corner) =>
+    corner === "FL" ? frame.brakeTemperature[0] : corner === "FR" ? frame.brakeTemperature[1] : corner === "RL" ? frame.brakeTemperature[2] : frame.brakeTemperature[3],
+  );
 
   return {
     lapId,
@@ -237,9 +271,9 @@ export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean
     pressure,
     tireTempTrace,
     pressureTrace,
-    balance: balanceAnyNonZero ? balance : null,
-    latG: latGAnyNonZero ? latG : null,
-    longG: longGAnyNonZero ? longG : null,
+    balance: balanceComplete && balanceAnyNonZero ? balance : null,
+    latG: latGComplete && latGAnyNonZero ? latG : null,
+    longG: longGComplete && longGAnyNonZero ? longG : null,
     suspTravel,
     combinedSlip,
     brakeTemp,

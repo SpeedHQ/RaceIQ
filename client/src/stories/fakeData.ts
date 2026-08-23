@@ -3,13 +3,13 @@
  * All values are plausible real-world racing data.
  */
 
+import { DEFAULT_LAP_CLASSIFICATION } from "../../../shared/racing/laps/classification";
 import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import type { CanonicalTelemetryScalar } from "../../../shared/telemetry/replay/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
-import type { DisplayPacket } from "../lib/convert-packet";
-
 
 // ── Shared base packet fields ────────────────────────────────────────────────
 
@@ -364,57 +364,166 @@ export const fakeF1Packet: TelemetryPacket = {
   },
 };
 const semanticFixtureIds = [
-  "identity.car-ordinal", "identity.track-ordinal", "identity.car-class", "identity.car-performance-index", "identity.drivetrain-type",
-  "motion.speed", "motion.acceleration-x", "motion.acceleration-z", "motion.position-x", "motion.position-z", "motion.roll", "motion.pitch", "motion.yaw",
-  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm", "engine.power", "engine.torque", "engine.boost",
-  "fuel.fuel", "fuel.fuel-capacity", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
-  "timing.distance-traveled", "race.race-position", "tire.temperature.average", "tires.tire-wear", "tires.tire-pressure", "brakes.brake-temp",
-  "aero.drs-active", "aero.drs-available", "aero.drs-zone-approaching", "weather.weather-type", "weather.track-temp", "weather.air-temp", "weather.rain-percent",
-  "fuel.ers-store-energy", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested",
+  "identity.car-ordinal",
+  "identity.track-ordinal",
+  "identity.car-class",
+  "identity.car-performance-index",
+  "identity.drivetrain-type",
+  "motion.speed",
+  "motion.acceleration-x",
+  "motion.acceleration-z",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.roll",
+  "motion.pitch",
+  "motion.yaw",
+  "inputs.accel",
+  "inputs.brake",
+  "inputs.steer",
+  "inputs.gear",
+  "engine.current-engine-rpm",
+  "engine.engine-max-rpm",
+  "engine.engine-idle-rpm",
+  "engine.power",
+  "engine.torque",
+  "engine.boost",
+  "fuel.fuel",
+  "fuel.fuel-capacity",
+  "timing.best-lap",
+  "timing.last-lap",
+  "timing.current-lap",
+  "timing.lap-number",
+  "timing.distance-traveled",
+  "race.race-position",
+  "tire.temperature.average",
+  "tires.tire-wear",
+  "tires.tire-pressure",
+  "brakes.brake-temp",
+  "aero.drs-active",
+  "aero.drs-available",
+  "aero.drs-zone-approaching",
+  "weather.weather-type",
+  "weather.track-temp",
+  "weather.air-temp",
+  "weather.rain-percent",
+  "fuel.ers-store-energy",
+  "fuel.ers-deploy-mode",
+  "fuel.ers-deployed",
+  "fuel.ers-harvested",
 ];
 
+function hasMissingFixtureValue(value: unknown): boolean {
+  return value === undefined || (Array.isArray(value) && value.some(hasMissingFixtureValue));
+}
+
+function canonicalFixtureValue(value: unknown): CanonicalTelemetryScalar {
+  if (value === null || typeof value === "boolean" || typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (Array.isArray(value)) return value.map(canonicalFixtureValue);
+  throw new TypeError("Story telemetry fixture contains a non-canonical value");
+}
+
 function makeSemanticFixture(raw: TelemetryPacket) {
-  const values: unknown[] = semanticFixtureIds.map((id) => {
-    const f1 = raw.f1 as Record<string, unknown> | undefined;
-    const map: Record<string, unknown> = {
-      "identity.car-ordinal": raw.CarOrdinal, "identity.track-ordinal": raw.TrackOrdinal, "identity.car-class": raw.CarClass,
-      "identity.car-performance-index": raw.CarPerformanceIndex, "identity.drivetrain-type": raw.DrivetrainType,
-      "motion.speed": raw.Speed, "motion.acceleration-x": raw.AccelerationX, "motion.acceleration-z": raw.AccelerationZ,
-      "motion.position-x": raw.PositionX, "motion.position-z": raw.PositionZ, "motion.roll": raw.Roll, "motion.pitch": raw.Pitch, "motion.yaw": raw.Yaw,
-      "inputs.accel": raw.Accel, "inputs.brake": raw.Brake, "inputs.steer": raw.Steer, "inputs.gear": raw.Gear,
-      "engine.current-engine-rpm": raw.CurrentEngineRpm, "engine.engine-max-rpm": raw.EngineMaxRpm, "engine.engine-idle-rpm": raw.EngineIdleRpm,
-      "engine.power": raw.Power, "engine.torque": raw.Torque, "engine.boost": raw.Boost, "fuel.fuel": raw.Fuel, "fuel.fuel-capacity": raw.FuelCapacity,
-      "timing.best-lap": raw.BestLap, "timing.last-lap": raw.LastLap, "timing.current-lap": raw.CurrentLap, "timing.lap-number": raw.LapNumber,
-      "timing.distance-traveled": raw.DistanceTraveled, "race.race-position": raw.RacePosition,
-      "tire.temperature.average": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
-      "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
-      "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
-      "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
-      "weather.weather-type": f1?.weather, "weather.track-temp": f1?.trackTemperature, "weather.air-temp": f1?.airTemperature, "weather.rain-percent": f1?.rainPercentage,
-      "aero.drs-active": f1?.drsActivated, "aero.drs-available": f1?.drsAllowed, "aero.drs-zone-approaching": f1?.drsZoneApproaching,
-      "fuel.ers-store-energy": f1?.ersStoreEnergy,
-      "fuel.ers-deploy-mode": f1?.ersDeployMode,
-      "fuel.ers-deployed": f1?.ersDeployedThisLap,
-      "fuel.ers-harvested": f1?.ersHarvestedThisLap,
-    };
-    return map[id];
-  });
+  const f1 = raw.f1 as Record<string, unknown> | undefined;
+  const tireTemperaturesC =
+    raw.gameId === "fm-2023"
+      ? [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR].map((value) => ((value - 32) * 5) / 9)
+      : [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR];
+  const valuesById: Record<string, unknown> = {
+    "identity.car-ordinal": raw.CarOrdinal,
+    "identity.track-ordinal": raw.TrackOrdinal,
+    "identity.car-class": raw.CarClass,
+    "identity.car-performance-index": raw.CarPerformanceIndex,
+    "identity.drivetrain-type": raw.DrivetrainType,
+    "motion.speed": raw.Speed,
+    "motion.acceleration-x": raw.AccelerationX,
+    "motion.acceleration-z": raw.AccelerationZ,
+    "motion.position-x": raw.PositionX,
+    "motion.position-z": raw.PositionZ,
+    "motion.roll": raw.Roll,
+    "motion.pitch": raw.Pitch,
+    "motion.yaw": raw.Yaw,
+    "inputs.accel": raw.Accel,
+    "inputs.brake": raw.Brake,
+    "inputs.steer": raw.Steer,
+    "inputs.gear": raw.Gear,
+    "engine.current-engine-rpm": raw.CurrentEngineRpm,
+    "engine.engine-max-rpm": raw.EngineMaxRpm,
+    "engine.engine-idle-rpm": raw.EngineIdleRpm,
+    "engine.power": raw.Power,
+    "engine.torque": raw.Torque,
+    "engine.boost": raw.Boost,
+    "fuel.fuel": raw.Fuel,
+    "fuel.fuel-capacity": raw.FuelCapacity,
+    "timing.best-lap": raw.BestLap,
+    "timing.last-lap": raw.LastLap,
+    "timing.current-lap": raw.CurrentLap,
+    "timing.lap-number": raw.LapNumber,
+    "timing.distance-traveled": raw.DistanceTraveled,
+    "race.race-position": raw.RacePosition,
+    "tire.temperature.average": tireTemperaturesC,
+    "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
+    "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
+    "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
+    "weather.weather-type": f1?.weather,
+    "weather.track-temp": f1?.trackTemperature,
+    "weather.air-temp": f1?.airTemperature,
+    "weather.rain-percent": f1?.rainPercentage,
+    "aero.drs-active": f1?.drsActivated,
+    "aero.drs-available": f1?.drsAllowed,
+    "aero.drs-zone-approaching": f1?.drsZoneApproaching,
+    "fuel.ers-store-energy": f1?.ersStoreEnergy,
+    "fuel.ers-deploy-mode": f1?.ersDeployMode,
+    "fuel.ers-deployed": f1?.ersDeployedThisLap,
+    "fuel.ers-harvested": f1?.ersHarvestedThisLap,
+  };
+  const values: CanonicalTelemetryScalar[] = new Array(semanticFixtureIds.length);
+  const states: Record<number, "missing"> = {};
+  for (let index = 0; index < semanticFixtureIds.length; index++) {
+    const value = valuesById[semanticFixtureIds[index]];
+    if (hasMissingFixtureValue(value)) {
+      values[index] = null;
+      states[index] = "missing";
+    } else {
+      values[index] = canonicalFixtureValue(value);
+    }
+  }
   const schema: LiveTelemetrySchemaMessageV1 = {
-    type: "telemetry-schema", protocolVersion: 1, schemaId: `storybook-${raw.gameId}`, simulator: raw.gameId,
-    catalogVersion: "storybook", catalogHash: "storybook", catalogSchemaVersion: "1", parserVersion: "storybook",
-    resolverVersion: "storybook", derivationVersion: "storybook",
-    definitions: semanticFixtureIds.map((semanticId) => ({ semanticId, unit: null, mappingStatus: "direct" as const, schemaVersion: "1", limitations: [] })),
+    type: "telemetry-schema",
+    protocolVersion: 1,
+    schemaId: `storybook-${raw.gameId}`,
+    simulator: raw.gameId,
+    catalogVersion: "storybook",
+    catalogHash: "storybook",
+    catalogSchemaVersion: "1",
+    parserVersion: "storybook",
+    resolverVersion: "storybook",
+    derivationVersion: "storybook",
+    definitions: semanticFixtureIds.map((semanticId) => ({
+      semanticId,
+      unit: null,
+      mappingStatus: raw.gameId === "fm-2023" && semanticId === "tire.temperature.average" ? ("normalized" as const) : ("direct" as const),
+      schemaVersion: "1",
+      limitations: [],
+    })),
   };
   const frame: LiveTelemetryFrameMessageV1 = {
-    type: "telemetry-frame", protocolVersion: 1, schemaId: schema.schemaId, streamId: "storybook", sessionId: 1,
-    sequence: 1, observedAt: { domain: "session", milliseconds: raw.TimestampMS }, receivedAtMs: raw.TimestampMS, values: values as never[],
-    context: { },
+    type: "telemetry-frame",
+    protocolVersion: 1,
+    schemaId: schema.schemaId,
+    streamId: "storybook",
+    sessionId: 1,
+    sequence: 1,
+    observedAt: { domain: "session", milliseconds: raw.TimestampMS },
+    receivedAtMs: raw.TimestampMS,
+    values,
+    states,
+    context: {},
   };
   return { schema, frame, view: buildLiveTelemetryView(schema, frame)! };
 }
 
 export const fakeF1SemanticFixture = makeSemanticFixture(fakeF1Packet);
-
 
 // ── Forza Motorsport Fake Packet ─────────────────────────────────────────────
 
@@ -537,32 +646,13 @@ export const fakeAccPacket: TelemetryPacket = {
   },
 };
 
-// ── Converted Display Packets ────────────────────────────────────────────────
-
-function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
-  const isForza = raw.gameId === "fm-2023";
-  const fahrenheitToC = (f: number) => (f - 32) / 1.8;
-  return {
-    ...raw,
-    DisplaySpeed: Math.round(raw.Speed * 3.6), // m/s → km/h
-    DisplayTireTempFL: isForza ? fahrenheitToC(raw.TireTempFL) : raw.TireTempFL,
-    DisplayTireTempFR: isForza ? fahrenheitToC(raw.TireTempFR) : raw.TireTempFR,
-    DisplayTireTempRL: isForza ? fahrenheitToC(raw.TireTempRL) : raw.TireTempRL,
-    DisplayTireTempRR: isForza ? fahrenheitToC(raw.TireTempRR) : raw.TireTempRR,
-  };
-}
-
 // AC Evo shares ACC's shared-memory shape; the packet differs only in the
 // gameId the store holds alongside it.
-export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket };
+export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-evo" };
 
-export const fakeF1DisplayPacket: DisplayPacket = makeDisplayPacket(fakeF1Packet);
-export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForzaPacket);
-export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
-export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
-
+export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
@@ -610,16 +700,126 @@ export const fakePit: LivePitData = {
 // ── Session Laps ─────────────────────────────────────────────────────────────
 
 export const fakeSessionLaps: LapMeta[] = [
-  { id: 1, sessionId: 1, lapNumber: 1, lapTime: 95.42, isValid: true, createdAt: "2026-04-13T10:00:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [30.1, 33.5, 31.82] },
-  { id: 2, sessionId: 1, lapNumber: 2, lapTime: 93.841, isValid: true, createdAt: "2026-04-13T10:02:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.9, 32.6, 31.34] },
-  { id: 3, sessionId: 1, lapNumber: 3, lapTime: 93.105, isValid: true, createdAt: "2026-04-13T10:04:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.8, 32.4, 30.9] },
-  { id: 4, sessionId: 1, lapNumber: 4, lapTime: 92.341, isValid: true, createdAt: "2026-04-13T10:06:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.845, 32.21, 30.286] },
-  { id: 5, sessionId: 1, lapNumber: 5, lapTime: 92.655, isValid: true, createdAt: "2026-04-13T10:08:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.88, 32.34, 30.435] },
-  { id: 6, sessionId: 1, lapNumber: 6, lapTime: 92.58, isValid: true, createdAt: "2026-04-13T10:10:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.86, 32.31, 30.41] },
-  { id: 7, sessionId: 1, lapNumber: 7, lapTime: 93.02, isValid: true, createdAt: "2026-04-13T10:12:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.95, 32.55, 30.52] },
-  { id: 8, sessionId: 1, lapNumber: 8, lapTime: 92.401, isValid: true, createdAt: "2026-04-13T10:14:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.8, 32.22, 30.381] },
-  { id: 9, sessionId: 1, lapNumber: 9, lapTime: 92.278, isValid: true, createdAt: "2026-04-13T10:16:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.81, 32.19, 30.278] },
-  { id: 10, sessionId: 1, lapNumber: 10, lapTime: 91.98, isValid: true, createdAt: "2026-04-13T10:18:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.68, 32.05, 30.25] },
+  {
+    id: 1,
+    sessionId: 1,
+    lapNumber: 1,
+    lapTime: 95.42,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:00:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [30.1, 33.5, 31.82],
+  },
+  {
+    id: 2,
+    sessionId: 1,
+    lapNumber: 2,
+    lapTime: 93.841,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:02:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.9, 32.6, 31.34],
+  },
+  {
+    id: 3,
+    sessionId: 1,
+    lapNumber: 3,
+    lapTime: 93.105,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:04:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.8, 32.4, 30.9],
+  },
+  {
+    id: 4,
+    sessionId: 1,
+    lapNumber: 4,
+    lapTime: 92.341,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:06:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.845, 32.21, 30.286],
+  },
+  {
+    id: 5,
+    sessionId: 1,
+    lapNumber: 5,
+    lapTime: 92.655,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:08:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.88, 32.34, 30.435],
+  },
+  {
+    id: 6,
+    sessionId: 1,
+    lapNumber: 6,
+    lapTime: 92.58,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:10:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.86, 32.31, 30.41],
+  },
+  {
+    id: 7,
+    sessionId: 1,
+    lapNumber: 7,
+    lapTime: 93.02,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:12:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.95, 32.55, 30.52],
+  },
+  {
+    id: 8,
+    sessionId: 1,
+    lapNumber: 8,
+    lapTime: 92.401,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:14:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.8, 32.22, 30.381],
+  },
+  {
+    id: 9,
+    sessionId: 1,
+    lapNumber: 9,
+    lapTime: 92.278,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:16:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.81, 32.19, 30.278],
+  },
+  {
+    id: 10,
+    sessionId: 1,
+    lapNumber: 10,
+    lapTime: 91.98,
+    isValid: true,
+    ...DEFAULT_LAP_CLASSIFICATION,
+    createdAt: "2026-04-13T10:18:00Z",
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    sectorTimes: [29.68, 32.05, 30.25],
+  },
 ];
 
 // Deterministic PRNG (mulberry32) so generated laps stay stable across renders.
@@ -653,6 +853,7 @@ export function generateFakeSessionLaps(count: number, seed = 1): LapMeta[] {
       lapNumber: i + 1,
       lapTime: +(s1 + s2 + s3).toFixed(3),
       isValid: rand() > 0.05,
+      ...DEFAULT_LAP_CLASSIFICATION,
       createdAt: new Date(start + i * 120_000).toISOString(),
       carOrdinal: 42,
       trackOrdinal: 7,

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../../server/lap-analysis/consistency"
-import type { Corner } from "../../server/lap-analysis/corners"
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../../server/lap-analysis/consistency";
+import type { Corner } from "../../server/lap-analysis/corners";
 
 /**
  * `computeLapConsistencyDelta` is pure math over resampled lap paths — these
@@ -9,25 +9,11 @@ import type { Corner } from "../../server/lap-analysis/corners"
  * synthetic laps rather than real telemetry.
  */
 
-function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
-  return {
-    gameId: "f1-2025",
-    IsRaceOn: 1,
-    TimestampMS: 0,
-    DistanceTraveled: 0,
-    PositionX: 0,
-    PositionZ: 0,
-    VelocityX: 0,
-    VelocityY: 0,
-    VelocityZ: 0,
-    Gear: 1,
-    Accel: 0,
-    Brake: 0,
-    ...overrides,
-  } as TelemetryPacket;
+function sample(values: SemanticTelemetrySample["values"], observedAtMs = 0): SemanticTelemetrySample {
+  return { sequence: String(observedAtMs), observedAtMs, values };
 }
 
-// Straight-line lap along Z, 600m long, ~120 frames (5m / frame, 100ms cadence).
+// Straight-line lap along canonical `motion.position-z`, 600m long, ~120 samples (5m / sample, 100ms cadence).
 // Corner T1 spans distance 200..300; the rest of the lap is straight.
 // Braking pattern: constant, contiguous braking window in the corner approach.
 const LAP_LENGTH_M = 600;
@@ -37,39 +23,40 @@ const CORNER_START = 200;
 const CORNER_END = 300;
 
 interface LapOptions {
-  lateralOffsetInCorner?: number; // metres added to PositionX within the corner span
-  brakeShiftM?: number; // shift the braking window earlier by this many metres
+  lateralOffsetInCorner?: number; // metres added to `motion.position-x` within the corner span
+  brakeShiftM?: number; // shift `inputs.brake` window earlier by this many metres
 }
 
-function buildLap(opts: LapOptions = {}): TelemetryPacket[] {
+function buildLap(opts: LapOptions = {}): SemanticTelemetrySample[] {
   const { lateralOffsetInCorner = 0, brakeShiftM = 0 } = opts;
-  const packets: TelemetryPacket[] = [];
+  const samples: SemanticTelemetrySample[] = [];
   for (let i = 0; i < FRAME_COUNT; i++) {
     const distance = i * STEP_M;
     const inCorner = distance >= CORNER_START && distance <= CORNER_END;
     const x = inCorner ? lateralOffsetInCorner : 0;
 
     // Braking normally happens mid-corner (220..260), shiftable earlier while
-    // staying inside the T1 corner span (200..300) so the corner's brakeVar
-    // actually picks up the shift.
+    // staying inside T1 (200..300) so `inputs.brake` variance captures shift.
     const brakeWindowStart = 220 - brakeShiftM;
     const brakeWindowEnd = 260 - brakeShiftM;
     const braking = distance >= brakeWindowStart && distance <= brakeWindowEnd;
 
-    packets.push(
-      pkt({
-        TimestampMS: i * 100,
-        DistanceTraveled: distance,
-        PositionX: x,
-        PositionZ: distance,
-        VelocityX: 0,
-        VelocityZ: STEP_M / 0.1,
-        Brake: braking ? 1 : 0,
-        Accel: braking ? 0 : 1,
-      }),
+    samples.push(
+      sample(
+        {
+          "timing.distance-traveled": distance,
+          "motion.position-x": x,
+          "motion.position-z": distance,
+          "motion.velocity-x": 0,
+          "motion.velocity-z": STEP_M / 0.1,
+          "inputs.brake": braking ? 1 : 0,
+          "inputs.accel": braking ? 0 : 1,
+        },
+        i * 100,
+      ),
     );
   }
-  return packets;
+  return samples;
 }
 
 const corners: Corner[] = [
@@ -183,35 +170,38 @@ describe("computeLineSpreadTrace", () => {
     expect(result!.fracs[result!.fracs.length - 1]).toBeCloseTo(1, 5);
   });
 
-  test("laps on an identical spatial line but with desynced odometers report ~0 spread", () => {
-    // Regression: laps are resampled over their own DistanceTraveled span, so a
-    // different odometer origin/scale (e.g. drivers braking at different points,
-    // a slightly longer measured lap) shifts equal-fraction points ALONG the
-    // track. A naive point-to-point distance folds that longitudinal shift into
-    // the metric as metres of phantom "spread" — which is exactly the bug that
-    // made a tight session read ~19m. Here all three laps trace the SAME (X,Z)
-    // path (0m offset, with an X=4 kink through the corner), differing ONLY in
-    // their DistanceTraveled mapping, so the true line spread is zero.
-    function desyncedLap(distanceOffset: number, distanceScale: number): TelemetryPacket[] {
-      const packets: TelemetryPacket[] = [];
+  test("laps on identical spatial line with desynced distance channels report ~0 spread", () => {
+    // Regression: laps are resampled over their own `timing.distance-traveled`
+    // span, so a different odometer origin/scale (e.g. drivers braking at
+    // different points, a slightly longer measured lap) shifts equal-fraction
+    // points ALONG track. A naive point-to-point distance folds that
+    // longitudinal shift into metric as metres of phantom "spread" — exactly
+    // bug that made a tight session read ~19m. Here all three laps trace SAME
+    // (`motion.position-x`, `motion.position-z`) path (0m offset, X=4 kink
+    // through corner), differing ONLY in their distance channel mapping, so
+    // true line spread is zero.
+    function desyncedLap(distanceOffset: number, distanceScale: number): SemanticTelemetrySample[] {
+      const samples: SemanticTelemetrySample[] = [];
       for (let i = 0; i < FRAME_COUNT; i++) {
         const z = i * STEP_M; // spatial coordinate — identical across laps
         const inCorner = z >= CORNER_START && z <= CORNER_END;
-        packets.push(
-          pkt({
-            TimestampMS: i * 100,
-            // Odometer decoupled from space: same line, different distance axis.
-            DistanceTraveled: distanceOffset + i * STEP_M * distanceScale,
-            PositionX: inCorner ? 4 : 0,
-            PositionZ: z,
-            VelocityX: 0,
-            VelocityZ: STEP_M / 0.1,
-            Brake: 0,
-            Accel: 1,
-          }),
+        samples.push(
+          sample(
+            {
+              // Odometer decoupled from space: same line, different distance axis.
+              "timing.distance-traveled": distanceOffset + i * STEP_M * distanceScale,
+              "motion.position-x": inCorner ? 4 : 0,
+              "motion.position-z": z,
+              "motion.velocity-x": 0,
+              "motion.velocity-z": STEP_M / 0.1,
+              "inputs.brake": 0,
+              "inputs.accel": 1,
+            },
+            i * 100,
+          ),
         );
       }
-      return packets;
+      return samples;
     }
 
     const result = computeLineSpreadTrace([desyncedLap(0, 1), desyncedLap(37, 1.08), desyncedLap(-19, 0.94)], [201, 202, 203], corners);
@@ -230,11 +220,7 @@ describe("computeLineSpreadTrace", () => {
     expect(tight!.overallSpreadM).toBeCloseTo(0, 3);
 
     // A ~4m offset through T1 lifts the mean spread, so the score drops below 100.
-    const spread = computeLineSpreadTrace(
-      [buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })],
-      [301, 302, 303],
-      corners,
-    );
+    const spread = computeLineSpreadTrace([buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })], [301, 302, 303], corners);
     expect(spread!.consistencyScore).toBeLessThan(100);
     expect(spread!.consistencyScore).toBeGreaterThanOrEqual(0);
   });
@@ -261,7 +247,7 @@ describe("computeLineSpreadTrace", () => {
 
   test("a too-short lap is dropped from lapLines along with the trace", () => {
     const good = [buildLap(), buildLap(), buildLap()];
-    const tooShort = [pkt({ DistanceTraveled: 0, PositionX: 0, PositionZ: 0 })]; // single packet -> resampleLap returns null
+    const tooShort = [sample({ "timing.distance-traveled": 0, "motion.position-x": 0, "motion.position-z": 0 })]; // one semantic sample -> resampleLap returns null
     const lapIds = [401, 402, 403, 404];
     const result = computeLineSpreadTrace([...good, tooShort], lapIds, corners);
     expect(result).not.toBeNull();

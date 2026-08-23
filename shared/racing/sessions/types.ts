@@ -28,6 +28,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity>, Partial<LapC
   quality?: LapQualitySummary;
   eligibility?: EligibilityDecisionSet;
   qualityGeneration?: string;
+  analysisGenerationId?: string | null;
   qualityStale?: boolean;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;

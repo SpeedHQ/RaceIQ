@@ -7,14 +7,9 @@
 import { describe, test, expect } from "bun:test";
 import { initGameAdapters } from "../../../shared/games/init";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
-import {
-  f32ToBase64,
-  base64ToF32,
-  encodeLapTrace,
-  decodeLapTrace,
-} from "../../../shared/racing/laps/trace/codec";
+import { f32ToBase64, base64ToF32, encodeLapTrace, decodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { LapTrace } from "../../../shared/racing/laps/trace/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticLapFrame } from "../../../shared/racing/analysis/laps/semantic-frame";
 
 initGameAdapters();
 
@@ -57,15 +52,15 @@ describe("base64 Float32 codec", () => {
 describe("encodeLapTrace / decodeLapTrace", () => {
   test("reproduces a full LapTrace exactly", () => {
     // Synthetic telemetry with distance, inputs, and ACC tire channels.
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 200; i++) {
       telemetry.push({
         DistanceTraveled: i * 5,
         CurrentLap: i * 0.05,
         TimestampMS: i * 16,
-        Accel: (i % 256),
-        Brake: ((i * 3) % 256),
-        Steer: ((i % 257) - 128),
+        Accel: i % 256,
+        Brake: (i * 3) % 256,
+        Steer: (i % 257) - 128,
         Speed: 40 + (i % 60),
         TireTempFL: 80 + (i % 10),
         TireTempFR: 82 + (i % 10),
@@ -85,11 +80,11 @@ describe("encodeLapTrace / decodeLapTrace", () => {
         TireCombinedSlipFR: 0.06,
         TireCombinedSlipRL: 0.03,
         TireCombinedSlipRR: 0.04,
-        BrakeTempFrontLeft: 350 + (i % 10),
-        BrakeTempFrontRight: 360,
-        BrakeTempRearLeft: 300,
-        BrakeTempRearRight: 310,
-      } as unknown as TelemetryPacket);
+        BrakeTempFL: 350 + (i % 10),
+        BrakeTempFR: 360,
+        BrakeTempRL: 300,
+        BrakeTempRR: 310,
+      } as unknown as SemanticLapFrame);
     }
     const trace = downsampleLap(1, 2, true, telemetry, null) as LapTrace;
     expect(trace).not.toBeNull();
@@ -136,7 +131,7 @@ describe("encodeLapTrace / decodeLapTrace", () => {
   });
 
   test("balance/latG/longG/suspTravel/combinedSlip encode/decode to null when absent", () => {
-    const telemetry: TelemetryPacket[] = [];
+    const telemetry: SemanticLapFrame[] = [];
     for (let i = 0; i < 20; i++) {
       telemetry.push({
         DistanceTraveled: i * 5,
@@ -146,7 +141,7 @@ describe("encodeLapTrace / decodeLapTrace", () => {
         Brake: 0,
         Steer: 0,
         Speed: 30,
-      } as unknown as TelemetryPacket);
+      } as unknown as SemanticLapFrame);
     }
     const trace = downsampleLap(1, 2, true, telemetry, null) as LapTrace;
     const decoded = decodeLapTrace(encodeLapTrace(trace));

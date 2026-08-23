@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { loadTrackSectorsFor } from "../../../shared/racing/tracks/storage/meta";
-import { computeLapSectors } from "../../../server/lap-analysis/sectors"
+import { computeLapSectors } from "../../../server/lap-analysis/sectors";
 import { initGameAdapters } from "../../../shared/games/init";
 import type { GameId } from "../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../../shared/telemetry/replay/contracts";
 
 initGameAdapters();
 
@@ -11,65 +11,24 @@ initGameAdapters();
  * Build a synthetic lap: 200 packets uniformly distributed across the lap.
  * DistanceTraveled goes from 0 to trackLength, CurrentLap from 0 to lapTime.
  */
-function makeLapPackets(
-  trackLength: number,
-  lapTime: number,
-  gameId: GameId,
-  opts: { f1Sectors?: { s1: number; s2: number } } = {},
-): TelemetryPacket[] {
+function makeLapSamples(trackLength: number, lapTime: number, gameId: GameId, opts: { f1Sectors?: { s1: number; s2: number } } = {}): SemanticTelemetrySample[] {
   const count = 200;
-  const packets: TelemetryPacket[] = [];
-  for (let i = 0; i < count; i++) {
-    const frac = i / (count - 1);
-    const isLast = i === count - 1;
-    const f1 = gameId === "f1-2025" && opts.f1Sectors
-      ? {
-          // SessionHistory exposes per-lap sector entries; the computation
-          // code looks up lapSectors[LapNumber]. Stamp the final packet
-          // with a populated entry.
-          lastS1: isLast ? opts.f1Sectors.s1 : 0,
-          lastS2: isLast ? opts.f1Sectors.s2 : 0,
-          lastS3: isLast ? lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2 : 0,
-          lapSectors: isLast
-            ? {
-                1: {
-                  s1: opts.f1Sectors.s1,
-                  s2: opts.f1Sectors.s2,
-                  s3: lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2,
-                  lapTime,
-                },
-              }
-            : undefined,
-        }
-      : undefined;
-    packets.push({
-      gameId,
-      IsRaceOn: 1,
-      TimestampMS: Math.round(frac * lapTime * 1000),
-      DistanceTraveled: frac * trackLength,
-      CurrentLap: frac * lapTime,
-      LastLap: 0,
-      BestLap: 0,
-      LapNumber: 1,
-      PositionX: 0,
-      PositionZ: 0,
-      Speed: 50,
-      RacePosition: 1,
-      Accel: 200,
-      Brake: 0,
-      Clutch: 0,
-      HandBrake: 0,
-      Gear: 3,
-      Steer: 0,
-      NormalizedDrivingLine: 0,
-      NormalizedAIBrakeDifference: 0,
-      Boost: 0,
-      Fuel: 50,
-      CurrentRaceTime: frac * lapTime,
-      ...(f1 ? { f1 } : {}),
-    } as unknown as TelemetryPacket);
+  const samples: SemanticTelemetrySample[] = [];
+  for (let index = 0; index < count; index++) {
+    const fraction = index / (count - 1);
+    const completedF1Sectors = gameId === "f1-2025" && opts.f1Sectors && index === count - 1 ? [opts.f1Sectors.s1, opts.f1Sectors.s2, lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2] : undefined;
+    samples.push({
+      values: {
+        "timing.current-lap": fraction * lapTime,
+        "timing.distance-traveled": fraction * trackLength,
+        "motion.speed": 50,
+        ...(completedF1Sectors ? { "timing.sector.last-lap.times": completedF1Sectors } : {}),
+      },
+      sequence: String(index),
+      observedAtMs: Math.round(fraction * lapTime * 1000),
+    });
   }
-  return packets;
+  return samples;
 }
 
 describe("per-game track sectors — geometry sidecars", () => {
@@ -119,8 +78,8 @@ describe("computeLapSectors — sector source priority", () => {
 
   test("f1-2025 uses sector times from F1 SessionHistory packet", async () => {
     const f1Sectors = { s1: 26.7, s2: 27.4 };
-    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const samples = makeLapSamples(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
+    const sectors = await computeLapSectors(3004, "f1-2025", samples, LAP_TIME);
     expect(sectors).not.toBeNull();
     expect(sectors![0]).toBeCloseTo(f1Sectors.s1, 3);
     expect(sectors![1]).toBeCloseTo(f1Sectors.s2, 3);
@@ -129,8 +88,8 @@ describe("computeLapSectors — sector source priority", () => {
 
   test("f1-2025 sector times sum to lap time", async () => {
     const f1Sectors = { s1: 27.123, s2: 28.456 };
-    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const samples = makeLapSamples(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
+    const sectors = await computeLapSectors(3004, "f1-2025", samples, LAP_TIME);
     expect(sectors).not.toBeNull();
     expect(sectors!.reduce((sum, time) => sum + time, 0)).toBeCloseTo(LAP_TIME, 3);
   });
@@ -138,8 +97,15 @@ describe("computeLapSectors — sector source priority", () => {
   test("f1-2025 returns null when F1 packets don't carry sector times", async () => {
     // No opts.f1Sectors → no f1 sub-object. F1 must never fall back to
     // distance-fraction — the game is the authority on its own splits.
-    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025");
-    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    const samples = makeLapSamples(TRACK_LENGTH, LAP_TIME, "f1-2025");
+    const sectors = await computeLapSectors(3004, "f1-2025", samples, LAP_TIME);
     expect(sectors).toBeNull();
+  });
+
+  test("ACC canonical last-lap sectors beat distance inference", async () => {
+    const samples = makeLapSamples(TRACK_LENGTH, LAP_TIME, "acc").map((sample, index, all) =>
+      index === all.length - 1 ? { ...sample, values: { ...sample.values, "timing.sector.last-lap.times": [40, 30, 15] } } : sample,
+    );
+    expect(await computeLapSectors(3004, "acc", samples, LAP_TIME)).toEqual([40, 30, 15]);
   });
 });

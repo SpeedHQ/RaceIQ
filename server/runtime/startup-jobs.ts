@@ -1,4 +1,5 @@
 import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { KNOWN_GAME_IDS } from "../../shared/games/ids";
 import { stat } from "node:fs/promises";
 import { startCommunityTunesSync } from "../tunes/community-sync";
 import { startLaptimesSync } from "../sync/laptimes";
@@ -18,6 +19,10 @@ import { completeCanonicalArchiveJob, claimCanonicalArchiveJob, enqueueCanonical
 import { failInterruptedAnalysisGenerations } from "../db/analysis-receipt-queries";
 import { buildCanonicalArchive } from "../session-capture/canonical-archive";
 import { inspectRawCaptureIdentity } from "../session-capture/identity";
+import { rebuildCompletedSessionFindings } from "../findings/session-finalization";
+import { listSessionsMissingCurrentFindingGeneration } from "../findings/store";
+import { getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
+import { reprocessSession } from "../session-capture/reprocess";
 import { isSessionActive } from "../telemetry/live-pipeline";
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -27,6 +32,8 @@ const ALL_DETECTOR_IDS = [
 ];
 const CANONICAL_ARCHIVE_INTERVAL_MS = 15_000;
 let canonicalArchiveRecoveryComplete = false;
+const FINDING_BACKFILL_INTERVAL_MS = 5 * 60_000;
+let findingBackfillRunning = false;
 
 export interface StartupJobDependencies {
   startCommunityTunesSync?: () => void;
@@ -68,6 +75,49 @@ export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencie
   }).catch((err) => {
     console.error("[Server] Failed to check stale race results:", err);
   });
+}
+
+/**
+ * Restores missing finding generations for historical sessions. A session only
+ * becomes current after all of its lap findings activate in one transaction.
+ * Reprocess failures retain their analysis receipt; unavailable source stays
+ * visibly unavailable through the quality rebuild status.
+ */
+export async function runFindingBackfillOnce(): Promise<void> {
+  if (findingBackfillRunning || isSessionActive()) return;
+  findingBackfillRunning = true;
+  try {
+    for (const gameId of KNOWN_GAME_IDS) {
+      const sessionIds = await listSessionsMissingCurrentFindingGeneration(gameId);
+      for (const sessionId of sessionIds) {
+        try {
+          const status = await getQualityRebuildStatus(sessionId);
+          if (status.action === "current") {
+            await rebuildCompletedSessionFindings(sessionId, gameId);
+          } else if (status.action === "rebuild_eligibility") {
+            await rebuildSessionEligibility(sessionId);
+          } else if (status.action === "reprocess") {
+            await reprocessSession(sessionId);
+          }
+        } catch (error) {
+          console.error(`[Server] Finding backfill failed for session ${sessionId}:`, error);
+        }
+      }
+    }
+  } finally {
+    findingBackfillRunning = false;
+  }
+}
+
+export function startFindingBackfillJobs(): void {
+  const tick = () => {
+    void runFindingBackfillOnce().catch((error) => {
+      console.error("[Server] Finding backfill scheduler failed:", error);
+    });
+  };
+  tick();
+  const timer = setInterval(tick, FINDING_BACKFILL_INTERVAL_MS);
+  timer.unref?.();
 }
 export async function enqueueStableCaptureJobs(): Promise<void> {
   if (isSessionActive()) return;
@@ -202,5 +252,6 @@ export function startCanonicalArchiveJobs(): void {
 export function startMaintenanceJobs(): void {
   startSessionCompressor();
   startCanonicalArchiveJobs();
+  startFindingBackfillJobs();
   startUpdateCheckSchedule();
 }

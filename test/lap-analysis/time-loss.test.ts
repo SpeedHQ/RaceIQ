@@ -1,14 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import { semanticLapFrames, type SemanticLapFrame } from "@shared/racing/analysis/laps/semantic-frame";
 import { frameDt } from "@shared/racing/analysis/laps/frame-time";
-import {
-  MIN_REPORTABLE_LOSS_S,
-  accelDeficitLoss,
-  buildAccelReference,
-  reportableLoss,
-  speedDeficitLoss,
-  sumLosses,
-} from "@shared/racing/analysis/laps/time-loss";
+import { MIN_REPORTABLE_LOSS_S, accelDeficitLoss, buildAccelReference, reportableLoss, speedDeficitLoss, sumLosses } from "@shared/racing/analysis/laps/time-loss";
 
 const RADIUS = 0.33;
 
@@ -28,47 +22,51 @@ interface Frame {
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
 
-function pkt(f: Frame): TelemetryPacket {
-  const rot = f.speed / RADIUS;
-  const rear = f.rearRot ?? rot;
+function sample(f: Frame): SemanticTelemetrySample {
+  const rotation = f.speed / RADIUS;
+  const rearRotation = f.rearRot ?? rotation;
   return {
-    TimestampMS: f.t,
-    Speed: f.speed,
-    Accel: f.accel ?? 0,
-    Brake: f.brake ?? 0,
-    Steer: 0,
-    WheelRotationSpeedFL: rot,
-    WheelRotationSpeedFR: rot,
-    WheelRotationSpeedRL: rear,
-    WheelRotationSpeedRR: rear,
-  } as unknown as TelemetryPacket;
+    sequence: String(f.t),
+    observedAtMs: f.t,
+    values: {
+      "motion.speed": f.speed,
+      "inputs.accel": f.accel ?? 0,
+      "inputs.brake": f.brake ?? 0,
+      "inputs.steer": 0,
+      "tires.wheel-rotation-speed": [rotation, rotation, rearRotation, rearRotation],
+    },
+  };
 }
 
-/** Constant-speed run of `n` frames. */
-function steady(speed: number, n: number, opts: Partial<Frame> = {}): TelemetryPacket[] {
-  return Array.from({ length: n }, (_, i) => pkt({ speed, t: i * STEP_MS, ...opts }));
+function frames(samples: readonly SemanticTelemetrySample[]): SemanticLapFrame[] {
+  return semanticLapFrames(samples);
 }
 
-/** Run of `n` frames accelerating at `a` m/s² from `v0`. */
-function ramp(v0: number, a: number, n: number, opts: Partial<Frame> = {}): TelemetryPacket[] {
-  return Array.from({ length: n }, (_, i) => pkt({ speed: v0 + a * i * STEP_S, t: i * STEP_MS, ...opts }));
+/** Constant-speed semantic lap of `n` samples. */
+function steady(speed: number, n: number, opts: Partial<Frame> = {}): SemanticLapFrame[] {
+  return frames(Array.from({ length: n }, (_, i) => sample({ speed, t: i * STEP_MS, ...opts })));
+}
+
+/** Semantic lap of `n` samples accelerating at `a` m/s² from `v0`. */
+function ramp(v0: number, a: number, n: number, opts: Partial<Frame> = {}): SemanticLapFrame[] {
+  return frames(Array.from({ length: n }, (_, i) => sample({ speed: v0 + a * i * STEP_S, t: i * STEP_MS, ...opts })));
 }
 
 describe("frameDt", () => {
-  test("derives real timesteps from packet timestamps", () => {
-    const dt = frameDt([pkt({ speed: 50, t: 0 }), pkt({ speed: 50, t: 20 }), pkt({ speed: 50, t: 40 })]);
+  test("derives real timesteps from semantic sample timestamps", () => {
+    const dt = frameDt(frames([sample({ speed: 50, t: 0 }), sample({ speed: 50, t: 20 }), sample({ speed: 50, t: 40 })]));
     expect(dt[0]).toBeCloseTo(0.02, 6);
     expect(dt[1]).toBeCloseTo(0.02, 6);
   });
 
-  test("last frame repeats the previous interval", () => {
-    const dt = frameDt([pkt({ speed: 50, t: 0 }), pkt({ speed: 50, t: 20 }), pkt({ speed: 50, t: 40 })]);
+  test("last sample repeats the previous interval", () => {
+    const dt = frameDt(frames([sample({ speed: 50, t: 0 }), sample({ speed: 50, t: 20 }), sample({ speed: 50, t: 40 })]));
     expect(dt[2]).toBeCloseTo(dt[1], 6);
   });
 
   test("falls back to 60 Hz for implausible deltas (clock artefacts, respawns)", () => {
     // 0 ms (duplicate timestamp) and 5 s (pause) are both rejected.
-    const dt = frameDt([pkt({ speed: 50, t: 1000 }), pkt({ speed: 50, t: 1000 }), pkt({ speed: 50, t: 6000 }), pkt({ speed: 50, t: 6016 })]);
+    const dt = frameDt(frames([sample({ speed: 50, t: 1000 }), sample({ speed: 50, t: 1000 }), sample({ speed: 50, t: 6000 }), sample({ speed: 50, t: 6016 })]));
     expect(dt[0]).toBeCloseTo(1 / 60, 6);
     expect(dt[1]).toBeCloseTo(1 / 60, 6);
     expect(dt[2]).toBeCloseTo(0.016, 6);
@@ -76,7 +74,7 @@ describe("frameDt", () => {
 
   test("handles degenerate inputs", () => {
     expect(frameDt([])).toEqual([]);
-    expect(frameDt([pkt({ speed: 10, t: 0 })])).toEqual([1 / 60]);
+    expect(frameDt(frames([sample({ speed: 10, t: 0 })]))).toEqual([1 / 60]);
   });
 });
 

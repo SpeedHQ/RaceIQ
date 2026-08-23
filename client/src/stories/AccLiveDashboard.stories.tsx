@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { fakeAccDisplayPacket, fakeAccPacket, fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -18,8 +18,6 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
     telemetrySchema: schema,
     telemetryFrame: frame,
     telemetryView: view,
-    rawPacket: fakeAccPacket,
-    packet: fakeAccDisplayPacket,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,

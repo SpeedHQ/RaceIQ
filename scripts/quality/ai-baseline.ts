@@ -12,25 +12,18 @@
  */
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { buildAnalystPrompt } from "../../server/ai/analyst-prompt";
 import { compareLapHeader } from "../../server/ai/compare-engineer";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import { LiveTelemetryProjector } from "../../server/telemetry/live-projector";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import {
-  buildEvalLapAnalystAgent,
-  buildEvalCompareEngineerAgent,
-  resolveEvalModelId,
-} from "../../mastra/evals/eval-agents";
-import {
-  listLapFixtures,
-  listComparePairFixtures,
-  loadLapPackets,
-  type LapFixture,
-  type ComparePairFixture,
-} from "../../mastra/evals/fixtures";
+import { buildEvalLapAnalystAgent, buildEvalCompareEngineerAgent, resolveEvalModelId } from "../../mastra/evals/eval-agents";
+import { listLapFixtures, listComparePairFixtures, loadLapPackets, type LapFixture, type ComparePairFixture } from "../../mastra/evals/fixtures";
 import { analystScorers, compareScorers, scoreOutput } from "../../mastra/evals";
 
 if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -41,9 +34,7 @@ if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 initGameAdapters();
 initServerGameAdapters();
 
-const sha = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]).stdout
-  .toString()
-  .trim() || "nosha";
+const sha = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]).stdout.toString().trim() || "nosha";
 const model = resolveEvalModelId().replace("/", "-");
 const outDir = resolve(import.meta.dir, "../../test/ai-fixtures/baselines");
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
@@ -65,12 +56,8 @@ for (const fx of listLapFixtures()) {
     continue;
   }
   console.log(`[run]  ${fx.id} (analyst)`);
-  const prompt = buildAnalystPrompt(
-    { ...fx.lap, gameId: fx.game },
-    packets,
-    deriveCornerDefs(fx),
-    fx.units,
-  );
+  const samples = semanticSamplesFromPackets(packets);
+  const prompt = buildAnalystPrompt({ ...fx.lap, gameId: fx.game }, samples, deriveCornerDefs(fx), fx.units);
   const agent = buildEvalLapAnalystAgent();
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
@@ -95,8 +82,10 @@ for (const fx of listComparePairFixtures()) {
     console.warn(`[skip] ${fx.id} — missing packets`);
     continue;
   }
+  const samplesA = semanticSamplesFromPackets(packetsA);
+  const samplesB = semanticSamplesFromPackets(packetsB);
   console.log(`[run]  ${fx.id} (compare)`);
-  const prompt = buildComparePrompt(fx, packetsA, packetsB);
+  const prompt = buildComparePrompt(fx, samplesA, samplesB);
   const agent = buildEvalCompareEngineerAgent(fx.units);
   const response = await agent.generate(prompt);
   const output = response.text ?? "";
@@ -126,9 +115,7 @@ for (const row of rows) {
     agg.count += 1;
   }
 }
-const average = Object.fromEntries(
-  Object.entries(aggregate).map(([k, v]) => [k, v.sum / v.count]),
-);
+const average = Object.fromEntries(Object.entries(aggregate).map(([k, v]) => [k, v.sum / v.count]));
 
 writeFileSync(
   outPath,
@@ -158,27 +145,45 @@ function deriveCornerDefs(fx: LapFixture) {
   }));
 }
 
-function buildComparePrompt(
-  fx: ComparePairFixture,
-  packetsA: TelemetryPacket[],
-  packetsB: TelemetryPacket[],
-) {
+function semanticSamplesFromPackets(packets: readonly TelemetryPacket[]): SemanticTelemetrySample[] {
+  const projector = new LiveTelemetryProjector(CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+  const samples: SemanticTelemetrySample[] = [];
+  for (const packet of packets) {
+    samples.push(
+      projector.project({
+        packet,
+        receivedAtMs: packet.TimestampMS,
+      }).sample,
+    );
+  }
+  return samples;
+}
+
+function buildComparePrompt(fx: ComparePairFixture, samplesA: readonly SemanticTelemetrySample[], samplesB: readonly SemanticTelemetrySample[]) {
   const trackName = resolveTrackName(fx.lapA.trackOrdinal);
   const carA = resolveCarName(fx.lapA.carOrdinal);
   const carB = resolveCarName(fx.lapB.carOrdinal);
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
-  const summarise = (pkts: typeof packetsA, label: string) => {
-    const avgThrottle = pkts.reduce((s, p) => s + (p.Accel ?? 0), 0) / pkts.length;
-    const avgBrake = pkts.reduce((s, p) => s + (p.Brake ?? 0), 0) / pkts.length;
-    const topSpeed = Math.max(...pkts.map((p) => p.Speed ?? 0));
-    return `${label}: avg throttle ${avgThrottle.toFixed(1)}, avg brake ${avgBrake.toFixed(1)}, top speed ${topSpeed.toFixed(1)}`;
+  const summarise = (samples: readonly SemanticTelemetrySample[], label: string) => {
+    let throttleTotal = 0;
+    let brakeTotal = 0;
+    let topSpeed = 0;
+    for (const sample of samples) {
+      const throttle = sample.values["inputs.accel"];
+      const brake = sample.values["inputs.brake"];
+      const speed = sample.values["motion.speed"];
+      if (typeof throttle === "number") throttleTotal += throttle;
+      if (typeof brake === "number") brakeTotal += brake;
+      if (typeof speed === "number" && speed > topSpeed) topSpeed = speed;
+    }
+    return `${label}: avg throttle ${(throttleTotal / samples.length).toFixed(1)}, avg brake ${(brakeTotal / samples.length).toFixed(1)}, top speed ${topSpeed.toFixed(1)}`;
   };
   return `${header}
 
 --- LAP SUMMARY ---
-${summarise(packetsA, "Lap A")}
-${summarise(packetsB, "Lap B")}
+${summarise(samplesA, "Lap A")}
+${summarise(samplesB, "Lap B")}
 
 Which lap is faster, and where is time being gained? Coach the slower lap.`;
 }

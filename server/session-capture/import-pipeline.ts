@@ -30,7 +30,6 @@ import {
   beginSessionAnalysisAttempt,
 } from "../analysis-provenance/session-attempt";
 import { enqueueCanonicalArchiveForSession } from "./canonical-archive";
-import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
   readonly code: string;
@@ -97,16 +96,23 @@ export interface ImportedLap extends LapClassification {
  */
 export class ImportCaptureAdapter implements DbAdapter {
   private readonly _inner: DbAdapter;
+  readonly persistCompletedLapFindings?: NonNullable<DbAdapter["persistCompletedLapFindings"]>;
+  readonly rebuildCompletedSessionFindings?: NonNullable<DbAdapter["rebuildCompletedSessionFindings"]>;
   readonly laps: ImportedLap[] = [];
   readonly sessionIds = new Set<number>();
   readonly rawFiles = new Set<string>();
   private readonly _pendingLapWrites = new Set<Promise<number>>();
   private _lapWriteFailure: unknown;
-  private readonly _lapIdentity = new Map<number, { lapNumber: number; rawByteOffset: number | null; rawFrameCount: number }>();
-  private readonly _sessionMeta = new Map<number, { carOrdinal: number; trackOrdinal: number }>();
+  private readonly _sessionMeta = new Map<number, { carOrdinal: number; trackOrdinal: number; gameId: GameId }>();
 
   constructor({ notifyDriverProfile, ownership, db }: { notifyDriverProfile?: boolean; ownership?: SessionOwnership; db?: DbAdapter } = {}) {
     this._inner = db ?? new RealDbAdapter({ notifyDriverProfile, ownership });
+    if (this._inner.persistCompletedLapFindings) {
+      this.persistCompletedLapFindings = this._inner.persistCompletedLapFindings.bind(this._inner);
+    }
+    if (this._inner.rebuildCompletedSessionFindings) {
+      this.rebuildCompletedSessionFindings = this._inner.rebuildCompletedSessionFindings.bind(this._inner);
+    }
   }
 
   async insertSession(
@@ -121,7 +127,7 @@ export class ImportCaptureAdapter implements DbAdapter {
   ): Promise<number> {
     const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, sourceKind, sourceChannelProfile, ownership);
     this.sessionIds.add(id);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
+    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId });
     return id;
   }
 
@@ -140,11 +146,6 @@ export class ImportCaptureAdapter implements DbAdapter {
         eligibility: input.eligibility!,
         carOrdinal: meta?.carOrdinal ?? 0,
         trackOrdinal: meta?.trackOrdinal ?? 0,
-      });
-      this._lapIdentity.set(id, {
-        lapNumber: input.lapNumber,
-        rawByteOffset: input.rawByteOffset,
-        rawFrameCount: input.rawFrameCount,
       });
       return id;
     });
@@ -165,13 +166,20 @@ export class ImportCaptureAdapter implements DbAdapter {
   async updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
     await this.waitForPendingLapWrites();
     const finalized = await this._inner.updateSessionQuality(sessionId, quality);
+    const session = this._sessionMeta.get(sessionId);
+    if (!session) return finalized;
+    const persisted = await this._inner.getLaps(session.gameId, Math.max(this.laps.length, 200));
+    const finalizedLaps = new Map(
+      persisted
+        .filter((lap) => lap.sessionId === sessionId)
+        .map((lap) => [lap.id, lap]),
+    );
     for (const lap of this.laps) {
       if (lap.sessionId !== sessionId) continue;
-      const identity = this._lapIdentity.get(lap.lapId);
-      if (!identity) continue;
-      const generated = finalizeLapQualityGeneration(lap.quality, finalized.provenance.sourceGeneration, identity);
-      lap.quality = generated.quality;
-      lap.eligibility = generated.eligibility;
+      const stored = finalizedLaps.get(lap.lapId);
+      if (!stored?.quality || !stored.eligibility) continue;
+      lap.quality = stored.quality;
+      lap.eligibility = stored.eligibility;
     }
     return finalized;
   }
@@ -189,7 +197,10 @@ export class ImportCaptureAdapter implements DbAdapter {
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
+    const existing = this._sessionMeta.get(sessionId);
+    if (existing) {
+      this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
+    }
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
   }
   getLapsForExclusionScope(experimentId: number, tuneId: number) {
@@ -237,7 +248,6 @@ export class ImportCaptureAdapter implements DbAdapter {
     this.laps.length = 0;
     this.sessionIds.clear();
     this.rawFiles.clear();
-    this._lapIdentity.clear();
     this._sessionMeta.clear();
     if (cleanupFailure) throw cleanupFailure;
   }

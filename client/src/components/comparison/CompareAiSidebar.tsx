@@ -1,12 +1,16 @@
 import { Sparkles, X } from "lucide-react";
 import type { RefObject } from "react";
+import type { GameId } from "@shared/games/ids";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
+import { comparisonAiStateKey } from "@/lib/lap-ai-state-key";
 import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
+import type { LapHeader } from "./compare-ai-types";
 
 interface CompareAiSidebarProps {
-  lapA: { id: number; label: string; lapTime: number };
-  lapB: { id: number; label: string; lapTime: number };
+  gameId: GameId;
+  lapA: LapHeader;
+  lapB: LapHeader;
   panelRef: RefObject<CompareAiPanelHandle | null>;
   onClose: () => void;
   /** Named track segments (startFrac/endFrac) for AI-segment click resolution. */
@@ -15,7 +19,8 @@ interface CompareAiSidebarProps {
   onJumpToFrac?: (frac: number) => void;
 }
 
-export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJumpToFrac }: CompareAiSidebarProps) {
+export function CompareAiSidebar({ gameId, lapA, lapB, panelRef, onClose, segments, onJumpToFrac }: CompareAiSidebarProps) {
+  const qualityStateKey = comparisonAiStateKey(lapA, lapB);
   return (
     <div className="flex h-[36rem] w-full shrink-0 flex-col overflow-hidden border-y border-app-border bg-app-surface/50 shadow-2xl @5xl/workspace:absolute @5xl/workspace:inset-y-0 @5xl/workspace:right-0 @5xl/workspace:z-30 @5xl/workspace:h-full @5xl/workspace:w-[22rem] @5xl/workspace:border-l @7xl/workspace:relative @7xl/workspace:inset-auto @7xl/workspace:z-auto @7xl/workspace:shadow-none">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
@@ -32,7 +37,7 @@ export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJu
           </Button>
         </div>
       </div>
-      <CompareAiPanel ref={panelRef} lapA={lapA} lapB={lapB} panelOpen={true} segments={segments} onJumpToFrac={onJumpToFrac} />
+      <CompareAiPanel key={qualityStateKey} ref={panelRef} gameId={gameId} lapA={lapA} lapB={lapB} panelOpen={true} segments={segments} onJumpToFrac={onJumpToFrac} />
     </div>
   );
 }

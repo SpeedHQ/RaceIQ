@@ -1,19 +1,15 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../../server/telemetry/pipeline-ports"
+import { DEFAULT_LAP_CLASSIFICATION } from "../../shared/racing/laps/classification";
+import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../../server/telemetry/pipeline-ports";
 import * as DriverProfileRunner from "../../server/driver-profile/runner";
 import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
 
-function lapInput(
-  sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  overrides: Partial<PersistLapInput> = {},
-): PersistLapInput {
+function lapInput(sessionId: number, lapNumber = 1, overrides: Partial<PersistLapInput> = {}): PersistLapInput {
   return {
     sessionId,
     lapNumber,
-    lapTime,
+    lapTime: 90000,
     isValid: true,
     rawByteOffset: null,
     rawFrameCount: 0,
@@ -21,6 +17,7 @@ function lapInput(
     tuneId: null,
     invalidReason: null,
     sectors: null,
+    classification: DEFAULT_LAP_CLASSIFICATION,
     quality: null,
     eligibility: null,
     ...overrides,
@@ -46,7 +43,7 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures data and returns incrementing IDs", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    const id = await db.insertLap(lapInput(1, 1, 90000));
+    const id = await db.insertLap(lapInput(1));
     expect(id).toBe(1);
     expect(db.laps).toHaveLength(1);
     expect(db.laps[0]).toMatchObject({
@@ -54,13 +51,16 @@ describe("CapturingDbAdapter", () => {
       lapNumber: 1,
       lapTime: 90000,
       isValid: true,
+      phase: "flying",
+      conditions: [],
+      paceEligibility: "eligible",
     });
   });
 
   test("insertLap captures sectors", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(lapInput(1, 1, 90000, { sectors: [30000, 30000, 30000] }));
+    await db.insertLap(lapInput(1, 1, { sectors: [30000, 30000, 30000] }));
     expect(db.laps[0].sectors).toEqual([30000, 30000, 30000]);
   });
 
@@ -80,8 +80,14 @@ test("RealDbAdapter notifies global profile after valid and dirty persisted laps
   try {
     const db = new RealDbAdapter();
     const sessionId = await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(lapInput(sessionId, 1, 90000));
-    await db.insertLap(lapInput(sessionId, 2, 91000, { isValid: false, invalidReason: "dirty" }));
+    await db.insertLap(lapInput(sessionId));
+    await db.insertLap(
+      lapInput(sessionId, 2, {
+        lapTime: 91000,
+        isValid: false,
+        invalidReason: "dirty",
+      }),
+    );
     expect(notify).toHaveBeenNthCalledWith(1, "f1-2025");
     expect(notify).toHaveBeenNthCalledWith(2, "f1-2025");
   } finally {
@@ -94,7 +100,7 @@ test("RealDbAdapter can suppress profile notifications for imports", async () =>
   try {
     const db = new RealDbAdapter({ notifyDriverProfile: false });
     const sessionId = await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(lapInput(sessionId, 1, 90000));
+    await db.insertLap(lapInput(sessionId));
     expect(notify).not.toHaveBeenCalled();
   } finally {
     notify.mockRestore();
@@ -104,7 +110,12 @@ test("RealDbAdapter can suppress profile notifications for imports", async () =>
 describe("NullWsAdapter", () => {
   test("all methods are no-ops and do not throw", () => {
     const ws = new NullWsAdapter();
-    expect(() => ws.broadcast({ gameId: "f1-2025" } as TelemetryPacket, null, null)).not.toThrow();
+    expect(() => ws.stageDevTelemetry({ gameId: "f1-2025" } as TelemetryPacket)).not.toThrow();
+    expect(() =>
+      ws.publishTelemetry({
+        sample: { sequence: "0", observedAtMs: 0, values: {} },
+      }),
+    ).not.toThrow();
     expect(() => ws.broadcastNotification({ type: "test" })).not.toThrow();
     expect(() => ws.broadcastDevState({ key: "value" })).not.toThrow();
   });

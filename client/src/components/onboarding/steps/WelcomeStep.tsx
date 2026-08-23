@@ -1,5 +1,4 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
-import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -12,17 +11,24 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 
-function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
+function toSemanticFrame(row: Record<string, number>): SemanticAnalysisFrame {
   const values: Record<string, unknown> = {
-    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
-    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
-    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
-    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
+    "identity.track-ordinal": row.TrackOrdinal,
+    "identity.car-ordinal": row.CarOrdinal,
+    "motion.position-x": row.PositionX,
+    "motion.position-z": row.PositionZ,
+    "motion.speed": row.Speed,
+    "motion.yaw": row.Yaw,
+    "motion.pitch": row.Pitch,
+    "motion.roll": row.Roll,
+    "inputs.gear": row.Gear,
+    "inputs.steer": row.Steer,
+    "timing.distance-traveled": row.DistanceTraveled,
+    "tire.temperature.average": [row.TireTempFL, row.TireTempFR, row.TireTempRL, row.TireTempRR].map((temperatureF) => ((temperatureF - 32) * 5) / 9),
   };
   return { values, states: {}, freshness: {} };
 }
-function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
+function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
   const isRunningRef = useRef(false);
@@ -30,7 +36,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const lastTimeRef = useRef(0);
   const telemetryLengthRef = useRef(telemetry.length);
   telemetryLengthRef.current = telemetry.length;
-  const trackOrdinal = telemetry[0]?.TrackOrdinal;
+  const trackOrdinal = telemetry[0]?.values["identity.track-ordinal"] as number | undefined;
   const pauseAnimation = useCallback(() => {
     if (!isRunningRef.current) return;
     isRunningRef.current = false;
@@ -47,9 +53,9 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
       if (time - lastTimeRef.current < frameDuration) return;
       lastTimeRef.current = time;
       setCursorIdx((prev) => {
-        const totalPackets = telemetryLengthRef.current;
+        const totalFrames = telemetryLengthRef.current;
         const next = prev + 1;
-        return next >= totalPackets ? 0 : next;
+        return next >= totalFrames ? 0 : next;
       });
     };
     rafIdRef.current = requestAnimationFrame(tick);
@@ -110,23 +116,25 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     const pts: { x: number; z: number }[] = [];
     for (let i = 0; i < telemetry.length; i += 10) {
       const p = telemetry[i];
-      if (p.PositionX === 0 && p.PositionZ === 0) continue;
-      pts.push({ x: p.PositionX, z: p.PositionZ });
+      const x = p.values["motion.position-x"];
+      const z = p.values["motion.position-z"];
+      if (typeof x !== "number" || typeof z !== "number" || (x === 0 && z === 0)) continue;
+      pts.push({ x, z });
     }
     return pts.length > 2 ? pts : null;
   }, [telemetry]);
-  const packet = telemetry[cursorIdx] ?? telemetry[0];
-  if (!packet) return null;
+  const frame = telemetry[cursorIdx] ?? telemetry[0];
+  if (!frame) return null;
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
-        frame={toSemanticFrame(packet)}
-        telemetry={telemetry.map(toSemanticFrame)}
+        frame={frame}
+        telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
-        carOrdinal={packet.CarOrdinal}
+        carOrdinal={frame.values["identity.car-ordinal"] as number | undefined}
         carModel={DEMO_CAR}
         minimal
         hideControls
@@ -145,15 +153,15 @@ export function WelcomeStep() {
       if (!res.ok) return [];
       const lines = (await res.text()).split("\n");
       const headers = lines[0].split(",");
-      const packets: TelemetryPacket[] = [];
+      const frames: SemanticAnalysisFrame[] = [];
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i]) continue;
         const vals = lines[i].split(",");
-        const obj: Record<string, unknown> = {};
-        for (let j = 0; j < headers.length; j++) obj[headers[j]] = Number(vals[j]);
-        packets.push(obj as unknown as TelemetryPacket);
+        const row: Record<string, number> = {};
+        for (let j = 0; j < headers.length; j++) row[headers[j]] = Number(vals[j]);
+        frames.push(toSemanticFrame(row));
       }
-      return packets;
+      return frames;
     },
     staleTime: Number.POSITIVE_INFINITY,
   });

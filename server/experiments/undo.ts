@@ -59,17 +59,11 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
       if (payload?.versionId != null) {
         const test = await getExperimentVersion(payload.versionId);
         if (test && test.status !== "deleted") {
-          const [counts, allTests] = await Promise.all([
-            getLapCountsByTest(sessionId),
-            listExperimentVersions(sessionId, { includeDeleted: true }),
-          ]);
+          const [counts, allTests] = await Promise.all([getLapCountsByTest(sessionId), listExperimentVersions(sessionId, { includeDeleted: true })]);
           const lapCount = counts.get(payload.versionId)?.lapCount ?? 0;
           const hasChildren = allTests.some((t) => t.parentVersionId === payload.versionId);
           if (lapCount > 0 || hasChildren) {
-            const parts = [
-              lapCount > 0 ? `${lapCount} lap${lapCount === 1 ? "" : "s"}` : null,
-              hasChildren ? "child branches" : null,
-            ].filter(Boolean);
+            const parts = [lapCount > 0 ? `${lapCount} lap${lapCount === 1 ? "" : "s"}` : null, hasChildren ? "child branches" : null].filter(Boolean);
             warning = `This version has ${parts.join(" and ")} — undoing trashes them too; they're restorable from the trash.`;
           }
           await deleteTestSubtree(sessionId, payload.versionId, session.headVersionId ?? null);
@@ -104,9 +98,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
       break;
     }
     case "rename-note": {
-      const payload = action.inversePayload as
-        | Partial<{ name: string; notes: string | null; baseSetupPath: string | null; status: string }>
-        | null;
+      const payload = action.inversePayload as Partial<{ name: string; notes: string | null; baseSetupPath: string | null; status: string }> | null;
       if (payload) await updateExperiment(sessionId, payload);
       break;
     }
@@ -122,7 +114,10 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
     }
     case "set-lap-excluded": {
       const payload = action.inversePayload as { lapId: number; prevExcluded: boolean } | null;
-      if (payload?.lapId != null) await setLapExperimentExcluded(payload.lapId, payload.prevExcluded);
+      if (payload?.lapId != null) {
+        const result = await setLapExperimentExcluded(payload.lapId, payload.prevExcluded, action.experimentId);
+        if (!result.ok) return { ok: false, undone: false, error: "Lap is no longer in this experiment" };
+      }
       break;
     }
     default:

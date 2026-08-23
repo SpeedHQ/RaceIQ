@@ -1,9 +1,16 @@
 import type { GameId } from "../../games/ids";
+import type { TelemetryVariableId } from "../catalog/generated/telemetry-catalog.types";
 import type { MappingStatus } from "../derivations/contracts";
 import type { ConfidenceComponents, FreshnessState, ResolutionProvenance, ResolutionState, SemanticSlot, TelemetryTimestamp } from "../resolver/contracts";
 import type { TelemetryVersionIdentity } from "../version";
 
 export type CanonicalTelemetryScalar = number | boolean | string | null | readonly CanonicalTelemetryScalar[] | { readonly [key: string]: CanonicalTelemetryScalar };
+/** Consumer-safe resolver frame with unavailable values omitted. */
+export interface SemanticTelemetrySample {
+  readonly values: Partial<Readonly<Record<TelemetryVariableId, CanonicalTelemetryScalar>>>;
+  readonly sequence: string;
+  readonly observedAtMs: number;
+}
 
 export interface CanonicalTelemetryValue {
   readonly semanticId: string;

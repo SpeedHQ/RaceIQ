@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { compareArmSamples, describeComparison, prepareArm } from "../../../server/experiments/comparison/compare";
-import {
-  streamArmSamples,
-} from "../../../server/experiments/comparison/stream";
+import { streamArmSamples } from "../../../server/experiments/comparison/stream";
 import { OUTCOME_METRICS } from "../../../server/experiments/comparison/metrics";
 import type { FrameLapMeta } from "../../../server/experiments/comparison/stream";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import { buildStreamingArm, CORNERS, type LapSpec, REPEATABLE, SCATTERED, trackingLoader, FRAMES_PER_LAP } from "../../support/experiments/arms";
 
 // ── degenerate inputs ───────────────────────────────────────────────────────
@@ -19,7 +17,7 @@ describe("streaming degenerates safely", () => {
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: trackingLoader(built.frames).loadFrames,
+      loadSamples: trackingLoader(built.frames).loadSamples,
       resolveCorners: async () => [],
     });
     // computeLapConsistencyDelta returns an all-zero delta without corners; a
@@ -27,16 +25,16 @@ describe("streaming degenerates safely", () => {
     expect(streamed.samples).toEqual([]);
   });
 
-  test("corner detection is offered the reference lap's frames", async () => {
+  test("corner resolution receives reference semantic samples", async () => {
     const built = buildStreamingArm(SCATTERED);
-    let offered: TelemetryPacket[] | null = null;
+    let offered: readonly SemanticTelemetrySample[] | null = null;
     await streamArmSamples({
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: trackingLoader(built.frames).loadFrames,
-      resolveCorners: async (referenceTelemetry) => {
-        offered = referenceTelemetry;
+      loadSamples: trackingLoader(built.frames).loadSamples,
+      resolveCorners: async (referenceSamples) => {
+        offered = referenceSamples;
         return CORNERS;
       },
     });
@@ -45,12 +43,15 @@ describe("streaming degenerates safely", () => {
   });
 
   test("one decodable lap cannot be paired, so it yields nothing", async () => {
-    const built = buildStreamingArm([{ lateral: 0, brakeShift: 0 }, { lateral: 2, brakeShift: 5, rawFrameCount: 0 }]);
+    const built = buildStreamingArm([
+      { lateral: 0, brakeShift: 0 },
+      { lateral: 2, brakeShift: 5, rawFrameCount: 0 },
+    ]);
     const streamed = await streamArmSamples({
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: trackingLoader(built.frames).loadFrames,
+      loadSamples: trackingLoader(built.frames).loadSamples,
       resolveCorners: async () => CORNERS,
     });
     expect(streamed.samples).toEqual([]);
@@ -70,7 +71,7 @@ describe("streaming degenerates safely", () => {
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: async (id) => frames.get(id) ?? null,
+      loadSamples: async (id) => frames.get(id) ?? null,
       resolveCorners: async () => CORNERS,
     });
 
@@ -97,7 +98,7 @@ describe("laps with no usable telemetry are counted, not silently filtered", () 
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: trackingLoader(built.frames).loadFrames,
+      loadSamples: trackingLoader(built.frames).loadSamples,
       resolveCorners: async () => CORNERS,
     });
 
@@ -126,7 +127,7 @@ describe("laps with no usable telemetry are counted, not silently filtered", () 
       label: "arm",
       metas: built.metas,
       metric,
-      loadFrames: async (id) => frames.get(id) ?? null,
+      loadSamples: async (id) => frames.get(id) ?? null,
       resolveCorners: async () => CORNERS,
     });
 
@@ -142,14 +143,14 @@ describe("laps with no usable telemetry are counted, not silently filtered", () 
         label: "arm",
         metas: withGaps.metas,
         metric,
-        loadFrames: trackingLoader(withGaps.frames).loadFrames,
+        loadSamples: trackingLoader(withGaps.frames).loadSamples,
         resolveCorners: async () => CORNERS,
       }),
       await streamArmSamples({
         label: "other",
         metas: clean.metas,
         metric,
-        loadFrames: trackingLoader(clean.frames).loadFrames,
+        loadSamples: trackingLoader(clean.frames).loadSamples,
         resolveCorners: async () => CORNERS,
       }),
       metric,
@@ -169,4 +170,3 @@ function pickedReference(metas: FrameLapMeta[]): number {
   const byTime = [...metas].sort((a, b) => a.lapTime - b.lapTime || a.id - b.id);
   return byTime[Math.floor((byTime.length - 1) / 2)].id;
 }
-

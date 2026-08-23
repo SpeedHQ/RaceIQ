@@ -5,20 +5,20 @@
 ## Manifest
 
 - Catalog version: `0.13.0`
-- Schema version: `v7`
+- Schema version: `v8`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589`
-- Content SHA-256: `50f20f64ec594de24b23c1bdf98b525895b7edce734c741c088377042cdbc00b`
+- Generator source SHA-256: `4ae0c8d04d909b262c90228bf1f0fd6b4beebe801ecd851521a21dd29efa495b`
+- Content SHA-256: `efc558637b607a8db3ed78140328182758797bcb34a94476358af3cbb15c8747`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 290 | 290 | 119 | 171 | 0 | 0 | 0 |
+| f1-2025 | 295 | 295 | 119 | 176 | 0 | 0 | 0 |
 | acc | 202 | 169 | 124 | 45 | 0 | 0 | 33 |
 | ac-evo | 257 | 221 | 124 | 97 | 0 | 0 | 36 |
-| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
+| iracing | 969 | 719 | 119 | 31 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -42,6 +42,7 @@
 | `damage.car-damage-left` | Car Damage left | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-rear` | Car Damage rear | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-right` | Car Damage right | number | dimensionless | % | scalar |  |  |  |
+| `damage.damage-available` | Damage Available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `damage.diffuser-damage` | Diffuser Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.drs-fault` | DRS Fault | number | dimensionless | count | scalar |  |  |  |
 | `damage.engine-ce-wear` | Engine CE Wear | number | dimensionless | % | scalar |  |  |  |
@@ -90,10 +91,13 @@
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
+| `diagnostics.lf-tires-used` | LF Tires Used | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.lr-tires-used` | LR Tires Used | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.mem-page-fault-sec` | Mem Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-soft-page-fault-sec` | Mem Soft Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.number-of-sessions` | Number Of Sessions | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.pace-mode` | Pace Mode | number | unit:irsdk_pacemode | irsdk_PaceMode | scalar |  |  |  |
+| `diagnostics.pitstop-active` | Pitstop Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.push-to-pass` | Push To Pass | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.push-to-talk` | Push To Talk | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.radio.frequency-can-scan` | Radio frequency can scan | structured | dimensionless | boolean | variable:0-* | radio-index:source-order | indices: radio-index (variable:0-*, source-order); frequencie-index (variable:0-*, source-order); fields: value:boolean |  |
@@ -118,7 +122,9 @@
 | `diagnostics.radio.tuned-frequency-number` | Tuned frequency number | structured | dimensionless | index | variable:0-* | radio-index:source-order | indices: radio-index (variable:0-*, source-order); fields: value:number |  |
 | `diagnostics.raw-session-metadata` | Complete SessionInfo YAML | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `diagnostics.result-reason` | Result Reason | number | dimensionless | count | scalar |  |  |  |
-| `diagnostics.result-source` | Result Source | number | unit:unitless | unitless | scalar |  |  |  |
+| `diagnostics.result-source` | Result source | enum | unit:enum | enum | scalar |  | domain: lap-data, final-classification |  |
+| `diagnostics.rf-tires-used` | RF Tires Used | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.rr-tires-used` | RR Tires Used | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.sim-build-target` | Build Target | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.sim-build-type` | Build Type | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.sim-build-version` | Simulator build version | string | dimensionless | text | scalar |  |  |  |
@@ -202,6 +208,7 @@
 | `fuel.km-per-fuel-liter` | Km Per Fuel Liter | number | length^3 | L | scalar |  |  |  |
 | `fuel.laps-remaining` | Fuel laps remaining | number | dimensionless | count | scalar |  |  |  |
 | `fuel.maximum-fill-percentage` | Maximum fuel fill percentage | number | dimensionless | % | scalar |  |  |  |
+| `fuel.pit-sv-fuel` | Pit Sv Fuel | number | length^3 | L | scalar |  |  |  |
 | `fuel.remaining-volume` | Fuel remaining volume | number | length^3 | L | scalar |  |  |  |
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
@@ -368,11 +375,15 @@
 | `race.competitor.team-name` | Competitor team name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.track-location` | Competitor track location | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.track-surface-material` | Competitor track-surface material | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.control.caution-kind` | Race control caution kind | enum | unit:enum | enum | scalar |  | domain: local-yellow, full-course-yellow, safety-car, virtual-safety-car |  |
+| `race.control.phase` | Race control phase | enum | unit:enum | enum | scalar |  | domain: inactive, formation, green, caution, red, checkered, finished |  |
 | `race.driver-change-lap-status` | Driver-change lap status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.grid-car-index` | Grid car Index | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-is-player` | Grid is Player | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -382,22 +393,31 @@
 | `race.pace-car-index` | Pace-car index | number | dimensionless | index | scalar |  |  |  |
 | `race.penalties` | Penalties | number | dimensionless | count | scalar |  |  |  |
 | `race.pit-lane-timer-active` | Pit Lane Timer Active | number | time | s | scalar |  |  |  |
+| `race.pit-opt-repair-left` | Pit Opt Repair Left | number | dimensionless | count | scalar |  |  |  |
+| `race.pit-repair-left` | Pit Repair Left | number | dimensionless | count | scalar |  |  |  |
 | `race.pit-service.flags` | Requested pit-service flags | number | unit:bitfield | bitfield | scalar |  |  |  |
 | `race.pit-service.fuel-add-amount` | Pit-service fuel add amount | number | unit:l or kwh | L or kWh | scalar |  |  |  |
+| `race.pit-service.lifecycle-status` | Pit-service lifecycle status | enum | unit:enum | enum | scalar |  | domain: none, in-progress, complete, error |  |
 | `race.pit-service.mandatory-repair-time-remaining` | Mandatory repair time remaining | number | time | s | scalar |  |  |  |
 | `race.pit-service.optional-repair-time-remaining` | Optional repair time remaining | number | time | s | scalar |  |  |  |
+| `race.pit-service.repair-time-remaining` | Pit-service repair time remaining | structured | time | s | scalar |  | indices: ; fields: mandatory:number, optional:number |  |
 | `race.pit-service.status` | Pit-service status | number | unit:bitfield | bitfield | scalar |  |  |  |
+| `race.pit-service.tire-change-counts` | Pit-service tire-change counts | structured | dimensionless | count | scalar |  | indices: ; fields: fl:number, fr:number, rl:number, rr:number |  |
 | `race.pit-service.tire-compound` | Requested pit-service tire compound | number | dimensionless | id | scalar |  |  |  |
 | `race.pit-service.tire-pressure` | Requested pit-service tire pressure | number | mass × length^-1 × time^-2 | kPa | fixed:4 | FL, FR, RL, RR |  |  |
 | `race.pit-speed-limit` | Pit speed limit | number | length × time^-1 | km/h | scalar |  |  |  |
 | `race.pit-stall-lap-fraction` | Pit-stall lap fraction | number | dimensionless | fraction | scalar |  |  |  |
 | `race.pit-status` | Pit Status | string | dimensionless | text | scalar |  |  |  |
+| `race.pit-sv-flags` | Pit Sv Flags | number | dimensionless | count | scalar |  |  |  |
 | `race.pits-open` | Pits Open | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.pitstop-active` | Pitstop Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player-car-in-pit-stall` | Player Car In Pit Stall | boolean | dimensionless | boolean | scalar |  |  |  |
+| `race.player-car-pit-sv-status` | Player Car Pit Sv Status | number | dimensionless | count | scalar |  |  |  |
 | `race.player-car-weight-penalty` | Player Car Weight Penalty | number | mass | kg | scalar |  |  |  |
 | `race.player-class-position` | Player class position | number | dimensionless | count | scalar |  |  |  |
 | `race.player-incident-count` | Player incident count | number | dimensionless | count | scalar |  |  |  |
+| `race.player-pit-code` | Player pit code | number | dimensionless | count | scalar |  |  |  |
+| `race.player.pit-state` | Player pit state | enum | unit:enum | enum | scalar |  | domain: out, pit-lane, pit-stall |  |
 | `race.player.push-to-pass-active` | Player push-to-pass active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player.push-to-pass-count` | Player push-to-pass count | number | dimensionless | count | scalar |  |  |  |
 | `race.race-laps` | Race Laps | number | dimensionless | count | scalar |  |  |  |
@@ -463,12 +483,12 @@
 | `session.schedule.time-limit` | Session Time | structured | dimensionless | value-with-unit | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `session.season-id` | Season ID | number | dimensionless | id | scalar |  |  |  |
 | `session.series-id` | Series ID | number | dimensionless | id | scalar |  |  |  |
-| `session.session-flags` | Session Flags | number | unit:irsdk_flags | irsdk_Flags | scalar |  |  |  |
+| `session.session-flags` | Session flags | number | unit:bitfield | bitfield | scalar |  |  |  |
 | `session.session-id` | Session ID | number | dimensionless | id | scalar |  |  |  |
 | `session.session-joker-laps-remain` | Session Joker Laps Remain | number | dimensionless | count | scalar |  |  |  |
 | `session.session-km` | Session Km | number | dimensionless | count | scalar |  |  |  |
 | `session.session-num` | Session Num | number | dimensionless | count | scalar |  |  |  |
-| `session.session-state` | Session State | number | unit:irsdk_sessionstate | irsdk_SessionState | scalar |  |  |  |
+| `session.session-state` | Session state code | number | dimensionless | count | scalar |  |  |  |
 | `session.session-tick` | Session Tick | number | dimensionless | count | scalar |  |  |  |
 | `session.session-type` | Session Type | string | dimensionless | text | scalar |  |  |  |
 | `session.session-uid` | Session UID | string | dimensionless | text | scalar |  |  |  |
@@ -716,7 +736,7 @@
 | `tires.tire-rf-rumble-pitch` | Tire RF Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-rr-rumble-pitch` | Tire RR Rumble Pitch | number | unit:hz | Hz | scalar |  |  |  |
 | `tires.tire-sets-available` | Tire Sets Available | number | unit:unitless | unitless | scalar |  |  |  |
-| `tires.tire-sets-used` | Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |
+| `tires.tire-sets-used` | Tire Sets Used | number | dimensionless | count | scalar |  |  |  |
 | `tires.tire-slip-angle` | Tire slip angle | number | angle | rad | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-slip-ratio` | Tire Slip Ratio | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.tire-wear` | Tire Wear | number | dimensionless | fraction | fixed:4 | FL, FR, RL, RR |  |  |

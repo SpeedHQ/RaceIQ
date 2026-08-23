@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { rebuildRaceEventTimeline } from "../../server/race-events/rebuild";
 import { deriveRaceResult } from "../../server/race-results/derive";
-import { extractRaceSource } from "../../server/race-results/source";
+import { RaceSourceAccumulator } from "../../server/race-results/source";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
-import { currentTelemetryVersionIdentity } from "../../server/telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../../server/telemetry/version-identity";
 import { RaceEventsAppendedMessageSchema, type RaceEvent } from "../../shared/racing/events/contracts";
 import { LOCAL_PLAYER_EVIDENCE } from "../../shared/racing/quality/contracts";
 import type { DumpResult } from "../support/recordings/parse-dump";
@@ -181,16 +181,17 @@ describe("committed iRacing seed fixture", () => {
       "pit_stall_arrival",
       "pit_service_started",
       "fuel_service_observed",
+      "repair_service_observed",
       "pit_service_completed",
       "pit_stall_departure",
       "pit_exit",
     ]);
-    expect(visitEvents.map(({ lapNumber }) => lapNumber)).toEqual([414, 415, 415, 415, 415, 415, 415]);
+    expect(visitEvents.map(({ lapNumber }) => lapNumber)).toEqual([414, 415, 415, 415, 415, 415, 415, 415]);
     expect(visitEvents.every(({ lifecycleId }) => lifecycleId === pitEntry!.lifecycleId)).toBe(true);
     expect(visitEvents.slice(1).every(({ linkedEventId }) => linkedEventId === pitEntry!.eventId)).toBe(true);
     expect(visitEvents.find(({ eventType }) => eventType === "pit_stall_arrival")).toMatchObject({
-      evidenceKind: "inferred",
-      confidence: "medium",
+      evidenceKind: "observed",
+      confidence: "high",
     });
     const fuelService = visitEvents.find((event): event is Extract<RaceEvent, { eventType: "fuel_service_observed" }> => event.eventType === "fuel_service_observed");
     if (!fuelService) {
@@ -206,7 +207,7 @@ describe("committed iRacing seed fixture", () => {
     expect(typeof addedLitres).toBe("number");
     expect(Number.isFinite(addedLitres)).toBe(true);
     expect(addedLitres).toBeGreaterThan(0);
-    const result = deriveRaceResult(extractRaceSource("iracing", recording.rawPackets), events);
+    const result = deriveRaceResult(new RaceSourceAccumulator("iracing").finish(), events);
     expect(result.pitCount).toBe(1);
     expect(result.eventIds).toEqual(
       visitEvents.filter(({ eventType }) => eventType === "pit_entry" || eventType === "fuel_service_observed" || eventType === "pit_service_completed").map(({ eventId }) => eventId),
@@ -247,7 +248,7 @@ describe("committed iRacing seed fixture", () => {
 
     expect(first.events.map(projectStableEvent)).toEqual(liveEvents.map(projectStableEvent));
     expect(second.events.map(projectStableEvent)).toEqual(first.events.map(projectStableEvent));
-    const source = extractRaceSource("iracing", recording.rawPackets);
+    const source = new RaceSourceAccumulator("iracing").finish();
     const liveResultEventIds = deriveRaceResult(source, liveEvents).eventIds;
     expect(deriveRaceResult(source, first.events).eventIds).toEqual(liveResultEventIds);
     expect(deriveRaceResult(source, second.events).eventIds).toEqual(liveResultEventIds);

@@ -1,9 +1,4 @@
-import type { TelemetryPacket } from "../../telemetry/types";
-import type {
-  AnalysisTelemetryMetric,
-  AnalysisTelemetryModel,
-  GameAdapter,
-} from "../../games/types";
+import type { AnalysisTelemetryMetric, AnalysisTelemetryModel, GameAdapter } from "../../games/types";
 
 export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
   balance: { source: "unavailable", reason: "missing-model" },
@@ -23,61 +18,23 @@ export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
   suspensionCompressionBias: { source: "unavailable", reason: "missing-model" },
 };
 
-export function resolveAnalysisTelemetry(
-  adapter: GameAdapter | undefined,
-): AnalysisTelemetryModel {
+export function resolveAnalysisTelemetry(adapter: GameAdapter | undefined): AnalysisTelemetryModel {
   return {
     ...DEFAULT_ANALYSIS_TELEMETRY,
     ...adapter?.telemetry.analysis,
   };
 }
 
-export function hasTireTemperatureData(
-  packet: TelemetryPacket,
-  metric: AnalysisTelemetryMetric,
-): boolean {
-  if (
-    metric.source !== "direct" ||
-    metric.freshness !== "pit-snapshot"
-  ) {
+export function hasTireTemperatureData(temperature: readonly number[] | undefined, metric: AnalysisTelemetryMetric): boolean {
+  if (metric.source !== "direct" || metric.freshness !== "pit-snapshot") {
     return metric.source !== "unavailable";
   }
-  return (
-    packet.iracing?.pitTireTemperatureAvailable ??
-    [
-      packet.TireCarcassTempFL,
-      packet.TireCarcassTempFR,
-      packet.TireCarcassTempRL,
-      packet.TireCarcassTempRR,
-    ].some((value) => typeof value === "number" && value !== 0)
-  );
+  return temperature?.some((value) => Number.isFinite(value) && value !== 0) ?? false;
 }
 
-export function hasTireHealthData(
-  packet: TelemetryPacket,
-  metric: AnalysisTelemetryMetric,
-): boolean {
-  if (
-    metric.source !== "direct" ||
-    metric.freshness !== "pit-snapshot"
-  ) {
+export function hasTireHealthData(wear: readonly number[] | undefined, metric: AnalysisTelemetryMetric): boolean {
+  if (metric.source !== "direct" || metric.freshness !== "pit-snapshot") {
     return metric.source !== "unavailable";
   }
-  return (
-    packet.iracing?.pitTireWearAvailable ??
-    [
-      packet.TireWearFL,
-      packet.TireWearFR,
-      packet.TireWearRL,
-      packet.TireWearRR,
-    ].some((value) => value !== 0)
-  );
-}
-
-export function hasTireHealthDataSemantic(
-  wear: readonly number[] | undefined,
-  metric: AnalysisTelemetryMetric,
-): boolean {
-  if (metric.source !== "direct" || metric.freshness !== "pit-snapshot") return metric.source !== "unavailable";
-  return (wear ?? []).some((value) => value !== 0);
+  return wear?.some((value) => Number.isFinite(value) && value !== 0) ?? false;
 }

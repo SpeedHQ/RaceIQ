@@ -1,11 +1,6 @@
 import type { PacketUnit } from "../../shared/games/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type {
-  FourCornerRaceEventValue,
-  RaceEventObservation,
-  RaceEventObservationContext,
-  RaceParticipantObservation,
-} from "./types";
+import type { FourCornerRaceEventValue, RaceEventObservation, RaceEventObservationContext, RaceParticipantObservation } from "./types";
 
 function finite(value: number): number | null {
   return Number.isFinite(value) ? value : null;
@@ -15,33 +10,16 @@ function nonNegative(value: number): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
-export function normalizedFuelLitres(
-  packet: TelemetryPacket,
-  packetUnit: PacketUnit,
-): number | null {
+export function normalizedFuelLitres(packet: TelemetryPacket, packetUnit: PacketUnit): number | null {
   if (packetUnit === "litre") return nonNegative(packet.Fuel);
-  if (
-    packetUnit === "fraction" &&
-    Number.isFinite(packet.Fuel) &&
-    packet.Fuel >= 0 &&
-    packet.FuelCapacity != null &&
-    Number.isFinite(packet.FuelCapacity) &&
-    packet.FuelCapacity > 0
-  ) {
+  if (packetUnit === "fraction" && Number.isFinite(packet.Fuel) && packet.Fuel >= 0 && packet.FuelCapacity != null && Number.isFinite(packet.FuelCapacity) && packet.FuelCapacity > 0) {
     return packet.Fuel * packet.FuelCapacity;
   }
   return null;
 }
 
-export function normalizedTireWear(
-  packet: TelemetryPacket,
-): FourCornerRaceEventValue | null {
-  const values = [
-    packet.TireWearFL,
-    packet.TireWearFR,
-    packet.TireWearRL,
-    packet.TireWearRR,
-  ];
+export function normalizedTireWear(packet: TelemetryPacket): FourCornerRaceEventValue | null {
+  const values = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
   if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) {
     return null;
   }
@@ -53,38 +31,20 @@ export function normalizedTireWear(
   };
 }
 
-export function normalizedWorldPosition(
-  packet: TelemetryPacket,
-): RaceEventObservation["worldPosition"] {
-  return Number.isFinite(packet.PositionX) &&
-    Number.isFinite(packet.PositionY) &&
-    Number.isFinite(packet.PositionZ)
-    ? { x: packet.PositionX, y: packet.PositionY, z: packet.PositionZ }
-    : null;
+export function normalizedWorldPosition(packet: TelemetryPacket): RaceEventObservation["worldPosition"] {
+  return Number.isFinite(packet.PositionX) && Number.isFinite(packet.PositionY) && Number.isFinite(packet.PositionZ) ? { x: packet.PositionX, y: packet.PositionY, z: packet.PositionZ } : null;
 }
 
-export function baseRaceEventObservation(
-  packet: TelemetryPacket,
-  context: RaceEventObservationContext,
-): RaceEventObservation {
+export function baseRaceEventObservation(packet: TelemetryPacket, context: RaceEventObservationContext): RaceEventObservation {
   return {
     gameId: packet.gameId,
     sessionUid: packet.sessionUID ?? null,
     receivedAtMs: context.receivedAtMs,
     sourceTimeMs: packet.TimestampMS,
     sourceSequences: context.sourceSequences,
-    lapNumber:
-      Number.isInteger(packet.LapNumber) && packet.LapNumber >= 0
-        ? packet.LapNumber
-        : null,
-    currentLapTimeMs:
-      Number.isFinite(packet.CurrentLap) && packet.CurrentLap >= 0
-        ? packet.CurrentLap * 1000
-        : null,
-    lastLapTimeMs:
-      Number.isFinite(packet.LastLap) && packet.LastLap >= 0
-        ? packet.LastLap * 1000
-        : null,
+    lapNumber: Number.isInteger(packet.LapNumber) && packet.LapNumber >= 0 ? packet.LapNumber : null,
+    currentLapTimeMs: Number.isFinite(packet.CurrentLap) && packet.CurrentLap >= 0 ? packet.CurrentLap * 1000 : null,
+    lastLapTimeMs: Number.isFinite(packet.LastLap) && packet.LastLap >= 0 ? packet.LastLap * 1000 : null,
     trackDistanceM: finite(packet.DistanceTraveled),
     trackDistancePct: null,
     worldPosition: normalizedWorldPosition(packet),
@@ -93,6 +53,14 @@ export function baseRaceEventObservation(
     cautionKind: "unknown",
     gridStart: null,
     terminalObserved: null,
+    raceResult: {
+      finishingPosition: Number.isInteger(packet.RacePosition) && packet.RacePosition > 0 ? packet.RacePosition : null,
+      finishingPositionSource: "lap-data",
+      observedAtMs: Number.isFinite(packet.TimestampMS) ? packet.TimestampMS : context.receivedAtMs,
+      sourcePaths: {
+        finishingPosition: "race.race-position",
+      },
+    },
     participants: [],
     rosterAuthoritative: false,
   };
@@ -100,26 +68,11 @@ export function baseRaceEventObservation(
 
 export function localPlayerObservation(
   packet: TelemetryPacket,
-  input: Pick<
-    RaceParticipantObservation,
-    | "pitState"
-    | "nativePitCode"
-    | "fuelLitres"
-    | "tireCompound"
-    | "tireWear"
-    | "damage"
-    | "penaltyValue"
-    | "incidentCount"
-  > &
+  input: Pick<RaceParticipantObservation, "pitState" | "nativePitCode" | "fuelLitres" | "tireCompound" | "tireWear" | "damage" | "penaltyValue" | "incidentCount"> &
     Partial<
       Pick<
         RaceParticipantObservation,
-        | "driverId"
-        | "teamId"
-        | "displayName"
-        | "vehicleId"
-        | "retirementStatus"
-        | "nativeRetirementCode"
+        "driverId" | "teamId" | "displayName" | "vehicleId" | "retirementStatus" | "nativeRetirementCode" | "pitServiceStatus" | "tireChangeCounts" | "tireWearFreshness" | "repairRemainingSeconds"
       >
     >,
 ): RaceParticipantObservation {
@@ -134,14 +87,15 @@ export function localPlayerObservation(
     vehicleId: input.vehicleId ?? `${packet.gameId}-car:${packet.CarOrdinal}`,
     pitState: input.pitState,
     nativePitCode: input.nativePitCode,
-    position:
-      Number.isInteger(packet.RacePosition) && packet.RacePosition > 0
-        ? packet.RacePosition
-        : null,
+    position: Number.isInteger(packet.RacePosition) && packet.RacePosition > 0 ? packet.RacePosition : null,
     speedMps: nonNegative(packet.Speed),
     fuelLitres: input.fuelLitres,
     tireCompound: input.tireCompound,
     tireWear: input.tireWear,
+    pitServiceStatus: input.pitServiceStatus,
+    tireChangeCounts: input.tireChangeCounts,
+    tireWearFreshness: input.tireWearFreshness,
+    repairRemainingSeconds: input.repairRemainingSeconds,
     damage: input.damage,
     penaltyValue: input.penaltyValue,
     incidentCount: input.incidentCount,
@@ -150,15 +104,8 @@ export function localPlayerObservation(
   };
 }
 
-export function kunosDamagePercent(
-  packet: TelemetryPacket,
-): Readonly<Record<string, number>> | null {
+export function kunosDamagePercent(packet: TelemetryPacket): Readonly<Record<string, number>> | null {
   const damage = packet.acc?.carDamage;
   if (!damage) return null;
-  return Object.fromEntries(
-    Object.entries(damage).map(([component, value]) => [
-      component,
-      Math.max(0, Math.min(100, value * 100)),
-    ] as const),
-  );
+  return Object.fromEntries(Object.entries(damage).map(([component, value]) => [component, Math.max(0, Math.min(100, value * 100))] as const));
 }

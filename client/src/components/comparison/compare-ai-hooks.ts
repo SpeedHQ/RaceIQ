@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { GameId } from "@shared/games/ids";
 import { useSettings } from "@/hooks/settings";
 import { type ChatStreamError, readChatStream } from "@/lib/chat-stream";
 import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured";
 import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
 import { m } from "@/paraglide/messages";
 import { type AnalysisSummary, type InputsAnalysis, summarize } from "./compare-ai-types";
 
@@ -13,209 +15,268 @@ function formatAnalysisStreamError(event: ChatStreamError): string {
 }
 
 type AnalysisStatus = { status?: "none" | "active" | "finished" | "failed"; error?: string };
+const MAX_BACKFILL_POLLS = 20;
+const BACKFILL_POLL_MS = 1500;
 
-export function useLapAnalysis(lapId: number, panelOpen: boolean) {
+async function requestAfterFindingBackfill(request: () => Promise<Response>): Promise<Response> {
+  for (let attempt = 0; attempt <= MAX_BACKFILL_POLLS; attempt += 1) {
+    const response = await request();
+    if (response.status !== 409) return response;
+    const body = await response.clone().json().catch(() => null) as { status?: string; retryable?: boolean } | null;
+    if (body?.status !== "backfilling" || body.retryable !== true || attempt === MAX_BACKFILL_POLLS) return response;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, BACKFILL_POLL_MS));
+  }
+  throw new Error(m.compare_analyse_failed());
+}
+
+export function useLapAnalysis(lapId: number, gameId: GameId, qualityStateKey: string, panelOpen: boolean) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const runSequence = useRef(0);
+  const cacheSequence = useRef(0);
+  const deleteSequence = useRef(0);
+  const headers = { "X-Game-Id": gameId };
 
-  const loadCached = useCallback(async () => {
+  const loadCached = useCallback(async (isCurrent: () => boolean = () => true) => {
+    const sequence = ++cacheSequence.current;
     try {
-      const res = await client.api.laps[":id"].analyse.$post({ param: { id: String(lapId) }, query: { cacheOnly: "true" } });
-      if (!res.ok) return;
-      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
-      if (!data.cached || !data.analysis) return;
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
-      setSummary(summarize(parsed));
+      const data = await rpcJson<{ analysis: string | object | null; cached: boolean }>(
+        await requestAfterFindingBackfill(() => client.api.laps[":id"].analyse.$post({ param: { id: String(lapId) }, query: { cacheOnly: "true" } }, { headers })),
+      );
+      if (!data.cached || !data.analysis || cacheSequence.current !== sequence || !isCurrent()) return;
+      setSummary(summarize(typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis));
     } catch {
       /* cache probing is best-effort */
     }
-  }, [lapId]);
+  }, [gameId, lapId, qualityStateKey]);
 
   const run = useCallback(
     async (regenerate = false) => {
+      const sequence = ++runSequence.current;
+      cacheSequence.current += 1;
       setLoading(true);
       setError(null);
       try {
-        const query = regenerate ? "?regenerate=true" : "";
-        const res = await fetch(`/api/laps/${lapId}/analyse${query}`, { method: "POST" });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
-          throw new Error(data.error || `HTTP ${res.status}`);
-        }
-        const contentType = res.headers.get("content-type") ?? "";
-        if (contentType.includes("application/x-ndjson")) {
+        const res = await requestAfterFindingBackfill(() => client.api.laps[":id"].analyse.$post(
+          { param: { id: String(lapId) }, query: regenerate ? { regenerate: "true" } : {} },
+          { headers },
+        ));
+        if (!res.ok) throw new Error(m.compare_unknown_error());
+        if ((res.headers.get("content-type") ?? "").includes("application/x-ndjson")) {
           let resolved = false;
           await readChatStream(res, (event) => {
             if (event.type === "error") throw new Error(formatAnalysisStreamError(event as ChatStreamError));
             if (event.type !== "result") return;
             const result = event as { analysis?: string | object | null };
             if (!result.analysis) throw new Error(m.compare_analyse_failed());
-            const parsed = typeof result.analysis === "string" ? JSON.parse(result.analysis) : result.analysis;
-            setSummary(summarize(parsed));
             resolved = true;
+            if (runSequence.current === sequence) {
+              setSummary(summarize(typeof result.analysis === "string" ? JSON.parse(result.analysis) : result.analysis));
+            }
           });
+          if (runSequence.current !== sequence) return;
           if (!resolved) throw new Error(m.compare_analyse_failed());
         } else {
-          const data = (await res.json()) as { analysis: string | object | null; error?: string };
+          const data = await rpcJson<{ analysis: string | object | null; error?: string }>(res);
+          if (runSequence.current !== sequence) return;
           if (data.error || !data.analysis) throw new Error(data.error || m.compare_analyse_failed());
-          const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
-          setSummary(summarize(parsed));
+          setSummary(summarize(typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis));
         }
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : m.compare_analyse_failed());
+        if (runSequence.current === sequence) setError(err instanceof Error ? err.message : m.compare_analyse_failed());
       } finally {
-        setLoading(false);
+        if (runSequence.current === sequence) setLoading(false);
       }
     },
-    [lapId],
+    [gameId, lapId, qualityStateKey],
   );
 
   const remove = useCallback(async () => {
-    if (loading || deleting || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    if (loading || deleting || !window.confirm(m.analysis_delete_lap_confirm())) return;
+    const sequence = ++deleteSequence.current;
+    runSequence.current += 1;
+    cacheSequence.current += 1;
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSummary(null);
+      await rpcJson<{ ok: true }>(await client.api.laps[":id"].analyse.$delete({ param: { id: String(lapId) } }, { headers }));
+      if (deleteSequence.current === sequence) setSummary(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : m.compare_analyse_failed());
+      if (deleteSequence.current === sequence) setError(err instanceof Error ? err.message : m.compare_analyse_failed());
     } finally {
-      setDeleting(false);
+      if (deleteSequence.current === sequence) setDeleting(false);
     }
-  }, [deleting, lapId, loading]);
+  }, [deleting, gameId, lapId, loading, qualityStateKey]);
 
   useEffect(() => {
-    if (panelOpen) void loadCached();
-  }, [lapId, panelOpen, loadCached]);
+    runSequence.current += 1;
+    cacheSequence.current += 1;
+    deleteSequence.current += 1;
+    setSummary(null);
+    setError(null);
+  }, [lapId, qualityStateKey]);
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    void loadCached(() => !cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [lapId, panelOpen, loadCached, qualityStateKey]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    const pollRunSequence = runSequence.current;
+    let timer: number | undefined;
     const poll = async () => {
       try {
-        const res = await fetch(`/api/laps/${lapId}/analyse/status`);
-        const status = (await res.json()) as AnalysisStatus;
-        if (cancelled) return;
+        const status = await rpcJson<AnalysisStatus>(
+          await client.api.laps[":id"].analyse.status.$get({ param: { id: String(lapId) } }, { headers }),
+        );
+        if (cancelled || runSequence.current !== pollRunSequence) return;
         if (status.status === "active") {
           setLoading(true);
-          timer = setTimeout(() => void poll(), 1500);
+          timer = window.setTimeout(() => void poll(), BACKFILL_POLL_MS);
         } else {
           if (status.status === "failed") setError(status.error ?? m.compare_analyse_failed());
-          if (status.status === "finished") await loadCached();
+          if (status.status === "finished") await loadCached(() => !cancelled);
+          if (cancelled || runSequence.current !== pollRunSequence) return;
           setLoading(false);
         }
       } catch {
-        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+        if (!cancelled && runSequence.current === pollRunSequence) timer = window.setTimeout(() => void poll(), 3000);
       }
     };
     void poll();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [lapId, panelOpen, loadCached]);
-  useEffect(() => {
-    setSummary(null);
-    setError(null);
-  }, [lapId]);
-
+  }, [gameId, lapId, panelOpen, loadCached, qualityStateKey]);
   return { summary, loading, error, deleting, run, remove };
 }
 
-export function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
+export function useInputsAnalysis(lapAId: number, lapBId: number, gameId: GameId, qualityStateKey: string, panelOpen: boolean) {
   const [analysis, setAnalysis] = useState<InputsAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  const loadCached = useCallback(async () => {
+  const runSequence = useRef(0);
+  const cacheSequence = useRef(0);
+  const deleteSequence = useRef(0);
+  const headers = { "X-Game-Id": gameId };
+  const loadCached = useCallback(async (isCurrent: () => boolean = () => true) => {
+    const sequence = ++cacheSequence.current;
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`, { method: "POST" });
-      if (!res.ok) return;
-      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
-      if (!data.cached || !data.analysis) return;
+      const data = await rpcJson<{ analysis: string | object | null; cached: boolean }>(
+        await requestAfterFindingBackfill(() => client.api.laps[":id1"].compare[":id2"]["inputs-analyse"].$post(
+          { param: { id1: String(lapAId), id2: String(lapBId) }, query: { cacheOnly: "true" } },
+          { headers },
+        )),
+      );
+      if (!data.cached || !data.analysis || cacheSequence.current !== sequence || !isCurrent()) return;
       setAnalysis(typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis);
     } catch {
       /* cache probing is best-effort */
     }
-  }, [lapAId, lapBId]);
+  }, [gameId, lapAId, lapBId, qualityStateKey]);
 
   const run = useCallback(
     async (regenerate = false) => {
+      const sequence = ++runSequence.current;
+      cacheSequence.current += 1;
       setLoading(true);
       setError(null);
       try {
-        const query = regenerate ? "?regenerate=true" : "";
-        const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${query}`, { method: "POST" });
-        if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
-          throw new Error(data.error || `HTTP ${res.status}`);
-        }
-        const data = (await res.json()) as { analysis: string | object | null };
+        const data = await rpcJson<{ analysis: string | object | null }>(
+          await requestAfterFindingBackfill(() => client.api.laps[":id1"].compare[":id2"]["inputs-analyse"].$post(
+            { param: { id1: String(lapAId), id2: String(lapBId) }, query: regenerate ? { regenerate: "true" } : {} },
+            { headers },
+          )),
+        );
+        if (runSequence.current !== sequence) return;
         if (!data.analysis) throw new Error(m.compare_analyse_inputs_failed());
         setAnalysis(typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
+        if (runSequence.current === sequence) setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
       } finally {
-        setLoading(false);
+        if (runSequence.current === sequence) setLoading(false);
       }
     },
-    [lapAId, lapBId],
+    [gameId, lapAId, lapBId, qualityStateKey],
   );
-
   const remove = useCallback(async () => {
-    if (loading || deleting || !window.confirm("Delete inputs comparison? This cannot be undone.")) return;
+    if (loading || deleting || !window.confirm(m.compare_delete_inputs_confirm())) return;
+    const sequence = ++deleteSequence.current;
+    runSequence.current += 1;
+    cacheSequence.current += 1;
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setAnalysis(null);
+      await rpcJson<{ ok: true }>(
+        await client.api.laps[":id1"].compare[":id2"]["inputs-analyse"].$delete(
+          { param: { id1: String(lapAId), id2: String(lapBId) } },
+          { headers },
+        ),
+      );
+      if (deleteSequence.current === sequence) setAnalysis(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
+      if (deleteSequence.current === sequence) setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
     } finally {
-      setDeleting(false);
+      if (deleteSequence.current === sequence) setDeleting(false);
     }
-  }, [deleting, lapAId, lapBId, loading]);
+  }, [deleting, gameId, lapAId, lapBId, loading, qualityStateKey]);
 
   useEffect(() => {
-    if (panelOpen) void loadCached();
-  }, [panelOpen, loadCached]);
+    runSequence.current += 1;
+    cacheSequence.current += 1;
+    deleteSequence.current += 1;
+    setAnalysis(null);
+    setError(null);
+  }, [lapAId, lapBId, qualityStateKey]);
   useEffect(() => {
     if (!panelOpen) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    void loadCached(() => !cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [panelOpen, loadCached, qualityStateKey]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    const pollRunSequence = runSequence.current;
+    let timer: number | undefined;
     const poll = async () => {
       try {
-        const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse/status`);
-        const status = (await res.json()) as AnalysisStatus;
-        if (cancelled) return;
+        const status = await rpcJson<AnalysisStatus>(
+          await client.api.laps[":id1"].compare[":id2"]["inputs-analyse"].status.$get(
+            { param: { id1: String(lapAId), id2: String(lapBId) } },
+            { headers },
+          ),
+        );
+        if (cancelled || runSequence.current !== pollRunSequence) return;
         if (status.status === "active") {
           setLoading(true);
-          timer = setTimeout(() => void poll(), 1500);
+          timer = window.setTimeout(() => void poll(), BACKFILL_POLL_MS);
         } else {
           if (status.status === "failed") setError(status.error ?? m.compare_analyse_inputs_failed());
-          if (status.status === "finished") await loadCached();
+          if (status.status === "finished") await loadCached(() => !cancelled);
+          if (cancelled || runSequence.current !== pollRunSequence) return;
           setLoading(false);
         }
       } catch {
-        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+        if (!cancelled && runSequence.current === pollRunSequence) timer = window.setTimeout(() => void poll(), 3000);
       }
     };
     void poll();
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [lapAId, lapBId, panelOpen, loadCached]);
-  useEffect(() => {
-    setAnalysis(null);
-    setError(null);
-  }, [lapAId, lapBId]);
-
+  }, [gameId, lapAId, lapBId, panelOpen, loadCached, qualityStateKey]);
   return { analysis, loading, error, deleting, run, remove };
 }
 

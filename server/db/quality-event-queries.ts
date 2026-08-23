@@ -41,57 +41,29 @@ const LINKED_EVENT_TYPES = new Set<RaceEvent["eventType"]>([
   "timeline_discontinuity",
 ]);
 
-export function qualityEventOverlapsFact(
-  event: Pick<RaceEvent, "lapNumber" | "sourceTimeMs" | "sourceEndTimeMs">,
-  lapNumber: number,
-  fact: Pick<QualityFact, "timeRange">,
-): boolean {
+export function qualityEventOverlapsFact(event: Pick<RaceEvent, "lapNumber" | "sourceTimeMs" | "sourceEndTimeMs">, lapNumber: number, fact: Pick<QualityFact, "timeRange">): boolean {
   if (event.lapNumber != null && event.lapNumber !== lapNumber) return false;
-  if (
-    event.sourceTimeMs != null &&
-    event.sourceEndTimeMs != null &&
-    fact.timeRange != null
-  ) {
+  if (event.sourceTimeMs != null && event.sourceEndTimeMs != null && fact.timeRange != null) {
     return event.sourceTimeMs <= fact.timeRange.endMs && event.sourceEndTimeMs >= fact.timeRange.startMs;
   }
   return event.lapNumber === lapNumber;
 }
 
 function isTimelineEventId(eventId: string): boolean {
-  return (
-    eventId.startsWith("race-event:sha256:") ||
-    eventId.startsWith("pit-event:") ||
-    eventId.startsWith("position-event:") ||
-    eventId.startsWith("pit:") ||
-    eventId.startsWith("position-change:")
-  );
+  return eventId.startsWith("race-event:sha256:") || eventId.startsWith("pit-event:") || eventId.startsWith("position-event:") || eventId.startsWith("pit:") || eventId.startsWith("position-change:");
 }
 
-async function linkSessionQualityEventsInTransaction(
-  tx: DbTransaction,
-  sessionId: number,
-): Promise<number> {
-  const [session] = await tx
-    .select({ recordingQuality: sessions.recordingQuality })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .all();
+async function linkSessionQualityEventsInTransaction(tx: DbTransaction, sessionId: number): Promise<number> {
+  const [session] = await tx.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).all();
   if (!session?.recordingQuality) return 0;
 
   const eventRows = await tx
     .select()
     .from(raceEvents)
     .where(eq(raceEvents.sessionId, sessionId))
-    .orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    )
+    .orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId))
     .all();
-  const events = eventRows
-    .map((row) => RaceEventSchema.parse(row))
-    .filter((event) => LINKED_EVENT_TYPES.has(event.eventType));
+  const events = eventRows.map((row) => RaceEventSchema.parse(row)).filter((event) => LINKED_EVENT_TYPES.has(event.eventType));
   const lapRows = await tx
     .select({
       id: laps.id,
@@ -114,25 +86,18 @@ async function linkSessionQualityEventsInTransaction(
         if (qualityEventOverlapsFact(event, lap.lapNumber, fact)) currentIds.push(event.eventId);
       }
       const eventIds = [...new Set(currentIds)].sort();
-      if (
-        eventIds.length !== fact.eventIds.length ||
-        eventIds.some((eventId, index) => eventId !== fact.eventIds[index])
-      ) {
+      if (eventIds.length !== fact.eventIds.length || eventIds.some((eventId, index) => eventId !== fact.eventIds[index])) {
         changed = true;
       }
       return { ...fact, eventIds };
     });
     if (!changed) continue;
 
-    const generated = finalizeLapQualityGeneration(
-      { ...lap.quality, facts },
-      session.recordingQuality.provenance.sourceGeneration,
-      {
-        lapNumber: lap.lapNumber,
-        rawByteOffset: lap.rawByteOffset,
-        rawFrameCount: lap.rawFrameCount ?? 0,
-      },
-    );
+    const generated = finalizeLapQualityGeneration({ ...lap.quality, facts }, session.recordingQuality.provenance.sourceGeneration, {
+      lapNumber: lap.lapNumber,
+      rawByteOffset: lap.rawByteOffset,
+      rawFrameCount: lap.rawFrameCount,
+    });
     await tx
       .update(laps)
       .set({
@@ -152,21 +117,13 @@ async function linkSessionQualityEventsInTransaction(
     await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, changedLapIds)).run();
     await tx
       .delete(compareAnalyses)
-      .where(
-        or(
-          inArray(compareAnalyses.lapAId, changedLapIds),
-          inArray(compareAnalyses.lapBId, changedLapIds),
-        ),
-      )
+      .where(or(inArray(compareAnalyses.lapAId, changedLapIds), inArray(compareAnalyses.lapBId, changedLapIds)))
       .run();
   }
   return changedLapIds.length;
 }
 
-export function linkSessionQualityEvents(
-  sessionId: number,
-  transaction?: DbTransaction,
-): Promise<number> {
+export function linkSessionQualityEvents(sessionId: number, transaction?: DbTransaction): Promise<number> {
   if (transaction) return linkSessionQualityEventsInTransaction(transaction, sessionId);
   return db.transaction((tx) => linkSessionQualityEventsInTransaction(tx, sessionId));
 }

@@ -1,53 +1,20 @@
-import {
-  analysisConfigurationHash,
-  analysisContractHash,
-} from "./hash";
+import { analysisConfigurationHash, analysisContractHash } from "./hash";
 import type { GameId } from "../../shared/games/ids";
 import { RACE_EVENT_SCHEMA_VERSION } from "../../shared/racing/events/contracts";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type SourceChannelProfile,
-} from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION, type SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import { QUALITY_POLICY_CONFIG_V1 } from "../../shared/racing/quality/policies";
-import {
-  ANALYSIS_RECEIPT_SCHEMA_VERSION,
-  type AnalysisComponentIdentity,
-} from "../../shared/racing/provenance/contracts";
-import {
-  SESSION_RUN_ALGORITHM_VERSION,
-  SESSION_RUN_SCHEMA_VERSION,
-} from "../../shared/racing/runs/contracts";
+import { ANALYSIS_RECEIPT_SCHEMA_VERSION, type AnalysisComponentIdentity } from "../../shared/racing/provenance/contracts";
+import { SESSION_RUN_ALGORITHM_VERSION, SESSION_RUN_SCHEMA_VERSION } from "../../shared/racing/runs/contracts";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { tryGetServerGame } from "../games/registry";
-import {
-  INCIDENT_PENALTY_DETECTOR_ID,
-  INCIDENT_PENALTY_DETECTOR_VERSION,
-} from "../race-events/detectors/incident-penalty";
-import {
-  LAP_EVENT_DETECTOR_ID,
-  LAP_EVENT_DETECTOR_VERSION,
-} from "../race-events/detectors/lap";
-import {
-  PARTICIPANT_DETECTOR_ID,
-  PARTICIPANT_DETECTOR_VERSION,
-} from "../race-events/detectors/participant-driver";
-import {
-  PIT_SERVICE_DETECTOR_ID,
-  PIT_SERVICE_DETECTOR_VERSION,
-} from "../race-events/detectors/pit-service";
-import {
-  SESSION_RACE_CONTROL_DETECTOR_ID,
-  SESSION_RACE_CONTROL_DETECTOR_VERSION,
-} from "../race-events/detectors/session-race-control";
-import {
-  SOURCE_QUALITY_DETECTOR_ID,
-  SOURCE_QUALITY_DETECTOR_VERSION,
-} from "../race-events/detectors/source-quality";
+import { INCIDENT_PENALTY_DETECTOR_ID, INCIDENT_PENALTY_DETECTOR_VERSION } from "../race-events/detectors/incident-penalty";
+import { LAP_EVENT_DETECTOR_ID, LAP_EVENT_DETECTOR_VERSION } from "../race-events/detectors/lap";
+import { PARTICIPANT_DETECTOR_ID, PARTICIPANT_DETECTOR_VERSION } from "../race-events/detectors/participant-driver";
+import { PIT_SERVICE_DETECTOR_ID, PIT_SERVICE_DETECTOR_VERSION } from "../race-events/detectors/pit-service";
+import { SESSION_RACE_CONTROL_DETECTOR_ID, SESSION_RACE_CONTROL_DETECTOR_VERSION } from "../race-events/detectors/session-race-control";
+import { SOURCE_QUALITY_DETECTOR_ID, SOURCE_QUALITY_DETECTOR_VERSION } from "../race-events/detectors/source-quality";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
-import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
-
+import { currentTelemetryVersionIdentity } from "../telemetry/version-identity";
 
 export interface CurrentAnalysisContract {
   telemetryVersion: TelemetryVersionIdentity;
@@ -57,10 +24,7 @@ export interface CurrentAnalysisContract {
   contractHash: `sha256:${string}`;
 }
 
-export function currentAnalysisContract(
-  gameId: GameId,
-  sourceChannelProfile: SourceChannelProfile | null = null,
-): CurrentAnalysisContract {
+export function currentAnalysisContract(gameId: GameId, sourceChannelProfile: SourceChannelProfile | null = null): CurrentAnalysisContract {
   const telemetryVersion = currentTelemetryVersionIdentity(gameId);
   const lapDetectorId = tryGetServerGame(gameId)?.lapDetectorId ?? "unknown";
   const analysisComponents: AnalysisComponentIdentity[] = [

@@ -22,6 +22,7 @@
 import { describe, expect, test } from "bun:test";
 import { detectCorners } from "../../server/lap-analysis/corners";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
 
 import { readSessionPackets } from "../support/recordings/session-frames";
 
@@ -70,9 +71,22 @@ function splitLaps(packets: P[]): P[][] {
   return laps.filter((lap) => lap.length > 500 && lap[lap.length - 1].DistanceTraveled - lap[0].DistanceTraveled > 3000);
 }
 
+function semanticSamples(packets: readonly TelemetryPacket[]): SemanticTelemetrySample[] {
+  return packets.map((packet, index) => ({
+    sequence: String(index),
+    observedAtMs: packet.TimestampMS,
+    values: {
+      "timing.distance-traveled": packet.DistanceTraveled,
+      "motion.speed": packet.Speed,
+      "inputs.steer": packet.Steer,
+    },
+  }));
+}
+
 const allPackets = readSessionPackets(FIXTURE, "ac-evo") as P[];
 const laps = splitLaps(allPackets);
 const captureHz = mean(laps.map((lap) => lap.length / Math.max(...lap.map((p) => p.CurrentLap))));
+const lapSamples = laps.map(semanticSamples);
 
 describe("telemetry fidelity vs MoTeC-rate logging", () => {
   test("fixture yields complete laps to measure against", () => {
@@ -153,10 +167,12 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
     const brakePeakLoss: number[] = [];
     const latGLoss: number[] = [];
 
-    for (const lap of laps) {
+    for (let lapIndex = 0; lapIndex < laps.length; lapIndex++) {
+      const lap = laps[lapIndex]!;
+      const samples = lapSamples[lapIndex]!;
       const step = captureHz / MOTEC_AVG_HZ;
       const lapStart = lap[0].DistanceTraveled;
-      for (const corner of detectCorners(lap)) {
+      for (const corner of detectCorners(samples, "ac-evo")) {
         const i0 = lap.findIndex((p) => p.DistanceTraveled - lapStart >= corner.distanceStart);
         const i1 = lap.findIndex((p) => p.DistanceTraveled - lapStart >= corner.distanceEnd);
         if (i0 < 0 || i1 <= i0) continue;
@@ -188,9 +204,10 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
     });
 
     test("corner apex positions stay put", () => {
-      for (const lap of laps) {
-        const full = detectCorners(lap);
-        const low = detectCorners(decimate(lap, captureHz, MOTEC_AVG_HZ));
+      for (let lapIndex = 0; lapIndex < laps.length; lapIndex++) {
+        const lap = laps[lapIndex]!;
+        const full = detectCorners(lapSamples[lapIndex]!, "ac-evo");
+        const low = detectCorners(semanticSamples(decimate(lap, captureHz, MOTEC_AVG_HZ)), "ac-evo");
         const matched = full
           .map((f) => {
             const hit = low.find((l) => Math.abs((l.apexDistance ?? 0) - (f.apexDistance ?? 0)) < 30);

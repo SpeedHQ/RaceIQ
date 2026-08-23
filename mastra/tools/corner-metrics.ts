@@ -18,10 +18,14 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { getLapById } from "../../server/db/lap-read-queries";
-import { getCorners } from "../../server/db/track-queries";
+import { getLapMetaById } from "../../server/db/lap-read-queries";
 import { loadSettings } from "../../server/runtime/config/settings";
 import { computeCornerMetrics, type CornerMetrics } from "../../server/ai/corner-data";
+import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
+import { semanticFixedNumbers, semanticNumber, semanticSamplesFromReplay } from "../../server/telemetry/semantic-samples";
+import { resolveSemanticLapCorners } from "../../server/tracks/corner-resolution";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
+import { GameIdSchema } from "../../shared/games/ids";
 
 interface CornerMetricsResult {
   available: boolean;
@@ -41,24 +45,12 @@ export const getCornerMetricsTool = createTool({
     "Fetch structured, per-corner telemetry metrics for a lap: entry/min/exit speed, " +
     "gear, braking distance, time in corner, average throttle and brake, throttle-on " +
     "distance, and a balance verdict (oversteer/understeer/neutral). Pass a `cornerId` " +
-    "(1-based, matching the T1/T2/... labels) to narrow to a single corner. Use this to " +
-    "ground tuning suggestions in what the car actually did through each corner. If " +
-    "`available` is false, the lap has no telemetry or no corner definitions — skip " +
-    "corner analysis and rely on general heuristics.",
+    "(1-based, matching T1/T2/... labels) to narrow result. If `available` is false, " +
+    "skip corner analysis and rely on general heuristics.",
   inputSchema: z.object({
-    lapId: z
-      .number()
-      .int()
-      .positive()
-      .describe("Database ID of the lap to analyse."),
-    // NOTE: keep optional (not `.default()`) — Mastra + LM Studio mishandle a
-    // field that is both `required` and defaulted, rejecting calls that omit it.
-    cornerId: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe("1-based corner number (matching the T{n} label) to narrow the result to a single corner. Omit for all corners."),
+    lapId: z.number().int().positive().describe("Database ID of lap to analyse."),
+    gameId: GameIdSchema.describe("Game owning lap; must match persisted lap game."),
+    cornerId: z.number().int().positive().optional().describe("1-based corner number (matching T{n}) to narrow result. Omit for all corners."),
   }),
   outputSchema: z.object({
     available: z.boolean(),
@@ -68,65 +60,58 @@ export const getCornerMetricsTool = createTool({
     corners: z.array(
       z.object({
         label: z.string(),
-        entrySpeed: z.number(),
-        minSpeed: z.number(),
-        exitSpeed: z.number(),
-        gear: z.number(),
-        brakingDistance: z.number(),
-        timeInCorner: z.number(),
-        avgThrottle: z.number(),
-        avgBrake: z.number(),
-        throttleOnDist: z.number(),
-        balance: z.enum(["oversteer", "understeer", "neutral"]),
-      })
+        entrySpeed: z.number().nullable(),
+        minSpeed: z.number().nullable(),
+        exitSpeed: z.number().nullable(),
+        gear: z.number().nullable(),
+        brakingDistance: z.number().nullable(),
+        timeInCorner: z.number().nullable(),
+        avgThrottle: z.number().nullable(),
+        avgBrake: z.number().nullable(),
+        throttleOnDist: z.number().nullable(),
+        balance: z.enum(["oversteer", "understeer", "neutral"]).nullable(),
+      }),
     ),
   }),
   execute: async (inputData) => {
-    const { lapId, cornerId } = inputData;
-
-    const lap = await getLapById(lapId);
-    if (!lap) {
-      return emptyResult(lapId, "lap not found");
-    }
-
+    const { lapId, cornerId, gameId } = inputData;
+    const lap = await getLapMetaById(lapId);
+    if (!lap) return emptyResult(lapId, "lap not found");
+    if (lap.gameId !== gameId) return emptyResult(lapId, "lap belongs to a different game");
     const trackOrdinal = lap.trackOrdinal;
-    if (trackOrdinal === undefined || trackOrdinal === null) {
-      return emptyResult(lapId, "lap has no trackOrdinal");
-    }
-    if (lap.parseError) {
-      return emptyResult(lapId, `lap telemetry failed to parse: ${lap.parseError}`);
-    }
-    if (lap.telemetry.length === 0) {
-      return emptyResult(lapId, "lap has no telemetry");
-    }
+    if (trackOrdinal == null) return emptyResult(lapId, "lap has no trackOrdinal");
 
-    let corners = await getCorners(trackOrdinal, lap.gameId as Parameters<typeof getCorners>[1]);
-    if (corners.length === 0) {
-      return emptyResult(lapId, `no corner definitions saved for track ordinal ${trackOrdinal}`);
+    let replay;
+    try {
+      replay = await queryLapTelemetryBySemanticId(lapId, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === `Lap ${lapId} has no replayable telemetry`) return emptyResult(lapId, "lap has no semantic telemetry");
+      throw error;
     }
+    const samples = replay ? semanticSamplesFromReplay(replay) : [];
+    const usableSamples = samples.filter(
+      (sample) =>
+        semanticNumber(sample, "timing.distance-traveled") != null &&
+        semanticNumber(sample, "motion.velocity-x") != null &&
+        semanticNumber(sample, "motion.velocity-y") != null &&
+        semanticNumber(sample, "motion.velocity-z") != null &&
+        semanticNumber(sample, "inputs.gear") != null &&
+        semanticNumber(sample, "inputs.accel") != null &&
+        semanticNumber(sample, "inputs.brake") != null &&
+        semanticFixedNumbers(sample, "tires.tire-slip-angle", 4) != null,
+    );
+    if (usableSamples.length === 0) return emptyResult(lapId, "lap has no complete semantic corner telemetry");
 
-    // Optional narrowing to a single corner. `cornerId` is the 1-based ordinal,
-    // which matches `CornerDef.index` (T1 -> index 1). Filter the corner list
-    // before computing so the metric math only runs over the requested corner.
+    let corners = await resolveSemanticLapCorners(trackOrdinal, gameId, usableSamples);
+    if (corners.length === 0) return emptyResult(lapId, `no corner definitions available for track ordinal ${trackOrdinal}`);
     if (cornerId !== undefined) {
-      corners = corners.filter((c) => c.index === cornerId);
-      if (corners.length === 0) {
-        return emptyResult(lapId, `corner ${cornerId} not found for this track`);
-      }
+      corners = corners.filter((corner) => corner.label === `T${cornerId}` || corner.index === cornerId || corner.index + 1 === cornerId);
+      if (corners.length === 0) return emptyResult(lapId, `corner ${cornerId} not found for this track`);
     }
 
     const speedUnit: "mph" | "kmh" = loadSettings().unit === "metric" ? "kmh" : "mph";
-    const metrics = computeCornerMetrics(lap.telemetry, corners, speedUnit);
-
-    if (metrics.length === 0) {
-      return emptyResult(lapId, "no telemetry packets fell within the corner distance ranges");
-    }
-
-    return {
-      available: true,
-      lapId,
-      speedUnit,
-      corners: metrics,
-    };
+    const metrics = computeCornerMetrics(usableSamples, corners, speedUnit);
+    if (metrics.length === 0) return emptyResult(lapId, "no semantic telemetry samples fell within corner distance ranges");
+    return { available: true, lapId, speedUnit, corners: metrics };
   },
 });

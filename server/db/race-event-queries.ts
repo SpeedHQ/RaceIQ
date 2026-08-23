@@ -1,51 +1,11 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gt,
-  gte,
-  inArray,
-  isNull,
-  like,
-  lte,
-  notInArray,
-  or,
-  type SQL,
-} from "drizzle-orm";
-import {
-  RaceEventIdSchema,
-  RaceEventSchema,
-  type RaceEvent,
-  type RaceEventId,
-  type RaceEventPage,
-  type RaceEventQuery,
-  type RaceEventType,
-} from "../../shared/racing/events/contracts";
+import { and, asc, desc, eq, gt, gte, inArray, isNull, like, lte, notInArray, or, type SQL } from "drizzle-orm";
+import { RaceEventIdSchema, RaceEventSchema, type RaceEvent, type RaceEventId, type RaceEventPage, type RaceEventQuery, type RaceEventType } from "../../shared/racing/events/contracts";
 import { classifyLap } from "../../shared/racing/laps/classification";
-import {
-  SessionRunEvidenceSchema,
-  SessionRunLapMembershipSchema,
-  SessionRunSchema,
-  type SessionRun,
-  type SessionRunEvidence,
-  type SessionRunLapMembership,
-} from "../../shared/racing/runs/contracts";
+import { SessionRunEvidenceSchema, SessionRunLapMembershipSchema, SessionRunSchema, type SessionRun, type SessionRunEvidence, type SessionRunLapMembership } from "../../shared/racing/runs/contracts";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
-import {
-  appendSessionRunArtifactsInTransaction,
-  SessionRunConflictError,
-} from "./session-run-queries";
+import { appendSessionRunArtifactsInTransaction, SessionRunConflictError } from "./session-run-queries";
 import { db } from "./index";
-import {
-  compareAnalyses,
-  lapAnalyses,
-  laps,
-  raceEvents,
-  sessionRuns,
-  sessionResults,
-  sessions,
-} from "./schema";
+import { compareAnalyses, lapAnalyses, laps, raceEvents, sessionRuns, sessionResults, sessions } from "./schema";
 import { linkSessionQualityEvents } from "./quality-event-queries";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -291,11 +251,7 @@ interface PitProjectionTarget {
   lapNumber: number;
 }
 
-async function applyPitPhaseProjection(
-  tx: DbTransaction,
-  events: readonly RaceEvent[],
-  additionalTargets: readonly PitProjectionTarget[] = [],
-): Promise<void> {
+async function applyPitPhaseProjection(tx: DbTransaction, events: readonly RaceEvent[], additionalTargets: readonly PitProjectionTarget[] = []): Promise<void> {
   const bySessionAndLap = new Map<string, PitProjectionTarget>();
   for (const event of events) {
     if ((event.eventType !== "pit_entry" && event.eventType !== "pit_exit") || event.lapNumber == null) continue;
@@ -328,13 +284,7 @@ async function applyPitPhaseProjection(
       tx
         .select()
         .from(raceEvents)
-        .where(
-          and(
-            eq(raceEvents.sessionId, sessionId),
-            eq(raceEvents.lapNumber, lapNumber),
-            inArray(raceEvents.eventType, ["lap_completed", "lap_started"]),
-          ),
-        )
+        .where(and(eq(raceEvents.sessionId, sessionId), eq(raceEvents.lapNumber, lapNumber), inArray(raceEvents.eventType, ["lap_completed", "lap_started"])))
         .orderBy(desc(raceEvents.timelineEpoch), desc(raceEvents.sequence), desc(raceEvents.eventOrder), desc(raceEvents.eventId))
         .get(),
     ]);
@@ -361,11 +311,7 @@ async function applyPitPhaseProjection(
               gridStart: false,
             });
       if (classification == null) continue;
-      await tx
-        .update(laps)
-        .set(classification)
-        .where(eq(laps.id, lap.id))
-        .run();
+      await tx.update(laps).set(classification).where(eq(laps.id, lap.id)).run();
       affectedLapIds.push(lap.id);
     }
   }
@@ -413,7 +359,7 @@ async function applyPitPhaseProjection(
       {
         lapNumber: lap.lapNumber,
         rawByteOffset: lap.rawByteOffset,
-        rawFrameCount: lap.rawFrameCount ?? 0,
+        rawFrameCount: lap.rawFrameCount,
       },
     );
     await tx
@@ -493,28 +439,15 @@ export function appendRaceEvents(events: readonly RaceEvent[], transaction?: DbT
   return db.transaction((tx) => appendRaceEventsInTransaction(tx, events));
 }
 
-async function assertRaceEventLapLinks(
-  tx: DbTransaction,
-  links: readonly RaceEventLapLink[],
-): Promise<void> {
+async function assertRaceEventLapLinks(tx: DbTransaction, links: readonly RaceEventLapLink[]): Promise<void> {
   const expectedByLapId = new Map<number, RaceEventLapLink>();
   const linkedLapIds: number[] = [];
   for (const link of links) {
-    if (
-      !Number.isSafeInteger(link.sessionId) ||
-      link.sessionId <= 0 ||
-      !Number.isSafeInteger(link.lapNumber) ||
-      link.lapNumber < 0 ||
-      !Number.isSafeInteger(link.lapId) ||
-      link.lapId <= 0
-    ) {
+    if (!Number.isSafeInteger(link.sessionId) || link.sessionId <= 0 || !Number.isSafeInteger(link.lapNumber) || link.lapNumber < 0 || !Number.isSafeInteger(link.lapId) || link.lapId <= 0) {
       throw new Error("Race-event lap links require safe session, lap-number, and lap IDs");
     }
     const existing = expectedByLapId.get(link.lapId);
-    if (
-      existing &&
-      (existing.sessionId !== link.sessionId || existing.lapNumber !== link.lapNumber)
-    ) {
+    if (existing && (existing.sessionId !== link.sessionId || existing.lapNumber !== link.lapNumber)) {
       throw new Error(`Lap ${link.lapId} has conflicting race-event links`);
     }
     if (!existing) {
@@ -524,41 +457,24 @@ async function assertRaceEventLapLinks(
   }
   if (linkedLapIds.length === 0) return;
 
-  const persistedLaps = await tx
-    .select({ id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber })
-    .from(laps)
-    .where(inArray(laps.id, linkedLapIds))
-    .all();
+  const persistedLaps = await tx.select({ id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber }).from(laps).where(inArray(laps.id, linkedLapIds)).all();
   const persistedById = new Map(persistedLaps.map((lap) => [lap.id, lap]));
   for (const [lapId, expected] of expectedByLapId) {
     const persisted = persistedById.get(lapId);
-    if (
-      !persisted ||
-      persisted.sessionId !== expected.sessionId ||
-      persisted.lapNumber !== expected.lapNumber
-    ) {
+    if (!persisted || persisted.sessionId !== expected.sessionId || persisted.lapNumber !== expected.lapNumber) {
       throw new Error(`Lap ${lapId} is not lap ${expected.lapNumber} in session ${expected.sessionId}`);
     }
   }
 }
 
-async function appendRaceEventsWithLapLinksInTransaction(
-  tx: DbTransaction,
-  events: readonly RaceEvent[],
-  links: readonly RaceEventLapLink[],
-): Promise<RaceEvent[]> {
+async function appendRaceEventsWithLapLinksInTransaction(tx: DbTransaction, events: readonly RaceEvent[], links: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
   await assertRaceEventLapLinks(tx, links);
   const inserted = await appendRaceEventsInTransaction(tx, events);
   if (links.length === 0) return inserted;
 
   const linkedById = new Map<RaceEventId, RaceEvent>();
   for (const link of links) {
-    for (const event of await attachRaceEventsToLapInTransaction(
-      tx,
-      link.sessionId,
-      link.lapNumber,
-      link.lapId,
-    )) {
+    for (const event of await attachRaceEventsToLapInTransaction(tx, link.sessionId, link.lapNumber, link.lapId)) {
       linkedById.set(event.eventId, event);
     }
   }
@@ -566,11 +482,7 @@ async function appendRaceEventsWithLapLinksInTransaction(
 }
 
 /** Validates every lap link before atomically appending and attaching events. */
-export function appendRaceEventsWithLapLinks(
-  events: readonly RaceEvent[],
-  links: readonly RaceEventLapLink[],
-  transaction?: DbTransaction,
-): Promise<RaceEvent[]> {
+export function appendRaceEventsWithLapLinks(events: readonly RaceEvent[], links: readonly RaceEventLapLink[], transaction?: DbTransaction): Promise<RaceEvent[]> {
   if (transaction) return appendRaceEventsWithLapLinksInTransaction(transaction, events, links);
   return db.transaction((tx) => appendRaceEventsWithLapLinksInTransaction(tx, events, links));
 }
@@ -621,12 +533,8 @@ function validateReplacementRunArtifacts(
   evidence: SessionRunEvidence[];
 } {
   const runs = input.runs.map((run) => SessionRunSchema.parse(run));
-  const memberships = input.memberships.map((membership) =>
-    SessionRunLapMembershipSchema.parse(membership),
-  );
-  const evidence = input.evidence.map((item) =>
-    SessionRunEvidenceSchema.parse(item),
-  );
+  const memberships = input.memberships.map((membership) => SessionRunLapMembershipSchema.parse(membership));
+  const evidence = input.evidence.map((item) => SessionRunEvidenceSchema.parse(item));
   const runById = new Map(runs.map((run) => [run.runId, run] as const));
   if (runById.size !== runs.length) {
     throw new Error("Replacement session runs contain duplicate run ids");
@@ -635,12 +543,7 @@ function validateReplacementRunArtifacts(
     if (run.sessionId !== input.sessionId) {
       throw new Error(`Session run ${run.runId} does not belong to replacement session`);
     }
-    for (const eventId of [
-      run.openingBoundary.eventId,
-      run.closingBoundary.eventId,
-      run.startLapEventId,
-      run.endLapEventId,
-    ]) {
+    for (const eventId of [run.openingBoundary.eventId, run.closingBoundary.eventId, run.startLapEventId, run.endLapEventId]) {
       if (eventId && !resultingEventIds.has(eventId)) {
         throw new Error(`Session run ${run.runId} references missing event ${eventId}`);
       }
@@ -656,11 +559,7 @@ function validateReplacementRunArtifacts(
       throw new Error(`Replacement session run membership ${key} is duplicated`);
     }
     membershipKeys.add(key);
-    for (const eventId of [
-      membership.lapEventId,
-      membership.entryEventId,
-      membership.exitEventId,
-    ]) {
+    for (const eventId of [membership.lapEventId, membership.entryEventId, membership.exitEventId]) {
       if (eventId && !resultingEventIds.has(eventId)) {
         throw new Error(`Session run membership references missing event ${eventId}`);
       }
@@ -690,11 +589,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
 ): Promise<ReplaceReplayableSessionArtifactsResult> {
   const session = await tx.select({ id: sessions.id }).from(sessions).where(eq(sessions.id, input.sessionId)).get();
   if (!session) throw new Error(`Session ${input.sessionId} does not exist`);
-  const existingResult = await tx
-    .select({ id: sessionResults.id, eventIds: sessionResults.eventIds })
-    .from(sessionResults)
-    .where(eq(sessionResults.sessionId, input.sessionId))
-    .get();
+  const existingResult = await tx.select({ id: sessionResults.id, eventIds: sessionResults.eventIds }).from(sessionResults).where(eq(sessionResults.sessionId, input.sessionId)).get();
 
   const existingRows = await tx
     .select()
@@ -748,14 +643,9 @@ async function replaceReplayableSessionArtifactsInTransaction(
   await assertSessionOwnership(tx, events);
   const resultingEventIds = new Set<RaceEventId>([...retained.map((event) => event.eventId), ...events.map((event) => event.eventId)]);
   assertProjectedResult(input.result, resultingEventIds);
-  const repairedResultEventIds =
-    existingResult?.eventIds.filter((eventId) => resultingEventIds.has(eventId)) ?? [];
+  const repairedResultEventIds = existingResult?.eventIds.filter((eventId) => resultingEventIds.has(eventId)) ?? [];
   const replacedPitTargets = existing
-    .filter(
-      (event): event is RaceEvent & { lapNumber: number } =>
-        (event.eventType === "pit_entry" || event.eventType === "pit_exit") &&
-        event.lapNumber != null,
-    )
+    .filter((event): event is RaceEvent & { lapNumber: number } => (event.eventType === "pit_entry" || event.eventType === "pit_exit") && event.lapNumber != null)
     .map(({ sessionId, lapNumber }) => ({ sessionId, lapNumber }));
   const runArtifacts = validateReplacementRunArtifacts(input, resultingEventIds);
   const existingRunRows = await tx
@@ -768,20 +658,12 @@ async function replaceReplayableSessionArtifactsInTransaction(
     .from(sessionRuns)
     .where(eq(sessionRuns.sessionId, input.sessionId))
     .all();
-  const existingRunById = new Map(
-    existingRunRows.map((row) => [row.runId, row] as const),
-  );
+  const existingRunById = new Map(existingRunRows.map((row) => [row.runId, row] as const));
   for (const run of runArtifacts.runs) {
     const previous = existingRunById.get(run.runId);
     if (!previous || previous.contentHash === run.contentHash) continue;
-    const replacingPriorGeneration =
-      previous.analysisGenerationId != null &&
-      run.analysisGenerationId != null &&
-      previous.analysisGenerationId !== run.analysisGenerationId;
-    if (
-      previous.algorithmVersion === run.algorithmVersion &&
-      !replacingPriorGeneration
-    ) {
+    const replacingPriorGeneration = previous.analysisGenerationId != null && run.analysisGenerationId != null && previous.analysisGenerationId !== run.analysisGenerationId;
+    if (previous.algorithmVersion === run.algorithmVersion && !replacingPriorGeneration) {
       throw new SessionRunConflictError(run.runId);
     }
     conflictCount += 1;
@@ -804,11 +686,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
   const lapIdsByNumber = new Map<number, number>();
   const lapIdsByReplacedId = new Map<number, number>();
   if (input.laps === undefined) {
-    const preservedLaps = await tx
-      .select({ id: laps.id, lapNumber: laps.lapNumber })
-      .from(laps)
-      .where(eq(laps.sessionId, input.sessionId))
-      .all();
+    const preservedLaps = await tx.select({ id: laps.id, lapNumber: laps.lapNumber }).from(laps).where(eq(laps.sessionId, input.sessionId)).all();
     for (const lap of preservedLaps) {
       lapIdsByNumber.set(lap.lapNumber, lap.id);
     }
@@ -846,10 +724,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
     if (input.laps === undefined) return event;
     return {
       ...event,
-      lapId:
-        event.participantKind === "player" && event.lapNumber != null
-          ? (lapIdsByNumber.get(event.lapNumber) ?? null)
-          : null,
+      lapId: event.participantKind === "player" && event.lapNumber != null ? (lapIdsByNumber.get(event.lapNumber) ?? null) : null,
     };
   });
   if (remappedEvents.length > 0) await insertRaceEventRows(tx, remappedEvents);
@@ -858,42 +733,23 @@ async function replaceReplayableSessionArtifactsInTransaction(
 
   const now = new Date().toISOString();
   const remappedMemberships = runArtifacts.memberships.map((membership) => {
-    const membershipEvent =
-      proposedById.get(membership.lapEventId) ??
-      retainedById.get(membership.lapEventId);
+    const membershipEvent = proposedById.get(membership.lapEventId) ?? retainedById.get(membership.lapEventId);
     return {
       ...membership,
-      lapId:
-        membershipEvent?.participantKind === "player"
-          ? (lapIdsByNumber.get(membership.lapNumber) ?? null)
-          : null,
+      lapId: membershipEvent?.participantKind === "player" ? (lapIdsByNumber.get(membership.lapNumber) ?? null) : null,
     };
   });
-  const lapIdByEventId = new Map(
-    remappedMemberships.map((membership) => [
-      membership.lapEventId,
-      membership.lapId,
-    ] as const),
-  );
+  const lapIdByEventId = new Map(remappedMemberships.map((membership) => [membership.lapEventId, membership.lapId] as const));
   const remappedRuns = runArtifacts.runs.map((run) => ({
     ...run,
-    startLapId:
-      run.startLapEventId == null
-        ? null
-        : (lapIdByEventId.get(run.startLapEventId) ?? null),
-    endLapId:
-      run.endLapEventId == null
-        ? null
-        : (lapIdByEventId.get(run.endLapEventId) ?? null),
+    startLapId: run.startLapEventId == null ? null : (lapIdByEventId.get(run.startLapEventId) ?? null),
+    endLapId: run.endLapEventId == null ? null : (lapIdByEventId.get(run.endLapEventId) ?? null),
   }));
-  const insertedRuns = await appendSessionRunArtifactsInTransaction(
-    tx,
-    {
-      runs: remappedRuns,
-      memberships: remappedMemberships,
-      evidence: runArtifacts.evidence,
-    },
-  );
+  const insertedRuns = await appendSessionRunArtifactsInTransaction(tx, {
+    runs: remappedRuns,
+    memberships: remappedMemberships,
+    evidence: runArtifacts.evidence,
+  });
   if (input.result) {
     const values = { ...input.result, sessionId: input.sessionId, updatedAt: now };
     if (existingResult) {
@@ -901,16 +757,8 @@ async function replaceReplayableSessionArtifactsInTransaction(
     } else {
       await tx.insert(sessionResults).values(values).run();
     }
-  } else if (
-    existingResult &&
-    (repairedResultEventIds.length !== existingResult.eventIds.length ||
-      repairedResultEventIds.some((eventId, index) => eventId !== existingResult.eventIds[index]))
-  ) {
-    await tx
-      .update(sessionResults)
-      .set({ eventIds: repairedResultEventIds, updatedAt: now })
-      .where(eq(sessionResults.id, existingResult.id))
-      .run();
+  } else if (existingResult && (repairedResultEventIds.length !== existingResult.eventIds.length || repairedResultEventIds.some((eventId, index) => eventId !== existingResult.eventIds[index]))) {
+    await tx.update(sessionResults).set({ eventIds: repairedResultEventIds, updatedAt: now }).where(eq(sessionResults.id, existingResult.id)).run();
   }
 
   const persistedRows =
@@ -943,24 +791,15 @@ async function replaceReplayableSessionArtifactsInTransaction(
  * and storage diagnostics survive replacement; every other timeline fact is
  * validated before destructive work starts and replaced in one transaction.
  */
-export function replaceReplayableSessionArtifacts(
-  input: ReplaceReplayableSessionArtifactsInput,
-  transaction?: DbTransaction,
-): Promise<ReplaceReplayableSessionArtifactsResult> {
+export function replaceReplayableSessionArtifacts(input: ReplaceReplayableSessionArtifactsInput, transaction?: DbTransaction): Promise<ReplaceReplayableSessionArtifactsResult> {
   const validatedEvents = validateEvents(input.events);
   assertReplacementOrder(validatedEvents);
   const events = deduplicateEvents(validatedEvents);
   assertReplacementLaps(input.laps);
   if (transaction) {
-    return replaceReplayableSessionArtifactsInTransaction(
-      transaction,
-      input,
-      events,
-    );
+    return replaceReplayableSessionArtifactsInTransaction(transaction, input, events);
   }
-  return db.transaction((tx) =>
-    replaceReplayableSessionArtifactsInTransaction(tx, input, events),
-  );
+  return db.transaction((tx) => replaceReplayableSessionArtifactsInTransaction(tx, input, events));
 }
 
 async function finalizeRaceEventSourceGenerationInTransaction(tx: DbTransaction, sessionId: number, sourceGeneration: string): Promise<number> {
@@ -975,15 +814,7 @@ async function finalizeRaceEventSourceGenerationInTransaction(tx: DbTransaction,
   await tx
     .update(sessionRuns)
     .set({ sourceGeneration })
-    .where(
-      and(
-        eq(sessionRuns.sessionId, sessionId),
-        or(
-          isNull(sessionRuns.sourceGeneration),
-          like(sessionRuns.sourceGeneration, "provisional:%"),
-        ),
-      ),
-    )
+    .where(and(eq(sessionRuns.sessionId, sessionId), or(isNull(sessionRuns.sourceGeneration), like(sessionRuns.sourceGeneration, "provisional:%"))))
     .run();
   return Number(result.rowsAffected ?? 0);
 }

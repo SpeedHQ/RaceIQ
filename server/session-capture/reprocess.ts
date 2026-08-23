@@ -3,10 +3,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { GameId } from "../../shared/games/ids";
 import { AnalysisProvenanceReceiptSchema, type AnalysisProvenanceReceipt } from "../../shared/racing/provenance/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { SemanticTelemetrySample } from "../../shared/telemetry/replay/contracts";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS } from "../../shared/racing/analysis/laps/semantic-frame";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import {
-  RaceEventsReplacedMessageSchema,
-} from "../../shared/racing/events/contracts";
+import { RaceEventsReplacedMessageSchema } from "../../shared/racing/events/contracts";
 import { SessionRunsReplacedMessageSchema } from "../../shared/racing/runs/contracts";
 import {
   LOCAL_PLAYER_EVIDENCE,
@@ -16,52 +16,32 @@ import {
   type SourceChannelProfile,
   type SourceLifecycleEvidence,
 } from "../../shared/racing/quality/contracts";
-import {
-  activateAnalysisGeneration,
-  beginAnalysisGeneration,
-  failAnalysisGeneration,
-  getActiveAnalysisReceipt,
-  type AnalysisReceiptRow,
-  type DbTransaction,
-} from "../db/analysis-receipt-queries";
+import { activateAnalysisGeneration, beginAnalysisGeneration, failAnalysisGeneration, getActiveAnalysisReceipt, type AnalysisReceiptRow, type DbTransaction } from "../db/analysis-receipt-queries";
 import { db } from "../db";
 import { getActiveVerifiedCanonicalArchive } from "../db/canonical-archive-queries";
 import { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";
 import { getLapsForSession, type ReprocessingLapRow } from "../db/lap-reprocessing-queries";
 import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
-import {
-  replaceReplayableSessionArtifacts,
-  type RaceEventResultProjection,
-  type ReplayableLapReplacement,
-} from "../db/race-event-queries";
+import { replaceReplayableSessionArtifacts, type RaceEventResultProjection, type ReplayableLapReplacement } from "../db/race-event-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { canonicalArchiveNodes, canonicalArchives, sessions } from "../db/schema";
-import {
-  updateSessionQuality,
-  updateSessionRawFile,
-} from "../db/session-queries";
+import { updateSessionQuality, updateSessionRawFile } from "../db/session-queries";
+import { LiveTelemetryProjector } from "../telemetry/live-projector";
+import { computeLapSectors } from "../lap-analysis/sectors";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
+import { rebuildCompletedSessionFindings } from "../findings/session-finalization";
 
 import { deriveRaceResult, normalizeSessionType } from "../race-results/derive";
-import {
-  buildSessionRunsFromTimeline,
-  rebuildRaceEventTimeline,
-  type RebuiltRaceEventTimeline,
-} from "../race-events/rebuild";
+import { buildSessionRunsFromTimeline, rebuildRaceEventTimeline, type RebuiltRaceEventTimeline } from "../race-events/rebuild";
 import { getServerGame } from "../games/registry";
+import type { RaceEventObservation } from "../games/types";
+import { applyRaceEventSemanticProjection, RaceEventSemanticProjector } from "../race-events/semantic-projector";
+
 import type { LapDetectorCallbacks } from "../lap-detection/types";
 import { wsManager } from "../runtime/websocket-manager";
-import {
-  gunzipBuffer,
-  iterateSessionFrameRecords,
-  readFrameStreamStart,
-} from "./framing";
-import {
-  inspectRawCaptureIdentity,
-  rawCaptureObjectId,
-  sha256ContentHash,
-} from "./identity";
+import { gunzipBuffer, iterateSessionFrameRecords, readFrameStreamStart } from "./framing";
+import { inspectRawCaptureIdentity, rawCaptureObjectId, sha256ContentHash } from "./identity";
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
@@ -69,9 +49,10 @@ import { createPersistedSessionAnalysisReceipt, validateCanonicalArchiveReceipt 
 import { RaceEventCoordinator } from "../race-events/coordinator";
 import { CanonicalPacketHasher } from "../race-results/canonical-input";
 import { RaceSourceAccumulator } from "../race-results/source";
-import { packetSequences, SourceSequenceTracker, type SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
+import { packetSequences, SourceSequenceTracker } from "../../shared/telemetry/source-sequence";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
+import { CapturingDbAdapter } from "../telemetry/pipeline-ports";
+import { currentTelemetryVersionIdentity } from "../telemetry/version-identity";
 
 interface ReprocessResult {
   sessionId: number;
@@ -131,7 +112,6 @@ interface LoadedCanonicalRebuildInput {
   evidence: CanonicalArchiveEvidence;
 }
 
-
 async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Promise<LoadedCanonicalRebuildInput> {
   const archive = await getActiveVerifiedCanonicalArchive(sessionId, { verifyOutput: true });
   if (!archive || archive.status !== "verified" || archive.completeness !== "complete" || !archive.outputContentHash || archive.byteSize == null) {
@@ -146,11 +126,7 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
     throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt failed verification");
   }
   const archiveOutput = archiveReceipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
-  if (
-    archiveReceipt.evidence.objectId !== archive.archiveId
-    || archiveReceipt.evidence.contentHash !== archive.outputContentHash
-    || archiveOutput?.contentHash !== archive.outputContentHash
-  ) {
+  if (archiveReceipt.evidence.objectId !== archive.archiveId || archiveReceipt.evidence.contentHash !== archive.outputContentHash || archiveOutput?.contentHash !== archive.outputContentHash) {
     throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt does not match durable archive");
   }
   if (archiveReceipt.context.gameId !== gameId || archive.context.gameId !== gameId) {
@@ -160,16 +136,10 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
   try {
     rows = await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount);
   } catch (error) {
-    throw new SessionCanonicalArchiveUnavailableError(
-      sessionId,
-      `archive read failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, `archive read failed: ${error instanceof Error ? error.message : String(error)}`);
   }
   if (rows.length !== archive.sampleCount) {
-    throw new SessionCanonicalArchiveUnavailableError(
-      sessionId,
-      `archive sample count mismatch: expected ${archive.sampleCount}, got ${rows.length}`,
-    );
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, `archive sample count mismatch: expected ${archive.sampleCount}, got ${rows.length}`);
   }
   const packets: TelemetryPacket[] = [];
   for (const row of rows) {
@@ -187,6 +157,10 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
   if (packets.length === 0) {
     throw new SessionCanonicalArchiveUnavailableError(sessionId, "archive contains zero telemetry samples");
   }
+  const canonicalInventory = archiveReceipt.canonicalInventory;
+  if (!canonicalInventory) {
+    throw new SessionCanonicalArchiveUnavailableError(sessionId, "archive receipt has no canonical inventory");
+  }
   return {
     packets,
     sourceContentHash: archive.outputContentHash,
@@ -203,7 +177,7 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
     evidence: {
       archiveId: archive.archiveId,
       byteSize: archive.byteSize,
-      canonicalInventory: archiveReceipt.canonicalInventory!,
+      canonicalInventory,
       originalSourceKind: archiveReceipt.evidence.originalSourceKind,
       outputContentHash: archive.outputContentHash,
       schemaVersion: archive.schemaVersion,
@@ -211,10 +185,7 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
   };
 }
 
-function canonicalSessionAnalysisReceipt(
-  receipt: AnalysisProvenanceReceipt,
-  evidence: CanonicalArchiveEvidence,
-): AnalysisProvenanceReceipt {
+function canonicalSessionAnalysisReceipt(receipt: AnalysisProvenanceReceipt, evidence: CanonicalArchiveEvidence): AnalysisProvenanceReceipt {
   return AnalysisProvenanceReceiptSchema.parse({
     ...receipt,
     evidence: {
@@ -238,11 +209,7 @@ function canonicalSessionAnalysisReceipt(
       unavailableArtifacts: [],
       limitations: ["Canonical telemetry cannot exactly re-decode game-native source frames"],
     },
-    verification: receipt.verification.map((check) =>
-      check.id === "source_hash"
-        ? { id: "source_hash", status: "passed", details: "Verified canonical archive output hash recorded" }
-        : check,
-    ),
+    verification: receipt.verification.map((check) => (check.id === "source_hash" ? { id: "source_hash", status: "passed", details: "Verified canonical archive output hash recorded" } : check)),
   });
 }
 
@@ -256,35 +223,39 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
     analysisGenerationId: input.analysisGenerationId,
     validationMode: "rebuild",
   });
-  const recordingQuality = new RecordingQualityAccumulator(
-    "canonical-archive",
-    input.participant,
-    input.versionIdentity,
-  );
+  const recordingQuality = new RecordingQualityAccumulator("canonical-archive", input.participant, input.versionIdentity);
   const sourceSequence = new SourceSequenceTracker();
-  const lifecycle = [...input.sourceLifecycle].sort(
-    (left, right) => left.timestampMs - right.timestampMs || (left.eventId ?? "").localeCompare(right.eventId ?? ""),
-  );
+  const lifecycle = [...input.sourceLifecycle].sort((left, right) => left.timestampMs - right.timestampMs || (left.eventId ?? "").localeCompare(right.eventId ?? ""));
   let lifecycleIndex = 0;
   let sessionStarted = false;
-  let pendingSourceSequences: SourceSequenceObservation[] = [];
+  const semanticProjector = new RaceEventSemanticProjector();
+  const telemetryProjector = new LiveTelemetryProjector([...CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS, "timing.sector.layout.start-fractions"]);
+  const semanticSamplesByPacket = new WeakMap<TelemetryPacket, SemanticTelemetrySample>();
+  let pendingObservation: RaceEventObservation | null = null;
+  const latestPlayerPosition = { value: null as number | null };
+
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
       if (sessionStarted) throw new Error("Canonical rebuild contains multiple detected session boundaries");
+      const observation = pendingObservation;
+      if (!observation) {
+        throw new Error("Canonical rebuild session start has no projected observation");
+      }
       sessionStarted = true;
       coordinator.bindSession(input.sessionId, {
         reason: context.reason,
-        observation: adapter.toRaceEventObservation(context.packet, {
-          receivedAtMs: context.packet.TimestampMS,
-          sourceSequences: pendingSourceSequences,
-        }),
+        observation,
       });
     },
     onSessionEnd: async (_session, context) => {
       if (context.reason !== "stream-ended") coordinator.endSession(context);
     },
     onLapEvaluated: async (event, context) => {
-      const lastPacket = event.packets.at(-1);
+      const samples = event.packets.flatMap((packet) => {
+        const sample = semanticSamplesByPacket.get(packet);
+        return sample ? [sample] : [];
+      });
+      event.sectors = await computeLapSectors(context.session.trackOrdinal, context.session.gameId, samples, event.lapTime);
       coordinator.noteLapEvaluated({
         lapNumber: context.lapNumber,
         lapTimeMs: Number.isFinite(event.lapTime) ? event.lapTime * 1_000 : null,
@@ -293,10 +264,7 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
         conditions: event.conditions,
         invalidReason: event.quality.invalidReason,
         sectors: event.sectors,
-        position:
-          lastPacket && Number.isInteger(lastPacket.RacePosition) && lastPacket.RacePosition > 0
-            ? lastPacket.RacePosition
-            : null,
+        position: latestPlayerPosition.value,
         rawBoundaryOrdinal: event.packets.length,
       });
     },
@@ -304,10 +272,8 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
   const detector = adapter.createLapDetector({
     db,
     lapTimelineContext: {
-      classificationForLap: (_sessionId, lapNumber) =>
-        coordinator.classificationForLap(input.sessionId, lapNumber),
-      eventIdsForLap: (_sessionId, lapNumber) =>
-        coordinator.eventIdsForLap(input.sessionId, lapNumber),
+      classificationForLap: (_sessionId, lapNumber) => coordinator.classificationForLap(input.sessionId, lapNumber),
+      eventIdsForLap: (_sessionId, lapNumber) => coordinator.eventIdsForLap(input.sessionId, lapNumber),
     },
     callbacks,
     bypassPacketRateFilter: true,
@@ -320,29 +286,44 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
   const canonicalHasher = new CanonicalPacketHasher();
   const packets: TelemetryPacket[] = [];
   for (const packet of input.packets) {
-    while (lifecycleIndex < lifecycle.length && lifecycle[lifecycleIndex]!.timestampMs <= packet.TimestampMS) {
-      const evidence = lifecycle[lifecycleIndex++]!;
-      if (evidence.kind === "reconnect") sourceSequence.markDiscontinuity();
+    const resolvedTelemetry = telemetryProjector.resolve(packet, packet.TimestampMS);
+    semanticSamplesByPacket.set(packet, resolvedTelemetry.sample);
+    while (true) {
+      const evidence = lifecycle[lifecycleIndex];
+      if (!evidence || evidence.timestampMs > packet.TimestampMS) break;
+      lifecycleIndex += 1;
+      if (evidence.kind === "reconnect") {
+        sourceSequence.markDiscontinuity();
+        semanticProjector.resetSourceState();
+      }
       recordingQuality.noteSourceLifecycle(evidence);
       coordinator.noteSourceLifecycle(evidence, input.sessionId);
     }
     const sourceSequences = packetSequences(packet);
-    pendingSourceSequences = sourceSequences;
     const sequenceEvidence = sourceSequence.observe(packet, sourceSequences);
-    const preflight = coordinator.preflight(
-      adapter.toRaceEventObservation(packet, {
-        receivedAtMs: packet.TimestampMS,
-        sourceSequences,
-      }),
-      {
-        sourceSequenceBoundaries: sequenceEvidence.boundaries,
-        sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
-      },
-    );
+    const observationContext = {
+      receivedAtMs: packet.TimestampMS,
+      sourceSequences,
+      semantic: semanticProjector.project(packet, packet.TimestampMS),
+    };
+    const observation = applyRaceEventSemanticProjection(adapter.toRaceEventObservation(packet, observationContext), observationContext.semantic, resolvedTelemetry.sample);
+    pendingObservation = observation;
+    latestPlayerPosition.value = null;
+    for (const participant of observation.participants) {
+      if (participant.participantKind !== "player") continue;
+      if (typeof participant.position === "number" && Number.isInteger(participant.position) && participant.position > 0) {
+        latestPlayerPosition.value = participant.position;
+      }
+      break;
+    }
+    const preflight = coordinator.preflight(observation, {
+      sourceSequenceBoundaries: sequenceEvidence.boundaries,
+      sourceSequenceGapCandidates: sequenceEvidence.gapCandidates,
+    });
     recordingQuality.observe(packet, sourceSequences);
     packets.push(packet);
     canonicalHasher.update(packet);
-    resultSource.observe(packet);
+    resultSource.observe(observation);
     if (!preflight.accepted) {
       coordinator.processPreflight(preflight);
       continue;
@@ -350,8 +331,10 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
     await detector.feed(packet);
     coordinator.processPreflight(preflight);
   }
-  while (lifecycleIndex < lifecycle.length) {
-    const evidence = lifecycle[lifecycleIndex++]!;
+  while (true) {
+    const evidence = lifecycle[lifecycleIndex];
+    if (!evidence) break;
+    lifecycleIndex += 1;
     if (evidence.kind === "reconnect") sourceSequence.markDiscontinuity();
     recordingQuality.noteSourceLifecycle(evidence);
     coordinator.noteSourceLifecycle(evidence, input.sessionId);
@@ -380,19 +363,12 @@ async function rebuildCanonicalRaceEventTimeline(input: CanonicalRebuildInput): 
   };
 }
 
-function retainedLifecycleEvidence(
-  quality: (typeof sessions.$inferSelect)["recordingQuality"],
-): SourceLifecycleEvidence[] {
+function retainedLifecycleEvidence(quality: (typeof sessions.$inferSelect)["recordingQuality"]): SourceLifecycleEvidence[] {
   if (!quality) return [];
   const evidence: SourceLifecycleEvidence[] = [];
   for (const fact of quality.facts) {
     const lifecycleEvent = fact.details?.lifecycleEvent;
-    const kind =
-      fact.code === "source_reconnect" && lifecycleEvent === "reconnect"
-        ? "reconnect"
-        : fact.code === "timeline_discontinuity" && lifecycleEvent === "timeout"
-          ? "timeout"
-          : null;
+    const kind = fact.code === "source_reconnect" && lifecycleEvent === "reconnect" ? "reconnect" : fact.code === "timeline_discontinuity" && lifecycleEvent === "timeout" ? "timeout" : null;
     const timestampMs = fact.timeRange?.startMs;
     if (!kind || timestampMs == null) continue;
     evidence.push({
@@ -405,11 +381,7 @@ function retainedLifecycleEvidence(
   return evidence;
 }
 
-function replacementLaps(
-  detected: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>["laps"],
-  existing: ReprocessingLapRow[],
-  analysisGenerationId: string,
-): ReplayableLapReplacement[] {
+function replacementLaps(detected: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>["laps"], existing: ReprocessingLapRow[], analysisGenerationId: string): ReplayableLapReplacement[] {
   const candidates = new Map<number, ReprocessingLapRow[]>();
   for (const lap of existing) {
     const values = candidates.get(lap.lapNumber);
@@ -460,47 +432,34 @@ interface CanonicalArchiveLapLink {
   lapId: number | null;
 }
 
-async function canonicalArchiveLapLinks(
-  sessionId: number,
-  existing: readonly ReprocessingLapRow[],
-  tx: DbTransaction,
-): Promise<CanonicalArchiveLapLink[]> {
+async function canonicalArchiveLapLinks(sessionId: number, existing: readonly ReprocessingLapRow[], tx: DbTransaction): Promise<CanonicalArchiveLapLink[]> {
   if (existing.length === 0) return [];
   return tx
     .select({ nodeId: canonicalArchiveNodes.nodeId, lapId: canonicalArchiveNodes.lapId })
     .from(canonicalArchiveNodes)
     .innerJoin(canonicalArchives, eq(canonicalArchiveNodes.archiveId, canonicalArchives.archiveId))
-    .where(and(
-      eq(canonicalArchives.sessionId, sessionId),
-      eq(canonicalArchiveNodes.level, "lap"),
-      inArray(canonicalArchiveNodes.lapId, existing.map((lap) => lap.id)),
-    ))
+    .where(
+      and(
+        eq(canonicalArchives.sessionId, sessionId),
+        eq(canonicalArchiveNodes.level, "lap"),
+        inArray(
+          canonicalArchiveNodes.lapId,
+          existing.map((lap) => lap.id),
+        ),
+      ),
+    )
     .all();
 }
 
-async function relinkCanonicalArchiveLaps(
-  links: readonly CanonicalArchiveLapLink[],
-  replacementsByOldLapId: ReadonlyMap<number, number>,
-  tx: DbTransaction,
-): Promise<void> {
+async function relinkCanonicalArchiveLaps(links: readonly CanonicalArchiveLapLink[], replacementsByOldLapId: ReadonlyMap<number, number>, tx: DbTransaction): Promise<void> {
   for (const link of links) {
     const replacementId = link.lapId == null ? undefined : replacementsByOldLapId.get(link.lapId);
     if (replacementId == null) continue;
-    await tx
-      .update(canonicalArchiveNodes)
-      .set({ lapId: replacementId })
-      .where(eq(canonicalArchiveNodes.nodeId, link.nodeId))
-      .run();
+    await tx.update(canonicalArchiveNodes).set({ lapId: replacementId }).where(eq(canonicalArchiveNodes.nodeId, link.nodeId)).run();
   }
 }
 
-function resultProjection(
-  sessionId: number,
-  sessionType: string | null,
-  rebuilt: RebuiltRaceEventTimeline,
-  rawContentHash: string | null,
-  analysisGenerationId: string,
-): RaceEventResultProjection {
+function resultProjection(sessionId: number, sessionType: string | null, rebuilt: RebuiltRaceEventTimeline, rawContentHash: string | null, analysisGenerationId: string): RaceEventResultProjection {
   const source = rebuilt.raceSource;
   if (sessionType) {
     if (!source.sessionType) {
@@ -513,16 +472,22 @@ function resultProjection(
   const derived = deriveRaceResult(source, rebuilt.events);
   derived.provenance = {
     ...derived.provenance,
-    rawInput: rawContentHash == null ? null : {
-      objectId: rawCaptureObjectId(sessionId),
-      contentHash: rawContentHash,
-    },
-    canonicalInput: rebuilt.canonicalContentHash == null ? null : {
-      sessionId: String(sessionId),
-      firstSequence: 0,
-      lastSequence: rebuilt.packetCount - 1,
-      contentHash: rebuilt.canonicalContentHash,
-    },
+    rawInput:
+      rawContentHash == null
+        ? null
+        : {
+            objectId: rawCaptureObjectId(sessionId),
+            contentHash: rawContentHash,
+          },
+    canonicalInput:
+      rebuilt.canonicalContentHash == null
+        ? null
+        : {
+            sessionId: String(sessionId),
+            firstSequence: 0,
+            lastSequence: rebuilt.packetCount - 1,
+            contentHash: rebuilt.canonicalContentHash,
+          },
   };
   return {
     processorVersion: RACE_RESULT_PROCESSOR_ID,
@@ -546,7 +511,6 @@ function resultProjection(
 
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult & { analysisGenerationId: string }> {
   let attempt: AnalysisReceiptRow | null = null;
-  let result: RaceEventResultProjection | null = null;
   let existingLaps: ReprocessingLapRow[] = [];
   let rebuiltLaps = 0;
   let strategy: ReprocessResult["strategy"] = "replace";
@@ -585,13 +549,14 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           const bytes = rawFile.endsWith(".gz") ? await gunzipBuffer(stored) : stored;
           const frameStreamStart = readFrameStreamStart(bytes);
           rawContentHash = sha256ContentHash(bytes);
-          attempt = await beginAnalysisGeneration({
+          const rawAttempt = await beginAnalysisGeneration({
             sessionId,
             artifactSetType: "session_analysis",
             sourceContentHash: rawContentHash,
             contractHash: contract.contractHash,
             configurationHash: contract.configurationHash,
           });
+          attempt = rawAttempt;
           const sourceVerification = session.recordingQuality?.archiveVerification ?? {
             state: "verified" as const,
             sourceGeneration: rawContentHash,
@@ -609,7 +574,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           })();
           rebuilt = await rebuildRaceEventTimeline({
             sessionId,
-            analysisGenerationId: attempt.generationId,
+            analysisGenerationId: rawAttempt.generationId,
             gameId,
             frames,
             sourceKind: (session.source as EvidenceSourceKind | null) ?? "unknown",
@@ -617,9 +582,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
             versionIdentity,
             ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
             sourceVerification,
-            ...(session.recordingQuality?.transportVerification
-              ? { transportVerification: session.recordingQuality.transportVerification }
-              : {}),
+            ...(session.recordingQuality?.transportVerification ? { transportVerification: session.recordingQuality.transportVerification } : {}),
             sourceLifecycle,
           });
         }
@@ -640,16 +603,17 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           throw error;
         }
         canonicalEvidence = canonical.evidence;
-        attempt = await beginAnalysisGeneration({
+        const canonicalAttempt = await beginAnalysisGeneration({
           sessionId,
           artifactSetType: "session_analysis",
           sourceContentHash: canonical.sourceContentHash,
           contractHash: contract.contractHash,
           configurationHash: contract.configurationHash,
         });
+        attempt = canonicalAttempt;
         rebuilt = await rebuildCanonicalRaceEventTimeline({
           sessionId,
-          analysisGenerationId: attempt.generationId,
+          analysisGenerationId: canonicalAttempt.generationId,
           gameId,
           packets: canonical.packets,
           participant,
@@ -662,33 +626,36 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         });
       }
       if (!attempt || !rebuilt) throw new Error("No source evidence available for analysis rebuild");
+      const activeAttempt = attempt;
+      const rebuiltTimeline = rebuilt;
       existingLaps = await getLapsForSession(sessionId);
-      const laps = replacementLaps(rebuilt.laps, existingLaps, attempt.generationId);
-      strategy = rebuilt.laps.length === existingLaps.length ? "in-place" : "replace";
-      const mergedQuality = mergeReprocessedRecordingQuality(session.recordingQuality, rebuilt.recordingQuality);
-      result = resultProjection(sessionId, session.sessionType, rebuilt, rawContentHash, attempt.generationId);
-      rebuiltLaps = rebuilt.laps.length;
+      const laps = replacementLaps(rebuiltTimeline.laps, existingLaps, activeAttempt.generationId);
+      strategy = rebuiltTimeline.laps.length === existingLaps.length ? "in-place" : "replace";
+      const mergedQuality = mergeReprocessedRecordingQuality(session.recordingQuality, rebuiltTimeline.recordingQuality);
+      const projectedResult = resultProjection(sessionId, session.sessionType, rebuiltTimeline, rawContentHash, activeAttempt.generationId);
+      rebuiltLaps = rebuiltTimeline.laps.length;
 
       await db.transaction(async (tx) => {
         const archiveLapLinks = await canonicalArchiveLapLinks(sessionId, existingLaps, tx);
         const replacedArtifacts = await replaceReplayableSessionArtifacts(
           {
             sessionId,
-            events: rebuilt.events,
-            runs: rebuilt.runs,
-            memberships: rebuilt.memberships,
-            evidence: rebuilt.evidence,
+            events: rebuiltTimeline.events,
+            runs: rebuiltTimeline.runs,
+            memberships: rebuiltTimeline.memberships,
+            evidence: rebuiltTimeline.evidence,
             laps,
-            result: result!,
+            result: projectedResult,
           },
           tx,
         );
         await relinkCanonicalArchiveLaps(archiveLapLinks, replacedArtifacts.lapIdsByReplacedId, tx);
         if (rawFile && rawContentHash) {
-          await updateSessionRawFile(sessionId, rawFile, rebuilt.detectorId, versionIdentity, tx);
+          await updateSessionRawFile(sessionId, rawFile, rebuiltTimeline.detectorId, versionIdentity, tx);
         } else {
-          await tx.update(sessions)
-            .set({ lapDetectorVersion: rebuilt.detectorId, ...versionIdentity })
+          await tx
+            .update(sessions)
+            .set({ lapDetectorVersion: rebuiltTimeline.detectorId, ...versionIdentity })
             .where(eq(sessions.id, sessionId))
             .run();
         }
@@ -701,25 +668,21 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
             throw new Error("Raw source changed during analysis rebuild");
           }
         }
-        const persistedReceipt = await createPersistedSessionAnalysisReceipt(attempt!, gameId, tx);
-        const receipt = canonicalEvidence
-          ? canonicalSessionAnalysisReceipt(persistedReceipt, canonicalEvidence)
-          : persistedReceipt;
-        await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
+        const persistedReceipt = await createPersistedSessionAnalysisReceipt(activeAttempt, gameId, tx);
+        const receipt = canonicalEvidence ? canonicalSessionAnalysisReceipt(persistedReceipt, canonicalEvidence) : persistedReceipt;
+        await activateAnalysisGeneration({ generationId: activeAttempt.generationId, receipt }, tx);
       });
-      return attempt!;
+      for (const lap of existingLaps) cacheDelete(lap.id);
+      await rebuildCompletedSessionFindings(sessionId, gameId);
+      return { attempt: activeAttempt, result: projectedResult };
     });
-    for (const lap of existingLaps) cacheDelete(lap.id);
-    wsManager.broadcastNotification(
-      RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
-    );
-    wsManager.broadcastNotification(
-      SessionRunsReplacedMessageSchema.parse({ type: "session-runs-replaced", sessionId }),
-    );
+    const raceResult = outcome.result;
+    wsManager.broadcastNotification(RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }));
+    wsManager.broadcastNotification(SessionRunsReplacedMessageSchema.parse({ type: "session-runs-replaced", sessionId }));
     wsManager.broadcastNotification({
       type: "race-result-reconciled",
       sessionId,
-      status: result!.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
+      status: raceResult.outcomeStatus === "confirmed" ? "enriched" : "ambiguous",
     });
     wsManager.broadcastNotification({ type: "quality-updated", sessionId, qualityGeneration });
     return {
@@ -727,31 +690,32 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       lapsDetected: rebuiltLaps,
       lapsUpdated: rebuiltLaps,
       strategy,
-      analysisGenerationId: outcome.generationId,
+      analysisGenerationId: outcome.attempt.generationId,
     };
   } catch (error) {
     const failedGenerationId = (attempt as AnalysisReceiptRow | null)?.generationId;
     if (failedGenerationId) {
       try {
         await failAnalysisGeneration(failedGenerationId, {
-          code: error instanceof SessionRawFileMissingError || error instanceof SessionCanonicalArchiveUnavailableError
-            ? "source_unavailable"
-            : error instanceof Error && error.message.includes("Raw source changed")
-              ? "source_hash_changed"
-              : error instanceof Error && error.message.includes("verification")
-                ? "output_verification_failed"
-                : error instanceof Error && (error.message.includes("activation") || error.message.includes("receipt"))
-                  ? "activation_failed"
-                  : "build_failed",
-          message: error instanceof Error && error.message.includes("Raw source changed")
-            ? "Raw source changed during analysis rebuild"
-            : "Analysis rebuild failed before activation",
+          code:
+            error instanceof SessionRawFileMissingError || error instanceof SessionCanonicalArchiveUnavailableError
+              ? "source_unavailable"
+              : error instanceof Error && error.message.includes("Raw source changed")
+                ? "source_hash_changed"
+                : error instanceof Error && error.message.includes("verification")
+                  ? "output_verification_failed"
+                  : error instanceof Error && (error.message.includes("activation") || error.message.includes("receipt"))
+                    ? "activation_failed"
+                    : "build_failed",
+          message: error instanceof Error && error.message.includes("Raw source changed") ? "Raw source changed during analysis rebuild" : "Analysis rebuild failed before activation",
           failedAt: new Date().toISOString(),
-          checks: [{
-            id: "source_hash",
-            status: error instanceof Error && error.message.includes("Raw source changed") ? "failed" : "not_applicable",
-            details: "Analysis rebuild did not activate a verified receipt",
-          }],
+          checks: [
+            {
+              id: "source_hash",
+              status: error instanceof Error && error.message.includes("Raw source changed") ? "failed" : "not_applicable",
+              details: "Analysis rebuild did not activate a verified receipt",
+            },
+          ],
         });
       } catch {
         // Preserve original rebuild error; failure recording is best effort.

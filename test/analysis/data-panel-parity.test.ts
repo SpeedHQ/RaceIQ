@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getFuelDisplaySemantic } from "../../shared/games/telemetry";
-import { semanticWheelDynamics, steerBalanceFromSignals } from "../../shared/racing/analysis/laps/physics/vehicle";
+import { steerBalanceFromSignals, wheelDynamicsFrame } from "../../shared/racing/analysis/laps/physics/vehicle";
 
 describe("semantic Analyse panel parity", () => {
   test("formats fraction fuel as percentage", () => {
@@ -20,7 +20,7 @@ describe("semantic Analyse panel parity", () => {
   });
 
   test("semantic wheel dynamics preserves idle and lockup states", () => {
-    const states = semanticWheelDynamics({
+    const states = wheelDynamicsFrame({
       speedMps: 12,
       steer: 0,
       wheelRotationRadS: { fl: 0, fr: 0, rl: 36, rr: 36 },
@@ -29,7 +29,7 @@ describe("semantic Analyse panel parity", () => {
     expect(states.fl.state).toBe("lockup");
     expect(states.fr.state).toBe("lockup");
 
-    const idle = semanticWheelDynamics({
+    const idle = wheelDynamicsFrame({
       speedMps: 0.5,
       steer: 0,
       wheelRotationRadS: { fl: 0, fr: 0, rl: 0, rr: 0 },
@@ -45,6 +45,7 @@ describe("semantic Analyse panel parity", () => {
       yawRate: 0.2,
       slipAngles: [0.18, 0.18, 0.04, 0.04],
     });
+    if (balance === null) throw new Error("Expected valid semantic balance signals");
     expect(balance.state).toBe("understeer");
   });
 });

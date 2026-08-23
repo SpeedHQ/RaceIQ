@@ -1,11 +1,34 @@
 import { describe, expect, test } from "bun:test";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { GAME_RACE_EVENT_DERIVATIONS } from "../../../server/games/race-event-derivations";
 import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
 import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
 import { TELEMETRY_DERIVATION_VERSION } from "../../../shared/telemetry/derivations/builtins";
 import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../../shared/telemetry/resolver/versions";
 import { packet } from "../../support/telemetry/resolver";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+
+type IRacingExtension = NonNullable<TelemetryPacket["iracing"]>;
+
+function iracingExtension(overrides: Partial<IRacingExtension> = {}): IRacingExtension {
+  return {
+    sessionTick: 1,
+    sessionNum: 0,
+    driverCarIdx: 0,
+    trackLengthM: 0,
+    lapDistanceM: 0,
+    lapDistancePct: 0,
+    onPitRoad: false,
+    playerTrackSurface: 0,
+    incidents: 0,
+    trackWetness: 0,
+    carName: "",
+    carClassName: "",
+    trackName: "",
+    ...overrides,
+  };
+}
 
 describe("compiled telemetry resolver", () => {
   test("compiles normalized packet fields for every supported simulator", () => {
@@ -31,6 +54,27 @@ describe("compiled telemetry resolver", () => {
       });
       expect(resolver.derivationVersion).toBe(TELEMETRY_DERIVATION_VERSION);
     }
+  });
+  test("includes selected game derivation code identity", () => {
+    const derivation = GAME_RACE_EVENT_DERIVATIONS["f1-2025"].derivations[0]!;
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [{ semanticId: "motion.speed" }],
+      derivations: [derivation],
+    });
+    const changed = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: [{ semanticId: "motion.speed" }],
+      derivations: [
+        {
+          ...derivation,
+          codeHash: `sha256:${"a".repeat(64)}`,
+        },
+      ],
+    });
+
+    expect(resolver.derivationVersion).toContain(`${derivation.id}@${derivation.version}:${derivation.codeHash}`);
+    expect(changed.derivationVersion).not.toBe(resolver.derivationVersion);
   });
 
   test("uses normalized packet values without running a derivation DAG", () => {
@@ -115,6 +159,29 @@ describe("compiled telemetry resolver", () => {
       state: "ok",
     });
   });
+  test("accepts source-ordered variable arrays at their runtime length", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "timing.sector.layout.start-fractions" }],
+    });
+    const slot = resolver.slot("timing.sector.layout.start-fractions");
+    const frame = resolver.createFrameView(
+      packet("iracing", {
+        iracing: iracingExtension({
+          sectorStarts: [0, 0.34, 0.67],
+        }),
+      }),
+      {
+        timestamp: { domain: "session", milliseconds: 1_000 },
+        updateSequence: 1n,
+      },
+    );
+
+    expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
+      value: [0, 0.34, 0.67],
+      state: "ok",
+    });
+  });
 
   test("reuses one frame view without retaining per-frame values", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
@@ -177,6 +244,47 @@ describe("compiled telemetry resolver", () => {
         sourceObservation: {
           timestamp: { domain: "session", milliseconds: 1_000 },
           updateSequence: 1n,
+        },
+      },
+    });
+  });
+
+  test("reobserves an unchanged pit snapshot after a source epoch reset", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+    });
+    const slot = resolver.slot("tire.temperature.carcass.average");
+    const snapshot = {
+      TireCarcassTempFL: 80,
+      TireCarcassTempFR: 81,
+      TireCarcassTempRL: 82,
+      TireCarcassTempRR: 83,
+    };
+    const first = resolver.createFrameView(packet("iracing", snapshot), {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    first.resetSourceState();
+
+    const reconnected = resolver.createFrameView(
+      packet("iracing", snapshot),
+      {
+        timestamp: { domain: "session", milliseconds: 2_000 },
+        updateSequence: 2n,
+      },
+      first,
+    );
+
+    expect(reconnected.resolveValue(slot)).toMatchObject({
+      value: [80, 81, 82, 83],
+      state: "ok",
+      freshness: "fresh",
+      provenance: {
+        sourceObservation: {
+          timestamp: { domain: "session", milliseconds: 2_000 },
+          updateSequence: 2n,
         },
       },
     });

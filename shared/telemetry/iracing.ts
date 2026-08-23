@@ -1,6 +1,13 @@
 export interface IRacingExtendedData {
   sessionTick: number;
   sessionNum: number;
+  sessionFlags?: number;
+  sessionState?: number;
+  PlayerCarInPitStall?: boolean;
+  PlayerCarPitSvStatus?: number;
+  TireSetsUsed?: number;
+  PitRepairLeft?: number;
+  PitOptRepairLeft?: number;
   driverCarIdx: number;
   trackLengthM: number;
   lapDistanceM: number;

@@ -19,17 +19,20 @@ import { describe, test, expect } from "bun:test";
 import {
   parseThreadGeneration,
   generationThreadId,
+  MAX_THREAD_GENERATION,
   listThreadGenerations,
   resolveActiveThread,
   chatMemoryOptions,
+  chatThreadId,
+  compareChatThreadId,
+  parseCompareChatThreadId,
 } from "../../../server/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);
   return {
     threads,
-    getThreadById: async ({ threadId }: { threadId: string }) =>
-      threads.has(threadId) ? { id: threadId } : null,
+    getThreadById: async ({ threadId }: { threadId: string }) => (threads.has(threadId) ? { id: threadId } : null),
   };
 }
 
@@ -54,6 +57,11 @@ describe("parseThreadGeneration", () => {
   test("malformed suffix (non-integer, or < 2) falls back to gen 1 on the whole id", () => {
     expect(parseThreadGeneration("lap-42~gX")).toEqual({ base: "lap-42~gX", gen: 1 });
     expect(parseThreadGeneration("lap-42~g1")).toEqual({ base: "lap-42~g1", gen: 1 });
+  });
+  test("rejects non-canonical practical overflow", () => {
+    const overflow = `lap-42~g${MAX_THREAD_GENERATION + 1}`;
+    expect(parseThreadGeneration(overflow)).toEqual({ base: overflow, gen: 1 });
+    expect(() => generationThreadId("lap-42", MAX_THREAD_GENERATION + 1)).toThrow();
   });
 });
 
@@ -105,5 +113,40 @@ describe("chatMemoryOptions", () => {
     expect(chatMemoryOptions("compare-5-6")).toEqual({
       memory: { thread: "compare-5-6", resource: "raceiq" },
     });
+  });
+});
+
+describe("chatThreadId", () => {
+  test("isolates lap chat by quality and finding receipt identity", () => {
+    const qualityIdentity = "policy-1:quality-generation-1";
+    const findingGenerationIdentity = "sha256:finding-generation-1-content-a";
+    const identity = `${qualityIdentity}:${findingGenerationIdentity}`;
+    const original = chatThreadId(5, identity);
+    expect(chatThreadId(5, identity)).toBe(original);
+    expect(chatThreadId(5, `${qualityIdentity}:sha256:finding-generation-2-content-a`)).not.toBe(original);
+    expect(chatThreadId(5, `${qualityIdentity}:sha256:finding-generation-1-content-b`)).not.toBe(original);
+    expect(chatThreadId(5, `policy-1:quality-generation-2:${findingGenerationIdentity}`)).not.toBe(original);
+    expect(original).toMatch(/^lap-5~q[0-9a-f]{64}$/);
+    expect(original).not.toContain(identity);
+    expect(parseThreadGeneration(generationThreadId(original, 3))).toEqual({ base: original, gen: 3 });
+  });
+});
+
+describe("compareChatThreadId", () => {
+  test("isolates chat history by quality, ordered finding receipt identity, and lap direction", () => {
+    const qualityIdentity = "policy-1:quality-generation-1";
+    const findingGenerationIdentity = "sha256:ordered-findings-a-b";
+    const identity = `${qualityIdentity}:${findingGenerationIdentity}`;
+    const original = compareChatThreadId(5, 6, identity);
+    const reverse = compareChatThreadId(6, 5, identity);
+    expect(reverse).not.toBe(original);
+    expect(compareChatThreadId(5, 6, `${qualityIdentity}:sha256:ordered-findings-a2-b`)).not.toBe(original);
+    expect(compareChatThreadId(5, 6, `${qualityIdentity}:sha256:ordered-findings-a-b2`)).not.toBe(original);
+    expect(compareChatThreadId(5, 6, `policy-1:quality-generation-2:${findingGenerationIdentity}`)).not.toBe(original);
+    expect(parseCompareChatThreadId(generationThreadId(original, 2))).toEqual([5, 6]);
+    expect(parseCompareChatThreadId(generationThreadId(reverse, 2))).toEqual([6, 5]);
+    expect(original).toMatch(/^compare-5-6~q[0-9a-f]{64}$/);
+    expect(original).not.toContain(identity);
+    expect(parseThreadGeneration(generationThreadId(original, 2))).toEqual({ base: original, gen: 2 });
   });
 });

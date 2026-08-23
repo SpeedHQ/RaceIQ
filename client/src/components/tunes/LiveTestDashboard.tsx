@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber } from "../analyse/track-map/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
@@ -12,26 +12,36 @@ import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
 
-function packetToSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
-    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
-    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.steer": packet.Steer, "inputs.gear": packet.Gear,
-    "timing.distance-traveled": packet.DistanceTraveled, "timing.current-lap": packet.CurrentLap,
-    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
-  }, states: {}, freshness: {} };
-}
-
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": view.identity.trackOrdinal, "identity.car-ordinal": view.identity.carOrdinal,
-    "motion.position-x": view.motion.position?.x, "motion.position-z": view.motion.position?.z, "motion.speed": view.motion.speedMps,
-    "motion.yaw": view.motion.attitude?.yaw, "motion.pitch": view.motion.attitude?.pitch, "motion.roll": view.motion.attitude?.roll,
-    "inputs.accel": view.inputs.throttle, "inputs.brake": view.inputs.brake, "inputs.steer": view.inputs.steer, "inputs.gear": view.inputs.gear,
-    "timing.distance-traveled": view.motion.distanceM, "timing.current-lap": view.timing.currentLapS,
-    "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
-  }, states: {}, freshness: {} };
+  const temperature = view.tires.temperatureC;
+  const pressure = view.tires.pressurePsi;
+  const brakeTemperature = view.tires.brakeTemperatureC;
+  const wear = view.tires.wear;
+  return {
+    values: {
+      "identity.track-ordinal": view.identity.trackOrdinal,
+      "identity.car-ordinal": view.identity.carOrdinal,
+      "motion.position-x": view.motion.position?.x,
+      "motion.position-z": view.motion.position?.z,
+      "motion.speed": view.motion.speedMps,
+      "motion.yaw": view.motion.attitude?.yaw,
+      "motion.pitch": view.motion.attitude?.pitch,
+      "motion.roll": view.motion.attitude?.roll,
+      "inputs.accel": view.inputs.throttle,
+      "inputs.brake": view.inputs.brake,
+      "inputs.steer": view.inputs.steer,
+      "inputs.gear": view.inputs.gear,
+      "timing.distance-traveled": view.motion.distanceM,
+      "timing.current-lap": view.timing.currentLapS,
+      "tire.temperature.average": temperature && [temperature.fl, temperature.fr, temperature.rl, temperature.rr],
+      "tires.tire-pressure": pressure && [pressure.fl, pressure.fr, pressure.rl, pressure.rr],
+      "brakes.brake-temp": brakeTemperature && [brakeTemperature.fl, brakeTemperature.fr, brakeTemperature.rl, brakeTemperature.rr],
+      "tires.tire-wear": wear && [wear.fl, wear.fr, wear.rl, wear.rr],
+      "fuel.amount": view.fuel.amount,
+    },
+    states: view.stateBySemanticId,
+    freshness: {},
+  };
 }
 
 const MAX_LIVE_TRACE = 5000;
@@ -70,19 +80,8 @@ export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null |
  * clicked "Start Test" in ExperimentWorkspace; that parent owns the
  * Start/End Test buttons.
  */
-export function LiveTestDashboard({
-  gameId,
-  trackOrdinal,
-  initialTrace,
-}: {
-  gameId: ExperimentGameId;
-  trackOrdinal: number | null;
-  /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
-  initialTrace?: TelemetryPacket[];
-}) {
+export function LiveTestDashboard({ gameId, trackOrdinal }: { gameId: ExperimentGameId; trackOrdinal: number | null }) {
   const telemetryView = useTelemetryStore((s) => s.telemetryView);
-  const packet = initialTrace?.[initialTrace.length - 1] ?? null;
-  const rawPacket = packet;
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
 
@@ -93,31 +92,31 @@ export function LiveTestDashboard({
   const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
   const [mapZoom, setMapZoom] = useState(1);
 
-  // Live driving line for the current in-progress lap: append each new packet,
+  // Live driving line for current in-progress lap: append each semantic view,
   // reset when a new lap starts. Capped defensively for very long laps.
-  const [rawTrace, setRawTrace] = useState<TelemetryPacket[]>(() => initialTrace ?? []);
-  const semanticInitialTrace = useMemo(() => (initialTrace ?? []).map(packetToSemanticFrame), [initialTrace]);
-  const [liveTrace, setLiveTrace] = useState<SemanticAnalysisFrame[]>(() => semanticInitialTrace);
-  const lastRawRef = useRef<TelemetryPacket | null>(null);
-  const semanticTrace = useMemo(() => {
-    if (telemetryView) return [viewToSemanticFrame(telemetryView)];
-    return liveTrace;
-  }, [liveTrace, telemetryView]);
-  const currentFrame = semanticTrace.at(-1) ?? null;
+  const [liveTrace, setLiveTrace] = useState<SemanticAnalysisFrame[]>([]);
+  const lastFrameRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!rawPacket || rawPacket === lastRawRef.current) return;
-    setRawTrace((prev) => {
-      const next = rawPacket.CurrentLap < (prev.at(-1)?.CurrentLap ?? 0) ? [rawPacket] : [...prev, rawPacket];
+    if (!telemetryView) {
+      lastFrameRef.current = null;
+      return;
+    }
+    const frameKey = `${telemetryView.streamId}:${telemetryView.sequence}`;
+    if (frameKey === lastFrameRef.current) return;
+    lastFrameRef.current = frameKey;
+    const frame = viewToSemanticFrame(telemetryView);
+    setLiveTrace((previous) => {
+      const previousLap = previous.length ? semanticNumber(previous.at(-1), "timing.current-lap") : null;
+      const currentLap = semanticNumber(frame, "timing.current-lap");
+      const reset = previousLap != null && currentLap != null && currentLap < previousLap;
+      const next = reset ? [frame] : [...previous, frame];
       return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
     });
-    setLiveTrace((prev) => {
-      if (prev.length && rawPacket.CurrentLap < Number(prev.at(-1)?.values["timing.current-lap"] ?? 0)) return [packetToSemanticFrame(rawPacket)];
-      const next = [...prev, packetToSemanticFrame(rawPacket)];
-      return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
-    });
-  }, [rawPacket]);
+  }, [telemetryView]);
 
-  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? telemetryView?.identity.trackOrdinal ?? rawPacket?.TrackOrdinal ?? null;
+  const semanticTrace = liveTrace;
+  const currentFrame = semanticTrace.at(-1) ?? null;
+  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? telemetryView?.identity.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -158,7 +157,7 @@ export function LiveTestDashboard({
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
-          <LiveLapInfo sectors={sectors} currentLap={telemetryView?.timing.currentLapS ?? packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
+          <LiveLapInfo sectors={sectors} currentLap={telemetryView?.timing.currentLapS ?? null} totalLaps={sessionLaps.length} />
         </div>
         <div className="h-full min-h-0">
           <LiveIssuesFeed />
@@ -170,13 +169,13 @@ export function LiveTestDashboard({
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
-          <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={rawPacket?.LapNumber ?? null} maxLaps={30} />
+          <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={telemetryView?.timing.lapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
-          <CurrentLapTireStrip telemetry={rawTrace} />
+          <CurrentLapTireStrip telemetry={semanticTrace} />
         </div>
       </div>
     </div>

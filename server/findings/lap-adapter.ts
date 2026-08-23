@@ -11,11 +11,7 @@ import type {
   FindingSeverity,
   FindingStatus,
 } from "../../shared/racing/findings/types";
-import {
-  EVIDENCE_TRUNCATED_LIMITATION_CODE,
-  FINDING_SCHEMA_VERSION,
-  MAX_FINDING_REPRESENTATIVE_RANGES,
-} from "../../shared/racing/findings/types";
+import { EVIDENCE_TRUNCATED_LIMITATION_CODE, FINDING_SCHEMA_VERSION, MAX_FINDING_REPRESENTATIVE_RANGES } from "../../shared/racing/findings/types";
 import { createFindingId } from "../../shared/racing/findings/identity";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { LapQualityResult } from "../lap-analysis/quality";
@@ -66,44 +62,26 @@ function confidenceFor(status: FindingStatus): FindingConfidence {
   return status === "available" ? "high" : "unknown";
 }
 
-function rangeEvidence(
-  sessionId: string,
-  lapId: string,
-  range: LapTelemetryRange | undefined,
-  id: string,
-): FindingEvidenceRef[] {
-  if (!range || (
-    range.startFrameIndex == null &&
-    range.endFrameIndex == null &&
-    range.startTimestampMs == null &&
-    range.endTimestampMs == null
-  )) return [];
-  return [{
-    kind: "telemetry-range",
-    id,
-    sessionId,
-    lapId,
-    ...(range.startFrameIndex == null ? {} : { startFrameIndex: range.startFrameIndex }),
-    ...(range.endFrameIndex == null ? {} : { endFrameIndex: range.endFrameIndex }),
-    ...(range.startTimestampMs == null ? {} : { startTimestampMs: range.startTimestampMs }),
-    ...(range.endTimestampMs == null ? {} : { endTimestampMs: range.endTimestampMs }),
-  }];
+function rangeEvidence(sessionId: string, lapId: string, range: LapTelemetryRange | undefined, id: string): FindingEvidenceRef[] {
+  if (!range || (range.startFrameIndex == null && range.endFrameIndex == null && range.startTimestampMs == null && range.endTimestampMs == null)) return [];
+  return [
+    {
+      kind: "telemetry-range",
+      id,
+      sessionId,
+      lapId,
+      ...(range.startFrameIndex == null ? {} : { startFrameIndex: range.startFrameIndex }),
+      ...(range.endFrameIndex == null ? {} : { endFrameIndex: range.endFrameIndex }),
+      ...(range.startTimestampMs == null ? {} : { startTimestampMs: range.startTimestampMs }),
+      ...(range.endTimestampMs == null ? {} : { endTimestampMs: range.endTimestampMs }),
+    },
+  ];
 }
 
-function boundedFrameEvidence(
-  sessionId: string,
-  lapId: string,
-  eventId: string,
-  frameIndices: readonly number[],
-): { references: FindingEvidenceRef[]; totalRanges: number } {
+function boundedFrameEvidence(sessionId: string, lapId: string, eventId: string, frameIndices: readonly number[]): { references: FindingEvidenceRef[]; totalRanges: number } {
   if (frameIndices.length <= MAX_FINDING_REPRESENTATIVE_RANGES) {
     return {
-      references: frameIndices.flatMap((frameIndex) => rangeEvidence(
-        sessionId,
-        lapId,
-        { startFrameIndex: frameIndex, endFrameIndex: frameIndex },
-        `range:${eventId}:frame:${frameIndex}`,
-      )),
+      references: frameIndices.flatMap((frameIndex) => rangeEvidence(sessionId, lapId, { startFrameIndex: frameIndex, endFrameIndex: frameIndex }, `range:${eventId}:frame:${frameIndex}`)),
       totalRanges: frameIndices.length,
     };
   }
@@ -116,12 +94,7 @@ function boundedFrameEvidence(
   const retainRange = () => {
     totalRanges += 1;
     if (references.length >= MAX_FINDING_REPRESENTATIVE_RANGES) return;
-    references.push(...rangeEvidence(
-      sessionId,
-      lapId,
-      { startFrameIndex: rangeStart, endFrameIndex: rangeEnd },
-      `range:${eventId}:frames:${rangeStart}-${rangeEnd}`,
-    ));
+    references.push(...rangeEvidence(sessionId, lapId, { startFrameIndex: rangeStart, endFrameIndex: rangeEnd }, `range:${eventId}:frames:${rangeStart}-${rangeEnd}`));
   };
   for (let index = 1; index < sorted.length; index += 1) {
     const frameIndex = sorted[index]!;
@@ -137,13 +110,9 @@ function boundedFrameEvidence(
   return { references, totalRanges };
 }
 
-export function createLapQualityEvidence(
-  sessionId: string,
-  lapId: string,
-  quality: LapQualityResult,
-): FindingEvidenceRef {
+export function createLapQualityEvidence(sessionId: string, lapId: string, quality: LapQualityResult): FindingEvidenceRef {
   const decision = quality.valid ? "valid" : "suppressed";
-  const reasonCode = quality.reason == null ? "none" : QUALITY_REASON_CODE[quality.reason] ?? "rejected";
+  const reasonCode = quality.reason == null ? "none" : (QUALITY_REASON_CODE[quality.reason] ?? "rejected");
   const decisionId = `quality:${lapId}:${decision}:${reasonCode}`;
   return {
     kind: "quality-decision",
@@ -160,22 +129,23 @@ export function adaptLapInsightsToFindingBundle(context: LapInsightsFindingConte
   const generation = context.analysisGenerationId ?? DEFAULT_GENERATION;
   const ruleVersion = String(context.ruleVersion ?? "1");
   const lapEvidence: FindingEvidenceRef = { kind: "lap", id: `lap:${lapId}`, lapId, sessionId };
-  const qualityRef = context.quality && !context.quality.valid
-    ? createLapQualityEvidence(sessionId, lapId, context.quality)
-    : undefined;
+  const qualityRef = context.quality && !context.quality.valid ? createLapQualityEvidence(sessionId, lapId, context.quality) : undefined;
   const output: FindingRecord[] = [];
   const narratives: FindingNarrative[] = [];
 
   for (const insight of context.insights) {
     const frameIndices = [...new Set(insight.frameIndices.filter((frame) => Number.isInteger(frame) && frame >= 0))];
     const eventId = `event:${lapId}:${insight.id}`;
-    const evidenceRefs: FindingEvidenceRef[] = [lapEvidence, {
-      kind: "event",
-      id: eventId,
-      eventId,
-      sessionId,
-      semanticIds: [`finding.lap-insight.${insight.id}`],
-    }];
+    const evidenceRefs: FindingEvidenceRef[] = [
+      lapEvidence,
+      {
+        kind: "event",
+        id: eventId,
+        eventId,
+        sessionId,
+        semanticIds: [`finding.lap-insight.${insight.id}`],
+      },
+    ];
     const frameEvidence = boundedFrameEvidence(sessionId, lapId, eventId, frameIndices);
     if (frameEvidence.references.length > 0) {
       evidenceRefs.push(...frameEvidence.references);
@@ -201,25 +171,32 @@ export function adaptLapInsightsToFindingBundle(context: LapInsightsFindingConte
       });
     }
     const occurrenceCount = Math.max(1, frameIndices.length);
-    const measurements = [{
-      id: `${eventId}:occurrence-count`,
-      type: "occurrence-count",
-      value: occurrenceCount,
-      unit: "count",
-      sampleCount: occurrenceCount,
-      confidence: confidenceFor(status),
-      semanticIds: [`finding.lap-insight.${insight.id}`],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    }, ...(insight.timeLossS == null ? [] : [{
-      id: `${eventId}:time-loss`,
-      type: "time-loss",
-      value: insight.timeLossS,
-      unit: "s",
-      sampleCount: occurrenceCount,
-      confidence: confidenceFor(status),
-      semanticIds: ["timing.time-loss"],
-      derivation: { id: RULE_ID, version: ruleVersion },
-    }])];
+    const measurements = [
+      {
+        id: `${eventId}:occurrence-count`,
+        type: "occurrence-count",
+        value: occurrenceCount,
+        unit: "count",
+        sampleCount: occurrenceCount,
+        confidence: confidenceFor(status),
+        semanticIds: [`finding.lap-insight.${insight.id}`],
+        derivation: { id: RULE_ID, version: ruleVersion },
+      },
+      ...(insight.timeLossS == null
+        ? []
+        : [
+            {
+              id: `${eventId}:time-loss`,
+              type: "time-loss",
+              value: insight.timeLossS,
+              unit: "s",
+              sampleCount: occurrenceCount,
+              confidence: confidenceFor(status),
+              semanticIds: [],
+              derivation: { id: RULE_ID, version: ruleVersion },
+            },
+          ]),
+    ];
     const inputs: Record<string, CanonicalJson> = {
       insightId: insight.id,
       detectorCategory: insight.category,
@@ -273,16 +250,18 @@ export function adaptLapInsightsToFindingBundle(context: LapInsightsFindingConte
       status: "available",
       severity: "high",
       confidence: "high",
-      measurements: [{
-        id: `quality:${lapId}:valid`,
-        type: "quality-valid",
-        value: false,
-        unit: "boolean",
-        sampleCount: 1,
-        confidence: "high",
-        semanticIds: ["quality.lap-recording"],
-        derivation: { id: QUALITY_RULE_ID, version: ruleVersion },
-      }],
+      measurements: [
+        {
+          id: `quality:${lapId}:valid`,
+          type: "quality-valid",
+          value: false,
+          unit: "boolean",
+          sampleCount: 1,
+          confidence: "high",
+          semanticIds: ["quality.lap-recording"],
+          derivation: { id: QUALITY_RULE_ID, version: ruleVersion },
+        },
+      ],
       evidenceRefs,
       qualityRefs: [qualityRef],
       limitations: [{ code: "quality-rejected", detail: context.quality.reason ?? "lap recording quality rejected" }],

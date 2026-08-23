@@ -51,6 +51,12 @@ export interface StreamAgentTurnOptions {
   abortSignal?: AbortSignal;
   /** Patch streamed reasoning back into the saved assistant row. Default true. */
   persistReasoning?: boolean;
+  /**
+   * Revalidate the request's finding receipt after provider output completes.
+   * When supplied, output stays buffered until this fence passes, preventing
+   * stale provider output from reaching clients or memory.
+   */
+  validateReceiptFence?: () => Promise<boolean>;
 }
 
 export async function persistAssistantTurnToMemory(
@@ -67,7 +73,9 @@ export async function persistAssistantTurnToMemory(
   if (!parts.length) return;
 
   for (let attempt = 0; attempt < 40; attempt++) {
+    if (abortSignal?.aborted) return;
     const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    if (abortSignal?.aborted) return;
     const target =
       raw.find((message) => message.role === "assistant" && message.id === responseMessage.id) ??
       [...raw].reverse().find((message) => {
@@ -81,6 +89,7 @@ export async function persistAssistantTurnToMemory(
         ...(usage ? { usage } : {}),
         ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
       };
+      if (abortSignal?.aborted) return;
       await memory.saveMessages({
         messages: [{
           ...target,
@@ -102,7 +111,6 @@ export async function persistAssistantTurnToMemory(
     setTimeout(resolve, 50);
     await promise;
   }
-  throw new Error(`Failed to persist assistant turn ${String(responseMessage?.id ?? "unknown")} in thread ${threadId}`);
 }
 
 export async function restoreOriginalUserMessage(
@@ -110,6 +118,7 @@ export async function restoreOriginalUserMessage(
   memory: AgentTurnMemory,
   threadId: string,
   turnStartedAt = 0,
+  abortSignal?: AbortSignal,
 ): Promise<void> {
   const original = [...(originalMessages as any[])].reverse().find((message) => message.role === "user") as any;
   if (!original?.id) return;
@@ -121,7 +130,9 @@ export async function restoreOriginalUserMessage(
   if (!text) return;
 
   for (let attempt = 0; attempt < 40; attempt++) {
+    if (abortSignal?.aborted) return;
     const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    if (abortSignal?.aborted) return;
     const target =
       raw.find((message) => message.role === "user" && message.id === original.id) ??
       [...raw].reverse().find((message) => {
@@ -130,6 +141,7 @@ export async function restoreOriginalUserMessage(
         return Number.isFinite(createdAt) && createdAt >= turnStartedAt;
       });
     if (target) {
+      if (abortSignal?.aborted) return;
       await memory.saveMessages({
         messages: [{
           ...target,
@@ -150,11 +162,10 @@ export async function restoreOriginalUserMessage(
 }
 
 /**
- * Build the raw UI-message-chunk stream for an agent turn: reasoning
- * forwarding, usage metadata, reasoning persistence. Shared by both the
- * plain HTTP-response path (`streamAgentTurnResponse`) and the detached
- * registry-backed path (`startDetachedAgentTurn`) — identical behavior
- * either way, only what consumes the resulting stream differs.
+ * Build a UI-message-chunk stream for an agent turn.
+ *
+ * Receipt-fenced turns buffer chunks until provider completion, then validate
+ * the request fence before exposing or persisting any provider output.
  */
 function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UIMessageChunk> {
   const {
@@ -164,23 +175,17 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
     threadId,
     turnStartedAt,
     persistReasoning = true,
+    validateReceiptFence,
   } = opts;
-
-  // Wall-clock span of the turn's thinking: first reasoning chunk → last one.
-  // Captured in the stream loop, read at finish (metadata) and onFinish (persist).
   let reasoningFirstTs = 0;
   let reasoningLastTs = 0;
   const reasoningDurationMs = () =>
     reasoningLastTs > reasoningFirstTs ? reasoningLastTs - reasoningFirstTs : 0;
-
-  // Final token usage off the stream's `finish` part — captured in
-  // messageMetadata below, persisted to memory in onFinish so the footer
-  // survives a refresh.
   let finishUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
+  let turnFenceValid = !validateReceiptFence;
   return createUIMessageStream({
-
     onFinish: async ({ responseMessage }) => {
-      if (opts.abortSignal?.aborted) return;
+      if (opts.abortSignal?.aborted || !turnFenceValid) return;
       if (persistReasoning) {
         await persistAssistantTurnToMemory(
           responseMessage as any,
@@ -192,9 +197,10 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
           opts.abortSignal,
         );
       }
-      await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
+      await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt, opts.abortSignal);
     },
     execute: async ({ writer }) => {
+      const buffered: UIMessageChunk[] = [];
       try {
         for await (const part of toAISdkStream(agentStream, {
           from: "agent",
@@ -214,6 +220,7 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
             };
           },
         })) {
+          if (opts.abortSignal?.aborted) return;
           if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
             const now = Date.now();
             if (reasoningFirstTs === 0) reasoningFirstTs = now;
@@ -224,9 +231,24 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
             typeof (part as { delta?: unknown }).delta === "string"
               ? { ...part, delta: stripThinkTags((part as { delta: string }).delta) }
               : part;
-          await writer.write(uiPart as Parameters<typeof writer.write>[0]);
+          if (validateReceiptFence) {
+            buffered.push(uiPart as UIMessageChunk);
+          } else {
+            await writer.write(uiPart as Parameters<typeof writer.write>[0]);
+          }
+        }
+        if (opts.abortSignal?.aborted) return;
+        if (validateReceiptFence) {
+          turnFenceValid = await validateReceiptFence();
+          if (opts.abortSignal?.aborted) return;
+          if (!turnFenceValid) throw new Error("Finding receipt changed during chat turn");
+          for (const part of buffered) {
+            if (opts.abortSignal?.aborted) return;
+            await writer.write(part as Parameters<typeof writer.write>[0]);
+          }
         }
       } catch (err) {
+        if (opts.abortSignal?.aborted) return;
         const aiError = toClientAiError(err);
         const promptTokens = aiError.upstream?.promptTokens;
         if (promptTokens != null) {

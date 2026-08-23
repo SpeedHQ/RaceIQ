@@ -1,6 +1,6 @@
 // test/ai/chat/compact-thread.test.ts
 import { describe, test, expect } from "bun:test";
-import { forkThreadWithSummary, NothingToCompactError, MIN_COMPACT_MESSAGES } from "../../../server/ai/compact-thread";
+import { forkThreadWithSummary, InvalidThreadGenerationError, NothingToCompactError, MIN_COMPACT_MESSAGES } from "../../../server/ai/compact-thread";
 
 // Minimal fake Mastra memory: enough surface for forkThreadWithSummary.
 // Tracks threads by id (so getThreadById/createThread behave like a real
@@ -44,6 +44,12 @@ describe("forkThreadWithSummary", () => {
     await expect(
       forkThreadWithSummary("t1", { memory, summarize: async () => "S" }),
     ).rejects.toBeInstanceOf(NothingToCompactError);
+  });
+  test("rejects huge generation suffix before memory probing", async () => {
+    const memory = makeFakeMemory(8) as unknown as NonNullable<Parameters<typeof forkThreadWithSummary>[1]>["memory"];
+    await expect(
+      forkThreadWithSummary("t1~g9007199254740992", { memory, summarize: async () => "SUMMARY" }),
+    ).rejects.toBeInstanceOf(InvalidThreadGenerationError);
   });
 
   test("forks into a new generation thread, leaves the parent intact, sets lineage metadata", async () => {

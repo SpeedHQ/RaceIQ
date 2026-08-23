@@ -1,26 +1,23 @@
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "../../../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 interface LapTimesProps {
   view?: LiveTelemetryView;
-  packet?: TelemetryPacket;
   sectors?: LiveSectorData | null;
 }
 
 /**
  * LapTimes — Reusable lap timing display showing current, last, best, and delta.
- * Works with any game - uses packet telemetry data.
+ * Works with any game - uses semantic live telemetry data.
  */
-export function LapTimes({ view, packet, sectors }: LapTimesProps) {
-  // Use semantic timing when available; historical packet fallback remains supported.
+export function LapTimes({ view, sectors }: LapTimesProps) {
   const timing = view?.timing;
   let deltaToBest = sectors?.deltaToBest ?? 0;
-  const lastLap = timing?.lastLapS ?? packet?.LastLap ?? 0;
-  const bestLap = timing?.bestLapS ?? packet?.BestLap ?? 0;
-  const currentLap = timing?.currentLapS ?? packet?.CurrentLap ?? 0;
+  const lastLap = timing?.lastLapS ?? 0;
+  const bestLap = timing?.bestLapS ?? 0;
+  const currentLap = timing?.currentLapS ?? 0;
   if (lastLap > 0 && bestLap > 0 && deltaToBest === 0) {
     deltaToBest = lastLap - bestLap;
   }

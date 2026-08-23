@@ -1,12 +1,12 @@
 import { deleteLap } from "./lap-mutation-queries";
-import { getLapById } from "./lap-read-queries";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
 import { analysisEligibility, currentQualitySnapshot } from "./lap-eligibility";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, raceEvents, lapAnalyses, compareAnalyses } from "./schema";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
-import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { SemanticTelemetryReplay } from "../../shared/telemetry/replay/contracts";
 import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
@@ -19,17 +19,29 @@ import {
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
 import { isTimedLapEligibilityUsable } from "../../shared/racing/quality/policies";
-import { tryGetGame } from "../../shared/games/registry";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from "../lap-analysis/quality-generation";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
+function isValidSectorStartLayout(value: unknown, sectorCount: number): value is readonly number[] {
+  if (!Array.isArray(value) || value.length !== sectorCount) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    const start = value[index];
+    const previousStart = index === 0 ? undefined : value[index - 1];
+    if (typeof start !== "number" || !Number.isFinite(start) || start < 0 || start >= 1 || (index === 0 ? start >= 1e-6 : typeof previousStart !== "number" || start <= previousStart)) {
+      return false;
+    }
+  }
+  return true;
+}
 export async function insertSession(
   carOrdinal: number,
   trackOrdinal: number,
@@ -49,15 +61,8 @@ export async function insertSession(
 }
 
 /** Stamp outputs while their receipt attempt is in progress. */
-export async function setSessionAnalysisGeneration(
-  sessionId: number,
-  analysisGenerationId: string,
-): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ analysisGenerationId })
-    .where(eq(sessions.id, sessionId))
-    .run();
+export async function setSessionAnalysisGeneration(sessionId: number, analysisGenerationId: string): Promise<void> {
+  await db.update(sessions).set({ analysisGenerationId }).where(eq(sessions.id, sessionId)).run();
 }
 
 const SESSION_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
@@ -109,8 +114,9 @@ function recordingFactsForLap(recordingQuality: RecordingQualitySummary, lapQual
     .filter((fact) => {
       if (!SESSION_LAP_FACT_CODES[fact.code]) return false;
       if (SESSION_WIDE_FACT_CODES[fact.code]) return true;
-      if (!fact.timeRange || !lapRange || !timeRangesOverlap(fact.timeRange, lapRange)) return !fact.timeRange || !lapRange;
-      if (LAP_MEASURED_FACT_CODES[fact.code] && lapQuality.facts.some((lapFact) => lapFact.code === fact.code && lapFact.timeRange && timeRangesOverlap(lapFact.timeRange, fact.timeRange!))) {
+      const factRange = fact.timeRange;
+      if (!factRange || !lapRange || !timeRangesOverlap(factRange, lapRange)) return !factRange || !lapRange;
+      if (LAP_MEASURED_FACT_CODES[fact.code] && lapQuality.facts.some((lapFact) => lapFact.code === fact.code && lapFact.timeRange && timeRangesOverlap(lapFact.timeRange, factRange))) {
         return false;
       }
       return true;
@@ -118,11 +124,7 @@ function recordingFactsForLap(recordingQuality: RecordingQualitySummary, lapQual
     .map((fact) => ({ ...fact, id: `session:${fact.id}` }));
 }
 
-export async function updateSessionQuality(
-  sessionId: number,
-  quality: RecordingQualitySummary,
-  transaction?: DbTransaction,
-): Promise<RecordingQualitySummary> {
+export async function updateSessionQuality(sessionId: number, quality: RecordingQualitySummary, transaction?: DbTransaction): Promise<RecordingQualitySummary> {
   const finalized = finalizeRecordingQualityGeneration(quality);
   const update = async (tx: DbTransaction) => {
     const lapRows = await tx
@@ -167,7 +169,7 @@ export async function updateSessionQuality(
       const generated = finalizeLapQualityGeneration(qualityWithSessionEvidence, finalized.provenance.sourceGeneration, {
         lapNumber: lap.lapNumber,
         rawByteOffset: lap.rawByteOffset,
-        rawFrameCount: lap.rawFrameCount ?? 0,
+        rawFrameCount: lap.rawFrameCount,
       });
       if (
         generated.quality.provenance.outputGeneration === lap.qualityGeneration &&
@@ -227,13 +229,7 @@ export async function updateSessionCarTrack(sessionId: number, carOrdinal: numbe
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
 
-export async function updateSessionRawFile(
-  sessionId: number,
-  rawFile: string,
-  lapDetectorVersion: string,
-  versionIdentity?: TelemetryVersionIdentity,
-  transaction?: DbTransaction,
-): Promise<void> {
+export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, versionIdentity?: TelemetryVersionIdentity, transaction?: DbTransaction): Promise<void> {
   const client = transaction ?? db;
   await client
     .update(sessions)
@@ -551,16 +547,23 @@ export async function getSessionRecapData(
     lapRows.find((lap) => isTimedLapEligibilityUsable(lap) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
 
   let sectorStarts: number[] | null = null;
-  const gameAdapter = tryGetGame(gameId);
-  if (gameAdapter?.nativeSectors && gameAdapter.getNativeSectorLayout && sessionSectorCount >= 2) {
+  if (sessionSectorCount >= 2) {
     for (const row of lapRows) {
       if (row.sectorTimes?.length !== sessionSectorCount) continue;
-      const lap = await getLapById(row.id);
-      const layout = lap?.telemetry.map((packet) => gameAdapter.getNativeSectorLayout!(packet)).find((candidate) => candidate?.starts.length === sessionSectorCount);
-      if (layout) {
-        sectorStarts = [...layout.starts];
+      let replay: SemanticTelemetryReplay | null;
+      try {
+        replay = await queryLapTelemetryBySemanticId(row.id, ["timing.sector.layout.start-fractions"]);
+      } catch {
+        continue;
+      }
+      if (!replay) continue;
+      for (const sample of semanticSamplesFromReplay(replay)) {
+        const layout = sample.values["timing.sector.layout.start-fractions"];
+        if (!isValidSectorStartLayout(layout, sessionSectorCount)) continue;
+        sectorStarts = [...layout];
         break;
       }
+      if (sectorStarts) break;
     }
   }
 
@@ -603,10 +606,12 @@ export async function getSessionRecapData(
     )
     .all();
   const allTimeBestSectors = otherSectorRows.reduce<Array<number | null>>((best, row) => {
-    if (row.sectorTimes?.length !== sessionSectorCount) return best;
-    for (let index = 0; index < (row.sectorTimes?.length ?? 0); index++) {
-      const time = row.sectorTimes![index];
-      if (time > 0 && (best[index] === undefined || best[index] === null || time < best[index]!)) {
+    const sectorTimes = row.sectorTimes;
+    if (!sectorTimes || sectorTimes.length !== sessionSectorCount) return best;
+    for (let index = 0; index < sectorTimes.length; index++) {
+      const time = sectorTimes[index];
+      const currentBest = best[index];
+      if (typeof time === "number" && time > 0 && (currentBest === undefined || currentBest === null || time < currentBest)) {
         best[index] = time;
       }
     }

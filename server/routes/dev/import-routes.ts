@@ -4,27 +4,21 @@ import { resolve } from "node:path";
 import { Hono } from "hono";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { getGame } from "../../../shared/games/registry";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
-import { parseAccBuffers } from "../../games/acc/parser";
 import { STATIC } from "../../games/acc/structs";
 import { readWString } from "../../games/acc/utils";
-import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/parser";
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
-import { readKunosFrames, type KunosRecordingFrame } from "../../games/kunos/frame-reader";
-import { getAllServerGames } from "../../games/registry";
+import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { tryGetServerGame } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
   ACEVO_PACKED_MAGIC,
   packTriplet,
 } from "../../games/kunos/pack-triplet";
-import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
-import { NullWsAdapter } from "../../telemetry/pipeline-ports";
+import { importSessionFrames } from "../../session-capture/import-pipeline";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
-import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
 
 import { MAX_RAW_CAPTURE_BUFFERED_BYTES, MAX_RAW_CAPTURE_EXPANDED_BYTES } from "../../session-capture/identity";
@@ -92,129 +86,98 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     let packetCount = 0;
     let carModel: string | null = null;
     let trackName: string | null = null;
-
-    const db = new ImportCaptureAdapter({ ownership: ownership.data });
-    const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
-      bypassPacketRateFilter: true,
-    });
     const start = Date.now();
 
-    if (gameId === "acc") {
-      let frames: KunosRecordingFrame[];
-      try {
-        frames = readKunosFrames(tmpPath);
-      } catch (e) {
-        return c.json({ error: "Failed to read ACC frames", details: String(e) }, 400);
-      }
-      let carOrdinal = 0;
-      let trackOrdinal = 0;
-      for (const frame of frames) {
-        if (carOrdinal === 0 || trackOrdinal === 0) {
-          const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-          const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-          if (cm) {
-            carModel = cm;
-            carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-          }
-          if (tn) {
-            trackName = tn;
-            trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-          }
-        }
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-          carOrdinal,
-          trackOrdinal,
-          timestampMS: frame.timestampMS,
-        });
-        if (!packet) continue;
-        const sourceFrame = packTriplet(
-          ACC_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? 0,
-          frame.physics,
-          frame.graphics,
-          frame.staticData,
-          packet.TimestampMS,
-        );
-        await pipeline.processPacket(packet, sourceFrame);
-        packetCount++;
-      }
-    } else if (gameId === "ac-evo") {
-      let frames: KunosRecordingFrame[];
-      try {
-        frames = readKunosFrames(tmpPath);
-      } catch (e) {
-        return c.json({ error: "Failed to read AC Evo frames", details: String(e) }, 400);
-      }
-      const cache = createAcEvoParserCache();
-      for (const frame of frames) {
-        if (!carModel && frame.graphics.length >= GRAPHICS_EVO.car_model.offset + GRAPHICS_EVO.car_model.size) {
-          const cm = readCString(frame.graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
-          if (cm) {
-            carModel = cm;
-            const car = getAcEvoCarByDisplayName(cm);
-            if (car) cache.carOrdinal = car.id;
-          }
-        }
-        if (!trackName && frame.staticData.length >= STATIC_EVO.track.offset + STATIC_EVO.track.size) {
-          const tn = readCString(frame.staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size);
-          if (tn) {
-            trackName = tn;
-            const track = getAcEvoTrackByName(tn);
-            if (track) cache.trackOrdinal = track.id;
-          }
-        }
-        const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache, frame.timestampMS);
-        if (!packet) continue;
-        const sourceFrame = packTriplet(
-          ACEVO_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? -1,
-          frame.physics,
-          frame.graphics,
-          frame.staticData,
-          packet.TimestampMS,
-        );
-        await pipeline.processPacket(packet, sourceFrame);
-        packetCount++;
-      }
-    } else {
-      const serverAdapter = getAllServerGames().find((a) => a.id === gameId);
-      if (!serverAdapter) {
-        return c.json({ error: `No server adapter for gameId ${gameId}` }, 400);
-      }
-      const parserState = serverAdapter.createParserState?.() ?? null;
-      const buffer = readFileSync(tmpPath);
-      let offset = 0;
-      while (offset + 4 <= buffer.length) {
-        const len = buffer.readUInt32LE(offset);
-        offset += 4;
-        if (offset + len > buffer.length) break;
-        const sourceFrame = buffer.slice(offset, offset + len);
-        const packet = serverAdapter.tryParse(sourceFrame, parserState);
-        if (packet) {
-          await pipeline.processPacket(packet, sourceFrame);
-          packetCount++;
-        }
-        offset += len;
-      }
+    if (!tryGetServerGame(gameId)) {
+      return c.json({ error: `No server adapter for gameId ${gameId}`, code: "NO_SERVER_ADAPTER" }, 400);
     }
 
+    let sourceFrames: Iterable<Buffer>;
+    if (gameId === "acc") {
+      let frames;
+      try {
+        frames = readKunosFrames(tmpPath);
+      } catch (error) {
+        return c.json({ error: "Failed to read ACC frames", details: String(error) }, 400);
+      }
+      sourceFrames = (function*() {
+        let carOrdinal = 0;
+        let trackOrdinal = 0;
+        for (const frame of frames) {
+          if (carOrdinal === 0 || trackOrdinal === 0) {
+            const car = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+            const track = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+            if (car) {
+              carModel = car;
+              carOrdinal = getAccCarByModel(car)?.id ?? 0;
+            }
+            if (track) {
+              trackName = track;
+              trackOrdinal = getAccTrackByName(track)?.id ?? 0;
+            }
+          }
+          yield packTriplet(
+            ACC_PACKED_MAGIC,
+            carOrdinal,
+            trackOrdinal,
+            frame.physics,
+            frame.graphics,
+            frame.staticData,
+            frame.timestampMS,
+          );
+        }
+      })();
+    } else if (gameId === "ac-evo") {
+      let frames;
+      try {
+        frames = readKunosFrames(tmpPath);
+      } catch (error) {
+        return c.json({ error: "Failed to read AC Evo frames", details: String(error) }, 400);
+      }
+      sourceFrames = (function*() {
+        for (const frame of frames) {
+          if (!carModel && frame.graphics.length >= GRAPHICS_EVO.car_model.offset + GRAPHICS_EVO.car_model.size) {
+            carModel = readCString(frame.graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size) || null;
+          }
+          if (!trackName && frame.staticData.length >= STATIC_EVO.track.offset + STATIC_EVO.track.size) {
+            trackName = readCString(frame.staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size) || null;
+          }
+          yield packTriplet(
+            ACEVO_PACKED_MAGIC,
+            0,
+            -1,
+            frame.physics,
+            frame.graphics,
+            frame.staticData,
+            frame.timestampMS,
+          );
+        }
+      })();
+    } else {
+      const buffer = readFileSync(tmpPath);
+      sourceFrames = (function*() {
+        let offset = 0;
+        while (offset < buffer.length) {
+          if (offset + 4 > buffer.length) throw new Error("Import frame length is truncated");
+          const length = buffer.readUInt32LE(offset);
+          offset += 4;
+          if (offset + length > buffer.length) throw new Error("Import frame payload is truncated");
+          yield buffer.subarray(offset, offset + length);
+          offset += length;
+        }
+      })();
+    }
+
+    const imported = await importSessionFrames(sourceFrames, gameId, {
+      ownership: ownership.data,
+      sourceKind: "raceiq-raw",
+    });
+    packetCount = imported.packetCount;
     if (packetCount === 0) {
       return c.json({ error: "No packets found in dump" }, 400);
     }
 
-    await pipeline.flushIncompleteLap();
-    await new Promise<void>((r) => setTimeout(r, 100));
     const elapsedMs = Date.now() - start;
-
-    try {
-      unlinkSync(tmpPath);
-      tmpPath = null;
-    } catch {
-      // Best-effort temp cleanup.
-    }
-
     const routePrefix = getGame(gameId).routePrefix;
 
     return c.json({
@@ -226,10 +189,15 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       carModel,
       trackName,
       elapsedMs,
-      laps: db.laps,
+      laps: imported.laps,
     });
   } catch (e) {
     console.error("[dev] import-dump failed:", e);
+    if (e instanceof ImportUploadLimitError) {
+      return c.json({ error: e.message }, 413);
+    }
+    return c.json({ error: "Import failed", details: String(e) }, 500);
+  } finally {
     if (tmpPath) {
       try {
         unlinkSync(tmpPath);
@@ -237,9 +205,5 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         // Best-effort temp cleanup.
       }
     }
-    if (e instanceof ImportUploadLimitError) {
-      return c.json({ error: e.message }, 413);
-    }
-    return c.json({ error: "Import failed", details: String(e) }, 500);
   }
 });

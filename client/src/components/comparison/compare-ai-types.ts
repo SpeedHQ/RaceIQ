@@ -1,15 +1,24 @@
 import type { UIMessage } from "ai";
+import type { GameId } from "@shared/games/ids";
+import type { LapMeta } from "@shared/racing/sessions/types";
 import type { AnalysisData } from "@/components/ai/analysis-types";
+import { client } from "@/lib/rpc";
+import { rpcJson } from "@/lib/rpc-json";
+import type { ChatHistoryResult } from "../ai-chat/ChatPanel";
 
 export type ParsedAnalysis = Partial<AnalysisData>;
 
-export interface LapHeader {
+export interface LapHeader extends Pick<LapMeta, "sessionId" | "quality" | "eligibility" | "qualityGeneration" | "analysisGenerationId" | "qualityStale" | "source"> {
   id: number;
   label: string;
   lapTime: number;
+  findingGenerationId?: string | null;
+  findingContentHash?: string | null;
+  findingStatus?: "staging" | "current" | "stale-rebuild-available" | "stale-source-missing" | "verification-failed" | "incompatible" | "corrupt" | null;
 }
 
 export interface CompareAiPanelProps {
+  gameId: GameId;
   lapA: LapHeader;
   lapB: LapHeader;
   panelOpen?: boolean;
@@ -49,12 +58,30 @@ export interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-export async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+async function rpcJsonAfterFindingBackfill<T>(request: () => Promise<Response>): Promise<T> {
+  const response = await request();
+  const pending = response.status === 409 ? ((await response.clone().json().catch(() => null)) as { status?: string; retryable?: boolean } | null) : null;
+  try {
+    return await rpcJson<T>(response);
+  } catch (error) {
+    if (pending?.status === "backfilling" && pending.retryable === true && error instanceof Error) {
+      Object.assign(error, { statusCode: 409, retryable: true, pendingStatus: "backfilling" });
+    }
+    throw error;
+  }
+}
+
+export async function fetchCompareChatHistory(lapAId: number, lapBId: number, gameId: GameId, gen?: number): Promise<ChatHistoryResult> {
+  const data = await rpcJsonAfterFindingBackfill<{ messages?: UIMessage[]; threadId?: string | null }>(() =>
+    client.api.laps[":id1"].compare[":id2"].chat.$get(
+      { param: { id1: String(lapAId), id2: String(lapBId) }, query: gen === undefined ? {} : { gen: String(gen) } },
+      { headers: { "X-Game-Id": gameId } },
+    ),
+  );
+  return {
+    messages: (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant"),
+    threadId: data.threadId,
+  };
 }
 
 export function summarize(parsed: ParsedAnalysis): AnalysisSummary {

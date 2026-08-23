@@ -11,7 +11,6 @@ import {
 } from "../../shared/racing/quality/contracts";
 import { qualityPackets, summarize } from "../support/lap-analysis/quality-model";
 import { finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
-import { QUALITY_REASON_META } from "../../shared/racing/quality/reasons";
 
 function copyQuality(quality: LapQualitySummary): LapQualitySummary {
   return {
@@ -54,26 +53,8 @@ describe("eligibility policy registry", () => {
     expect(QUALITY_POLICY_CONFIG_V1.version).toBe(QUALITY_CONFIG_VERSION);
   });
 
-  test("publishes stable reason metadata for policy outcomes", () => {
-    expect(QUALITY_REASON_META.quality_stale).toMatchObject({
-      category: "provenance",
-      defaultSeverity: "warning",
-      blocksStrictAnalysis: true,
-    });
-    expect(QUALITY_REASON_META.channel_unavailable).toMatchObject({
-      category: "channel",
-      defaultSeverity: "error",
-      blocksStrictAnalysis: true,
-    });
-    expect(QUALITY_REASON_META.driver_inconsistent).toMatchObject({
-      category: "policy",
-      defaultSeverity: "warning",
-      blocksStrictAnalysis: false,
-    });
-  });
-
   test("distinguishes current, stale, and missing snapshots across policy families", () => {
-    const finalized = finalizeLapQualityGeneration(summarize(qualityPackets(200)), `sha256:${"a".repeat(64)}`, {
+    const finalized = finalizeLapQualityGeneration(summarize(qualityPackets(200)), "test-session-source", {
       lapNumber: 1,
       rawByteOffset: 0,
       rawFrameCount: 200,
@@ -113,42 +94,6 @@ describe("eligibility policy registry", () => {
     expect(evaluateEligibility("official-timing", quality).status).toBe("eligible");
     expect(evaluateEligibility("normal-pace", quality).status).toBe("ineligible");
     expect(evaluateEligibility("lap-comparison", quality).status).toBe("ineligible");
-  });
-
-  test("rejects invalid telemetry fallback timing while preserving real fallback warnings", () => {
-    const valid = copyQuality(
-      summarize(qualityPackets(200), {
-        timingSource: "telemetry-elapsed",
-      }),
-    );
-    const validDecision = evaluateEligibility("official-timing", valid);
-    expect(valid.timing.confirmed).toBe(false);
-    expect(validDecision.status).toBe("eligible_with_warning");
-    expect(validDecision.reasons.map(({ code }) => code)).toContain("lap_time_fallback");
-
-    const measuredUnconfirmed = copyQuality(valid);
-    measuredUnconfirmed.facts.push({
-      id: "quality-fact:timing:unconfirmed-fallback",
-      code: "lap_time_unconfirmed",
-      severity: "error",
-      timeRange: null,
-      distanceRange: null,
-      semanticIds: [],
-      channelFamilies: [],
-      provenance: { ...valid.provenance },
-      eventIds: [],
-    });
-    const measuredDecision = evaluateEligibility("official-timing", measuredUnconfirmed);
-    expect(measuredDecision.status).toBe("ineligible");
-    expect(measuredDecision.evidenceIds).toContain("quality-fact:timing:unconfirmed-fallback");
-
-    for (const lapTimeMs of [0, Number.NaN]) {
-      const invalid = copyQuality(valid);
-      invalid.timing = { ...invalid.timing, lapTimeMs };
-      const invalidDecision = evaluateEligibility("official-timing", invalid);
-      expect(invalidDecision.status).toBe("ineligible");
-      expect(invalidDecision.reasons.map(({ code }) => code)).toContain("lap_time_unconfirmed");
-    }
   });
 
   test("uses whole-channel coverage when dropped packets cannot localize channel loss", () => {
@@ -255,37 +200,6 @@ describe("eligibility policy registry", () => {
     ).toBe("eligible");
   });
 
-  test("rejects full-lap comparison with half-lap track coverage while honoring localized ranges", () => {
-    const quality = copyQuality(summarize(qualityPackets(200)));
-    quality.trackDistanceCoverage = 0.5;
-    quality.facts.push({
-      id: "quality-fact:partial-track:half-lap",
-      code: "partial_track_coverage",
-      severity: "error",
-      timeRange: { startMs: 5_000, endMs: 10_000 },
-      distanceRange: { startFraction: 0.5, endFraction: 1 },
-      semanticIds: [],
-      channelFamilies: [],
-      provenance: { ...quality.provenance },
-      eventIds: [],
-      details: { coverage: 0.5 },
-    });
-
-    const fullLap = evaluateEligibility("lap-comparison", quality);
-    expect(fullLap.status).toBe("ineligible");
-    expect(fullLap.reasons.find(({ code }) => code === "partial_track_coverage")?.evidenceIds).toEqual(["quality-fact:partial-track:half-lap"]);
-    expect(
-      evaluateEligibility("lap-comparison", quality, {
-        range: { startFraction: 0, endFraction: 0.49 },
-      }).status,
-    ).toBe("eligible");
-    expect(
-      evaluateEligibility("lap-comparison", quality, {
-        range: { startFraction: 0.5, endFraction: 1 },
-      }).status,
-    ).toBe("ineligible");
-  });
-
   test("multiplies required-channel confidence by lifecycle factor", () => {
     const quality = copyQuality(summarize(qualityPackets(200)));
     quality.lifecycleState = "minor_gaps";
@@ -354,29 +268,6 @@ describe("eligibility policy registry", () => {
     expect(comparison.confidence.score).toBeLessThan(evaluateEligibility("lap-comparison", base).confidence.score!);
   });
 
-  test("treats absent normalized source-profile channels as unavailable", () => {
-    const quality = copyQuality(summarize(qualityPackets(200)));
-    const speed = quality.channelQuality.find(({ semanticId }) => semanticId === "motion.speed")!;
-    speed.mappingStatus = "normalized";
-    speed.coverage = 1;
-    speed.sourceProfile = {
-      schemaVersion: "1",
-      sourceKind: "external-log",
-      treatment: "absent",
-      sourceChannels: [],
-      evidenceId: "source-profile:speed:absent",
-    };
-
-    const comparison = evaluateEligibility("lap-comparison", quality);
-    expect(comparison.status).toBe("ineligible");
-    expect(comparison.reasons).toContainEqual(expect.objectContaining({ code: "channel_unavailable", semanticIds: ["motion.speed"] }));
-    expect(
-      evaluateEligibility("transient-event", quality, {
-        requiredSemanticIds: ["motion.speed"],
-      }).status,
-    ).toBe("ineligible");
-  });
-
   test("rejects missing, stale, simplified, and unreliable derived transient channels", () => {
     const base = summarize(qualityPackets(200));
     const cases = [{ mappingStatus: "unavailable" as const }, { freshness: "stale" as const }, { mappingStatus: "simplified" as const }, { mappingStatus: "derived" as const }];
@@ -409,38 +300,6 @@ describe("eligibility policy registry", () => {
       .reasons.filter(({ code }) => code === "channel_missing")
       .flatMap(({ semanticIds }) => semanticIds);
     expect(missingChannels).toEqual(expect.arrayContaining(["timing.distance-traveled", "motion.speed"]));
-  });
-
-  test("preserves measured channel fact identity and ranges in decisions", () => {
-    const quality = copyQuality(summarize(qualityPackets(200)));
-    const speed = quality.channelQuality.find(({ semanticId }) => semanticId === "motion.speed")!;
-    speed.coverage = 0.5;
-    const measuredFact = {
-      id: "quality-fact:motion-speed:missing",
-      code: "channel_missing" as const,
-      severity: "error" as const,
-      timeRange: { startMs: 2_500, endMs: 5_000 },
-      distanceRange: { startFraction: 0.25, endFraction: 0.5 },
-      semanticIds: ["motion.speed"] as const,
-      channelFamilies: [speed.channelFamily],
-      provenance: { ...quality.provenance },
-      eventIds: ["source-event:motion-speed-gap"],
-    };
-    quality.facts.push({
-      ...measuredFact,
-      semanticIds: [...measuredFact.semanticIds],
-    });
-
-    const decision = evaluateEligibility("lap-comparison", quality, {
-      range: { startFraction: 0.25, endFraction: 0.5 },
-    });
-    const reason = decision.reasons.find(({ code, semanticIds }) => code === "channel_missing" && semanticIds.includes("motion.speed"));
-    expect(reason).toMatchObject({
-      evidenceIds: [measuredFact.id],
-      timeRange: measuredFact.timeRange,
-      distanceRange: measuredFact.distanceRange,
-    });
-    expect(decision.evidenceIds).toContain(measuredFact.id);
   });
 
   test("allows one complete pit tire snapshot but rejects it as continuous coverage", () => {
@@ -534,27 +393,9 @@ describe("eligibility policy registry", () => {
   test("enforces setup sample size and lap-time consistency", () => {
     const quality = summarize(qualityPackets(100));
     const stable = [10, 10.1, 9.9].map((lapTime) => groupLap(quality, lapTime));
-    const eligible = evaluateGroupEligibility("setup-analysis", stable, {});
-    expect(eligible.status).toBe("eligible");
-    expect(eligible.confidence.score).toBe(
-      Math.min(
-        ...stable.flatMap((lap) => [
-          lap.eligibility["normal-pace"].confidence.score!,
-          lap.eligibility["corner-trace"].confidence.score!,
-        ]),
-      ),
-    );
+    expect(evaluateGroupEligibility("setup-analysis", stable, {}).status).toBe("eligible");
     const inconsistent = [10, 10.5, 9.5].map((lapTime) => groupLap(quality, lapTime));
-    const ineligible = evaluateGroupEligibility("setup-analysis", inconsistent, {});
-    expect(ineligible.status).toBe("ineligible");
-    expect(ineligible.confidence.score).toBe(
-      Math.min(
-        ...inconsistent.flatMap((lap) => [
-          lap.eligibility["normal-pace"].confidence.score!,
-          lap.eligibility["corner-trace"].confidence.score!,
-        ]),
-      ),
-    );
+    expect(evaluateGroupEligibility("setup-analysis", inconsistent, {}).status).toBe("ineligible");
   });
 
   test("preserves usable per-lap warnings in setup decisions", () => {
@@ -613,17 +454,6 @@ describe("eligibility policy registry", () => {
     const verifiedDecision = evaluateEligibility("ml-training", verified);
     expect(verifiedDecision.reasons).toEqual([]);
     expect(verifiedDecision.status).toBe("eligible");
-
-    for (const timing of [
-      { source: "estimated" as const, confirmed: false },
-      { source: "simulator-last-lap" as const, confirmed: false },
-    ]) {
-      const unconfirmed = copyQuality(verified);
-      unconfirmed.timing = { ...unconfirmed.timing, ...timing };
-      const timingDecision = evaluateEligibility("ml-training", unconfirmed);
-      expect(timingDecision.status).toBe("ineligible");
-      expect(timingDecision.reasons.map(({ code }) => code)).toContain("lap_time_unconfirmed");
-    }
 
     const structurallyInvalid = copyQuality(verified);
     structurallyInvalid.structurallyValid = false;

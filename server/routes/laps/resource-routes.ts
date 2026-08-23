@@ -6,22 +6,34 @@ import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
+import { getAllGames, tryGetGame } from "../../../shared/games/registry";
 import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS, semanticLapFrames } from "../../../shared/racing/analysis/laps/semantic-frame";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
-import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { getLaps, getLapMetaById, getLapsRaw } from "../../db/lap-read-queries";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
+import { computeLapSectors, computeSemanticSectorTimeline } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
-import { BulkDeleteSchema, LapsQuerySchema } from "./support";
+import { getCurrentFindingGeneration } from "../../findings/store";
+import { BulkDeleteSchema, FindingGenerationBackfilling, LapsQuerySchema } from "./support";
+
+async function loadStoredLapFindings(lap: { id: number; sessionId: number }, gameId: GameId) {
+  return getCurrentFindingGeneration({
+    kind: "lap",
+    gameId,
+    sessionId: String(lap.sessionId),
+    lapId: String(lap.id),
+  });
+}
 
 export function semanticReplayIds(): readonly string[] {
   return [
@@ -39,6 +51,7 @@ export function semanticReplayIds(): readonly string[] {
       "motion.position-z",
       "motion.yaw",
       "timing.current-lap",
+      "timing.sector.layout.start-fractions",
       "timing.current-race-time",
       "timing.distance-traveled",
       "aero.drs-active",
@@ -69,33 +82,28 @@ export const resourceRoutes = new Hono()
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
     try {
-      const lap = await getLapById(id);
+      const lap = await getLapMetaById(id);
       if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const decision = resolveEligibilityDecision(lap, "corner-trace");
-      if (lap.parseError) {
-        return c.json({
-          lapId: id,
-          requestedSemanticIds: [],
-          sectorTimes: lap.sectorTimes ?? null,
-          sectorStarts: null,
-          insights: [],
-          parseError: lap.parseError,
-          decision,
-          qualityGeneration: lap.qualityGeneration ?? null,
-          channelQuality: lap.quality?.channelQuality ?? [],
-          envelopes: [],
-        });
+      const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+      if (!findingGeneration) {
+        return c.json(FindingGenerationBackfilling, 409);
       }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
-      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const samples = semanticSamplesFromReplay(replay);
+      const nativeLayout = computeSemanticSectorTimeline(samples, lap.lapTime);
+      const insights = analyzeLap(samples, lap.gameId, lap.quality);
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
-        sectorStarts: nativeLayout?.starts ?? null,
-        insights: isEligibilityUsable(decision) ? analyzeLap(lap.telemetry, lap.gameId) : [],
-        parseError: lap.parseError ?? null,
+        sectorStarts: nativeLayout?.sectorStarts ?? null,
+        insights: isEligibilityUsable(decision) ? insights : [],
+        findings: findingGeneration.findings,
+        narratives: [],
+        recommendations: [],
+        findingReceipt: findingGeneration.receipt,
         decision,
         qualityGeneration: lap.qualityGeneration ?? null,
         channelQuality: lap.quality?.channelQuality ?? [],
@@ -125,14 +133,17 @@ export const resourceRoutes = new Hono()
     const { ids } = c.req.valid("json");
     if (ids.length === 0) return c.json({ traces: [] as EncodedLapTrace[] });
 
-    const laps = await getLapsByIds(ids);
+    const laps = await Promise.all(ids.map((id) => getLapMetaById(id)));
     const traces: EncodedLapTrace[] = [];
     const decisions = [];
     for (const lap of laps) {
+      if (!lap) continue;
       const decision = resolveEligibilityDecision(lap, "corner-trace");
       decisions.push({ lapId: lap.id, decision });
-      if (!isEligibilityUsable(decision) || lap.telemetry.length === 0) continue;
-      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
+      if (!isEligibilityUsable(decision)) continue;
+      const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+      if (!replay) continue;
+      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, semanticLapFrames(semanticSamplesFromReplay(replay)), null);
       if (trace) traces.push(encodeLapTrace(trace));
     }
     return c.json({ traces, decisions });
@@ -143,7 +154,7 @@ export const resourceRoutes = new Hono()
       return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
     }
     const { id } = c.req.valid("param");
-    const lap = await getLapById(id);
+    const lap = await getLapMetaById(id);
     if (!lap || lap.gameId !== gameIdResult.data || lap.ownership !== "mine") {
       return c.json({ error: "Lap not found" }, 404);
     }
@@ -159,9 +170,9 @@ export const resourceRoutes = new Hono()
   .get("/api/laps/:id/setup", zValidator("param", IdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    const lap = await getLapById(Number(c.req.valid("param").id));
+    const lap = await getLapMetaById(Number(c.req.valid("param").id));
     if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
-    return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup({ carSetup: lap.carSetup, telemetry: lap.telemetry }) : null });
+    return c.json({ setup: gameIdResult.data === "f1-2025" ? resolveLapF1Setup(lap.carSetup) : null });
   })
 
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
@@ -171,12 +182,17 @@ export const resourceRoutes = new Hono()
     }
     const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
-    const lap = await getLapById(id);
+    const lap = await getLapMetaById(id);
     if (!lap || lap.gameId !== gameId) {
       return c.json({ error: "Lap not found" }, 404);
     }
+    const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+    if (!findingGeneration) {
+      return c.json(FindingGenerationBackfilling, 409);
+    }
 
-    // Compute sector times server-side
+    // Sector metadata and timings stay resolver-backed. No resource route reads
+    // legacy packet fields or derives an alternate timestamp clock.
     let sectorTimes: {
       times: number[];
       sectorCount: number;
@@ -185,80 +201,76 @@ export const resourceRoutes = new Hono()
       firstDist: number;
       lapDist: number;
     } | null = null;
-    const packets = lap.telemetry;
+    const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    if (!replay) return c.json({ error: "Lap telemetry not found" }, 404);
+    const samples = semanticSamplesFromReplay(replay);
+    const packets = semanticLapFrames(samples);
     const decision = resolveEligibilityDecision(lap, "corner-trace");
-    if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const game = getGame(gameId);
-      const firstDist = packets[0].DistanceTraveled;
-      const lastDist = packets[packets.length - 1].DistanceTraveled;
-      const lapDist = lastDist - firstDist;
-
-      if (game.nativeSectors && game.getNativeSectorLayout) {
-        const nativeTimeline = computeNativeSectorTimeline(packets, lap.lapTime, game.getNativeSectorLayout);
-        if (nativeTimeline && lapDist > 0) {
-          sectorTimes = {
-            ...nativeTimeline,
-            firstDist,
-            lapDist,
-          };
+    const firstDistance = packets[0]?.distanceM;
+    const lastDistance = packets[packets.length - 1]?.distanceM;
+    if (
+      lap.trackOrdinal != null &&
+      typeof firstDistance === "number" &&
+      Number.isFinite(firstDistance) &&
+      typeof lastDistance === "number" &&
+      Number.isFinite(lastDistance) &&
+      lastDistance > firstDistance
+    ) {
+      const lapDist = lastDistance - firstDistance;
+      const nativeTimeline = computeSemanticSectorTimeline(samples, lap.lapTime);
+      const times = nativeTimeline?.times ?? (await computeLapSectors(lap.trackOrdinal, gameId, samples, lap.lapTime));
+      if (times) {
+        let sectorStarts = nativeTimeline?.sectorStarts ?? [];
+        if (!nativeTimeline) {
+          const { s1End, s2End } = resolveTrack(gameId, lap.trackOrdinal).sectors;
+          if (Number.isFinite(s1End) && Number.isFinite(s2End)) sectorStarts = [0, s1End, s2End];
         }
-      } else {
-        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
-        if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
-          // Determine the best time source: CurrentLap if it progresses, else TimestampMS
-          const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
-          const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
-          const getTime = (i: number) => (useTimestamp ? (packets[i].TimestampMS - packets[0].TimestampMS) / 1000 : packets[i].CurrentLap - packets[0].CurrentLap);
-
-          let s1Time = 0,
-            s2Time = 0,
-            s1Idx = -1,
-            s2Idx = -1;
-          for (let i = 0; i < packets.length; i++) {
-            const frac = (packets[i].DistanceTraveled - firstDist) / lapDist;
-            if (s1Idx < 0 && frac >= sectors.s1End) {
-              s1Idx = i;
-              s1Time = getTime(i);
-            }
-            if (s2Idx < 0 && frac >= sectors.s2End) {
-              s2Idx = i;
-              s2Time = getTime(i) - (s1Idx >= 0 ? getTime(s1Idx) : 0);
-            }
-          }
-          const totalLapTime =
-            lap.lapTime || (useTimestamp ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000 : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
-          let s3Time = totalLapTime - s1Time - s2Time;
-          if (s3Time < 0) s3Time = 0;
-          sectorTimes = {
-            times: [s1Time, s2Time, s3Time],
-            sectorCount: 3,
-            boundaryIndices: [s1Idx, s2Idx],
-            sectorStarts: [0, sectors.s1End, sectors.s2End],
-            firstDist,
-            lapDist,
-          };
-        }
+        sectorTimes = {
+          times,
+          sectorCount: times.length,
+          boundaryIndices: nativeTimeline?.boundaryIndices ?? [],
+          sectorStarts,
+          firstDist: firstDistance,
+          lapDist,
+        };
       }
     }
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = isEligibilityUsable(decision) ? analyzeLap(packets, gameId) : [];
+    const insights = analyzeLap(samples, gameId, lap.quality);
 
-    return c.json({ ...lap, sectorTimes, insights, decision });
+    return c.json({
+      ...lap,
+      sectorTimes,
+      insights: isEligibilityUsable(decision) ? insights : [],
+      findings: findingGeneration.findings,
+      narratives: [],
+      recommendations: [],
+      findingReceipt: findingGeneration.receipt,
+      decision,
+    });
   })
 
   .get("/api/laps/:id/export", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
-    const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    const lap = await getLapMetaById(id);
+    if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
     const decision = resolveEligibilityDecision(lap, "corner-trace");
     if (!isEligibilityUsable(decision)) {
       return c.json({ error: eligibilityDecisionText(decision), decision }, 422);
     }
-    const packets = lap.telemetry;
-    if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
-    const exportText = generateExport(lap, packets);
+    const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    if (!replay) return c.json({ error: "Lap telemetry not found" }, 404);
+    const samples = semanticSamplesFromReplay(replay);
+    if (samples.length === 0) return c.json({ error: "No semantic telemetry data" }, 400);
+    const findingGeneration = await loadStoredLapFindings(lap, gameIdResult.data);
+    if (!findingGeneration) {
+      return c.json(FindingGenerationBackfilling, 409);
+    }
+    const exportText = generateExport(lap, samples, "metric", undefined, findingGeneration.findings);
     return c.text(exportText);
   })
 
@@ -315,18 +327,16 @@ export const resourceRoutes = new Hono()
 
   .post("/api/laps/:id/recheck", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
-    const lap = await getLapById(id);
+    const lap = await getLapMetaById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
 
-    // Recording fidelity is separate from simulator validity. This legacy
-    // endpoint may refresh derived sectors, but never rewrites validity from
-    // packet gaps or capture completeness.
-
-    // Recompute sector times
-    const packets = lap.telemetry;
+    const replay = await queryLapTelemetryBySemanticId(lap.id, CANONICAL_LAP_ANALYSIS_SEMANTIC_IDS);
+    if (!replay) return c.json({ error: "Lap telemetry not found" }, 404);
+    const samples = semanticSamplesFromReplay(replay);
     let sectors: number[] | null = null;
-    if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
-      sectors = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, packets, lap.lapTime);
+    const lapGame = GameIdSchema.safeParse(lap.gameId);
+    if (samples.length >= 50 && lapGame.success && lap.trackOrdinal != null) {
+      sectors = await computeLapSectors(lap.trackOrdinal, lapGame.data, samples, lap.lapTime);
     }
 
     await updateLapValidity(id, lap.isValid, lap.invalidReason ?? null, sectors);

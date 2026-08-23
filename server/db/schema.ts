@@ -1,80 +1,52 @@
-import {
-	sqliteTable,
-	text,
-	integer,
-	real,
-	blob,
-	index,
-	unique,
-	uniqueIndex,
-	primaryKey,
-	check,
-	type AnySQLiteColumn,
-} from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, blob, index, unique, uniqueIndex, primaryKey, check, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
 import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
-import type {
-	SessionRun,
-	SessionRunEvidenceRole,
-	SessionRunId,
-	SessionRunKind,
-	SessionRunStatus,
-} from "../../shared/racing/runs/contracts";
+import type { SessionRun, SessionRunEvidenceRole, SessionRunId, SessionRunKind, SessionRunStatus } from "../../shared/racing/runs/contracts";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
-import type {
-	EligibilityDecisionSet,
-	LapQualitySummary,
-	RecordingQualitySummary,
-	SourceChannelProfile,
-} from "../../shared/racing/quality/contracts";
+import type { EligibilityDecisionSet, LapQualitySummary, RecordingQualitySummary, SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import type {
-	AnalysisArtifactSetType,
-	AnalysisProvenanceReceipt,
-	AnalysisReceiptFailure,
-	AnalysisReceiptLifecycle,
-} from "../../shared/racing/provenance/contracts";
-import type {
-	CanonicalArchiveContext,
-	CanonicalArchiveJobStatus,
-	CanonicalArchiveManifest,
-	CanonicalArchiveStatus,
-	CanonicalArchiveVerification,
-} from "../../shared/racing/archives/contracts";
+import type { AnalysisArtifactSetType, AnalysisProvenanceReceipt, AnalysisReceiptFailure, AnalysisReceiptLifecycle } from "../../shared/racing/provenance/contracts";
+import type { CanonicalArchiveContext, CanonicalArchiveJobStatus, CanonicalArchiveManifest, CanonicalArchiveStatus, CanonicalArchiveVerification } from "../../shared/racing/archives/contracts";
 
 export const profiles = sqliteTable("profiles", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	name: text("name").notNull(),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
 });
 
 export const tunes = sqliteTable(
-	"tunes",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		gameId: text("game_id").notNull(),
-		name: text("name").notNull(),
-		author: text("author").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		category: text("category").notNull(),
-		trackOrdinal: integer("track_ordinal"),
-		description: text("description").notNull().default(""),
-		strengths: text("strengths"),
-		weaknesses: text("weaknesses"),
-		bestTracks: text("best_tracks"),
-		strategies: text("strategies"),
-		settings: text("settings").notNull(),
-		unitSystem: text("unit_system").notNull().default("metric"), // 'metric' | 'imperial'
-		source: text("source").notNull().default("user"),
-		catalogId: text("catalog_id"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		carIdx: index("idx_tunes_car").on(table.carOrdinal),
-		gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
-	}),
+  "tunes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: text("game_id").notNull(),
+    name: text("name").notNull(),
+    author: text("author").notNull(),
+    carOrdinal: integer("car_ordinal").notNull(),
+    category: text("category").notNull(),
+    trackOrdinal: integer("track_ordinal"),
+    description: text("description").notNull().default(""),
+    strengths: text("strengths"),
+    weaknesses: text("weaknesses"),
+    bestTracks: text("best_tracks"),
+    strategies: text("strategies"),
+    settings: text("settings").notNull(),
+    unitSystem: text("unit_system").notNull().default("metric"), // 'metric' | 'imperial'
+    source: text("source").notNull().default("user"),
+    catalogId: text("catalog_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    carIdx: index("idx_tunes_car").on(table.carOrdinal),
+    gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
+  }),
 );
 
 /**
@@ -85,16 +57,18 @@ export const tunes = sqliteTable(
  * (see reconcileDiscoveredCars).
  */
 export const discoveredCars = sqliteTable(
-	"discovered_cars",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
-		name: text("name").notNull(),
-		model: text("model").notNull().default(""),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [unique().on(table.gameId, table.ordinal)],
+  "discovered_cars",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: text("game_id").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    name: text("name").notNull(),
+    model: text("model").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [unique().on(table.gameId, table.ordinal)],
 );
 
 /**
@@ -103,372 +77,373 @@ export const discoveredCars = sqliteTable(
  * into the relevant game adapter at startup.
  */
 export const discoveredTracks = sqliteTable(
-	"discovered_tracks",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		gameId: text("game_id").notNull(),
-		ordinal: integer("ordinal").notNull(),
-		name: text("name").notNull(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [
-		unique().on(table.gameId, table.ordinal),
-	],
+  "discovered_tracks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: text("game_id").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    name: text("name").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [unique().on(table.gameId, table.ordinal)],
 );
 
 export const sessions = sqliteTable("sessions", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	carOrdinal: integer("car_ordinal").notNull(),
-	trackOrdinal: integer("track_ordinal").notNull(),
-	gameId: text("game_id").notNull(),
-	sessionType: text("session_type"),
-	notes: text("notes"),
-	rawFile: text("raw_file"),
-	rawCaptureFileSize: integer("raw_capture_file_size"),
-	rawCaptureFileMtimeMs: integer("raw_capture_file_mtime_ms"),
-	rawCaptureFileCtimeMs: integer("raw_capture_file_ctime_ms"),
-	// Uncompressed source identity. Reused while size/timestamps prove on-disk
-	// capture unchanged, avoiding a decompress/hash pass on each scheduler tick.
-	rawCaptureContentHash: text("raw_capture_content_hash"),
-	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v53).
-	// Null for rows inserted before that migration.
-	catalogVersion: text("catalog_version"),
-	catalogHash: text("catalog_hash"),
-	catalogSchemaVersion: text("catalog_schema_version"),
-	parserVersion: text("parser_version"),
-	resolverVersion: text("resolver_version"),
-	derivationVersion: text("derivation_version"),
-	// How this session's telemetry was obtained (migration v43). Pre-v43 NULL
-	// values are direct live captures and migrate to 'native-live' in v59.
-	// 'motec' marks a transcoded MoTeC .ld export, where the racing line is
-	// dead-reckoned rather than logged — see server/motec/.
-	source: text("source"),
-	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
-	sourceChannelProfile: text("source_channel_profile", { mode: "json" }).$type<SourceChannelProfile>(),
-	recordingQuality: text("recording_quality", { mode: "json" }).$type<RecordingQualitySummary>(),
-	qualitySchemaVersion: text("quality_schema_version"),
-	qualityPolicyVersion: text("quality_policy_version"),
-	qualityConfigVersion: text("quality_config_version"),
-	qualityGeneration: text("quality_generation"),
-	analysisGenerationId: text("analysis_generation_id"),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  carOrdinal: integer("car_ordinal").notNull(),
+  trackOrdinal: integer("track_ordinal").notNull(),
+  gameId: text("game_id").notNull(),
+  sessionType: text("session_type"),
+  notes: text("notes"),
+  rawFile: text("raw_file"),
+  rawCaptureFileSize: integer("raw_capture_file_size"),
+  rawCaptureFileMtimeMs: integer("raw_capture_file_mtime_ms"),
+  rawCaptureFileCtimeMs: integer("raw_capture_file_ctime_ms"),
+  // Uncompressed source identity. Reused while size/timestamps prove on-disk
+  // capture unchanged, avoiding a decompress/hash pass on each scheduler tick.
+  rawCaptureContentHash: text("raw_capture_content_hash"),
+  lapDetectorVersion: text("lap_detector_version"),
+  // Runtime telemetry identity snapshot attached at first persisted capture (migration v53).
+  // Null for rows inserted before that migration.
+  catalogVersion: text("catalog_version"),
+  catalogHash: text("catalog_hash"),
+  catalogSchemaVersion: text("catalog_schema_version"),
+  parserVersion: text("parser_version"),
+  resolverVersion: text("resolver_version"),
+  derivationVersion: text("derivation_version"),
+  // How this session's telemetry was obtained (migration v43). Pre-v43 NULL
+  // values are direct live captures and migrate to 'native-live' in v59.
+  // 'motec' marks a transcoded MoTeC .ld export, where the racing line is
+  // dead-reckoned rather than logged — see server/motec/.
+  source: text("source"),
+  ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
+  sourceChannelProfile: text("source_channel_profile", { mode: "json" }).$type<SourceChannelProfile>(),
+  recordingQuality: text("recording_quality", { mode: "json" }).$type<RecordingQualitySummary>(),
+  qualitySchemaVersion: text("quality_schema_version"),
+  qualityPolicyVersion: text("quality_policy_version"),
+  qualityConfigVersion: text("quality_config_version"),
+  qualityGeneration: text("quality_generation"),
+  analysisGenerationId: text("analysis_generation_id"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
 });
 export const sessionResults = sqliteTable(
-	"session_results",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		processorVersion: text("processor_version").notNull().default("race-result-v2"),
-		sessionType: text("session_type").notNull().default("unknown"),
-		classification: text("classification").notNull().default("unknown"),
-		outcomeStatus: text("outcome_status").$type<RaceResultOutcomeStatus>().notNull().default("unavailable"),
-		finishingPosition: integer("finishing_position"),
-		qualifyingPosition: integer("qualifying_position"),
-		isPodium: integer("is_podium", { mode: "boolean" }),
-		isFastestLap: integer("is_fastest_lap", { mode: "boolean" }),
-		pitCount: integer("pit_count").notNull().default(0),
-		tyreStrategy: text("tyre_strategy", { mode: "json" }).$type<unknown>(),
-		fuelStrategy: text("fuel_strategy", { mode: "json" }).$type<unknown>(),
-		provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
-		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
-		evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
-		eventIds: text("event_ids", { mode: "json" }).$type<RaceEventId[]>().notNull().default(sql`'[]'`),
-		analysisGenerationId: text("analysis_generation_id"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [
-		unique().on(table.sessionId),
-		index("idx_session_results_session").on(table.sessionId),
-	],
+  "session_results",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    processorVersion: text("processor_version").notNull().default("race-result-v2"),
+    sessionType: text("session_type").notNull().default("unknown"),
+    classification: text("classification").notNull().default("unknown"),
+    outcomeStatus: text("outcome_status").$type<RaceResultOutcomeStatus>().notNull().default("unavailable"),
+    finishingPosition: integer("finishing_position"),
+    qualifyingPosition: integer("qualifying_position"),
+    isPodium: integer("is_podium", { mode: "boolean" }),
+    isFastestLap: integer("is_fastest_lap", { mode: "boolean" }),
+    pitCount: integer("pit_count").notNull().default(0),
+    tyreStrategy: text("tyre_strategy", { mode: "json" }).$type<unknown>(),
+    fuelStrategy: text("fuel_strategy", { mode: "json" }).$type<unknown>(),
+    provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
+    reasons: text("reasons", { mode: "json" }).$type<string[]>(),
+    evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
+    eventIds: text("event_ids", { mode: "json" })
+      .$type<RaceEventId[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    analysisGenerationId: text("analysis_generation_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [unique().on(table.sessionId), index("idx_session_results_session").on(table.sessionId)],
 );
 
 export const laps = sqliteTable(
-	"laps",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		lapNumber: integer("lap_number").notNull(),
-		lapTime: real("lap_time").notNull(),
-		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
-		phase: text("phase").$type<LapPhase>().notNull().default("flying"),
-		conditions: text("conditions", { mode: "json" }).$type<LapCondition[]>().notNull().default(sql`'[]'`),
-		paceEligibility: text("pace_eligibility").$type<PaceEligibility>().notNull().default("eligible"),
-		invalidReason: text("invalid_reason"),
-		notes: text("notes"),
-		profileId: integer("profile_id").references(() => profiles.id),
-		pi: integer("pi"),
-		carSetup: text("car_setup"), // JSON snapshot of F1CarSetup
-		tuneId: integer("tune_id").references(() => tunes.id, {
-			onDelete: "set null",
-		}),
-		// Ordered, source-defined sector times. Sector count is session/layout
-		// data and is deliberately not constrained to three (GitHub #134).
-		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
-		rawByteOffset: integer("raw_byte_offset"),
-		rawFrameCount: integer("raw_frame_count"),
-		catalogVersion: text("catalog_version"),
-		catalogHash: text("catalog_hash"),
-		catalogSchemaVersion: text("catalog_schema_version"),
-		parserVersion: text("parser_version"),
-		resolverVersion: text("resolver_version"),
-		derivationVersion: text("derivation_version"),
-		quality: text("quality", { mode: "json" }).$type<LapQualitySummary>(),
-		eligibility: text("eligibility", { mode: "json" }).$type<EligibilityDecisionSet>(),
-		qualitySchemaVersion: text("quality_schema_version"),
-		qualityPolicyVersion: text("quality_policy_version"),
-		qualityConfigVersion: text("quality_config_version"),
-		qualityGeneration: text("quality_generation"),
-		analysisGenerationId: text("analysis_generation_id"),
-		// Explicit experiment link (migration v25). Stamped at insert from the
-		// in-memory active tuning session (server/experiments/active.ts) so a tuning
-		// session can span many race sessions. The `.references()` here is
-		// type-level intent only — migration v25 adds a plain nullable column with
-		// NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
-		// so there is no ON DELETE SET NULL cascade in the actual DB.
-		experimentId: integer("experiment_id").references(
-			() => experiments.id,
-			{ onDelete: "set null" },
-		),
-		experimentVersionId: integer("experiment_version_id"),
-		// User flag (migration v30): 1 = manually excluded from the tuning
-		// aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
-		experimentExcluded: integer("experiment_excluded"),
-		// Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
-		// 'manual' pins the lap so the auto-exclude reconciliation pass
-		// (server/experiments/auto-exclude.ts) never touches it; 'auto' means the
-		// fastest-5 rule owns the state pair and may flip it on a later lap save.
-		experimentExcludedSource: text("experiment_excluded_source"),
-		// Persisted per-lap metrics (migration v32), derived once from the lap's
-		// telemetry and cached here so the tuning workspace / lap-metrics endpoint
-		// never re-decode every lap's frames on each read. Null = not yet computed
-		// (lazily filled on first read) or no usable telemetry channel.
-		fuelPerLap: real("fuel_per_lap"),
-		tyreWear: real("tyre_wear"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		sessionIdx: index("idx_laps_session").on(table.sessionId),
-		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
-	}),
+  "laps",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    lapNumber: integer("lap_number").notNull(),
+    lapTime: real("lap_time").notNull(),
+    isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+    phase: text("phase").$type<LapPhase>().notNull().default("flying"),
+    conditions: text("conditions", { mode: "json" })
+      .$type<LapCondition[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    paceEligibility: text("pace_eligibility").$type<PaceEligibility>().notNull().default("eligible"),
+    invalidReason: text("invalid_reason"),
+    notes: text("notes"),
+    profileId: integer("profile_id").references(() => profiles.id),
+    pi: integer("pi"),
+    carSetup: text("car_setup"), // JSON snapshot of F1CarSetup
+    tuneId: integer("tune_id").references(() => tunes.id, {
+      onDelete: "set null",
+    }),
+    // Ordered, source-defined sector times. Sector count is session/layout
+    // data and is deliberately not constrained to three (GitHub #134).
+    sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
+    rawByteOffset: integer("raw_byte_offset"),
+    rawFrameCount: integer("raw_frame_count"),
+    catalogVersion: text("catalog_version"),
+    catalogHash: text("catalog_hash"),
+    catalogSchemaVersion: text("catalog_schema_version"),
+    parserVersion: text("parser_version"),
+    resolverVersion: text("resolver_version"),
+    derivationVersion: text("derivation_version"),
+    quality: text("quality", { mode: "json" }).$type<LapQualitySummary>(),
+    eligibility: text("eligibility", { mode: "json" }).$type<EligibilityDecisionSet>(),
+    qualitySchemaVersion: text("quality_schema_version"),
+    qualityPolicyVersion: text("quality_policy_version"),
+    qualityConfigVersion: text("quality_config_version"),
+    qualityGeneration: text("quality_generation"),
+    analysisGenerationId: text("analysis_generation_id"),
+    // Explicit experiment link (migration v25). Stamped at insert from the
+    // in-memory active tuning session (server/experiments/active.ts) so a tuning
+    // session can span many race sessions. The `.references()` here is
+    // type-level intent only — migration v25 adds a plain nullable column with
+    // NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
+    // so there is no ON DELETE SET NULL cascade in the actual DB.
+    experimentId: integer("experiment_id").references(() => experiments.id, { onDelete: "set null" }),
+    experimentVersionId: integer("experiment_version_id"),
+    // User flag (migration v30): 1 = manually excluded from the tuning
+    // aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
+    experimentExcluded: integer("experiment_excluded"),
+    // Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
+    // 'manual' pins the lap so the auto-exclude reconciliation pass
+    // (server/experiments/auto-exclude.ts) never touches it; 'auto' means the
+    // fastest-5 rule owns the state pair and may flip it on a later lap save.
+    experimentExcludedSource: text("experiment_excluded_source"),
+    // Persisted per-lap metrics (migration v32), derived once from the lap's
+    // telemetry and cached here so the tuning workspace / lap-metrics endpoint
+    // never re-decode every lap's frames on each read. Null = not yet computed
+    // (lazily filled on first read) or no usable telemetry channel.
+    fuelPerLap: real("fuel_per_lap"),
+    tyreWear: real("tyre_wear"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    sessionIdx: index("idx_laps_session").on(table.sessionId),
+    experimentIdx: index("idx_laps_experiment").on(table.experimentId),
+  }),
 );
 
 export const analysisReceipts = sqliteTable(
-	"analysis_receipts",
-	{
-		generationId: text("generation_id").primaryKey(),
-		artifactSetId: text("artifact_set_id").notNull(),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		participantId: text("participant_id"),
-		artifactSetType: text("artifact_set_type").$type<AnalysisArtifactSetType>().notNull(),
-		generation: integer("generation").notNull(),
-		receiptSchemaVersion: text("receipt_schema_version").notNull(),
-		lifecycle: text("lifecycle").$type<AnalysisReceiptLifecycle>().notNull(),
-		sourceContentHash: text("source_content_hash"),
-		contractHash: text("contract_hash").notNull(),
-		configurationHash: text("configuration_hash").notNull(),
-		receipt: text("receipt", { mode: "json" }).$type<AnalysisProvenanceReceipt>(),
-		failure: text("failure", { mode: "json" }).$type<AnalysisReceiptFailure>(),
-		startedAt: text("started_at").notNull(),
-		completedAt: text("completed_at"),
-		activatedAt: text("activated_at"),
-	},
-	(table) => [
-		uniqueIndex("uq_analysis_receipts_artifact_generation").on(table.artifactSetId, table.generation),
-		uniqueIndex("uq_analysis_receipts_active")
-			.on(table.artifactSetId)
-			.where(sql`${table.lifecycle} = 'active'`),
-		uniqueIndex("uq_analysis_receipts_in_progress")
-			.on(table.artifactSetId)
-			.where(sql`${table.lifecycle} = 'rebuild_in_progress'`),
-		index("idx_analysis_receipts_session_type_lifecycle").on(
-			table.sessionId,
-			table.artifactSetType,
-			table.lifecycle,
-		),
-		index("idx_analysis_receipts_artifact_generation_desc").on(
-			table.artifactSetId,
-			table.generation,
-		),
-	],
+  "analysis_receipts",
+  {
+    generationId: text("generation_id").primaryKey(),
+    artifactSetId: text("artifact_set_id").notNull(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    participantId: text("participant_id"),
+    artifactSetType: text("artifact_set_type").$type<AnalysisArtifactSetType>().notNull(),
+    generation: integer("generation").notNull(),
+    receiptSchemaVersion: text("receipt_schema_version").notNull(),
+    lifecycle: text("lifecycle").$type<AnalysisReceiptLifecycle>().notNull(),
+    sourceContentHash: text("source_content_hash"),
+    contractHash: text("contract_hash").notNull(),
+    configurationHash: text("configuration_hash").notNull(),
+    receipt: text("receipt", { mode: "json" }).$type<AnalysisProvenanceReceipt>(),
+    failure: text("failure", { mode: "json" }).$type<AnalysisReceiptFailure>(),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+    activatedAt: text("activated_at"),
+  },
+  (table) => [
+    uniqueIndex("uq_analysis_receipts_artifact_generation").on(table.artifactSetId, table.generation),
+    uniqueIndex("uq_analysis_receipts_active")
+      .on(table.artifactSetId)
+      .where(sql`${table.lifecycle} = 'active'`),
+    uniqueIndex("uq_analysis_receipts_in_progress")
+      .on(table.artifactSetId)
+      .where(sql`${table.lifecycle} = 'rebuild_in_progress'`),
+    index("idx_analysis_receipts_session_type_lifecycle").on(table.sessionId, table.artifactSetType, table.lifecycle),
+    index("idx_analysis_receipts_artifact_generation_desc").on(table.artifactSetId, table.generation),
+  ],
 );
 export const canonicalArchives = sqliteTable(
-	"canonical_archives",
-	{
-		archiveId: text("archive_id").primaryKey(),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		generationId: text("generation_id").notNull(),
-		status: text("status").$type<CanonicalArchiveStatus>().notNull(),
-		archivePath: text("archive_path").notNull(),
-		schemaVersion: text("schema_version").notNull(),
-		algorithmVersion: text("algorithm_version").notNull(),
-		sourceContentHash: text("source_content_hash").notNull(),
-		outputContentHash: text("output_content_hash"),
-		byteSize: integer("byte_size"),
-		sampleCount: integer("sample_count").notNull().default(0),
-		nodeCount: integer("node_count").notNull().default(0),
-		semanticIds: text("semantic_ids", { mode: "json" }).$type<string[]>().notNull(),
-		context: text("context", { mode: "json" }).$type<CanonicalArchiveContext>().notNull(),
-		manifest: text("manifest", { mode: "json" }).$type<CanonicalArchiveManifest>().notNull(),
-		completeness: text("completeness").notNull(),
-		verification: text("verification", { mode: "json" }).$type<CanonicalArchiveVerification | null>(),
-		createdAt: text("created_at").notNull(),
-		verifiedAt: text("verified_at"),
-		failure: text("failure"),
-	},
-	(table) => [
-		uniqueIndex("uq_canonical_archives_active_identity")
-			.on(table.sessionId, table.sourceContentHash)
-			.where(sql`${table.status} IN ('pending', 'building', 'verified', 'partial')`),
-		index("idx_canonical_archives_session_status").on(table.sessionId, table.status),
-		index("idx_canonical_archives_generation").on(table.sessionId, table.generationId),
-	],
+  "canonical_archives",
+  {
+    archiveId: text("archive_id").primaryKey(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    generationId: text("generation_id").notNull(),
+    status: text("status").$type<CanonicalArchiveStatus>().notNull(),
+    archivePath: text("archive_path").notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    algorithmVersion: text("algorithm_version").notNull(),
+    sourceContentHash: text("source_content_hash").notNull(),
+    outputContentHash: text("output_content_hash"),
+    byteSize: integer("byte_size"),
+    sampleCount: integer("sample_count").notNull().default(0),
+    nodeCount: integer("node_count").notNull().default(0),
+    semanticIds: text("semantic_ids", { mode: "json" }).$type<string[]>().notNull(),
+    context: text("context", { mode: "json" }).$type<CanonicalArchiveContext>().notNull(),
+    manifest: text("manifest", { mode: "json" }).$type<CanonicalArchiveManifest>().notNull(),
+    completeness: text("completeness").notNull(),
+    verification: text("verification", { mode: "json" }).$type<CanonicalArchiveVerification | null>(),
+    createdAt: text("created_at").notNull(),
+    verifiedAt: text("verified_at"),
+    failure: text("failure"),
+  },
+  (table) => [
+    uniqueIndex("uq_canonical_archives_active_identity")
+      .on(table.sessionId, table.sourceContentHash)
+      .where(sql`${table.status} IN ('pending', 'building', 'verified', 'partial')`),
+    index("idx_canonical_archives_session_status").on(table.sessionId, table.status),
+    index("idx_canonical_archives_generation").on(table.sessionId, table.generationId),
+  ],
 );
 
 export const canonicalArchiveNodes = sqliteTable(
-	"canonical_archive_nodes",
-	{
-		nodeId: text("node_id").primaryKey(),
-		archiveId: text("archive_id")
-			.notNull()
-			.references(() => canonicalArchives.archiveId, { onDelete: "cascade" }),
-		parentNodeId: text("parent_node_id"),
-		level: text("level").notNull(),
-		semanticKind: text("semantic_kind").notNull(),
-		stableKey: text("stable_key").notNull(),
-		ordinal: integer("ordinal").notNull(),
-		participantId: text("participant_id"),
-		sessionRunId: text("session_run_id"),
-		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
-		startRow: integer("start_row").notNull(),
-		endRow: integer("end_row").notNull(),
-		startSourceTimeMs: integer("start_source_time_ms"),
-		endSourceTimeMs: integer("end_source_time_ms"),
-		startTrackDistanceM: real("start_track_distance_m"),
-		endTrackDistanceM: real("end_track_distance_m"),
-		status: text("status").notNull(),
-		definitionHash: text("definition_hash"),
-		boundaryAlgorithmVersion: text("boundary_algorithm_version").notNull(),
-	},
-	(table) => [
-		index("idx_canonical_archive_nodes_parent").on(table.parentNodeId),
-		index("idx_canonical_archive_nodes_archive_level_order").on(table.archiveId, table.level, table.ordinal),
-		index("idx_canonical_archive_nodes_participant_order").on(table.archiveId, table.participantId, table.level, table.ordinal),
-		index("idx_canonical_archive_nodes_source_ids").on(table.sessionRunId, table.lapId),
-	],
+  "canonical_archive_nodes",
+  {
+    nodeId: text("node_id").primaryKey(),
+    archiveId: text("archive_id")
+      .notNull()
+      .references(() => canonicalArchives.archiveId, { onDelete: "cascade" }),
+    parentNodeId: text("parent_node_id"),
+    level: text("level").notNull(),
+    semanticKind: text("semantic_kind").notNull(),
+    stableKey: text("stable_key").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    participantId: text("participant_id"),
+    sessionRunId: text("session_run_id"),
+    lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+    startRow: integer("start_row").notNull(),
+    endRow: integer("end_row").notNull(),
+    startSourceTimeMs: integer("start_source_time_ms"),
+    endSourceTimeMs: integer("end_source_time_ms"),
+    startTrackDistanceM: real("start_track_distance_m"),
+    endTrackDistanceM: real("end_track_distance_m"),
+    status: text("status").notNull(),
+    definitionHash: text("definition_hash"),
+    boundaryAlgorithmVersion: text("boundary_algorithm_version").notNull(),
+  },
+  (table) => [
+    index("idx_canonical_archive_nodes_parent").on(table.parentNodeId),
+    index("idx_canonical_archive_nodes_archive_level_order").on(table.archiveId, table.level, table.ordinal),
+    index("idx_canonical_archive_nodes_participant_order").on(table.archiveId, table.participantId, table.level, table.ordinal),
+    index("idx_canonical_archive_nodes_source_ids").on(table.sessionRunId, table.lapId),
+  ],
 );
 
 export const canonicalArchiveJobs = sqliteTable(
-	"canonical_archive_jobs",
-	{
-		jobId: text("job_id").primaryKey(),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		sourceContentHash: text("source_content_hash").notNull(),
-		status: text("status").$type<CanonicalArchiveJobStatus>().notNull(),
-		attemptCount: integer("attempt_count").notNull().default(0),
-		leaseExpiresAt: text("lease_expires_at"),
-		// Generated for every successful claim. A worker may mutate a running
-		// job only while presenting this exact lease capability.
-		leaseToken: text("lease_token"),
-		nextAttemptAt: text("next_attempt_at").notNull(),
-		generationId: text("generation_id"),
-		lastError: text("last_error"),
-		createdAt: text("created_at").notNull(),
-		updatedAt: text("updated_at").notNull(),
-	},
-	(table) => [
-		uniqueIndex("uq_canonical_archive_jobs_lease_token")
-			.on(table.leaseToken)
-			.where(sql`${table.leaseToken} IS NOT NULL`),
-		uniqueIndex("uq_canonical_archive_jobs_source").on(table.sessionId, table.sourceContentHash),
-		index("idx_canonical_archive_jobs_claim").on(table.status, table.nextAttemptAt, table.leaseExpiresAt),
-	],
+  "canonical_archive_jobs",
+  {
+    jobId: text("job_id").primaryKey(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    sourceContentHash: text("source_content_hash").notNull(),
+    status: text("status").$type<CanonicalArchiveJobStatus>().notNull(),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    leaseExpiresAt: text("lease_expires_at"),
+    // Generated for every successful claim. A worker may mutate a running
+    // job only while presenting this exact lease capability.
+    leaseToken: text("lease_token"),
+    nextAttemptAt: text("next_attempt_at").notNull(),
+    generationId: text("generation_id"),
+    lastError: text("last_error"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_canonical_archive_jobs_lease_token")
+      .on(table.leaseToken)
+      .where(sql`${table.leaseToken} IS NOT NULL`),
+    uniqueIndex("uq_canonical_archive_jobs_source").on(table.sessionId, table.sourceContentHash),
+    index("idx_canonical_archive_jobs_claim").on(table.status, table.nextAttemptAt, table.leaseExpiresAt),
+  ],
 );
 
 export const tuneAssignments = sqliteTable(
-	"tune_assignments",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal").notNull(),
-		tuneId: integer("tune_id")
-			.notNull()
-			.references(() => tunes.id, { onDelete: "cascade" }),
-	},
-	(table) => ({
-		gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
-		tuneIdx: index("idx_assignments_tune").on(table.tuneId),
-	}),
+  "tune_assignments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: text("game_id").notNull(),
+    carOrdinal: integer("car_ordinal").notNull(),
+    trackOrdinal: integer("track_ordinal").notNull(),
+    tuneId: integer("tune_id")
+      .notNull()
+      .references(() => tunes.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
+    tuneIdx: index("idx_assignments_tune").on(table.tuneId),
+  }),
 );
 
 export const trackOutlines = sqliteTable(
-	"track_outlines",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
-		gameId: text("game_id").notNull(),
-		outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
-		trackGameUnique: unique().on(table.trackOrdinal, table.gameId),
-	}),
+  "track_outlines",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    trackOrdinal: integer("track_ordinal").notNull(),
+    gameId: text("game_id").notNull(),
+    outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
+    trackGameUnique: unique().on(table.trackOrdinal, table.gameId),
+  }),
 );
 
 export const trackCorners = sqliteTable(
-	"track_corners",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		trackOrdinal: integer("track_ordinal").notNull(),
-		gameId: text("game_id").notNull(),
-		cornerIndex: integer("corner_index").notNull(),
-		label: text("label").notNull(),
-		distanceStart: real("distance_start").notNull(),
-		distanceEnd: real("distance_end").notNull(),
-		isAuto: integer("is_auto", { mode: "boolean" }).notNull().default(true),
-	},
-	(table) => ({
-		trackIdx: index("idx_corners_track").on(table.trackOrdinal),
-		trackCornerUnique: unique().on(
-			table.trackOrdinal,
-			table.gameId,
-			table.cornerIndex,
-		),
-	}),
+  "track_corners",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    trackOrdinal: integer("track_ordinal").notNull(),
+    gameId: text("game_id").notNull(),
+    cornerIndex: integer("corner_index").notNull(),
+    label: text("label").notNull(),
+    distanceStart: real("distance_start").notNull(),
+    distanceEnd: real("distance_end").notNull(),
+    isAuto: integer("is_auto", { mode: "boolean" }).notNull().default(true),
+  },
+  (table) => ({
+    trackIdx: index("idx_corners_track").on(table.trackOrdinal),
+    trackCornerUnique: unique().on(table.trackOrdinal, table.gameId, table.cornerIndex),
+  }),
 );
 
 export const lapAnalyses = sqliteTable(
-	"lap_analyses",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		lapId: integer("lap_id")
-			.notNull()
-			.references(() => laps.id, { onDelete: "cascade" }),
-		analysis: text("analysis").notNull(),
-		inputTokens: integer("input_tokens").notNull().default(0),
-		outputTokens: integer("output_tokens").notNull().default(0),
-		costUsd: real("cost_usd").notNull().default(0),
-		durationMs: integer("duration_ms").notNull().default(0),
-		model: text("model").notNull().default(""),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		qualityGeneration: text("quality_generation"),
-		qualityPolicyVersion: text("quality_policy_version"),
-		findingGenerationKey: text("finding_generation_key"),
-	},
-	(table) => [unique().on(table.lapId)],
+  "lap_analyses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    lapId: integer("lap_id")
+      .notNull()
+      .references(() => laps.id, { onDelete: "cascade" }),
+    analysis: text("analysis").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    model: text("model").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    qualityGeneration: text("quality_generation"),
+    qualityPolicyVersion: text("quality_policy_version"),
+    findingGenerationKey: text("finding_generation_key"),
+  },
+  (table) => [unique().on(table.lapId)],
 );
 
 /**
@@ -481,14 +456,16 @@ export const lapAnalyses = sqliteTable(
  * lap excluded/added) yields a new hash and recomputes.
  */
 export const lineSpreadCache = sqliteTable(
-	"line_spread_cache",
-	{
-		experimentId: integer("experiment_id").notNull(),
-		lapSetHash: text("lap_set_hash").notNull(),
-		trace: text("trace").notNull(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [primaryKey({ columns: [table.experimentId, table.lapSetHash] })],
+  "line_spread_cache",
+  {
+    experimentId: integer("experiment_id").notNull(),
+    lapSetHash: text("lap_set_hash").notNull(),
+    trace: text("trace").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.experimentId, table.lapSetHash] })],
 );
 
 /**
@@ -499,21 +476,23 @@ export const lineSpreadCache = sqliteTable(
  * community cards render from name/author/category/description/settings only.
  */
 export const communityTunes = sqliteTable(
-	"community_tunes",
-	{
-		id: text("id").primaryKey(),
-		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal").notNull(),
-		trackOrdinal: integer("track_ordinal"),
-		name: text("name").notNull(),
-		author: text("author").notNull(),
-		category: text("category").notNull(),
-		description: text("description").notNull().default(""),
-		sourceName: text("source_name").notNull().default(""),
-		settings: text("settings").notNull(),
-		syncedAt: text("synced_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [index("idx_community_tunes_game").on(table.gameId)],
+  "community_tunes",
+  {
+    id: text("id").primaryKey(),
+    gameId: text("game_id").notNull(),
+    carOrdinal: integer("car_ordinal").notNull(),
+    trackOrdinal: integer("track_ordinal"),
+    name: text("name").notNull(),
+    author: text("author").notNull(),
+    category: text("category").notNull(),
+    description: text("description").notNull().default(""),
+    sourceName: text("source_name").notNull().default(""),
+    settings: text("settings").notNull(),
+    syncedAt: text("synced_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [index("idx_community_tunes_game").on(table.gameId)],
 );
 
 /**
@@ -528,42 +507,46 @@ export const communityTunes = sqliteTable(
  * session uses whichever its origin provided.
  */
 export const experiments = sqliteTable(
-	"experiments",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		// Per-game display number, counted from 1 and independent of the raw
-		// autoincrement id (which churns) and of race/telemetry sessions.
-		seq: integer("seq").notNull().default(1),
-		gameId: text("game_id").notNull(),
-		name: text("name").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
-		carName: text("car_name"),
-		trackName: text("track_name"),
-		baseSetupPath: text("base_setup_path"),
-		// The checked-out tuning-test the Setup Engineer chat works from.
-		// null → fall back to the mainline tip. Not a hard FK so a test can be
-		// archived independently (mirrors experiment_versions.parentVersionId).
-		headVersionId: integer("head_version_id"),
-		status: text("status").notNull().default("active"), // 'active' | 'archived'
-		// What the experiment is varying RIGHT NOW (migration v39): 'car' or
-		// 'driver'. Mutable — a driver fixes a balance problem and then moves
-		// on to technique within the same car/track experiment. It steers what
-		// the workspace offers and what `kind` the next version gets; it never
-		// rewrites the kind of versions already recorded. Every switch is
-		// appended to experiment_focus_events.
-		//
-		// Values intentionally differ from experimentVersions.kind
-		// ('setup'|'drill') — mode and arm are different levels and must not
-		// share a vocabulary. See shared/racing/experiments/focus.ts.
-		focus: text("focus").notNull().default("car"), // 'car' | 'driver'
-		notes: text("notes"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		gameIdx: index("idx_experiments_game").on(table.gameId),
-	}),
+  "experiments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // Per-game display number, counted from 1 and independent of the raw
+    // autoincrement id (which churns) and of race/telemetry sessions.
+    seq: integer("seq").notNull().default(1),
+    gameId: text("game_id").notNull(),
+    name: text("name").notNull(),
+    carOrdinal: integer("car_ordinal"),
+    trackOrdinal: integer("track_ordinal"),
+    carName: text("car_name"),
+    trackName: text("track_name"),
+    baseSetupPath: text("base_setup_path"),
+    // The checked-out tuning-test the Setup Engineer chat works from.
+    // null → fall back to the mainline tip. Not a hard FK so a test can be
+    // archived independently (mirrors experiment_versions.parentVersionId).
+    headVersionId: integer("head_version_id"),
+    status: text("status").notNull().default("active"), // 'active' | 'archived'
+    // What the experiment is varying RIGHT NOW (migration v39): 'car' or
+    // 'driver'. Mutable — a driver fixes a balance problem and then moves
+    // on to technique within the same car/track experiment. It steers what
+    // the workspace offers and what `kind` the next version gets; it never
+    // rewrites the kind of versions already recorded. Every switch is
+    // appended to experiment_focus_events.
+    //
+    // Values intentionally differ from experimentVersions.kind
+    // ('setup'|'drill') — mode and arm are different levels and must not
+    // share a vocabulary. See shared/racing/experiments/focus.ts.
+    focus: text("focus").notNull().default("car"), // 'car' | 'driver'
+    notes: text("notes"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    gameIdx: index("idx_experiments_game").on(table.gameId),
+  }),
 );
 
 /**
@@ -580,24 +563,26 @@ export const experiments = sqliteTable(
  * already active is not recorded (see setExperimentFocus).
  */
 export const experimentFocusEvents = sqliteTable(
-	"experiment_focus_events",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		experimentId: integer("experiment_id")
-			.notNull()
-			.references(() => experiments.id, { onDelete: "cascade" }),
-		focus: text("focus").notNull(), // 'car' | 'driver'
-		// The head version when the switch happened, so the tree can show where
-		// a focus era started. Soft ref (not an FK) to match headVersionId: a
-		// version can be archived independently of the ledger entry naming it.
-		fromVersionId: integer("from_version_id"),
-		// Why the driver switched, when they said so. Free text, never inferred.
-		note: text("note"),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		experimentIdx: index("idx_experiment_focus_events_experiment").on(table.experimentId),
-	}),
+  "experiment_focus_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    experimentId: integer("experiment_id")
+      .notNull()
+      .references(() => experiments.id, { onDelete: "cascade" }),
+    focus: text("focus").notNull(), // 'car' | 'driver'
+    // The head version when the switch happened, so the tree can show where
+    // a focus era started. Soft ref (not an FK) to match headVersionId: a
+    // version can be archived independently of the ledger entry naming it.
+    fromVersionId: integer("from_version_id"),
+    // Why the driver switched, when they said so. Free text, never inferred.
+    note: text("note"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    experimentIdx: index("idx_experiment_focus_events_experiment").on(table.experimentId),
+  }),
 );
 
 /**
@@ -617,55 +602,54 @@ export const experimentFocusEvents = sqliteTable(
  * scientific frame around it.
  */
 export const experimentVersions = sqliteTable(
-	"experiment_versions",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		experimentId: integer("experiment_id")
-			.notNull()
-			.references(() => experiments.id, { onDelete: "cascade" }),
-		version: integer("version").notNull(),
-		label: text("label").notNull(),
-		setupPath: text("setup_path"),
-		parentVersionId: integer("parent_version_id"),
-		appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
-		driverComment: text("driver_comment"),
-		// Engineer/AI free-text annotation on this node — distinct from the
-		// driver's subjective feel comment. The setup-engineer agent writes here
-		// to persist per-version reasoning that must survive chat compaction
-		// (migration v31).
-		notes: text("notes"),
-		engine: text("engine"),
-		// F1's captured base / target F1CarSetup JSON (migration v30). Null for
-		// file-based ACC/AC-Evo nodes, which keep using setupPath.
-		setupSnapshot: text("setup_snapshot"),
-		// What this node changes (migration v37). 'setup' = a setup file under
-		// evaluation (the original and default meaning); 'drill' = a driving
-		// change under evaluation, which has no setupPath/setupSnapshot at all.
-		kind: text("kind").notNull().default("setup"), // 'setup' | 'drill'
-		// The experiment frame around the change. `hypothesis` is why we expect
-		// this to help, `prediction` is the falsifiable claim it makes.
-		hypothesis: text("hypothesis"),
-		prediction: text("prediction"),
-		// Outcome once laps have been run against it. Always a human call — no
-		// code path infers a verdict from lap data. `lap_metrics` observations are
-		// test-agnostic by design; the chat agent may propose a verdict from them,
-		// but the driver records it. `verdictSource` is how the driver decided.
-		verdict: text("verdict"), // 'better' | 'worse' | 'neutral' | 'inconclusive'
-		verdictAt: text("verdict_at"),
-		verdictSource: text("verdict_source"), // 'manual' | 'ai' (suggested in chat, accepted by driver)
-		status: text("status").notNull().default("active"), // 'active' | 'archived' | 'deleted'
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		sessionIdx: index("idx_experiment_versions_experiment").on(table.experimentId),
-		// A version number identifies an arm in tool calls ("branch from v5"), in
-		// the version tree and in the undo log. Two arms sharing one is not a
-		// display bug, it is three subsystems disagreeing. Enforced since v41.
-		experimentVersionUnique: unique("idx_experiment_versions_experiment_version").on(
-			table.experimentId,
-			table.version,
-		),
-	}),
+  "experiment_versions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    experimentId: integer("experiment_id")
+      .notNull()
+      .references(() => experiments.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    label: text("label").notNull(),
+    setupPath: text("setup_path"),
+    parentVersionId: integer("parent_version_id"),
+    appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
+    driverComment: text("driver_comment"),
+    // Engineer/AI free-text annotation on this node — distinct from the
+    // driver's subjective feel comment. The setup-engineer agent writes here
+    // to persist per-version reasoning that must survive chat compaction
+    // (migration v31).
+    notes: text("notes"),
+    engine: text("engine"),
+    // F1's captured base / target F1CarSetup JSON (migration v30). Null for
+    // file-based ACC/AC-Evo nodes, which keep using setupPath.
+    setupSnapshot: text("setup_snapshot"),
+    // What this node changes (migration v37). 'setup' = a setup file under
+    // evaluation (the original and default meaning); 'drill' = a driving
+    // change under evaluation, which has no setupPath/setupSnapshot at all.
+    kind: text("kind").notNull().default("setup"), // 'setup' | 'drill'
+    // The experiment frame around the change. `hypothesis` is why we expect
+    // this to help, `prediction` is the falsifiable claim it makes.
+    hypothesis: text("hypothesis"),
+    prediction: text("prediction"),
+    // Outcome once laps have been run against it. Always a human call — no
+    // code path infers a verdict from lap data. `lap_metrics` observations are
+    // test-agnostic by design; the chat agent may propose a verdict from them,
+    // but the driver records it. `verdictSource` is how the driver decided.
+    verdict: text("verdict"), // 'better' | 'worse' | 'neutral' | 'inconclusive'
+    verdictAt: text("verdict_at"),
+    verdictSource: text("verdict_source"), // 'manual' | 'ai' (suggested in chat, accepted by driver)
+    status: text("status").notNull().default("active"), // 'active' | 'archived' | 'deleted'
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    sessionIdx: index("idx_experiment_versions_experiment").on(table.experimentId),
+    // A version number identifies an arm in tool calls ("branch from v5"), in
+    // the version tree and in the undo log. Two arms sharing one is not a
+    // display bug, it is three subsystems disagreeing. Enforced since v41.
+    experimentVersionUnique: unique("idx_experiment_versions_experiment_version").on(table.experimentId, table.version),
+  }),
 );
 
 /**
@@ -678,18 +662,20 @@ export const experimentVersions = sqliteTable(
  * matching the laps.experiment_id precedent).
  */
 export const experimentActions = sqliteTable(
-	"experiment_actions",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		experimentId: integer("experiment_id").notNull(),
-		kind: text("kind").notNull(),
-		inversePayload: text("inverse_payload"), // JSON
-		undone: integer("undone", { mode: "boolean" }).notNull().default(false),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => ({
-		sessionIdx: index("idx_experiment_actions_experiment").on(table.experimentId),
-	}),
+  "experiment_actions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    experimentId: integer("experiment_id").notNull(),
+    kind: text("kind").notNull(),
+    inversePayload: text("inverse_payload"), // JSON
+    undone: integer("undone", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    sessionIdx: index("idx_experiment_actions_experiment").on(table.experimentId),
+  }),
 );
 
 /**
@@ -699,28 +685,30 @@ export const experimentActions = sqliteTable(
  * generic so additional comparison analyses can share the table.
  */
 export const compareAnalyses = sqliteTable(
-	"compare_analyses",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		lapAId: integer("lap_a_id").notNull(),
-		lapBId: integer("lap_b_id").notNull(),
-		// Canonical storage pair plus requested directional pair. v70 backfills
-		// existing rows so /A/B and /B/A caches remain distinct.
-		requestLapAId: integer("request_lap_a_id"),
-		requestLapBId: integer("request_lap_b_id"),
-		kind: text("kind").notNull().default("inputs"),
-		analysis: text("analysis").notNull(),
-		inputTokens: integer("input_tokens").notNull().default(0),
-		outputTokens: integer("output_tokens").notNull().default(0),
-		costUsd: real("cost_usd").notNull().default(0),
-		durationMs: integer("duration_ms").notNull().default(0),
-		model: text("model").notNull().default(""),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		qualityGeneration: text("quality_generation"),
-		qualityPolicyVersion: text("quality_policy_version"),
-		findingGenerationKey: text("finding_generation_key"),
-	},
-	(table) => [unique().on(table.requestLapAId, table.requestLapBId, table.kind)],
+  "compare_analyses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    lapAId: integer("lap_a_id").notNull(),
+    lapBId: integer("lap_b_id").notNull(),
+    // Canonical storage pair plus requested directional pair. v70 backfills
+    // existing rows so /A/B and /B/A caches remain distinct.
+    requestLapAId: integer("request_lap_a_id"),
+    requestLapBId: integer("request_lap_b_id"),
+    kind: text("kind").notNull().default("inputs"),
+    analysis: text("analysis").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    model: text("model").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    qualityGeneration: text("quality_generation"),
+    qualityPolicyVersion: text("quality_policy_version"),
+    findingGenerationKey: text("finding_generation_key"),
+  },
+  (table) => [unique().on(table.requestLapAId, table.requestLapBId, table.kind)],
 );
 
 /**
@@ -732,14 +720,16 @@ export const compareAnalyses = sqliteTable(
  * read. One row per lap — the recompute overwrites in place.
  */
 export const lapMetrics = sqliteTable("lap_metrics", {
-	lapId: integer("lap_id")
-		.primaryKey()
-		.references(() => laps.id, { onDelete: "cascade" }),
-	algoVersion: integer("algo_version").notNull().default(1),
-	qualityGeneration: text("quality_generation"),
-	insights: text("insights").notNull(),
-	segmentStats: text("segment_stats").notNull(),
-	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),
+  lapId: integer("lap_id")
+    .primaryKey()
+    .references(() => laps.id, { onDelete: "cascade" }),
+  algoVersion: integer("algo_version").notNull().default(1),
+  qualityGeneration: text("quality_generation"),
+  insights: text("insights").notNull(),
+  segmentStats: text("segment_stats").notNull(),
+  computedAt: text("computed_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
 });
 
 /**
@@ -757,57 +747,60 @@ export const lapMetrics = sqliteTable("lap_metrics", {
  * model's DriverProfileSummary `plan` snapshot for auditing.
  */
 export const driverProfiles = sqliteTable(
-	"driver_profiles",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		scopeKey: text("scope_key").notNull(),
-		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
-		poolKey: text("pool_key").notNull(),
-		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
-		fingerprint: text("fingerprint").notNull(),
-		/** JSON — DriverProfileSummary snapshot from the Driver Profiler agent. */
-		plan: text("plan").notNull(),
-		inputTokens: integer("input_tokens").notNull().default(0),
-		outputTokens: integer("output_tokens").notNull().default(0),
-		costUsd: real("cost_usd").notNull().default(0),
-		durationMs: integer("duration_ms").notNull().default(0),
-		model: text("model").notNull().default(""),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [unique().on(table.scopeKey)],
+  "driver_profiles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    scopeKey: text("scope_key").notNull(),
+    gameId: text("game_id").notNull(),
+    carOrdinal: integer("car_ordinal"),
+    trackOrdinal: integer("track_ordinal"),
+    poolKey: text("pool_key").notNull(),
+    /** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
+    fingerprint: text("fingerprint").notNull(),
+    /** JSON — DriverProfileSummary snapshot from the Driver Profiler agent. */
+    plan: text("plan").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    model: text("model").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [unique().on(table.scopeKey)],
 );
 
 /** Immutable ledger of manual and background driver-profile attempts. */
 export const driverProfileRuns = sqliteTable(
-	"driver_profile_runs",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		scopeKey: text("scope_key").notNull(),
-		gameId: text("game_id").notNull(),
-		carOrdinal: integer("car_ordinal"),
-		trackOrdinal: integer("track_ordinal"),
-		poolKey: text("pool_key").notNull(),
-		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
-		/** JSON — deterministic DriverFingerprint snapshot, when available. */
-		fingerprint: text("fingerprint"),
-		/** JSON — generated DriverProfileSummary snapshot, when available. */
-		plan: text("plan"),
-		error: text("error"),
-		inputTokens: integer("input_tokens").notNull().default(0),
-		outputTokens: integer("output_tokens").notNull().default(0),
-		costUsd: real("cost_usd").notNull().default(0),
-		durationMs: integer("duration_ms").notNull().default(0),
-		model: text("model").notNull().default(""),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		startedAt: text("started_at"),
-		completedAt: text("completed_at"),
-	},
-	(table) => [
-		index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status),
-		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
-	],
+  "driver_profile_runs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    scopeKey: text("scope_key").notNull(),
+    gameId: text("game_id").notNull(),
+    carOrdinal: integer("car_ordinal"),
+    trackOrdinal: integer("track_ordinal"),
+    poolKey: text("pool_key").notNull(),
+    status: text("status", { enum: ["queued", "running", "succeeded", "failed"] })
+      .notNull()
+      .default("queued"),
+    /** JSON — deterministic DriverFingerprint snapshot, when available. */
+    fingerprint: text("fingerprint"),
+    /** JSON — generated DriverProfileSummary snapshot, when available. */
+    plan: text("plan"),
+    error: text("error"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: real("cost_usd").notNull().default(0),
+    durationMs: integer("duration_ms").notNull().default(0),
+    model: text("model").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    startedAt: text("started_at"),
+    completedAt: text("completed_at"),
+  },
+  (table) => [index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status), index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id)],
 );
 
 /**
@@ -816,340 +809,250 @@ export const driverProfileRuns = sqliteTable(
  * timeline coordinate.
  */
 export const raceEvents = sqliteTable(
-	"race_events",
-	{
-		eventId: text("event_id").$type<RaceEventId>().primaryKey(),
-		eventType: text("event_type").$type<RaceEvent["eventType"]>().notNull(),
-		schemaVersion: text("schema_version").$type<RaceEvent["schemaVersion"]>().notNull(),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		participantId: text("participant_id"),
-		participantKind: text("participant_kind").$type<RaceEvent["participantKind"]>(),
-		driverId: text("driver_id"),
-		teamId: text("team_id"),
-		timelineEpoch: integer("timeline_epoch").notNull(),
-		sequence: integer("sequence").notNull(),
-		eventOrder: integer("event_order").notNull(),
-		sourceTimeMs: integer("source_time_ms"),
-		sourceEndTimeMs: integer("source_end_time_ms"),
-		sourceSequenceFamily: text("source_sequence_family"),
-		sourceSequence: integer("source_sequence"),
-		receivedAtMs: integer("received_at_ms").notNull(),
-		lapNumber: integer("lap_number"),
-		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
-		trackDistanceM: real("track_distance_m"),
-		trackDistancePct: real("track_distance_pct"),
-		worldPosition: text("world_position", { mode: "json" }).$type<RaceEvent["worldPosition"]>(),
-		evidenceKind: text("evidence_kind").$type<RaceEvent["evidenceKind"]>().notNull(),
-		confidence: text("confidence").$type<RaceEvent["confidence"]>().notNull(),
-		qualityState: text("quality_state").$type<RaceEvent["qualityState"]>().notNull(),
-		sourceKind: text("source_kind").$type<RaceEvent["sourceKind"]>().notNull(),
-		payload: text("payload", { mode: "json" }).$type<RaceEvent["payload"]>().notNull(),
-		lifecycleId: text("lifecycle_id"),
-		linkedEventId: text("linked_event_id")
-			.$type<RaceEventId>()
-			.references((): AnySQLiteColumn => raceEvents.eventId, { onDelete: "set null" }),
-		detectorId: text("detector_id").notNull(),
-		detectorVersion: text("detector_version").notNull(),
-		sourceGeneration: text("source_generation"),
-		analysisGenerationId: text("analysis_generation_id"),
-		contentHash: text("content_hash"),
-		createdAt: text("created_at")
-			.notNull()
-			.default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-	},
-	(table) => [
-		check(
-			"race_events_timeline_epoch_safe",
-			sql`typeof(${table.timelineEpoch}) = 'integer' and ${table.timelineEpoch} between 0 and 9007199254740991`,
-		),
-		check(
-			"race_events_sequence_safe",
-			sql`typeof(${table.sequence}) = 'integer' and ${table.sequence} between 0 and 9007199254740991`,
-		),
-		check(
-			"race_events_order_safe",
-			sql`typeof(${table.eventOrder}) = 'integer' and ${table.eventOrder} between 0 and 9007199254740991`,
-		),
-		check(
-			"race_events_source_time_safe",
-			sql`${table.sourceTimeMs} is null or (typeof(${table.sourceTimeMs}) = 'integer' and ${table.sourceTimeMs} between -9007199254740991 and 9007199254740991)`,
-		),
-		check(
-			"race_events_source_end_time_safe",
-			sql`${table.sourceEndTimeMs} is null or (typeof(${table.sourceEndTimeMs}) = 'integer' and ${table.sourceEndTimeMs} between -9007199254740991 and 9007199254740991)`,
-		),
-		check(
-			"race_events_source_sequence_safe",
-			sql`${table.sourceSequence} is null or (typeof(${table.sourceSequence}) = 'integer' and ${table.sourceSequence} between -9007199254740991 and 9007199254740991)`,
-		),
-		check(
-			"race_events_received_at_safe",
-			sql`typeof(${table.receivedAtMs}) = 'integer' and ${table.receivedAtMs} between 0 and 9007199254740991`,
-		),
-		check(
-			"race_events_lap_number_safe",
-			sql`${table.lapNumber} is null or (typeof(${table.lapNumber}) = 'integer' and ${table.lapNumber} between 0 and 9007199254740991)`,
-		),
-		check(
-			"race_events_source_time_range",
-			sql`(${table.sourceTimeMs} is null and ${table.sourceEndTimeMs} is null) or (${table.sourceTimeMs} is not null and ${table.sourceEndTimeMs} is not null and ${table.sourceEndTimeMs} >= ${table.sourceTimeMs})`,
-		),
-		check(
-			"race_events_track_distance_pct",
-			sql`${table.trackDistancePct} is null or ${table.trackDistancePct} between 0 and 1`,
-		),
-		index("idx_race_events_session_order").on(
-			table.sessionId,
-			table.timelineEpoch,
-			table.sequence,
-			table.eventOrder,
-			table.eventId,
-		),
-		index("idx_race_events_participant").on(
-			table.sessionId,
-			table.participantId,
-			table.timelineEpoch,
-			table.sequence,
-			table.eventOrder,
-			table.eventId,
-		),
-		index("idx_race_events_lap").on(
-			table.lapId,
-			table.timelineEpoch,
-			table.sequence,
-			table.eventOrder,
-			table.eventId,
-		),
-		index("idx_race_events_source_time").on(table.sessionId, table.sourceTimeMs, table.sourceEndTimeMs),
-		index("idx_race_events_lifecycle").on(
-			table.sessionId,
-			table.lifecycleId,
-			table.timelineEpoch,
-			table.sequence,
-			table.eventOrder,
-			table.eventId,
-		),
-		index("idx_race_events_linked_event").on(table.linkedEventId),
-	],
+  "race_events",
+  {
+    eventId: text("event_id").$type<RaceEventId>().primaryKey(),
+    eventType: text("event_type").$type<RaceEvent["eventType"]>().notNull(),
+    schemaVersion: text("schema_version").$type<RaceEvent["schemaVersion"]>().notNull(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    participantId: text("participant_id"),
+    participantKind: text("participant_kind").$type<RaceEvent["participantKind"]>(),
+    driverId: text("driver_id"),
+    teamId: text("team_id"),
+    timelineEpoch: integer("timeline_epoch").notNull(),
+    sequence: integer("sequence").notNull(),
+    eventOrder: integer("event_order").notNull(),
+    sourceTimeMs: integer("source_time_ms"),
+    sourceEndTimeMs: integer("source_end_time_ms"),
+    sourceSequenceFamily: text("source_sequence_family"),
+    sourceSequence: integer("source_sequence"),
+    receivedAtMs: integer("received_at_ms").notNull(),
+    lapNumber: integer("lap_number"),
+    lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+    trackDistanceM: real("track_distance_m"),
+    trackDistancePct: real("track_distance_pct"),
+    worldPosition: text("world_position", { mode: "json" }).$type<RaceEvent["worldPosition"]>(),
+    evidenceKind: text("evidence_kind").$type<RaceEvent["evidenceKind"]>().notNull(),
+    confidence: text("confidence").$type<RaceEvent["confidence"]>().notNull(),
+    qualityState: text("quality_state").$type<RaceEvent["qualityState"]>().notNull(),
+    sourceKind: text("source_kind").$type<RaceEvent["sourceKind"]>().notNull(),
+    payload: text("payload", { mode: "json" }).$type<RaceEvent["payload"]>().notNull(),
+    lifecycleId: text("lifecycle_id"),
+    linkedEventId: text("linked_event_id")
+      .$type<RaceEventId>()
+      .references((): AnySQLiteColumn => raceEvents.eventId, { onDelete: "set null" }),
+    detectorId: text("detector_id").notNull(),
+    detectorVersion: text("detector_version").notNull(),
+    sourceGeneration: text("source_generation"),
+    analysisGenerationId: text("analysis_generation_id"),
+    contentHash: text("content_hash"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  },
+  (table) => [
+    check("race_events_timeline_epoch_safe", sql`typeof(${table.timelineEpoch}) = 'integer' and ${table.timelineEpoch} between 0 and 9007199254740991`),
+    check("race_events_sequence_safe", sql`typeof(${table.sequence}) = 'integer' and ${table.sequence} between 0 and 9007199254740991`),
+    check("race_events_order_safe", sql`typeof(${table.eventOrder}) = 'integer' and ${table.eventOrder} between 0 and 9007199254740991`),
+    check("race_events_source_time_safe", sql`${table.sourceTimeMs} is null or (typeof(${table.sourceTimeMs}) = 'integer' and ${table.sourceTimeMs} between -9007199254740991 and 9007199254740991)`),
+    check(
+      "race_events_source_end_time_safe",
+      sql`${table.sourceEndTimeMs} is null or (typeof(${table.sourceEndTimeMs}) = 'integer' and ${table.sourceEndTimeMs} between -9007199254740991 and 9007199254740991)`,
+    ),
+    check(
+      "race_events_source_sequence_safe",
+      sql`${table.sourceSequence} is null or (typeof(${table.sourceSequence}) = 'integer' and ${table.sourceSequence} between -9007199254740991 and 9007199254740991)`,
+    ),
+    check("race_events_received_at_safe", sql`typeof(${table.receivedAtMs}) = 'integer' and ${table.receivedAtMs} between 0 and 9007199254740991`),
+    check("race_events_lap_number_safe", sql`${table.lapNumber} is null or (typeof(${table.lapNumber}) = 'integer' and ${table.lapNumber} between 0 and 9007199254740991)`),
+    check(
+      "race_events_source_time_range",
+      sql`(${table.sourceTimeMs} is null and ${table.sourceEndTimeMs} is null) or (${table.sourceTimeMs} is not null and ${table.sourceEndTimeMs} is not null and ${table.sourceEndTimeMs} >= ${table.sourceTimeMs})`,
+    ),
+    check("race_events_track_distance_pct", sql`${table.trackDistancePct} is null or ${table.trackDistancePct} between 0 and 1`),
+    index("idx_race_events_session_order").on(table.sessionId, table.timelineEpoch, table.sequence, table.eventOrder, table.eventId),
+    index("idx_race_events_participant").on(table.sessionId, table.participantId, table.timelineEpoch, table.sequence, table.eventOrder, table.eventId),
+    index("idx_race_events_lap").on(table.lapId, table.timelineEpoch, table.sequence, table.eventOrder, table.eventId),
+    index("idx_race_events_source_time").on(table.sessionId, table.sourceTimeMs, table.sourceEndTimeMs),
+    index("idx_race_events_lifecycle").on(table.sessionId, table.lifecycleId, table.timelineEpoch, table.sequence, table.eventOrder, table.eventId),
+    index("idx_race_events_linked_event").on(table.linkedEventId),
+  ],
 );
 
 export const sessionRuns = sqliteTable(
-	"session_runs",
-	{
-		runId: text("run_id").$type<SessionRunId>().primaryKey(),
-		schemaVersion: text("schema_version").$type<SessionRun["schemaVersion"]>().notNull(),
-		algorithmVersion: text("algorithm_version").$type<SessionRun["algorithmVersion"]>().notNull(),
-		sessionId: integer("session_id")
-			.notNull()
-			.references(() => sessions.id, { onDelete: "cascade" }),
-		participantId: text("participant_id"),
-		participantKind: text("participant_kind").$type<SessionRun["participantKind"]>(),
-		driverId: text("driver_id"),
-		teamId: text("team_id"),
-		classId: text("class_id"),
-		runKind: text("run_kind").$type<SessionRunKind>().notNull(),
-		status: text("status").$type<SessionRunStatus>().notNull(),
-		openingPhase: text("opening_phase").$type<SessionRun["openingPhase"]>().notNull(),
-		observedPhases: text("observed_phases", { mode: "json" }).$type<SessionRun["observedPhases"]>().notNull(),
-		timelineEpoch: integer("timeline_epoch").notNull(),
-		openingSequence: integer("opening_sequence").notNull(),
-		openingEventOrder: integer("opening_event_order").notNull(),
-		openingReason: text("opening_reason").$type<SessionRun["openingBoundary"]["reason"]>().notNull(),
-		openingEventId: text("opening_event_id")
-			.$type<RaceEventId>()
-			.notNull()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		openingConfidence: text("opening_confidence").$type<SessionRun["openingBoundary"]["confidence"]>().notNull(),
-		openingEvidenceKind: text("opening_evidence_kind").$type<SessionRun["openingBoundary"]["evidenceKind"]>().notNull(),
-		closingReason: text("closing_reason").$type<SessionRun["closingBoundary"]["reason"]>().notNull(),
-		closingEventId: text("closing_event_id")
-			.$type<RaceEventId>()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		closingConfidence: text("closing_confidence").$type<SessionRun["closingBoundary"]["confidence"]>().notNull(),
-		closingEvidenceKind: text("closing_evidence_kind").$type<SessionRun["closingBoundary"]["evidenceKind"]>().notNull(),
-		startLapEventId: text("start_lap_event_id")
-			.$type<RaceEventId>()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		endLapEventId: text("end_lap_event_id")
-			.$type<RaceEventId>()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		startLapId: integer("start_lap_id").references(() => laps.id, { onDelete: "set null" }),
-		endLapId: integer("end_lap_id").references(() => laps.id, { onDelete: "set null" }),
-		startSourceTimeMs: integer("start_source_time_ms"),
-		endSourceTimeMs: integer("end_source_time_ms"),
-		startTrackDistanceM: real("start_track_distance_m"),
-		endTrackDistanceM: real("end_track_distance_m"),
-		startTrackDistancePct: real("start_track_distance_pct"),
-		endTrackDistancePct: real("end_track_distance_pct"),
-		tireCompound: text("tire_compound"),
-		tireSetId: text("tire_set_id"),
-		sourceGeneration: text("source_generation"),
-		analysisGenerationId: text("analysis_generation_id"),
-		qualityFlags: text("quality_flags", { mode: "json" }).$type<SessionRun["qualityFlags"]>().notNull(),
-		summary: text("summary", { mode: "json" }).$type<SessionRun["summary"]>().notNull(),
-		contentHash: text("content_hash").$type<SessionRun["contentHash"]>().notNull(),
-		createdAt: text("created_at").notNull(),
-	},
-	(table) => [
-		uniqueIndex("uq_session_runs_known_participant_coordinate")
-			.on(
-				table.sessionId,
-				table.participantId,
-				table.runKind,
-				table.timelineEpoch,
-				table.openingEventId,
-			)
-			.where(sql`${table.participantId} IS NOT NULL`),
-		uniqueIndex("uq_session_runs_unknown_participant_coordinate")
-			.on(
-				table.sessionId,
-				table.runKind,
-				table.timelineEpoch,
-				table.openingEventId,
-			)
-			.where(sql`${table.participantId} IS NULL`),
-		index("idx_session_runs_session_kind_order").on(
-			table.sessionId,
-			table.runKind,
-			table.timelineEpoch,
-			table.openingSequence,
-			table.openingEventOrder,
-			table.runId,
-		),
-		index("idx_session_runs_participant_kind_order").on(
-			table.sessionId,
-			table.participantId,
-			table.runKind,
-			table.timelineEpoch,
-			table.openingSequence,
-			table.openingEventOrder,
-			table.runId,
-		),
-		index("idx_session_runs_driver_order").on(
-			table.driverId,
-			table.timelineEpoch,
-			table.openingSequence,
-			table.openingEventOrder,
-			table.runId,
-		),
-		index("idx_session_runs_opening_event").on(table.openingEventId),
-		index("idx_session_runs_closing_event").on(table.closingEventId),
-	],
+  "session_runs",
+  {
+    runId: text("run_id").$type<SessionRunId>().primaryKey(),
+    schemaVersion: text("schema_version").$type<SessionRun["schemaVersion"]>().notNull(),
+    algorithmVersion: text("algorithm_version").$type<SessionRun["algorithmVersion"]>().notNull(),
+    sessionId: integer("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    participantId: text("participant_id"),
+    participantKind: text("participant_kind").$type<SessionRun["participantKind"]>(),
+    driverId: text("driver_id"),
+    teamId: text("team_id"),
+    classId: text("class_id"),
+    runKind: text("run_kind").$type<SessionRunKind>().notNull(),
+    status: text("status").$type<SessionRunStatus>().notNull(),
+    openingPhase: text("opening_phase").$type<SessionRun["openingPhase"]>().notNull(),
+    observedPhases: text("observed_phases", { mode: "json" }).$type<SessionRun["observedPhases"]>().notNull(),
+    timelineEpoch: integer("timeline_epoch").notNull(),
+    openingSequence: integer("opening_sequence").notNull(),
+    openingEventOrder: integer("opening_event_order").notNull(),
+    openingReason: text("opening_reason").$type<SessionRun["openingBoundary"]["reason"]>().notNull(),
+    openingEventId: text("opening_event_id")
+      .$type<RaceEventId>()
+      .notNull()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    openingConfidence: text("opening_confidence").$type<SessionRun["openingBoundary"]["confidence"]>().notNull(),
+    openingEvidenceKind: text("opening_evidence_kind").$type<SessionRun["openingBoundary"]["evidenceKind"]>().notNull(),
+    closingReason: text("closing_reason").$type<SessionRun["closingBoundary"]["reason"]>().notNull(),
+    closingEventId: text("closing_event_id")
+      .$type<RaceEventId>()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    closingConfidence: text("closing_confidence").$type<SessionRun["closingBoundary"]["confidence"]>().notNull(),
+    closingEvidenceKind: text("closing_evidence_kind").$type<SessionRun["closingBoundary"]["evidenceKind"]>().notNull(),
+    startLapEventId: text("start_lap_event_id")
+      .$type<RaceEventId>()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    endLapEventId: text("end_lap_event_id")
+      .$type<RaceEventId>()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    startLapId: integer("start_lap_id").references(() => laps.id, { onDelete: "set null" }),
+    endLapId: integer("end_lap_id").references(() => laps.id, { onDelete: "set null" }),
+    startSourceTimeMs: integer("start_source_time_ms"),
+    endSourceTimeMs: integer("end_source_time_ms"),
+    startTrackDistanceM: real("start_track_distance_m"),
+    endTrackDistanceM: real("end_track_distance_m"),
+    startTrackDistancePct: real("start_track_distance_pct"),
+    endTrackDistancePct: real("end_track_distance_pct"),
+    tireCompound: text("tire_compound"),
+    tireSetId: text("tire_set_id"),
+    sourceGeneration: text("source_generation"),
+    analysisGenerationId: text("analysis_generation_id"),
+    qualityFlags: text("quality_flags", { mode: "json" }).$type<SessionRun["qualityFlags"]>().notNull(),
+    summary: text("summary", { mode: "json" }).$type<SessionRun["summary"]>().notNull(),
+    contentHash: text("content_hash").$type<SessionRun["contentHash"]>().notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_session_runs_known_participant_coordinate")
+      .on(table.sessionId, table.participantId, table.runKind, table.timelineEpoch, table.openingEventId)
+      .where(sql`${table.participantId} IS NOT NULL`),
+    uniqueIndex("uq_session_runs_unknown_participant_coordinate")
+      .on(table.sessionId, table.runKind, table.timelineEpoch, table.openingEventId)
+      .where(sql`${table.participantId} IS NULL`),
+    index("idx_session_runs_session_kind_order").on(table.sessionId, table.runKind, table.timelineEpoch, table.openingSequence, table.openingEventOrder, table.runId),
+    index("idx_session_runs_participant_kind_order").on(table.sessionId, table.participantId, table.runKind, table.timelineEpoch, table.openingSequence, table.openingEventOrder, table.runId),
+    index("idx_session_runs_driver_order").on(table.driverId, table.timelineEpoch, table.openingSequence, table.openingEventOrder, table.runId),
+    index("idx_session_runs_opening_event").on(table.openingEventId),
+    index("idx_session_runs_closing_event").on(table.closingEventId),
+  ],
 );
 
 export const sessionRunLaps = sqliteTable(
-	"session_run_laps",
-	{
-		runId: text("run_id")
-			.$type<SessionRunId>()
-			.notNull()
-			.references(() => sessionRuns.runId, { onDelete: "cascade" }),
-		lapEventId: text("lap_event_id")
-			.$type<RaceEventId>()
-			.notNull()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
-		lapNumber: integer("lap_number").notNull(),
-		ordinal: integer("ordinal").notNull(),
-		entryEventId: text("entry_event_id")
-			.$type<RaceEventId>()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		exitEventId: text("exit_event_id")
-			.$type<RaceEventId>()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-	},
-	(table) => [
-		primaryKey({ columns: [table.runId, table.lapEventId] }),
-		index("idx_session_run_laps_run_order").on(table.runId, table.ordinal, table.lapEventId),
-		index("idx_session_run_laps_lap_lookup").on(table.lapEventId, table.runId),
-		index("idx_session_run_laps_numeric_lap").on(table.lapId, table.runId),
-	],
+  "session_run_laps",
+  {
+    runId: text("run_id")
+      .$type<SessionRunId>()
+      .notNull()
+      .references(() => sessionRuns.runId, { onDelete: "cascade" }),
+    lapEventId: text("lap_event_id")
+      .$type<RaceEventId>()
+      .notNull()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+    lapNumber: integer("lap_number").notNull(),
+    ordinal: integer("ordinal").notNull(),
+    entryEventId: text("entry_event_id")
+      .$type<RaceEventId>()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    exitEventId: text("exit_event_id")
+      .$type<RaceEventId>()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.runId, table.lapEventId] }),
+    index("idx_session_run_laps_run_order").on(table.runId, table.ordinal, table.lapEventId),
+    index("idx_session_run_laps_lap_lookup").on(table.lapEventId, table.runId),
+    index("idx_session_run_laps_numeric_lap").on(table.lapId, table.runId),
+  ],
 );
 
 export const sessionRunEvidence = sqliteTable(
-	"session_run_evidence",
-	{
-		runId: text("run_id")
-			.$type<SessionRunId>()
-			.notNull()
-			.references(() => sessionRuns.runId, { onDelete: "cascade" }),
-		eventId: text("event_id")
-			.$type<RaceEventId>()
-			.notNull()
-			.references(() => raceEvents.eventId, { onDelete: "cascade" }),
-		role: text("role").$type<SessionRunEvidenceRole>().notNull(),
-	},
-	(table) => [
-		primaryKey({ columns: [table.runId, table.eventId, table.role] }),
-		index("idx_session_run_evidence_event").on(table.eventId, table.runId, table.role),
-	],
+  "session_run_evidence",
+  {
+    runId: text("run_id")
+      .$type<SessionRunId>()
+      .notNull()
+      .references(() => sessionRuns.runId, { onDelete: "cascade" }),
+    eventId: text("event_id")
+      .$type<RaceEventId>()
+      .notNull()
+      .references(() => raceEvents.eventId, { onDelete: "cascade" }),
+    role: text("role").$type<SessionRunEvidenceRole>().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.runId, table.eventId, table.role] }), index("idx_session_run_evidence_event").on(table.eventId, table.runId, table.role)],
 );
 /**
  * Deterministic structured findings generations. Rows are staged first and
  * switched current in one transaction; prose/narratives remain in AI tables.
  */
 export const findingGenerations = sqliteTable(
-	"finding_generations",
-	{
-		id: text("id").primaryKey(),
-		lapId: integer("lap_id").references(() => laps.id, { onDelete: "cascade" }),
-		scopeKey: text("scope_key").notNull(),
-		scope: text("scope").notNull(),
-		sourceId: text("source_id").notNull(),
-		rule: text("rule").notNull(),
-		config: text("config").notNull(),
-		schemaVersion: text("schema_version").notNull(),
-		status: text("status", {
-			enum: [
-				"staging",
-				"current",
-				"stale-rebuild-available",
-				"stale-source-missing",
-				"verification-failed",
-				"incompatible",
-				"corrupt",
-			],
-		}).notNull(),
-		findingCount: integer("finding_count").notNull().default(0),
-		availableCount: integer("available_count").notNull().default(0),
-		unavailableCount: integer("unavailable_count").notNull().default(0),
-		indeterminateCount: integer("indeterminate_count").notNull().default(0),
-		contentHash: text("content_hash").notNull(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-		verifiedAt: text("verified_at"),
-		activatedAt: text("activated_at"),
-		staleAt: text("stale_at"),
-		failureReason: text("failure_reason"),
-	},
-	(table) => [
-		uniqueIndex("finding_generations_one_current_idx")
-			.on(table.scopeKey)
-			.where(sql`${table.status} IN ('current', 'stale-rebuild-available', 'stale-source-missing')`),
-		index("finding_generations_scope_status_idx").on(table.scopeKey, table.status),
-		index("finding_generations_lap_idx").on(table.lapId),
-		index("finding_generations_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
-	],
+  "finding_generations",
+  {
+    id: text("id").primaryKey(),
+    lapId: integer("lap_id").references(() => laps.id, { onDelete: "cascade" }),
+    scopeKey: text("scope_key").notNull(),
+    scope: text("scope").notNull(),
+    sourceId: text("source_id").notNull(),
+    rule: text("rule").notNull(),
+    config: text("config").notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    status: text("status", {
+      enum: ["staging", "current", "stale-rebuild-available", "stale-source-missing", "verification-failed", "incompatible", "corrupt"],
+    }).notNull(),
+    findingCount: integer("finding_count").notNull().default(0),
+    availableCount: integer("available_count").notNull().default(0),
+    unavailableCount: integer("unavailable_count").notNull().default(0),
+    indeterminateCount: integer("indeterminate_count").notNull().default(0),
+    contentHash: text("content_hash").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    verifiedAt: text("verified_at"),
+    activatedAt: text("activated_at"),
+    staleAt: text("stale_at"),
+    failureReason: text("failure_reason"),
+  },
+  (table) => [
+    uniqueIndex("finding_generations_one_current_idx")
+      .on(table.scopeKey)
+      .where(sql`${table.status} = 'current'`),
+    index("finding_generations_scope_status_idx").on(table.scopeKey, table.status),
+    index("finding_generations_lap_idx").on(table.lapId),
+    index("finding_generations_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+  ],
 );
 
 /** Canonical structured records belonging to one finding generation. */
 export const findingRecords = sqliteTable(
-	"finding_records",
-	{
-		generationId: text("generation_id")
-			.notNull()
-			.references(() => findingGenerations.id, { onDelete: "cascade" }),
-		findingId: text("finding_id").notNull(),
-		type: text("type").notNull(),
-		status: text("status", { enum: ["available", "unavailable", "indeterminate"] }).notNull(),
-		structured: text("structured").notNull(),
-		structuredHash: text("structured_hash").notNull(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [
-		primaryKey({ columns: [table.generationId, table.findingId] }),
-		index("finding_records_finding_idx").on(table.findingId),
-		index("finding_records_generation_idx").on(table.generationId),
-	],
+  "finding_records",
+  {
+    generationId: text("generation_id")
+      .notNull()
+      .references(() => findingGenerations.id, { onDelete: "cascade" }),
+    findingId: text("finding_id").notNull(),
+    type: text("type").notNull(),
+    status: text("status", { enum: ["available", "unavailable", "indeterminate"] }).notNull(),
+    structured: text("structured").notNull(),
+    structuredHash: text("structured_hash").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [primaryKey({ columns: [table.generationId, table.findingId] }), index("finding_records_finding_idx").on(table.findingId), index("finding_records_generation_idx").on(table.generationId)],
 );

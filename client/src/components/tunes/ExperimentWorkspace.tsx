@@ -1,6 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
-import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -27,7 +27,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
  * session (?experiment=<id>). The driver runs stints, the right panel
  * summarises the current stint as laps arrive, and Save & recommend runs the
- * deterministic autotune over the fastest valid lap, writes the next setup
+ * deterministic autotune over fastest pace-eligible lap, writes next setup
  * version, and records it as a new tuning test (plan §1, Phase B).
  *
  * Per-lap fuel/lap and tyre wear (and the session Fuel/lap card) are real
@@ -139,9 +139,9 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // Group the pool by tuning test using the createdAt window (plan §2):
   // a lap belongs to the newest test created at/before it; live laps land on the
   // latest (active) test.
-  // Outlaps/inlaps/pit laps carry no tuning signal — excluded outright from
-  // grouping, counts, and aggregates below.
-  const experimentLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
+  // Classified non-pace laps remain inspectable elsewhere but carry no tuning
+  // signal, so exclude them from grouping, counts, and aggregates below.
+  const experimentLapPool = useMemo(() => sessionLapPool.filter((lap) => isTimedLapEligibilityUsable(lap)), [sessionLapPool]);
 
   const lapsByTest = useMemo(() => {
     const sorted = [...tests].sort((a, b) => a.version - b.version);
@@ -168,21 +168,21 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     return map;
   }, [experimentLapPool, tests]);
 
-  // Session-wide stat rollups (hide a card when its value is unavailable).
-  const validLaps = useMemo(() => experimentLapPool.filter((l) => l.isValid && l.lapTime > 0), [experimentLapPool]);
+  // Session-wide pace rollups (hide a card when value is unavailable).
+  const validLaps = useMemo(() => experimentLapPool.filter((lap) => isTimedLapEligibilityUsable(lap)), [experimentLapPool]);
   const lapCount = experimentLapPool.length;
   const bestLap = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
   const avgLap = validLaps.length ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length : null;
   const driveTime = experimentLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
   // Session Fuel/lap: average over the session's laps that have a real fuel
   // metric. null (card hidden) when none do — never a fabricated 0.
-  const fuelVals = useMemo(() => experimentLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [experimentLapPool, metricsById]);
+  const fuelVals = useMemo(() => validLaps.map((lap) => metricsById.get(lap.id)?.fuelPerLap).filter((value): value is number => value != null), [validLaps, metricsById]);
   const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
-  // Best setup = the tune test with the fastest single valid lap.
+  // Best setup = tune test with fastest pace-eligible lap.
   const bestTest = useMemo(() => {
     let best: { test: ExperimentVersion; lapTime: number } | null = null;
     for (const t of tests) {
-      const laps = (lapsByTest.get(t.id) ?? []).filter((l) => l.isValid && l.lapTime > 0);
+      const laps = (lapsByTest.get(t.id) ?? []).filter((lap) => isTimedLapEligibilityUsable(lap));
       if (!laps.length) continue;
       const lapTime = Math.min(...laps.map((l) => l.lapTime));
       if (!best || lapTime < best.lapTime) best = { test: t, lapTime };
@@ -191,7 +191,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   }, [tests, lapsByTest]);
 
   // Live stint summary (right panel) straight from the telemetry store.
-  const liveValid = useMemo(() => liveSessionLaps.filter((l) => l.isValid && l.lapTime > 0), [liveSessionLaps]);
+  const liveValid = useMemo(() => liveSessionLaps.filter((lap) => isTimedLapEligibilityUsable(lap)), [liveSessionLaps]);
   const liveBest = liveValid.length ? Math.min(...liveValid.map((l) => l.lapTime)) : null;
   const liveAvg = liveValid.length ? liveValid.reduce((s, l) => s + l.lapTime, 0) / liveValid.length : null;
   // Both ACC and AC-Evo populate acc.fuelPerLap; live-only (per-lap fuel for
@@ -261,7 +261,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
                   <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
-                  <StatCard label="Avg (valid) lap" value={avgLap != null ? formatLapTime(avgLap) : "—"} />
+                  <StatCard label="Avg pace lap" value={avgLap != null ? formatLapTime(avgLap) : "—"} />
                   <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
                   <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
                   {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}

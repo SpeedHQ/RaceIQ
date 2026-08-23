@@ -105,6 +105,7 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
       number: (id) => this.derivationNumber(id),
       boolean: (id) => this.derivationBoolean(id),
       text: (id) => this.derivationText(id),
+      structured: <T>(id: string) => this.derivationStructured<T>(id),
       unavailable: (reason) => {
         this.reusableDerivationResult.state = "missing";
         this.reusableDerivationResult.value = undefined;
@@ -119,6 +120,10 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
       },
     };
   }
+  resetSourceState(): void {
+    this.sourceStates.clear();
+  }
+
 
   private observeSource(sourceChannel: string, value: unknown, freshness: SourceFreshness): SourceObservation {
     if (freshness === "continuous") return this.observation;
@@ -182,6 +187,11 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     return typeof value === "string" ? value : undefined;
   }
 
+  private derivationStructured<T>(id: string): T | undefined {
+    const slot = this.resolver.slot(id);
+    return this.dependencyCode(slot) === 1 ? this.values[slot] as T : undefined;
+  }
+
   reset(native: NativeFrame, observation: SourceObservation): this {
     this.native = native as unknown as NativeObject;
     this.observation = observation;
@@ -192,6 +202,30 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     }
     return this;
   }
+  resolutionState(slot: SemanticSlot): ResolutionState {
+    this.evaluate(slot);
+    if (this.states[slot] === 1) {
+      return this.freshnessState(slot) === "stale" ? "stale" : "ok";
+    }
+    return this.states[slot] === 2
+      ? "missing"
+      : this.states[slot] === 3
+        ? "invalid"
+        : this.states[slot] === 4
+          ? "not-applicable"
+          : this.states[slot] === 6
+            ? "stale"
+            : "error";
+  }
+
+  sourceFreshness(
+    slot: SemanticSlot,
+  ): ResolvedValue<unknown>["sourceFreshness"] {
+    this.evaluate(slot);
+    const mapping = this.resolver.plans[slot].mapping;
+    return mapping.kind === "unavailable" ? null : mapping.freshness;
+  }
+
 
   has(slot: SemanticSlot): boolean {
     this.evaluate(slot);
@@ -316,8 +350,7 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
       this.sourceChannels[slot] = undefined;
     }
   }
-
-  private freshnessState(slot: SemanticSlot): FreshnessState {
+  freshnessState(slot: SemanticSlot): FreshnessState {
     if (this.states[slot] === 6) return "stale";
     const threshold = this.resolver.plans[slot].staleAfterMs;
     if (!Number.isFinite(threshold)) return "fresh";
@@ -375,6 +408,8 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
       state,
       confidence,
       freshness,
+      sourceFreshness:
+        plan.mapping.kind === "unavailable" ? null : plan.mapping.freshness,
       confidenceComponents: {
         semanticFidelity: fidelity,
         freshness: freshnessConfidence,

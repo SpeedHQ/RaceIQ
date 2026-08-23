@@ -1,12 +1,14 @@
+import { isTimedLapEligibilityUsable } from "@shared/racing/quality/policies";
 import type { LiveSectorData } from "../../../../shared/racing/live/types";
 import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import { LapStatus } from "@/components/LapStatus";
 import { formatLapTime } from "../../lib/format";
 
 interface LiveLapCardsProps {
   laps: LapMeta[];
   trackOrdinal?: number;
   sectors: LiveSectorData | null;
-  /** In-progress lap's number (TelemetryPacket.LapNumber), for the leading card's label. */
+  /** In-progress lap number from the live semantic view, for leading card label. */
   currentLapNumber: number | null;
   maxLaps?: number;
 }
@@ -20,7 +22,8 @@ interface LiveLapCardsProps {
 export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, maxLaps = 20 }: LiveLapCardsProps) {
   const filtered = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
   const sorted = [...filtered].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
-  const best = sorted.length ? Math.min(...sorted.map((l) => l.lapTime)) : 0;
+  const paceLaps = sorted.filter((lap) => isTimedLapEligibilityUsable(lap));
+  const best = paceLaps.length ? Math.min(...paceLaps.map((lap) => lap.lapTime)) : 0;
   const running = sectors ? (sectors.estimatedLap > 0 ? sectors.estimatedLap : sectors.currentSectorTime) : 0;
 
   return (
@@ -36,21 +39,22 @@ export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, ma
         <div className="flex items-center text-xs text-app-text-dim px-2">No laps completed yet.</div>
       ) : (
         sorted.map((l) => {
-          const delta = l.lapTime - best;
+          const paceEligible = isTimedLapEligibilityUsable(l);
+          const delta = paceEligible && best > 0 ? l.lapTime - best : null;
           const isBest = delta === 0;
-          const timeColor = !l.isValid
-            ? "text-status-danger"
+          const timeColor = !paceEligible
+            ? "text-app-text-muted"
             : isBest
               ? "text-(--lap-pace-best)"
-              : delta < 0.5
+              : delta! < 0.5
                 ? "text-(--lap-pace-on-target)"
-                : delta < 1.5
+                : delta! < 1.5
                   ? "text-app-text"
                   : "text-(--lap-pace-off-target)";
           return (
-            <div key={l.id} className="shrink-0 w-24 rounded border border-app-border bg-app-surface-alt/40 px-2.5 py-1.5" title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+            <div key={l.id} className="shrink-0 w-24 rounded border border-app-border bg-app-surface-alt/40 px-2.5 py-1.5">
               <div className="flex items-center gap-1 text-app-caption uppercase tracking-wider text-app-text-muted">
-                {!l.isValid && <span className="text-status-danger leading-none">✕</span>}
+                <LapStatus lap={l} presentation="indicator" visibility="issues" />
                 Lap {l.lapNumber}
               </div>
               <div className={`text-sm font-mono font-bold tabular-nums mt-0.5 ${timeColor}`}>{formatLapTime(l.lapTime)}</div>

@@ -68,11 +68,7 @@ const PRESSURE_COMPONENT: Record<"FL" | "FR" | "RL" | "RR", string> = {
   RR: "Rear Tyre Pressure RR",
 };
 
-export function symptomsToIntents(
-  symptoms: TuneSymptoms,
-  gameId: GameId,
-  options: RecommendOptions = {},
-): TuneIntent[] {
+export function symptomsToIntents(symptoms: TuneSymptoms, gameId: GameId, options: RecommendOptions = {}): TuneIntent[] {
   const acc = new Map<string, Accum>();
   const add = (component: string, dir: Dir, weight: number, reason: string) => {
     if (weight <= 0) return;
@@ -91,9 +87,11 @@ export function symptomsToIntents(
   for (const corner of symptoms.corners) {
     const band = corner.speedBand;
     for (const phase of corner.phases) {
-      if (phase.balance !== "neutral") telemetryBalances.add(phase.balance);
-      const w = balanceWeight(phase.balanceMagnitude);
-      emitHandling(add, phase.balance, band, phase.phase, w, corner.label);
+      if (phase.balance != null && phase.balanceMagnitude != null) {
+        if (phase.balance !== "neutral") telemetryBalances.add(phase.balance);
+        const weight = balanceWeight(phase.balanceMagnitude);
+        emitHandling(add, phase.balance, band, phase.phase, weight, corner.label);
+      }
       if (phase.brakeLockup) {
         // Front lockup is the common case — shift bias rearward. Nets against an
         // entry-oversteer forward nudge on the same knob (intended, §4d).
@@ -111,12 +109,7 @@ export function symptomsToIntents(
       if (Math.abs(delta) < 1.0) return;
       // +delta = above target → lower pressure; −delta = below → raise.
       const dir: Dir = delta > 0 ? "decrease" : "increase";
-      add(
-        PRESSURE_COMPONENT[wheel],
-        dir,
-        pressureWeight(delta),
-        `${wheel} ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target → ${dir === "decrease" ? "lower" : "raise"}`,
-      );
+      add(PRESSURE_COMPONENT[wheel], dir, pressureWeight(delta), `${wheel} ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target → ${dir === "decrease" ? "lower" : "raise"}`);
     });
   }
 
@@ -144,14 +137,7 @@ export function symptomsToIntents(
 }
 
 /** Map one balance/band/phase symptom onto a component nudge. */
-function emitHandling(
-  add: (component: string, dir: Dir, weight: number, reason: string) => void,
-  balance: Balance,
-  band: SpeedBand | undefined,
-  phase: Phase,
-  weight: number,
-  label: string,
-): void {
+function emitHandling(add: (component: string, dir: Dir, weight: number, reason: string) => void, balance: Balance, band: SpeedBand | undefined, phase: Phase, weight: number, label: string): void {
   if (weight <= 0) return;
   const isFast = band === "fast";
   const bandTxt = band ? `${band} ` : "";
@@ -187,16 +173,8 @@ function parseDriverNotes(notes: string): FeelHint[] {
   const t = notes.toLowerCase();
   const hints: FeelHint[] = [];
 
-  const band: SpeedBand | undefined = /slow|hairpin|low[-\s]?speed/.test(t)
-    ? "slow"
-    : /fast|high[-\s]?speed|sweeper/.test(t)
-      ? "fast"
-      : undefined;
-  const phase: Phase | undefined = /entry|turn[-\s]?in|on the brakes|braking/.test(t)
-    ? "entry"
-    : /exit|on power|on throttle|corner exit/.test(t)
-      ? "exit"
-      : undefined;
+  const band: SpeedBand | undefined = /slow|hairpin|low[-\s]?speed/.test(t) ? "slow" : /fast|high[-\s]?speed|sweeper/.test(t) ? "fast" : undefined;
+  const phase: Phase | undefined = /entry|turn[-\s]?in|on the brakes|braking/.test(t) ? "entry" : /exit|on power|on throttle|corner exit/.test(t) ? "exit" : undefined;
 
   if (/oversteer|loose|snap|tail (steps|comes)|spins?\b|too much rotation/.test(t)) {
     hints.push({ balance: "oversteer", band, phase });
@@ -207,11 +185,7 @@ function parseDriverNotes(notes: string): FeelHint[] {
   return hints;
 }
 
-function applyDriverNotes(
-  add: (component: string, dir: Dir, weight: number, reason: string) => void,
-  notes: string | undefined,
-  telemetryBalances: Set<Balance>,
-): void {
+function applyDriverNotes(add: (component: string, dir: Dir, weight: number, reason: string) => void, notes: string | undefined, telemetryBalances: Set<Balance>): void {
   if (!notes?.trim()) return;
   for (const hint of parseDriverNotes(notes)) {
     const confirmed = telemetryBalances.has(hint.balance);

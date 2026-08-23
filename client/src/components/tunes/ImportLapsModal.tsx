@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { GameId } from "../../../../shared/games/ids";
 import type { ExperimentVersion, ImportableLap } from "../../hooks/experiments";
 import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
+import { LapStatus } from "@/components/LapStatus";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
@@ -107,7 +108,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
     <label key={lap.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-app-surface-hover/60">
       <input type="checkbox" checked={selected.has(lap.id)} onChange={() => toggle(lap.id)} />
       <span className="text-app-text tabular-nums">{fmtLapTime(lap.lapTime)}</span>
-      <span className="text-app-text-dim">{lap.isValid ? "Valid" : "Invalid"}</span>
+      <LapStatus lap={lap} presentation="badge" />
       {lap.tuneName && <span className="text-app-text-dim truncate">{lap.tuneName}</span>}
       <span className="ml-auto text-app-text-muted">{new Date(lap.createdAt).toLocaleString()}</span>
     </label>

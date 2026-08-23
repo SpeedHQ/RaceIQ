@@ -2,74 +2,22 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash } from "../../components/dashes/ComboDash";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { useGameStore } from "../../stores/game";
-import {
-  fakeAcEvoDisplayPacket,
-  fakeAcEvoPacket,
-  fakeAccDisplayPacket,
-  fakeAccPacket,
-  fakeF1DisplayPacket,
-  fakeF1Packet,
-  fakeForzaDisplayPacket,
-  fakeForzaPacket,
-  fakePit,
-  fakeSectors,
-  fakeF1SemanticFixture,
-} from "../fakeData";
+import { fakeAcEvoSemanticFixture, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit, fakeSectors } from "../fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 
-
 type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
-
-// Brake / pressure values only populated for games whose adapters provide them.
-const BRAKE_PRESSURE = {
-  BrakeTempFrontLeft: 380,
-  BrakeTempFrontRight: 375,
-  BrakeTempRearLeft: 240,
-  BrakeTempRearRight: 238,
-  TirePressureFrontLeft: 27.8,
-  TirePressureFrontRight: 27.7,
-  TirePressureRearLeft: 26.5,
-  TirePressureRearRight: 26.4,
-} as const;
-
-interface GameFixture {
-  raw: TelemetryPacket;
-  display: DisplayPacket;
-  tempUnit: "C" | "F";
-}
-
-const FIXTURES: Record<Game, GameFixture> = {
-  "fm-2023": {
-    raw: {
-      ...fakeForzaPacket,
-      f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
-    } as TelemetryPacket,
-    display: fakeForzaDisplayPacket,
-    tempUnit: "F",
-  },
-  "f1-2025": {
-    raw: { ...fakeF1Packet, ...BRAKE_PRESSURE } as TelemetryPacket,
-    display: fakeF1DisplayPacket,
-    tempUnit: "C",
-  },
-  acc: {
-    raw: { ...fakeAccPacket, ...BRAKE_PRESSURE } as TelemetryPacket,
-    display: fakeAccDisplayPacket,
-    tempUnit: "C",
-  },
-  "ac-evo": {
-    raw: { ...fakeAcEvoPacket, ...BRAKE_PRESSURE } as TelemetryPacket,
-    display: fakeAcEvoDisplayPacket,
-    tempUnit: "C",
-  },
-};
+const FIXTURES = {
+  "fm-2023": { view: fakeForzaSemanticFixture.view },
+  "f1-2025": { view: fakeF1SemanticFixture.view },
+  acc: { view: fakeAccSemanticFixture.view },
+  "ac-evo": { view: fakeAcEvoSemanticFixture.view },
+} satisfies Record<Game, { view: LiveTelemetryView }>;
 
 interface Args {
   game: Game;
@@ -88,7 +36,7 @@ function GameIdSync({ game }: { game: Game }) {
 }
 
 function render({ game, rpm: _rpm, gear: _gear, unitSystem }: Args) {
-  const _fx = FIXTURES[game];
+  const { view } = FIXTURES[game];
   return (
     <QueryClientProvider client={queryClient}>
       <GameIdSync game={game} />
@@ -102,7 +50,7 @@ function render({ game, rpm: _rpm, gear: _gear, unitSystem }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem={unitSystem} />
+        <ComboDash view={view} sectors={fakeSectors} pit={fakePit} unitSystem={unitSystem} />
       </div>
     </QueryClientProvider>
   );
@@ -120,7 +68,7 @@ const meta: Meta<Args> = {
       name: "Game",
       control: { type: "radio" },
       options: ["fm-2023", "f1-2025", "acc", "ac-evo"] satisfies Game[],
-      description: "Which game the fake packet represents (sets gameId store)",
+      description: "Which game the semantic fixture represents (sets gameId store)",
     },
     rpm: {
       name: "RPM",

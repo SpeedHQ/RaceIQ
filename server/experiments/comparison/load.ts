@@ -16,45 +16,36 @@
  *   `Promise.all`) precisely to keep that bound: overlapping them would double it.
  */
 
+import { GameIdSchema } from "../../../shared/games/ids";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
-import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { getLapById } from "../../db/lap-read-queries";
+import { resolveSemanticLapCorners } from "../../tracks/corner-resolution";
 import { getLapMetaForExperimentVersion } from "../../db/experiment-lap-queries";
 import { getExperiment } from "../../db/experiment-queries";
 import { getExperimentVersion } from "../../db/experiment-version-queries";
-import {
-  type ArmComparison,
-  compareArmSamples,
-  type CompareArmsOptions,
-  prepareArm,
-  type PreparedArm,
-} from "./compare";
-import { type FrameLapMeta, type LapFrameLoader, streamArmSamples } from "./stream";
-import { comparisonFences, getOutcomeMetric, type OutcomeMetricId } from "./metrics";
-
-/**
- * Frames for one lap, through the shared LRU telemetry cache.
- *
- * Deliberately `getLapById` rather than a raw parse: the cache is bounded by a
- * 256MB evict-on-insert budget (`docs/architecture/lap-cache.md`), so it cannot
- * grow without limit, and bypassing it would re-decode the stint on each use.
- */
-const loadLapFrames: LapFrameLoader = async (lapId) => {
-  const lap = await getLapById(lapId);
-  return lap?.telemetry ?? null;
-};
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { semanticSamplesFromReplay } from "../../telemetry/semantic-samples";
+import { type ArmComparison, compareArmSamples, type CompareArmsOptions, prepareArm, type PreparedArm } from "./compare";
+import { type FrameLapMeta, type SemanticSampleLoader, streamArmSamples } from "./stream";
+import { comparisonFences, EXPERIMENT_COMPARISON_SEMANTIC_IDS, getOutcomeMetric, type OutcomeMetricId } from "./metrics";
 
 function toEvaluable(meta: LapMeta): EvaluableLap {
   return {
     id: meta.id,
     lapTime: meta.lapTime,
     isValid: meta.isValid,
+    phase: meta.phase,
+    conditions: meta.conditions,
+    paceEligibility: meta.paceEligibility,
     invalidReason: meta.invalidReason ?? null,
     experimentExcluded: meta.experimentExcluded ?? false,
     experimentExcludedSource: meta.experimentExcludedSource ?? null,
+    quality: meta.quality,
+    eligibility: meta.eligibility,
+    qualityGeneration: meta.qualityGeneration,
+    qualityStale: meta.qualityStale,
   };
 }
 
@@ -73,42 +64,28 @@ async function armLabel(versionId: number): Promise<string> {
 }
 
 /**
- * Corners for the fold. Official track segments win, followed by stored
- * corners and telemetry detection. Corners matter because
- * `computeLapConsistencyDelta` returns an all-zero delta when there are no
- * corners — no corners means no samples, not a "perfect" arm.
- */
-async function resolveCornersFor(
-  sessionId: number,
-  metas: LapMeta[],
-  referenceTelemetry: TelemetryPacket[],
-): Promise<Corner[]> {
-  const session = await getExperiment(sessionId);
-  const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
-  const gameId = session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null;
-  return resolveLapCorners(trackOrdinal, gameId, referenceTelemetry);
-}
-
-/**
  * Load both arms' lap pools and compare them on one outcome metric.
  *
  * Curation is the metric's own policy (`server/experiments/comparison/metrics.ts`), applied
- * to the RAW pool — this loader never pre-trims by lap time.
+ * to the raw pool — this loader never pre-trims by lap time.
  */
-export async function loadArmComparison(
-  sessionId: number,
-  aTestId: number,
-  bTestId: number,
-  metricId: OutcomeMetricId,
-  opts?: CompareArmsOptions,
-): Promise<ArmComparison> {
+export async function loadArmComparison(sessionId: number, aTestId: number, bTestId: number, metricId: OutcomeMetricId, opts?: CompareArmsOptions): Promise<ArmComparison> {
   const metric = getOutcomeMetric(metricId);
-  const [aMetas, bMetas, aLabel, bLabel] = await Promise.all([
+  const [aMetas, bMetas, aLabel, bLabel, experiment] = await Promise.all([
     getLapMetaForExperimentVersion(aTestId),
     getLapMetaForExperimentVersion(bTestId),
     armLabel(aTestId),
     armLabel(bTestId),
+    getExperiment(sessionId),
   ]);
+  if (!experiment) throw new Error(`Experiment ${sessionId} not found`);
+  const gameId = GameIdSchema.parse(experiment.gameId);
+  for (const meta of aMetas) {
+    if (meta.gameId !== gameId) throw new Error(`Lap ${meta.id} game ID does not match experiment ${sessionId}`);
+  }
+  for (const meta of bMetas) {
+    if (meta.gameId !== gameId) throw new Error(`Lap ${meta.id} game ID does not match experiment ${sessionId}`);
+  }
 
   // Compute the shared fence policy before choosing metadata or streaming;
   // both paths must censor identical lap pools.
@@ -120,23 +97,31 @@ export async function loadArmComparison(
 
   if (metric.sampling === "metadata") {
     const prepare = (label: string, metas: LapMeta[], fence: number | null | undefined): PreparedArm =>
-      prepareArm({ label, laps: metas.map((m) => ({ lap: toEvaluable(m), telemetry: null })) }, metric, { fence });
+      prepareArm({ label, laps: metas.map((m) => ({ lap: toEvaluable(m), semanticSamples: null })) }, metric, { fence });
     return compareArmSamples(prepare(aLabel, aMetas, fenceA), prepare(bLabel, bMetas, fenceB), metric, opts);
   }
 
   // Resolved once, on whichever arm streams first, and shared: two arms of the
-  // same experiment are by definition the same track.
+  // same experiment are by definition on the same game-owned track.
   let corners: Corner[] | null = null;
-  const resolveCorners = async (referenceTelemetry: TelemetryPacket[]): Promise<Corner[]> => {
-    corners ??= await resolveCornersFor(sessionId, [...aMetas, ...bMetas], referenceTelemetry);
+  const resolveCorners = async (referenceSamples: readonly SemanticTelemetrySample[]): Promise<Corner[]> => {
+    corners ??= await resolveSemanticLapCorners(experiment.trackOrdinal, gameId, referenceSamples);
     return corners;
+  };
+  const replayByLapId = new Map<number, Promise<SemanticTelemetrySample[] | null>>();
+  const loadSamples: SemanticSampleLoader = (lapId) => {
+    const cached = replayByLapId.get(lapId);
+    if (cached) return cached;
+    const replay = queryLapTelemetryBySemanticId(lapId, EXPERIMENT_COMPARISON_SEMANTIC_IDS).then((result) => (result ? semanticSamplesFromReplay(result) : null));
+    replayByLapId.set(lapId, replay);
+    return replay;
   };
 
   const a = await streamArmSamples({
     label: aLabel,
     metas: aMetas.map(toFrameMeta),
     metric,
-    loadFrames: loadLapFrames,
+    loadSamples,
     resolveCorners,
     fence: fenceA,
   });
@@ -144,7 +129,7 @@ export async function loadArmComparison(
     label: bLabel,
     metas: bMetas.map(toFrameMeta),
     metric,
-    loadFrames: loadLapFrames,
+    loadSamples,
     resolveCorners,
     fence: fenceB,
   });

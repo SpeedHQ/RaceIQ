@@ -1,51 +1,72 @@
 /** Representative lap and derived setup-engineer context for an experiment. */
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { getLapById } from "../db/lap-read-queries";
-import { resolveLapCorners } from "../tracks/corner-resolution";
+import type { SemanticTelemetrySample } from "@shared/telemetry/replay/contracts";
+import type { EligibilityDecision, QualityReasonCode } from "../../shared/racing/quality/contracts";
+import { selectEvaluationLaps } from "../../shared/racing/laps/review-selection";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
-import { telemetryToSymptoms, type TuneSymptoms } from "../ai/tune-symptoms";
-import { telemetryToTrackConditions, type TrackConditions } from "../ai/track-conditions";
+import { resolveSemanticLapCorners } from "../tracks/corner-resolution";
+import { queryLapTelemetryBySemanticId } from "../telemetry/replay";
+import { semanticSamplesFromReplay } from "../telemetry/semantic-samples";
+import { telemetryToSymptoms, TUNE_SYMPTOM_SEMANTIC_IDS, type TuneSymptoms } from "../ai/tune-symptoms";
+import { telemetryToTrackConditions, TRACK_CONDITION_SEMANTIC_IDS, type TrackConditions } from "../ai/track-conditions";
 import { MIN_TELEMETRY_FRAMES } from "./lap-policy";
 
-export type RepresentativeLap = LapMeta & {
-  telemetry: TelemetryPacket[];
-  parseError?: string;
-};
+/** Exact semantic evidence required for representative-lap diagnosis. */
+export const REPRESENTATIVE_LAP_SEMANTIC_IDS = [...TUNE_SYMPTOM_SEMANTIC_IDS, ...TRACK_CONDITION_SEMANTIC_IDS] as const;
+
+export type RepresentativeLap = LapMeta;
+
+export interface RepresentativeLapSelection {
+  lap: RepresentativeLap | null;
+  setupDecision: EligibilityDecision;
+  reasonCodes: QualityReasonCode[];
+}
+
+export interface RepresentativeLapTelemetry {
+  lap: RepresentativeLap;
+  samples: SemanticTelemetrySample[];
+}
 
 /**
- * The session's representative lap — the fastest valid lap it owns, with enough
- * telemetry to analyse (≥30 frames). Single source of truth so symptom and
- * track-condition reads always describe the same lap. Returns null when no such
- * lap exists yet.
+ * Load representative metadata together with exact setup-analysis policy
+ * result. Semantic replay below enforces the minimum-frame rule from resolver
+ * envelope/sample counts before any analysis consumes the lap.
  */
-export async function loadRepresentativeLap(
-  experimentId: number,
-): Promise<RepresentativeLap | null> {
+export async function loadRepresentativeLapSelection(experimentId: number): Promise<RepresentativeLapSelection> {
   const sessionLaps = await getLapsForExperiment(experimentId);
-  let best: (typeof sessionLaps)[number] | null = null;
-  for (const lap of sessionLaps) {
-    if (!lap.isValid || lap.lapTime <= 0) continue;
-    if (best == null || lap.lapTime < best.lapTime) best = lap;
-  }
-  if (!best) return null;
+  const selection = selectEvaluationLaps(sessionLaps, Number.POSITIVE_INFINITY);
+  const reasonCodes = selection.setupDecision.reasons.map((reason) => reason.code);
+  const best = selection.chosen[0];
+  if (!best) return { lap: null, setupDecision: selection.setupDecision, reasonCodes };
+  return { lap: best, setupDecision: selection.setupDecision, reasonCodes };
+}
 
-  const lap = await getLapById(best.id);
-  if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
-  return lap;
+/** Fastest policy-selected lap, or null when evidence is unavailable. */
+export async function loadRepresentativeLap(experimentId: number): Promise<RepresentativeLap | null> {
+  return (await loadRepresentativeLapSelection(experimentId)).lap;
+}
+
+/** Replay one representative lap through requested semantic resolver slots. */
+export async function loadRepresentativeLapTelemetry(experimentId: number, semanticIds: readonly string[] = REPRESENTATIVE_LAP_SEMANTIC_IDS): Promise<RepresentativeLapTelemetry | null> {
+  const lap = await loadRepresentativeLap(experimentId);
+  if (!lap || !lap.gameId) return null;
+  const replay = await queryLapTelemetryBySemanticId(lap.id, semanticIds);
+  if (!replay) return null;
+  const samples = semanticSamplesFromReplay(replay);
+  if (samples.length < MIN_TELEMETRY_FRAMES) return null;
+  return { lap, samples };
 }
 
 /** Deterministic symptom report for the experiment's representative lap. */
 export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
-  const lap = await loadRepresentativeLap(experimentId);
-  if (!lap) return null;
-  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
-  return telemetryToSymptoms(lap.telemetry, corners);
+  const representative = await loadRepresentativeLapTelemetry(experimentId);
+  if (!representative || !representative.lap.gameId) return null;
+  const corners = await resolveSemanticLapCorners(representative.lap.trackOrdinal, representative.lap.gameId, representative.samples);
+  return telemetryToSymptoms(representative.lap.gameId, representative.samples, corners);
 }
 
 /** Deterministic weather/track-surface context for the representative lap. */
 export async function computeSessionTrackConditions(experimentId: number): Promise<TrackConditions | null> {
-  const lap = await loadRepresentativeLap(experimentId);
-  if (!lap) return null;
-  return telemetryToTrackConditions(lap.telemetry);
+  const representative = await loadRepresentativeLapTelemetry(experimentId, TRACK_CONDITION_SEMANTIC_IDS);
+  return representative ? telemetryToTrackConditions(representative.samples) : null;
 }

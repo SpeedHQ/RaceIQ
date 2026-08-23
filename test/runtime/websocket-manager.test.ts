@@ -5,15 +5,46 @@ import type { LiveProjection } from "../../server/telemetry/live-projector";
 
 function socket() {
   const sent: string[] = [];
-  return { data: { createdAt: Date.now(), devTelemetrySubscribed: false } satisfies WSData, sent, send: (value: string) => { sent.push(value); }, close() {} } as unknown as ServerWebSocket<WSData> & { sent: string[] };
+  return {
+    data: { createdAt: Date.now(), devTelemetrySubscribed: false } satisfies WSData,
+    sent,
+    send: (value: string) => {
+      sent.push(value);
+    },
+    close() {},
+  } as unknown as ServerWebSocket<WSData> & { sent: string[] };
 }
 
-const schema = { type: "telemetry-schema", protocolVersion: 1, schemaId: "schema-1", simulator: "iracing", catalogVersion: "catalog", catalogHash: "hash", catalogSchemaVersion: "1", parserVersion: "parser", resolverVersion: "resolver", derivationVersion: "derivation", definitions: [] } as const satisfies NonNullable<LiveProjection["schema"]>;
-const frame = { type: "telemetry-frame", protocolVersion: 1, schemaId: schema.schemaId, streamId: "stream-1", sessionId: 1, sequence: 1, observedAt: { domain: "session", milliseconds: 1 }, receivedAtMs: 1, values: [], context: {} } as const satisfies NonNullable<LiveProjection["frame"]>;
+const schema = {
+  type: "telemetry-schema",
+  protocolVersion: 1,
+  schemaId: "schema-1",
+  simulator: "iracing",
+  catalogVersion: "catalog",
+  catalogHash: "hash",
+  catalogSchemaVersion: "1",
+  parserVersion: "parser",
+  resolverVersion: "resolver",
+  derivationVersion: "derivation",
+  definitions: [],
+} as const satisfies NonNullable<LiveProjection["schema"]>;
+const frame = {
+  type: "telemetry-frame",
+  protocolVersion: 1,
+  schemaId: schema.schemaId,
+  streamId: "stream-1",
+  sessionId: 1,
+  sequence: 1,
+  observedAt: { domain: "session", milliseconds: 1 },
+  receivedAtMs: 1,
+  values: [],
+  context: {},
+} as const satisfies NonNullable<LiveProjection["frame"]>;
 
 describe("WebSocketManager controls", () => {
   test("malformed control is rejected without subscription", () => {
-    const manager = new WebSocketManager(); const ws = socket();
+    const manager = new WebSocketManager();
+    const ws = socket();
     manager.handleMessage(ws, "not-json");
     expect(ws.data.devTelemetrySubscribed).toBe(false);
     expect(ws.sent).toHaveLength(1);
@@ -21,8 +52,13 @@ describe("WebSocketManager controls", () => {
   });
 
   test("broadcasts source rate and sends schemas only when they change", () => {
-    const manager = new WebSocketManager(); const ws = socket();
-    manager.publishTelemetry({ schema, frame });
+    const manager = new WebSocketManager();
+    const ws = socket();
+    manager.publishTelemetry({
+      schema,
+      frame,
+      sample: { sequence: "1", observedAtMs: 1, values: {} },
+    });
     manager.addClient(ws);
     expect(ws.sent.map((value) => JSON.parse(value).type)).toEqual(["telemetry-schema", "telemetry-frame"]);
 
