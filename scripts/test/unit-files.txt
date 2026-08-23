@@ -28,4 +28,15 @@ test/lap-analysis/stints/stint-stats.test.ts
 test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
+test/race-events/contracts.test.ts
+test/race-events/coordinator.test.ts
+test/race-events/incident-penalty.test.ts
+test/race-events/lap-events.test.ts
+test/race-events/lifecycle-links.test.ts
+test/race-events/participant-source-quality.test.ts
+test/race-events/pit-service.test.ts
+test/race-events/service-actions.test.ts
+test/race-events/source-adapters.test.ts
+test/race-events/source-lifecycle.test.ts
+test/race-events/source-sequence.test.ts
 test/telemetry/source-sequence.test.ts

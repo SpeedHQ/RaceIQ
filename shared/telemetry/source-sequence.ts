@@ -1,5 +1,10 @@
 import type { TelemetryPacket } from "./types";
 
+export interface SourceSequenceObservation {
+  family: string;
+  sequence: number;
+}
+
 export type SourceSequenceBoundaryKind = "duplicate" | "out-of-order";
 export type SourceSequenceCountMethod = "native-sequence" | "timestamp-estimate" | "unavailable";
 
@@ -25,6 +30,23 @@ export interface SourceSequenceGapBoundary {
   durationMs: number;
   missingCount: number;
   countMethod: Exclude<SourceSequenceCountMethod, "unavailable">;
+}
+/** A non-normal forward boundary whose timeline anchors must survive finalize. */
+export interface SourceSequenceGapCandidate {
+  sourceSequenceFamily: string | null;
+  previousSequence: number | null;
+  currentSequence: number | null;
+  previousSourceTimeMs: number;
+  currentSourceTimeMs: number;
+  previousObservationIndex: number;
+  currentObservationIndex: number;
+}
+
+
+export interface SourceSequenceObserveResult {
+  sourceSequences: SourceSequenceObservation[];
+  boundaries: SourceSequenceBoundary[];
+  gapCandidates?: SourceSequenceGapCandidate[];
 }
 
 export interface SourceSequenceSummary {
@@ -53,13 +75,6 @@ interface PositiveBoundary {
   currentObservationIndex: number;
 }
 
-interface TimestampBoundary {
-  previousSourceTimeMs: number;
-  currentSourceTimeMs: number;
-  previousObservationIndex: number;
-  currentObservationIndex: number;
-}
-
 interface NativeSequenceState {
   lastSequence: number;
   lastSourceTimeMs: number;
@@ -68,14 +83,8 @@ interface NativeSequenceState {
    * First positive step establishes normal cadence. Only later deviations retain
    * anchors; contiguous streams retain high-water plus step frequencies.
    */
-  gapCandidates: PositiveBoundary[] | null;
-  hasProvisionalBoundary: boolean;
-  provisionalPreviousSequence: number;
-  provisionalCurrentSequence: number;
-  provisionalPreviousSourceTimeMs: number;
-  provisionalCurrentSourceTimeMs: number;
-  provisionalPreviousObservationIndex: number;
-  provisionalCurrentObservationIndex: number;
+  gapCandidates: PositiveBoundary[];
+  provisionalBoundary: PositiveBoundary | null;
   cadenceSamples: number;
   normalStepMax: number;
   positiveStepCounts: Map<number, number>;
@@ -83,13 +92,56 @@ interface NativeSequenceState {
   resetPending: boolean;
 }
 
-type NativeSequenceFamily =
-  | "iracing-session-tick"
-  | "kunos-physics"
-  | "kunos-graphics"
-  | number;
+interface TimestampBoundary {
+  previousSourceTimeMs: number;
+  currentSourceTimeMs: number;
+  previousObservationIndex: number;
+  currentObservationIndex: number;
+}
 
-function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fallback: number): number {
+
+interface NativeSequenceRollback {
+  family: string;
+  state: NativeSequenceState | null;
+  lastSequence: number;
+  lastSourceTimeMs: number;
+  lastObservationIndex: number;
+  gapCandidateLength: number;
+  provisionalBoundary: PositiveBoundary | null;
+  cadenceSamples: number;
+  normalStepMax: number;
+  positiveStepCount: number;
+  resetPending: boolean;
+  positiveStep: number | null;
+  positiveStepOccurrences: number | undefined;
+}
+
+/** Opaque token for reverting one uncommitted observation. */
+export type SourceSequenceCheckpoint = number;
+/** Native packet coordinate(s) used consistently by quality and event code. */
+export function packetSequences(packet: TelemetryPacket): SourceSequenceObservation[] {
+  if (packet.iracing && Number.isFinite(packet.iracing.sessionTick)) {
+    return [
+      {
+        family: "iracing-session-tick",
+        sequence: packet.iracing.sessionTick,
+      },
+    ];
+  }
+  if (packet.gameId === "f1-2025") {
+    const overall = packet.f1?.overallFrameIdentifier;
+    const packetId = packet.f1?.packetId;
+    return typeof overall === "number" && Number.isFinite(overall) && typeof packetId === "number" && Number.isFinite(packetId) ? [{ family: `f1-packet-${packetId}`, sequence: overall }] : [];
+  }
+  const physics = packet.acc?.physicsPacketId ?? packet.acc?.acEvo?.physicsPacketId;
+  if (typeof physics === "number" && Number.isFinite(physics)) {
+    return [{ family: "kunos-physics", sequence: physics }];
+  }
+  const graphics = packet.acc?.graphicsPacketId ?? packet.acc?.acEvo?.graphicsPacketId;
+  return typeof graphics === "number" && Number.isFinite(graphics) ? [{ family: "kunos-graphics", sequence: graphics }] : [];
+}
+
+export function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fallback: number): number {
   if (count <= 0) return fallback;
   const lowerIndex = Math.floor((count - 1) / 2);
   const upperIndex = Math.floor(count / 2);
@@ -109,282 +161,362 @@ function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fall
 }
 
 /**
- * Incremental source-order tracker shared by recording and lap quality.
- * Gap and ordering evidence is materialized during finalization.
+ * Incremental source-order tracker shared by recording quality and the race
+ * event timeline. Duplicate/out-of-order boundaries are available immediately;
+ * gap inference waits for final cadence/step medians.
  */
 export class SourceSequenceTracker {
-  private readonly nativeStates = new Map<NativeSequenceFamily, NativeSequenceState>();
+  private readonly nativeStates = new Map<string, NativeSequenceState>();
   private readonly timestampGapCandidates: TimestampBoundary[] = [];
   /**
-   * Packet timestamps establish cadence for every stream. Timestamp-only mode
-   * additionally retains gap candidates; native streams use sequence deltas for
-   * missing-count inference. Duplicate/out-of-order boundaries remain because
-   * exact diagnostics require their anchors.
+   * Timestamp-only mode establishes first positive cadence and retains later
+   * deviations, never one boundary per normal packet. Duplicate/out-of-order
+   * boundaries remain because exact diagnostics require their anchors.
    */
   private readonly positiveTimestampDeltaCounts = new Map<number, number>();
   private positiveTimestampDeltaCount = 0;
   private timestampCadenceSamples = 0;
   private timestampNormalDeltaMax = 0;
-  private hasTimestampProvisionalBoundary = false;
-  private timestampProvisionalPreviousSourceTimeMs = 0;
-  private timestampProvisionalCurrentSourceTimeMs = 0;
-  private timestampProvisionalPreviousObservationIndex = 0;
-  private timestampProvisionalCurrentObservationIndex = 0;
+  private timestampProvisionalBoundary: TimestampBoundary | null = null;
   private readonly duplicates: SourceSequenceBoundary[] = [];
   private readonly outOfOrder: SourceSequenceBoundary[] = [];
   private packetCount = 0;
   private lastSourceTimeMs: number | null = null;
   private lastObservationIndex: number | null = null;
   private timestampResetPending = false;
+  private rollbackToken = 0;
+  private rollbackActiveToken = 0;
+  private rollbackPacketCount = 0;
+  private rollbackLastSourceTimeMs: number | null = null;
+  private rollbackLastObservationIndex: number | null = null;
+  private rollbackTimestampResetPending = false;
+  private rollbackTimestampCadenceSamples = 0;
+  private rollbackTimestampNormalDeltaMax = 0;
+  private rollbackPositiveTimestampDeltaCount = 0;
+  private rollbackTimestampProvisionalBoundary: TimestampBoundary | null = null;
+  private rollbackTimestampGapCandidateLength = 0;
+  private rollbackDuplicateLength = 0;
+  private rollbackOutOfOrderLength = 0;
+  private rollbackTimestampPositiveDelta: number | null = null;
+  private rollbackTimestampPositiveDeltaOccurrences: number | undefined;
+  private readonly rollbackNativeStates: NativeSequenceRollback[] = [];
+  private rollbackNativeStateCount = 0;
 
   /**
-   * Records packet-native coordinates directly. Normal observations mutate
-   * existing state only; boundary and gap records are allocated only for anomalies.
+   * Opens one allocation-free rollback window. Call `rollback` only if its
+   * observation cannot be committed; a later checkpoint supersedes this token.
    */
-  observe(packet: TelemetryPacket): void {
-    const currentObservationIndex = this.packetCount;
-    this.packetCount += 1;
-    let hasNativeSequence = false;
+  checkpoint(): SourceSequenceCheckpoint {
+    const token = ++this.rollbackToken;
+    this.rollbackActiveToken = token;
+    this.rollbackPacketCount = this.packetCount;
+    this.rollbackLastSourceTimeMs = this.lastSourceTimeMs;
+    this.rollbackLastObservationIndex = this.lastObservationIndex;
+    this.rollbackTimestampResetPending = this.timestampResetPending;
+    this.rollbackTimestampCadenceSamples = this.timestampCadenceSamples;
+    this.rollbackTimestampNormalDeltaMax = this.timestampNormalDeltaMax;
+    this.rollbackPositiveTimestampDeltaCount = this.positiveTimestampDeltaCount;
+    this.rollbackTimestampProvisionalBoundary = this.timestampProvisionalBoundary;
+    this.rollbackTimestampGapCandidateLength = this.timestampGapCandidates.length;
+    this.rollbackDuplicateLength = this.duplicates.length;
+    this.rollbackOutOfOrderLength = this.outOfOrder.length;
+    this.rollbackTimestampPositiveDelta = null;
+    this.rollbackTimestampPositiveDeltaOccurrences = undefined;
+    this.rollbackNativeStateCount = 0;
+    return token;
+  }
 
-    const iracing = packet.iracing;
-    if (iracing != null && Number.isFinite(iracing.sessionTick)) {
-      hasNativeSequence = true;
-      this.observeNative(
-        "iracing-session-tick",
-        iracing.sessionTick,
-        packet.TimestampMS,
-        currentObservationIndex,
-      );
-    } else if (packet.gameId === "f1-2025") {
-      const f1 = packet.f1;
-      const overall = f1?.overallFrameIdentifier;
-      const packetId = f1?.packetId;
-      if (
-        typeof overall === "number" &&
-        Number.isFinite(overall) &&
-        typeof packetId === "number" &&
-        Number.isFinite(packetId)
-      ) {
-        hasNativeSequence = true;
-        this.observeNative(packetId, overall, packet.TimestampMS, currentObservationIndex);
-      }
-    } else {
-      const acc = packet.acc;
-      const physics = acc?.physicsPacketId ?? acc?.acEvo?.physicsPacketId;
-      if (typeof physics === "number" && Number.isFinite(physics)) {
-        hasNativeSequence = true;
-        this.observeNative(
-          "kunos-physics",
-          physics,
-          packet.TimestampMS,
-          currentObservationIndex,
-        );
+  /** Seal an observation after every downstream consumer accepts it. */
+  commit(checkpoint: SourceSequenceCheckpoint): void {
+    if (checkpoint !== this.rollbackActiveToken) {
+      throw new Error("Source-sequence checkpoint is no longer active");
+    }
+    this.rollbackActiveToken = 0;
+  }
+
+  /** Restore all sequence evidence and high-water state from `checkpoint`. */
+  rollback(checkpoint: SourceSequenceCheckpoint): void {
+    if (checkpoint !== this.rollbackActiveToken) {
+      throw new Error("Source-sequence checkpoint is no longer active");
+    }
+    this.packetCount = this.rollbackPacketCount;
+    this.lastSourceTimeMs = this.rollbackLastSourceTimeMs;
+    this.lastObservationIndex = this.rollbackLastObservationIndex;
+    this.timestampResetPending = this.rollbackTimestampResetPending;
+    this.timestampCadenceSamples = this.rollbackTimestampCadenceSamples;
+    this.timestampNormalDeltaMax = this.rollbackTimestampNormalDeltaMax;
+    this.positiveTimestampDeltaCount = this.rollbackPositiveTimestampDeltaCount;
+    this.timestampProvisionalBoundary = this.rollbackTimestampProvisionalBoundary;
+    this.timestampGapCandidates.length = this.rollbackTimestampGapCandidateLength;
+    this.duplicates.length = this.rollbackDuplicateLength;
+    this.outOfOrder.length = this.rollbackOutOfOrderLength;
+    if (this.rollbackTimestampPositiveDelta != null) {
+      if (this.rollbackTimestampPositiveDeltaOccurrences == null) {
+        this.positiveTimestampDeltaCounts.delete(this.rollbackTimestampPositiveDelta);
       } else {
-        const graphics = acc?.graphicsPacketId ?? acc?.acEvo?.graphicsPacketId;
-        if (typeof graphics === "number" && Number.isFinite(graphics)) {
-          hasNativeSequence = true;
-          this.observeNative(
-            "kunos-graphics",
-            graphics,
-            packet.TimestampMS,
-            currentObservationIndex,
-          );
+        this.positiveTimestampDeltaCounts.set(this.rollbackTimestampPositiveDelta, this.rollbackTimestampPositiveDeltaOccurrences);
+      }
+    }
+    for (let index = this.rollbackNativeStateCount - 1; index >= 0; index -= 1) {
+      const rollback = this.rollbackNativeStates[index]!;
+      if (rollback.state == null) {
+        this.nativeStates.delete(rollback.family);
+        continue;
+      }
+      const state = rollback.state;
+      state.lastSequence = rollback.lastSequence;
+      state.lastSourceTimeMs = rollback.lastSourceTimeMs;
+      state.lastObservationIndex = rollback.lastObservationIndex;
+      state.gapCandidates.length = rollback.gapCandidateLength;
+      state.provisionalBoundary = rollback.provisionalBoundary;
+      state.cadenceSamples = rollback.cadenceSamples;
+      state.normalStepMax = rollback.normalStepMax;
+      state.positiveStepCount = rollback.positiveStepCount;
+      state.resetPending = rollback.resetPending;
+      if (rollback.positiveStep != null) {
+        if (rollback.positiveStepOccurrences == null) {
+          state.positiveStepCounts.delete(rollback.positiveStep);
+        } else {
+          state.positiveStepCounts.set(rollback.positiveStep, rollback.positiveStepOccurrences);
         }
       }
     }
-
-    this.observeTimestamp(
-      packet.TimestampMS,
-      currentObservationIndex,
-      hasNativeSequence,
-    );
+    this.rollbackActiveToken = 0;
   }
 
-  private observeTimestamp(
-    sourceTimeMs: number,
-    currentObservationIndex: number,
-    hasNativeSequence: boolean,
-  ): void {
-    if (this.lastSourceTimeMs == null || this.lastObservationIndex == null) {
-      this.lastSourceTimeMs = sourceTimeMs;
-      this.lastObservationIndex = currentObservationIndex;
-      return;
+  private checkpointNativeState(family: string, state: NativeSequenceState | undefined): NativeSequenceRollback | null {
+    if (this.rollbackActiveToken === 0) return null;
+    for (let index = 0; index < this.rollbackNativeStateCount; index += 1) {
+      const rollback = this.rollbackNativeStates[index]!;
+      if (rollback.family === family) return rollback;
     }
-    if (this.timestampResetPending) {
-      this.timestampResetPending = false;
-      this.lastSourceTimeMs = sourceTimeMs;
+    const rollback = this.rollbackNativeStates[this.rollbackNativeStateCount++] ?? {
+      family,
+      state: null,
+      lastSequence: 0,
+      lastSourceTimeMs: 0,
+      lastObservationIndex: 0,
+      gapCandidateLength: 0,
+      provisionalBoundary: null,
+      cadenceSamples: 0,
+      normalStepMax: 0,
+      positiveStepCount: 0,
+      resetPending: false,
+      positiveStep: null,
+      positiveStepOccurrences: undefined,
+    };
+    rollback.family = family;
+    rollback.state = state ?? null;
+    rollback.lastSequence = state?.lastSequence ?? 0;
+    rollback.lastSourceTimeMs = state?.lastSourceTimeMs ?? 0;
+    rollback.lastObservationIndex = state?.lastObservationIndex ?? 0;
+    rollback.gapCandidateLength = state?.gapCandidates.length ?? 0;
+    rollback.provisionalBoundary = state?.provisionalBoundary ?? null;
+    rollback.cadenceSamples = state?.cadenceSamples ?? 0;
+    rollback.normalStepMax = state?.normalStepMax ?? 0;
+    rollback.positiveStepCount = state?.positiveStepCount ?? 0;
+    rollback.resetPending = state?.resetPending ?? false;
+    rollback.positiveStep = null;
+    rollback.positiveStepOccurrences = undefined;
+    this.rollbackNativeStates[this.rollbackNativeStateCount - 1] = rollback;
+    return rollback;
+  }
+
+  observe(packet: TelemetryPacket, sourceSequences: SourceSequenceObservation[] = packetSequences(packet)): SourceSequenceObserveResult {
+    const currentObservationIndex = this.packetCount;
+    this.packetCount += 1;
+    let gapCandidates: SourceSequenceGapCandidate[] | undefined;
+    const boundaries: SourceSequenceBoundary[] = [];
+
+    if (this.lastSourceTimeMs != null && this.lastObservationIndex != null) {
+      if (this.timestampResetPending) {
+        this.timestampResetPending = false;
+        this.lastSourceTimeMs = packet.TimestampMS;
+        this.lastObservationIndex = currentObservationIndex;
+      } else {
+        const delta = packet.TimestampMS - this.lastSourceTimeMs;
+        if (delta > 0) {
+          if (
+            sourceSequences.length === 0 &&
+            this.timestampCadenceSamples > 0 &&
+            delta > this.timestampNormalDeltaMax * 1.5
+          ) {
+            const candidate = {
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              previousSourceTimeMs: this.lastSourceTimeMs,
+              currentSourceTimeMs: packet.TimestampMS,
+              previousObservationIndex: this.lastObservationIndex,
+              currentObservationIndex,
+            };
+            this.timestampGapCandidates.push(candidate);
+            (gapCandidates ??= []).push(candidate);
+          }
+          if (sourceSequences.length === 0 && this.timestampCadenceSamples === 0) {
+            this.timestampProvisionalBoundary = {
+              previousSourceTimeMs: this.lastSourceTimeMs,
+              currentSourceTimeMs: packet.TimestampMS,
+              previousObservationIndex: this.lastObservationIndex,
+              currentObservationIndex,
+            };
+            (gapCandidates ??= []).push({
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              ...this.timestampProvisionalBoundary,
+            });
+          } else if (
+            sourceSequences.length === 0 &&
+            this.timestampProvisionalBoundary != null &&
+            this.timestampProvisionalBoundary.currentSourceTimeMs -
+              this.timestampProvisionalBoundary.previousSourceTimeMs >
+              delta
+          ) {
+            this.timestampGapCandidates.push(this.timestampProvisionalBoundary);
+            (gapCandidates ??= []).push({
+              sourceSequenceFamily: null,
+              previousSequence: null,
+              currentSequence: null,
+              ...this.timestampProvisionalBoundary,
+            });
+            this.timestampProvisionalBoundary = null;
+          }
+          if (sourceSequences.length === 0) {
+            this.rollbackTimestampPositiveDelta = delta;
+            this.rollbackTimestampPositiveDeltaOccurrences = this.positiveTimestampDeltaCounts.get(delta);
+            this.positiveTimestampDeltaCounts.set(delta, (this.rollbackTimestampPositiveDeltaOccurrences ?? 0) + 1);
+            this.positiveTimestampDeltaCount += 1;
+            this.timestampNormalDeltaMax =
+              this.timestampCadenceSamples === 0
+                ? delta
+                : Math.min(this.timestampNormalDeltaMax, delta);
+            this.timestampCadenceSamples += 1;
+          }
+          this.lastSourceTimeMs = packet.TimestampMS;
+          this.lastObservationIndex = currentObservationIndex;
+        } else if (sourceSequences.length === 0) {
+          const boundary: SourceSequenceBoundary = {
+            kind: delta === 0 ? "duplicate" : "out-of-order",
+            sourceSequenceFamily: null,
+            previousSequence: null,
+            currentSequence: null,
+            previousSourceTimeMs: this.lastSourceTimeMs,
+            currentSourceTimeMs: packet.TimestampMS,
+            previousObservationIndex: this.lastObservationIndex,
+            currentObservationIndex,
+          };
+          boundaries.push(boundary);
+          (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
+        }
+      }
+    } else {
+      this.lastSourceTimeMs = packet.TimestampMS;
       this.lastObservationIndex = currentObservationIndex;
-      return;
     }
 
-    const previousSourceTimeMs = this.lastSourceTimeMs;
-    const previousObservationIndex = this.lastObservationIndex;
-    const delta = sourceTimeMs - previousSourceTimeMs;
-    if (delta <= 0) {
-      if (!hasNativeSequence) {
+    for (const observation of sourceSequences) {
+      const previous = this.nativeStates.get(observation.family);
+      const rollback = this.checkpointNativeState(observation.family, previous);
+      if (!previous) {
+        this.nativeStates.set(observation.family, {
+          lastSequence: observation.sequence,
+          lastSourceTimeMs: packet.TimestampMS,
+          lastObservationIndex: currentObservationIndex,
+          gapCandidates: [],
+          cadenceSamples: 0,
+          normalStepMax: 0,
+          positiveStepCounts: new Map(),
+          provisionalBoundary: null,
+          positiveStepCount: 0,
+          resetPending: false,
+        });
+        continue;
+      }
+      if (previous.resetPending) {
+        previous.resetPending = false;
+        previous.lastSequence = observation.sequence;
+        previous.lastSourceTimeMs = packet.TimestampMS;
+        previous.lastObservationIndex = currentObservationIndex;
+        continue;
+      }
+      const delta = observation.sequence - previous.lastSequence;
+      if (delta <= 0) {
         const boundary: SourceSequenceBoundary = {
           kind: delta === 0 ? "duplicate" : "out-of-order",
-          sourceSequenceFamily: null,
-          previousSequence: null,
-          currentSequence: null,
-          previousSourceTimeMs,
-          currentSourceTimeMs: sourceTimeMs,
-          previousObservationIndex,
+          sourceSequenceFamily: observation.family,
+          previousSequence: previous.lastSequence,
+          currentSequence: observation.sequence,
+          previousSourceTimeMs: previous.lastSourceTimeMs,
+          currentSourceTimeMs: packet.TimestampMS,
+          previousObservationIndex: previous.lastObservationIndex,
           currentObservationIndex,
         };
+        boundaries.push(boundary);
         (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
+        continue;
       }
-      return;
-    }
-
-    if (
-      !hasNativeSequence &&
-      this.timestampCadenceSamples > 0 &&
-      delta > this.timestampNormalDeltaMax * 1.5
-    ) {
-      this.timestampGapCandidates.push({
-        previousSourceTimeMs,
-        currentSourceTimeMs: sourceTimeMs,
-        previousObservationIndex,
-        currentObservationIndex,
-      });
-    }
-    if (!hasNativeSequence && this.timestampCadenceSamples === 0) {
-      this.hasTimestampProvisionalBoundary = true;
-      this.timestampProvisionalPreviousSourceTimeMs = previousSourceTimeMs;
-      this.timestampProvisionalCurrentSourceTimeMs = sourceTimeMs;
-      this.timestampProvisionalPreviousObservationIndex = previousObservationIndex;
-      this.timestampProvisionalCurrentObservationIndex = currentObservationIndex;
-    } else if (
-      !hasNativeSequence &&
-      this.hasTimestampProvisionalBoundary &&
-      this.timestampProvisionalCurrentSourceTimeMs -
-        this.timestampProvisionalPreviousSourceTimeMs >
-        delta
-    ) {
-      this.timestampGapCandidates.push({
-        previousSourceTimeMs: this.timestampProvisionalPreviousSourceTimeMs,
-        currentSourceTimeMs: this.timestampProvisionalCurrentSourceTimeMs,
-        previousObservationIndex: this.timestampProvisionalPreviousObservationIndex,
-        currentObservationIndex: this.timestampProvisionalCurrentObservationIndex,
-      });
-      this.hasTimestampProvisionalBoundary = false;
-    }
-
-    this.positiveTimestampDeltaCounts.set(
-      delta,
-      (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1,
-    );
-    this.positiveTimestampDeltaCount += 1;
-    this.timestampNormalDeltaMax =
-      this.timestampCadenceSamples === 0
-        ? delta
-        : Math.min(this.timestampNormalDeltaMax, delta);
-    this.timestampCadenceSamples += 1;
-    this.lastSourceTimeMs = sourceTimeMs;
-    this.lastObservationIndex = currentObservationIndex;
-  }
-
-  private observeNative(
-    family: NativeSequenceFamily,
-    sequence: number,
-    sourceTimeMs: number,
-    currentObservationIndex: number,
-  ): void {
-    const previous = this.nativeStates.get(family);
-    if (previous == null) {
-      this.nativeStates.set(family, {
-        lastSequence: sequence,
-        lastSourceTimeMs: sourceTimeMs,
-        lastObservationIndex: currentObservationIndex,
-        gapCandidates: null,
-        hasProvisionalBoundary: false,
-        provisionalPreviousSequence: 0,
-        provisionalCurrentSequence: 0,
-        provisionalPreviousSourceTimeMs: 0,
-        provisionalCurrentSourceTimeMs: 0,
-        provisionalPreviousObservationIndex: 0,
-        provisionalCurrentObservationIndex: 0,
-        cadenceSamples: 0,
-        normalStepMax: 0,
-        positiveStepCounts: new Map(),
-        positiveStepCount: 0,
-        resetPending: false,
-      });
-      return;
-    }
-    if (previous.resetPending) {
-      previous.resetPending = false;
-      previous.lastSequence = sequence;
-      previous.lastSourceTimeMs = sourceTimeMs;
+      if (
+        previous.cadenceSamples > 0 &&
+        delta > previous.normalStepMax * 1.5
+      ) {
+        const candidate = {
+          sourceSequenceFamily: observation.family,
+          previousSequence: previous.lastSequence,
+          currentSequence: observation.sequence,
+          previousSourceTimeMs: previous.lastSourceTimeMs,
+          currentSourceTimeMs: packet.TimestampMS,
+          previousObservationIndex: previous.lastObservationIndex,
+          currentObservationIndex,
+        };
+        previous.gapCandidates.push(candidate);
+        (gapCandidates ??= []).push(candidate);
+      }
+      if (previous.cadenceSamples === 0) {
+        previous.provisionalBoundary = {
+          previousSequence: previous.lastSequence,
+          currentSequence: observation.sequence,
+          previousSourceTimeMs: previous.lastSourceTimeMs,
+          currentSourceTimeMs: packet.TimestampMS,
+          previousObservationIndex: previous.lastObservationIndex,
+          currentObservationIndex,
+        };
+        (gapCandidates ??= []).push({
+          sourceSequenceFamily: observation.family,
+          ...previous.provisionalBoundary,
+        });
+      } else if (
+        previous.provisionalBoundary != null &&
+        previous.provisionalBoundary.currentSequence -
+          previous.provisionalBoundary.previousSequence >
+          delta
+      ) {
+        previous.gapCandidates.push(previous.provisionalBoundary);
+        (gapCandidates ??= []).push({
+          sourceSequenceFamily: observation.family,
+          ...previous.provisionalBoundary,
+        });
+        previous.provisionalBoundary = null;
+      }
+      previous.normalStepMax =
+        previous.cadenceSamples === 0
+          ? delta
+          : Math.min(previous.normalStepMax, delta);
+      previous.cadenceSamples += 1;
+      if (rollback != null) {
+        rollback.positiveStep = delta;
+        rollback.positiveStepOccurrences = previous.positiveStepCounts.get(delta);
+      }
+      previous.positiveStepCounts.set(delta, (rollback?.positiveStepOccurrences ?? previous.positiveStepCounts.get(delta) ?? 0) + 1);
+      previous.positiveStepCount += 1;
+      previous.lastSequence = observation.sequence;
+      previous.lastSourceTimeMs = packet.TimestampMS;
       previous.lastObservationIndex = currentObservationIndex;
-      return;
     }
 
-    const delta = sequence - previous.lastSequence;
-    if (delta <= 0) {
-      const boundary: SourceSequenceBoundary = {
-        kind: delta === 0 ? "duplicate" : "out-of-order",
-        sourceSequenceFamily: this.displayFamily(family),
-        previousSequence: previous.lastSequence,
-        currentSequence: sequence,
-        previousSourceTimeMs: previous.lastSourceTimeMs,
-        currentSourceTimeMs: sourceTimeMs,
-        previousObservationIndex: previous.lastObservationIndex,
-        currentObservationIndex,
-      };
-      (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
-      return;
-    }
-    if (
-      previous.cadenceSamples > 0 &&
-      delta > previous.normalStepMax * 1.5
-    ) {
-      (previous.gapCandidates ??= []).push({
-        previousSequence: previous.lastSequence,
-        currentSequence: sequence,
-        previousSourceTimeMs: previous.lastSourceTimeMs,
-        currentSourceTimeMs: sourceTimeMs,
-        previousObservationIndex: previous.lastObservationIndex,
-        currentObservationIndex,
-      });
-    }
-    if (previous.cadenceSamples === 0) {
-      previous.hasProvisionalBoundary = true;
-      previous.provisionalPreviousSequence = previous.lastSequence;
-      previous.provisionalCurrentSequence = sequence;
-      previous.provisionalPreviousSourceTimeMs = previous.lastSourceTimeMs;
-      previous.provisionalCurrentSourceTimeMs = sourceTimeMs;
-      previous.provisionalPreviousObservationIndex = previous.lastObservationIndex;
-      previous.provisionalCurrentObservationIndex = currentObservationIndex;
-    } else if (
-      previous.hasProvisionalBoundary &&
-      previous.provisionalCurrentSequence - previous.provisionalPreviousSequence >
-        delta
-    ) {
-      (previous.gapCandidates ??= []).push({
-        previousSequence: previous.provisionalPreviousSequence,
-        currentSequence: previous.provisionalCurrentSequence,
-        previousSourceTimeMs: previous.provisionalPreviousSourceTimeMs,
-        currentSourceTimeMs: previous.provisionalCurrentSourceTimeMs,
-        previousObservationIndex: previous.provisionalPreviousObservationIndex,
-        currentObservationIndex: previous.provisionalCurrentObservationIndex,
-      });
-      previous.hasProvisionalBoundary = false;
-    }
-    previous.normalStepMax =
-      previous.cadenceSamples === 0
-        ? delta
-        : Math.min(previous.normalStepMax, delta);
-    previous.cadenceSamples += 1;
-    previous.positiveStepCounts.set(
-      delta,
-      (previous.positiveStepCounts.get(delta) ?? 0) + 1,
-    );
-    previous.positiveStepCount += 1;
-    previous.lastSequence = sequence;
-    previous.lastSourceTimeMs = sourceTimeMs;
-    previous.lastObservationIndex = currentObservationIndex;
+    return gapCandidates == null
+      ? { sourceSequences, boundaries }
+      : { sourceSequences, boundaries, gapCandidates };
   }
 
   /** Reconnect/timebase boundaries seed the next observation in each family. */
@@ -403,27 +535,16 @@ export class SourceSequenceTracker {
       countMethod = "native-sequence";
       for (const [family, state] of this.nativeStates) {
         if (state.positiveStepCount === 0) continue;
-        if (state.gapCandidates == null) continue;
-        const expectedStep = weightedMedian(
-          state.positiveStepCounts,
-          state.positiveStepCount,
-          1,
-        );
+        const expectedStep = weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
         for (const boundary of state.gapCandidates) {
           const step = boundary.currentSequence - boundary.previousSequence;
-          const inferredMissing = Math.max(
-            0,
-            Math.round(step / expectedStep) - 1,
-          );
+          const inferredMissing = Math.max(0, Math.round(step / expectedStep) - 1);
           if (inferredMissing === 0) continue;
-          const durationMs = Math.max(
-            0,
-            boundary.currentSourceTimeMs - boundary.previousSourceTimeMs,
-          );
+          const durationMs = Math.max(0, boundary.currentSourceTimeMs - boundary.previousSourceTimeMs);
           missingCount += inferredMissing;
           largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
           gaps.push({
-            sourceSequenceFamily: this.displayFamily(family),
+            sourceSequenceFamily: family,
             ...boundary,
             durationMs,
             missingCount: inferredMissing,
@@ -433,18 +554,10 @@ export class SourceSequenceTracker {
       }
     } else if (this.positiveTimestampDeltaCount > 0) {
       countMethod = "timestamp-estimate";
-      const expectedIntervalMs = weightedMedian(
-        this.positiveTimestampDeltaCounts,
-        this.positiveTimestampDeltaCount,
-        1,
-      );
+      const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
       for (const boundary of this.timestampGapCandidates) {
-        const durationMs =
-          boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
-        const inferredMissing = Math.max(
-          0,
-          Math.round(durationMs / expectedIntervalMs) - 1,
-        );
+        const durationMs = boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
+        const inferredMissing = Math.max(0, Math.round(durationMs / expectedIntervalMs) - 1);
         if (inferredMissing === 0) continue;
         missingCount += inferredMissing;
         largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
@@ -467,26 +580,14 @@ export class SourceSequenceTracker {
         expectedCount,
         observedCount: this.packetCount,
         totalMissingCount: measured ? missingCount : null,
-        totalMissingFraction:
-          measured && expectedCount > 0 ? missingCount / expectedCount : null,
+        totalMissingFraction: measured && expectedCount > 0 ? missingCount / expectedCount : null,
         largestContiguousGapMs,
         countMethod,
       },
       gaps,
       duplicates: [...this.duplicates],
       outOfOrder: [...this.outOfOrder],
-      inferredIntervalMs:
-        this.positiveTimestampDeltaCount > 0
-          ? weightedMedian(
-              this.positiveTimestampDeltaCounts,
-              this.positiveTimestampDeltaCount,
-              1,
-            )
-          : null,
+      inferredIntervalMs: this.positiveTimestampDeltaCount > 0 ? weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1) : null,
     };
-  }
-
-  private displayFamily(family: NativeSequenceFamily): string {
-    return typeof family === "number" ? `f1-packet-${family}` : family;
   }
 }

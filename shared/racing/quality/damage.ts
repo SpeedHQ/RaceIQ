@@ -9,6 +9,27 @@ export function damageVectorTotal(vector: DamageVector | null): number {
     .reduce((sum, value) => sum + value, 0);
 }
 
+export function increasedDamageComponents(
+  previous: DamageVector,
+  current: DamageVector,
+  minimumIncrease = 1,
+): string[] {
+  return Object.keys(current)
+    .filter(
+      (component) =>
+        previous[component] != null &&
+        current[component]! - previous[component]! >= minimumIncrease,
+    )
+    .sort();
+}
+
+export function damageVectorAtOrBelow(
+  vector: DamageVector,
+  maximum: number,
+): boolean {
+  const values = Object.values(vector).filter(Number.isFinite);
+  return values.length > 0 && values.every((value) => value <= maximum);
+}
 
 /** Packet compatibility boundary used only by quality measurement. */
 export function telemetryDamageVector(packet: TelemetryPacket): DamageVector {
