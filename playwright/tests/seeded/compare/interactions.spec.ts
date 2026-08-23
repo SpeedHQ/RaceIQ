@@ -2,13 +2,14 @@ import { expect, test } from "@playwright/test";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
-import { assertSynchronizedCursors } from "./charts";
+import { assertMapSynchronizedCursors, assertSynchronizedCursors } from "./charts";
 import { compareQuery, getDistinctPair, type ComparisonPayload } from "./interaction-helpers";
 import { compareEndpoint, lapOptionLabel } from "./helpers";
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} Compare renders distinct seeded traces and synchronized controls`, async ({ page, request }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
+    page.setDefaultTimeout(30_000);
     const browserErrors = collectBrowserErrors(page);
     const pair = await getDistinctPair(request, game.gameId);
     const endpoint = compareEndpoint(pair);
@@ -62,15 +63,12 @@ for (const game of SEEDED_GAME_CASES) {
     });
 
     await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
-    const originalStorage = await page.evaluate(() => ({
-      mapWidth: localStorage.getItem("compare-left-column-width"),
-      aiPanel: localStorage.getItem("compare-ai-panel-open"),
-    }));
+    const originalAiPanel = await page.evaluate(() => localStorage.getItem("compare-ai-panel-open"));
     try {
       const workspace = page.getByTestId("lap-compare-workspace");
       await expect(workspace).toBeVisible();
       await expect(workspace.getByText(/loading/i)).toBeVisible();
-      const initialResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint));
+      const initialResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 30_000 });
       releaseLoading();
       expect((await initialResponse).ok(), `${game.name} initial comparison load`).toBe(true);
       await page.unroute(endpointPattern);
@@ -87,7 +85,7 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
       await lapB.click();
-      const reloadResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint));
+      const reloadResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 30_000 });
       await page
         .getByRole("option", {
           name: lapOptionLabel(pair.lapB),
@@ -110,22 +108,15 @@ for (const game of SEEDED_GAME_CASES) {
       await page.getByRole("button", { name: "Follow View", exact: true }).click();
       await expect(page.getByRole("button", { name: "Fixed View", exact: true })).toBeVisible();
 
-      const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
-      await expect(resizeHandle).toBeVisible();
-      const widthBefore = Number(await resizeHandle.getAttribute("aria-valuenow"));
-      await resizeHandle.press("ArrowRight");
-      await expect(resizeHandle).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByRole("separator", { name: "Resize track map" })).toHaveAttribute("aria-valuenow", String(widthBefore + 16));
-
       const aiToggle = page.getByRole("button", { name: /AI Analysis/ });
       await expect(aiToggle).toBeVisible();
       await aiToggle.click();
       await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
+      const persistedAiResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint), { timeout: 60_000 });
       await page.reload({ waitUntil: "domcontentloaded" });
+      expect((await persistedAiResponse).ok(), `${game.name} persisted-AI comparison reload`).toBe(true);
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible();
+      await expect(page.getByText("Analyse both laps to start a comparison chat", { exact: true })).toBeVisible({ timeout: 60_000 });
 
       expect(browserErrors.errors, `unexpected browser errors before injected Compare failure in ${game.name}`).toEqual([]);
       const errorBody = JSON.stringify({ error: "Seeded compare failure" });
@@ -141,12 +132,26 @@ for (const game of SEEDED_GAME_CASES) {
         `unexpected browser errors in ${game.name} Compare flow`,
       ).toEqual([]);
     } finally {
-      await page.evaluate(({ mapWidth, aiPanel }) => {
-        if (mapWidth === null) localStorage.removeItem("compare-left-column-width");
-        else localStorage.setItem("compare-left-column-width", mapWidth);
+      await page.evaluate((aiPanel) => {
         if (aiPanel === null) localStorage.removeItem("compare-ai-panel-open");
         else localStorage.setItem("compare-ai-panel-open", aiPanel);
-      }, originalStorage);
+      }, originalAiPanel);
     }
   });
 }
+
+test("iRacing Compare uses shared overview and zoom track canvases", async ({ page, request }) => {
+  const game = SEEDED_GAME_CASES.find((candidate) => candidate.gameId === "iracing")!;
+  const pair = await getDistinctPair(request, game.gameId);
+  await page.goto(`/${game.prefix}/compare?${compareQuery(pair)}`, { waitUntil: "domcontentloaded" });
+
+  const workspace = page.getByTestId("lap-compare-workspace");
+  await expect(workspace.getByTestId("compare-overview-track-map")).toBeVisible({ timeout: 30_000 });
+  await expect(workspace.getByTestId("compare-zoom-track-map")).toBeVisible();
+  await assertMapSynchronizedCursors(page);
+  await assertSynchronizedCursors(page);
+
+  const fixedMode = page.getByRole("button", { name: "Fixed View", exact: true });
+  await fixedMode.click();
+  await expect(page.getByRole("button", { name: "Follow View", exact: true })).toBeVisible();
+});

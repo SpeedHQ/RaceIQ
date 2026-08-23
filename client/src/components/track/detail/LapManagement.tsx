@@ -158,9 +158,9 @@ export function LapManagement(props: LapManagementProps) {
                   <span className="text-app-compact text-app-text-dim">
                     {selectedLaps.size} {m.trackdetail_selected()}
                   </span>
-                  {selectedLaps.size === 2 &&
+                  {selectedLaps.size >= 2 &&
                     (() => {
-                      const [lapA, lapB] = Array.from(selectedLaps);
+                      const [lapA, ...comparedLaps] = Array.from(selectedLaps);
                       return (
                         <Button
                           type="button"
@@ -170,15 +170,14 @@ export function LapManagement(props: LapManagementProps) {
                               search: {
                                 track: track.ordinal,
                                 lapA,
-                                lapB,
-                                carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
-                                carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
+                                laps: comparedLaps.join(","),
+                                carA: trackLaps.find((lap) => lap.lapId === lapA)?.carOrdinal,
                               },
                             })
                           }
                           className="text-app-compact px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
                         >
-                          {m.trackdetail_compare()}
+                          {m.compare_selected_laps({ count: selectedLaps.size })}
                         </Button>
                       );
                     })()}

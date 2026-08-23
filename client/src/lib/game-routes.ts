@@ -14,9 +14,8 @@ export type AnalyseSearch = {
 export type CompareSearch = {
   track?: number;
   carA?: number;
-  carB?: number;
   lapA?: number;
-  lapB?: number;
+  laps?: number[];
   cursor?: number;
   ai?: number;
 };
@@ -79,6 +78,13 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
+export function parseOptionalNumberList(value: unknown): number[] | undefined {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [value];
+  const parsed = values.map(parseOptionalNumber).filter((entry): entry is number => entry !== undefined && Number.isInteger(entry) && entry > 0);
+  const unique = [...new Set(parsed)];
+  return unique.length > 0 ? unique : undefined;
+}
+
 
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
   return {
@@ -95,9 +101,8 @@ export function validateCompareSearch(search: Record<string, unknown>): CompareS
   return {
     track: parseOptionalNumber(search.track),
     carA: parseOptionalNumber(search.carA),
-    carB: parseOptionalNumber(search.carB),
     lapA: parseOptionalNumber(search.lapA),
-    lapB: parseOptionalNumber(search.lapB),
+    laps: parseOptionalNumberList(search.laps),
     cursor: parseOptionalNumber(search.cursor),
     ai: parseOptionalNumber(search.ai),
   };

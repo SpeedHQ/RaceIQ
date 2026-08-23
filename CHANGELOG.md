@@ -12,6 +12,7 @@
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 - Pan, zoom, and toggle imagery and overlays independently on Analyse track maps
+- Compare multiple laps across synchronized maps and telemetry with independent imagery, pan, zoom, and layout controls
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
