@@ -1,46 +1,42 @@
+import type { GameId } from "@shared/games/ids";
+import { applyAlignment, computeAlignment } from "@shared/racing/tracks/geometry/points";
 import type { Point, SemanticAnalysisFrame } from "./types";
+
+const ALIGNMENT_SAMPLE_LIMIT = 240;
 
 const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 };
 
-const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
-  x: number(frame, "motion.position-x") ?? 0,
-  z: number(frame, "motion.position-z") ?? 0,
-});
+export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null, gameId?: GameId): Point[] {
+  const positions = telemetry.map((frame) => ({
+    x: number(frame, "motion.position-x") ?? 0,
+    z: number(frame, "motion.position-z") ?? 0,
+  }));
+  if (gameId !== "iracing" || !outline || outline.length < 5) return positions;
 
-export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null): Point[] {
-  const worldPositions = telemetry.map(worldPosition);
-  if (worldPositions.some((point) => point.x !== 0 || point.z !== 0) || !outline || outline.length < 2) return worldPositions;
-
-  const fractions = telemetry.map((frame) => number(frame, "timing.lap-fraction"));
-  if (fractions.some((fraction) => fraction === null)) return worldPositions;
-
-  const cumulative = [0];
-  for (let index = 1; index < outline.length; index++) {
-    cumulative.push(cumulative[index - 1] + Math.hypot(outline[index].x - outline[index - 1].x, outline[index].z - outline[index - 1].z));
+  let nonZeroCount = 0;
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const point of positions) {
+    if (point.x !== 0 || point.z !== 0) nonZeroCount++;
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minZ = Math.min(minZ, point.z);
+    maxZ = Math.max(maxZ, point.z);
   }
-  const total = cumulative.at(-1) ?? 0;
-  if (total <= 0) return worldPositions;
+  if (nonZeroCount < 5) return positions;
+  if (Math.hypot(maxX - minX, maxZ - minZ) < 10) return positions;
 
-  return fractions.map((fraction) => {
-    const target = Math.max(0, Math.min(1, fraction!)) * total;
-    let low = 1;
-    let high = cumulative.length - 1;
-    while (low < high) {
-      const middle = (low + high) >> 1;
-      if (cumulative[middle] < target) low = middle + 1;
-      else high = middle;
-    }
-    const start = Math.max(0, low - 1);
-    const segmentLength = cumulative[low] - cumulative[start];
-    const amount = segmentLength > 0 ? (target - cumulative[start]) / segmentLength : 0;
-    return {
-      x: outline[start].x + (outline[low].x - outline[start].x) * amount,
-      z: outline[start].z + (outline[low].z - outline[start].z) * amount,
-    };
-  });
+  const alignmentSource =
+    positions.length <= ALIGNMENT_SAMPLE_LIMIT
+      ? positions
+      : Array.from({ length: ALIGNMENT_SAMPLE_LIMIT }, (_, index) => positions[Math.round((index * (positions.length - 1)) / (ALIGNMENT_SAMPLE_LIMIT - 1))]);
+  const alignment = computeAlignment(alignmentSource, outline);
+  return alignment ? positions.map((point) => applyAlignment(point, alignment)) : positions;
 }
 
 export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {

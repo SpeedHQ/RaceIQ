@@ -30,34 +30,6 @@ test("returns no transform when replay has no drawable track points", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
 });
-test("projects telemetry without world coordinates onto the track outline", () => {
-  const frame = (fraction: number) => ({
-    values: { "motion.position-x": null, "motion.position-z": null, "timing.lap-fraction": fraction },
-    states: {},
-    freshness: {},
-  });
-  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
-
-  expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
-    { x: 0, z: 0 },
-    { x: 50, z: 0 },
-    { x: 100, z: 50 },
-    { x: 100, z: 100 },
-  ]);
-});
-
-test("prefers recorded world coordinates over lap-fraction projection", () => {
-  const frame = (x: number, z: number, fraction: number) => ({
-    values: { "motion.position-x": x, "motion.position-z": z, "timing.lap-fraction": fraction },
-    states: {},
-    freshness: {},
-  });
-
-  expect(resolveTrackPositions(
-    [frame(20, 30, 0), frame(40, 50, 1)],
-    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
-  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
-});
 
 test("draws throttle input traces in the throttle channel color", () => {
   const previousWindow = globalThis.window;
@@ -112,5 +84,40 @@ test("draws throttle input traces in the throttle channel color", () => {
     ]);
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("aligns imported iRacing GPS paths to analyse-map outlines", () => {
+  const gpsPath = [
+    { x: 0, z: 0 },
+    { x: 90, z: -10 },
+    { x: 145, z: 35 },
+    { x: 120, z: 105 },
+    { x: 55, z: 140 },
+    { x: -25, z: 85 },
+    { x: -40, z: 25 },
+    { x: 0, z: 0 },
+  ];
+  const angle = 0.37;
+  const scale = 1.8;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const outline = gpsPath.map((point) => ({
+    x: scale * (cos * point.x - sin * point.z) + 350,
+    z: scale * (sin * point.x + cos * point.z) - 120,
+  }));
+  const telemetry = gpsPath.map((point) => ({
+    values: {
+      "motion.position-x": point.x,
+      "motion.position-z": point.z,
+    },
+    states: {},
+    freshness: {},
+  }));
+
+  const aligned = resolveTrackPositions(telemetry, outline, "iracing");
+  for (let index = 0; index < outline.length; index++) {
+    expect(aligned[index].x).toBeCloseTo(outline[index].x, 3);
+    expect(aligned[index].z).toBeCloseTo(outline[index].z, 3);
   }
 });

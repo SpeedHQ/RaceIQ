@@ -7,11 +7,10 @@ import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
 
 initGameAdapters();
 
-test("semantic replay requests lap-relative timing and position", () => {
+test("semantic replay requests lap-relative timing", () => {
   expect(semanticReplayIds()).toContain("timing.current-lap");
-  expect(semanticReplayIds()).toContain("timing.lap-fraction");
 });
-test("semantic replay requests every Analyse display dependency", () => {
+test("semantic replay requests every Analyse Data panel dependency", () => {
   const ids = semanticReplayIds();
   for (const id of [
     "brakes.brake-bias",
@@ -19,9 +18,9 @@ test("semantic replay requests every Analyse display dependency", () => {
     "fuel.ers-harvested",
     "fuel.fuel-capacity",
     "identity.car-ordinal",
+    "identity.player-track-surface",
     "motion.pitch",
     "motion.roll",
-    "identity.player-track-surface",
     "tires.wheel-in-puddle-depth",
     "suspension.norm-suspension-travel",
     "tires.normalized-tire-slip-angle",

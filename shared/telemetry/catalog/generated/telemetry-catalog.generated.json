@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589"
+      "sourceHash": "d9fe574d030c694d89ae03a09a842dca3741746796c74045306ea0623072d657"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
+      "server/games/iracing/normalizer.ts": "99326c1aaaab165c3a1674daf8634af91c206371d922e1464e81b629d36a0f2c",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "1055fc7931940324c1d2c345409c00e4e28318096f12148cb479d74e4bd12dc4"
+    "contentHash": "a070ce1fd025db490026242f20472c56f226616f2c5d6b05caf58e3283ac6235"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -17316,30 +17316,18 @@
           }
         },
         "iracing": {
-          "kind": "derived",
+          "kind": "direct",
           "nativeUnit": "m/s²",
           "sources": [
             "iRacing.LatAccel"
           ],
           "freshness": "continuous",
-          "normalization": "-scalar(values, \"LatAccel\", 0)",
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:motion.acceleration-x:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.LatAccel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "b490a7aeda783047fdfcd077d90a0076fb4e616c4b1b5df7e632433c151f787a"
-          }
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -18560,9 +18548,34 @@
           }
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "kind": "normalized",
+          "nativeUnit": "m",
+          "sources": [
+            "iRacing.Lat",
+            "iRacing.Lon"
+          ],
+          "freshness": "continuous",
+          "normalization": "positionX => hasRecordedGps ? gpsState.lastX : 0",
+          "description": "Projects disk-only iRacing IBT geographic coordinates into a local metric position.",
+          "limitations": [
+            "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
+          ],
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-x:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.Lat",
+              "iRacing.Lon"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "6849814dfa034857a928d0cd881623a7dffe9a885d767eefb9cce4ef193909b8"
+          }
         }
       },
       "valueType": "number",
@@ -18666,9 +18679,36 @@
           }
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "kind": "normalized",
+          "nativeUnit": "m",
+          "sources": [
+            "iRacing.Lat",
+            "iRacing.Lon",
+            "iRacing.Alt"
+          ],
+          "freshness": "continuous",
+          "normalization": "positionY => hasRecordedGps ? gpsState.lastY : 0",
+          "description": "Projects disk-only iRacing IBT geographic coordinates into a local metric position.",
+          "limitations": [
+            "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
+          ],
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-y:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.Lat",
+              "iRacing.Lon",
+              "iRacing.Alt"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "2ecb0e3347fef165da91c4ffdfbb17f64e72ed065de7d6543ad9130c25cee35a"
+          }
         }
       },
       "valueType": "number",
@@ -18772,9 +18812,34 @@
           }
         },
         "iracing": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+          "kind": "normalized",
+          "nativeUnit": "m",
+          "sources": [
+            "iRacing.Lat",
+            "iRacing.Lon"
+          ],
+          "freshness": "continuous",
+          "normalization": "positionZ => hasRecordedGps ? gpsState.lastZ : 0",
+          "description": "Projects disk-only iRacing IBT geographic coordinates into a local metric position.",
+          "limitations": [
+            "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates."
+          ],
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:motion.position-z:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.Lat",
+              "iRacing.Lon"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "f42686367ee7c0f7d05051c12781839e2a343e9f86c625c12a297540aac13784"
+          }
         }
       },
       "valueType": "number",
@@ -19825,29 +19890,29 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "derived",
+          "kind": "normalized",
           "nativeUnit": "rad",
           "sources": [
             "iRacing.Yaw"
           ],
           "freshness": "continuous",
-          "normalization": "-scalar(values, \"Yaw\", 0)",
-          "description": "iracing maps 1 native source channel into this value.",
+          "normalization": "canonicalYaw => hasRecordedGps && gpsState.lastHeadingNorthRad !== null ? gpsState.lastHeadingNorthRad : -scalar(values, \"Yaw\", 0)",
+          "description": "Uses north-referenced heading from imported IBT rows and simulator-relative yaw otherwise.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
           "limitations": [],
           "execution": {
-            "kind": "derivation",
-            "id": "iracing:motion.yaw:derived",
+            "kind": "conversion",
+            "id": "iracing:motion.yaw:normalized",
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
               "iRacing.Yaw"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "e6b6b9c4efeb445bfa26cc0715416a6194141e0152dfd237909d419579c8e244"
+            "codeHash": "9c6b0bdd4746b2b642c38e3920262348fea2359cfbce05e80b49922f55daf04a"
           }
         }
       },

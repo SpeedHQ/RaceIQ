@@ -1,5 +1,3 @@
-import { getGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -10,7 +8,7 @@ import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
+import { setVehicleAttitudeRotations, steeringAngleRadians, THREE_COLORS } from "../../lib/wireframe-utils";
 import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
@@ -99,18 +97,14 @@ export function CarScene({
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
   const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
 
-  // Keep packet in a ref so useFrame reads latest without triggering re-render
-  const packetRef = useRef(frame);
-  useEffect(() => {
-    packetRef.current = frame;
-  });
+  const vehicleGroupRef = useRef<THREE.Group>(null);
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
-  // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
-  // Higher suspension travel = more compressed on that corner
+  // Raw semantic attitude includes road gradient and banking. Suspension
+  // deltas remain useful only when a simulator does not expose an angle.
 
   // Body drops when suspension compresses (wheels stay on ground).
   // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
@@ -126,19 +120,28 @@ export function CarScene({
   // Roll: ~5° max at full differential compression
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
-  const bodyRoll = (rightAvg - leftAvg) * 0.1;
+  const suspensionBodyRoll = (rightAvg - leftAvg) * 0.1;
 
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
-  const bodyPitch = (frontAvg - rearAvg) * 0.06;
+  const suspensionBodyPitch = (frontAvg - rearAvg) * 0.06;
+  const rawBodyRoll = semanticNumber(frame, "motion.roll");
+  const rawBodyPitch = semanticNumber(frame, "motion.pitch");
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
   useFrame(() => {
-    if (carGroupRef.current) {
+    if (vehicleGroupRef.current && carGroupRef.current) {
+      setVehicleAttitudeRotations(
+        vehicleGroupRef.current.rotation,
+        carGroupRef.current.rotation,
+        rawBodyRoll,
+        rawBodyPitch,
+        suspensionBodyRoll,
+        suspensionBodyPitch,
+      );
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-      carGroupRef.current.rotation.set(bodyRoll, 0, bodyPitch, "YXZ");
     }
   });
 
@@ -183,31 +186,28 @@ export function CarScene({
   const cambRL = 0;
   const cambRR = 0;
 
-  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
-  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
-  const vehicleSpeed = semanticNumber(frame, "motion.speed") ?? 0;
-  const rotationValue = frame.values["tires.wheel-rotation-speed"];
-  const measuredRotation = Array.isArray(rotationValue) ? rotationValue : undefined;
-  const wheelRotationAvailable = resolveAnalysisTelemetry(getGame(gameId)).wheelRotation.source !== "unavailable";
-
   // Zero out wheel rotation during lockup — locked wheel = no spin
   const ws = {
     fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
     fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
     rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
     rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
-  } as Record<"fl" | "fr" | "rl" | "rr", { state: "nominal" | "lockup"; slipRatio: number }>;
-
-  // Preserve measured zeroes (including lockups). iRacing does not expose
-  // per-wheel speed, so derive visual rolling from vehicle speed and tire radius.
-  const rotFL = ws.fl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[0], vehicleSpeed, fTireR, wheelRotationAvailable);
-  const rotFR = ws.fr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[1], vehicleSpeed, fTireR, wheelRotationAvailable);
-  const rotRL = ws.rl.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[2], vehicleSpeed, rTireR, wheelRotationAvailable);
-  const rotRR = ws.rr.state === "lockup" ? 0 : visualWheelRotationSpeed(measuredRotation?.[3], vehicleSpeed, rTireR, wheelRotationAvailable);
+  } as {
+    fl: { state: "nominal" | "lockup"; slipRatio: number };
+    fr: { state: "nominal" | "lockup"; slipRatio: number };
+    rl: { state: "nominal" | "lockup"; slipRatio: number };
+    rr: { state: "nominal" | "lockup"; slipRatio: number };
+  };
+  const rotFL = ws.fl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 0);
+  const rotFR = ws.fr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 1);
+  const rotRL = ws.rl.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 2);
+  const rotRR = ws.rr.state === "lockup" ? 0 : wheel(frame, "tires.wheel-rotation-speed", 3);
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
   const rt = carModel.halfRearTrack;
+  const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
+  const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.3;
   const rTireW = carModel.rearTireWidth ?? 0.3;
   const pressFL = semanticNumber(frame, "tires.tire-pressure") ?? 0;
@@ -348,6 +348,8 @@ export function CarScene({
           );
         })()}
 
+      {/* Raw road attitude rotates complete vehicle; suspension fallback articulates body only. */}
+      <group ref={vehicleGroupRef}>
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
         <Suspense fallback={null}>
@@ -461,6 +463,7 @@ export function CarScene({
             </mesh>
           </>
         )}
+      </group>
       </group>
 
       {/* Track outline (center line) */}

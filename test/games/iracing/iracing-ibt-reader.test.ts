@@ -9,7 +9,10 @@ import {
 } from "node:fs";
 import { IRacingIbtReader } from "../../../server/games/iracing/ibt-reader";
 import { previewIbtFile } from "../../../server/games/iracing/import-ibt";
-import { normalizeIRacingFrame } from "../../../server/games/iracing/normalizer";
+import {
+  createIRacingParserState,
+  normalizeIRacingFrame,
+} from "../../../server/games/iracing/normalizer";
 import { IRacingTelemetrySource } from "../../../server/games/iracing/source";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { initGameAdapters } from "../../../shared/games/init";
@@ -76,6 +79,12 @@ describe("IRacingIbtReader", () => {
         Lap: 3,
       });
       expect(first?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
+      expect(first?.values.Lat).toBeCloseTo(43);
+      expect(first?.values.Lon).toBeCloseTo(-88);
+      expect(first?.values.Alt).toBeCloseTo(200);
+      expect(first?.values.YawNorth).toBeCloseTo(Math.PI / 2);
+      expect(first?.values.Pitch).toBeCloseTo(0.12);
+      expect(first?.values.Roll).toBeCloseTo(-0.08);
       expect(first?.sessionInfo).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
       expect(first?.sessionInfoUpdate).toBe(0);
       expect(reader.recordsRead).toBe(1);
@@ -113,7 +122,7 @@ describe("IRacingIbtReader", () => {
       expect(await source.pollOnce()).toBe(true);
       expect(await source.pollOnce()).toBe(false);
       expect(delivered).toHaveLength(2);
-      expect(delivered[1].length).toBeLessThan(delivered[0].length / 10);
+      expect(delivered[1].length).toBeLessThan(delivered[0].length / 7);
 
       const decoder = createIRacingSourceDecoderState();
       const frame = decodeIRacingSourceFrame(delivered[0], decoder);
@@ -137,12 +146,21 @@ describe("IRacingIbtReader", () => {
         syntheticSessionInfo(DEFAULT_IDENTITY),
       );
       expect(frame?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
-      const packet = normalizeIRacingFrame(frame!);
+      const parserState = createIRacingParserState();
+      const packet = normalizeIRacingFrame(frame!, parserState);
       expect(packet.gameId).toBe("iracing");
       expect(packet.sessionUID).toBe("456:123:2");
       expect(packet.Speed).toBeCloseTo(50.5);
       expect(packet.LapNumber).toBe(3);
       expect(packet.iracing?.lapDistancePct).toBeCloseTo(0.25);
+      expect(packet).toMatchObject({
+        PositionX: 0,
+        PositionY: 0,
+        PositionZ: 0,
+      });
+      expect(packet.Yaw).toBeCloseTo(Math.PI / 2);
+      expect(packet.Pitch).toBeCloseTo(0.12);
+      expect(packet.Roll).toBeCloseTo(-0.08);
       expect(packet).not.toHaveProperty("sessionInfo");
       expect(packet).not.toHaveProperty("sessionInfoUpdate");
       expect(packet.iracing).not.toHaveProperty("sessionInfo");
@@ -157,6 +175,13 @@ describe("IRacingIbtReader", () => {
       expect(
         (secondFrame as IRacingSourceFrameV3 | null)?.sessionInfoUpdate,
       ).toBe(0);
+      const secondPacket = normalizeIRacingFrame(secondFrame!, parserState);
+      expect(secondPacket.PositionX).toBeGreaterThan(5);
+      expect(secondPacket.PositionY).toBeCloseTo(1.5);
+      expect(secondPacket.PositionZ).toBeGreaterThan(5);
+      expect(secondPacket.Yaw).toBeCloseTo(-Math.PI / 2);
+      expect(secondPacket.Pitch).toBeCloseTo(0.14);
+      expect(secondPacket.Roll).toBeCloseTo(-0.06);
 
       await source.stop();
     } finally {
