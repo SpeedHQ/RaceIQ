@@ -2,7 +2,7 @@ import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
+import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -22,8 +22,7 @@ interface AnalyseTopSectionProps {
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  boundaries: any;
+  boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentFrame: SemanticAnalysisFrame | null;
@@ -38,10 +37,10 @@ interface AnalyseTopSectionProps {
 
   // View toggles
   rotateWithCar: boolean;
-  trackOverlay: "none" | "inputs" | "segments" | "sectors";
+  trackOverlays: TrackOverlays;
   mapZoom: number;
   onRotateWithCarToggle: () => void;
-  onTrackOverlayCycle: () => void;
+  onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
 
   // Viz
@@ -74,10 +73,10 @@ export function AnalyseTopSection({
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
-  trackOverlay,
+  trackOverlays,
   mapZoom,
   onRotateWithCarToggle,
-  onTrackOverlayCycle,
+  onTrackOverlayChange,
   onMapZoomChange,
   vizMode,
   onVizModeChange,
@@ -169,10 +168,10 @@ export function AnalyseTopSection({
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
           rotateWithCar={rotateWithCar}
-          trackOverlay={trackOverlay}
+          trackOverlays={trackOverlays}
           mapZoom={mapZoom}
           onRotateWithCarToggle={onRotateWithCarToggle}
-          onTrackOverlayCycle={onTrackOverlayCycle}
+          onTrackOverlayChange={onTrackOverlayChange}
           onMapZoomChange={onMapZoomChange}
           trackMapRef={trackMapRef}
         />

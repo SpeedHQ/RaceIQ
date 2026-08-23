@@ -19,7 +19,7 @@ import { DimensionLines } from "./DimensionLines";
 import { InputOverlay } from "./InputOverlay";
 import { SuspensionSpring } from "./SuspensionSpring";
 import { TireTrails } from "./TireTrails";
-import { TrackBoundaryEdges, TrackOutline } from "./TrackElements";
+import { TrackBoundaryEdges, TrackLine } from "./TrackElements";
 import { Wheel } from "./Wheel";
 
 // Load-dot geometry: direction comes from the baseline-subtracted weighted
@@ -80,7 +80,7 @@ export function CarScene({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; raceLine?: { x: number; z: number }[] | null } | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
@@ -464,7 +464,12 @@ export function CarScene({
       </group>
 
       {/* Track outline (center line) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+
+      {/* Game-provided reference racing line */}
+      {toggles.racingLine && boundaries?.raceLine && boundaries.raceLine.length > 1 && (
+        <TrackLine points={boundaries.raceLine} packet={frame} color={THREE_COLORS.trackRacingLine} lineWidth={4} opacity={1} y={-0.435} distAhead={autoOrbit ? 80 : undefined} />
+      )}
 
       {/* Track boundary edges (walls) */}
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={frame} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}

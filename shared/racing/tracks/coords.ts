@@ -31,5 +31,6 @@ export function flipBoundaries<T extends { leftEdge: Pt[]; rightEdge: Pt[] }>(b:
     rightEdge: flipPoints(b.rightEdge),
     ...("centerLine" in b && b.centerLine ? { centerLine: flipPoints(b.centerLine as Pt[]) } : {}),
     ...("pitLane" in b && b.pitLane ? { pitLane: flipPoints(b.pitLane as Pt[]) } : {}),
+    ...("raceLine" in b && b.raceLine ? { raceLine: flipPoints(b.raceLine as Pt[]) } : {}),
   };
 }
