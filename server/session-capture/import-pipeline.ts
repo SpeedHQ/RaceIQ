@@ -29,6 +29,7 @@ import {
   activateSessionAnalysisAttempt,
   beginSessionAnalysisAttempt,
 } from "../analysis-provenance/session-attempt";
+import { enqueueCanonicalArchiveForSession } from "./canonical-archive";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
 export class TelemetryImportError extends Error {
@@ -213,13 +214,32 @@ export class ImportCaptureAdapter implements DbAdapter {
    * stopped before this runs so no process still owns the canonical capture.
    */
   async rollback(): Promise<void> {
+    // Let already-issued lap writes settle before deleting their parent session.
+    // Otherwise a late write can recreate part of a rejected import after its
+    // session graph has been removed.
+    await Promise.allSettled([...this._pendingLapWrites]);
+
+    let cleanupFailure: unknown;
     for (const sessionId of this.sessionIds) {
-      await deleteSession(sessionId);
+      try {
+        await deleteSession(sessionId);
+      } catch (error) {
+        cleanupFailure ??= error;
+      }
     }
     for (const rawFile of this.rawFiles) {
-      if (existsSync(rawFile)) unlinkSync(rawFile);
+      try {
+        if (existsSync(rawFile)) unlinkSync(rawFile);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") cleanupFailure ??= error;
+      }
     }
     this.laps.length = 0;
+    this.sessionIds.clear();
+    this.rawFiles.clear();
+    this._lapIdentity.clear();
+    this._sessionMeta.clear();
+    if (cleanupFailure) throw cleanupFailure;
   }
 }
 
@@ -301,6 +321,8 @@ export async function importSessionFrames(
     onSessionAnalysisFinalized: async (attempt, sessionGameId) => {
       await activateSessionAnalysisAttempt(attempt, sessionGameId);
     },
+    onCanonicalArchiveEnqueued: (sessionId, sessionGameId) =>
+      enqueueCanonicalArchiveForSession(sessionId, sessionGameId),
   });
 
   let packetCount = 0;
@@ -353,6 +375,7 @@ export async function importSessionFrames(
   if (options.requireLaps && !db.laps.some((lap) => lap.quality.complete)) {
     return rollbackImport(db, new IncompleteImportError());
   }
+
   return {
     packetCount,
     laps: db.laps,

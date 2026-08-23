@@ -113,6 +113,8 @@ export interface RaceEventLapLink {
 export type ReplayableLapReplacement = Omit<typeof laps.$inferInsert, "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"> & {
   lapNumber: number;
   lapTime: number;
+  /** Exact persisted lap replaced by this row; used to preserve durable links. */
+  replacesLapId?: number;
 };
 
 export type RaceEventResultProjection = Omit<typeof sessionResults.$inferInsert, "id" | "sessionId" | "createdAt" | "updatedAt" | "eventIds"> & {
@@ -137,6 +139,7 @@ export interface ReplaceReplayableSessionArtifactsResult {
   memberships: SessionRunLapMembership[];
   evidence: SessionRunEvidence[];
   lapIdsByNumber: Map<number, number>;
+  lapIdsByReplacedId: Map<number, number>;
   conflictCount: number;
 }
 
@@ -582,15 +585,18 @@ function assertReplacementOrder(events: readonly RaceEvent[]): void {
 
 function assertReplacementLaps(lapRows: readonly ReplayableLapReplacement[] | undefined): void {
   if (lapRows == null) return;
-  const lapNumbers = new Set<number>();
+  const replacedLapIds = new Set<number>();
   for (const lap of lapRows) {
     if (!Number.isSafeInteger(lap.lapNumber) || lap.lapNumber < 0) {
       throw new Error("Replacement laps require a non-negative integer lap number");
     }
-    if (lapNumbers.has(lap.lapNumber)) {
-      throw new Error(`Replacement lap number ${lap.lapNumber} is duplicated`);
+    if (lap.replacesLapId != null && (!Number.isSafeInteger(lap.replacesLapId) || lap.replacesLapId < 1)) {
+      throw new Error("Replacement lap link requires a positive persisted lap id");
     }
-    lapNumbers.add(lap.lapNumber);
+    if (lap.replacesLapId != null && replacedLapIds.has(lap.replacesLapId)) {
+      throw new Error(`Replacement lap link ${lap.replacesLapId} is duplicated`);
+    }
+    if (lap.replacesLapId != null) replacedLapIds.add(lap.replacesLapId);
   }
 }
 
@@ -756,6 +762,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
     .select({
       runId: sessionRuns.runId,
       algorithmVersion: sessionRuns.algorithmVersion,
+      analysisGenerationId: sessionRuns.analysisGenerationId,
       contentHash: sessionRuns.contentHash,
     })
     .from(sessionRuns)
@@ -767,7 +774,14 @@ async function replaceReplayableSessionArtifactsInTransaction(
   for (const run of runArtifacts.runs) {
     const previous = existingRunById.get(run.runId);
     if (!previous || previous.contentHash === run.contentHash) continue;
-    if (previous.algorithmVersion === run.algorithmVersion) {
+    const replacingPriorGeneration =
+      previous.analysisGenerationId != null &&
+      run.analysisGenerationId != null &&
+      previous.analysisGenerationId !== run.analysisGenerationId;
+    if (
+      previous.algorithmVersion === run.algorithmVersion &&
+      !replacingPriorGeneration
+    ) {
       throw new SessionRunConflictError(run.runId);
     }
     conflictCount += 1;
@@ -788,6 +802,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
   }
 
   const lapIdsByNumber = new Map<number, number>();
+  const lapIdsByReplacedId = new Map<number, number>();
   if (input.laps === undefined) {
     const preservedLaps = await tx
       .select({ id: laps.id, lapNumber: laps.lapNumber })
@@ -809,12 +824,14 @@ async function replaceReplayableSessionArtifactsInTransaction(
     }
     await tx.delete(laps).where(eq(laps.sessionId, input.sessionId)).run();
     for (const replacement of input.laps) {
+      const { replacesLapId, ...values } = replacement;
       const inserted = await tx
         .insert(laps)
-        .values({ ...replacement, sessionId: input.sessionId })
+        .values({ ...values, sessionId: input.sessionId })
         .returning({ id: laps.id, lapNumber: laps.lapNumber })
         .get();
       lapIdsByNumber.set(inserted.lapNumber, inserted.id);
+      if (replacesLapId != null) lapIdsByReplacedId.set(replacesLapId, inserted.id);
     }
     for (const [lapNumber, lapId] of lapIdsByNumber) {
       await tx
@@ -916,6 +933,7 @@ async function replaceReplayableSessionArtifactsInTransaction(
     memberships: remappedMemberships,
     evidence: runArtifacts.evidence,
     lapIdsByNumber,
+    lapIdsByReplacedId,
     conflictCount,
   };
 }

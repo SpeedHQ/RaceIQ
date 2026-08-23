@@ -239,3 +239,9 @@ test/lap-analysis/quality-rebuild-retention.test.ts
 test/race-results/reconcile-generation.test.ts
 test/routes/session-quality-route-semantics.test.ts
 test/session-capture/import-quality-errors.test.ts
+test/session-capture/canonical-archive.test.ts
+test/session-capture/canonical-archive-acc.test.ts
+test/session-capture/canonical-archive-ac-evo.test.ts
+test/session-capture/canonical-archive-f1-2025.test.ts
+test/session-capture/canonical-archive-fm-2023.test.ts
+test/session-capture/canonical-archive-iracing.test.ts

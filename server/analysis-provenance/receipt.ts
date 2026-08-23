@@ -14,12 +14,14 @@ import {
   activateAnalysisGeneration,
   beginAnalysisGeneration,
   failAnalysisGeneration,
+  getActiveAnalysisReceipt,
   type AnalysisReceiptRow,
   type DbTransaction,
 } from "../db/analysis-receipt-queries";
+import { getActiveVerifiedCanonicalArchive } from "../db/canonical-archive-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
-import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+import { inspectRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 import { currentAnalysisContract } from "./current-contract";
 import { buildPersistedSessionAnalysisInventory } from "./inventory";
 
@@ -35,6 +37,36 @@ function persistedEvidenceKind(source: EvidenceSourceKind, hasRaw: boolean): Per
   if (hasRaw) return "raceiq-raw";
   if (source === "native-live") return "unknown";
   return source;
+}
+
+export interface VerifiedCanonicalArchiveEvidence {
+  receipt: AnalysisProvenanceReceipt;
+  outputContentHash: string;
+  byteSize: number;
+}
+
+export async function loadVerifiedCanonicalArchiveEvidence(
+  sessionId: number,
+  gameId: GameId,
+): Promise<VerifiedCanonicalArchiveEvidence | null> {
+  const active = await getActiveAnalysisReceipt({ sessionId, artifactSetType: "canonical_archive" });
+  if (!active?.receipt) return null;
+  const receipt = validateCanonicalArchiveReceipt(active.receipt);
+  const output = receipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
+  const archive = await getActiveVerifiedCanonicalArchive(sessionId, { verifyOutput: true });
+  if (
+    !archive
+    || archive.status !== "verified"
+    || archive.completeness !== "complete"
+    || archive.byteSize == null
+    || !archive.outputContentHash
+    || receipt.evidence.contentHash !== archive.outputContentHash
+    || receipt.evidence.objectId !== archive.archiveId
+    || output?.contentHash !== archive.outputContentHash
+    || receipt.context.gameId !== gameId
+    || archive.context.gameId !== gameId
+  ) return null;
+  return { receipt, outputContentHash: archive.outputContentHash, byteSize: archive.byteSize };
 }
 
 function completeVerification(
@@ -64,11 +96,17 @@ export async function createPersistedSessionAnalysisReceipt(
   attempt: AnalysisReceiptRow,
   gameId: GameId,
   transaction?: DbTransaction,
+  canonicalEvidence?: VerifiedCanonicalArchiveEvidence | null,
 ): Promise<AnalysisProvenanceReceipt> {
   const client = transaction ?? db;
   const [session] = await client.select().from(sessions).where(eq(sessions.id, attempt.sessionId)).limit(1);
   if (!session) throw new Error("Session not found");
-  const raw = session.rawFile ? await loadRawCaptureIdentity(session.rawFile) : undefined;
+  const raw = session.rawFile ? await inspectRawCaptureIdentity(session.rawFile) : undefined;
+  const canonical = raw
+    ? null
+    : canonicalEvidence === undefined
+      ? transaction ? null : await loadVerifiedCanonicalArchiveEvidence(attempt.sessionId, gameId)
+      : canonicalEvidence;
   const source = (session.source as EvidenceSourceKind | null) ?? "unknown";
   const contract = currentAnalysisContract(gameId, session.sourceChannelProfile ?? null);
   if (contract.contractHash !== attempt.contractHash || contract.configurationHash !== attempt.configurationHash) {
@@ -85,15 +123,35 @@ export async function createPersistedSessionAnalysisReceipt(
     lifecycle: "active" as const,
     sessionId: attempt.sessionId,
     participantId: attempt.participantId,
-    evidence: {
-      kind: persistedEvidenceKind(source, raw != null),
-      originalSourceKind: source,
-      objectId: raw ? rawCaptureObjectId(attempt.sessionId) : `session:${attempt.sessionId}:source`,
-      contentHash: raw?.contentHash ?? null,
-      byteSize: raw?.bytes.byteLength ?? null,
-      formatVersion: raw ? "raceiq-session-framing-v1" : null,
-      recordCounts: Object.fromEntries(inventory.outputs.map((entry) => [entry.name, entry.count])),
-    },
+    evidence: raw
+      ? {
+          kind: persistedEvidenceKind(source, true),
+          originalSourceKind: source,
+          objectId: rawCaptureObjectId(attempt.sessionId),
+          contentHash: raw.contentHash,
+          byteSize: raw.byteSize,
+          formatVersion: "raceiq-session-framing-v1",
+          recordCounts: Object.fromEntries(inventory.outputs.map((entry) => [entry.name, entry.count])),
+        }
+      : canonical
+        ? {
+            kind: "canonical-archive" as const,
+            originalSourceKind: canonical.receipt.evidence.originalSourceKind,
+            objectId: canonical.receipt.evidence.objectId,
+            contentHash: canonical.outputContentHash,
+            byteSize: canonical.byteSize,
+            formatVersion: canonical.receipt.outputs.find((entry) => entry.artifactType === "canonical_archive")!.schemaVersion,
+            recordCounts: canonical.receipt.evidence.recordCounts,
+          }
+        : {
+            kind: persistedEvidenceKind(source, false),
+            originalSourceKind: source,
+            objectId: `session:${attempt.sessionId}:source`,
+            contentHash: null,
+            byteSize: null,
+            formatVersion: null,
+            recordCounts: Object.fromEntries(inventory.outputs.map((entry) => [entry.name, entry.count])),
+          },
     telemetryVersion: contract.telemetryVersion,
     analysisComponents: contract.analysisComponents,
     configuration: {
@@ -107,7 +165,7 @@ export async function createPersistedSessionAnalysisReceipt(
       trackDefinitionHash: null,
       cornerDefinitionHash: null,
     },
-    sourceFidelity: {
+    sourceFidelity: canonical?.receipt.sourceFidelity ?? {
       profileVersion: session.sourceChannelProfile?.schemaVersion ?? null,
       decisions: session.sourceChannelProfile
         ? Object.entries(session.sourceChannelProfile.channels)
@@ -116,17 +174,41 @@ export async function createPersistedSessionAnalysisReceipt(
         : [],
     },
     outputs: inventory.outputs,
-    canonicalInventory: null,
-    warnings: raw ? [] : ["Persisted source bytes unavailable for exact rebuild"],
+    canonicalInventory: canonical?.receipt.canonicalInventory ?? null,
+    warnings: raw
+      ? []
+      : canonical
+        ? ["Rebuilt policy eligibility from verified canonical telemetry; native source bytes unavailable"]
+        : ["Persisted source bytes unavailable for exact rebuild"],
     unsupportedFields: [],
-    rebuildCapability: {
-      mode: raw ? "exact" as const : "unavailable" as const,
-      sourceKind: persistedEvidenceKind(source, raw != null),
-      rebuildableArtifacts: raw ? [...SESSION_ANALYSIS_ARTIFACTS] : [],
-      unavailableArtifacts: raw ? [] : [...SESSION_ANALYSIS_ARTIFACTS],
-      limitations: raw ? [] : ["Source evidence unavailable"],
-    },
-    verification: completeVerification(inventory.checks, raw != null),
+    rebuildCapability: raw
+      ? {
+          mode: "exact" as const,
+          sourceKind: persistedEvidenceKind(source, true),
+          rebuildableArtifacts: [...SESSION_ANALYSIS_ARTIFACTS],
+          unavailableArtifacts: [],
+          limitations: [],
+        }
+      : canonical
+        ? {
+            mode: "limited" as const,
+            sourceKind: "canonical-archive" as const,
+            rebuildableArtifacts: [...SESSION_ANALYSIS_ARTIFACTS],
+            unavailableArtifacts: [],
+            limitations: ["Canonical telemetry cannot exactly re-decode game-native source frames"],
+          }
+        : {
+            mode: "unavailable" as const,
+            sourceKind: persistedEvidenceKind(source, false),
+            rebuildableArtifacts: [],
+            unavailableArtifacts: [...SESSION_ANALYSIS_ARTIFACTS],
+            limitations: ["Source evidence unavailable"],
+          },
+    verification: completeVerification(inventory.checks, raw != null || canonical != null).map((check) =>
+      canonical && check.id === "source_hash"
+        ? { ...check, details: "Verified canonical archive output hash recorded" }
+        : check,
+    ),
     contractHash: contract.contractHash,
     startedAt: attempt.startedAt,
     completedAt: now,
@@ -155,16 +237,17 @@ export async function activatePersistedSessionAnalysisReceipt(
   const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
   if (!session) throw new Error("Session not found");
   const contract = currentAnalysisContract(gameId, session.sourceChannelProfile ?? null);
-  const raw = session.rawFile ? await loadRawCaptureIdentity(session.rawFile) : undefined;
+  const raw = session.rawFile ? await inspectRawCaptureIdentity(session.rawFile) : undefined;
+  const canonical = raw ? null : await loadVerifiedCanonicalArchiveEvidence(sessionId, gameId);
   const attempt = await beginAnalysisGeneration({
     sessionId,
     artifactSetType: "session_analysis",
-    sourceContentHash: raw?.contentHash ?? null,
+    sourceContentHash: raw?.contentHash ?? canonical?.outputContentHash ?? null,
     contractHash: contract.contractHash,
     configurationHash: contract.configurationHash,
   });
   try {
-    const receipt = await createPersistedSessionAnalysisReceipt(attempt, gameId);
+    const receipt = await createPersistedSessionAnalysisReceipt(attempt, gameId, undefined, canonical);
     return await activateAnalysisGeneration({ generationId: attempt.generationId, receipt });
   } catch (error) {
     await failAnalysisGeneration(
@@ -191,9 +274,10 @@ const REQUIRED_CANONICAL_CHECKS = [
 export function validateCanonicalArchiveReceipt(receiptInput: unknown): AnalysisProvenanceReceipt {
   const receipt = AnalysisProvenanceReceiptSchema.parse(receiptInput);
   if (receipt.artifactSetType !== "canonical_archive") throw new Error("Receipt is not a canonical archive receipt");
-  if (!receipt.evidence.contentHash) throw new Error("Canonical archive source hash is required");
+  if (!receipt.evidence.contentHash) throw new Error("Canonical archive output hash is required");
   const archiveOutput = receipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
   if (!archiveOutput?.contentHash || archiveOutput.count < 1) throw new Error("Canonical archive output inventory is incomplete");
+  if (receipt.evidence.contentHash !== archiveOutput.contentHash) throw new Error("Canonical archive receipt output identities differ");
   if (!receipt.canonicalInventory || receipt.canonicalInventory.semanticIds.length === 0) {
     throw new Error("Canonical archive semantic channel inventory is required");
   }
@@ -206,7 +290,6 @@ export function validateCanonicalArchiveReceipt(receiptInput: unknown): Analysis
   }
   return receipt;
 }
-
 export interface ActivateCanonicalArchiveInput {
   sessionId: number;
   participantId?: string | null;
@@ -214,6 +297,11 @@ export interface ActivateCanonicalArchiveInput {
   contractHash: string;
   configurationHash: string;
   buildReceipt: (attempt: AnalysisReceiptRow) => Promise<AnalysisProvenanceReceipt>;
+  beforeActivate?: (
+    transaction: DbTransaction,
+    attempt: AnalysisReceiptRow,
+    receipt: AnalysisProvenanceReceipt,
+  ) => Promise<void>;
 }
 
 export async function activateCanonicalArchiveReceipt(input: ActivateCanonicalArchiveInput): Promise<AnalysisReceiptRow> {
@@ -227,7 +315,10 @@ export async function activateCanonicalArchiveReceipt(input: ActivateCanonicalAr
   });
   try {
     const receipt = validateCanonicalArchiveReceipt(await input.buildReceipt(attempt));
-    return await activateAnalysisGeneration({ generationId: attempt.generationId, receipt });
+    return await db.transaction(async (tx) => {
+      await input.beforeActivate?.(tx, attempt, receipt);
+      return activateAnalysisGeneration({ generationId: attempt.generationId, receipt }, tx);
+    });
   } catch (error) {
     await failAnalysisGeneration(
       attempt.generationId,
