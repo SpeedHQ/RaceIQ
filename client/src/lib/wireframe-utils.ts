@@ -53,8 +53,9 @@ export function makeSuspensionSpringGeometry(bodyPos: [number, number, number], 
   };
 }
 
-/** Convert normalized steering input to a bounded front-wheel angle. */
-export function steeringAngleRadians(steeringRatio: number): number {
+/** Convert signed int8 steering input to a bounded front-wheel angle. */
+export function steeringAngleRadians(steeringInput: number): number {
+  const steeringRatio = Math.max(-1, Math.min(1, steeringInput / 127));
   return steeringRatio === 0 ? 0 : -steeringRatio * 0.35;
 }
 
