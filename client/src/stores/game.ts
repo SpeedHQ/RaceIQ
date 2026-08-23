@@ -9,6 +9,7 @@ const GAME_ROUTES: Record<string, string> = {
   acc: "/acc",
   "ac-evo": "/ac-evo",
   iracing: "/iracing",
+  lmu: "/lmu",
 };
 
 interface GameState {

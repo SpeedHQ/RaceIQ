@@ -100,6 +100,7 @@ test/games/iracing/iracing-sdk-decoding.test.ts
 test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
+test/games/lmu/lmu-adapter.test.ts
 test/games/shared/release-game-registration.test.ts
 test/games/shared/semantic-replay-native.test.ts
 test/lap-analysis/lap-cache.test.ts

@@ -1,3 +1,6 @@
+import { unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
@@ -8,9 +11,71 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
+import {
+  importLMUDuckDB,
+  isDuckDBFile,
+  previewLMUDuckDB,
+} from "../../games/lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
+
+function temporaryDuckDBPath(): string {
+  return resolve(
+    tmpdir(),
+    `raceiq-lmu-${Date.now()}-${Math.random().toString(36).slice(2)}.duckdb`,
+  );
+}
+
+function duckDBWalUpload(
+  form: FormData | null,
+  databaseName: string,
+): { wal: File | null; error: string | null } {
+  const entry = form?.get("wal");
+  if (entry == null) return { wal: null, error: null };
+  if (!(entry instanceof File)) {
+    return { wal: null, error: "DuckDB WAL sidecar must be a file" };
+  }
+  const expectedName = `${databaseName}.wal`.toLowerCase();
+  if (entry.name.toLowerCase() !== expectedName) {
+    return {
+      wal: null,
+      error: `Expected matching WAL sidecar "${databaseName}.wal"`,
+    };
+  }
+  return { wal: entry, error: null };
+}
+
+async function stageTemporaryDuckDB(
+  path: string,
+  bytes: Buffer,
+  wal: File | null,
+): Promise<void> {
+  writeFileSync(path, bytes);
+  if (wal) {
+    writeFileSync(`${path}.wal`, Buffer.from(await wal.arrayBuffer()));
+  }
+}
+
+function cleanupTemporaryDuckDB(path: string): void {
+  for (const candidate of [path, `${path}.wal`]) {
+    try {
+      unlinkSync(candidate);
+    } catch {}
+  }
+}
+
+function duckDBErrorMessage(
+  error: unknown,
+  databaseName: string,
+  hasWal: boolean,
+): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!hasWal && /table with name metadata does not exist/i.test(message)) {
+    return `Recording requires its matching "${databaseName}.wal" sidecar. Select both files together.`;
+  }
+  return message;
+}
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
@@ -65,6 +130,52 @@ export const transferRoutes = new Hono()
         message: gameId ? null : "Could not detect a supported game from this capture.",
       });
     }
+    if (lower.endsWith(".duckdb")) {
+      const buffer = Buffer.from(bytes);
+      if (!isDuckDBFile(buffer)) {
+        return c.json({
+          format: "duckdb" as const,
+          supported: false,
+          gameIds: [],
+          captureCount: 0,
+          message: "File is not a readable DuckDB database.",
+        });
+      }
+      const walUpload = duckDBWalUpload(form, file.name);
+      if (walUpload.error) {
+        return c.json({ error: walUpload.error }, 400);
+      }
+      const path = temporaryDuckDBPath();
+      try {
+        await stageTemporaryDuckDB(path, buffer, walUpload.wal);
+        const preview = await previewLMUDuckDB(path);
+        const supported = preview.completedLapCount > 0;
+        return c.json({
+          format: "duckdb" as const,
+          supported,
+          gameIds: ["lmu"],
+          captureCount: 1,
+          message: supported
+            ? null
+            : "Recording contains no complete laps to import.",
+          preview,
+        });
+      } catch (error) {
+        return c.json({
+          format: "duckdb" as const,
+          supported: false,
+          gameIds: [],
+          captureCount: 0,
+          message: duckDBErrorMessage(
+            error,
+            file.name,
+            walUpload.wal !== null,
+          ),
+        });
+      } finally {
+        cleanupTemporaryDuckDB(path);
+      }
+    }
     if (lower.endsWith(".ibt")) return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
     if (lower.endsWith(".ld")) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
     return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "Unsupported import file." });
@@ -91,12 +202,54 @@ export const transferRoutes = new Hono()
 
     const uploadName = file.name || "upload.bin";
     const lower = uploadName.toLowerCase();
-    if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
-      return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
+    if (
+      !lower.endsWith(".bin") &&
+      !lower.endsWith(".bin.gz") &&
+      !lower.endsWith(".duckdb")
+    ) {
+      return c.json({ error: "Expected a .bin, .bin.gz, or .duckdb file" }, 400);
     }
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     const bytes = Buffer.from(await file.arrayBuffer());
+    if (lower.endsWith(".duckdb")) {
+      if (!isDuckDBFile(bytes)) {
+        return c.json({ error: "File is not a readable DuckDB database" }, 400);
+      }
+      const walUpload = duckDBWalUpload(form, file.name);
+      if (walUpload.error) {
+        return c.json({ error: walUpload.error }, 400);
+      }
+      const path = temporaryDuckDBPath();
+      try {
+        await stageTemporaryDuckDB(path, bytes, walUpload.wal);
+        const result = await importLMUDuckDB(path, ownership.data);
+        return c.json({
+          ok: true,
+          gameId: "lmu" as const,
+          routePrefix: getGame("lmu").routePrefix,
+          packetCount: result.packetCount,
+          imported: result.laps.length,
+          laps: result.laps,
+        });
+      } catch (error) {
+        const details = duckDBErrorMessage(
+          error,
+          file.name,
+          walUpload.wal !== null,
+        );
+        console.error("[LMU Import] Failed:", details);
+        return c.json(
+          {
+            error: "Failed to import LMU telemetry database",
+            details,
+          },
+          400,
+        );
+      } finally {
+        cleanupTemporaryDuckDB(path);
+      }
+    }
     const gameId = detectGameIdFromBuffer(bytes);
     if (!gameId) {
       return c.json(
@@ -116,9 +269,15 @@ export const transferRoutes = new Hono()
         imported: laps.length,
         laps,
       });
-    } catch (err: any) {
-      console.error("[Import] Failed:", err?.message);
-      return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    } catch (error) {
+      console.error(
+        "[Import] Failed:",
+        error instanceof Error ? error.message : error,
+      );
+      return c.json({
+        error: "Failed to import file",
+        details: error instanceof Error ? error.message : String(error),
+      }, 500);
     }
   })
 

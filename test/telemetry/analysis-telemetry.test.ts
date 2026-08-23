@@ -117,6 +117,7 @@ describe("analysis telemetry capabilities", () => {
       acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
+      lmu: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
     } as const;
 
     for (const [gameId, metrics] of Object.entries(supported)) {

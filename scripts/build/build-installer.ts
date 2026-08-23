@@ -5,8 +5,9 @@
  * Usage: bun scripts/build/build-installer.ts [version]
  *   version defaults to package.json version
  */
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { readFileSync, rmSync, mkdirSync, cpSync } from "node:fs";
+import { copyDuckDBRuntime } from "./copy-duckdb-runtime";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = process.argv[2] ?? pkg.version;
@@ -14,6 +15,23 @@ const version = process.argv[2] ?? pkg.version;
 function run(cmd: string, label: string, env?: Record<string, string>) {
   console.log(`\n→ ${label}`);
   execSync(cmd, { stdio: "inherit", env: { ...process.env, ...env } });
+}
+
+function runArgs(
+  command: string,
+  args: string[],
+  label: string,
+  env?: Record<string, string>,
+): void {
+  console.log(`\n→ ${label}`);
+  const result = spawnSync(command, args, {
+    stdio: "inherit",
+    env: { ...process.env, ...env },
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${label} failed with exit code ${result.status ?? "unknown"}`);
+  }
 }
 
 // 1. Clean dist
@@ -32,8 +50,31 @@ console.log("→ Copied client assets to dist/public");
 run("bun scripts/build/copy-shared-data.ts", "Copying shared data");
 
 // 5. Compile server binary
-run(
-  `bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --windows-title=RaceIQ --windows-publisher=SpeedHQ --windows-version=${version} --windows-description="RaceIQ" server/bootstrap.ts --outfile dist/raceiq.exe`,
+runArgs(
+  "bun",
+  [
+    "build",
+    "--compile",
+    "--target=bun-windows-x64",
+    "--windows-icon=assets/raceiq.ico",
+    "--windows-title=RaceIQ",
+    "--windows-publisher=SpeedHQ",
+    `--windows-version=${version}`,
+    "--windows-description=RaceIQ",
+    "--external",
+    "@duckdb/node-bindings-*",
+    "--define",
+    'process.env.NODE_ENV="production"',
+    "--define",
+    'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"',
+    "--define",
+    'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
+    "--define",
+    'process.env.RACEIQ_FEATURE_LMU_ADAPTER="true"',
+    "server/bootstrap.ts",
+    "--outfile",
+    "dist/raceiq.exe",
+  ],
   "Compiling server binary",
   { NODE_ENV: "production" },
 );
@@ -45,6 +86,9 @@ mkdirSync(addonDst, { recursive: true });
 cpSync(addonSrc, `${addonDst}/index.node`);
 cpSync("node_modules/@libsql/win32-x64-msvc/package.json", `${addonDst}/package.json`);
 console.log("→ Copied libsql native addon");
+
+// DuckDB's platform addon cannot be embedded in a compiled Bun binary.
+copyDuckDBRuntime();
 
 // 7. Build installer
 run(`iscc /DMyAppVersion=${version} installer\\raceiq.iss`, "Building installer");

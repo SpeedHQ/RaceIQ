@@ -49,7 +49,7 @@ export function PitEstimate({ packet, view, pit }: PitEstimateProps) {
     };
   });
 
-  const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad ? "pit_lane" : "out")) : undefined;
+  const pitStatus = telemetryModel.pitStatus ? (view?.competitors[0]?.pitStatus ?? packet?.acc?.pitStatus ?? (packet?.iracing?.onPitRoad || packet?.lmu?.inPits ? "pit_lane" : "out")) : undefined;
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   return (

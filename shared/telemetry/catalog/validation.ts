@@ -291,7 +291,7 @@ export function assertTelemetryCatalogComplete(
             );
           }
           const extensionInput =
-            /^(?:f1|acc|iracing)\./.test(input) ? input : undefined;
+            /^(?:f1|acc|iracing|lmu)\./.test(input) ? input : undefined;
           const iracingInput =
             gameId === "iracing" && input.startsWith("iRacing.")
               ? input.slice("iRacing.".length)

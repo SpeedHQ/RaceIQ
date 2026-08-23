@@ -21,6 +21,7 @@ const GAME_IDS = [
   "acc",
   "ac-evo",
   "iracing",
+  "lmu",
 ] as const;
 type GameId = (typeof GAME_IDS)[number];
 
@@ -252,6 +253,7 @@ const TELEMETRY_TYPE_SOURCE_FILES = [
   "shared/telemetry/f1-2025.ts",
   "shared/telemetry/kunos.ts",
   "shared/telemetry/iracing.ts",
+  "shared/telemetry/lmu.ts",
 ] as const;
 const GENERATED_OUTPUT_DIRECTORY = resolve(
   ROOT,
@@ -301,6 +303,7 @@ const PARSER_FILES: Record<GameId, string> = {
   acc: "server/games/acc/parser.ts",
   "ac-evo": "server/games/ac-evo/parser.ts",
   iracing: "server/games/iracing/normalizer.ts",
+  lmu: "server/games/lmu/normalizer.ts",
 };
 export {
   IRACING_SESSION_INFO_SOURCE_FILES,

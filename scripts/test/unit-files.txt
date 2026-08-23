@@ -1,4 +1,5 @@
 # Explicit DB-free unit tests
+test/build/copy-duckdb-runtime.test.ts
 test/client/compare-segment-key.test.ts
 test/client/parse-lap-time.test.ts
 test/client/speed.test.ts

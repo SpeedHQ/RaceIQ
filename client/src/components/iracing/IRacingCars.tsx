@@ -50,13 +50,13 @@ function categoryLabel(category: string): string {
   }
 }
 
-export function IRacingCars() {
+export function IRacingCars({ gameId = "iracing" }: { gameId?: "iracing" | "lmu" }) {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const { data: cars = [], isLoading } = useQuery<IRacingCatalogCar[]>({
-    queryKey: ["cars", "iracing"],
+    queryKey: ["cars", gameId],
     queryFn: async () => {
-      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": "iracing" } });
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json() as Promise<IRacingCatalogCar[]>;
     },
@@ -127,7 +127,7 @@ export function IRacingCars() {
             return (
               <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
                 <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
-                  <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">iR</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">{gameId === "lmu" ? "LMU" : "iR"}</div>
                   {car.imageUrl && (
                     <img
                       src={car.imageUrl}

@@ -17,6 +17,7 @@ import { Route as DevRouteImport } from './routes/dev'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as IracingRouteImport } from './routes/iracing'
+import { Route as LmuRouteImport } from './routes/lmu'
 import { Route as GameLiveRouteImport } from './routes/$game/live'
 import { Route as GameidAnalyseRouteImport } from './routes/$gameid/analyse'
 import { Route as GameidCarsRouteImport } from './routes/$gameid/cars'
@@ -42,6 +43,7 @@ import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
 import { Route as IracingLiveRouteImport } from './routes/iracing/live'
+import { Route as LmuIndexRouteImport } from './routes/lmu/index'
 import { Route as GameidExperimentsIndexRouteImport } from './routes/$gameid/experiments.index'
 import { Route as GameidExperimentsExperimentIdRouteImport } from './routes/$gameid/experiments.$experimentId'
 import { Route as GameidTracksIndexRouteImport } from './routes/$gameid/tracks.index'
@@ -106,6 +108,11 @@ const Fm23Route = Fm23RouteImport.update({
 const IracingRoute = IracingRouteImport.update({
   id: '/iracing',
   path: '/iracing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LmuRoute = LmuRouteImport.update({
+  id: '/lmu',
+  path: '/lmu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GameLiveRoute = GameLiveRouteImport.update({
@@ -232,6 +239,11 @@ const IracingLiveRoute = IracingLiveRouteImport.update({
   id: '/live',
   path: '/live',
   getParentRoute: () => IracingRoute,
+} as any)
+const LmuIndexRoute = LmuIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LmuRoute,
 } as any)
 const GameidExperimentsIndexRoute = GameidExperimentsIndexRouteImport.update({
   id: '/',
@@ -372,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
+  '/lmu': typeof LmuRouteWithChildren
   '/$game/live': typeof GameLiveRoute
   '/$gameid/analyse': typeof GameidAnalyseRoute
   '/$gameid/cars': typeof GameidCarsRoute
@@ -397,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/lmu/': typeof LmuIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -445,6 +459,7 @@ export interface FileRoutesByTo {
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
+  '/lmu': typeof LmuIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -481,6 +496,7 @@ export interface FileRoutesById {
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
+  '/lmu': typeof LmuRouteWithChildren
   '/$game/live': typeof GameLiveRoute
   '/$gameid/analyse': typeof GameidAnalyseRoute
   '/$gameid/cars': typeof GameidCarsRoute
@@ -506,6 +522,7 @@ export interface FileRoutesById {
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/lmu/': typeof LmuIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -543,6 +560,7 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/lmu'
     | '/$game/live'
     | '/$gameid/analyse'
     | '/$gameid/cars'
@@ -568,6 +586,7 @@ export interface FileRouteTypes {
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/lmu/'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -616,6 +635,7 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/lmu'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -651,6 +671,7 @@ export interface FileRouteTypes {
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/lmu'
     | '/$game/live'
     | '/$gameid/analyse'
     | '/$gameid/cars'
@@ -676,6 +697,7 @@ export interface FileRouteTypes {
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/lmu/'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -712,6 +734,7 @@ export interface RootRouteChildren {
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
   IracingRoute: typeof IracingRouteWithChildren
+  LmuRoute: typeof LmuRouteWithChildren
   GameLiveRoute: typeof GameLiveRoute
   DashCombo1Route: typeof DashCombo1Route
   DashCombo2Route: typeof DashCombo2Route
@@ -774,6 +797,13 @@ declare module '@tanstack/react-router' {
       path: '/iracing'
       fullPath: '/iracing'
       preLoaderRoute: typeof IracingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lmu': {
+      id: '/lmu'
+      path: '/lmu'
+      fullPath: '/lmu'
+      preLoaderRoute: typeof LmuRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$game/live': {
@@ -950,6 +980,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/iracing/live'
       preLoaderRoute: typeof IracingLiveRouteImport
       parentRoute: typeof IracingRoute
+    }
+    '/lmu/': {
+      id: '/lmu/'
+      path: '/'
+      fullPath: '/lmu/'
+      preLoaderRoute: typeof LmuIndexRouteImport
+      parentRoute: typeof LmuRoute
     }
     '/$gameid/experiments/': {
       id: '/$gameid/experiments/'
@@ -1361,6 +1398,16 @@ const IracingRouteChildren: IracingRouteChildren = {
 const IracingRouteWithChildren =
   IracingRoute._addFileChildren(IracingRouteChildren)
 
+interface LmuRouteChildren {
+  LmuIndexRoute: typeof LmuIndexRoute
+}
+
+const LmuRouteChildren: LmuRouteChildren = {
+  LmuIndexRoute: LmuIndexRoute,
+}
+
+const LmuRouteWithChildren = LmuRoute._addFileChildren(LmuRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GameidRoute: GameidRouteWithChildren,
@@ -1370,6 +1417,7 @@ const rootRouteChildren: RootRouteChildren = {
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,
   IracingRoute: IracingRouteWithChildren,
+  LmuRoute: LmuRouteWithChildren,
   GameLiveRoute: GameLiveRoute,
   DashCombo1Route: DashCombo1Route,
   DashCombo2Route: DashCombo2Route,

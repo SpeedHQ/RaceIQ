@@ -8,9 +8,12 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
+- Reject LMU telemetry recordings with no complete laps before starting import
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
@@ -74,6 +77,7 @@
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
+- Package DuckDB native runtime files in local Windows installer builds
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI

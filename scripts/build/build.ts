@@ -81,10 +81,12 @@ function copyLibsqlAddon() {
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
 
+
 async function main() {
   releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LMU_ADAPTER: process.env.RACEIQ_FEATURE_LMU_ADAPTER,
   });
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
@@ -98,12 +100,16 @@ async function main() {
     "--compile",
     "--define",
     'process.env.NODE_ENV="production"',
+    "--external",
+    "@duckdb/node-bindings-*",
   ];
   compileArgs.push(
     "--define",
     `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
     "--define",
     `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LMU_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_LMU_ADAPTER)}`,
   );
 
   if (process.platform === "win32") {
@@ -123,6 +129,7 @@ async function main() {
   await run(compileArgs, { env: { NODE_ENV: "production" } });
 
   copyLibsqlAddon();
+  await run(["bun", "scripts/build/copy-duckdb-runtime.ts"]);
 }
 
 main().catch((err) => {

@@ -19,7 +19,7 @@ for (const line of releaseEnvironment.split(/\r?\n/)) {
   const separator = line.indexOf("=");
   if (separator < 1) continue;
   const name = line.slice(0, separator);
-  if (name !== "RACEIQ_FEATURE_F1_EXPERIMENTS" && name !== "RACEIQ_FEATURE_IRACING_ADAPTER") continue;
+  if (!["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER", "RACEIQ_FEATURE_LMU_ADAPTER"].includes(name)) continue;
   process.env[name] = line.slice(separator + 1);
 }
 
