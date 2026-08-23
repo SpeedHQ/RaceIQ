@@ -119,26 +119,17 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 13,
     name: "add car setup to laps",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN car_setup TEXT`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN car_setup TEXT`],
   },
   {
     version: 14,
     name: "add notes to sessions and laps",
-    sql: [
-      `ALTER TABLE sessions ADD COLUMN notes TEXT`,
-      `ALTER TABLE laps ADD COLUMN notes TEXT`,
-    ],
+    sql: [`ALTER TABLE sessions ADD COLUMN notes TEXT`, `ALTER TABLE laps ADD COLUMN notes TEXT`],
   },
   {
     version: 15,
     name: "add sector times to laps",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
-      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN s1_time REAL`, `ALTER TABLE laps ADD COLUMN s2_time REAL`, `ALTER TABLE laps ADD COLUMN s3_time REAL`],
   },
   {
     version: 16,
@@ -163,9 +154,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 17,
     name: "drop sectors column from track_outlines",
-    sql: [
-      `ALTER TABLE track_outlines DROP COLUMN sectors`,
-    ],
+    sql: [`ALTER TABLE track_outlines DROP COLUMN sectors`],
   },
 
   // ── v18: drop DEFAULT 'fm-2023' from game_id columns ─────────────────
@@ -275,10 +264,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 21,
     name: "add game_id to tunes",
-    sql: [
-      `ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`,
-      `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`,
-    ],
+    sql: [`ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`, `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`],
   },
 
   // ── v22: scope tune_assignments by game_id ────────────────────────────
@@ -408,10 +394,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 26,
     name: "explicit lap to tuning-session link",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`,
-      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`, `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`],
   },
 
   // ── v27: per-game tuning-session display number ───────────────────────────
@@ -436,9 +419,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 28,
     name: "tuning-session head test id",
-    sql: [
-      `ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`,
-    ],
+    sql: [`ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`],
   },
 
   // ── v29: explicit lap → tuning-test link ──────────────────────────────────
@@ -448,10 +429,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 29,
     name: "explicit lap to tuning-test link",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`,
-      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`, `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`],
   },
 
   // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
@@ -503,10 +481,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 32,
     name: "persisted per-lap fuel/tyre metrics",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`,
-      `ALTER TABLE laps ADD COLUMN tyre_wear REAL`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`, `ALTER TABLE laps ADD COLUMN tyre_wear REAL`],
   },
 
   // ── v33: Cached racing-line spread trace ───────────────────────────────────
@@ -544,10 +519,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 34,
     name: "auto-exclude source tracking for fastest-5 curation",
-    sql: [
-      `ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`,
-      `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`,
-    ],
+    sql: [`ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`, `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`],
   },
 
   // ── v35: purge pre-v0.8.0 laps (no raw capture) ─────────────────────────────
@@ -1137,9 +1109,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 49,
     name: "version race result processor",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`],
   },
   // v50: Persist race timeline event types and position transitions.
   {
@@ -1184,9 +1154,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 52,
     name: "version race result processor",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'legacy-race-result-v0'`],
   },
   // v53: Persist race timeline event types and position transitions.
   {
@@ -1228,17 +1196,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
     version: 56,
     name: "persist race result outcome status",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'`],
   },
   // v57: Persist structured race-result evidence.
   {
     version: 57,
     name: "persist race result evidence",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
-    ],
+    sql: [`ALTER TABLE session_results ADD COLUMN evidence TEXT`],
   },
   // v58: Persist whether a session belongs to the user or another driver.
   {
@@ -1251,5 +1215,50 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Persist geographic references and accepted cross-game transforms.
+  {
+    version: 59,
+    name: "persist georeference paths and transforms",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS georeference_references (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        canonical_slug        TEXT NOT NULL,
+        source_identity       TEXT NOT NULL,
+        reference_version     TEXT NOT NULL,
+        reference_path        TEXT NOT NULL,
+        origin_latitude_deg   REAL NOT NULL,
+        origin_longitude_deg  REAL NOT NULL,
+        origin_altitude_m     REAL NOT NULL,
+        sample_count          INTEGER NOT NULL,
+        quality_rmse_m        REAL NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(canonical_slug, source_identity)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_georef_references_slug
+       ON georeference_references(canonical_slug)`,
+      `CREATE TABLE IF NOT EXISTS georeference_transforms (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        canonical_slug        TEXT NOT NULL,
+        target_game_id        TEXT NOT NULL,
+        target_track_ordinal  INTEGER NOT NULL,
+        source_identity       TEXT NOT NULL,
+        reference_version     TEXT NOT NULL,
+        scale                 REAL NOT NULL,
+        rotation              REAL NOT NULL,
+        flip_x                INTEGER NOT NULL DEFAULT 0,
+        flip_z                INTEGER NOT NULL DEFAULT 0,
+        translation_east_m    REAL NOT NULL,
+        translation_north_m   REAL NOT NULL,
+        rmse_m                REAL NOT NULL,
+        quality               REAL NOT NULL,
+        sample_count          INTEGER NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(canonical_slug, target_game_id, target_track_ordinal, reference_version)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_georef_transforms_target
+       ON georeference_transforms(target_game_id, target_track_ordinal)`,
+    ],
+  },
 ];
-

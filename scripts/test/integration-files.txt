@@ -200,14 +200,20 @@ test/tooling/story-isolation.test.ts
 test/tooling/storybook-ready.test.ts
 test/tooling/theme-contract.test.ts
 test/tooling/version-label.test.ts
+test/track-canonical-identity.test.ts
 test/track-guide-routes.test.ts
 test/track-imagery-artifact.test.ts
+test/track-imagery-pack.test.ts
+test/track-imagery-providers.test.ts
+test/track-imagery-routes.test.ts
+test/track-imagery-sources.test.ts
 test/track-imagery.test.ts
 
 test/tracks/compact-route.test.ts
 test/tracks/discovered-cars.test.ts
 test/tracks/detect-hints.test.ts
 test/tracks/geometry-assets.test.ts
+test/tracks/georeference.test.ts
 test/tracks/guides/anchor-validity.test.ts
 test/tracks/guides/collision-ledger.test.ts
 test/tracks/guides/guide-context.test.ts
@@ -223,6 +229,7 @@ test/tracks/model/track-sectors.test.ts
 test/tracks/model/track-segment-generate.test.ts
 test/tracks/model/track-turn-counts.test.ts
 test/tracks/track-coverage.test.ts
+test/tracks/track-imagery-route.test.ts
 test/tracks/track-registry-source.test.ts
 test/tracks/visualization/iracing-track-segment-viz.test.ts
 test/tracks/visualization/track-focus-zoom.test.ts
