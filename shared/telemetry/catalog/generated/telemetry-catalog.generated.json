@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "e66f81fdcf800892e48cb963e70d7528a55ce218bf95c827ad6b367d6cb85aef"
+      "sourceHash": "9a37337761fe3b1f7283584ae16ffafc4dae411ff3265c2caa7e23db3d961f29"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
@@ -19,7 +19,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "eeee8ba892fa1f497520526c89f2dab23ca15144dc834521fb26d705792eec84"
+    "contentHash": "2477b1a74bd974823373fd2002106c8f0223de9b615b75478688aef48d9f9ff0"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
