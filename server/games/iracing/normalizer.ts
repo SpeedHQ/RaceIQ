@@ -247,9 +247,9 @@ export function normalizeIRacingFrame(
     EngineIdleRpm: session.engineIdleRpm,
     CurrentEngineRpm: scalar(values, "RPM", 0),
 
-    // The iRacing SDK publishes these accelerations in m/s², matching the
-    // canonical values consumed by RaceIQ's G-force views.
-    AccelerationX: scalar(values, "LatAccel", 0),
+    // iRacing LatAccel is left-positive; RaceIQ's canonical lateral axis is
+    // right-positive so felt G renders opposite the direction of the turn.
+    AccelerationX: -scalar(values, "LatAccel", 0),
     AccelerationY: scalar(values, "VertAccel", 0),
     AccelerationZ: scalar(values, "LongAccel", 0),
 
