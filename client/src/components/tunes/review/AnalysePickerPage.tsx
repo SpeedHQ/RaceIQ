@@ -41,6 +41,8 @@ export function AnalysePickerPage({ gameId }: { gameId: GameId }) {
                         key={car}
                         variant="app-outline"
                         size="app-sm"
+                        disabled={count === 0}
+                        title={count === 0 ? "No valid laps available for review" : undefined}
                         aria-label={`Review ${carName(car)} on ${trackName(track)} (${count} valid laps)`}
                         onClick={() => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, track, car, lap: undefined, laps: undefined }) } as never)}
                       >

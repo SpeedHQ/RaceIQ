@@ -27,6 +27,8 @@ interface TuneReviewDashboardProps {
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
+  /** Keep a missing lap out of the URL when selecting one means drill-down. */
+  autoSelectLap?: boolean;
   /** The version node being reviewed (resolved by the route from ?versionId or
    *  the session HEAD). Used to display its driver comment / engineer notes
    *  read-only — editing stays in VersionGraph. */
@@ -54,7 +56,7 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelectLap = true, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
@@ -62,20 +64,21 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
   const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
   const trackTab = search.trackTab ?? "consistency";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setTrackTab = (tab: TrackTab) => navigate({ search: (p: any) => ({ ...p, view: "track", trackTab: tab }) } as any);
+  const setFocus = useCallback((id: number) => {
+    void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
+  }, [navigate]);
+  const setTrackTab = useCallback((tab: TrackTab) => {
+    void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never);
+  }, [navigate]);
 
   // Point the URL at a real lap when it's missing or stale for this session.
   // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
   useEffect(() => {
-    if (validLaps.length === 0) return;
+    if (!autoSelectLap || validLaps.length === 0) return;
     if (search.view === "track" && search.lap == null) return;
     if (validLaps.some((l) => l.id === search.lap)) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ replace: true, search: (p: any) => ({ ...p, lap: validLaps[0].id }) } as any);
-  }, [search.lap, validLaps, navigate]);
+    navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: validLaps[0].id }) } as never);
+  }, [autoSelectLap, navigate, search.lap, search.view, validLaps]);
 
   const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
@@ -118,10 +121,15 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const requestedSector = /^s([1-9]\d*)$/.exec(view)?.[1];
   const parsedSectorIndex = requestedSector ? Number(requestedSector) - 1 : null;
   const sectorIndex = parsedSectorIndex != null && parsedSectorIndex < sectorCount ? parsedSectorIndex : null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setView = (v: ReviewView) =>
+  const setView = (nextView: ReviewView) =>
     // Entering the track view defaults the lap picker to "All" (no ?lap=).
-    navigate({ search: (p: any) => ({ ...p, view: v === "overview" ? undefined : v, lap: v === "track" ? undefined : (p.lap ?? focusLap?.id) }) } as any);
+    navigate({
+      search: (previous: Record<string, unknown>) => ({
+        ...previous,
+        view: nextView === "overview" ? undefined : nextView,
+        lap: nextView === "track" ? undefined : (typeof previous.lap === "number" ? previous.lap : focusLap?.id),
+      }),
+    } as never);
   // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
   const trackFocusId = view === "track" && validLaps.some((l) => l.id === search.lap) ? (search.lap as number) : null;
   const cursor = useMemo(() => {
@@ -195,8 +203,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
             onChange={(e) => {
               if (e.target.value === "all") {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                navigate({ search: (p: any) => ({ ...p, lap: undefined }) } as any);
+                navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
               } else {
                 setFocus(Number(e.target.value));
               }

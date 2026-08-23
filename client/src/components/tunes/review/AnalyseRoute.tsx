@@ -1,5 +1,6 @@
 import type { GameId } from "@shared/games/ids";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
 import { parseAnalyseLapIds, type AnalyseSearch } from "@/lib/game-routes";
 import { AnalysePickerPage } from "./AnalysePickerPage";
 import { TrackCarAnalyseReviewPage } from "./TrackCarAnalyseReviewPage";
@@ -12,13 +13,14 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
       <div>
         <h1 className="text-lg font-semibold text-app-text">Invalid Analyse selection</h1>
         <p role="alert" className="mt-2 text-sm text-app-text-muted">{message}</p>
-        <button
-          type="button"
-          className="mt-4 rounded border border-app-border px-3 py-1.5 text-sm text-app-text hover:bg-app-surface-alt"
+        <Button
+          variant="app-outline"
+          size="app-sm"
+          className="mt-4"
           onClick={() => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, track: undefined, car: undefined, lap: undefined, laps: undefined }) } as never)}
         >
           Back to Analyse picker
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -26,6 +28,7 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
 
 export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
+  if (gameId !== "acc" && gameId !== "ac-evo") return <LapAnalyse />;
   const hasTrack = search.track != null;
   const hasCar = search.car != null;
   const hasLap = search.lap != null;
