@@ -11,14 +11,14 @@
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
-      "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
-      "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
+      "server/games/acc/parser.ts": "4f9708de6d5e509ad919e6bcf72c29f557e69a01095dd9ffa179bae4e19da4e0",
+      "server/games/f1-2025/f1-state.ts": "245e50a2ddedb6348be844a15da419fd75b64d3452bf6e4e5f7ebea78ac147cc",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "1055fc7931940324c1d2c345409c00e4e28318096f12148cb479d74e4bd12dc4"
+    "contentHash": "44540f1450461c22e06e0718d09764048439b76e774f536f140630de007ba04f"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -684,6 +684,8 @@
         "session.maximum-drivers",
         "session.minimum-drivers",
         "session.official",
+        "session.overall-frame-identifier",
+        "session.packet-id",
         "session.physics-packet-id",
         "session.qualifier-must-start-race",
         "session.race-week",
@@ -29139,7 +29141,7 @@
     {
       "id": "session.graphics-packet-id",
       "label": "Graphics Packet Id",
-      "description": "Graphics Packet Id source value reported by ac-evo in count.",
+      "description": "Native graphics shared-memory page sequence, when supplied by the game.",
       "parentId": "session",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -29155,14 +29157,24 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.graphicsPacketId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "acc.graphicsPacketId",
             "acc.acEvo.graphicsPacketId"
           ],
           "freshness": "continuous",
@@ -29567,9 +29579,113 @@
       "limitations": []
     },
     {
+      "id": "session.overall-frame-identifier",
+      "label": "Overall Frame Identifier",
+      "description": "Native cross-family UDP frame identifier for source-sequence quality.",
+      "parentId": "session",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.overallFrameIdentifier"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "session.packet-id",
+      "label": "Packet Id",
+      "description": "Native UDP packet-family identifier for source-sequence quality.",
+      "parentId": "session",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.packetId"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "session.physics-packet-id",
       "label": "Physics Packet Id",
-      "description": "Frame identity / staleness — packet IDs increment each shm write.",
+      "description": "Native physics shared-memory page sequence, when supplied by the game.",
       "parentId": "session",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -29585,14 +29701,24 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.physicsPacketId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "acc.physicsPacketId",
             "acc.acEvo.physicsPacketId"
           ],
           "freshness": "continuous",
@@ -55672,6 +55798,30 @@
         "retention": "exact"
       },
       {
+        "path": "f1.overallFrameIdentifier",
+        "label": "Overall Frame Identifier",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native cross-family UDP frame identifier for source-sequence quality.",
+        "semanticId": "session.overall-frame-identifier",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.packetId",
+        "label": "Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native UDP packet-family identifier for source-sequence quality.",
+        "semanticId": "session.packet-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.penalties",
         "label": "Penalties",
         "unit": "count",
@@ -58218,6 +58368,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.graphicsPacketId",
+        "label": "Graphics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native graphics shared-memory page sequence, when supplied by the game.",
+        "semanticId": "session.graphics-packet-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.isValidLap",
         "label": "Is Valid Lap",
         "unit": "boolean",
@@ -58237,6 +58399,18 @@
         "count": 1,
         "description": "ACC native time for most recently completed sector.",
         "semanticId": "timing.sector.last-completed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.physicsPacketId",
+        "label": "Physics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native physics shared-memory page sequence, when supplied by the game.",
+        "semanticId": "session.physics-packet-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -61244,6 +61418,18 @@
         "retention": "exact"
       },
       {
+        "path": "acc.graphicsPacketId",
+        "label": "Graphics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native graphics shared-memory page sequence, when supplied by the game.",
+        "semanticId": "session.graphics-packet-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.isValidLap",
         "label": "Is Valid Lap",
         "unit": "boolean",
@@ -61263,6 +61449,18 @@
         "count": 1,
         "description": "AC Evo v0.6 parser emits 0; native sector time is not populated.",
         "semanticId": "timing.sector.last-completed-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.physicsPacketId",
+        "label": "Physics Packet Id",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native physics shared-memory page sequence, when supplied by the game.",
+        "semanticId": "session.physics-packet-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74796,7 +74994,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 735,
+    "semanticVariables": 737,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -74808,31 +75006,31 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 288,
+        "total": 290,
         "packet": 119,
-        "extension": 169,
+        "extension": 171,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 288
+        "recorded": 290
       },
       "acc": {
-        "total": 200,
+        "total": 202,
         "packet": 124,
-        "extension": 43,
+        "extension": 45,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 167
+        "recorded": 169
       },
       "ac-evo": {
-        "total": 255,
+        "total": 257,
         "packet": 124,
-        "extension": 95,
+        "extension": 97,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 219
+        "recorded": 221
       },
       "iracing": {
         "total": 955,
