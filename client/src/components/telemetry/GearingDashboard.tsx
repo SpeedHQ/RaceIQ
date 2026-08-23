@@ -21,7 +21,7 @@ import { TrackSpeedChart } from "./TrackSpeedChart";
  * the accumulated state at 5 Hz to avoid re-rendering at the full telemetry
  * frame rate.
  */
-export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSample; targetMaxSpeed: number }) {
+export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSample | null; targetMaxSpeed: number }) {
   const units = useUnits();
 
   // Poll the accumulated state at 5 Hz instead of subscribing to a Zustand store

@@ -6,7 +6,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 
 interface Props {
-  packet: GearingSample;
+  packet: GearingSample | null;
   powerCurve: { rpm: number; hp: number }[];
   torqueCurve: { rpm: number; nm: number }[];
   /** Best shift RPM from the power-drop heuristic; null = none/redline. */
@@ -66,8 +66,8 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       const powerCurve = powerCurveRef.current;
       const torqueCurve = torqueCurveRef.current;
 
-      const idleRpm = packet.EngineIdleRpm;
-      const maxRpm = packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
+      const idleRpm = packet?.EngineIdleRpm ?? 0;
+      const maxRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
       const pad = { top: 20, right: 48, bottom: 32, left: 48 };
       const cW = width - pad.left - pad.right;
       const cH = height - pad.top - pad.bottom;
@@ -223,14 +223,16 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       ctx.textAlign = "center";
       ctx.fillText(`${m.powerband_legend_redline()} ${Math.round(maxRpm)}`, redX, pad.top - 6);
 
-      // Live RPM needle (white triangle)
-      const cx = sx(packet.CurrentEngineRpm);
-      ctx.fillStyle = "var(--app-text)";
-      ctx.beginPath();
-      ctx.moveTo(cx, pad.top + cH + 4);
-      ctx.lineTo(cx - 5, pad.top + cH + 12);
-      ctx.lineTo(cx + 5, pad.top + cH + 12);
-      ctx.fill();
+      // Live RPM needle (white triangle) — only with a resolved sample.
+      if (packet) {
+        const cx = sx(packet.CurrentEngineRpm);
+        ctx.fillStyle = "var(--app-text)";
+        ctx.beginPath();
+        ctx.moveTo(cx, pad.top + cH + 4);
+        ctx.lineTo(cx - 5, pad.top + cH + 12);
+        ctx.lineTo(cx + 5, pad.top + cH + 12);
+        ctx.fill();
+      }
 
       // Decide label placement to avoid overlaps
       const px = peakPower ? sx(peakPower.rpm) : null;
@@ -477,8 +479,8 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.powerband_title()}</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-app-text-dim">
-            {packet.DisplayPower > 0 ? `${packet.DisplayPower.toFixed(0)} hp` : ""}
-            {packet.DisplayTorque > 0 ? ` / ${packet.DisplayTorque.toFixed(0)} Nm` : ""}
+            {packet && packet.DisplayPower > 0 ? `${packet.DisplayPower.toFixed(0)} hp` : ""}
+            {packet && packet.DisplayTorque > 0 ? ` / ${packet.DisplayTorque.toFixed(0)} Nm` : ""}
           </span>
           {onToggleRecording && onReset && (
             <div className="flex items-center gap-2">

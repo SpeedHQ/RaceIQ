@@ -21,8 +21,34 @@ const TOP_SPEED_STOP_RATIO = 0.98;
  * Adapt a semantic `LiveTelemetryView` into the `GearingSample` shape the
  * gearing library consumes. `DisplaySpeed` is converted to the user's speed
  * unit (km/h or mph); `DisplayPower` is watts→HP; `IsRaceOn` is boolean→0/1.
+ *
+ * Returns null — rejecting the sample — when any required semantic (gear,
+ * RPM, speed, power, torque, race state, lap, distance) is unavailable.
+ * `LiveTelemetryView` leaves missing/stale/invalid semantics `undefined`,
+ * and a `?? 0` fallback would fabricate real values that corrupt the dyno
+ * accumulators and lap traces.
  */
-export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms: number) => number): GearingSample {
+export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms: number) => number): GearingSample | null {
+  const gear = view.inputs.gear;
+  const rpm = view.engine.rpm;
+  const speedMps = view.motion.speedMps;
+  const powerW = view.engine.powerW;
+  const torqueNm = view.engine.torqueNm;
+  const isRaceOn = view.race?.isRaceOn;
+  const lapNumber = view.timing.lapNumber;
+  const distanceM = view.motion.distanceM;
+  if (
+    gear === undefined ||
+    rpm === undefined ||
+    speedMps === undefined ||
+    powerW === undefined ||
+    torqueNm === undefined ||
+    isRaceOn === undefined ||
+    lapNumber === undefined ||
+    distanceM === undefined
+  ) {
+    return null;
+  }
   return {
     gameId: view.simulator,
     CarOrdinal: view.identity.carOrdinal ?? -1,
@@ -30,17 +56,17 @@ export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms:
     sessionUID: view.streamId,
     Accel: view.inputs.throttle ?? 0,
     Brake: view.inputs.brake ?? 0,
-    Gear: view.inputs.gear ?? 0,
-    IsRaceOn: view.race?.isRaceOn ? 1 : 0,
-    CurrentEngineRpm: view.engine.rpm ?? 0,
+    Gear: gear,
+    IsRaceOn: isRaceOn ? 1 : 0,
+    CurrentEngineRpm: rpm,
     EngineMaxRpm: view.engine.maxRpm ?? 0,
     EngineIdleRpm: view.engine.idleRpm ?? 0,
-    DisplaySpeed: speedUserUnit(view.motion.speedMps ?? 0),
+    DisplaySpeed: speedUserUnit(speedMps),
     AccelerationZ: view.motion.acceleration?.z ?? 0,
-    DisplayPower: (view.engine.powerW ?? 0) / WATTS_PER_HORSEPOWER,
-    DisplayTorque: view.engine.torqueNm ?? 0,
-    LapNumber: view.timing.lapNumber ?? 0,
-    DistanceTraveled: view.motion.distanceM ?? 0,
+    DisplayPower: powerW / WATTS_PER_HORSEPOWER,
+    DisplayTorque: torqueNm,
+    LapNumber: lapNumber,
+    DistanceTraveled: distanceM,
   };
 }
 
@@ -48,7 +74,8 @@ export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms:
  * Single throttled (~10 Hz) ingestion point for the gearing accumulators.
  * Mounted on the live-telemetry host instead of inside GearingDashboard, so
  * dyno samples, the session max speed and the auto start/stops keep working
- * no matter which dashboard mode is active.
+ * no matter which dashboard mode is active. Samples missing required
+ * semantics are rejected before they reach the accumulators.
  */
 export function useGearingIngest(view: LiveTelemetryView | null, options: { autoStopTopSpeed?: () => number } = {}) {
   const { autoStopTopSpeed } = options;
@@ -59,8 +86,9 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
     if (!view) return;
     const now = performance.now();
     if (now - lastIngestAt.current < 100) return;
-    lastIngestAt.current = now;
     const packet = viewToGearingSample(view, units.speed);
+    if (!packet) return; // required semantics unavailable — reject, don't fabricate zeros
+    lastIngestAt.current = now;
     trackGearingMaxSpeed(packet);
     trackTrackSpeedSample(packet);
 

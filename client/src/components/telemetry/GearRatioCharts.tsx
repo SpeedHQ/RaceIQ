@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 
 interface Props {
-  packet: GearingSample;
+  packet: GearingSample | null;
   powerCurve: { rpm: number; hp: number }[];
   /** Car spec top speed in the user's unit (0 = unknown) — fallback V_top and axis bound. */
   targetMaxSpeed: number;
@@ -60,21 +60,21 @@ function gearingOf(settings: unknown): GearingDraft | null {
  * live dyno.
  */
 export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel, crossRpm = null }: Props) {
-  const { data: tunes = [] } = useUserTunes(packet.gameId);
+  const { data: tunes = [] } = useUserTunes(packet?.gameId);
   const updateTune = useUpdateTune();
 
   const carTunes = useMemo<CarTune[]>(() => {
     return (tunes as { id: number; name: string; carOrdinal: number; settings: unknown }[])
-      .filter((t) => t.carOrdinal === packet.CarOrdinal)
+      .filter((t) => t.carOrdinal === (packet?.CarOrdinal ?? -1))
       .map((t) => ({ id: t.id, name: t.name, settings: t.settings as TuneSettings, gearing: gearingOf(t.settings) }))
       .filter((t): t is CarTune => t.gearing !== null);
-  }, [tunes, packet.CarOrdinal]);
+  }, [tunes, packet?.CarOrdinal]);
   const setupOptions = useMemo(() => carTunes.map((t) => ({ value: String(t.id), label: t.name })), [carTunes]);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [draft, setDraft] = useState<GearingDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const redlineRpm = packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
+  const redlineRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
   const userFactor = speedUnitFactor(speedLabel === "mph" ? "mph" : "km/h");
   // The setup's top speed (user unit): stored topSpeedKph, else car spec.
   const topSpeedOf = useCallback(

@@ -8,6 +8,7 @@ import type {
 import { viewToGearingSample } from "../../client/src/hooks/useGearingIngest";
 import { buildLiveTelemetryView } from "../../client/src/lib/live-telemetry-view";
 import { computeGearingState, computeTrackLaps } from "../../client/src/lib/session-gearing";
+import type { GearingSample } from "../../client/src/lib/gearing-telemetry";
 
 describe("dev recording routes", () => {
   initServerGameAdapters();
@@ -27,17 +28,19 @@ describe("dev recording routes", () => {
     expect(body.schema).not.toBeNull();
     expect(body.frames).toHaveLength(body.packetCount);
 
-    // Every frame must decode through the live decoder and produce gearing
-    // samples exactly like live telemetry does.
+    // Every frame must decode through the live decoder; frames missing
+    // required semantics are rejected exactly like live ingestion.
     const schema = body.schema!;
     expect(body.frames.every((f) => f.schemaId === schema.schemaId)).toBe(true);
 
     const kmh = (ms: number) => ms * 3.6;
-    const samples = body.frames.map((frame) => {
-      const view = buildLiveTelemetryView(schema, frame);
-      if (!view) throw new Error("frame failed to decode");
-      return viewToGearingSample(view, kmh);
-    });
+    const samples = body.frames
+      .map((frame) => {
+        const view = buildLiveTelemetryView(schema, frame);
+        if (!view) throw new Error("frame failed to decode");
+        return viewToGearingSample(view, kmh);
+      })
+      .filter((sample): sample is GearingSample => sample !== null);
 
     const state = computeGearingState(samples);
     expect(state.powerCurve.length).toBeGreaterThan(0);

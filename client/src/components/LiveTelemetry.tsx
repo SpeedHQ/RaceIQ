@@ -69,6 +69,9 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   });
   const topSpeedRef = useRef(0);
   topSpeedRef.current = carTopSpeedMph != null && carTopSpeedMph > 0 ? units.fromMph(carTopSpeedMph) : 0;
+  // Last accepted gearing sample — held so the gearing charts' live needle
+  // keeps the last resolved values while required semantics are unavailable.
+  const lastValidPacketRef = useRef<GearingSample | null>(null);
 
   // Feed the gearing accumulators on every dashboard mode so laps driven on
   // Driver/Pit tabs still record dyno data and calibrate the gear charts.
@@ -81,7 +84,10 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const gearingMaxSpeed = mode === "gearing" ? getGearingTelemetryState().maxSpeed : 0;
   // GearingSample adapted from the view — passed to GearingDashboard whose
   // children (PowerBandChart/GearRatioCharts) read the live RPM/power/torque.
-  const packet: GearingSample = viewToGearingSample(view, units.speed);
+  // Rejected (null) while required semantics are unresolved; fall back to the
+  // last valid sample instead of fabricated zeros.
+  const packet = viewToGearingSample(view, units.speed) ?? lastValidPacketRef.current;
+  if (packet) lastValidPacketRef.current = packet;
 
   const speed = units.speed(view.motion.speedMps ?? 0);
   const throttlePct = controlInputPercent(view.inputs.throttle);

@@ -12,6 +12,7 @@ import {
   type LiveTelemetryView,
 } from "../../lib/live-telemetry-view";
 import { computeGearingState, computeTrackLaps } from "../../lib/session-gearing";
+import type { GearingSample } from "../../lib/gearing-telemetry";
 import { GearRatioCharts } from "../telemetry/GearRatioCharts";
 import { PowerBandChart } from "../telemetry/PowerBandChart";
 import { TrackSpeedChart } from "../telemetry/TrackSpeedChart";
@@ -46,7 +47,10 @@ export function GearingTestViewer() {
   }, [schema, frames]);
 
   const samples = useMemo(
-    () => views.map((view) => viewToGearingSample(view, units.speed)),
+    () => views
+      .map((view) => viewToGearingSample(view, units.speed))
+      // Frames missing required semantics are rejected, like live ingestion.
+      .filter((sample): sample is GearingSample => sample !== null),
     [views, units],
   );
 
