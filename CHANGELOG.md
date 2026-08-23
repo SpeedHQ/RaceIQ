@@ -18,6 +18,7 @@
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
+- Skip recordings from games unavailable in the current RaceIQ build during stale-session checks and bulk reprocessing
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
@@ -77,6 +78,7 @@
 ### Internal
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
+- Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting

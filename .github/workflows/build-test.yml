@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check test shard coverage
+        run: bun run test:shards
+
       - name: Lint server, shared, scripts, tests, and client
         run: bun run lint
 
