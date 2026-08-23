@@ -4,13 +4,21 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
-import { LapDetectorAcc } from "./lap-detector"
+import { LAP_DETECTOR_ACC_ID, LapDetectorAcc } from "./lap-detector"
 import { parseAccBuffers } from "./parser";
-import { STATIC } from "./structs";
+import { PHYSICS, STATIC } from "./structs";
 import { readWString } from "./utils";
 import { ACC_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { buildKunosAiContext } from "../kunos/ai-context";
+import { createKunosReplayClock, isKunosReplayClock, resolveKunosReplayTimestamp, type KunosReplayClock } from "../kunos/replay-clock";
+import {
+  baseRaceEventObservation,
+  kunosDamagePercent,
+  localPlayerObservation,
+  normalizedFuelLitres,
+  normalizedTireWear,
+} from "../race-event-observation";
 
 const ACC_SYSTEM_PROMPT = `You are an expert GT racing engineer and data analyst specializing in Assetto Corsa Competizione.
 
@@ -89,9 +97,16 @@ export const accServerAdapter: ServerGameAdapter = {
     return buf.length > 4 && buf.readUInt32LE(0) === ACC_PACKED_MAGIC;
   },
 
-  tryParse(buf: Buffer, _state: unknown): TelemetryPacket | null {
+  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
     const triplet = unpackTriplet(buf);
     if (!triplet) return null;
+    if (triplet.physics.length < 4) return null;
+    const replayClock = isKunosReplayClock(state) ? state : createKunosReplayClock();
+    const timestampMS = resolveKunosReplayTimestamp(
+      replayClock,
+      triplet.physics.readInt32LE(PHYSICS.packetId.offset),
+      triplet.timestampMS,
+    );
 
     // Prefer re-resolving from the embedded static struct over the packed
     // header — the header is a cache of whatever ParsingProcessor had
@@ -114,12 +129,55 @@ export const accServerAdapter: ServerGameAdapter = {
     return parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
       carOrdinal,
       trackOrdinal,
+      timestampMS,
     });
   },
 
-  createParserState(): null {
-    return null;
+  createParserState(): KunosReplayClock {
+    return createKunosReplayClock();
   },
+
+  toRaceEventObservation(packet, context) {
+    const observation = baseRaceEventObservation(packet, context);
+    const flag = packet.acc?.flagStatus?.toLowerCase() ?? "unknown";
+    observation.nativeRaceControlCode = flag;
+    if (flag === "yellow") {
+      observation.sessionPhase = "caution";
+      observation.cautionKind = "local-yellow";
+    } else if (flag === "checkered") {
+      observation.sessionPhase = "checkered";
+    }
+    const nativePitCode = packet.acc?.pitStatus ?? null;
+    const pitState =
+      nativePitCode === "out"
+        ? "out"
+        : nativePitCode === "pit_lane"
+          ? "pit-lane"
+          : nativePitCode === "in_pit"
+            ? "pit-stall"
+            : "unknown";
+    observation.participants = [
+      localPlayerObservation(packet, {
+        pitState,
+        nativePitCode,
+        fuelLitres: normalizedFuelLitres(
+          packet,
+          accAdapter.telemetry.fuel.packetUnit,
+        ),
+        tireCompound:
+          packet.acc?.tireCompound && packet.acc.tireCompound !== "unknown"
+            ? packet.acc.tireCompound
+            : null,
+        tireWear: normalizedTireWear(packet),
+        damage: kunosDamagePercent(packet),
+        penaltyValue: null,
+        incidentCount: null,
+      }),
+    ];
+    return observation;
+  },
+
+  lapDetectorId: LAP_DETECTOR_ACC_ID,
 
   createLapDetector: (opts) => new LapDetectorAcc(opts),
 

@@ -141,6 +141,8 @@ export const fakeF1Packet: TelemetryPacket = {
   TirePressureRearLeft: 21.5,
   TirePressureRearRight: 21.4,
   f1: {
+    playerCarIndex: 2,
+    pitStatus: 0,
     drsAllowed: true,
     drsActivated: false,
     drsZoneApproaching: true,
@@ -239,6 +241,8 @@ export const fakeF1Packet: TelemetryPacket = {
     lastS3: 0,
     grid: [
       {
+        carIndex: 0,
+        isPlayer: false,
         position: 1,
         driverId: 1,
         teamId: 1,
@@ -261,6 +265,8 @@ export const fakeF1Packet: TelemetryPacket = {
         lastS3: 31.9,
       },
       {
+        carIndex: 1,
+        isPlayer: false,
         position: 2,
         driverId: 4,
         teamId: 6,
@@ -283,6 +289,8 @@ export const fakeF1Packet: TelemetryPacket = {
         lastS3: 31.8,
       },
       {
+        carIndex: 2,
+        isPlayer: true,
         position: 3,
         driverId: 44,
         teamId: 1,
@@ -305,6 +313,8 @@ export const fakeF1Packet: TelemetryPacket = {
         lastS3: 30.9,
       },
       {
+        carIndex: 3,
+        isPlayer: false,
         position: 4,
         driverId: 16,
         teamId: 6,
@@ -327,6 +337,8 @@ export const fakeF1Packet: TelemetryPacket = {
         lastS3: 31.0,
       },
       {
+        carIndex: 4,
+        isPlayer: false,
         position: 5,
         driverId: 55,
         teamId: 3,

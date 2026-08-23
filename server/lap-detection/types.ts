@@ -5,6 +5,7 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
+import type { SessionBoundaryReason } from "./boundaries";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -24,6 +25,13 @@ import type {
   LapFuelData,
   LapTireWearData,
 } from "./detector";
+export type SessionEndReason =
+  | SessionBoundaryReason
+  | "source-disconnected"
+  | "source-stale"
+  | "stream-ended"
+  | "session-rotated";
+
 
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
