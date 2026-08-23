@@ -79,3 +79,6 @@ raceiq-home.png
 !/graphify-out/.graphify_labels.json
 !/graphify-out/.graphify_labels.json.sig
 !/graphify-out/.graphify_analysis.json
+
+# ML Prep work
+test/artifacts/local/iracing
