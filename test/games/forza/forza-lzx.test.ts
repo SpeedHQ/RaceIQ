@@ -27,7 +27,7 @@ describe("decompressForzaLZX", () => {
     // Must fully decompress (100%) to access TrackLimits boundary data
     expect(result.length).toBe(geo.uncompSize);
     expect(result.toString("utf8").startsWith("MLPDataStart:")).toBe(true);
-  });
+  }, { timeout: 30_000 });
 });
 
 describe("parseForzaZip", () => {

@@ -34,7 +34,7 @@ RaceIQ is the most advanced sim racing telemetry app available to the public —
 
 It captures telemetry from your racing games, provides a live dashboard, records every lap to a local database, and gives you lap analysis and comparison (with optional AI coaching) and 3D visualizations — all running locally on your PC. It also includes a car and setup catalogue so you can browse and compare setups across tracks.
 
-Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screenshots](assets/screenshots/) to see it in action.
+Check out the [screenshots](assets/screenshots/) to see it in action.
 
 ## Features
 

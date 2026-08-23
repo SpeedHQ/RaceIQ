@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 import { loadSettings } from "../../server/runtime/config/settings";
 import { settingsRoutes, shouldCheckCredentialStatus } from "../../server/routes/settings-routes";
@@ -99,6 +99,22 @@ describe("settings with unit system", () => {
   });
 });
 describe("driver profile output budget", () => {
+  let originalContent: string | null = null;
+
+  beforeEach(() => {
+    originalContent = existsSync(SETTINGS_PATH)
+      ? readFileSync(SETTINGS_PATH, "utf-8")
+      : null;
+  });
+
+  afterEach(() => {
+    if (originalContent === null) {
+      rmSync(SETTINGS_PATH, { force: true });
+    } else {
+      writeFileSync(SETTINGS_PATH, originalContent);
+    }
+  });
+
   test("defaults to 5,000 tokens", () => {
     writeFileSync(SETTINGS_PATH, JSON.stringify({}));
     expect(loadSettings().driverProfileMaxOutputTokens).toBe(5_000);

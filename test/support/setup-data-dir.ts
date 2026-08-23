@@ -13,7 +13,8 @@ import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
-const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
+async function setupDataDir() {
+  const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
 for (const line of releaseEnvironment.split(/\r?\n/)) {
   const separator = line.indexOf("=");
   if (separator < 1) continue;
@@ -35,7 +36,15 @@ if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
 
 mkdirSync(process.env.DATA_DIR, { recursive: true });
 for (const suffix of ["", "-wal", "-shm"]) {
-  rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), { force: true });
+  try {
+    rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), {
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+  }
 }
 
 /**
@@ -77,3 +86,6 @@ afterAll(async () => {
     // db never loaded — nothing to close
   }
 });
+}
+
+if (process.env.RACEIQ_UNIT_TESTS !== "1") await setupDataDir();

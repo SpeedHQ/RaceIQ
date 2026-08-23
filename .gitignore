@@ -68,3 +68,15 @@ test/artifacts/sessions/*.bin
 scout-*.png
 hero-compare.png
 raceiq-home.png
+
+# Graphify: publish root graph, keep local build state untracked
+**/graphify-out/
+!/graphify-out/
+/graphify-out/*
+!/graphify-out/graph.json
+!/graphify-out/graph.html
+!/graphify-out/GRAPH_REPORT.md
+!/graphify-out/manifest.json
+!/graphify-out/.graphify_labels.json
+!/graphify-out/.graphify_labels.json.sig
+!/graphify-out/.graphify_analysis.json
