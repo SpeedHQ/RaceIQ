@@ -3,10 +3,44 @@ import type { Point, SemanticAnalysisFrame } from "./types";
 const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
+};
 
-export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], _outline: Point[] | null): Point[] {
-  return telemetry.map((frame) => ({ x: number(frame, "motion.position-x") ?? 0, z: number(frame, "motion.position-z") ?? 0 }));
+const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
+  x: number(frame, "motion.position-x") ?? 0,
+  z: number(frame, "motion.position-z") ?? 0,
+});
+
+export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null): Point[] {
+  const worldPositions = telemetry.map(worldPosition);
+  if (worldPositions.some((point) => point.x !== 0 || point.z !== 0) || !outline || outline.length < 2) return worldPositions;
+
+  const fractions = telemetry.map((frame) => number(frame, "timing.lap-fraction"));
+  if (fractions.some((fraction) => fraction === null)) return worldPositions;
+
+  const cumulative = [0];
+  for (let index = 1; index < outline.length; index++) {
+    cumulative.push(cumulative[index - 1] + Math.hypot(outline[index].x - outline[index - 1].x, outline[index].z - outline[index - 1].z));
+  }
+  const total = cumulative.at(-1) ?? 0;
+  if (total <= 0) return worldPositions;
+
+  return fractions.map((fraction) => {
+    const target = Math.max(0, Math.min(1, fraction!)) * total;
+    let low = 1;
+    let high = cumulative.length - 1;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (cumulative[middle] < target) low = middle + 1;
+      else high = middle;
+    }
+    const start = Math.max(0, low - 1);
+    const segmentLength = cumulative[low] - cumulative[start];
+    const amount = segmentLength > 0 ? (target - cumulative[start]) / segmentLength : 0;
+    return {
+      x: outline[start].x + (outline[low].x - outline[start].x) * amount,
+      z: outline[start].z + (outline[low].z - outline[start].z) * amount,
+    };
+  });
 }
 
 export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {
