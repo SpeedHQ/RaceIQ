@@ -24,8 +24,8 @@ export interface ResolvedTrackGuide {
 }
 
 /**
- * On-disk shape of shared/data/tracks/guides/<slug>.json — the authored source the
- * Resolved* types above are built from.
+ * On-disk shape of a track-local `guide.json` beside canonical layout metadata.
+ * Resolved* types above are built from this authored source.
  *
  * Everything except `key` and `numbers` is English prose destined for
  * translation, which is the whole reason this is a file rather than a TS
@@ -34,7 +34,7 @@ export interface ResolvedTrackGuide {
 export interface TrackGuideCornerFile {
   /**
    * Stable, locale-independent, unique within the file. The join key for
-   * `priorityCorners` and for a future `guides-<locale>/` overlay.
+   * `priorityCorners` and future sibling `guide.<locale>.json` overlays.
    *
    * Generated once from the English `name` and then committed — never re-derived
    * at runtime, or translating `name` would silently break every join.
@@ -42,7 +42,7 @@ export interface TrackGuideCornerFile {
   key: string;
   /** English label. Prose fallback when meta has no name for the turn. */
   name: string;
-  /** Official turn numbers — the join key into shared/data/tracks/meta/<slug>.json. */
+  /** Official turn numbers — join key into bundled registry facts. */
   numbers?: number[];
   type: string;
   technique: string;
@@ -54,7 +54,7 @@ export interface TrackGuideFile {
   id: string;
   /**
    * Literal "en" today: these files are the base locale by definition.
-   * Widened when guides-<locale>/ overlays land.
+   * Widened when sibling locale overlays land.
    */
   locale: "en";
   character: string;

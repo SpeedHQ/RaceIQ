@@ -9,14 +9,13 @@
  * Facts themselves carry no detector tolerances — a corner is either in the
  * numbering or it isn't. Where a centerline genuinely resolves one official
  * turn into two arcs, or skips a kink entirely, the allowance arrives as
- * DetectHints (shared/data/tracks/detect-hints.json) from the caller; omit them and
- * every corner must match exactly once.
+ * DetectHints from a layout-local `detect-hints.json` through the caller; omit
+ * them and every corner must match exactly once.
  *
  * Locale note: proper nouns ("Eau Rouge") are canonical and never translated.
  * Corners without a real name get the machine token "T<number>" and straights
  * get "" — the client localizes those generically via Paraglide.
  */
-
 
 /** A single detected corner region on the centerline. */
 export interface CornerRegion {
@@ -37,13 +36,16 @@ export interface CornerRegion {
   weak?: boolean;
 }
 
-interface Pt { x: number; z: number }
+interface Pt {
+  x: number;
+  z: number;
+}
 
 /**
  * ~11.5° of heading change required for a region to stand alone as a corner.
  * Shared with the aligner, which prices weak-region skips against it.
  */
-export const MIN_TURN_RAD = 0.20;
+export const MIN_TURN_RAD = 0.2;
 
 /**
  * Fine-grained corner detection from a centerline (unlike detectSegments,
@@ -68,13 +70,9 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
   // strict pass left behind are taken, and always as weak — never asserting a
   // corner, just offering one a curated name may claim.
   const loose = detectPass(outline, LOOSE_K_IN, LOOSE_K_OUT);
-  const extra = loose.corners.filter(
-    (l) => !strict.corners.some((s) => l.rawStartFrac < s.rawEndFrac && l.rawEndFrac > s.rawStartFrac),
-  );
+  const extra = loose.corners.filter((l) => !strict.corners.some((s) => l.rawStartFrac < s.rawEndFrac && l.rawEndFrac > s.rawStartFrac));
 
-  const corners = [...strict.corners, ...extra.map((c) => ({ ...c, weak: true as const }))]
-    .sort((a, b) => a.startFrac - b.startFrac)
-    .map(({ rawStartFrac, rawEndFrac, ...c }) => c);
+  const corners = [...strict.corners, ...extra.map((c) => ({ ...c, weak: true as const }))].sort((a, b) => a.startFrac - b.startFrac).map(({ rawStartFrac, rawEndFrac, ...c }) => c);
   return { corners, totalDist: strict.totalDist };
 }
 
@@ -101,10 +99,10 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
 
   const CURV_WINDOW_M = 12;
   const MIN_CORNER_M = 15;
-  const WEAK_TURN_RAD = 0.10;  // below ~5.7° it's noise, not a corner anyone names
-  const WEAK_LENGTH_M = 25;    // shorter than this can't stand alone as a corner
-  const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
-  const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
+  const WEAK_TURN_RAD = 0.1; // below ~5.7° it's noise, not a corner anyone names
+  const WEAK_LENGTH_M = 25; // shorter than this can't stand alone as a corner
+  const MERGE_GAP_M = 50; // same-direction regions closer than this merge
+  const SIGN_RUN_M = 25; // sustained opposite sign for this long = split
   // K_OUT is deliberately loose so a corner's declining curvature tail bridges
   // MERGE_GAP_M gaps into the next apex (double-apex corners, chicanes) instead
   // of splitting. That same looseness makes regions overshoot into adjacent
@@ -137,8 +135,13 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
   let runStart = 0;
   for (let i = 0; i < n; i++) {
     const k = Math.abs(kappa[i]);
-    if (!inCorner && k >= K_IN) { inCorner = true; runStart = i; }
-    else if (inCorner && k < K_OUT) { inCorner = false; runs.push({ start: runStart, end: i - 1 }); }
+    if (!inCorner && k >= K_IN) {
+      inCorner = true;
+      runStart = i;
+    } else if (inCorner && k < K_OUT) {
+      inCorner = false;
+      runs.push({ start: runStart, end: i - 1 });
+    }
   }
   if (inCorner) runs.push({ start: runStart, end: n - 1 });
 
@@ -152,7 +155,10 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     for (let i = r.start; i <= r.end; i++) {
       const s = Math.sign(kappa[i]);
       if (s === 0) continue;
-      if (currentSign === 0) { currentSign = s; continue; }
+      if (currentSign === 0) {
+        currentSign = s;
+        continue;
+      }
       if (s !== currentSign) {
         if (flipStart < 0) flipStart = i;
         if (i - flipStart + 1 >= signRunIdx) {
@@ -175,7 +181,10 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     let apexIdx = r.start;
     for (let i = r.start; i <= r.end; i++) {
       sum += kappa[i];
-      if (Math.abs(kappa[i]) > peak) { peak = Math.abs(kappa[i]); apexIdx = i; }
+      if (Math.abs(kappa[i]) > peak) {
+        peak = Math.abs(kappa[i]);
+        apexIdx = i;
+      }
     }
     return {
       start: r.start,
@@ -199,7 +208,10 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     if (prev && prev.direction === r.direction && dists[r.start] - dists[prev.end] <= MERGE_GAP_M) {
       prev.end = r.end;
       prev.lastPeak = r.peak;
-      if (r.peak > prev.peak) { prev.peak = r.peak; prev.apexIdx = r.apexIdx; }
+      if (r.peak > prev.peak) {
+        prev.peak = r.peak;
+        prev.apexIdx = r.apexIdx;
+      }
     } else {
       mergedRegions.push({ ...r });
     }
@@ -259,8 +271,7 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     // and only the roster knows which. Weak is not "ignorable" though — the
     // skip price scales with turn angle (see WEAK_SKIP), so a short-but-sharp
     // bend like Melbourne T1 (17 m, 1.9 rad) is still expensive to leave out.
-    .map(({ untrimmedLengthM, ...c }) =>
-      c.turnRad < MIN_TURN_RAD || c.lengthM < WEAK_LENGTH_M ? { ...c, weak: true } : c);
+    .map(({ untrimmedLengthM, ...c }) => (c.turnRad < MIN_TURN_RAD || c.lengthM < WEAK_LENGTH_M ? { ...c, weak: true } : c));
 
   return { corners, totalDist };
 }
