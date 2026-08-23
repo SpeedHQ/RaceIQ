@@ -38,12 +38,15 @@ test/client/resumable-chat.test.ts
 test/client/tune-browser-model.test.ts
 test/client/websocket-url.test.ts
 test/client/wireframe-utils.test.ts
+test/db/analysis-quality-cache.test.ts
 test/db/database-path.test.ts
 test/db/db-seed.test.ts
+test/db/lap-evidence-invalidation.test.ts
 test/db/lap-ownership.test.ts
 test/db/migrations/migration-regression.test.ts
 test/db/migrations/migrations.test.ts
 test/db/migrations/runner-idempotence.test.ts
+test/db/quality-persistence.test.ts
 test/db/telemetry-version-identity.test.ts
 test/driver-profile/detector-universe.test.ts
 test/driver-profile/fingerprint.test.ts
