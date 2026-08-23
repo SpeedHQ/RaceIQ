@@ -7,6 +7,7 @@
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Review durable race-event timelines with ordered pit service, penalties, cautions, participant changes, source interruptions, and replayed session evidence
+- Build canonical participant, tire, driver, and pace runs from race-event boundaries for consistent live and replay session summaries
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Track recording and lap telemetry quality across live capture, MoTeC imports, and session archives, including source fidelity, packet gaps, track coverage, and task-specific analysis eligibility

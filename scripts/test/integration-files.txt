@@ -48,6 +48,7 @@ test/db/migrations/migrations.test.ts
 test/db/migrations/runner-idempotence.test.ts
 test/db/quality-persistence.test.ts
 test/db/race-event-queries.test.ts
+test/db/session-run-queries.test.ts
 test/db/telemetry-version-identity.test.ts
 test/driver-profile/detector-universe.test.ts
 test/driver-profile/fingerprint.test.ts
@@ -130,6 +131,7 @@ test/routes/live-route.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/race-event-routes.test.ts
+test/routes/session-run-routes.test.ts
 test/routes/storage-routes.test.ts
 test/runtime/release-feature-flags.test.ts
 test/runtime/runtime-options.test.ts
@@ -145,6 +147,7 @@ test/session-capture/raw-binary-storage.test.ts
 test/session-capture/session-compressor.test.ts
 test/session-capture/session-recorder.test.ts
 test/session-capture/race-event-replay-parity.test.ts
+test/telemetry/live-pipeline-session-runs.test.ts
 test/setups/ac-evo/ac-evo-carsetup-f1.test.ts
 test/setups/ac-evo/ac-evo-carsetup-knobs.test.ts
 test/setups/ac-evo/ac-evo-carsetup-writer.test.ts
