@@ -1,17 +1,13 @@
 import { getGame } from "@shared/games/registry";
 import { resolveGripDemand } from "@shared/racing/analysis/metric-values";
 import { useEffect, useRef, useState } from "react";
-import { client } from "@/lib/rpc";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**
- * GripHistory — Manages a per-wheel rolling buffer of combined slip values.
- * Seeds from server history on mount so the chart isn't empty after page refresh.
- * Downsamples 60Hz telemetry to ~10Hz to keep buffer sizes reasonable.
+ * Maintains canonical per-wheel combined-slip samples at about 10 Hz.
  */
-export function GripHistory({ packet, view }: { packet?: TelemetryPacket; view?: LiveTelemetryView }) {
+export function GripHistory({ view }: { view: LiveTelemetryView }) {
   const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
     fl: [],
     fr: [],
@@ -21,53 +17,44 @@ export function GripHistory({ packet, view }: { packet?: TelemetryPacket; view?:
   const [gripData, setGripData] = useState<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({ fl: [], fr: [], rl: [], rr: [] });
   const [renderKey, setRenderKey] = useState(0);
   const frameRef = useRef(0);
-  const fetchedRef = useRef(false);
-
-  // Seed from server on mount
+  const streamRef = useRef(view.streamId);
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    client.api["grip-history"]
-      .$get()
-      .then((r) => r.json() as Promise<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>)
-      .then((data) => {
-        if (data && Array.isArray(data.fl) && data.fl.length > 0) {
-          const h = historyRef.current;
-          h.fl = data.fl;
-          h.fr = data.fr;
-          h.rl = data.rl;
-          h.rr = data.rr;
-          setGripData({ fl: data.fl, fr: data.fr, rl: data.rl, rr: data.rr });
-          setRenderKey((v) => v + 1);
-        }
-      })
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    if (!packet && !view) return;
+    if (streamRef.current !== view.streamId) {
+      streamRef.current = view.streamId;
+      historyRef.current = { fl: [], fr: [], rl: [], rr: [] };
+      setGripData({ fl: [], fr: [], rl: [], rr: [] });
+      frameRef.current = 0;
+    }
     frameRef.current++;
-    // Live telemetry arrives at 60Hz; retain ~10Hz samples for a 10-second chart.
     if (frameRef.current % 6 !== 0) return;
-    const h = historyRef.current;
-    const analysis = getGame(view?.simulator ?? packet?.gameId ?? "iracing").telemetry.analysis;
-    const frame = view ? { values: { "tires.tire-combined-slip": view.tires.combinedSlip, "tires.tire-slip-ratio": view.tires.slipRatio, "tires.tire-slip-angle": view.tires.slipAngleRad } } : null;
-    const resolved = frame && analysis?.gripDemand ? resolveGripDemand(frame, analysis.gripDemand) : null;
-    const grip = resolved ? { fl: resolved[0] ?? 0, fr: resolved[1] ?? 0, rl: resolved[2] ?? 0, rr: resolved[3] ?? 0 } : view?.tires.combinedSlip;
-    h.fl.push(Math.abs(grip?.fl ?? packet?.TireCombinedSlipFL ?? 0));
-    h.fr.push(Math.abs(grip?.fr ?? packet?.TireCombinedSlipFR ?? 0));
-    h.rl.push(Math.abs(grip?.rl ?? packet?.TireCombinedSlipRL ?? 0));
-    h.rr.push(Math.abs(grip?.rr ?? packet?.TireCombinedSlipRR ?? 0));
+    const analysis = getGame(view.simulator).telemetry.analysis;
+    if (!analysis?.gripDemand || analysis.gripDemand.source === "unavailable") return;
+    const combinedSlip = view.tires.combinedSlip;
+    const slipRatio = view.tires.slipRatio;
+    const slipAngle = view.tires.slipAngleRad;
+    const values = {
+      "tires.tire-combined-slip": combinedSlip && [combinedSlip.fl, combinedSlip.fr, combinedSlip.rl, combinedSlip.rr],
+      "tires.tire-slip-ratio": slipRatio && [slipRatio.fl, slipRatio.fr, slipRatio.rl, slipRatio.rr],
+      "tires.tire-slip-angle": slipAngle && [slipAngle.fl, slipAngle.fr, slipAngle.rl, slipAngle.rr],
+    };
+    const resolved = resolveGripDemand({ values }, analysis.gripDemand);
+    if (!resolved || resolved.length < 4 || !resolved.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))) return;
+    const history = historyRef.current;
+    history.fl.push(Math.abs(resolved[0] as number));
+    history.fr.push(Math.abs(resolved[1] as number));
+    history.rl.push(Math.abs(resolved[2] as number));
+    history.rr.push(Math.abs(resolved[3] as number));
 
-    if (h.fl.length > GRIP_MAX_SAMPLES) {
-      h.fl.shift();
-      h.fr.shift();
-      h.rl.shift();
-      h.rr.shift();
+    if (history.fl.length > GRIP_MAX_SAMPLES) {
+      history.fl.shift();
+      history.fr.shift();
+      history.rl.shift();
+      history.rr.shift();
     }
 
-    setGripData({ fl: h.fl, fr: h.fr, rl: h.rl, rr: h.rr });
-    setRenderKey((v) => v + 1);
-  }, [packet, view]);
+    setGripData({ fl: history.fl, fr: history.fr, rl: history.rl, rr: history.rr });
+    setRenderKey((current) => current + 1);
+  }, [view.sequence, view.simulator, view.streamId, view.tires.combinedSlip, view.tires.slipAngleRad, view.tires.slipRatio]);
   return (
     <div className="grid grid-cols-2 gap-2">
       <GripSparkline data={gripData.fl} label="FL" renderKey={renderKey} />

@@ -40,9 +40,15 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     client.api["car-name"][":ordinal"]
       .$get({ param: { ordinal: String(carOrdinal) }, query: { gameId } })
       .then((response) => (response.ok ? response.text() : `Car #${carOrdinal}`))
-      .then((name) => { if (active) setCarName(name); })
-      .catch(() => { if (active) setCarName(`Car #${carOrdinal}`); });
-    return () => { active = false; };
+      .then((name) => {
+        if (active) setCarName(name);
+      })
+      .catch(() => {
+        if (active) setCarName(`Car #${carOrdinal}`);
+      });
+    return () => {
+      active = false;
+    };
   }, [carOrdinal, gameId]);
 
   const units = useUnits();
@@ -50,13 +56,13 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
 
-  const speed = units.speed(view.motion.speedMps ?? 0);
-  const throttlePct = controlInputPercent(view.inputs.throttle);
-  const brakePct = controlInputPercent(view.inputs.brake);
-  const currentRpm = view.engine.rpm ?? 0;
-  const idleRpm = view.engine.idleRpm ?? 0;
-  const maxRpm = view.engine.maxRpm ?? 0;
-  const rpmPct = maxRpm > 0 ? (currentRpm / maxRpm) * 100 : 0;
+  const speed = view.motion.speedMps === undefined ? undefined : units.speed(view.motion.speedMps);
+  const throttlePct = view.inputs.throttle === undefined ? undefined : controlInputPercent(view.inputs.throttle);
+  const brakePct = view.inputs.brake === undefined ? undefined : controlInputPercent(view.inputs.brake);
+  const currentRpm = view.engine.rpm;
+  const idleRpm = view.engine.idleRpm;
+  const maxRpm = view.engine.maxRpm;
+  const rpmPct = currentRpm !== undefined && maxRpm !== undefined && maxRpm > 0 ? (currentRpm / maxRpm) * 100 : undefined;
   const adapter = getGame(view.simulator);
   const telemetryModel = adapter.telemetry;
   const analysis = resolveAnalysisTelemetry(adapter);
@@ -73,9 +79,8 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
           ? m.analyse_wheels_pit_health()
           : undefined;
   const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
-  const hp = (view.engine.powerW ?? 0) / WATTS_PER_HORSEPOWER;
-  const boostVal = view.engine.boost ?? 0;
-
+  const hp = view.engine.powerW === undefined ? undefined : view.engine.powerW / WATTS_PER_HORSEPOWER;
+  const boostVal = view.engine.boost;
 
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
   const heroSection = (
@@ -92,28 +97,28 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       )}
       <div className="flex items-end justify-between mb-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-5xl font-mono font-black text-app-text tabular-nums leading-none tracking-tighter">{speed.toFixed(0)}</span>
+          <span className="text-5xl font-mono font-black text-app-text tabular-nums leading-none tracking-tighter">{speed === undefined ? "—" : speed.toFixed(0)}</span>
           <span className="text-sm text-app-text-muted font-mono">{units.speedLabel}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          {telemetryModel.power && <span className="text-app-caption text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
-          <span className="text-5xl font-mono font-black tabular-nums leading-none tracking-tighter" style={{ color: rpmPct > 90 ? "var(--rev-limit)" : "var(--app-accent)" }}>
-            {view.inputs.gear === 0 ? "R" : view.inputs.gear === 11 ? "N" : (view.inputs.gear ?? 0)}
+          {telemetryModel.power && hp !== undefined && <span className="text-app-caption text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
+          <span className="text-5xl font-mono font-black tabular-nums leading-none tracking-tighter" style={{ color: rpmPct !== undefined && rpmPct > 90 ? "var(--rev-limit)" : "var(--app-accent)" }}>
+            {view.inputs.gear === undefined ? "—" : view.inputs.gear === 0 ? "R" : view.inputs.gear === 11 ? "N" : view.inputs.gear}
           </span>
         </div>
       </div>
       <div className="flex gap-[2px] mb-1">
         {Array.from({ length: 30 }, (_, i) => {
           const segPct = ((i + 1) / 30) * 100;
-          const lit = rpmPct >= segPct;
+          const lit = rpmPct !== undefined && rpmPct >= segPct;
           const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
           return <div key={segPct} className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`} style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }} />;
         })}
       </div>
       <div className="flex justify-between text-app-micro text-app-text-dim font-mono tabular-nums">
-        <span>{idleRpm.toFixed(0)}</span>
-        <span>{currentRpm.toFixed(0)} rpm</span>
-        <span>{maxRpm.toFixed(0)}</span>
+        <span>{idleRpm === undefined ? "—" : idleRpm.toFixed(0)}</span>
+        <span>{currentRpm === undefined ? "— rpm" : `${currentRpm.toFixed(0)} rpm`}</span>
+        <span>{maxRpm === undefined ? "—" : maxRpm.toFixed(0)}</span>
       </div>
     </div>
   );
@@ -136,8 +141,12 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
           />
         </div>
         <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border"><h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2></div>
-          <div className="p-3"><PitEstimate view={view} pit={pit} /></div>
+          <div className="p-2 border-b border-app-border">
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
+          </div>
+          <div className="p-3">
+            <PitEstimate view={view} pit={pit} />
+          </div>
         </div>
       </div>
     );
@@ -153,26 +162,38 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
         <div className="flex gap-3 items-center">
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-throttle)" }}>
-                {throttlePct.toFixed(0)}
-              </span>
-              <div className="flex-1 h-3 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-throttle)", width: `${throttlePct}%` }} />
-              </div>
+              {throttlePct === undefined ? (
+                <span className="text-app-micro font-mono font-bold w-6 text-right text-app-text-dim">—</span>
+              ) : (
+                <>
+                  <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-throttle)" }}>
+                    {throttlePct.toFixed(0)}
+                  </span>
+                  <div className="flex-1 h-3 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-throttle)", width: `${throttlePct}%` }} />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-brake)" }}>
-                {brakePct.toFixed(0)}
-              </span>
-              <div className="flex-1 h-3 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-brake)", width: `${brakePct}%` }} />
-              </div>
+              {brakePct === undefined ? (
+                <span className="text-app-micro font-mono font-bold w-6 text-right text-app-text-dim">—</span>
+              ) : (
+                <>
+                  <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-brake)" }}>
+                    {brakePct.toFixed(0)}
+                  </span>
+                  <div className="flex-1 h-3 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-brake)", width: `${brakePct}%` }} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
           {(telemetryModel.power || telemetryModel.torque || telemetryModel.boost) && (
             <div className="flex gap-1 shrink-0">
               <PowerTorque view={view} />
-              {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="var(--app-accent)" />}
+              {telemetryModel.boost && boostVal !== undefined && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="var(--app-accent)" />}
             </div>
           )}
         </div>
@@ -182,7 +203,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="flex items-center gap-3">
           <GForceCircle view={view} />
-          <SteeringWheel steer={view.inputs.steer ?? 0} />
+          {view.inputs.steer !== undefined && <SteeringWheel steer={view.inputs.steer} />}
           <div className="flex-1">
             <FuelGauge view={view} />
           </div>
