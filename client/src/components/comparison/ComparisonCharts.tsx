@@ -44,7 +44,7 @@ export function ComparisonCharts({
   return (
     <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
       <div className="rounded-lg border border-app-border p-1 shrink-0">
-        <TimeDelta distances={distance} timeDelta={timeDelta} syncKey="lap-compare" height={140} title={m.label_delta()} onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
+        <TimeDelta distances={distance} timeDelta={timeDelta} syncKey="lap-compare" height={140} title="Time Delta" onCursorMove={onCursorMove} onRangeSelect={onRangeSelect} visibleRange={visibleRange} onZoomOut={onZoomOut} />
       </div>
       <div className="overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto">
         <div className="flex flex-col gap-4">
