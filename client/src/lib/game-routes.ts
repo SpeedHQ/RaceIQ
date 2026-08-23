@@ -52,7 +52,7 @@ export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
-  raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
+  raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
 };
 
@@ -69,6 +69,7 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
       return "f1";
     case "acc":
     case "ac-evo":
+    case "lmu":
       return "acc";
     case "iracing":
       return "forza";

@@ -1,107 +1,19 @@
 ## Unreleased
 
-### Features
-- Review recorded ACC and Assetto Corsa Evo track/car sessions from bounded metadata summaries, surfacing only top laps before opening detailed analysis in Analyse
-
-- Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
-- Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
-- Run RaceIQ on Linux with a public non-root Docker image, persistent named-volume storage, and browser/UDP access
-
-### Fixes
-- Fix balance decision tooltip rendering and synchronize 3D tire trails with wheel traction states, including correct physical and normalized slip handling for grip, slip, wheelspin, lockup, and idle
-- Fix Analyse page chat and lap analysis errors across configured AI providers
-- Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
-- Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
-- Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
-- Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
-- Position Analyse turns and track maps correctly with or without world-position samples, and align peak tire and brake charts by distance while preserving per-wheel detail
-- Keep Compare and Analyse cursor tooltips synchronized
-- Show racing-line consistency scores only when at least two laps are available
-- Hide iRacing driver-profile navigation when unsupported.
-- Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
-
-### Internal
-- Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
-- Run seeded database upgrade verification in PR and release CI when migrations change.
-
-- Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
-- Add UI-level agent testing.
-## v0.17.0 - 2026-09-16
-
-### Features
-- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
-- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
-- Export one or multiple selected laps directly from Sessions toolbar
-
-### Fixes
-- Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
-- Fix issues causing unreadable or unfinished recording files and incorrect lap timing
-- Fix issue preventing live recording from restarting after deleting the active session
-
-### Internal
-
-- Run frontend theme-contract checks automatically during pre-commit.
-- Regenerate and commit telemetry catalog artifacts during release finalization.
-- Run Storybook standalone with deterministic offline fixtures and contract coverage.
-- Add diagnostic logs that reveal missed telemetry and slow lap saving
-
-## v0.16.0 - 2026-09-06
-
-### Features
-
-- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
-- Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
-- Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
-
-### Fixes
-
-- Keep Analyse Data panel content and layout complete across supported views
-- Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
-- Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
-
-### Internal
-
-- Narrow client response helper contracts to the fields each RPC and download path uses
-- Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
-- Fail responsive screenshot CI when either render fails
-- Compile all release feature code once and enable runtime overrides for Playwright E2E
-
-## v0.15.1 - 2026-09-01
-
-### Fixes
-
-- Start RaceIQ successfully after installing a Windows release
-
-### Internal
-
-- Increase seeded Playwright E2E CI coverage from five to seven shards
-
-## v0.15.0 - 2026-09-01
-
 ### Breaking
-
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
-- Rename dashboard routes from `/dash` to `/portable` and reorganize sidebar game navigation.
 
 ### Features
-
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
-- Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
+- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
 
-- Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
-- Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
-
 ### Fixes
-
-- Improve lap-line fitting to track boundaries
-- Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
-- Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
-- Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
-- Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
+- Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
+- Reject LMU telemetry recordings with no complete laps before starting import
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
@@ -119,11 +31,8 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
-- Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
-- Show iRacing lateral G-force on the correct side during turns
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
-- Restore the moving car pointer on iRacing Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
@@ -131,7 +40,6 @@
 - Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
 - Align game metric contracts with catalog-backed semantic bindings; show Forza source-native Grip Ask and normalized lateral slip while hiding unsupported physical metrics.
 - Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
-- Keep semantic live dashboards accurate across temperature units, unavailable tire channels, pit state, tire compounds, grip history, and traction indicators
 - Resolve car and track names on the global home page in each lap's game context
 - Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
@@ -139,7 +47,6 @@
 - Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
-- Keep the welcome wizard responsive and show throttle and brake input lines in its preview
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
@@ -155,8 +62,6 @@
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
-- Keep overlapping Compare lap markers on one shared map position instead of visually separating red and blue dots
-- Render Compare overview hover as one white dot while retaining separate lap dots in the zoomed map
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
@@ -168,19 +73,12 @@
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
-- Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
-- Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
-
-- Read release notes from GitHub release bodies instead of downloading release-note assets
-- Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
-- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
-- Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
+- Package DuckDB native runtime files in local Windows installer builds
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
-- Replace first-party Zustand stores with TanStack Store and add development-only unified TanStack Devtools panels
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
@@ -191,8 +89,6 @@
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
-- Cache prepared Compare course-distance alignment indexes per lap pair and reuse them across base and range requests to reduce repeated spatial work
-- Cover Compare cursor and map-marker alignment with focused unit and seeded browser regressions
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
@@ -215,7 +111,6 @@
 ## v0.14.0 - 2026-08-05
 
 ### Features
-
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
@@ -230,7 +125,6 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
-
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable guidance when AI provider, credentials, or model configuration is incomplete
@@ -243,7 +137,6 @@
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
-
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
@@ -264,7 +157,6 @@
 ## v0.13.0 - 2026-07-16
 
 ### Features
-
 - New lap insight detectors and server-side computation
 - Static corner names and sector data from track geometry
 - Session recap card with sector-coloured track map
@@ -272,11 +164,9 @@
 - AC Evo car and track extraction updates
 
 ### Fixes
-
 - Separate Power and Torque rows in analysis
 - Correct ACC centreline for corner detection
 - Correct AC Evo track and car resolution
 
 ### Internal
-
 - Backfilled from the pre-changelog GitHub release body

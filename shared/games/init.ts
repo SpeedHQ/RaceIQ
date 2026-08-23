@@ -4,16 +4,19 @@ import { f1Adapter } from "./f1-2025";
 import { accAdapter } from "./acc";
 import { acEvoAdapter } from "./ac-evo";
 import { iracingAdapter } from "./iracing";
+import { lmuAdapter } from "./lmu";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../platform/runtime/release-feature-flags";
 
 export function gameAdaptersForFeatures(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LMU_ADAPTER: import.meta.env.RACEIQ_FEATURE_LMU_ADAPTER,
   }),
 ) {
   const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter];
   if (flags.iracingAdapter) adapters.push(iracingAdapter);
+  if (flags.lmuAdapter) adapters.push(lmuAdapter);
   return adapters;
 }
 
@@ -22,6 +25,7 @@ export function initGameAdapters(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LMU_ADAPTER: import.meta.env.RACEIQ_FEATURE_LMU_ADAPTER,
   }),
 ): void {
   for (const adapter of gameAdaptersForFeatures(flags)) registerGame(adapter);

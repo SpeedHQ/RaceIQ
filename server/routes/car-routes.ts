@@ -86,6 +86,20 @@ export const carRoutes = new Hono()
       );
     }
 
+    if (gameIdResult.data === "lmu") {
+      const cars = (await listDiscoveredCars("lmu")).map(
+        ({ ordinal, name }) => ({
+          ordinal,
+          name,
+          path: "",
+          category: "discovered",
+          imageUrl: "",
+        }),
+      );
+      cars.sort((left, right) => left.name.localeCompare(right.name));
+      return c.json(cars);
+    }
+
     if (gameIdResult.data === "iracing") {
       const catalogCars = getAllIRacingCars();
       const catalogIds = new Set(catalogCars.map((car) => car.ordinal));
@@ -131,6 +145,12 @@ export const carRoutes = new Hono()
     }
 
     const { ordinal } = c.req.valid("param");
+    if (gameIdResult.data === "lmu") {
+      const name = await getDiscoveredCarName("lmu", ordinal);
+      return name
+        ? c.json({ ordinal, name })
+        : c.json({ error: "Car not found" }, 404);
+    }
     if (gameIdResult.data === "iracing") {
       const name =
         getAllIRacingCars().find((car) => car.ordinal === ordinal)?.name ??

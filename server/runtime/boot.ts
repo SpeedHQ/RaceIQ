@@ -4,6 +4,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import { serverReleaseFeatures } from "./config/release-features";
 import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
+import { injectDiscoveredLMUIdentity } from "../../shared/games/lmu";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
@@ -77,6 +78,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     listDiscoveredTracks("iracing"),
   ]);
   injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
+  const [lmuCars, lmuTracks] = await Promise.all([
+    listDiscoveredCars("lmu"),
+    listDiscoveredTracks("lmu"),
+  ]);
+  injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
 
   const firstRun = isFirstRun();
   const settings = loadSettings();
