@@ -1,17 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { createFindingId } from "../../shared/racing/findings/identity";
-import {
-  FINDING_SCHEMA_VERSION,
-  type FindingRecord,
-  type FindingScope,
-} from "../../shared/racing/findings/types";
+import { FINDING_SCHEMA_VERSION, type FindingRecord, type FindingScope } from "../../shared/racing/findings/types";
 import {
   activateFindingGeneration,
   createFindingGenerationReceipt,
   getCurrentFindingGeneration,
   getFindingGeneration,
   getLatestFindingGeneration,
+  listLapsMissingCurrentFindingGeneration,
   markCurrentFindingGenerationStale,
   replaceFindingGeneration,
   MAX_FINDING_GENERATION_STRUCTURED_BYTES,
@@ -32,21 +29,9 @@ function scope(): FindingScope {
 }
 
 async function createLap(): Promise<{ sessionId: number; lapId: number }> {
-  const sessionId = (
-    await db
-      .insert(sessions)
-      .values({ carOrdinal: 92_310_001, trackOrdinal: 92_310_002, gameId: "iracing" })
-      .returning({ id: sessions.id })
-      .get()
-  ).id;
+  const sessionId = (await db.insert(sessions).values({ carOrdinal: 92_310_001, trackOrdinal: 92_310_002, gameId: "iracing" }).returning({ id: sessions.id }).get()).id;
   createdSessionIds.push(sessionId);
-  const lapId = (
-    await db
-      .insert(laps)
-      .values({ sessionId, lapNumber: 1, lapTime: 90, isValid: true })
-      .returning({ id: laps.id })
-      .get()
-  ).id;
+  const lapId = (await db.insert(laps).values({ sessionId, lapNumber: 1, lapTime: 90, isValid: true }).returning({ id: laps.id }).get()).id;
   return { sessionId, lapId };
 }
 
@@ -56,12 +41,7 @@ afterEach(async () => {
   }
 });
 
-function finding(
-  findingScope: FindingScope,
-  sourceId: string,
-  evidenceId: string,
-  value = 1,
-): FindingRecord {
+function finding(findingScope: FindingScope, sourceId: string, evidenceId: string, value = 1): FindingRecord {
   const record: FindingRecord = {
     schemaVersion: FINDING_SCHEMA_VERSION,
     id: "pending",
@@ -71,16 +51,18 @@ function finding(
     status: "available",
     severity: "informational",
     confidence: "high",
-    measurements: [{
-      id: `measurement-${evidenceId}`,
-      type: "time-loss",
-      value,
-      unit: "s",
-      sampleCount: 1,
-      confidence: "high",
-      semanticIds: [evidenceId],
-      derivation: { id: "authoritative-adapter", version: "1" },
-    }],
+    measurements: [
+      {
+        id: `measurement-${evidenceId}`,
+        type: "time-loss",
+        value,
+        unit: "s",
+        sampleCount: 1,
+        confidence: "high",
+        semanticIds: [evidenceId],
+        derivation: { id: "authoritative-adapter", version: "1" },
+      },
+    ],
     evidenceRefs: [{ kind: "lap", id: evidenceId, lapId: evidenceId }],
     qualityRefs: [],
     limitations: [],
@@ -92,23 +74,21 @@ function finding(
   return record;
 }
 
-function generation(
-  findingScope: FindingScope,
-  generationId: string,
-  sourceId: string,
-  findings: readonly FindingRecord[],
-): FindingGenerationInput {
+function generation(findingScope: FindingScope, generationId: string, sourceId: string, findings: readonly FindingRecord[]): FindingGenerationInput {
   return {
     scope: findingScope,
     findings,
-    receipt: createFindingGenerationReceipt({
-      generationId,
-      sourceId,
-      rule: { id: RULE.id, version: RULE.version },
-      config: { policy: "test" },
-      schemaVersion: FINDING_SCHEMA_VERSION,
-      createdAt: new Date().toISOString(),
-    }, findings),
+    receipt: createFindingGenerationReceipt(
+      {
+        generationId,
+        sourceId,
+        rule: { id: RULE.id, version: RULE.version },
+        config: { policy: "test" },
+        schemaVersion: FINDING_SCHEMA_VERSION,
+        createdAt: new Date().toISOString(),
+      },
+      findings,
+    ),
   };
 }
 
@@ -116,9 +96,7 @@ describe("structured findings store", () => {
   test("stages and atomically activates a verified generation", async () => {
     const findingScope = scope();
     const sourceId = "source-success";
-    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-success"),
-    ]);
+    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-success")]);
 
     await stageFindingGeneration(input);
     expect(await getCurrentFindingGeneration(findingScope)).toBeNull();
@@ -140,45 +118,28 @@ describe("structured findings store", () => {
     const metrics = finding(findingScope, sourceId, "lap-metrics");
     metrics.rule = { id: "lap-metrics-adapter", version: "3", inputs: { source: "metrics" } };
     metrics.id = createFindingId(metrics);
-    const input = generation(
-      findingScope,
-      `generation-${crypto.randomUUID()}`,
-      sourceId,
-      [insight, metrics],
-    );
+    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [insight, metrics]);
 
     await replaceFindingGeneration(input);
 
     const current = await getCurrentFindingGeneration(findingScope);
 
     expect(current?.receipt.rule).toEqual({ id: RULE.id, version: RULE.version });
-    expect(
-      current?.findings
-        .map((record) => `${record.rule.id}@${record.rule.version}`)
-        .sort(),
-    ).toEqual(["lap-insight-adapter@2", "lap-metrics-adapter@3"]);
+    expect(current?.findings.map((record) => `${record.rule.id}@${record.rule.version}`).sort()).toEqual(["lap-insight-adapter@2", "lap-metrics-adapter@3"]);
   });
 
   test("keeps current generations separate for identical scopes in different games", async () => {
     const sessionId = `shared-session-${crypto.randomUUID()}`;
     const iracingScope: FindingScope = { kind: "session", gameId: "iracing", sessionId };
     const accScope: FindingScope = { kind: "session", gameId: "acc", sessionId };
-    const iracingInput = generation(iracingScope, `generation-${crypto.randomUUID()}`, "source-iracing", [
-      finding(iracingScope, "source-iracing", "lap-iracing"),
-    ]);
-    const accInput = generation(accScope, `generation-${crypto.randomUUID()}`, "source-acc", [
-      finding(accScope, "source-acc", "lap-acc"),
-    ]);
+    const iracingInput = generation(iracingScope, `generation-${crypto.randomUUID()}`, "source-iracing", [finding(iracingScope, "source-iracing", "lap-iracing")]);
+    const accInput = generation(accScope, `generation-${crypto.randomUUID()}`, "source-acc", [finding(accScope, "source-acc", "lap-acc")]);
 
     await replaceFindingGeneration(iracingInput);
     await replaceFindingGeneration(accInput);
 
-    expect((await getCurrentFindingGeneration(iracingScope))?.receipt.generationId).toBe(
-      iracingInput.receipt.generationId,
-    );
-    expect((await getCurrentFindingGeneration(accScope))?.receipt.generationId).toBe(
-      accInput.receipt.generationId,
-    );
+    expect((await getCurrentFindingGeneration(iracingScope))?.receipt.generationId).toBe(iracingInput.receipt.generationId);
+    expect((await getCurrentFindingGeneration(accScope))?.receipt.generationId).toBe(accInput.receipt.generationId);
   });
 
   test("rejects oversized structured finding before generation hashing", () => {
@@ -191,12 +152,7 @@ describe("structured findings store", () => {
     };
     oversized.id = createFindingId(oversized);
 
-    expect(() => generation(
-      findingScope,
-      `generation-${crypto.randomUUID()}`,
-      sourceId,
-      [oversized],
-    )).toThrow(`exceeds ${MAX_FINDING_STRUCTURED_BYTES} bytes`);
+    expect(() => generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [oversized])).toThrow(`exceeds ${MAX_FINDING_STRUCTURED_BYTES} bytes`);
   });
 
   test("rejects aggregate generation serialization beyond fixed budget", () => {
@@ -212,42 +168,27 @@ describe("structured findings store", () => {
       return record;
     });
 
-    expect(() => generation(
-      findingScope,
-      `generation-${crypto.randomUUID()}`,
-      sourceId,
-      findings,
-    )).toThrow(`exceeds ${MAX_FINDING_GENERATION_STRUCTURED_BYTES} bytes`);
+    expect(() => generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, findings)).toThrow(`exceeds ${MAX_FINDING_GENERATION_STRUCTURED_BYTES} bytes`);
   });
 
   test("failed verification preserves prior active generation", async () => {
     const findingScope = scope();
     const sourceId = "source-rollback";
-    const currentInput = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-current"),
-    ]);
+    const currentInput = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-current")]);
     await replaceFindingGeneration(currentInput);
 
-    const failedInput = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-invalid"),
-    ]);
+    const failedInput = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-invalid")]);
     failedInput.receipt.contentHash = "sha256:not-the-content";
 
     await expect(replaceFindingGeneration(failedInput)).rejects.toThrow("content hash");
-    expect((await getCurrentFindingGeneration(findingScope))?.receipt.generationId).toBe(
-      currentInput.receipt.generationId,
-    );
-    expect((await getFindingGeneration(failedInput.receipt.generationId))?.receipt.status).toBe(
-      "verification-failed",
-    );
+    expect((await getCurrentFindingGeneration(findingScope))?.receipt.generationId).toBe(currentInput.receipt.generationId);
+    expect((await getFindingGeneration(failedInput.receipt.generationId))?.receipt.status).toBe("verification-failed");
   });
 
   test("current reads reject stale status while latest reads retain stale generation", async () => {
     const findingScope = scope();
     const sourceId = "source-stale";
-    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-stale"),
-    ]);
+    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-stale")]);
     await replaceFindingGeneration(input);
 
     const receipt = await markCurrentFindingGenerationStale(findingScope, "stale-rebuild-available");
@@ -259,17 +200,13 @@ describe("structured findings store", () => {
   test("marks active findings stale when authoritative source is missing", async () => {
     const findingScope = scope();
     const sourceId = "source-missing";
-    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-missing"),
-    ]);
+    const input = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-missing")]);
     await replaceFindingGeneration(input);
 
     const receipt = await markCurrentFindingGenerationStale(findingScope, "stale-source-missing");
     expect(receipt?.status).toBe("stale-source-missing");
     expect(await getCurrentFindingGeneration(findingScope)).toBeNull();
-    expect((await getLatestFindingGeneration(findingScope))?.receipt.generationId).toBe(
-      input.receipt.generationId,
-    );
+    expect((await getLatestFindingGeneration(findingScope))?.receipt.generationId).toBe(input.receipt.generationId);
   });
 
   test("rejects same finding ID with materially different structured content", async () => {
@@ -281,41 +218,26 @@ describe("structured findings store", () => {
 
     const conflict = structuredClone(original);
     conflict.measurements[0]!.value = 2;
-    const conflictingInput = generation(
-      findingScope,
-      `generation-${crypto.randomUUID()}`,
-      sourceId,
-      [conflict],
-    );
+    const conflictingInput = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [conflict]);
 
-    await expect(replaceFindingGeneration(conflictingInput)).rejects.toThrow(
-      "Conflicting finding records share an ID",
-    );
+    await expect(replaceFindingGeneration(conflictingInput)).rejects.toThrow("Conflicting finding records share an ID");
     expect((await getCurrentFindingGeneration(findingScope))?.findings[0]?.measurements[0]?.value).toBe(1);
   });
 
   test("activation replaces whole scope without mixed active generations", async () => {
     const findingScope = scope();
     const sourceId = "source-replace";
-    const first = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-old"),
-    ]);
+    const first = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-old")]);
     await replaceFindingGeneration(first);
 
-    const second = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [
-      finding(findingScope, sourceId, "lap-new-a"),
-      finding(findingScope, sourceId, "lap-new-b"),
-    ]);
+    const second = generation(findingScope, `generation-${crypto.randomUUID()}`, sourceId, [finding(findingScope, sourceId, "lap-new-a"), finding(findingScope, sourceId, "lap-new-b")]);
     await stageFindingGeneration(second);
     expect((await getCurrentFindingGeneration(findingScope))?.receipt.generationId).toBe(first.receipt.generationId);
     await activateFindingGeneration(second.receipt.generationId);
 
     const current = await getCurrentFindingGeneration(findingScope);
     expect(current?.receipt.generationId).toBe(second.receipt.generationId);
-    expect(current?.findings.map((record) => record.evidenceRefs[0]?.id).sort()).toEqual([
-      "lap-new-a",
-      "lap-new-b",
-    ]);
+    expect(current?.findings.map((record) => record.evidenceRefs[0]?.id).sort()).toEqual(["lap-new-a", "lap-new-b"]);
     expect(await getFindingGeneration(first.receipt.generationId)).toBeNull();
   });
 
@@ -324,16 +246,12 @@ describe("structured findings store", () => {
     const secondScope = scope();
     const sourceId = "source-scope-owner";
     const generationId = `generation-${crypto.randomUUID()}`;
-    const first = generation(firstScope, generationId, sourceId, [
-      finding(firstScope, sourceId, "lap-first-owner"),
-    ]);
+    const first = generation(firstScope, generationId, sourceId, [finding(firstScope, sourceId, "lap-first-owner")]);
     await replaceFindingGeneration(first);
     const firstActive = await getCurrentFindingGeneration(firstScope);
     expect(firstActive?.receipt.generationId).toBe(generationId);
 
-    const reused = generation(secondScope, generationId, sourceId, [
-      finding(secondScope, sourceId, "lap-second-owner"),
-    ]);
+    const reused = generation(secondScope, generationId, sourceId, [finding(secondScope, sourceId, "lap-second-owner")]);
     await expect(replaceFindingGeneration(reused)).rejects.toThrow("different semantic scope");
 
     expect(await getCurrentFindingGeneration(firstScope)).toEqual(firstActive);
@@ -345,10 +263,7 @@ describe("structured findings store", () => {
     const findingScope = scope();
     const sourceId = "source-replay";
     const generationId = `generation-${crypto.randomUUID()}`;
-    const records = [
-      finding(findingScope, sourceId, "lap-replay-a"),
-      finding(findingScope, sourceId, "lap-replay-b"),
-    ];
+    const records = [finding(findingScope, sourceId, "lap-replay-a"), finding(findingScope, sourceId, "lap-replay-b")];
     const first = generation(findingScope, generationId, sourceId, records);
     await replaceFindingGeneration(first);
     const canonicalFindings = (await getCurrentFindingGeneration(findingScope))?.findings;
@@ -373,28 +288,17 @@ describe("structured findings store", () => {
       lapId: String(lapId),
     };
     const sessionScope = scope();
-    const lapInput = generation(lapScope, `generation-${crypto.randomUUID()}`, "source-lap-owned", [
-      finding(lapScope, "source-lap-owned", "lap-owned"),
-    ]);
-    const sessionInput = generation(sessionScope, `generation-${crypto.randomUUID()}`, "source-session-owned", [
-      finding(sessionScope, "source-session-owned", "session-owned"),
-    ]);
+    const lapInput = generation(lapScope, `generation-${crypto.randomUUID()}`, "source-lap-owned", [finding(lapScope, "source-lap-owned", "lap-owned")]);
+    const sessionInput = generation(sessionScope, `generation-${crypto.randomUUID()}`, "source-session-owned", [finding(sessionScope, "source-session-owned", "session-owned")]);
 
     await replaceFindingGeneration(lapInput);
     await replaceFindingGeneration(sessionInput);
 
     expect(await deleteLap(lapId)).toBe(true);
     expect(await getFindingGeneration(lapInput.receipt.generationId)).toBeNull();
-    expect(
-      await db
-        .select({ generationId: findingRecords.generationId })
-        .from(findingRecords)
-        .where(eq(findingRecords.generationId, lapInput.receipt.generationId)),
-    ).toEqual([]);
+    expect(await db.select({ generationId: findingRecords.generationId }).from(findingRecords).where(eq(findingRecords.generationId, lapInput.receipt.generationId))).toEqual([]);
     expect(await getCurrentFindingGeneration(lapScope)).toBeNull();
-    expect((await getCurrentFindingGeneration(sessionScope))?.receipt.generationId).toBe(
-      sessionInput.receipt.generationId,
-    );
+    expect((await getCurrentFindingGeneration(sessionScope))?.receipt.generationId).toBe(sessionInput.receipt.generationId);
   });
 
   test("rejects non-numeric lap scope IDs before persistence", async () => {
@@ -404,10 +308,26 @@ describe("structured findings store", () => {
       sessionId: "invalid-lap-scope",
       lapId: "lap-not-numeric",
     };
-    const input = generation(invalidScope, `generation-${crypto.randomUUID()}`, "source-invalid-lap", [
-      finding(invalidScope, "source-invalid-lap", "lap-invalid"),
-    ]);
+    const input = generation(invalidScope, `generation-${crypto.randomUUID()}`, "source-invalid-lap", [finding(invalidScope, "source-invalid-lap", "lap-invalid")]);
 
     await expect(stageFindingGeneration(input)).rejects.toThrow("positive numeric lap ID");
+  });
+
+  test("keeps corrupt current generations eligible for backfill", async () => {
+    const { sessionId, lapId } = await createLap();
+    const lapScope: FindingScope = {
+      kind: "lap",
+      gameId: "iracing",
+      sessionId: String(sessionId),
+      lapId: String(lapId),
+    };
+    const input = generation(lapScope, `generation-${crypto.randomUUID()}`, "source-corrupt", [finding(lapScope, "source-corrupt", String(lapId))]);
+    await replaceFindingGeneration(input);
+    expect(await listLapsMissingCurrentFindingGeneration("iracing", sessionId)).not.toContain(lapId);
+
+    await db.update(findingRecords).set({ structured: "{}" }).where(eq(findingRecords.generationId, input.receipt.generationId)).run();
+
+    expect(await getCurrentFindingGeneration(lapScope)).toBeNull();
+    expect(await listLapsMissingCurrentFindingGeneration("iracing", sessionId)).toContain(lapId);
   });
 });

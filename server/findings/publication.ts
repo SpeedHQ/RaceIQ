@@ -18,20 +18,22 @@ export function subscribeFindingGeneration(subscriber: FindingGenerationSubscrib
   subscribers.add(subscriber);
   return () => subscribers.delete(subscriber);
 }
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+  return Object.freeze(value);
+}
 
 /** Publish only an already-activated generation. */
-export function publishFindingGeneration(
-  scope: FindingScope,
-  receipt: FindingGenerationReceipt,
-  findingIds: readonly string[],
-): void {
+export function publishFindingGeneration(scope: FindingScope, receipt: FindingGenerationReceipt, findingIds: readonly string[]): void {
   if (receipt.status !== "current") {
     throw new Error("Cannot publish a finding generation before activation");
   }
+  const immutableReceipt = deepFreeze(structuredClone(receipt));
   const event: FindingGenerationPublishedEvent = Object.freeze({
     type: FINDING_GENERATION_PUBLISHED,
     scope: Object.freeze({ ...scope }),
-    receipt: Object.freeze({ ...receipt }),
+    receipt: immutableReceipt,
     findingIds: Object.freeze([...new Set(findingIds)].sort((left, right) => left.localeCompare(right))),
   });
   for (const subscriber of [...subscribers]) {

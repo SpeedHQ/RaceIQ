@@ -12,6 +12,7 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Keep deterministic coaching findings quality-qualified and rebuildable across long sessions and warning-grade telemetry
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Show iRacing live fuel bars using tank capacity reported by simulator session data

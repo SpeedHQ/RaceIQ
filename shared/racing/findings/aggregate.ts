@@ -1,15 +1,6 @@
 import { canonicalJson, createFindingId } from "./identity";
-import type {
-  CanonicalJson,
-  FindingConfidence,
-  FindingEvidenceRef,
-  FindingLimitation,
-  FindingMeasurement,
-  FindingMeasurementValue,
-  FindingRecord,
-  FindingScope,
-  FindingSeverity,
-} from "./types";
+import { EVIDENCE_TRUNCATED_LIMITATION_CODE, MAX_FINDING_EVIDENCE_REFS } from "./types";
+import type { CanonicalJson, FindingConfidence, FindingEvidenceRef, FindingLimitation, FindingMeasurement, FindingMeasurementValue, FindingRecord, FindingScope, FindingSeverity } from "./types";
 
 export interface FindingAggregationOptions {
   targetScope: FindingScope;
@@ -54,10 +45,7 @@ export interface UnaggregatedFindingResult {
 
 export type FindingAggregationResult = AggregatedFindingResult | UnaggregatedFindingResult;
 
-const DEFAULT_CONTEXT_INPUT_KEYS = [
-  "carId", "car", "trackId", "track", "trackLayoutId", "layoutId", "contextId", "context",
-  "gameId", "sessionType", "weather", "conditions",
-];
+const DEFAULT_CONTEXT_INPUT_KEYS = ["carId", "car", "trackId", "track", "trackLayoutId", "layoutId", "contextId", "context", "gameId", "sessionType", "weather", "conditions"];
 const CONFIDENCE_TIE_ORDER: FindingConfidence[] = ["unknown", "low", "medium", "high"];
 const SEVERITY_TIE_ORDER: FindingSeverity[] = ["critical", "high", "medium", "low", "informational"];
 
@@ -122,22 +110,22 @@ function aggregateMeasurements(records: readonly FindingRecord[]): FindingMeasur
     const value = aggregateValue(measurements.map((measurement) => measurement.value));
     if (value === undefined) return undefined;
     const semanticIds = [...new Set(measurements.flatMap((measurement) => measurement.semanticIds))].sort();
-    const uncertainties = measurements.map((measurement) => measurement.uncertainty)
-      .filter((entry): entry is number | { min: number; max: number } => entry !== undefined && entry !== null);
+    const uncertainties = measurements.map((measurement) => measurement.uncertainty).filter((entry): entry is number | { min: number; max: number } => entry !== undefined && entry !== null);
     const uncertainty = aggregateValue(uncertainties);
-    const unavailableReasons = measurements.map((measurement) => measurement.unavailableReason)
-      .filter((reason): reason is string => reason !== undefined);
+    const unavailableReasons = measurements.map((measurement) => measurement.unavailableReason).filter((reason): reason is string => reason !== undefined);
     aggregated.push({
       id: `aggregate:${template.type}:${template.unit}:${template.derivation.id}:${template.derivation.version}`,
       type: template.type,
       value,
       unit: template.unit,
       sampleCount: measurements.reduce((sum, measurement) => sum + measurement.sampleCount, 0),
-      confidence: majority(measurements.map((measurement) => measurement.confidence), CONFIDENCE_TIE_ORDER),
+      confidence: majority(
+        measurements.map((measurement) => measurement.confidence),
+        CONFIDENCE_TIE_ORDER,
+      ),
       semanticIds,
       derivation: template.derivation,
-      ...(typeof uncertainty === "number" || (typeof uncertainty === "object" && uncertainty !== null)
-        ? { uncertainty } : {}),
+      ...(typeof uncertainty === "number" || (typeof uncertainty === "object" && uncertainty !== null) ? { uncertainty } : {}),
       ...(value === null ? { unavailableReason: majority(unavailableReasons.length ? unavailableReasons : ["unavailable"]) } : {}),
     });
   }
@@ -153,14 +141,18 @@ function uniqueEvidence(references: readonly FindingEvidenceRef[]): FindingEvide
   }
   return [...byCoordinate.values()].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id));
 }
+function boundAggregatedEvidence(references: readonly FindingEvidenceRef[], cohortReference: FindingEvidenceRef): { references: FindingEvidenceRef[]; omitted: number } {
+  const ordered = uniqueEvidence(references);
+  if (ordered.length <= MAX_FINDING_EVIDENCE_REFS) return { references: ordered, omitted: 0 };
+  return {
+    references: [cohortReference, ...ordered.slice(0, MAX_FINDING_EVIDENCE_REFS - 1)].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id)),
+    omitted: ordered.length - (MAX_FINDING_EVIDENCE_REFS - 1),
+  };
+}
 
 function compatibleScope(records: readonly FindingRecord[], target: FindingScope): boolean {
   if (target.kind === "lap" || target.kind === "comparison") return false;
-  if (records.some((record) =>
-    record.scope.kind !== "lap"
-    || record.scope.gameId !== target.gameId
-    || record.scope.sessionId !== target.sessionId
-  )) return false;
+  if (records.some((record) => record.scope.kind !== "lap" || record.scope.gameId !== target.gameId || record.scope.sessionId !== target.sessionId)) return false;
   const stableKeys = ["participantId", "stintId", "paceSegmentId", "cornerId", "segmentId"] as const;
   for (const key of stableKeys) {
     const values = new Set(records.map((record) => record.scope[key] ?? null));
@@ -168,8 +160,11 @@ function compatibleScope(records: readonly FindingRecord[], target: FindingScope
     if (target[key] !== undefined && records[0].scope[key] !== target[key]) return false;
   }
   const requirement: Partial<Record<FindingScope["kind"], keyof FindingScope>> = {
-    participant: "participantId", stint: "stintId", "pace-segment": "paceSegmentId",
-    corner: "cornerId", segment: "segmentId",
+    participant: "participantId",
+    stint: "stintId",
+    "pace-segment": "paceSegmentId",
+    corner: "cornerId",
+    segment: "segmentId",
   };
   const required = requirement[target.kind];
   return required === undefined || typeof target[required] === "string";
@@ -199,19 +194,18 @@ function selectExamples(records: readonly FindingRecord[], numericPreference: "l
   const ranked = [...records].sort((left, right) => {
     const leftScore = representativeScore(left);
     const rightScore = representativeScore(right);
-    const comparison = typeof leftScore === "number" && typeof rightScore === "number"
-      ? leftScore - rightScore : String(leftScore).localeCompare(String(rightScore));
+    const comparison = typeof leftScore === "number" && typeof rightScore === "number" ? leftScore - rightScore : String(leftScore).localeCompare(String(rightScore));
     return comparison || left.id.localeCompare(right.id);
   });
   if (numericPreference === "higher") ranked.reverse();
   const numericScores = ranked.map(representativeScore).filter((score): score is number => typeof score === "number");
-  const typical = numericScores.length === ranked.length
-    ? ranked.reduce((best, candidate) => {
-        const centre = median(numericScores);
-        return Math.abs(Number(representativeScore(candidate)) - centre) < Math.abs(Number(representativeScore(best)) - centre)
-          ? candidate : best;
-      }, ranked[0])
-    : ranked[Math.floor((ranked.length - 1) / 2)];
+  const typical =
+    numericScores.length === ranked.length
+      ? ranked.reduce((best, candidate) => {
+          const centre = median(numericScores);
+          return Math.abs(Number(representativeScore(candidate)) - centre) < Math.abs(Number(representativeScore(best)) - centre) ? candidate : best;
+        }, ranked[0])
+      : ranked[Math.floor((ranked.length - 1) / 2)];
   const best = ranked[0];
   const worst = ranked[ranked.length - 1];
   return {
@@ -263,14 +257,63 @@ export function aggregateFindings(findings: readonly FindingRecord[], options: F
   }
   const measurements = aggregateMeasurements(records);
   if (!measurements) return { status: "not-aggregated", reason: "incompatible-measurements", detail: "Measurement groups or value types are incompatible" };
-  const aggregateConfidence = majority(records.map((record) => record.confidence), CONFIDENCE_TIE_ORDER);
+  const aggregateConfidence = majority(
+    records.map((record) => record.confidence),
+    CONFIDENCE_TIE_ORDER,
+  );
   measurements.push(
-    { id: "aggregation:occurrence-count", type: "occurrence-count", value: contributingLapIds.length, unit: "count", sampleCount: evaluatedLapIds.length, confidence: aggregateConfidence, semanticIds: [], derivation: { id: "finding-frequency", version: "1" } },
-    { id: "aggregation:occurrence-frequency", type: "occurrence-frequency", value: frequency, unit: "ratio", sampleCount: evaluatedLapIds.length, confidence: aggregateConfidence, semanticIds: [], derivation: { id: "finding-frequency", version: "1" } },
+    {
+      id: "aggregation:occurrence-count",
+      type: "occurrence-count",
+      value: contributingLapIds.length,
+      unit: "count",
+      sampleCount: evaluatedLapIds.length,
+      confidence: aggregateConfidence,
+      semanticIds: [],
+      derivation: { id: "finding-frequency", version: "1" },
+    },
+    {
+      id: "aggregation:occurrence-frequency",
+      type: "occurrence-frequency",
+      value: frequency,
+      unit: "ratio",
+      sampleCount: evaluatedLapIds.length,
+      confidence: aggregateConfidence,
+      semanticIds: [],
+      derivation: { id: "finding-frequency", version: "1" },
+    },
   );
   measurements.sort((left, right) => left.id.localeCompare(right.id));
   const examples = selectExamples(records, options.numericPreference ?? "lower");
-  const evidenceRefs = uniqueEvidence(records.flatMap((record) => record.evidenceRefs));
+  const fullEvidenceRefs = uniqueEvidence(records.flatMap((record) => record.evidenceRefs));
+  const evidenceCohortRef: FindingEvidenceRef = {
+    kind: "measurement",
+    id: `aggregate-evidence-cohort:${createFindingId({
+      type: "aggregate-evidence-cohort",
+      scope: options.targetScope,
+      evidenceRefs: fullEvidenceRefs,
+      analysisGenerationId: first.analysisGenerationId,
+      ruleVersion: first.rule.version,
+    })}`,
+    measurementId: "aggregate-evidence-cohort",
+    sessionId: options.targetScope.sessionId,
+  };
+  const evidence = boundAggregatedEvidence(fullEvidenceRefs, evidenceCohortRef);
+  const fullQualityRefs = uniqueEvidence(records.flatMap((record) => record.qualityRefs));
+  const qualityCohortRef: FindingEvidenceRef = {
+    kind: "measurement",
+    id: `aggregate-quality-cohort:${createFindingId({
+      type: "aggregate-quality-cohort",
+      scope: options.targetScope,
+      evidenceRefs: fullQualityRefs,
+      analysisGenerationId: first.analysisGenerationId,
+      ruleVersion: first.rule.version,
+    })}`,
+    measurementId: "aggregate-quality-cohort",
+    sessionId: options.targetScope.sessionId,
+  };
+  const quality = boundAggregatedEvidence(fullQualityRefs, qualityCohortRef);
+  const omittedEvidence = evidence.omitted + quality.omitted;
   const finding: FindingRecord = {
     schemaVersion: first.schemaVersion,
     id: "pending",
@@ -278,12 +321,25 @@ export function aggregateFindings(findings: readonly FindingRecord[], options: F
     category: first.category,
     scope: options.targetScope,
     status: first.status,
-    severity: majority(records.map((record) => record.severity), SEVERITY_TIE_ORDER),
+    severity: majority(
+      records.map((record) => record.severity),
+      SEVERITY_TIE_ORDER,
+    ),
     confidence: aggregateConfidence,
     measurements,
-    evidenceRefs,
-    qualityRefs: uniqueEvidence(records.flatMap((record) => record.qualityRefs)),
-    limitations: uniqueLimitations(records),
+    evidenceRefs: evidence.references,
+    qualityRefs: quality.references,
+    limitations: [
+      ...uniqueLimitations(records),
+      ...(omittedEvidence === 0
+        ? []
+        : [
+            {
+              code: EVIDENCE_TRUNCATED_LIMITATION_CODE,
+              detail: `Retained bounded representative evidence; ${omittedEvidence} typed references omitted.`,
+            },
+          ]),
+    ],
     rule: {
       id: first.rule.id,
       version: first.rule.version,

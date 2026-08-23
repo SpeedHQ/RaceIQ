@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { aggregateFindings } from "../../shared/racing/findings/aggregate";
 import { createFindingId } from "../../shared/racing/findings/identity";
-import { FINDING_SCHEMA_VERSION, type FindingRecord } from "../../shared/racing/findings/types";
+import { FINDING_SCHEMA_VERSION, MAX_FINDING_EVIDENCE_REFS, type FindingRecord } from "../../shared/racing/findings/types";
+import { validateFinding } from "../../shared/racing/findings/validate";
 
 function lapFinding(lapId: string, loss: number, recurring: boolean, overrides: Partial<FindingRecord> = {}): FindingRecord {
   const value: FindingRecord = {
@@ -17,7 +18,10 @@ function lapFinding(lapId: string, loss: number, recurring: boolean, overrides: 
       { id: "loss", type: "time-loss", value: loss, unit: "s", sampleCount: 10, confidence: "medium", semanticIds: ["speed"], derivation: { id: "comparison", version: "1" } },
       { id: "recurring", type: "recurring", value: recurring, unit: "boolean", sampleCount: 1, confidence: "medium", semanticIds: [], derivation: { id: "comparison", version: "1" } },
     ],
-    evidenceRefs: [{ kind: "lap", id: lapId, lapId }, { kind: "telemetry-range", id: `range-${lapId}`, lapId, startFrameIndex: 10, endFrameIndex: 20, channel: "speed" }],
+    evidenceRefs: [
+      { kind: "lap", id: lapId, lapId },
+      { kind: "telemetry-range", id: `range-${lapId}`, lapId, startFrameIndex: 10, endFrameIndex: 20, channel: "speed" },
+    ],
     qualityRefs: [],
     limitations: [],
     rule: { id: "corner-loss", version: "2", inputs: { carId: "car-1", trackId: "track-1", context: "dry" } },
@@ -44,7 +48,12 @@ describe("finding aggregation", () => {
     expect(result.examples.bestFindingId).toBe(inputs[0].id);
     expect(result.examples.worstFindingId).toBe(inputs[1].id);
     expect(result.examples.typicalFindingId).toBe(inputs[2].id);
-    expect(result.finding.evidenceRefs.filter((reference) => reference.kind === "lap").map((reference) => reference.id).sort()).toEqual(["lap-1", "lap-2", "lap-3"]);
+    expect(
+      result.finding.evidenceRefs
+        .filter((reference) => reference.kind === "lap")
+        .map((reference) => reference.id)
+        .sort(),
+    ).toEqual(["lap-1", "lap-2", "lap-3"]);
   });
 
   test("refuses cross-game, session, participant, and supplied context", () => {
@@ -63,7 +72,9 @@ describe("finding aggregation", () => {
     const base = lapFinding("lap-1", 1, true);
     expect(aggregateFindings([base, lapFinding("lap-2", 2, true, { analysisGenerationId: "generation-2" })], { targetScope: target })).toMatchObject({ reason: "incompatible-generation" });
     expect(aggregateFindings([base, lapFinding("lap-2", 2, true, { rule: { ...base.rule, version: "3" } })], { targetScope: target })).toMatchObject({ reason: "incompatible-rule" });
-    const referenced = lapFinding("lap-2", 2, true, { comparisonReference: { id: "ref-1", kind: "clean-lap", selectionReason: "Clean", evidenceRefs: [{ kind: "lap", id: "lap-ref", lapId: "lap-ref" }] } });
+    const referenced = lapFinding("lap-2", 2, true, {
+      comparisonReference: { id: "ref-1", kind: "clean-lap", selectionReason: "Clean", evidenceRefs: [{ kind: "lap", id: "lap-ref", lapId: "lap-ref" }] },
+    });
     expect(aggregateFindings([base, referenced], { targetScope: target })).toMatchObject({ reason: "incompatible-reference" });
   });
 
@@ -79,10 +90,7 @@ describe("finding aggregation", () => {
     });
 
     const duplicate = lapFinding("lap-2", 2, false, {
-      measurements: [
-        ...complete.measurements,
-        { ...complete.measurements[0]!, id: "duplicate-loss" },
-      ],
+      measurements: [...complete.measurements, { ...complete.measurements[0]!, id: "duplicate-loss" }],
     });
     expect(aggregateFindings([base, duplicate], { targetScope: target })).toMatchObject({
       status: "not-aggregated",
@@ -93,5 +101,25 @@ describe("finding aggregation", () => {
   test("does not merge one-off finding below persistence threshold", () => {
     const result = aggregateFindings([lapFinding("lap-1", 1, true)], { targetScope: target, minimumOccurrences: 2 });
     expect(result).toMatchObject({ status: "not-aggregated", reason: "below-persistence-threshold" });
+  });
+
+  test("bounds representative evidence for long-session aggregation", () => {
+    const inputs = Array.from({ length: MAX_FINDING_EVIDENCE_REFS + 1 }, (_, index) => lapFinding(`lap-${index + 1}`, index + 1, true));
+    const result = aggregateFindings(inputs, {
+      targetScope: target,
+      evaluatedLapIds: inputs.map((input) => input.scope.lapId!),
+    });
+
+    expect(result.status).toBe("aggregated");
+    if (result.status !== "aggregated") return;
+    expect(result.finding.evidenceRefs).toHaveLength(MAX_FINDING_EVIDENCE_REFS);
+    expect(result.finding.evidenceRefs).toContainEqual(
+      expect.objectContaining({
+        kind: "measurement",
+        measurementId: "aggregate-evidence-cohort",
+      }),
+    );
+    expect(result.finding.limitations.map((limitation) => limitation.code)).toContain("evidence-truncated");
+    expect(validateFinding(result.finding)).toEqual({ valid: true, errors: [] });
   });
 });
