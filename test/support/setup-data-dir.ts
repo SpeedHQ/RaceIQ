@@ -9,21 +9,12 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
-function prepareIsolatedTrackRegistryDir(testDataDir: string) {
-  const tracksSource = resolve(import.meta.dir, "../..", "shared", "data", "tracks");
-  const trackRegistryDir = resolve(testDataDir, "track-registry");
-  rmSync(trackRegistryDir, { recursive: true, force: true });
-  cpSync(resolve(tracksSource, "venues"), resolve(trackRegistryDir, "venues"), { recursive: true });
-  cpSync(resolve(tracksSource, "registry.sqlite"), resolve(trackRegistryDir, "registry.sqlite"));
-  cpSync(resolve(tracksSource, "registry-report.json"), resolve(trackRegistryDir, "registry-report.json"));
-  process.env.RACEIQ_TRACK_REGISTRY_DIR = trackRegistryDir;
-}
-
-const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
+async function setupDataDir() {
+  const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
 for (const line of releaseEnvironment.split(/\r?\n/)) {
   const separator = line.indexOf("=");
   if (separator < 1) continue;
@@ -34,7 +25,6 @@ for (const line of releaseEnvironment.split(/\r?\n/)) {
 
 const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
 process.env.RACEIQ_TEST_MODE = "1";
-prepareIsolatedTrackRegistryDir(TEST_DATA_DIR);
 
 if (!process.env.DATA_DIR) {
   process.env.DATA_DIR = TEST_DATA_DIR;
@@ -46,7 +36,15 @@ if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
 
 mkdirSync(process.env.DATA_DIR, { recursive: true });
 for (const suffix of ["", "-wal", "-shm"]) {
-  rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), { force: true });
+  try {
+    rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), {
+      force: true,
+      maxRetries: 20,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+  }
 }
 
 /**
@@ -88,3 +86,6 @@ afterAll(async () => {
     // db never loaded — nothing to close
   }
 });
+}
+
+if (process.env.RACEIQ_UNIT_TESTS !== "1") await setupDataDir();

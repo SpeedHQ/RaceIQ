@@ -39,7 +39,7 @@ function SourceEditor({ title, source, onChange, readOnly = false }: { title: st
       <FieldGroup className="gap-2">
         {(["name", "url", "capturedAt", "license", "attribution"] as const).map((key) => (
           <Field key={key} className="gap-0.5">
-            <FieldLabel className="text-[11px] font-medium capitalize text-app-text-muted" htmlFor={`${title}-${key}`}>
+          <FieldLabel className="text-xs font-medium capitalize text-app-text-muted" htmlFor={`${title}-${key}`}>
               {key === "capturedAt" ? "Captured date" : key}
             </FieldLabel>
             <Input
@@ -130,7 +130,7 @@ export function ImageryBaseEditor({
         selectedCandidateId={selectedCandidate?.id ?? null}
         onSelect={onSelectCandidate}
       />
-      {estimating && <p className="mb-2 text-[11px] text-app-text-muted">Calculating width, pixels, tiles, work, pack size, disk, duration, and concurrency…</p>}
+      {estimating && <p className="mb-2 text-xs text-app-text-muted">Calculating width, pixels, tiles, work, pack size, disk, duration, and concurrency…</p>}
       {budget && <ImageryImportEstimate budget={budget} />}
       <Input
         className="mb-2 block h-auto w-full border-0 bg-transparent px-0 py-0 text-xs text-app-text-muted shadow-none"
@@ -192,7 +192,7 @@ export function ImageryLayersEditor({ venue, form, saving, onSaveStack, onSaveLa
             <option value="layout">Layout layer</option>
             <option value="correction">Correction layer</option>
           </select>
-          <label className="text-[11px] text-app-text-muted">
+          <label className="text-xs text-app-text-muted">
             Opacity {Math.round(form.opacity * 100)}%
             <input className="block w-full accent-app-accent" type="range" min="0.05" max="1" step="0.01" value={form.opacity} onChange={(event) => form.setOpacity(Number(event.target.value))} />
           </label>
@@ -225,11 +225,11 @@ export function ImageryPackStatus({ configuration, venueId, calibration, status,
   return (
     <>
       <div className="mb-3 rounded border border-app-border bg-app-surface-alt p-2">
-        <div className="text-[10px] uppercase tracking-wide text-app-text-muted">Assigned venue</div>
+        <div className="text-xs uppercase tracking-wide text-app-text-muted">Assigned venue</div>
         {configuration ? (
           <>
             <div className="mt-1 text-xs text-app-text">{[configuration.venue.name, ...configuration.subVenues.map((entry) => entry.name)].join(" / ")}</div>
-            <div className="font-mono text-[10px] text-app-text-muted">{venueId}</div>
+            <div className="font-mono text-xs text-app-text-muted">{venueId}</div>
           </>
         ) : (
           <div className="mt-1 text-xs text-severity-caution">Assign track from catalog list before calibrating imagery.</div>

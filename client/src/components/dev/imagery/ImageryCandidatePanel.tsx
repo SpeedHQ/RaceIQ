@@ -89,18 +89,18 @@ export function ImageryCandidatePanel({ bounds, gameId, trackOrdinal, selectedCa
       <div className="mb-1 flex items-center justify-between gap-2">
         <div>
           <div className="text-xs font-semibold text-app-text-secondary">Open aerial imagery</div>
-          <div className="text-[10px] text-app-text-muted">Ranked reusable imagery. HQ package sources preferred; context fallback remains manually selectable.</div>
+          <div className="text-xs text-app-text-muted">Ranked reusable imagery. HQ package sources preferred; context fallback remains manually selectable.</div>
         </div>
         <Button type="button" onClick={() => void candidates.search()} disabled={!bounds || !gameId || trackOrdinal == null || candidates.loading}>
           {candidates.loading ? "Searching…" : "Find imagery"}
         </Button>
       </div>
       {!gameId || trackOrdinal == null ? (
-        <p className="text-[11px] text-severity-caution">Select game and track before searching.</p>
+        <p className="text-xs text-severity-caution">Select game and track before searching.</p>
       ) : !bounds ? (
-        <p className="text-[11px] text-severity-caution">Select a lap containing GPS coordinates.</p>
+        <p className="text-xs text-severity-caution">Select a lap containing GPS coordinates.</p>
       ) : null}
-      {candidates.result && candidates.result.sources.length === 0 && <p className="text-[11px] text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
+      {candidates.result && candidates.result.sources.length === 0 && <p className="text-xs text-severity-caution">No reusable imagery covers this GPS footprint.</p>}
       {candidates.result && candidates.result.sources.length > 0 && (
         <div className="mt-2">
           <ImageryCandidateList
@@ -114,11 +114,11 @@ export function ImageryCandidatePanel({ bounds, gameId, trackOrdinal, selectedCa
         </div>
       )}
       {candidates.result?.notices.map((notice) => (
-        <p key={notice} className="mt-1 text-[10px] text-app-text-muted">
+        <p key={notice} className="mt-1 text-xs text-app-text-muted">
           {notice}
         </p>
       ))}
-      {candidates.error && <p className="mt-1 text-[11px] text-severity-critical">{candidates.error}</p>}
+      {candidates.error && <p className="mt-1 text-xs text-severity-critical">{candidates.error}</p>}
     </div>
   );
 }

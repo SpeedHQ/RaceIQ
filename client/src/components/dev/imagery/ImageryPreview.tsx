@@ -150,7 +150,7 @@ export function ImageryPreview({ calibration, baseUrl, displayedLayers, layerPre
           )}
         </svg>
       )}
-      <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded bg-app-bg/80 px-2 py-1 text-[10px] text-app-text-muted">
+      <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded bg-app-bg/80 px-2 py-1 text-xs text-app-text-muted">
         Handles: center moves · corners scale · round handle rotates
       </div>
     </main>

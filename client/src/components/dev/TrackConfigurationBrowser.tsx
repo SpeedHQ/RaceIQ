@@ -188,7 +188,7 @@ function AssignmentModal({
 
         <fieldset className="rounded border border-app-border p-3">
           <legend className="px-1 text-xs font-medium text-app-text-secondary">Sub-venues (optional)</legend>
-          {subVenues.length === 0 && <p className="mb-2 text-[11px] text-app-text-muted">None. Add levels for historical versions, years, complexes, or sub-venues.</p>}
+          {subVenues.length === 0 && <p className="mb-2 text-xs text-app-text-muted">None. Add levels for historical versions, years, complexes, or sub-venues.</p>}
           <div className="space-y-2">
             {subVenues.map((subVenue, index) => (
               <div key={index} className="grid grid-cols-[1fr_auto] gap-2">
@@ -222,9 +222,9 @@ function AssignmentModal({
         </label>
 
         <div className="rounded border border-app-border bg-app-surface-alt p-2">
-          <div className="text-[10px] uppercase tracking-wide text-app-text-muted">Canonical identity</div>
+          <div className="text-xs uppercase tracking-wide text-app-text-muted">Canonical identity</div>
           <div className="mt-1 text-sm text-app-text">{preview}</div>
-          {valid && <div className="mt-0.5 font-mono text-[10px] text-app-text-muted">{[venueNode, ...subVenueNodes, trackNode].map((entry) => entry.id).join("/")}</div>}
+          {valid && <div className="mt-0.5 font-mono text-xs text-app-text-muted">{[venueNode, ...subVenueNodes, trackNode].map((entry) => entry.id).join("/")}</div>}
         </div>
         {error && <p className="text-xs text-severity-critical">{error}</p>}
 
@@ -329,16 +329,16 @@ function TrackRow({
       <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
           <span className="block truncate font-mono text-xs font-semibold text-app-accent">{record.gameId}</span>
-          <span className="block truncate text-[10px] text-app-text-muted">
+          <span className="block truncate text-xs text-app-text-muted">
             {record.name}
             {record.variant ? ` · ${record.variant}` : ""} · #{record.trackOrdinal}
             {record.location ? ` · ${record.location}` : ""}
           </span>
         </span>
-        <span className={`rounded border px-1.5 py-0.5 text-[9px] font-medium ${badge.className}`}>{badge.label}</span>
+        <span className={`rounded border px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>{badge.label}</span>
       </summary>
       <div className="border-t border-app-border px-2 py-2">
-        <div className="mb-2 flex flex-wrap gap-1 text-[10px] text-app-text-muted">
+        <div className="mb-2 flex flex-wrap gap-1 text-xs text-app-text-muted">
           {canonical && <span className="rounded bg-app-surface-alt px-1.5 py-0.5 font-mono">{canonical}</span>}
           {record.hasImagery && <span className="rounded bg-app-accent/10 px-1.5 py-0.5 text-app-accent">Imagery configured</span>}
         </div>
@@ -351,7 +351,7 @@ function TrackRow({
           </Button>
         </div>
         {record.configuration?.confirmation ? (
-          <div className="rounded border border-severity-nominal/30 bg-severity-nominal/5 p-2 text-[10px] text-app-text-secondary">
+          <div className="rounded border border-severity-nominal/30 bg-severity-nominal/5 p-2 text-xs text-app-text-secondary">
             <div>
               Confirmed {record.configuration.confirmation.confirmedAt} by {record.configuration.confirmation.confirmedBy}
               {record.configuration.confirmation.commitId ? ` · ${record.configuration.confirmation.commitId}` : ""}
@@ -363,13 +363,13 @@ function TrackRow({
         ) : (
           <div className="grid grid-cols-[1fr_1fr_auto] gap-1">
             <input
-              className="min-w-0 rounded border border-app-border-input bg-app-bg px-2 py-1 text-[10px] text-app-text"
+              className="min-w-0 rounded border border-app-border-input bg-app-bg px-2 py-1 text-xs text-app-text"
               value={confirmedBy}
               onChange={(event) => onConfirmedByChange(event.target.value)}
               placeholder="Confirmed by"
             />
             <input
-              className="min-w-0 rounded border border-app-border-input bg-app-bg px-2 py-1 font-mono text-[10px] text-app-text"
+              className="min-w-0 rounded border border-app-border-input bg-app-bg px-2 py-1 font-mono text-xs text-app-text"
               value={commitId}
               onChange={(event) => onCommitIdChange(event.target.value)}
               placeholder="Commit ID (optional)"
@@ -379,7 +379,7 @@ function TrackRow({
             </Button>
           </div>
         )}
-        {error && <p className="mt-1 text-[10px] text-severity-critical">{error}</p>}
+        {error && <p className="mt-1 text-xs text-severity-critical">{error}</p>}
       </div>
     </details>
   );
@@ -427,7 +427,7 @@ function VenueNodeView({
           .sort((a, b) => a.segment.name.localeCompare(b.segment.name))
           .map((layout) => (
             <details key={`${node.path}:${layout.segment.id}:${filterActive}`} className="ml-2" open={filterActive ? true : undefined}>
-              <summary className="cursor-pointer list-none py-1 text-[11px] font-semibold text-app-text [&::-webkit-details-marker]:hidden">
+              <summary className="cursor-pointer list-none py-1 text-xs font-semibold text-app-text [&::-webkit-details-marker]:hidden">
                 {layout.segment.name} <span className="font-normal text-app-text-muted">({layout.records.length})</span>
               </summary>
               <div className="space-y-1 pl-2">
@@ -600,7 +600,7 @@ export function TrackConfigurationBrowser({
     <section className={`flex min-h-0 flex-col border-r border-app-border bg-app-bg ${className ?? ""}`}>
       <div className="border-b border-app-border p-3">
         <h1 className="text-base font-semibold text-app-text">Track configuration</h1>
-        <p className="mb-2 text-[11px] text-app-text-muted">All simulator catalogs grouped by canonical track, layout, then game ID.</p>
+        <p className="mb-2 text-xs text-app-text-muted">All simulator catalogs grouped by canonical track, layout, then game ID.</p>
         <input
           className="mb-2 w-full rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-xs text-app-text"
           type="search"
@@ -618,7 +618,7 @@ export function TrackConfigurationBrowser({
             <button
               key={value}
               type="button"
-              className={`rounded border px-1.5 py-1 text-[10px] ${statusFilter === value ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-app-border text-app-text-muted"}`}
+              className={`rounded border px-1.5 py-1 text-xs ${statusFilter === value ? "border-app-accent bg-app-accent/10 text-app-accent" : "border-app-border text-app-text-muted"}`}
               onClick={() => setStatusFilter(value)}
             >
               {label}
