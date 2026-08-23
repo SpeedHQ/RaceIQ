@@ -61,6 +61,7 @@ test/e2e/f1-2025-recording.test.ts
 test/e2e/fm-2023-recording.test.ts
 test/e2e/iracing-recording-fixture.test.ts
 test/e2e/iracing-recording.test.ts
+test/e2e/lmu-recording-fixture.test.ts
 test/e2e/udp-recording.test.ts
 test/experiments/arms/auto-exclude.test.ts
 test/experiments/arms/compare-card-background.test.ts

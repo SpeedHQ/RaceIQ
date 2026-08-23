@@ -10,6 +10,7 @@ import { getAllServerGames, getServerGame } from "../../../server/games/registry
 import { readUdpDump } from "./udp";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
 import { readIRacingFrames } from "../../../server/games/iracing/recorder";
+import { readLMUFrames } from "../../../server/games/lmu/recorder";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../../server/games/ac-evo/parser";
 import { readWString } from "../../../server/games/acc/utils";
@@ -315,6 +316,22 @@ export async function parseDump(
       if (!packet) continue;
       carModel ??= packet.iracing?.carName ?? null;
       trackName ??= packet.iracing?.trackName ?? null;
+      await pipeline.processPacket(packet);
+    }
+  } else if (gameId === "lmu") {
+    const serverAdapter = getServerGame(gameId);
+    const parserState = serverAdapter.createParserState?.() ?? null;
+    let frames: Buffer[];
+    try {
+      frames = readLMUFrames(dumpPath);
+    } catch {
+      frames = [];
+    }
+    for (const frame of frames) {
+      const packet = serverAdapter.tryParse(frame, parserState);
+      if (!packet) continue;
+      carModel ??= packet.lmu?.carModel ?? null;
+      trackName ??= packet.lmu?.trackName ?? null;
       await pipeline.processPacket(packet);
     }
   } else {
