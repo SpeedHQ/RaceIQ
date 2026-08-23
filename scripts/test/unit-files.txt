@@ -39,5 +39,8 @@ test/race-events/service-actions.test.ts
 test/race-events/source-adapters.test.ts
 test/race-events/source-lifecycle.test.ts
 test/race-events/source-sequence.test.ts
+test/session-runs/builder.test.ts
+test/session-runs/contracts.test.ts
+test/session-runs/summary.test.ts
 test/telemetry/source-sequence.test.ts
 test/tooling/test-shards.test.ts

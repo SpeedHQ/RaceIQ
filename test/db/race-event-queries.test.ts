@@ -9,11 +9,18 @@ import {
   listRaceEventsForLap,
   listRaceEventsForLifecycle,
   listSessionRaceEvents,
-  replaceReplayableRaceEvents,
+  replaceReplayableSessionArtifacts,
 } from "../../server/db/race-event-queries";
 import { client, db } from "../../server/db";
-import { laps, raceEvents, sessionResults, sessions } from "../../server/db/schema";
+import {
+  laps,
+  raceEvents,
+  sessionResults,
+  sessionRunLaps,
+  sessions,
+} from "../../server/db/schema";
 import { DatabaseRaceEventStore } from "../../server/race-events/store";
+import { SessionRunBuilder } from "../../server/session-runs/builder";
 
 function eventId(value: number): RaceEventId {
   return `race-event:sha256:${value.toString(16).padStart(64, "0")}` as RaceEventId;
@@ -306,9 +313,12 @@ describe("race event persistence", () => {
        END`,
     );
     await expect(
-      replaceReplayableRaceEvents({
+      replaceReplayableSessionArtifacts({
         sessionId: 1,
         events: [replacement],
+        runs: [],
+        memberships: [],
+        evidence: [],
         laps: [{ lapNumber: 8, lapTime: 89 }],
         result,
       }),
@@ -319,9 +329,12 @@ describe("race event persistence", () => {
     expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, oldEvent.eventId]);
     expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([oldEvent.eventId]);
 
-    const activated = await replaceReplayableRaceEvents({
+    const activated = await replaceReplayableSessionArtifacts({
       sessionId: 1,
       events: [replacement],
+      runs: [],
+      memberships: [],
+      evidence: [],
       laps: [{ lapNumber: 8, lapTime: 89 }],
       result,
     });
@@ -331,6 +344,48 @@ describe("race event persistence", () => {
     expect(activated.events[0]).toMatchObject({ eventId: replacement.eventId, lapId: newLapId });
     expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, replacement.eventId]);
     expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([replacement.eventId]);
+  });
+  test("validates replacement lap ownership before a caller transaction mutates", async () => {
+    const oldEvent = raceEvent(1, "position_changed", {
+      previousPosition: 2,
+      position: 1,
+    });
+    await appendRaceEvents([oldEvent]);
+    await db
+      .insert(sessions)
+      .values({ id: 2, carOrdinal: 11, trackOrdinal: 21, gameId: "iracing" });
+    const foreignLapId = (
+      await db
+        .insert(laps)
+        .values({ sessionId: 2, lapNumber: 1, lapTime: 90 })
+        .returning({ id: laps.id })
+        .get()
+    ).id;
+    const replacement = raceEvent(
+      2,
+      "position_changed",
+      { previousPosition: 1, position: 2 },
+      { lapNumber: 1, lapId: foreignLapId },
+    );
+
+    await db.transaction(async (tx) => {
+      await expect(
+        replaceReplayableSessionArtifacts(
+          {
+            sessionId: 1,
+            events: [replacement],
+            runs: [],
+            memberships: [],
+            evidence: [],
+          },
+          tx,
+        ),
+      ).rejects.toThrow("references a lap outside its session");
+    });
+
+    expect((await listSessionRaceEvents(1)).items.map(({ eventId }) => eventId)).toEqual([
+      oldEvent.eventId,
+    ]);
   });
   test("event-only replacement repairs materialized result event IDs", async () => {
     const event = raceEvent(1, "position_changed", { previousPosition: 2, position: 1 });
@@ -342,7 +397,13 @@ describe("race event persistence", () => {
       eventIds: [event.eventId],
     });
 
-    await replaceReplayableRaceEvents({ sessionId: 1, events: [] });
+    await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events: [],
+      runs: [],
+      memberships: [],
+      evidence: [],
+    });
 
     expect((await db.select({ eventIds: sessionResults.eventIds }).from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([]);
   });
@@ -389,9 +450,12 @@ describe("race event persistence", () => {
       },
     );
 
-    const replaced = await replaceReplayableRaceEvents({
+    const replaced = await replaceReplayableSessionArtifacts({
       sessionId: 1,
       events: [connected, disconnected],
+      runs: [],
+      memberships: [],
+      evidence: [],
     });
 
     expect(replaced.events.map(({ eventId }) => eventId)).toEqual([connected.eventId, disconnected.eventId]);
@@ -407,14 +471,23 @@ describe("race event persistence", () => {
       payload: { previousPosition: 3, position: 1 },
       contentHash: contentHash(99),
     } as RaceEvent;
-    const replaced = await replaceReplayableRaceEvents({ sessionId: 1, events: [changed] });
+    const replaced = await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events: [changed],
+      runs: [],
+      memberships: [],
+      evidence: [],
+    });
     expect(replaced.conflictCount).toBe(1);
     expect(replaced.events[0]).toMatchObject({ detectorVersion: "2", payload: changed.payload });
 
     await expect(
-      replaceReplayableRaceEvents({
+      replaceReplayableSessionArtifacts({
         sessionId: 1,
         events: [{ ...changed, contentHash: contentHash(100) }],
+        runs: [],
+        memberships: [],
+        evidence: [],
       }),
     ).rejects.toBeInstanceOf(RaceEventConflictError);
   });
@@ -445,11 +518,135 @@ describe("race event persistence", () => {
       paceEligibility: "excluded",
     });
 
-    await replaceReplayableRaceEvents({ sessionId: 1, events: [lapCompleted] });
+    await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events: [lapCompleted],
+      runs: [],
+      memberships: [],
+      evidence: [],
+    });
     expect((await db.select({ phase: laps.phase, conditions: laps.conditions, paceEligibility: laps.paceEligibility }).from(laps).where(eq(laps.id, lapId)).get())).toEqual({
       phase: "grid_start",
       conditions: ["formation"],
       paceEligibility: "excluded",
     });
+  });
+
+  test("keeps opponent memberships detached from player lap rows", async () => {
+    const playerJoined = raceEvent(10, "participant_joined", {
+      sourceId: "player",
+      identityState: "stable",
+      displayName: "Player",
+      vehicleId: "player-car",
+    });
+    const opponentJoined = raceEvent(
+      11,
+      "participant_joined",
+      {
+        sourceId: "opponent",
+        identityState: "stable",
+        displayName: "Opponent",
+        vehicleId: "opponent-car",
+      },
+      {
+        participantId: "opponent",
+        participantKind: "opponent",
+      },
+    );
+    const playerLap = raceEvent(
+      12,
+      "lap_completed",
+      {
+        lapNumber: 1,
+        lapTimeMs: 90_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      { lapNumber: 1 },
+    );
+    const opponentLap = raceEvent(
+      13,
+      "lap_completed",
+      {
+        lapNumber: 1,
+        lapTimeMs: 91_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      {
+        participantId: "opponent",
+        participantKind: "opponent",
+        lapNumber: 1,
+      },
+    );
+    const ended = raceEvent(
+      14,
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "green",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null },
+    );
+    const events = [
+      playerJoined,
+      opponentJoined,
+      playerLap,
+      opponentLap,
+      ended,
+    ];
+    const builder = new SessionRunBuilder();
+    const artifacts = builder.consume({
+      events,
+      lapsByCompletionEventId: {},
+    });
+    const activated = await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events,
+      runs: artifacts.runs,
+      memberships: artifacts.memberships,
+      evidence: artifacts.evidence,
+      laps: [{ lapNumber: 1, lapTime: 90 }],
+    });
+    const rows = await db
+      .select({
+        lapEventId: sessionRunLaps.lapEventId,
+        lapId: sessionRunLaps.lapId,
+      })
+      .from(sessionRunLaps);
+    expect(
+      rows
+        .filter(({ lapEventId }) => lapEventId === playerLap.eventId)
+        .every(({ lapId }) => lapId === activated.lapIdsByNumber.get(1)),
+    ).toBe(true);
+    expect(
+      rows
+        .filter(({ lapEventId }) => lapEventId === opponentLap.eventId)
+        .every(({ lapId }) => lapId === null),
+    ).toBe(true);
+
+    await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events,
+      runs: artifacts.runs,
+      memberships: artifacts.memberships,
+      evidence: artifacts.evidence,
+    });
+    const preservedRows = await db
+      .select({
+        lapEventId: sessionRunLaps.lapEventId,
+        lapId: sessionRunLaps.lapId,
+      })
+      .from(sessionRunLaps);
+    expect(
+      preservedRows
+        .filter(({ lapEventId }) => lapEventId === playerLap.eventId)
+        .every(({ lapId }) => lapId === activated.lapIdsByNumber.get(1)),
+    ).toBe(true);
   });
 });

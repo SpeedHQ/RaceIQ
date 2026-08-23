@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { GameId } from "@shared/games/ids";
 import { RaceEventsAppendedMessageSchema, RaceEventsReplacedMessageSchema } from "@shared/racing/events/contracts";
+import {
+  SessionRunsCompletedMessageSchema,
+  SessionRunsReplacedMessageSchema,
+} from "@shared/racing/runs/contracts";
 import { mergeAppendedRaceEvents, mergeRecoveredRaceEventPage, recoverRaceEventTail, type RaceEventInfiniteData } from "../lib/race-event-cache";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
@@ -9,7 +13,12 @@ import { fetchSessionRaceEventPage } from "./session-queries";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
-import { qualityUpdatedQueryKeys, queryKeys } from "./query-keys";
+import {
+  isComparableSessionRunQueryKey,
+  qualityUpdatedQueryKeys,
+  queryKeys,
+  sessionRunsUpdatedQueryKeys,
+} from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
@@ -201,6 +210,18 @@ export function useWebSocket() {
         startVersionRequest();
         if (hasOpenedRef.current) {
           void recoverRaceEventTails().catch((error) => console.error("Race-event tail recovery failed", error));
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.sessionRunPages,
+            refetchType: "active",
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.sessionRunDetails,
+            refetchType: "active",
+          });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.driverStintPages,
+            refetchType: "active",
+          });
         }
         hasOpenedRef.current = true;
         if (useDevTelemetryStore.getState().subscriptionWanted) {
@@ -220,6 +241,33 @@ export function useWebSocket() {
             const raceEventMessage = RaceEventsReplacedMessageSchema.safeParse(data);
             if (raceEventMessage.success) {
               void handleRaceEventsReplaced(raceEventMessage.data.sessionId).catch((error) => console.error("Race-event replacement recovery failed", error));
+            }
+          } else if (data.type === "session-runs-completed" || data.type === "session-runs-replaced") {
+            const sessionRunMessage =
+              data.type === "session-runs-completed"
+                ? SessionRunsCompletedMessageSchema.safeParse(data)
+                : SessionRunsReplacedMessageSchema.safeParse(data);
+            if (sessionRunMessage.success) {
+              const runIds =
+                sessionRunMessage.data.type === "session-runs-completed"
+                  ? sessionRunMessage.data.runs.map(({ runId }) => runId)
+                  : [];
+              for (const queryKey of sessionRunsUpdatedQueryKeys(
+                sessionRunMessage.data.sessionId,
+                runIds,
+              )) {
+                void queryClient.invalidateQueries({ queryKey });
+              }
+              if (sessionRunMessage.data.type === "session-runs-completed") {
+                void queryClient.invalidateQueries({
+                  predicate: ({ queryKey }) => isComparableSessionRunQueryKey(queryKey),
+                });
+              }
+              if (sessionRunMessage.data.type === "session-runs-replaced") {
+                void queryClient.invalidateQueries({
+                  queryKey: queryKeys.sessionRunDetails,
+                });
+              }
             }
           } else if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars

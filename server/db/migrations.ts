@@ -2126,5 +2126,99 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX idx_session_results_session ON session_results(session_id)`,
     ],
   },
+  // v62: Persist canonical participant runs, independent stint dimensions,
+  // semantic lap membership, and boundary evidence.
+  {
+    version: 62,
+    name: "add canonical session runs",
+    sql: [
+      `CREATE TABLE session_runs (
+         run_id                    TEXT PRIMARY KEY,
+         schema_version            TEXT NOT NULL,
+         algorithm_version         TEXT NOT NULL,
+         session_id                INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         participant_id            TEXT,
+         participant_kind          TEXT,
+         driver_id                 TEXT,
+         team_id                   TEXT,
+         class_id                  TEXT,
+         run_kind                  TEXT NOT NULL CHECK (run_kind IN ('participant', 'tire', 'driver', 'pace')),
+         status                    TEXT NOT NULL CHECK (status IN ('complete', 'incomplete')),
+         opening_phase             TEXT NOT NULL CHECK (opening_phase IN ('unknown', 'inactive', 'formation', 'green', 'caution', 'red', 'checkered', 'finished')),
+         observed_phases           TEXT NOT NULL,
+         timeline_epoch            INTEGER NOT NULL CHECK (timeline_epoch >= 0),
+         opening_sequence          INTEGER NOT NULL CHECK (opening_sequence >= 0),
+         opening_event_order       INTEGER NOT NULL CHECK (opening_event_order >= 0),
+         opening_reason            TEXT NOT NULL,
+         opening_event_id          TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         opening_confidence        TEXT NOT NULL CHECK (opening_confidence IN ('high', 'medium', 'low', 'unknown')),
+         opening_evidence_kind     TEXT NOT NULL CHECK (opening_evidence_kind IN ('observed', 'derived', 'inferred')),
+         closing_reason            TEXT NOT NULL,
+         closing_event_id          TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         closing_confidence        TEXT NOT NULL CHECK (closing_confidence IN ('high', 'medium', 'low', 'unknown')),
+         closing_evidence_kind     TEXT NOT NULL CHECK (closing_evidence_kind IN ('observed', 'derived', 'inferred')),
+         start_lap_event_id        TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         end_lap_event_id          TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         start_lap_id              INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         end_lap_id                INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         start_source_time_ms      INTEGER,
+         end_source_time_ms        INTEGER,
+         start_track_distance_m    REAL,
+         end_track_distance_m      REAL,
+         start_track_distance_pct  REAL,
+         end_track_distance_pct    REAL,
+         tire_compound             TEXT,
+         tire_set_id               TEXT,
+         source_generation         TEXT,
+         analysis_generation_id    TEXT,
+         quality_flags             TEXT NOT NULL,
+         summary                   TEXT NOT NULL,
+         content_hash              TEXT NOT NULL,
+         created_at                TEXT NOT NULL,
+         CHECK (closing_event_id IS NOT NULL OR (status = 'incomplete' AND closing_reason = 'source_ended')),
+         CHECK (start_source_time_ms IS NULL OR end_source_time_ms IS NULL OR end_source_time_ms >= start_source_time_ms),
+         CHECK (start_track_distance_pct IS NULL OR (start_track_distance_pct >= 0 AND start_track_distance_pct <= 1)),
+         CHECK (end_track_distance_pct IS NULL OR (end_track_distance_pct >= 0 AND end_track_distance_pct <= 1))
+       )`,
+      `CREATE UNIQUE INDEX uq_session_runs_known_participant_coordinate
+       ON session_runs(session_id, participant_id, run_kind, timeline_epoch, opening_event_id)
+       WHERE participant_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX uq_session_runs_unknown_participant_coordinate
+       ON session_runs(session_id, run_kind, timeline_epoch, opening_event_id)
+       WHERE participant_id IS NULL`,
+      `CREATE INDEX idx_session_runs_session_kind_order
+       ON session_runs(session_id, run_kind, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_participant_kind_order
+       ON session_runs(session_id, participant_id, run_kind, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_driver_order
+       ON session_runs(driver_id, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_opening_event ON session_runs(opening_event_id)`,
+      `CREATE INDEX idx_session_runs_closing_event ON session_runs(closing_event_id)`,
+      `CREATE TABLE session_run_laps (
+         run_id          TEXT NOT NULL REFERENCES session_runs(run_id) ON DELETE CASCADE,
+         lap_event_id    TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         lap_id          INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         lap_number      INTEGER NOT NULL CHECK (lap_number >= 0),
+         ordinal         INTEGER NOT NULL CHECK (ordinal >= 0),
+         entry_event_id  TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         exit_event_id   TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         PRIMARY KEY (run_id, lap_event_id)
+       )`,
+      `CREATE INDEX idx_session_run_laps_run_order
+       ON session_run_laps(run_id, ordinal, lap_event_id)`,
+      `CREATE INDEX idx_session_run_laps_lap_lookup
+       ON session_run_laps(lap_event_id, run_id)`,
+      `CREATE INDEX idx_session_run_laps_numeric_lap
+       ON session_run_laps(lap_id, run_id)`,
+      `CREATE TABLE session_run_evidence (
+         run_id    TEXT NOT NULL REFERENCES session_runs(run_id) ON DELETE CASCADE,
+         event_id  TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         role      TEXT NOT NULL CHECK (role IN ('opening', 'closing', 'service', 'supporting')),
+         PRIMARY KEY (run_id, event_id, role)
+       )`,
+      `CREATE INDEX idx_session_run_evidence_event
+       ON session_run_evidence(event_id, run_id, role)`,
+    ],
+  }
 ];
 

@@ -218,9 +218,19 @@ describe("raw race-event replay parity", () => {
     const second = await rebuildRaceEventTimeline(input);
 
     expect(first.events.length).toBeGreaterThan(0);
-    expect(second.events.map(({ eventId }) => eventId)).toEqual(first.events.map(({ eventId }) => eventId));
-    expect(second.events.map(({ contentHash }) => contentHash)).toEqual(first.events.map(({ contentHash }) => contentHash));
-    expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(first.laps.map(({ lapNumber }) => lapNumber));
+    expect(second.events.map(({ eventId }) => eventId)).toEqual(
+      first.events.map(({ eventId }) => eventId),
+    );
+    expect(second.events.map(({ contentHash }) => contentHash)).toEqual(
+      first.events.map(({ contentHash }) => contentHash),
+    );
+    expect(second.laps.map(({ lapNumber }) => lapNumber)).toEqual(
+      first.laps.map(({ lapNumber }) => lapNumber),
+    );
+    expect(first.runs.length).toBeGreaterThan(0);
+    expect(second.runs).toEqual(first.runs);
+    expect(second.memberships).toEqual(first.memberships);
+    expect(second.evidence).toEqual(first.evidence);
   });
 
   test("does not fabricate a terminal session event from raw replay EOF", async () => {
