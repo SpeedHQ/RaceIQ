@@ -30,7 +30,10 @@ for (const game of SEEDED_GAME_CASES) {
     for (const [traceName, trace] of Object.entries(requiredTraces)) {
       expect(trace.length, `${game.name} ${traceName} packet count`).toBeGreaterThan(10);
     }
-    expect(payload.traces.tireWearA.length, `${game.name} tyre-wear capability symmetry`).toBe(payload.traces.tireWearB.length);
+    expect(Boolean(payload.traces.tireWearA), `${game.name} tyre-wear capability symmetry`).toBe(Boolean(payload.traces.tireWearB));
+    if (payload.traces.tireWearA && payload.traces.tireWearB) {
+      expect(payload.traces.tireWearA.length, `${game.name} tyre-wear packet count`).toBe(payload.traces.tireWearB.length);
+    }
     expect(
       payload.traces.speedA.some((speed, index) => Math.abs(speed - payload.traces.speedB[index]!) > 0.0001),
       `${game.name} distinct speed traces`,
