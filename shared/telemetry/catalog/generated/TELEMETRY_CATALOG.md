@@ -8,14 +8,14 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator source SHA-256: `422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589`
-- Content SHA-256: `44540f1450461c22e06e0718d09764048439b76e774f536f140630de007ba04f`
+- Content SHA-256: `ed1444f795e93250c73b82b78bd501f497478721bebc8d86c2047f9695caf8c8`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 290 | 290 | 119 | 171 | 0 | 0 | 0 |
+| f1-2025 | 295 | 295 | 119 | 176 | 0 | 0 | 0 |
 | acc | 202 | 169 | 124 | 45 | 0 | 0 | 33 |
 | ac-evo | 257 | 221 | 124 | 97 | 0 | 0 | 36 |
 | iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
@@ -42,6 +42,7 @@
 | `damage.car-damage-left` | Car Damage left | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-rear` | Car Damage rear | number | dimensionless | % | scalar |  |  |  |
 | `damage.car-damage-right` | Car Damage right | number | dimensionless | % | scalar |  |  |  |
+| `damage.damage-available` | Damage Available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `damage.diffuser-damage` | Diffuser Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.drs-fault` | DRS Fault | number | dimensionless | count | scalar |  |  |  |
 | `damage.engine-ce-wear` | Engine CE Wear | number | dimensionless | % | scalar |  |  |  |
@@ -373,6 +374,8 @@
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.grid-car-index` | Grid car Index | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-is-player` | Grid is Player | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -391,7 +394,7 @@
 | `race.pit-service.tire-pressure` | Requested pit-service tire pressure | number | mass × length^-1 × time^-2 | kPa | fixed:4 | FL, FR, RL, RR |  |  |
 | `race.pit-speed-limit` | Pit speed limit | number | length × time^-1 | km/h | scalar |  |  |  |
 | `race.pit-stall-lap-fraction` | Pit-stall lap fraction | number | dimensionless | fraction | scalar |  |  |  |
-| `race.pit-status` | Pit Status | string | dimensionless | text | scalar |  |  |  |
+| `race.pit-status` | Pit Status | string | dimensionless | count | scalar |  |  |  |
 | `race.pits-open` | Pits Open | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.pitstop-active` | Pitstop Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.player-car-in-pit-stall` | Player Car In Pit Stall | boolean | dimensionless | boolean | scalar |  |  |  |

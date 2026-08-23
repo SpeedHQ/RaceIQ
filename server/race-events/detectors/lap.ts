@@ -60,12 +60,7 @@ export class LapEventDetector {
     context: DetectorContext,
     input: RaceEventLapEvaluation,
   ): DetectorEventDraft[] {
-    const participant =
-      input.participantId == null
-        ? localParticipant(context.observation.participants)
-        : context.observation.participants.find(
-            ({ participantId }) => participantId === input.participantId,
-          ) ?? null;
+    const participant = this.participant(context, input);
     const boundary = [
       context.boundaryKey,
       `lap:${input.lapNumber}`,
@@ -161,8 +156,27 @@ export class LapEventDetector {
         qualityState: "available",
       });
     }
-    if (position != null) this.lastCompletedPosition = position;
     return drafts;
+  }
+
+  commitEvaluation(
+    context: DetectorContext,
+    input: RaceEventLapEvaluation,
+  ): void {
+    const participant = this.participant(context, input);
+    const position = input.position ?? participant?.position ?? null;
+    if (position != null) this.lastCompletedPosition = position;
+  }
+
+  private participant(
+    context: DetectorContext,
+    input: RaceEventLapEvaluation,
+  ): RaceParticipantObservation | null {
+    return input.participantId == null
+      ? localParticipant(context.observation.participants)
+      : context.observation.participants.find(
+          ({ participantId }) => participantId === input.participantId,
+        ) ?? null;
   }
 }
 

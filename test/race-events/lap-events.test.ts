@@ -148,4 +148,40 @@ describe("lap event detector", () => {
       payload: { previousPosition: 6, position: 4 },
     });
   });
+
+  test("rejects invalid completed positions without poisoning later boundaries", () => {
+    const coordinator = new RaceEventCoordinator({ sessionId: 44 });
+    coordinator.processObservation(
+      44,
+      observation(1, { participants: [participant({ position: 6 })] }),
+    );
+
+    expect(() =>
+      coordinator.noteLapEvaluated(
+        lapEvaluation({ lapNumber: 1, position: 0 }),
+      ),
+    ).toThrow("Race-event lap evaluation is out of range");
+
+    const firstBoundary = coordinator.noteLapEvaluated(
+      lapEvaluation({ lapNumber: 1, position: 6 }),
+    );
+    expect(firstBoundary.map(({ eventType }) => eventType)).toEqual([
+      "lap_completed",
+    ]);
+
+    coordinator.processObservation(
+      44,
+      observation(2, {
+        lapNumber: 2,
+        participants: [participant({ position: 4 })],
+      }),
+    );
+    const secondBoundary = coordinator.noteLapEvaluated(
+      lapEvaluation({ lapNumber: 2, position: 4 }),
+    );
+    expect(secondBoundary.map(({ eventType }) => eventType)).toEqual([
+      "position_changed",
+      "lap_completed",
+    ]);
+  });
 });

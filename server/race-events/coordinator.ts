@@ -488,15 +488,29 @@ export class RaceEventCoordinator {
     if (
       !Number.isSafeInteger(input.lapNumber) ||
       input.lapNumber < 0 ||
-      (input.lapTimeMs != null && (!Number.isFinite(input.lapTimeMs) || input.lapTimeMs < 0))
+      (input.lapTimeMs != null && (!Number.isFinite(input.lapTimeMs) || input.lapTimeMs < 0)) ||
+      (input.position != null && (!Number.isSafeInteger(input.position) || input.position < 1))
     ) {
       throw new RangeError("Race-event lap evaluation is out of range");
     }
     const preflight = this.requireAcceptedObservation();
     const context = this.context(preflight);
-    const events = this.materializeDrafts(this.laps.evaluated(context, input), preflight.observation, preflight.timelineEpoch, preflight.sequence).events;
-    this.recordLapEvents(events);
-    return events;
+    const materialized = this.materializeDrafts(
+      this.laps.evaluated(context, input),
+      preflight.observation,
+      preflight.timelineEpoch,
+      preflight.sequence,
+    );
+    if (materialized.rejectedDrafts.length > 0) {
+      throw new Error(
+        `Invalid race-event lap evaluation: ${materialized.rejectedDrafts
+          .map(({ eventType, error }) => `${eventType}: ${error}`)
+          .join("; ")}`,
+      );
+    }
+    this.laps.commitEvaluation(context, input);
+    this.recordLapEvents(materialized.events);
+    return materialized.events;
   }
 
   noteLapSaved(lapNumber: number, lapId: number): RaceEvent[] {
