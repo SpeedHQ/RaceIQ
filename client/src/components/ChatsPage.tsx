@@ -14,6 +14,8 @@ interface LapSummary {
   isValid: boolean;
   carName: string;
   trackName: string;
+  trackOrdinal: number | null;
+  carOrdinal: number | null;
   gameId: string;
 }
 
@@ -102,9 +104,10 @@ export function ChatsPage() {
       const prefix = `/${game.routePrefix}`;
       if (row.type === "analyse" && row.laps[0]) {
         const lap = row.laps[0];
+        if (lap.trackOrdinal == null || lap.carOrdinal == null) return;
         navigate({
           to: `${prefix}/analyse` as never,
-          search: { lap: lap.id, ai: 1 } as never,
+          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id, ai: 1 } as never,
         });
       } else if (row.type === "compare" && row.laps.length === 2) {
         const [a, b] = row.laps;

@@ -93,8 +93,10 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
                   <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center gap-1 w-16 justify-end">
-                    <Button // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
+                    <Button
+                      disabled={l.trackOrdinal == null || l.carOrdinal == null}
+                      title={l.trackOrdinal == null || l.carOrdinal == null ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      onClick={() => void navigate({ to: `${gameRoute}/analyse` as never, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as never })}
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"
