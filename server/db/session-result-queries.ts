@@ -10,6 +10,7 @@ import type {
 } from "../../shared/racing/results/types";
 import { resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import { db } from "./index";
+import { RACE_RESULT_PROCESSOR_ID } from "../race-results/constants";
 import { laps, raceEvents, sessionResults, sessions } from "./schema";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
@@ -78,6 +79,7 @@ export async function loadRaceResultLapQuality(
 export interface SessionResultInput {
   sessionId: number;
   processorVersion?: string;
+  analysisGenerationId?: string | null;
   sessionType: string;
   classification: RaceResultStatus;
   outcomeStatus?: RaceResultOutcomeStatus;
@@ -129,7 +131,10 @@ export async function upsertSessionResult(
       .get();
     const values = {
       sessionId: input.sessionId,
-      processorVersion: input.processorVersion ?? "race-result-v4",
+      ...(input.analysisGenerationId !== undefined
+        ? { analysisGenerationId: input.analysisGenerationId }
+        : {}),
+      processorVersion: input.processorVersion ?? RACE_RESULT_PROCESSOR_ID,
       sessionType: input.sessionType,
       classification: input.classification,
       outcomeStatus: input.outcomeStatus ?? "unavailable",

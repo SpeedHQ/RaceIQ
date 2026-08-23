@@ -222,7 +222,7 @@ function formatMilliseconds(value: number): string {
 }
 
 export interface SessionQualityStatus {
-  action: "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
+  action: "current" | "rebuild_eligibility" | "reprocess" | "rebuild_in_progress" | "unavailable";
 }
 export async function getSessionQualityStatus(sessionId: number, gameId: GameId) {
   const response = await client.api.sessions[":id"].quality.$get({ param: { id: String(sessionId) }, query: { gameId } });
@@ -286,6 +286,12 @@ export function QualityRebuildStatus({ action, statusPending, statusFetching, st
     liveStatus = (
       <p role="status" aria-live="polite" className="text-app-caption text-app-text-muted">
         {m.quality_status_loading()}
+      </p>
+    );
+  } else if (action === "rebuild_in_progress") {
+    liveStatus = (
+      <p role="status" aria-live="polite" className="text-app-caption text-app-text-muted">
+        {m.quality_rebuilding()}
       </p>
     );
   } else if (action === "current") {

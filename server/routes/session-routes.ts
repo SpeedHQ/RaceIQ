@@ -8,6 +8,7 @@ import { getSessions, deleteSession, updateSession, countStaleSessions, getStale
 import { db } from "../db";
 import { sessions } from "../db/schema";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
+import { AnalysisGenerationConflictError } from "../db/analysis-receipt-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
@@ -21,7 +22,7 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { backfillRaceResults, reconcileStaleSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
-import { getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
+import { getAnalysisRebuildPreview, getQualityRebuildStatus, rebuildSessionEligibility } from "../lap-analysis/quality-rebuild";
 import { assessEvidenceRetention } from "../lap-analysis/evidence-retention";
 import { getSessionCanonicalAvailability } from "../lap-analysis/canonical-archive-availability";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
@@ -71,6 +72,7 @@ export interface SessionRouteDependencies {
   listSessionRunEvidence: typeof listSessionRunEvidence;
   listComparableSessionRuns: typeof listComparableSessionRuns;
   getQualityRebuildStatus: typeof getQualityRebuildStatus;
+  getAnalysisRebuildPreview: typeof getAnalysisRebuildPreview;
   getLapsForSession: typeof getLapsForSession;
   reprocessSession: typeof reprocessSession;
   rebuildSessionEligibility: typeof rebuildSessionEligibility;
@@ -96,6 +98,7 @@ const DEFAULT_SESSION_ROUTE_DEPENDENCIES: SessionRouteDependencies = {
   listSessionRunEvidence,
   listComparableSessionRuns,
   getQualityRebuildStatus,
+  getAnalysisRebuildPreview,
   getLapsForSession,
   reprocessSession,
   rebuildSessionEligibility,
@@ -343,11 +346,18 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       const { id } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
       if (!(await dependencies.sessionExistsForGame(id, gameId))) return c.json({ error: "Session not found" }, 404);
-
       const status = await dependencies.getQualityRebuildStatus(id);
       const laps = await dependencies.getLapsForSession(id);
+      const canonicalArchive = await getSessionCanonicalAvailability(id);
+      const retention = canonicalArchive
+        ? await assessEvidenceRetention(id, {
+            rawCapture: status.rawAvailable,
+            canonicalArchive,
+          })
+        : null;
       return c.json({
         ...status,
+        canonicalCleanupEligible: retention?.canDeleteRaw ?? false,
         laps: laps.map((lap) => ({
           id: lap.id,
           lapNumber: lap.lapNumber,
@@ -356,6 +366,17 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
           qualityGeneration: lap.qualityGeneration,
         })),
       });
+    },
+  )
+  .get(
+    "/api/sessions/:id/quality/rebuild-preview",
+    zValidator("param", IdParamSchema),
+    zValidator("query", RequiredGameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!(await dependencies.sessionExistsForGame(id, gameId))) return c.json({ error: "Session not found" }, 404);
+      return c.json(await dependencies.getAnalysisRebuildPreview(id));
     },
   )
   .post(
@@ -371,14 +392,27 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       if (status.action === "unavailable") {
         return c.json({ error: "Source recording unavailable", status }, 409);
       }
-      if (status.action === "reprocess") {
-        const result = await dependencies.reprocessSession(id);
-        dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-        return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
+      if (status.action === "rebuild_in_progress") {
+        return c.json({ error: "Analysis rebuild already in progress", status }, 409);
       }
-      const rebuilt = await dependencies.rebuildSessionEligibility(id);
-      dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
-      return c.json({ strategy: status.action === "current" ? ("none" as const) : ("eligibility" as const), status: rebuilt });
+      if (status.action === "current") {
+        return c.json({ strategy: "current" as const, status });
+      }
+      try {
+        if (status.action === "reprocess") {
+          const result = await dependencies.reprocessSession(id);
+          dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
+          return c.json({ strategy: "reprocess" as const, status: await dependencies.getQualityRebuildStatus(id), result });
+        }
+        const rebuilt = await dependencies.rebuildSessionEligibility(id);
+        dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
+        return c.json({ strategy: "eligibility" as const, status: rebuilt });
+      } catch (error) {
+        if (error instanceof AnalysisGenerationConflictError) {
+          return c.json({ error: "Analysis rebuild already in progress", status }, 409);
+        }
+        throw error;
+      }
     },
   )
   .patch("/api/sessions/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
@@ -398,6 +432,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
       if (remaining === 0) wsManager.setStaleSessionsNotification(null);
       return c.json(result);
     } catch (error) {
+      if (error instanceof AnalysisGenerationConflictError) {
+        return c.json({ error: "Analysis rebuild already in progress" }, 409);
+      }
       if (error instanceof SessionRawFileMissingError) {
         return c.json({ error: error.message }, 410);
       }
@@ -425,6 +462,8 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
           const result = await dependencies.rebuildSessionEligibility(id);
           dependencies.broadcastNotification({ type: "quality-updated", sessionId: id });
           results.push({ sessionId: id, strategy: "eligibility" as const, result });
+        } else if (status.action === "rebuild_in_progress") {
+          results.push({ sessionId: id, strategy: "conflict" as const, error: "Analysis rebuild already in progress" });
         } else {
           results.push({ sessionId: id, strategy: status.action, result: status });
         }
@@ -432,6 +471,8 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
         if (error instanceof SessionRawFileMissingError) {
           console.warn(`[Reprocess] Skipping session ${id}: ${error.message}`);
           skipped.push({ sessionId: id, reason: "raw-file-missing" });
+        } else if (error instanceof AnalysisGenerationConflictError) {
+          results.push({ sessionId: id, strategy: "conflict" as const, error: "Analysis rebuild already in progress" });
         } else {
           results.push({ sessionId: id, strategy: "failed" as const, error: "Processing failed" });
         }
@@ -440,11 +481,12 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
 
     const reprocessed = results.filter(({ strategy }) => strategy === "reprocess").length;
     const failed = results.filter(({ strategy }) => strategy === "failed").length;
+    const conflicts = results.filter(({ strategy }) => strategy === "conflict").length;
     const remaining = await dependencies.countStaleSessions(
       ALL_DETECTOR_IDS,
       getAllServerGames().map((adapter) => adapter.id),
     );
-    if (failed === 0 && remaining === 0) {
+    if (failed === 0 && conflicts === 0 && remaining === 0) {
       dependencies.setStaleSessionsNotification(null);
     } else if (remaining > 0) {
       dependencies.setStaleSessionsNotification(staleSessionsNotification(remaining));
@@ -452,8 +494,9 @@ export function createSessionRoutes(overrides: Partial<SessionRouteDependencies>
 
     const body = { reprocessed, failed, remaining, skipped, results };
     if (failed > 0) return c.json(body, 500);
-    if (remaining > 0) return c.json(body, 409);
+    if (conflicts > 0 || remaining > 0) return c.json(body, 409);
     return c.json(body);
+
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");

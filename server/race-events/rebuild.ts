@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { RaceEvent } from "../../shared/racing/events/contracts";
@@ -33,6 +32,7 @@ import {
   SessionRunBuilder,
   type SessionRunFinalization,
 } from "../session-runs/builder";
+import { CanonicalPacketHasher } from "../race-results/canonical-input";
 
 export interface RaceEventRebuildFrame {
   frame: Buffer;
@@ -41,6 +41,7 @@ export interface RaceEventRebuildFrame {
 
 export interface RebuildRaceEventTimelineInput {
   sessionId: number;
+  analysisGenerationId: string;
   gameId: GameId;
   frames: Iterable<RaceEventRebuildFrame> | AsyncIterable<RaceEventRebuildFrame>;
   sourceKind: EvidenceSourceKind;
@@ -164,6 +165,7 @@ export async function rebuildRaceEventTimeline(
     sourceGeneration:
       input.canonicalVerification?.sourceGeneration ??
       input.sourceVerification.sourceGeneration,
+    analysisGenerationId: input.analysisGenerationId,
     validationMode: "rebuild",
   });
   const recordingQuality = new RecordingQualityAccumulator(
@@ -211,8 +213,7 @@ export async function rebuildRaceEventTimeline(
     versionIdentity: input.versionIdentity,
   });
   const resultSource = new RaceSourceAccumulator(input.gameId);
-  let packetCount = 0;
-  const canonicalHasher = createHash("sha256");
+  const canonicalHasher = new CanonicalPacketHasher();
   const packets: TelemetryPacket[] = [];
 
   for await (const { frame, rawByteOffset } of input.frames) {
@@ -244,10 +245,8 @@ export async function rebuildRaceEventTimeline(
     );
     recordingQuality.observe(packet, sourceSequences);
     packets.push(packet);
-    if (packetCount > 0) canonicalHasher.update("\n");
-    canonicalHasher.update(JSON.stringify(packet));
+    canonicalHasher.update(packet);
     resultSource.observe(packet);
-    packetCount++;
     if (!preflight.accepted) {
       coordinator.processPreflight(preflight);
       continue;
@@ -282,8 +281,8 @@ export async function rebuildRaceEventTimeline(
     events: coordinator.events(),
     laps: [...db.laps],
     raceSource: resultSource.finish(),
-    packetCount,
-    canonicalContentHash: packetCount === 0 ? null : `sha256:${canonicalHasher.digest("hex")}`,
+    packetCount: canonicalHasher.packetCount,
+    canonicalContentHash: canonicalHasher.digest(),
     runs: runArtifacts.runs,
     memberships: runArtifacts.memberships,
     evidence: runArtifacts.evidence,

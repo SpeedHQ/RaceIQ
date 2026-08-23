@@ -19,7 +19,7 @@ import {
   deriveSessionRunSummary,
   type CompletedSessionRunLap,
 } from "../../shared/racing/runs/summary";
-import { canonicalJson } from "../race-events/identity";
+import { canonicalJson } from "../../shared/core/canonical-json";
 import {
   compareRaceEvents,
   RaceEventConflictError,

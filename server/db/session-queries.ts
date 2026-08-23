@@ -48,6 +48,18 @@ export async function insertSession(
   return result.id;
 }
 
+/** Stamp outputs while their receipt attempt is in progress. */
+export async function setSessionAnalysisGeneration(
+  sessionId: number,
+  analysisGenerationId: string,
+): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ analysisGenerationId })
+    .where(eq(sessions.id, sessionId))
+    .run();
+}
+
 const SESSION_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
   recording_corrupt: true,
   recording_incompatible: true,

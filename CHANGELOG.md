@@ -88,6 +88,7 @@
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Define deterministic race-event contracts, ordering, detectors, and simulator adapters for durable session timelines
+- Persist immutable analysis receipts with staged, failed, superseded, and active generation lifecycles
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
 - Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers
