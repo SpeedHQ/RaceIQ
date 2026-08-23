@@ -1251,12 +1251,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
-  // v60: Separate recording quality from policy-specific analysis eligibility.
-  // Legacy lap classification defaults are embedded here because v59 is outside
-  // this feature branch's migration scope.
+  // v59: Persist telemetry quality, source fidelity, and derived-data provenance.
+  // Also restores pit_events for databases affected by overlapping migration histories.
   {
-    version: 60,
-    name: "persist telemetry quality and eligibility",
+    version: 59,
+    name: "telemetry quality and provenance",
     sql: [
       `ALTER TABLE sessions ADD COLUMN recording_quality TEXT`,
       `ALTER TABLE sessions ADD COLUMN quality_schema_version TEXT`,
@@ -1678,19 +1677,30 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )
        )
        WHERE invalid_reason IN ('inlap', 'outlap', 'pit lap')`,
+      `ALTER TABLE sessions ADD COLUMN source_channel_profile TEXT`,
+      `ALTER TABLE lap_metrics ADD COLUMN quality_generation TEXT`,
+      `CREATE TABLE IF NOT EXISTS pit_events (
+         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+         result_id         INTEGER NOT NULL REFERENCES session_results(id) ON DELETE CASCADE,
+         sequence          INTEGER NOT NULL,
+         event_type        TEXT NOT NULL DEFAULT 'pit',
+         position_before   INTEGER,
+         position_after    INTEGER,
+         lap_number        INTEGER,
+         elapsed_seconds   REAL,
+         duration_seconds  REAL,
+         service           TEXT NOT NULL DEFAULT 'unknown',
+         tyre_change       TEXT,
+         fuel_added        REAL,
+         fuel_before       REAL,
+         fuel_after        REAL,
+         linkage           TEXT NOT NULL DEFAULT 'unknown',
+         source            TEXT,
+         created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(result_id, sequence)
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
     ],
-  },
-  // v61: Persist source-authored channel fidelity for transcoded sessions.
-  {
-    version: 61,
-    name: "persist source channel profiles",
-    sql: [`ALTER TABLE sessions ADD COLUMN source_channel_profile TEXT`],
-  },
-  // v62: Tie derived lap metrics to exact quality evidence generation.
-  {
-    version: 62,
-    name: "version lap metrics by quality generation",
-    sql: [`ALTER TABLE lap_metrics ADD COLUMN quality_generation TEXT`],
   },
 ];
 
