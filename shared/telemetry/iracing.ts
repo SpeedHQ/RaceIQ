@@ -13,6 +13,13 @@ export interface IRacingExtendedData {
   playerTrackSurface: number;
   /** Native irsdk_CarLeftRight occupancy code for spotter use. */
   carLeftRight?: number;
+  sessionFlags?: number;
+  sessionState?: number;
+  sessionTimeRemain?: number;
+  carIdxPosition?: readonly number[];
+  carIdxClassPosition?: readonly number[];
+  carIdxLapCompleted?: readonly number[];
+  carIdxOnPitRoad?: readonly boolean[];
   incidents: number;
   /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
   trackWetness: number;

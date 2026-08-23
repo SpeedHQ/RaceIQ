@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test";
-import type { F1GridEntry } from "../../../shared/telemetry/f1-2025";
-import { opponentFactsFromF1Grid } from "../../../server/live-strategy/opponent-lap-sources";
-const entry = (overrides: Partial<F1GridEntry>): F1GridEntry => ({ position: 1, driverId: 1, teamId: 1, name: "Driver", currentLapTime: 0, lastLapTime: 0, bestLapTime: 0, gapToLeader: 0, gapToCarAhead: 0, pitStatus: 0, numPitStops: 0, tyreCompound: "unknown", tyreAge: 0, penalties: 0, bestS1: 0, bestS2: 0, bestS3: 0, lastS1: 0, lastS2: 0, lastS3: 0, ...overrides });
-test("F1 emits only native-valid opponent laps", () => { const grid = [entry({ carIndex: 0, isPlayer: true, name: "Player", completedLapNumber: 1, lastLapTime: 60, lapValidBitFlags: 1 }), entry({ carIndex: 1, isPlayer: false, name: "Opponent", completedLapNumber: 2, lastLapTime: 61.2, lapValidBitFlags: 1, lastS1: 20, lastS2: 20, lastS3: 21 }), entry({ carIndex: 2, isPlayer: false, name: "Invalid", completedLapNumber: 2, lastLapTime: 61, lapValidBitFlags: 0 })]; expect(opponentFactsFromF1Grid(grid, "s", 1, 3).map((f) => f.participantId)).toEqual(["1"]); });
+import { LiveEngineerVoiceEngine } from "../../../server/live-strategy/live-engineer-voice-engine";
+
+test("F1 live engineer consumes semantic frames, not native grid facts", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume({ simulator: "f1-2025", sessionId: 1, streamId: "s", sequence: 0, observedAt: { domain: "session", milliseconds: 0 }, ids: [], values: [] });
+  expect(emitted).toHaveLength(0);
+});

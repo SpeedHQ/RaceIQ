@@ -33,6 +33,7 @@ import {
   type F1SessionData,
   type F1SessionHistoryData,
 } from "./f1-packet-decoders";
+const F1_FORMULA_NAMES: Readonly<Record<number, string>> = { 0: "F1", 1: "F2", 2: "F1 classic", 3: "F1 2025" };
 
 /**
  * Stateful accumulator for F1 2025 UDP telemetry.
@@ -184,15 +185,22 @@ export class F1StateAccumulator {
         const car = ld.allCars[i];
         const participant = this.participants[i];
         const csEntry = cs?.allCars[i];
-
         const history = this.driverHistory.get(i);
+
+        const motion = m.allCars[i];
+        const formulaClassId = String(sess?.formula ?? 0);
+        const formulaClassName = F1_FORMULA_NAMES[sess?.formula ?? 0] ?? `formula-${formulaClassId}`;
         grid.push({
           position: car.position,
           driverId: participant.driverId,
           teamId: participant.teamId,
           name: participant.name,
           carIndex: i,
+          classId: formulaClassId,
+          className: formulaClassName,
+          classPosition: car.position,
           isPlayer: i === this.playerCarIndex,
+          connected: true,
           completedLapNumber: history?.lastLapNumber ?? 0,
           completionSourceSequence: header.overallFrameIdentifier,
           lapValidBitFlags: history?.lastLapValidBitFlags ?? 0,
@@ -212,13 +220,13 @@ export class F1StateAccumulator {
           lastS1: history?.lastS1 ?? 0,
           lastS2: history?.lastS2 ?? 0,
           lastS3: history?.lastS3 ?? 0,
+          ...(motion ? { posX: motion.posX, posY: motion.posY, posZ: motion.posZ, velX: motion.velX, velY: motion.velY, velZ: motion.velZ, yaw: motion.yaw, speed: Math.hypot(motion.velX, motion.velY, motion.velZ) } : {}),
         });
       }
 
-      // Sort by position and compute gap to car ahead
-      grid.sort((a, b) => a.position - b.position);
-      for (let i = 1; i < grid.length; i++) {
-        grid[i].gapToCarAhead = grid[i].gapToLeader - grid[i - 1].gapToLeader;
+      const positionSorted = [...grid].sort((a, b) => a.position - b.position);
+      for (let i = 1; i < positionSorted.length; i++) {
+        positionSorted[i]!.gapToCarAhead = positionSorted[i]!.gapToLeader - positionSorted[i - 1]!.gapToLeader;
       }
     }
 
@@ -230,6 +238,7 @@ export class F1StateAccumulator {
       ersDeployMode: cs?.ersDeployMode ?? 0,
       ersDeployedThisLap: cs?.ersDeployedThisLap ?? 0,
       ersHarvestedThisLap: cs?.ersHarvestedThisLap ?? 0,
+      isSpectating: sess?.isSpectating ?? false,
       tyreCompound: cs ? getF1CompoundName(cs.tyreVisualCompound) : "unknown",
       tyreVisualCompound: cs?.tyreVisualCompound ?? 0,
       tyreAge: cs?.tyreAge ?? 0,

@@ -1,3 +1,9 @@
 import { expect, test } from "bun:test";
-import { opponentFactsFromIRacing } from "../../../server/live-strategy/opponent-lap-sources";
-test("iRacing emits conservative facts only for eligible surfaces", () => { const facts = opponentFactsFromIRacing({ driverCarIdx: 0, carIdxLap: [2, 2, 2], carIdxLastLapTime: [60, 61, 62], carIdxTrackSurface: [1, 1, 5], sessionTick: 1, sessionNum: 0, trackLengthM: 1, lapDistanceM: 1, lapDistancePct: 1, onPitRoad: false, playerTrackSurface: 1, incidents: 0, trackWetness: 0, carName: "", carClassName: "", trackName: "" }, "s", 1, 3, { 1: { id: "gt3" }, 2: { id: "gt3" } }); expect(facts.map((f) => f.participantId)).toEqual(["1"]); });
+import { LiveEngineerVoiceEngine } from "../../../server/live-strategy/live-engineer-voice-engine";
+
+test("iRacing live engineer stays silent when required semantics are unavailable", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume({ simulator: "iracing", sessionId: 1, streamId: "s", sequence: 0, observedAt: { domain: "session", milliseconds: 0 }, ids: [], values: [] });
+  expect(emitted).toHaveLength(0);
+});

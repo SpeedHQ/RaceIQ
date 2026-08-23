@@ -15,6 +15,20 @@ export const LIVE_GAME_SEMANTIC_IDS = {
   "f1-2025": ["aero.drs-active", "aero.drs-available", "damage.diffuser-damage", "damage.floor-damage", "damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage", "damage.sidepod-damage", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested", "fuel.ers-store-energy", "race.competitor.driver-name", "race.competitor.pit-status", "race.competitor.pit-stops", "race.competitor.position", "session.session-type", "timing.competitor.gap-to-ahead", "timing.competitor.gap-to-leader", "timing.sector.competitor-last.s1", "timing.sector.competitor-last.s2", "timing.sector.competitor-last.s3", "timing.total-laps", "tires.competitor.age", "tires.competitor.compound", "tires.tire-compound", "weather.rain-percent"],
 } as const;
 
+export const LIVE_ENGINEER_REQUIRED_SEMANTIC_IDS = [
+  "identity.player-car-index", "identity.player-car-class-id", "identity.player-track-surface",
+  "timing.lap-number", "timing.last-lap", "timing.current-lap-valid", "race.pit-status",
+  "race.safety-car-status", "race.flag-status", "session.session-flags", "session.session-type",
+  "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name",
+  "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.laps-complete",
+  "race.competitor.pit-status", "race.competitor.track-location", "timing.competitor.last-lap-time",
+  "timing.competitor.last-lap-valid",
+] as const;
+
+export function liveEngineerRequiredSemanticIds(_gameId: GameId): readonly string[] {
+  return LIVE_ENGINEER_REQUIRED_SEMANTIC_IDS;
+}
+
 export function liveSemanticIds(gameId: GameId): readonly string[] {
   return [...new Set([...LIVE_CORE_SEMANTIC_IDS, ...(LIVE_GAME_SEMANTIC_IDS[gameId] ?? [])])];
 }

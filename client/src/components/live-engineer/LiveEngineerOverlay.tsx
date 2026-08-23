@@ -1,7 +1,8 @@
 import { useLiveEngineerStore, type LiveEngineerCallout } from "../../stores/live-engineer";
+import { useSettings } from "../../hooks/settings";
 import { renderOpponentPaceText } from "../../../../server/live-strategy/live-engineer-renderer";
-
 export function LiveEngineerOverlay({ enabled = true }: { enabled?: boolean }) {
+  const { displaySettings } = useSettings();
   const callout = useLiveEngineerStore((s) => s.current);
   const dismiss = useLiveEngineerStore((s) => s.dismiss);
   const enqueueControl = useLiveEngineerStore((s) => s.enqueueControl);
@@ -13,7 +14,7 @@ export function LiveEngineerOverlay({ enabled = true }: { enabled?: boolean }) {
     <p className="mt-2 text-xs text-app-text-secondary">Lap {p.playerLapNumber}: {(p.playerLapTimeMs / 1000).toFixed(3)}s · benchmark {(p.benchmarkLapTimeMs / 1000).toFixed(3)}s</p>
     {p.benchmarkDriverName && <p className="text-xs text-app-text-secondary">{p.benchmarkDriverName}{p.className ? ` · ${p.className}` : ""}</p>}
     <div className="mt-3 flex gap-2">
-      <button type="button" className="rounded border border-app-border px-2 py-1 text-xs" onClick={() => enqueueControl({ type: "live-engineer-voice", protocolVersion: 1, action: "request-exact-pace", requestId: crypto.randomUUID(), decisionId: callout.decisionId })}>Speak exact pace</button>
+      <button type="button" disabled={!displaySettings.radioRaceEngineerEnabled} className="rounded border border-app-border px-2 py-1 text-xs disabled:opacity-50" onClick={() => enqueueControl({ type: "live-engineer-voice-request", protocolVersion: 2, action: "exact-pace", requestId: crypto.randomUUID(), decisionId: callout.decisionId })}>Speak exact pace</button>
       <button type="button" className="rounded border border-app-border px-2 py-1 text-xs" onClick={dismiss}>Dismiss</button>
     </div>
   </aside>;

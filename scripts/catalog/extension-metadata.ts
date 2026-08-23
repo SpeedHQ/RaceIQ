@@ -122,6 +122,14 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.sectorStarts": "timing.sector.layout.start-fractions",
   "iracing.incidents": "race.incident-flags",
   "iracing.trackWetness": "weather.track-wetness",
+  "iracing.sessionFlags": "session.session-flags",
+  "iracing.sessionState": "session.session-state",
+  "iracing.sessionTimeRemain": "timing.session-time-remain",
+  "iracing.carIdxPosition": "race.competitor.position",
+  "iracing.carIdxClassPosition": "race.competitor.class-position",
+  "iracing.carIdxLapCompleted": "race.competitor.laps-complete",
+  "iracing.carIdxOnPitRoad": "race.competitor.pit-status",
+  "iracing.carIdxTrackSurface": "race.competitor.track-surface-material",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {

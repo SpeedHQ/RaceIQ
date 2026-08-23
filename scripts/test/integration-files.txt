@@ -93,6 +93,7 @@ test/games/acc/acc-recorder.test.ts
 test/games/acc/acc-session-lifecycle.test.ts
 test/games/acc/acc-shared-memory.test.ts
 test/games/f1-2025/f1-telemetry-contract.test.ts
+test/games/f1-2025/f1-opponent-laps.test.ts
 test/games/iracing/iracing-ibt-import.test.ts
 test/games/iracing/iracing-ibt-reader.test.ts
 test/games/iracing/iracing-recorder.test.ts
@@ -100,6 +101,7 @@ test/games/iracing/iracing-sdk-decoding.test.ts
 test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
+test/games/iracing/iracing-opponent-laps.test.ts
 test/games/shared/release-game-registration.test.ts
 test/games/shared/semantic-replay-native.test.ts
 test/lap-analysis/lap-cache.test.ts
@@ -108,9 +110,15 @@ test/lap-analysis/lap-export-import-roundtrip.test.ts
 test/lap-analysis/persist-lap-metrics.test.ts
 test/lap-analysis/review-laps.test.ts
 test/live-strategy/f1-2025-session-sectors.test.ts
+test/live-strategy/live-engineer-contracts.test.ts
+test/live-strategy/live-engineer-renderer.test.ts
+test/live-strategy/live-engineer-runtime.test.ts
+test/live-strategy/live-engineer-voice-engine.test.ts
+test/live-strategy/opponent-pace-tracker.test.ts
 test/live-strategy/pit-cycle.test.ts
 test/live-strategy/pit-tracker.test.ts
 test/live-strategy/sector-tracker.test.ts
+test/live-strategy/spotter-tracker.test.ts
 test/motec/motec-import.test.ts
 test/motec/motec-viz.test.ts
 test/race-results/race-results-authority.test.ts
@@ -126,6 +134,7 @@ test/routes/live-route.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/storage-routes.test.ts
+test/runtime/live-engineer-websocket.test.ts
 test/runtime/release-feature-flags.test.ts
 test/runtime/runtime-options.test.ts
 test/runtime/settings.test.ts
@@ -163,6 +172,7 @@ test/telemetry/analysis-metric-values.test.ts
 test/telemetry/analysis-telemetry.test.ts
 test/telemetry/bin-fixture-detection.test.ts
 test/telemetry/catalog-type-safety.test.ts
+test/telemetry/catalog/crewchief-callout-coverage.test.ts
 test/telemetry/catalog/artifacts.test.ts
 test/telemetry/catalog/contracts.test.ts
 test/telemetry/catalog/iracing-sources.test.ts

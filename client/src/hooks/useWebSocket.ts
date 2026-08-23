@@ -2,8 +2,10 @@ import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
-import type { VersionInfo } from "../stores/telemetry";
-import { useTelemetryStore } from "../stores/telemetry";
+import { isLiveEngineerCalloutMessageV2, isLiveEngineerVoiceLineMessageV2 } from "../../../shared/racing/live/engineer-contracts";
+import { useTelemetryStore, type ServerStatus, type VersionInfo } from "../stores/telemetry";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
 import { useLiveEngineerStore } from "../stores/live-engineer";
 import { queryKeys } from "./query-keys";
@@ -86,32 +88,24 @@ export function useWebSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === "live-engineer-callout" && data.protocolVersion === 1) {
-            useLiveEngineerStore.getState().receiveCallout(data);
-          } else if (data.type === "live-engineer-voice-permit" && data.protocolVersion === 1) {
-            useLiveEngineerStore.getState().receivePermit(data);
-          } else if (data.type === "status") {
-            const { type: __ignored, ...status } = data;
-            useTelemetryStore.getState().setServerStatus(status);
-          } else if (data.type === "update-available") {
-            useTelemetryStore.getState().setUpdateAvailable(data.version as string);
-            startVersionRequest();
-          } else if (data.type === "update-progress") {
-            useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
-          } else if (data.type === "onboarding_complete") {
-            queryClient.invalidateQueries({ queryKey: ["settings"] });
-          } else if (data.type === "session-laps") {
-            useTelemetryStore.getState().setSessionLaps(data.laps);
-          } else if (data.type === "dev-state") {
-            useTelemetryStore.getState().setDevState(data);
-          } else if (data.type === "lap-saved") {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
-          } else if (data.type === "stale-lap-detection") {
+          const data = JSON.parse(event.data) as Record<string, unknown>;
+          const liveStore = useLiveEngineerStore.getState();
+          if (isLiveEngineerCalloutMessageV2(data)) liveStore.receiveCallout(data);
+          else if (isLiveEngineerVoiceLineMessageV2(data)) liveStore.receiveVoiceLine(data);
+          else if (data.type === "status") useTelemetryStore.getState().setServerStatus(data as unknown as ServerStatus);
+          else if (data.type === "update-available") { useTelemetryStore.getState().setUpdateAvailable(data.version as string); startVersionRequest(); }
+          else if (data.type === "update-progress") useTelemetryStore.getState().setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
+          else if (data.type === "onboarding_complete") queryClient.invalidateQueries({ queryKey: ["settings"] });
+          else if (data.type === "session-laps") useTelemetryStore.getState().setSessionLaps(data.laps as LapMeta[]);
+          else if (data.type === "dev-state") useTelemetryStore.getState().setDevState(data);
+          else if (data.type === "lap-saved") queryClient.invalidateQueries({ queryKey: ["laps"] });
+          else if (data.type === "stale-lap-detection") {
             useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
-          } else if (data.type === "stale-race-results") {
+          }
+          else if (data.type === "stale-race-results") {
             useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
-          } else if (data.type === "race-result-reconciled") {
+          }
+          else if (data.type === "race-result-reconciled") {
             const store = useTelemetryStore.getState();
             const done = data.done as number;
             const total = data.total as number;
@@ -140,7 +134,7 @@ export function useWebSocket() {
             useTelemetryStore.getState().addLapIssues({
               lapId: data.lapId as number,
               lapNumber: data.lapNumber as number,
-              issues: data.issues,
+              issues: data.issues as TuneIssue[],
             });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;

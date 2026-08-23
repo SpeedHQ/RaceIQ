@@ -49,6 +49,11 @@ function numberArray(values: Record<string, IRacingValue>, name: string): number
   const output = value.map((entry) => typeof entry === "number" && Number.isFinite(entry) ? entry : Number.NaN);
   return output.some(Number.isNaN) ? undefined : output;
 }
+function booleanArray(values: Record<string, IRacingValue>, name: string): boolean[] | undefined {
+  const value = values[name];
+  if (!Array.isArray(value)) return undefined;
+  return value.map((entry) => entry === true || (typeof entry === "number" && entry !== 0));
+}
 
 function bool(values: Record<string, IRacingValue>, name: string): boolean {
   const value = values[name];
@@ -233,6 +238,13 @@ export function normalizeIRacingFrame(
       lapDistanceM,
       lapDistancePct,
       sdkCurrentLapTime,
+      sessionFlags: Math.trunc(scalar(values, "SessionFlags", 0)),
+      sessionState: Math.trunc(scalar(values, "SessionState", 0)),
+      sessionTimeRemain: scalar(values, "SessionTimeRemain", 0),
+      carIdxPosition: numberArray(values, "CarIdxPosition"),
+      carIdxClassPosition: numberArray(values, "CarIdxClassPosition"),
+      carIdxLapCompleted: numberArray(values, "CarIdxLapCompleted"),
+      carIdxOnPitRoad: booleanArray(values, "CarIdxOnPitRoad"),
       sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),

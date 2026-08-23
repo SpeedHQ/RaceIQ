@@ -599,6 +599,13 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
     "%",
     "structured",
   ),
+  "timing.competitor.last-lap-valid": semanticDefinition(
+    "Competitor last-lap validity",
+    "Whether each competitor's most recently completed lap is valid.",
+    "race.competitor.timing",
+    "boolean",
+    "structured",
+  ),
 };
 
 export { SEMANTIC_DEFINITIONS_COMPETITOR };

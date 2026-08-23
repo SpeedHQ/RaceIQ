@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { LiveEngineerDeliveryService } from "../../server/live-strategy/live-engineer-delivery";
-import type { LiveEngineerCalloutMessageV1 } from "../../shared/racing/live/engineer-contracts";
-const message = { type: "live-engineer-callout", protocolVersion: 1, deliveryId: "d", decisionId: "dec", candidateId: "c", family: "opponent-pace", sessionId: "s", timelineEpoch: 1, sourceSequence: 1, priority: "normal", createdSessionTimeMs: 0, expiresSessionTimeMs: 12, render: { renderingVersion: "opponent-pace-v1", textKey: "live_engineer_opponent_within_pace", parameters: { relation: "within-class-pace", scope: "class", playerLapNumber: 1, playerLapTimeMs: 60_100, benchmarkLapTimeMs: 60_000, deltaMs: 100, benchmarkKind: "session-best" }, voice: { catalogVersion: "v1", mode: "automatic", segmentIds: ["phrase"] } } } satisfies LiveEngineerCalloutMessageV1;
-test("permits ready and denies stale context", () => { let now = 1; const service = new LiveEngineerDeliveryService(() => ({ sessionId: "s", timelineEpoch: 1, sessionTimeMs: now, inPit: false, caution: false, benchmarkCurrent: () => true })); service.register(message); expect(service.handle({ type: "live-engineer-voice", protocolVersion: 1, action: "ready", deliveryId: "d" })?.permitted).toBe(true); now = 20; expect(service.handle({ type: "live-engineer-voice", protocolVersion: 1, action: "ready", deliveryId: "d" })?.reason).toBe("expired"); });
+import { isLiveEngineerVoiceRequestV2, isLiveEngineerDeliveryStatusV2 } from "../../shared/racing/live/engineer-contracts";
+
+test("accepts exact pace requests and delivery statuses only in protocol v2", () => {
+  expect(isLiveEngineerVoiceRequestV2({ type: "live-engineer-voice-request", protocolVersion: 2, action: "exact-pace", requestId: "r", decisionId: "d" })).toBe(true);
+  expect(isLiveEngineerVoiceRequestV2({ type: "live-engineer-voice-request", protocolVersion: 1, action: "exact-pace", requestId: "r", decisionId: "d" })).toBe(false);
+  expect(isLiveEngineerDeliveryStatusV2({ type: "live-engineer-delivery-status", protocolVersion: 2, deliveryId: "d", status: "completed" })).toBe(true);
+});

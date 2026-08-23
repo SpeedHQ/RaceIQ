@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV1, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "../../../shared/racing/live/engineer-contracts";
+import { createLiveEngineerVoiceLine, isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV2, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "../../../shared/racing/live/engineer-contracts";
 import { isSpotterStateV1 } from "../../../shared/racing/live/spotter-contracts";
 import { LIVE_ENGINEER_AUDIO_CATALOG, LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "../../../shared/racing/live/engineer-audio-catalog.generated";
 import { renderOpponentPace, renderSpotter } from "../../live-strategy/live-engineer-renderer";
@@ -37,19 +37,24 @@ liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
 
 liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
   const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+  const now = Date.now();
   if (body && isSpotterStateV1(body.state)) {
     const rendered = renderSpotter(body.state);
-    const now = Date.now(); const candidateId = `dev/${now}/spotter/${body.state}`;
-    const message = { type: "live-engineer-callout" as const, protocolVersion: 1 as const, deliveryId: `${candidateId}/spotter-v1/automatic`, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter" as const, sessionId: "dev", timelineEpoch: 1, sourceSequence: now, priority: "normal" as const, createdSessionTimeMs: now, expiresSessionTimeMs: now + 2_000, render: { renderingVersion: "spotter-v1" as const, textKey: rendered.textKey as SpotterTextKeyV1, parameters: { state: body.state, overlapCount: Number(body.overlapCount ?? 1) }, voice: { catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, mode: "automatic" as const, segmentIds: rendered.segmentIds } } };
-    if (!isLiveEngineerCalloutMessageV1(message)) return c.json({ error: "renderer produced invalid spotter message" }, 500);
+    const candidateId = `dev/${now}/spotter/${body.state}`;
+    const message = { type: "live-engineer-callout" as const, protocolVersion: 2 as const, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter" as const, sessionId: "dev", timelineEpoch: 1, sourceSequence: now, priority: "normal" as const, createdSessionTimeMs: now, expiresSessionTimeMs: now + 2_000, render: { renderingVersion: "spotter-v1" as const, textKey: rendered.textKey as SpotterTextKeyV1, parameters: { state: body.state, overlapCount: Number(body.overlapCount ?? 1) } } };
+    if (!isLiveEngineerCalloutMessageV2(message)) return c.json({ error: "renderer produced invalid spotter message" }, 500);
     wsManager.broadcastNotification(message as unknown as Record<string, unknown>);
-    return c.json({ ...message, text: rendered.text });
+    const line = rendered.segmentIds.length ? createLiveEngineerVoiceLine(message, rendered.segmentIds, { mode: "automatic" }) : null;
+    if (line) wsManager.broadcastNotification(line as unknown as Record<string, unknown>);
+    return c.json({ ...message, text: rendered.text, voiceLine: line });
   }
   if (!body || !isOpponentPaceRenderParametersV1(body)) return c.json({ error: "invalid render parameters" }, 400);
-  const voiceMode = body.voiceMode === "exact-response" ? "exact-response" : "automatic";
-  const rendered = renderOpponentPace(body, { voiceMode }); const now = Date.now(); const candidateId = `dev/${now}/${body.relation}`;
-  const message = { type: "live-engineer-callout" as const, protocolVersion: 1 as const, deliveryId: `${candidateId}/opponent-pace-v1/automatic`, decisionId: `${candidateId}/opponent-pace-v1`, candidateId, family: "opponent-pace" as const, sessionId: "dev", timelineEpoch: 1, sourceSequence: now, priority: "normal" as const, createdSessionTimeMs: now, expiresSessionTimeMs: now + 12_000, render: { renderingVersion: "opponent-pace-v1" as const, textKey: rendered.textKey as OpponentPaceTextKeyV1, parameters: body, voice: { catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, mode: voiceMode, segmentIds: rendered.segmentIds } } };
-  if (!isLiveEngineerCalloutMessageV1(message)) return c.json({ error: "renderer produced invalid pace message" }, 500);
+  const rendered = renderOpponentPace(body, { voiceMode: "automatic" });
+  const candidateId = `dev/${now}/${body.relation}`;
+  const message = { type: "live-engineer-callout" as const, protocolVersion: 2 as const, decisionId: `${candidateId}/opponent-pace-v1`, candidateId, family: "opponent-pace" as const, sessionId: "dev", timelineEpoch: 1, sourceSequence: now, priority: "normal" as const, createdSessionTimeMs: now, expiresSessionTimeMs: now + 12_000, render: { renderingVersion: "opponent-pace-v1" as const, textKey: rendered.textKey as OpponentPaceTextKeyV1, parameters: body } };
+  if (!isLiveEngineerCalloutMessageV2(message)) return c.json({ error: "renderer produced invalid pace message" }, 500);
   wsManager.broadcastNotification(message as unknown as Record<string, unknown>);
-  return c.json({ ...message, text: rendered.text });
+  const line = createLiveEngineerVoiceLine(message, rendered.segmentIds, { mode: "automatic" });
+  wsManager.broadcastNotification(line as unknown as Record<string, unknown>);
+  return c.json({ ...message, text: rendered.text, voiceLine: line });
 });

@@ -24,13 +24,8 @@ import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
-import { OpponentPaceTracker, type PlayerLapForPaceV1 } from "../live-strategy/opponent-pace-tracker";
-import { LiveEngineerRuntime, type LiveEngineerRuntimeCandidate } from "../live-strategy/live-engineer-runtime";
-import { LiveEngineerDeliveryService } from "../live-strategy/live-engineer-delivery";
-import { renderOpponentPace } from "../live-strategy/live-engineer-renderer";
-import type { LiveEngineerDeliveryStatusV1, LiveEngineerVoiceControlV1, LiveEngineerCalloutMessageV1, LiveEngineerVoicePermitV1 } from "../../shared/racing/live/engineer-contracts";
-import type { OpponentPaceTextKeyV1 } from "../../shared/racing/live/engineer-contracts";
-import { opponentFactsFromF1Grid } from "../live-strategy/opponent-lap-sources";
+import { LiveEngineerVoiceEngine } from "../live-strategy/live-engineer-voice-engine";
+import type { LiveEngineerVoiceRequestV2, LiveEngineerDeliveryStatusV2 } from "../../shared/racing/live/engineer-contracts";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -55,9 +50,7 @@ export class LiveTelemetryPipeline {
    *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _timelineEpoch = 0;
-  private _paceTracker = new OpponentPaceTracker();
-  private _paceRuntime = new LiveEngineerRuntime({ maxQueue: 3 });
-  private _paceDelivery = new LiveEngineerDeliveryService(() => this._liveEngineerContext());
+  private _voiceEngine: LiveEngineerVoiceEngine;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
@@ -107,6 +100,9 @@ export class LiveTelemetryPipeline {
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
     this._onSessionFinalized = options?.onSessionFinalized;
+    this._voiceEngine = new LiveEngineerVoiceEngine({
+      emit: (message) => this.ws.broadcastNotification(message as unknown as Record<string, unknown>),
+    });
   }
 
   private _scheduleLapReconciliation(sessionId: number, gameId: GameId): void {
@@ -167,51 +163,8 @@ export class LiveTelemetryPipeline {
     });
     if (session) await this._reconcileRecordedSession(session);
   }
-  private _liveEngineerContext() {
-    return {
-      sessionId: this._recordingSession ? String(this._recordingSession.sessionId) : "",
-      timelineEpoch: this._timelineEpoch,
-      sessionTimeMs: this._lastSessionTimeMs,
-      inPit: false,
-      caution: false,
-      benchmarkCurrent: (_message: LiveEngineerCalloutMessageV1) => true,
-    };
-  }
-
-  private _lastSessionTimeMs = 0;
-
-  handleLiveEngineerControl(control: LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1): LiveEngineerVoicePermitV1 | void {
-    if (control.type === "live-engineer-delivery-status") {
-      this._paceDelivery.recordStatus(control);
-      return;
-    }
-    return this._paceDelivery.handle(control, this._liveEngineerContext());
-  }
-
-  private _publishOpponentPace(event: Parameters<NonNullable<LapDetectorCallbacks["onLapComplete"]>>[0]): void {
-    if (!event.isValid || this._recordingSession?.gameId !== "f1-2025") return;
-    const packet = event.packets[event.packets.length - 1];
-    const grid = packet?.f1?.grid;
-    if (!packet || !grid?.length || !this._recordingSession) return;
-    for (const fact of opponentFactsFromF1Grid(grid, String(this._recordingSession.sessionId), this._timelineEpoch, packet.TimestampMS)) this._paceTracker.addFact(fact);
-    const session = this._lapDetector?.session;
-    if (!session) return;
-    const playerEntry = grid.find((entry) => entry.isPlayer);
-    const player: PlayerLapForPaceV1 = { sessionId: String(session.sessionId), timelineEpoch: this._timelineEpoch, lapNumber: playerEntry?.completedLapNumber ?? 1, lapTimeMs: Math.round(event.lapTime * 1000), classId: "overall", sessionType: packet.f1?.sessionType ?? "practice", completedSessionTimeMs: packet.TimestampMS, sourceSequence: packet.TimestampMS };
-    const candidate = this._paceTracker.createCandidate(player);
-    if (!candidate) return;
-    const runtimeCandidate: LiveEngineerRuntimeCandidate = {
-      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1",
-      renderParameters: { relation: candidate.relation, scope: "overall", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: (packet.f1?.sessionType ?? "").toLowerCase() === "race" ? "recent-race-pace" : "session-best" },
-      sessionId: String(session.sessionId), timelineEpoch: this._timelineEpoch, sourceSequence: packet.TimestampMS, priority: candidate.priority, createdSessionTimeMs: Date.now(), expiresSessionTimeMs: Date.now() + 12_000,
-    };
-    this._paceRuntime.submit(runtimeCandidate);
-    const selected = this._paceRuntime.selectNext();
-    if (!selected) return;
-    const rendered = renderOpponentPace(selected.renderParameters);
-    const message: LiveEngineerCalloutMessageV1 = { type: "live-engineer-callout", protocolVersion: 1, deliveryId: `${selected.candidateId}/opponent-pace-v1/automatic`, decisionId: `${selected.candidateId}/opponent-pace-v1`, candidateId: selected.candidateId, family: "opponent-pace", sessionId: selected.sessionId, timelineEpoch: selected.timelineEpoch, sourceSequence: selected.sourceSequence, priority: selected.priority, createdSessionTimeMs: packet.TimestampMS, expiresSessionTimeMs: packet.TimestampMS + 12_000, render: { renderingVersion: "opponent-pace-v1", textKey: rendered.textKey as OpponentPaceTextKeyV1, parameters: selected.renderParameters, voice: { catalogVersion: "live-engineer-v1", mode: "automatic", segmentIds: rendered.segmentIds } } };
-    this._paceDelivery.register(message);
-    this.ws.broadcastNotification(message as unknown as Record<string, unknown>);
+  handleLiveEngineerMessage(message: LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2) {
+    return this._voiceEngine.handle(message);
   }
 
 
@@ -248,8 +201,7 @@ export class LiveTelemetryPipeline {
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         this._timelineEpoch += 1;
-        this._paceTracker.reset(this._timelineEpoch);
-        this._paceRuntime.reset(String(session.sessionId), this._timelineEpoch);
+        this._voiceEngine.reset();
         const adapter = getServerGame(session.gameId);
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         if (!this._skipHistorySeeding) {
@@ -269,8 +221,6 @@ export class LiveTelemetryPipeline {
 
       onLapComplete: (event) => {
         if (event.isValid) {
-        this._lastSessionTimeMs = event.packets[event.packets.length - 1]?.TimestampMS ?? this._lastSessionTimeMs;
-        this._publishOpponentPace(event);
           this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
           // Update distance-based wear curves when enabled by the adapter.
           const session = this._lapDetector?.session ?? null;
@@ -488,6 +438,7 @@ export class LiveTelemetryPipeline {
       receivedAtMs: Date.now(),
     });
     this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
+    this._voiceEngine.consume(projection.semanticFrame);
 
     if (!this._skipDevState) {
       this.ws.broadcastDevState({
@@ -535,7 +486,7 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
-wsManager.setLiveEngineerControlHandler((control) => _default.handleLiveEngineerControl(control));
+wsManager.setLiveEngineerMessageHandler((message) => _default.handleLiveEngineerMessage(message));
 
 export const processPacket = (packet: TelemetryPacket, sourceFrame?: Buffer) =>
   _default.processPacket(packet, sourceFrame);

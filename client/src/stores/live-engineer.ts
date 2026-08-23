@@ -1,31 +1,12 @@
 import { create } from "zustand";
-import type { LiveEngineerCalloutMessageV1, LiveEngineerDeliveryStatusV1, LiveEngineerVoiceControlV1, LiveEngineerVoicePermitV1 } from "../../../shared/racing/live/engineer-contracts";
-
-export type LiveEngineerCallout = LiveEngineerCalloutMessageV1;
-interface LiveEngineerState {
-  current: LiveEngineerCalloutMessageV1 | null;
-  queue: LiveEngineerCalloutMessageV1[];
-  history: LiveEngineerCalloutMessageV1[];
-  permit: LiveEngineerVoicePermitV1 | null;
-  playback: "idle" | "waiting-permit" | "playing" | "failed";
-  outbound: (LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1)[];
-  receiveCallout: (callout: LiveEngineerCalloutMessageV1) => void;
-  receivePermit: (permit: LiveEngineerVoicePermitV1) => void;
-  enqueueControl: (control: LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1) => void;
-  takeOutbound: () => LiveEngineerVoiceControlV1 | LiveEngineerDeliveryStatusV1 | undefined;
-  dismiss: () => void;
-  setPlayback: (playback: LiveEngineerState["playback"]) => void;
-}
-export const useLiveEngineerStore = create<LiveEngineerState>((set, get) => ({
-  current: null, queue: [], history: [], permit: null, playback: "idle", outbound: [],
-  receiveCallout: (callout) => set((state) => {
-    const spotter = callout.family === "spotter";
-    const queue = spotter ? [callout, ...state.queue.filter((item) => item.family === "spotter")].slice(0, 3) : [...state.queue, callout].slice(-3);
-    return { current: spotter || !state.current ? callout : state.current, queue: spotter && state.current ? [state.current, ...queue].slice(0, 3) : queue, history: [callout, ...state.history].slice(0, 5), permit: null };
-  }),
-  receivePermit: (permit) => set({ permit }),
-  enqueueControl: (control) => set((state) => ({ outbound: [...state.outbound, control] })),
-  takeOutbound: () => { const next = get().outbound[0]; if (next) set((state) => ({ outbound: state.outbound.slice(1) })); return next; },
-  dismiss: () => set((state) => ({ current: state.queue[0] ?? null, queue: state.queue.slice(1), playback: "idle", permit: null })),
-  setPlayback: (playback) => set({ playback }),
-}));
+import type { LiveEngineerCalloutMessageV2, LiveEngineerDeliveryStatusV2, LiveEngineerVoiceLineMessageV2, LiveEngineerVoiceRequestV2 } from "../../../shared/racing/live/engineer-contracts";
+export type LiveEngineerCallout = LiveEngineerCalloutMessageV2;
+type Outbound = LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2;
+interface LiveEngineerState { current: LiveEngineerCalloutMessageV2 | null; voiceCurrent: LiveEngineerVoiceLineMessageV2 | null; queue: LiveEngineerCalloutMessageV2[]; voiceQueue: LiveEngineerVoiceLineMessageV2[]; history: LiveEngineerCalloutMessageV2[]; playback: "idle" | "playing" | "failed"; outbound: Outbound[]; receiveCallout: (callout: LiveEngineerCalloutMessageV2) => void; receiveVoiceLine: (line: LiveEngineerVoiceLineMessageV2) => void; finishVoiceLine: (deliveryId: string) => void; enqueueControl: (message: Outbound) => void; takeOutbound: () => Outbound | undefined; dismiss: () => void; setPlayback: (playback: LiveEngineerState["playback"]) => void; }
+const rank = { high: 0, normal: 1, low: 2 } as const;
+export const useLiveEngineerStore = create<LiveEngineerState>((set, get) => ({ current: null, voiceCurrent: null, queue: [], voiceQueue: [], history: [], playback: "idle", outbound: [],
+ receiveCallout: (callout) => set((state) => state.history.some((x) => x.decisionId === callout.decisionId) ? state : { ...state, current: callout, queue: [...state.queue, callout].slice(-3), history: [callout, ...state.history].slice(0, 5) }),
+ receiveVoiceLine: (line) => set((state) => { if (state.voiceCurrent?.deliveryId === line.deliveryId || state.voiceQueue.some((x) => x.deliveryId === line.deliveryId)) return state; const isSpotter = line.family === "spotter"; if (isSpotter && state.voiceCurrent?.family === "opponent-pace") return { ...state, voiceCurrent: line, voiceQueue: state.voiceQueue.filter((x) => x.family === "spotter"), playback: "idle" }; const queue = [...state.voiceQueue, line].sort((a, b) => rank[a.priority] - rank[b.priority] || a.sourceSequence - b.sourceSequence).slice(0, 3); return state.voiceCurrent ? { ...state, voiceQueue: queue } : { ...state, voiceCurrent: line, playback: "idle" }; }),
+ finishVoiceLine: (deliveryId) => set((state) => state.voiceCurrent?.deliveryId !== deliveryId ? state : { ...state, voiceCurrent: state.voiceQueue[0] ?? null, voiceQueue: state.voiceQueue.slice(1), playback: "idle" }),
+ enqueueControl: (message) => set((state) => ({ outbound: [...state.outbound, message] })), takeOutbound: () => { const next = get().outbound[0]; if (next) set((s) => ({ outbound: s.outbound.slice(1) })); return next; },
+ dismiss: () => set((state) => ({ ...state, current: state.queue[0] ?? null, queue: state.queue.slice(1) })), setPlayback: (playback) => set({ playback }) }));

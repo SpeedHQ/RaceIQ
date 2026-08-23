@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589"
+      "sourceHash": "db54fb034b4343877ec190b2d6daf2ac7a7c37935ffcc98ecd984de8a061b7e2"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
-      "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
+      "server/games/f1-2025/f1-state.ts": "962fea452fcdc94e4967f4c450943f242469d8521c1a470a4148b0d89fe6ab50",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "f3ec06893e301c12d607fea08902ef75f71c7f34e83775424fbfcde25a23faaf",
+      "server/games/iracing/normalizer.ts": "5fe109f9fb3a834090176011288c2155f8e89cb49d1b03d3369d8ee9a95f1b37",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "d654780f733fc969347e77d97ebe6433b2b89eeaeb73952bba3721347834bab8"
+    "contentHash": "d7274fe903879eda91161c0a19779744e5554d97298c3b9805ec78d99022b37c"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -155,6 +155,7 @@
         "diagnostics.is-disk-logging-active",
         "diagnostics.is-disk-logging-enabled",
         "diagnostics.is-garage-visible",
+        "diagnostics.is-spectating",
         "diagnostics.mem-page-fault-sec",
         "diagnostics.mem-soft-page-fault-sec",
         "diagnostics.number-of-sessions",
@@ -249,6 +250,8 @@
       "label": "Engine",
       "description": "Engine speed, output, temperature, and health values.",
       "children": [
+        "engine.battery-state-of-charge",
+        "engine.battery-voltage",
         "engine.boost",
         "engine.coolant-temperature",
         "engine.current-engine-rpm",
@@ -431,6 +434,8 @@
         "motion.angular-velocity-y",
         "motion.angular-velocity-z",
         "motion.front-axle-roll-angle",
+        "motion.grid-speed",
+        "motion.grid-yaw",
         "motion.lat-accel-st",
         "motion.local-velocity",
         "motion.long-accel-st",
@@ -486,6 +491,18 @@
         "race.driver-marker",
         "race.driver-status",
         "race.flag-status",
+        "race.grid-car-index",
+        "race.grid-class-id",
+        "race.grid-class-name",
+        "race.grid-completion-source-sequence",
+        "race.grid-connected",
+        "race.grid-is-player",
+        "race.grid-pos-x",
+        "race.grid-pos-y",
+        "race.grid-pos-z",
+        "race.grid-vel-x",
+        "race.grid-vel-y",
+        "race.grid-vel-z",
         "race.incident-flags",
         "race.is-online",
         "race.is-race-on",
@@ -583,6 +600,7 @@
       "parentId": "race.competitor",
       "children": [
         "race.competitor.class-position",
+        "race.competitor.connected",
         "race.competitor.driver-incident-count",
         "race.competitor.fast-repairs-used",
         "race.competitor.incidents",
@@ -615,6 +633,13 @@
         "engine.competitor-rpm",
         "inputs.competitor-steering-angle",
         "inputs.competitor.gear",
+        "motion.competitor.position-x",
+        "motion.competitor.position-y",
+        "motion.competitor.position-z",
+        "motion.competitor.speed",
+        "motion.competitor.velocity-x",
+        "motion.competitor.velocity-y",
+        "motion.competitor.velocity-z",
         "timing.competitor.best-lap-number",
         "timing.competitor.best-lap-time",
         "timing.competitor.current-lap-number",
@@ -624,6 +649,7 @@
         "timing.competitor.gap-to-leader",
         "timing.competitor.lap-fraction",
         "timing.competitor.last-lap-time",
+        "timing.competitor.last-lap-valid",
         "timing.competitor.total-time",
         "timing.sector.competitor-best",
         "timing.sector.competitor-last"
@@ -679,11 +705,13 @@
         "session.graphics-packet-id",
         "session.heat-racing",
         "session.is-replay-playing",
+        "session.is-spectating",
         "session.laps-remaining",
         "session.league-id",
         "session.maximum-drivers",
         "session.minimum-drivers",
         "session.official",
+        "session.phase",
         "session.physics-packet-id",
         "session.qualifier-must-start-race",
         "session.race-week",
@@ -956,6 +984,9 @@
         "timing.best-lap-number",
         "timing.car-dist-ahead",
         "timing.car-dist-behind",
+        "timing.car-idx-best-lap-time",
+        "timing.car-idx-lap",
+        "timing.car-idx-last-lap-time",
         "timing.competitor.class-estimated-lap-time",
         "timing.current-lap",
         "timing.current-lap-valid",
@@ -970,6 +1001,9 @@
         "timing.drs-activation-distance",
         "timing.gap-ahead-ms",
         "timing.gap-behind-ms",
+        "timing.grid-class-position",
+        "timing.grid-completed-lap-number",
+        "timing.grid-lap-valid-bit-flags",
         "timing.grid-position",
         "timing.ideal-lap-time",
         "timing.lap-delta-to-best-lap",
@@ -1023,9 +1057,7 @@
       "description": "Native sector detail and comparable RaceIQ sector values, preserving variable sector counts.",
       "parentId": "timing",
       "children": [
-        "timing.sector.best-times",
         "timing.sector.current-index",
-        "timing.sector.current-time",
         "timing.sector.last-completed-time",
         "timing.sector.layout",
         "timing.sector.current-lap",
@@ -1066,7 +1098,6 @@
       "children": [
         "timing.sector.current-lap.s1",
         "timing.sector.current-lap.s2",
-        "timing.sector.current-lap.s3",
         "timing.sector.current-lap.times"
       ]
     },
@@ -1092,8 +1123,7 @@
       "children": [
         "timing.sector.last-lap.s1",
         "timing.sector.last-lap.s2",
-        "timing.sector.last-lap.s3",
-        "timing.sector.last-lap.times"
+        "timing.sector.last-lap.s3"
       ]
     },
     {
@@ -5201,6 +5231,58 @@
       "limitations": []
     },
     {
+      "id": "diagnostics.is-spectating",
+      "label": "Is Spectating",
+      "description": "Is Spectating source value reported by f1-2025 in boolean.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.isSpectating"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "diagnostics.mem-page-fault-sec",
       "label": "Mem Page Fault Sec",
       "description": "Memory page faults per second",
@@ -8855,6 +8937,99 @@
       "valueType": "number",
       "dimensions": [
         "unit:level"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "engine.battery-state-of-charge",
+      "label": "Battery state of charge",
+      "description": "Normalized traction battery state of charge.",
+      "parentId": "engine",
+      "canonicalUnit": "ratio",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "range": {
+        "min": 0,
+        "max": 1
+      },
+      "limitations": []
+    },
+    {
+      "id": "engine.battery-voltage",
+      "label": "Battery voltage",
+      "description": "Source-provided traction battery voltage.",
+      "parentId": "engine",
+      "canonicalUnit": "V",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "mass",
+        "length^2",
+        "time^-3",
+        "electric-current^-1"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -12985,39 +13160,40 @@
     {
       "id": "identity.car-left-right",
       "label": "Car Left Right",
-      "description": "Notify if car is to the left or right of driver",
+      "description": "Native irsdk_CarLeftRight occupancy code for spotter use.",
       "parentId": "identity",
-      "canonicalUnit": "irsdk_CarLeftRight",
+      "canonicalUnit": "count",
       "shape": "scalar",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
-          "nativeUnit": "irsdk_CarLeftRight",
+          "nativeUnit": "count",
           "sources": [
+            "iracing.carLeftRight",
             "iRacing.CarLeftRight"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -13027,7 +13203,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "unit:irsdk_carleftright"
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -17897,6 +18073,504 @@
       "limitations": []
     },
     {
+      "id": "motion.competitor.position-x",
+      "label": "Competitor world position X",
+      "description": "World X position for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.position-y",
+      "label": "Competitor world position Y",
+      "description": "World Y position for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.position-z",
+      "label": "Competitor world position Z",
+      "description": "World Z position for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.speed",
+      "label": "Competitor speed",
+      "description": "Ground speed for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.velocity-x",
+      "label": "Competitor velocity X",
+      "description": "World X velocity for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.velocity-y",
+      "label": "Competitor velocity Y",
+      "description": "World Y velocity for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.velocity-z",
+      "label": "Competitor velocity Z",
+      "description": "World Z velocity for each competitor.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
       "id": "motion.driver-head-position.x",
       "label": "Driver head position X",
       "description": "Driver head position on source X axis.",
@@ -18101,6 +18775,162 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.grid-speed",
+      "label": "Grid speed",
+      "description": "Grid speed source value reported by f1-2025 in m/s.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "f1.grid[].speed"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.grid-yaw",
+      "label": "Grid yaw",
+      "description": "Grid yaw source value reported by f1-2025 in rad.",
+      "parentId": "motion",
+      "canonicalUnit": "rad",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "rad",
+          "sources": [
+            "f1.grid[].yaw"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "angle"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "angle"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -21201,33 +22031,34 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "iracing.carIdxClassPosition",
             "iRacing.CarIdxClassPosition",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].ClassPosition",
             "iRacing.SessionInfo.QualifyResultsInfo.Results[].ClassPosition"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
@@ -21702,6 +22533,76 @@
           {
             "id": "value",
             "valueType": "string",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.connected",
+      "label": "Competitor connectivity",
+      "description": "Whether each competitor is currently connected.",
+      "parentId": "race.competitor.results",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
             "dimensions": [
               "dimensionless"
             ]
@@ -22845,32 +23746,33 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "iracing.carIdxLapCompleted",
             "iRacing.CarIdxLapCompleted",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].LapsComplete"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
@@ -23769,11 +24671,12 @@
           "kind": "normalized",
           "nativeUnit": "boolean",
           "sources": [
+            "iracing.carIdxOnPitRoad",
             "iRacing.CarIdxOnPitRoad"
           ],
           "freshness": "continuous",
-          "normalization": "true = on pit road; false = not on pit road",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
+          "normalization": "convert boolean to enum",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -23785,10 +24688,11 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.carIdxOnPitRoad",
               "iRacing.CarIdxOnPitRoad"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "cf467277dd8cbd1afc83385c0e95c25913a4b3d7b8f52e7348e3fc236ddf240c"
+            "codeHash": "f4a9ad937ea2d7cf847e5b2e6287e2529a740f26b5f338888d1b4484b592eb60"
           }
         }
       },
@@ -23948,12 +24852,13 @@
           "kind": "direct",
           "nativeUnit": "count",
           "sources": [
+            "iracing.carIdxPosition",
             "iRacing.CarIdxPosition",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].Position",
             "iRacing.SessionInfo.QualifyResultsInfo.Results[].Position"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
@@ -25068,32 +25973,33 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "irsdk_TrkSurf",
+          "nativeUnit": "count",
           "sources": [
+            "iracing.carIdxTrackSurface",
             "iRacing.CarIdxTrackSurfaceMaterial"
           ],
           "freshness": "continuous",
-          "normalization": "convert irsdk_TrkSurf to enum",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
+          "normalization": "convert count to enum",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -25105,10 +26011,11 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.carIdxTrackSurface",
               "iRacing.CarIdxTrackSurfaceMaterial"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "b86be232a41772a3191b48de70964b49716c8aef89aa4e70232099bda6168f4b"
+            "codeHash": "b28f68153fc8c25fe337c39ad303b41b6bca2373547e99028e922901e1b92c2a"
           }
         }
       },
@@ -25421,6 +26328,930 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-car-index",
+      "label": "Grid car Index",
+      "description": "Grid car Index source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].carIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-class-id",
+      "label": "Grid class Id",
+      "description": "Grid class Id source value reported by f1-2025 in text.",
+      "parentId": "race",
+      "canonicalUnit": "text",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "f1.grid[].classId"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "string",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-class-name",
+      "label": "Grid class Name",
+      "description": "Grid class Name source value reported by f1-2025 in text.",
+      "parentId": "race",
+      "canonicalUnit": "text",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "f1.grid[].className"
+          ],
+          "freshness": "static",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "string",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-completion-source-sequence",
+      "label": "Grid completion Source Sequence",
+      "description": "Grid completion Source Sequence source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].completionSourceSequence"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-connected",
+      "label": "Grid connected",
+      "description": "Grid connected source value reported by f1-2025 in boolean.",
+      "parentId": "race",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.grid[].connected"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-is-player",
+      "label": "Grid is Player",
+      "description": "Grid is Player source value reported by f1-2025 in boolean.",
+      "parentId": "race",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.grid[].isPlayer"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-pos-x",
+      "label": "Grid pos X",
+      "description": "Grid pos X source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posX"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-pos-y",
+      "label": "Grid pos Y",
+      "description": "Grid pos Y source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posY"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-pos-z",
+      "label": "Grid pos Z",
+      "description": "Grid pos Z source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posZ"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-vel-x",
+      "label": "Grid vel X",
+      "description": "Grid vel X source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velX"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-vel-y",
+      "label": "Grid vel Y",
+      "description": "Grid vel Y source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velY"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.grid-vel-z",
+      "label": "Grid vel Z",
+      "description": "Grid vel Z source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velZ"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -29281,6 +31112,49 @@
       "limitations": []
     },
     {
+      "id": "session.is-spectating",
+      "label": "Spectator state",
+      "description": "Whether the player is currently spectating.",
+      "parentId": "session",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "session.laps-remaining",
       "label": "Session laps remaining",
       "description": "Number of laps remaining before current session ends.",
@@ -29548,6 +31422,49 @@
       "valueType": "boolean",
       "dimensions": [
         "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "session.phase",
+      "label": "Session phase",
+      "description": "Normalized phase of the active session.",
+      "parentId": "session",
+      "canonicalUnit": "dimensionless",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -30564,39 +32481,40 @@
     {
       "id": "session.session-flags",
       "label": "Session Flags",
-      "description": "Session flags",
+      "description": "Session Flags source value reported by iracing in count.",
       "parentId": "session",
-      "canonicalUnit": "irsdk_Flags",
+      "canonicalUnit": "count",
       "shape": "scalar",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
-          "nativeUnit": "irsdk_Flags",
+          "nativeUnit": "count",
           "sources": [
+            "iracing.sessionFlags",
             "iRacing.SessionFlags"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -30606,7 +32524,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "unit:irsdk_flags"
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -30826,39 +32744,40 @@
     {
       "id": "session.session-state",
       "label": "Session State",
-      "description": "Session state",
+      "description": "Session State source value reported by iracing in count.",
       "parentId": "session",
-      "canonicalUnit": "irsdk_SessionState",
+      "canonicalUnit": "count",
       "shape": "scalar",
       "games": {
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
-          "nativeUnit": "irsdk_SessionState",
+          "nativeUnit": "count",
           "sources": [
+            "iracing.sessionState",
             "iRacing.SessionState"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK source recorded by RaceIQ.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -30868,7 +32787,7 @@
       },
       "valueType": "number",
       "dimensions": [
-        "unit:irsdk_sessionstate"
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -38953,6 +40872,237 @@
       "limitations": []
     },
     {
+      "id": "timing.car-idx-best-lap-time",
+      "label": "Car Idx Best Lap Time",
+      "description": "Car Idx Best Lap Time source value reported by iracing in s.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "iracing.carIdxBestLapTime"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "time"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.car-idx-lap",
+      "label": "Car Idx Lap",
+      "description": "Native opponent arrays retained for conservative completed-lap inference.",
+      "parentId": "timing",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "iracing.carIdxLap"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.car-idx-last-lap-time",
+      "label": "Car Idx Last Lap Time",
+      "description": "Car Idx Last Lap Time source value reported by iracing in s.",
+      "parentId": "timing",
+      "canonicalUnit": "s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "iracing.carIdxLastLapTime"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "time"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "time"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
       "id": "timing.competitor.best-lap-number",
       "label": "Competitor best lap number",
       "description": "Lap number on which each competitor set fastest time.",
@@ -39785,6 +41935,76 @@
             "valueType": "number",
             "dimensions": [
               "time"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.competitor.last-lap-valid",
+      "label": "Competitor last lap validity",
+      "description": "Whether each competitor's last lap was valid.",
+      "parentId": "race.competitor.timing",
+      "canonicalUnit": "boolean",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "boolean",
+            "dimensions": [
+              "dimensionless"
             ]
           }
         ]
@@ -40757,6 +42977,237 @@
       ],
       "cardinality": {
         "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.grid-class-position",
+      "label": "Grid class Position",
+      "description": "Grid class Position source value reported by f1-2025 in count.",
+      "parentId": "timing",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].classPosition"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.grid-completed-lap-number",
+      "label": "Grid completed Lap Number",
+      "description": "Grid completed Lap Number source value reported by f1-2025 in count.",
+      "parentId": "timing",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].completedLapNumber"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "timing.grid-lap-valid-bit-flags",
+      "label": "Grid lap Valid Bit Flags",
+      "description": "Grid lap Valid Bit Flags source value reported by f1-2025 in count.",
+      "parentId": "timing",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].lapValidBitFlags"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "grid-index:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "grid-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -42530,158 +44981,6 @@
       "limitations": []
     },
     {
-      "id": "timing.sector.best-times",
-      "label": "Best sector times",
-      "description": "Fastest observed time for each sector, possibly drawn from different laps.",
-      "parentId": "timing.sector",
-      "canonicalUnit": "s",
-      "shape": "array",
-      "games": {
-        "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "minimum valid time at each sector index across completed laps",
-          "description": "fm-2023 best sectors are derived from RaceIQ persisted lap-sector arrays.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.best-times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4282083241e27df9fc1b446dca977163293958c7001bad35ff10d13f998b3d22"
-          }
-        },
-        "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "minimum valid time at each sector index across completed laps",
-          "description": "f1-2025 best sectors are derived from RaceIQ persisted lap-sector arrays.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.best-times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "1354db6ff2f06f483f1d06b999a5f182f777df940426dd0d20a6afd926558c9f"
-          }
-        },
-        "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "minimum valid time at each sector index across completed laps",
-          "description": "acc best sectors are derived from RaceIQ persisted lap-sector arrays.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.best-times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "1a9813ff466bce21818abd4a7857412b1a810c4a4fede87183a45efacf4c63d5"
-          }
-        },
-        "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "minimum valid time at each sector index across completed laps",
-          "description": "ac-evo best sectors are derived from RaceIQ persisted lap-sector arrays.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.best-times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4a7e9a2423b64f29f55243980a62aa42d5e089f267d281482d8135f2633297d0"
-          }
-        },
-        "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "minimum valid time at each sector index across completed laps",
-          "description": "iracing best sectors are derived from RaceIQ persisted lap-sector arrays.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.best-times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "824b2be470caf7544b28cb3ee93c0a983261d91a3df3213ebc651b04553dbae4"
-          }
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "time"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "source-order"
-      ],
-      "limitations": []
-    },
-    {
       "id": "timing.sector.competitor-best.s1",
       "label": "Competitor best S1",
       "description": "Best sector 1 time for each competitor.",
@@ -43152,32 +45451,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "m",
-          "sources": [
-            "TelemetryPacket.DistanceTraveled",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector containing current lap distance",
-          "description": "RaceIQ derives sector index from curated track boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-index:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.DistanceTraveled",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "755ab4c5cc7c1408604b482dae92935d11f345d30a0947fa364a5e7af680d73a"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -43208,60 +45484,14 @@
           "limitations": []
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "m",
-          "sources": [
-            "TelemetryPacket.DistanceTraveled",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector containing current lap distance",
-          "description": "AC Evo sector fields are placeholders, so RaceIQ uses curated track boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-index:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.DistanceTraveled",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "14da74a140c84130e69b13c2dbb4080d085b7a5e855bc12c9d51baf6bcac7c61"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "AC Evo v0.6 parser emits -1; native sector index is not populated."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "fraction",
-          "sources": [
-            "iracing.lapDistancePct",
-            "iracing.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "select greatest sector start not above current lap fraction",
-          "description": "RaceIQ derives current sector from native iRacing SplitTimeInfo layout.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-index:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iracing.lapDistancePct",
-              "iracing.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d46cd1b070d420852567c905ad0c3b69a41adb30c8d66e8657a9e816d9fbb3d8"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -43282,30 +45512,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 0",
-          "description": "fm-2023 fixed S1 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "663d8b2c7f06cd29d336d5c91b4663d9595bd5200551d1c7660c5c598fc29e9f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -43322,82 +45531,19 @@
           "limitations": []
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 0",
-          "description": "acc fixed S1 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.current-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "41cddce515e36121911697aa9acc2a4bc19d294ca4a04fc131d2d74e98ce1a8d"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 0",
-          "description": "ac-evo fixed S1 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "102dd335d89b95f1fafb06408c7cd370d389df00e4d15c2acc0db74c7b340b70"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 0",
-          "description": "iracing fixed S1 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "631f368a3f5b99ef470d90664a4ac0f30183b31b9b3cd961a85bbca89d2fe98a"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -43418,30 +45564,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 1",
-          "description": "fm-2023 fixed S2 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "5d2f8998147f63244a0cdaf7373f94a91c548d59e1b3c79ebb916e40ebeb9eaf"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -43458,230 +45583,19 @@
           "limitations": []
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 1",
-          "description": "acc fixed S2 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.current-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "7519ff4207b7f999558c019af27aa6487dcfc1caa8106b8d9b7d6c307b9ba671"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 1",
-          "description": "ac-evo fixed S2 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d927aa458da3395710e7e65dd2c6e83cd22070d7cba6c2aeb0a278e961e1ba0f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 1",
-          "description": "iracing fixed S2 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "503853509e900ed15a0bb8d5ad31a47dd28af84b230121e740c1fa767dbc8d7e"
-          }
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "time"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
-      "limitations": []
-    },
-    {
-      "id": "timing.sector.current-lap.s3",
-      "label": "Current lap S3",
-      "description": "Completed sector 3 time on current lap.",
-      "parentId": "timing.sector.current-lap",
-      "canonicalUnit": "s",
-      "shape": "scalar",
-      "games": {
-        "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 2",
-          "description": "fm-2023 fixed S3 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "6f65785f3f99baf22cf3117cf6001cf8820a4b05c6fd6e6944bf7347ec334a9d"
-          }
-        },
-        "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 2",
-          "description": "f1-2025 fixed S3 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.current-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "cfc438ed7c06060de74a38df8febca8e3b7c9adc644d067a3c61df5017193fc9"
-          }
-        },
-        "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 2",
-          "description": "acc fixed S3 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.current-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "da8f1680da9473a5df27031da8ce582ff2d149fd903143c536c85f94f063beab"
-          }
-        },
-        "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 2",
-          "description": "ac-evo fixed S3 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "e2b7dc8f0bf43c201dcc2eb4aea335e0adc125982b8acd472b685f3b78b0f5be"
-          }
-        },
-        "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select sector index 2",
-          "description": "iracing fixed S3 projection is derived from current variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a1a1c24475b2e8ccd00d05ea58bff0281f3273dc351eb04b019c071fb5e72694"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -43702,154 +45616,29 @@
       "shape": "array",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "TelemetryPacket.DistanceTraveled",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "accumulate elapsed time between curated sector boundaries",
-          "description": "RaceIQ assembles current Forza sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "TelemetryPacket.DistanceTraveled",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "aec59e901afd40017eb1ae447ad7d9419a93da112da93b987eaaac00c0383210"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
         },
         "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "f1.sector1Time",
-            "f1.sector2Time",
-            "TelemetryPacket.CurrentLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "[S1, S2, current S3 running time]",
-          "description": "RaceIQ assembles current F1 three-sector array from native splits.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.current-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "f1.sector1Time",
-              "f1.sector2Time",
-              "TelemetryPacket.CurrentLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "3465cf7ecd6c2d78df2c1641ed0f790f60173ed8eb1e1875913e6100debc97f5"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "ms",
-          "sources": [
-            "acc.currentSectorIndex",
-            "acc.lastSectorTime",
-            "TelemetryPacket.CurrentLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "append native completed sector milliseconds and running sector seconds",
-          "description": "RaceIQ assembles current ACC sector array from native transitions.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.current-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "acc.currentSectorIndex",
-              "acc.lastSectorTime",
-              "TelemetryPacket.CurrentLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "73f389f5ed17b825cdb680c200cd86cc845d86cafdd984f14109a8ee90f4512f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "TelemetryPacket.DistanceTraveled",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "accumulate elapsed time between curated sector boundaries",
-          "description": "RaceIQ assembles current AC Evo sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "TelemetryPacket.DistanceTraveled",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d5bcc732ba40dd62c77a1176319f70215e915f2fd179fa3cf8c73282fa085119"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "iracing.lapDistancePct",
-            "iracing.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "accumulate elapsed time between native variable-length sector boundaries",
-          "description": "RaceIQ assembles current iRacing sector array.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "iracing.lapDistancePct",
-              "iracing.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "2d13f8d986f35509bd2d030e4486af6f95884eb66d94d94acd83b4adabc2fbb0"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No source mapping is currently exposed by RaceIQ."
         }
       },
       "valueType": "number",
@@ -43863,172 +45652,6 @@
       "ordering": [
         "source-order"
       ],
-      "limitations": []
-    },
-    {
-      "id": "timing.sector.current-time",
-      "label": "Current sector running time",
-      "description": "Elapsed time since vehicle entered current sector.",
-      "parentId": "timing.sector",
-      "canonicalUnit": "s",
-      "shape": "scalar",
-      "games": {
-        "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "current lap time - time at current sector entry",
-          "description": "RaceIQ times curated sector-boundary crossings.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.current-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "57adcd6d75957be978201d40bb93ff728917fbf82085985ca45664f224483574"
-          }
-        },
-        "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "f1.currentSector",
-            "f1.sector1Time",
-            "f1.sector2Time"
-          ],
-          "freshness": "continuous",
-          "normalization": "subtract completed current-lap sector times from lap elapsed time",
-          "description": "RaceIQ derives running F1 sector time from native completed splits.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.current-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "f1.currentSector",
-              "f1.sector1Time",
-              "f1.sector2Time"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "9a6e498d798ebde30d6ff34cf569c1b2b5f90ac982ba014c2673c13016c1871c"
-          }
-        },
-        "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "acc.currentSectorIndex"
-          ],
-          "freshness": "continuous",
-          "normalization": "current lap time - time at native sector-index transition",
-          "description": "RaceIQ times ACC native sector transitions.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.current-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "acc.currentSectorIndex"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "6b44a6234795531a5ed42487341d99b0df77822467d39492d4baa3503317ae04"
-          }
-        },
-        "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "TelemetryPacket.DistanceTraveled",
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "current lap time - time at curated sector boundary",
-          "description": "RaceIQ derives AC Evo sector timing from lap distance.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.current-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "TelemetryPacket.DistanceTraveled",
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "3f075e6e66d20fc2da7488e8b72104252312edccab6de4f5e6d989793ea7de1b"
-          }
-        },
-        "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "TelemetryPacket.CurrentLap",
-            "iracing.lapDistancePct",
-            "iracing.sectorStarts"
-          ],
-          "freshness": "continuous",
-          "normalization": "current lap time - time at native sector boundary",
-          "description": "RaceIQ times crossings of iRacing native variable-length sector layout.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.current-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "TelemetryPacket.CurrentLap",
-              "iracing.lapDistancePct",
-              "iracing.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "39e844aa458b96afc1425a7b9f9f865b4d85f3e009c6676c6881382baa6481b3"
-          }
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "time"
-      ],
-      "cardinality": {
-        "kind": "scalar"
-      },
       "limitations": []
     },
     {
@@ -44348,62 +45971,14 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select most recently completed entry",
-          "description": "RaceIQ derives from curated boundary timing.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.last-completed-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "c763f3701270b40c3b8b37eb48332aa2786174b3a852352a2283f696be6257b0"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "f1.currentSector",
-            "f1.sector1Time",
-            "f1.sector2Time",
-            "f1.lastS3"
-          ],
-          "freshness": "continuous",
-          "normalization": "select split belonging to most recently completed sector",
-          "description": "RaceIQ selects last completed F1 split from native sector-specific fields.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.last-completed-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "f1.currentSector",
-              "f1.sector1Time",
-              "f1.sector2Time",
-              "f1.lastS3"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "e2ab460e49b79847b7be09ef5c552878dfc040d13d71b32f01216bb14e71d9a7"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "normalized",
@@ -44432,56 +46007,14 @@
           }
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select most recently completed entry",
-          "description": "RaceIQ derives from curated boundary timing.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.last-completed-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "bdcc3b905cf9b3a38feb43566b4ae10491d24dab153fab8e758f908d86ec80b2"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "AC Evo v0.6 parser emits 0; native sector time is not populated."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LiveSectorData.currentTimes"
-          ],
-          "freshness": "continuous",
-          "normalization": "select most recently completed entry",
-          "description": "RaceIQ derives from native iRacing sector boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.last-completed-time:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LiveSectorData.currentTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "6231b93c1a0ebcf49bb277c10d0c0f0c62170976f04ddaa8c93ade05d9cc0327"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -44502,30 +46035,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 0",
-          "description": "fm-2023 fixed S1 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.last-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "692182c44e7ea480d793847e5cdf73e5dfc0d736aac6eacf17975862055015f4"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -44542,82 +46054,19 @@
           "limitations": []
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 0",
-          "description": "acc fixed S1 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.last-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "bc4fbaf4625cc92b7b27069b58da2b7ee880548a59f7a4ac3d8dd459cc666377"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 0",
-          "description": "ac-evo fixed S1 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.last-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8999cdbf193f8fb322f34cb56c9e50e9b928c72bf39d3b9355c848b9105bb018"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 0",
-          "description": "iracing fixed S1 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.last-lap.s1:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "0f662cd2a6eb195a7e4ae6ea2ee70feea3cf5e331854f8f556508fb4e074f91f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -44638,30 +46087,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 1",
-          "description": "fm-2023 fixed S2 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.last-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "0da3d53fed291c23d6b952c09cee8366d5b4b291e2e4b6a5a273904718d1d7ce"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -44678,82 +46106,19 @@
           "limitations": []
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 1",
-          "description": "acc fixed S2 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.last-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "4fcc346326922a2637e705e17dcff60d3c1ba0453b229365d5e1973622fe264c"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 1",
-          "description": "ac-evo fixed S2 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.last-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "666a1e4ad47181099642a891da5ee0f6db88e582fa56177dc115f5ff0933cd9e"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 1",
-          "description": "iracing fixed S2 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.last-lap.s2:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "001f34f0b63b95169528eba4920b033e7eb678f896ec3ac1c6048952479a7875"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -44774,30 +46139,9 @@
       "shape": "scalar",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 2",
-          "description": "fm-2023 fixed S3 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.last-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "7718c166ebee03431acb1d2bd128993139e197e1c53abbfa46a28c26a2758567"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "direct",
@@ -44814,82 +46158,19 @@
           "limitations": []
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 2",
-          "description": "acc fixed S3 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.last-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "42652b0e59c34ebc7172dfb17ebcd8c8c0e564f4e0db4c50ad1ad10cdd32ac4f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 2",
-          "description": "ac-evo fixed S3 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.last-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a037dc976e2fa31937b8a2a38c4f7d055808b847fec5c9b387af9d060ce5e39b"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes"
-          ],
-          "freshness": "static",
-          "normalization": "select sector index 2",
-          "description": "iracing fixed S3 projection is derived from persisted variable-length sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.last-lap.s3:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "a09c31b8585612c1388e1990a9e7e1eeafbbdc8b93d166fc50115cdb9b1e5650"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -44902,176 +46183,6 @@
       "limitations": []
     },
     {
-      "id": "timing.sector.last-lap.times",
-      "label": "Last lap sector times",
-      "description": "Ordered sector times for most recently completed lap; supports variable sector counts.",
-      "parentId": "timing.sector.last-lap",
-      "canonicalUnit": "s",
-      "shape": "array",
-      "games": {
-        "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes",
-            "TelemetryPacket.LastLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "persist sector-boundary timings and derive final sector from lap total",
-          "description": "RaceIQ stores last completed Forza sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.last-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes",
-              "TelemetryPacket.LastLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "5708e5f991efc3a105a4471f885c8d3c339450d620f18a5f70bb80e5654e0530"
-          }
-        },
-        "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "f1.lapSectors.s1",
-            "f1.lapSectors.s2",
-            "f1.lapSectors.s3"
-          ],
-          "freshness": "continuous",
-          "normalization": "select most recently completed lap from lap-number-keyed SessionHistory records",
-          "description": "RaceIQ selects definitive F1 splits for most recently completed lap.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.last-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "f1.lapSectors.s1",
-              "f1.lapSectors.s2",
-              "f1.lapSectors.s3"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "745f83601f94278e12a460cb40d8b35b6539e32f96364f24344b9a3f61bf82d3"
-          }
-        },
-        "acc": {
-          "kind": "derived",
-          "nativeUnit": "ms",
-          "sources": [
-            "acc.currentSectorIndex",
-            "acc.lastSectorTime",
-            "TelemetryPacket.LastLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "assemble native completed sectors; final sector = lap time - prior sectors",
-          "description": "RaceIQ stores completed ACC sector array.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.last-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "acc.currentSectorIndex",
-              "acc.lastSectorTime",
-              "TelemetryPacket.LastLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "ff63b4304ace648dc7aa4490836bcdc938913c40cf2b49d445f690de7be64227"
-          }
-        },
-        "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "LapMeta.sectorTimes",
-            "TelemetryPacket.LastLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "persist curated-boundary timings and derive final sector from lap total",
-          "description": "RaceIQ stores completed AC Evo sector array.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.last-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LapMeta.sectorTimes",
-              "TelemetryPacket.LastLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "c60db3b2a028888b161a90de3768ca584e8028506154ef509380ff92d4bdd9a3"
-          }
-        },
-        "iracing": {
-          "kind": "derived",
-          "nativeUnit": "s",
-          "sources": [
-            "iracing.sectorStarts",
-            "iracing.lapDistancePct",
-            "TelemetryPacket.CurrentLap",
-            "TelemetryPacket.LastLap"
-          ],
-          "freshness": "continuous",
-          "normalization": "time native boundary crossings; final sector = lap time - prior sectors",
-          "description": "RaceIQ stores variable-length iRacing sector array.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "iracing:timing.sector.last-lap.times:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iracing.sectorStarts",
-              "iracing.lapDistancePct",
-              "TelemetryPacket.CurrentLap",
-              "TelemetryPacket.LastLap"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "9cc0d46605d147b9c693d6f51389b234a85b3774e7a33198e65da0fbadaf9c28"
-          }
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "time"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "source-order"
-      ],
-      "limitations": []
-    },
-    {
       "id": "timing.sector.layout.indexes",
       "label": "Sector indexes",
       "description": "Ordered native sector identifiers.",
@@ -45080,108 +46191,24 @@
       "shape": "array",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "count",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "generate sequential zero-based indexes for each sector boundary",
-          "description": "fm-2023 sector indexes follow ordered sector boundary list.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.layout.indexes:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "0bee339b9b782911a0c8bbf4e8ab377780a18a9a43f750e4c19a7cc1b1a76527"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "count",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "generate sequential zero-based indexes for each sector boundary",
-          "description": "f1-2025 sector indexes follow ordered sector boundary list.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.layout.indexes:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "8998bb4ef6fb89fcab193bd51f71bae58930091342026d796e6ba015f80a60ac"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "count",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "generate sequential zero-based indexes for each sector boundary",
-          "description": "acc sector indexes follow ordered sector boundary list.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.layout.indexes:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "595463c80269b6e531590305bd3840da1c62d50ce0ef057cb54757680d337ae7"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "count",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "generate sequential zero-based indexes for each sector boundary",
-          "description": "ac-evo sector indexes follow ordered sector boundary list.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.layout.indexes:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "31ad838574248d4d9c37277396003f73b822a97a18d99e19060a79f1690f9e83"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "iracing": {
           "kind": "direct",
@@ -45220,108 +46247,24 @@
       "shape": "array",
       "games": {
         "fm-2023": {
-          "kind": "derived",
-          "nativeUnit": "fraction",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "use curated track-specific sector start fractions",
-          "description": "fm-2023 uses RaceIQ curated track-sector boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "fm-2023:timing.sector.layout.start-fractions:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "9f872818be6e36880e26c9d139bdee2d9dee415a35151db1fc2374ebf103e21a"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "derived",
-          "nativeUnit": "fraction",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "use curated track-specific sector start fractions",
-          "description": "F1 packets provide authoritative times but not boundary distances; RaceIQ layout is display/derivation metadata.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "f1-2025:timing.sector.layout.start-fractions:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "621f6514d63371a009dabe57f2dce036ef165553c4b4937ca5801bec0ea54c64"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "derived",
-          "nativeUnit": "fraction",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "use curated track-specific sector start fractions",
-          "description": "acc uses RaceIQ curated track-sector boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "acc:timing.sector.layout.start-fractions:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "900990496e4e464a3a6c1795827179c23a2a8bd514f760a85f5fc7d46caa555f"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
-          "kind": "derived",
-          "nativeUnit": "fraction",
-          "sources": [
-            "RaceIQ.Track.sectorStarts"
-          ],
-          "freshness": "static",
-          "normalization": "use curated track-specific sector start fractions",
-          "description": "ac-evo uses RaceIQ curated track-sector boundaries.",
-          "provenance": {
-            "origin": "derivation",
-            "artifact": "scripts/catalog/derived-projections.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "ac-evo:timing.sector.layout.start-fractions:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "RaceIQ.Track.sectorStarts"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "97dcb299577edd1b1c9966d066129fc0edae36739303398743a7c596a8576382"
-          }
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
@@ -45848,7 +46791,7 @@
     {
       "id": "timing.session-time-remain",
       "label": "Session Time Remain",
-      "description": "Seconds left till session ends",
+      "description": "Session Time Remain source value reported by iracing in s.",
       "parentId": "timing",
       "canonicalUnit": "s",
       "shape": "scalar",
@@ -45856,31 +46799,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source variable is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "direct",
           "nativeUnit": "s",
           "sources": [
+            "iracing.sessionTimeRemain",
             "iRacing.SessionTimeRemain"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK source; catalogued but not selected in current RaceIQ source frame.",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -55053,7 +55997,7 @@
         "unit": "s",
         "dataType": "number",
         "count": 1,
-        "description": "Sector times from session history (seconds, 0 if unavailable)",
+        "description": "Grid best S1 source value reported by f1-2025 in s.",
         "semanticId": "timing.sector.competitor-best.s1",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -55079,6 +56023,90 @@
         "count": 1,
         "description": "Grid best S3 source value reported by f1-2025 in s.",
         "semanticId": "timing.sector.competitor-best.s3",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].carIndex",
+        "label": "Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid car Index source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].classId",
+        "label": "Class Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Grid class Id source value reported by f1-2025 in text.",
+        "semanticId": "race.grid-class-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].className",
+        "label": "Class Name",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Grid class Name source value reported by f1-2025 in text.",
+        "semanticId": "race.grid-class-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].classPosition",
+        "label": "Class Position",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid class Position source value reported by f1-2025 in count.",
+        "semanticId": "timing.grid-class-position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].completedLapNumber",
+        "label": "Completed Lap Number",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid completed Lap Number source value reported by f1-2025 in count.",
+        "semanticId": "timing.grid-completed-lap-number",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].completionSourceSequence",
+        "label": "Completion Source Sequence",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid completion Source Sequence source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-completion-source-sequence",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].connected",
+        "label": "Connected",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Grid connected source value reported by f1-2025 in boolean.",
+        "semanticId": "race.grid-connected",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -55127,6 +56155,30 @@
         "count": 1,
         "description": "Grid gap To Leader source value reported by f1-2025 in s.",
         "semanticId": "timing.competitor.gap-to-leader",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].isPlayer",
+        "label": "Is Player",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Grid is Player source value reported by f1-2025 in boolean.",
+        "semanticId": "race.grid-is-player",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].lapValidBitFlags",
+        "label": "Lap Valid Bit Flags",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid lap Valid Bit Flags source value reported by f1-2025 in count.",
+        "semanticId": "timing.grid-lap-valid-bit-flags",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -55240,6 +56292,54 @@
         "retention": "exact"
       },
       {
+        "path": "f1.grid[].posX",
+        "label": "Pos X",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid pos X source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-pos-x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].posY",
+        "label": "Pos Y",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid pos Y source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-pos-y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].posZ",
+        "label": "Pos Z",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid pos Z source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-pos-z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].speed",
+        "label": "Speed",
+        "unit": "m/s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid speed source value reported by f1-2025 in m/s.",
+        "semanticId": "motion.grid-speed",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.grid[].teamId",
         "label": "Team Id",
         "unit": "id",
@@ -55276,6 +56376,54 @@
         "retention": "exact"
       },
       {
+        "path": "f1.grid[].velX",
+        "label": "Vel X",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid vel X source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-vel-x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].velY",
+        "label": "Vel Y",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid vel Y source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-vel-y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].velZ",
+        "label": "Vel Z",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid vel Z source value reported by f1-2025 in count.",
+        "semanticId": "race.grid-vel-z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.grid[].yaw",
+        "label": "Yaw",
+        "unit": "rad",
+        "dataType": "number",
+        "count": 1,
+        "description": "Grid yaw source value reported by f1-2025 in rad.",
+        "semanticId": "motion.grid-yaw",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "f1.gridPosition",
         "label": "Grid Position",
         "unit": "count",
@@ -55283,6 +56431,18 @@
         "count": 1,
         "description": "Grid Position source value reported by f1-2025 in count.",
         "semanticId": "timing.grid-position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.isSpectating",
+        "label": "Is Spectating",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Is Spectating source value reported by f1-2025 in boolean.",
+        "semanticId": "diagnostics.is-spectating",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64450,6 +65610,106 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.carIdxBestLapTime",
+        "label": "Car Idx Best Lap Time",
+        "unit": "s",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Best Lap Time source value reported by iracing in s.",
+        "semanticId": "timing.car-idx-best-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxClassPosition",
+        "label": "Car Idx Class Position",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Class Position source value reported by iracing in count.",
+        "semanticId": "race.competitor.class-position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxLap",
+        "label": "Car Idx Lap",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Native opponent arrays retained for conservative completed-lap inference.",
+        "semanticId": "timing.car-idx-lap",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxLapCompleted",
+        "label": "Car Idx Lap Completed",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Lap Completed source value reported by iracing in count.",
+        "semanticId": "race.competitor.laps-complete",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxLastLapTime",
+        "label": "Car Idx Last Lap Time",
+        "unit": "s",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Last Lap Time source value reported by iracing in s.",
+        "semanticId": "timing.car-idx-last-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxOnPitRoad",
+        "label": "Car Idx On Pit Road",
+        "unit": "boolean",
+        "dataType": "readonly boolean[]",
+        "description": "Car Idx On Pit Road source value reported by iracing in boolean.",
+        "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxPosition",
+        "label": "Car Idx Position",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Position source value reported by iracing in count.",
+        "semanticId": "race.competitor.position",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carIdxTrackSurface",
+        "label": "Car Idx Track Surface",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Car Idx Track Surface source value reported by iracing in count.",
+        "semanticId": "race.competitor.track-surface-material",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.carLeftRight",
+        "label": "Car Left Right",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native irsdk_CarLeftRight occupancy code for spotter use.",
+        "semanticId": "identity.car-left-right",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.carName",
         "label": "Car Name",
         "unit": "text",
@@ -64581,6 +65841,18 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.sessionFlags",
+        "label": "Session Flags",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Session Flags source value reported by iracing in count.",
+        "semanticId": "session.session-flags",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.sessionNum",
         "label": "Session Num",
         "unit": "count",
@@ -64593,6 +65865,18 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.sessionState",
+        "label": "Session State",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Session State source value reported by iracing in count.",
+        "semanticId": "session.session-state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.sessionTick",
         "label": "Session Tick",
         "unit": "count",
@@ -64600,6 +65884,18 @@
         "count": 1,
         "description": "Session Tick source value reported by iracing in count.",
         "semanticId": "session.session-tick",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.sessionTimeRemain",
+        "label": "Session Time Remain",
+        "unit": "s",
+        "dataType": "number",
+        "count": 1,
+        "description": "Session Time Remain source value reported by iracing in s.",
+        "semanticId": "timing.session-time-remain",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -74784,7 +76080,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 735,
+    "semanticVariables": 765,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -74796,13 +76092,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 288,
+        "total": 306,
         "packet": 119,
-        "extension": 169,
+        "extension": 187,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 288
+        "recorded": 306
       },
       "acc": {
         "total": 200,
@@ -74823,13 +76119,13 @@
         "recorded": 219
       },
       "iracing": {
-        "total": 955,
+        "total": 967,
         "packet": 119,
-        "extension": 17,
+        "extension": 29,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 705
+        "recorded": 717
       }
     }
   }

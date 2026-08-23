@@ -8,6 +8,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Add opt-in Race Engineer opponent-pace and Spotter announcements; opponent pace is available from source-backed F1 25 and iRacing telemetry, while ACC, AC Evo, and Forza remain unavailable where feeds do not expose required competitor facts.
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes

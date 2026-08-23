@@ -5,7 +5,11 @@ export interface F1GridEntry {
   teamId: number;
   name: string;
   carIndex?: number;
+  classId?: string;
+  className?: string;
+  classPosition?: number;
   isPlayer?: boolean;
+  connected?: boolean;
   completedLapNumber?: number;
   completionSourceSequence?: number;
   lapValidBitFlags?: number;
@@ -25,6 +29,9 @@ export interface F1GridEntry {
   lastS1: number;
   lastS2: number;
   lastS3: number;
+  posX?: number; posY?: number; posZ?: number;
+  velX?: number; velY?: number; velZ?: number;
+  yaw?: number; speed?: number;
 }
 
 export interface F1ExtendedData {
@@ -38,6 +45,7 @@ export interface F1ExtendedData {
   tyreCompound: string;
   tyreVisualCompound: number;
   tyreAge: number;
+  isSpectating?: boolean;
   weather: number;
   trackTemperature: number;
   airTemperature: number;

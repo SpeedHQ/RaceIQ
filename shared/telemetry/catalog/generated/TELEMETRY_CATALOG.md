@@ -7,18 +7,18 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `422bf0c26f3498c1209e4de7ce7b1d51aab1000d90bd98485c45f080c44b0589`
-- Content SHA-256: `d654780f733fc969347e77d97ebe6433b2b89eeaeb73952bba3721347834bab8`
+- Generator source SHA-256: `db54fb034b4343877ec190b2d6daf2ac7a7c37935ffcc98ecd984de8a061b7e2`
+- Content SHA-256: `d7274fe903879eda91161c0a19779744e5554d97298c3b9805ec78d99022b37c`
 
 ## Coverage
 
 | Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
-| f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
+| f1-2025 | 306 | 306 | 119 | 187 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
+| iracing | 967 | 717 | 119 | 29 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -90,6 +90,7 @@
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
+| `diagnostics.is-spectating` | Is Spectating | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.mem-page-fault-sec` | Mem Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-soft-page-fault-sec` | Mem Soft Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.number-of-sessions` | Number Of Sessions | number | dimensionless | count | scalar |  |  |  |
@@ -144,6 +145,8 @@
 | `electronics.tc-intervention` | TC Intervention | number | dimensionless | count | scalar |  |  |  |
 | `electronics.tc-raw` | TC Raw | number | dimensionless | count | scalar |  |  |  |
 | `electronics.traction-control-level` | Traction-control level | number | unit:level | level | scalar |  |  |  |
+| `engine.battery-state-of-charge` | Battery state of charge | number | dimensionless | ratio | scalar |  |  |  |
+| `engine.battery-voltage` | Battery voltage | number | mass × length^2 × time^-3 × electric-current^-1 | V | scalar |  |  |  |
 | `engine.boost` | Boost | number | mass × length^-1 × time^-2 | psi | scalar |  |  |  |
 | `engine.competitor-rpm` | Competitor engine RPM | structured | angle × time^-1 | rpm | variable:0-64 | source-path:source-order | indices: source-path (variable:0-64, source-order); fields: value:number |  |
 | `engine.coolant-temperature` | Coolant temperature | number | temperature | °C | scalar |  |  |  |
@@ -206,7 +209,7 @@
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-class-name` | Car Class Name | string | dimensionless | text | scalar |  |  |  |
-| `identity.car-left-right` | Car Left Right | number | unit:irsdk_carleftright | irsdk_CarLeftRight | scalar |  |  |  |
+| `identity.car-left-right` | Car Left Right | number | dimensionless | count | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-name` | Car Name | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-ordinal` | Car Ordinal | number | dimensionless | id | scalar |  |  |  |
@@ -278,10 +281,19 @@
 | `motion.angular-velocity-x` | Angular Velocity X | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-y` | Angular Velocity Y | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.angular-velocity-z` | Angular Velocity Z | number | length × time^-1 | m/s | scalar |  |  |  |
+| `motion.competitor.position-x` | Competitor world position X | structured | length | m | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.position-y` | Competitor world position Y | structured | length | m | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.position-z` | Competitor world position Z | structured | length | m | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.speed` | Competitor speed | structured | length × time^-1 | m/s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.velocity-x` | Competitor velocity X | structured | length × time^-1 | m/s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.velocity-y` | Competitor velocity Y | structured | length × time^-1 | m/s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `motion.competitor.velocity-z` | Competitor velocity Z | structured | length × time^-1 | m/s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `motion.driver-head-position.x` | Driver head position X | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.y` | Driver head position Y | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
+| `motion.grid-speed` | Grid speed | structured | length × time^-1 | m/s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `motion.grid-yaw` | Grid yaw | structured | angle | rad | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
@@ -326,6 +338,7 @@
 | `race.competitor.class-weight-penalty` | Competitor class weight penalty | structured | mass | kg | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-id` | Club ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-name` | Competitor club name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.connected` | Competitor connectivity | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.division-id` | Division ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.division-name` | Competitor division name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.driver-abbreviated-name` | Competitor abbreviated name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -373,6 +386,18 @@
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
+| `race.grid-car-index` | Grid car Index | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-class-id` | Grid class Id | structured | dimensionless | text | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:string |  |
+| `race.grid-class-name` | Grid class Name | structured | dimensionless | text | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:string |  |
+| `race.grid-completion-source-sequence` | Grid completion Source Sequence | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-connected` | Grid connected | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
+| `race.grid-is-player` | Grid is Player | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
+| `race.grid-pos-x` | Grid pos X | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-pos-y` | Grid pos Y | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-pos-z` | Grid pos Z | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-vel-x` | Grid vel X | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-vel-y` | Grid vel Y | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `race.grid-vel-z` | Grid vel Z | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -440,11 +465,13 @@
 | `session.graphics-packet-id` | Graphics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.heat-racing` | Heat Racing | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.is-replay-playing` | Is Replay Playing | boolean | dimensionless | boolean | scalar |  |  |  |
+| `session.is-spectating` | Spectator state | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.laps-remaining` | Session laps remaining | number | dimensionless | count | scalar |  |  |  |
 | `session.league-id` | League ID | number | dimensionless | id | scalar |  |  |  |
 | `session.maximum-drivers` | Max Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.minimum-drivers` | Min Drivers | number | dimensionless | count | scalar |  |  |  |
 | `session.official` | Official | boolean | dimensionless | boolean | scalar |  |  |  |
+| `session.phase` | Session phase | number | unit:dimensionless | dimensionless | scalar |  |  |  |
 | `session.physics-packet-id` | Physics Packet Id | number | dimensionless | count | scalar |  |  |  |
 | `session.qualifier-must-start-race` | Qualifier Must Start Race | boolean | dimensionless | boolean | scalar |  |  |  |
 | `session.race-week` | Race Week | number | dimensionless | count | scalar |  |  |  |
@@ -461,12 +488,12 @@
 | `session.schedule.time-limit` | Session Time | structured | dimensionless | value-with-unit | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:number |  |
 | `session.season-id` | Season ID | number | dimensionless | id | scalar |  |  |  |
 | `session.series-id` | Series ID | number | dimensionless | id | scalar |  |  |  |
-| `session.session-flags` | Session Flags | number | unit:irsdk_flags | irsdk_Flags | scalar |  |  |  |
+| `session.session-flags` | Session Flags | number | dimensionless | count | scalar |  |  |  |
 | `session.session-id` | Session ID | number | dimensionless | id | scalar |  |  |  |
 | `session.session-joker-laps-remain` | Session Joker Laps Remain | number | dimensionless | count | scalar |  |  |  |
 | `session.session-km` | Session Km | number | dimensionless | count | scalar |  |  |  |
 | `session.session-num` | Session Num | number | dimensionless | count | scalar |  |  |  |
-| `session.session-state` | Session State | number | unit:irsdk_sessionstate | irsdk_SessionState | scalar |  |  |  |
+| `session.session-state` | Session State | number | dimensionless | count | scalar |  |  |  |
 | `session.session-tick` | Session Tick | number | dimensionless | count | scalar |  |  |  |
 | `session.session-type` | Session Type | string | dimensionless | text | scalar |  |  |  |
 | `session.session-uid` | Session UID | string | dimensionless | text | scalar |  |  |  |
@@ -570,6 +597,9 @@
 | `timing.best-lap-number` | Best lap number | number | dimensionless | count | scalar |  |  |  |
 | `timing.car-dist-ahead` | Car Dist Ahead | number | length | m | scalar |  |  |  |
 | `timing.car-dist-behind` | Car Dist Behind | number | length | m | scalar |  |  |  |
+| `timing.car-idx-best-lap-time` | Car Idx Best Lap Time | structured | time | s | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
+| `timing.car-idx-lap` | Car Idx Lap | structured | dimensionless | count | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
+| `timing.car-idx-last-lap-time` | Car Idx Last Lap Time | structured | time | s | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `timing.competitor.best-lap-number` | Competitor best lap number | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.best-lap-time` | Competitor best lap time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.class-estimated-lap-time` | Car Class Est Lap Time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -580,6 +610,7 @@
 | `timing.competitor.gap-to-leader` | Competitor gap to leader | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.lap-fraction` | Competitor lap fraction | structured | dimensionless | fraction | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.last-lap-time` | Competitor last lap time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `timing.competitor.last-lap-valid` | Competitor last lap validity | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `timing.competitor.total-time` | Competitor session time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.current-lap` | Current Lap | number | time | s | scalar |  |  |  |
 | `timing.current-lap-valid` | Current lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -594,6 +625,9 @@
 | `timing.drs-activation-distance` | DRS Activation Distance | number | length | m | scalar |  |  |  |
 | `timing.gap-ahead-ms` | Gap Ahead Ms | number | time | s | scalar |  |  |  |
 | `timing.gap-behind-ms` | Gap Behind Ms | number | time | s | scalar |  |  |  |
+| `timing.grid-class-position` | Grid class Position | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `timing.grid-completed-lap-number` | Grid completed Lap Number | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
+| `timing.grid-lap-valid-bit-flags` | Grid lap Valid Bit Flags | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.grid-position` | Grid Position | number | dimensionless | count | scalar |  |  |  |
 | `timing.ideal-lap-time` | Ideal lap time | string | time | s | scalar |  |  |  |
 | `timing.lap-delta-to-best-lap` | Lap Delta To Best Lap | number | time | s | scalar |  |  |  |
@@ -623,7 +657,6 @@
 | `timing.player-car-tow-time` | Player Car Tow Time | number | time | s | scalar |  |  |  |
 | `timing.predicted-lap-time` | Predicted lap time | number | time | s | scalar |  |  |  |
 | `timing.replay-session-time` | Replay Session Time | number | time | s | scalar |  |  |  |
-| `timing.sector.best-times` | Best sector times | number | time | s | variable:0-* | source-order |  |  |
 | `timing.sector.competitor-best.s1` | Competitor best S1 | structured | time | s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.sector.competitor-best.s2` | Competitor best S2 | structured | time | s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `timing.sector.competitor-best.s3` | Competitor best S3 | structured | time | s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
@@ -633,9 +666,7 @@
 | `timing.sector.current-index` | Current sector index | number | dimensionless | index | scalar |  |  |  |
 | `timing.sector.current-lap.s1` | Current lap S1 | number | time | s | scalar |  |  |  |
 | `timing.sector.current-lap.s2` | Current lap S2 | number | time | s | scalar |  |  |  |
-| `timing.sector.current-lap.s3` | Current lap S3 | number | time | s | scalar |  |  |  |
 | `timing.sector.current-lap.times` | Current lap sector times | number | time | s | variable:0-* | source-order |  |  |
-| `timing.sector.current-time` | Current sector running time | number | time | s | scalar |  |  |  |
 | `timing.sector.lap-history.lap-time` | Lap-history lap time | structured | time | s | variable:0-* | lap-number:numeric-ascending | indices: lap-number (variable:0-*, numeric-ascending); fields: value:number |  |
 | `timing.sector.lap-history.s1` | Lap-history S1 | structured | time | s | variable:0-* | lap-number:numeric-ascending | indices: lap-number (variable:0-*, numeric-ascending); fields: value:number |  |
 | `timing.sector.lap-history.s2` | Lap-history S2 | structured | time | s | variable:0-* | lap-number:numeric-ascending | indices: lap-number (variable:0-*, numeric-ascending); fields: value:number |  |
@@ -644,7 +675,6 @@
 | `timing.sector.last-lap.s1` | Last lap S1 | number | time | s | scalar |  |  |  |
 | `timing.sector.last-lap.s2` | Last lap S2 | number | time | s | scalar |  |  |  |
 | `timing.sector.last-lap.s3` | Last lap S3 | number | time | s | scalar |  |  |  |
-| `timing.sector.last-lap.times` | Last lap sector times | number | time | s | variable:0-* | source-order |  |  |
 | `timing.sector.layout.indexes` | Sector indexes | number | dimensionless | index | variable:0-* | source-order |  |  |
 | `timing.sector.layout.start-fractions` | Sector start fractions | number | dimensionless | fraction | variable:0-* | source-order |  |  |
 | `timing.sector2-lap-distance-start` | Sector2 Lap Distance Start | number | length | m | scalar |  |  |  |
