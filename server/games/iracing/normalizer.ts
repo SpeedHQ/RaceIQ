@@ -1,15 +1,7 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import {
-  createIRacingSourceDecoderState,
-  type IRacingSourceDecoderState,
-  type IRacingSourceFrame,
-  type IRacingValue,
-} from "./source-frame";
+import { createIRacingSourceDecoderState, type IRacingSourceDecoderState, type IRacingSourceFrame, type IRacingValue } from "./source-frame";
 import { parseIRacingFuelCapacity } from "./session-info";
-import {
-  startsAtIRacingSectorOrigin,
-  warnInvalidIRacingSectorLayout,
-} from "./sector-layout";
+import { startsAtIRacingSectorOrigin, warnInvalidIRacingSectorLayout } from "./sector-layout";
 
 const KPA_TO_PSI = 0.1450377377;
 const WGS84_EQUATORIAL_RADIUS_M = 6_378_137;
@@ -17,10 +9,12 @@ const WGS84_EQUATORIAL_RADIUS_M = 6_378_137;
 interface IRacingGpsProjectionState {
   originLatitudeRad: number | null;
   originLongitudeRad: number;
-  originAltitudeM: number | null;
+  originAltitudeM: number;
   lastX: number;
   lastY: number;
   lastZ: number;
+  lastLatitudeDeg: number | null;
+  lastLongitudeDeg: number | null;
   lastAltitudeM: number | null;
   lastHeadingNorthRad: number | null;
   hasLast: boolean;
@@ -46,10 +40,12 @@ export function createIRacingParserState(): IRacingParserState {
     gps: {
       originLatitudeRad: null,
       originLongitudeRad: 0,
-      originAltitudeM: null,
+      originAltitudeM: 0,
       lastX: 0,
       lastY: 0,
       lastZ: 0,
+      lastLatitudeDeg: null,
+      lastLongitudeDeg: null,
       lastAltitudeM: null,
       lastHeadingNorthRad: null,
       hasLast: false,
@@ -59,11 +55,7 @@ export function createIRacingParserState(): IRacingParserState {
   };
 }
 
-function scalar(
-  values: Record<string, IRacingValue>,
-  name: string,
-  fallback = 0,
-): number {
+function scalar(values: Record<string, IRacingValue>, name: string, fallback = 0): number {
   const value = values[name];
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "boolean") return value ? 1 : 0;
@@ -78,46 +70,34 @@ function bool(values: Record<string, IRacingValue>, name: string): boolean {
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
-
 function resetGpsProjection(state: IRacingGpsProjectionState): void {
   state.originLatitudeRad = null;
   state.originLongitudeRad = 0;
-  state.originAltitudeM = null;
+  state.originAltitudeM = 0;
   state.lastX = 0;
   state.lastY = 0;
   state.lastZ = 0;
+  state.lastLatitudeDeg = null;
+  state.lastLongitudeDeg = null;
   state.lastAltitudeM = null;
   state.lastHeadingNorthRad = null;
   state.hasLast = false;
 }
 
 function normalizedHeadingNorthRad(value: number): number | null {
-  return Number.isFinite(value)
-    ? Math.atan2(Math.sin(value), Math.cos(value))
-    : null;
+  return Number.isFinite(value) ? Math.atan2(Math.sin(value), Math.cos(value)) : null;
 }
 
 function validLatitudeLongitude(latitude: number, longitude: number): boolean {
-  return (
-    Number.isFinite(latitude) &&
-    Number.isFinite(longitude) &&
-    latitude >= -90 &&
-    latitude <= 90 &&
-    longitude >= -180 &&
-    longitude <= 180 &&
-    !(latitude === 0 && longitude === 0)
-  );
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 && !(latitude === 0 && longitude === 0);
 }
 
 /**
  * iRacing records WGS84 Lat/Lon/Alt/YawNorth channels only in IBT rows.
  * Convert them to a local east/north metric plane so stored laps use RaceIQ's
- * normal X/Z path. Invalid transient rows retain last valid projection and heading.
+ * normal X/Z path. Invalid transient rows retain last valid geodetic values.
  */
-function projectRecordedGps(
-  values: Record<string, IRacingValue>,
-  state: IRacingGpsProjectionState,
-): boolean {
+function projectRecordedGps(values: Record<string, IRacingValue>, state: IRacingGpsProjectionState): boolean {
   const latitudeDegrees = scalar(values, "Lat", Number.NaN);
   const longitudeDegrees = scalar(values, "Lon", Number.NaN);
   if (!validLatitudeLongitude(latitudeDegrees, longitudeDegrees)) {
@@ -128,39 +108,29 @@ function projectRecordedGps(
   const longitudeRad = (longitudeDegrees * Math.PI) / 180;
   const altitudeM = scalar(values, "Alt", Number.NaN);
   const headingNorthRad = scalar(values, "YawNorth", Number.NaN);
-  const retainedAltitudeM = Number.isFinite(altitudeM)
-    ? altitudeM
-    : state.lastAltitudeM;
-  const retainedHeadingNorthRad =
-    normalizedHeadingNorthRad(headingNorthRad) ?? state.lastHeadingNorthRad;
-
+  const retainedAltitudeM = Number.isFinite(altitudeM) ? altitudeM : state.lastAltitudeM;
+  const retainedHeadingNorthRad = normalizedHeadingNorthRad(headingNorthRad) ?? state.lastHeadingNorthRad;
   if (state.originLatitudeRad === null) {
     state.originLatitudeRad = latitudeRad;
     state.originLongitudeRad = longitudeRad;
-  }
-  if (state.originAltitudeM === null && retainedAltitudeM !== null) {
-    state.originAltitudeM = retainedAltitudeM;
+    state.originAltitudeM = retainedAltitudeM ?? 0;
   }
 
   let longitudeDelta = longitudeRad - state.originLongitudeRad;
   if (longitudeDelta > Math.PI) longitudeDelta -= Math.PI * 2;
   else if (longitudeDelta < -Math.PI) longitudeDelta += Math.PI * 2;
 
-  state.lastX =
-    WGS84_EQUATORIAL_RADIUS_M *
-    longitudeDelta *
-    Math.cos((latitudeRad + state.originLatitudeRad) / 2);
-  state.lastY =
-    retainedAltitudeM === null || state.originAltitudeM === null
-      ? state.lastY
-      : retainedAltitudeM - state.originAltitudeM;
-  state.lastZ =
-    WGS84_EQUATORIAL_RADIUS_M * (latitudeRad - state.originLatitudeRad);
+  state.lastX = WGS84_EQUATORIAL_RADIUS_M * longitudeDelta * Math.cos((latitudeRad + state.originLatitudeRad) / 2);
+  state.lastY = retainedAltitudeM === null ? state.lastY : retainedAltitudeM - state.originAltitudeM;
+  state.lastZ = WGS84_EQUATORIAL_RADIUS_M * (latitudeRad - state.originLatitudeRad);
+  state.lastLatitudeDeg = latitudeDegrees;
+  state.lastLongitudeDeg = longitudeDegrees;
   state.lastAltitudeM = retainedAltitudeM;
   state.lastHeadingNorthRad = retainedHeadingNorthRad;
   state.hasLast = true;
   return true;
 }
+
 
 function input255(value: number): number {
   return Math.round(clamp(value, 0, 1) * 255);
@@ -184,10 +154,7 @@ interface TireCarcassTemperature {
   average?: number;
 }
 
-function tireCarcassTemperature(
-  values: Record<string, IRacingValue>,
-  corner: "LF" | "RF" | "LR" | "RR",
-): TireCarcassTemperature {
+function tireCarcassTemperature(values: Record<string, IRacingValue>, corner: "LF" | "RF" | "LR" | "RR"): TireCarcassTemperature {
   const raw = {
     left: scalar(values, `${corner}tempCL`, Number.NaN),
     middle: scalar(values, `${corner}tempCM`, Number.NaN),
@@ -201,8 +168,7 @@ function tireCarcassTemperature(
     samples.push(value);
   }
   if (samples.length > 0) {
-    result.average =
-      samples.reduce((sum, value) => sum + value, 0) / samples.length;
+    result.average = samples.reduce((sum, value) => sum + value, 0) / samples.length;
   }
   return result;
 }
@@ -211,63 +177,35 @@ function tireCarcassTemperature(
  * iRacing exposes tread remaining (1 = fresh, 0 = gone) at three bands.
  * RaceIQ's canonical TireWear fields use the inverse (0 = fresh, 1 = gone).
  */
-function tireWear(
-  values: Record<string, IRacingValue>,
-  corner: "LF" | "RF" | "LR" | "RR",
-): number {
-  const remaining = [
-    scalar(values, `${corner}wearL`, Number.NaN),
-    scalar(values, `${corner}wearM`, Number.NaN),
-    scalar(values, `${corner}wearR`, Number.NaN),
-  ].filter(Number.isFinite);
+function tireWear(values: Record<string, IRacingValue>, corner: "LF" | "RF" | "LR" | "RR"): number {
+  const remaining = [scalar(values, `${corner}wearL`, Number.NaN), scalar(values, `${corner}wearM`, Number.NaN), scalar(values, `${corner}wearR`, Number.NaN)].filter(Number.isFinite);
   if (remaining.length === 0) return 0;
   return 1 - clamp(Math.min(...remaining), 0, 1);
 }
 
-function coldPressurePsi(
-  values: Record<string, IRacingValue>,
-  corner: "LF" | "RF" | "LR" | "RR",
-): number | undefined {
+function coldPressurePsi(values: Record<string, IRacingValue>, corner: "LF" | "RF" | "LR" | "RR"): number | undefined {
   const kpa = scalar(values, `${corner}coldPressure`, Number.NaN);
   return Number.isFinite(kpa) && kpa > 0 ? kpa * KPA_TO_PSI : undefined;
 }
 
-function normalizeSectorStarts(
-  nativeStarts: readonly number[] | undefined,
-): number[] {
-  if (!nativeStarts) return [];
-  const starts = [...nativeStarts].sort((a, b) => a - b);
-  if (
-    starts.length >= 2 &&
-    startsAtIRacingSectorOrigin(starts[0]) &&
-    starts.every(
-      (value, index) =>
-        Number.isFinite(value) &&
-        value >= 0 &&
-        value < 1 &&
-        (index === 0 || value > starts[index - 1]),
-    )
-  ) {
-    return starts;
+function normalizeSectorStarts(nativeStarts: readonly number[] | undefined): number[] {
+  const starts = nativeStarts?.map(Number) ?? [];
+  const valid =
+    starts.length >= 2 && startsAtIRacingSectorOrigin(starts[0]) && starts.every((value, index) => Number.isFinite(value) && value >= 0 && value < 1 && (index === 0 || value > starts[index - 1]));
+  if (!valid) {
+    if (starts.length > 0) warnInvalidIRacingSectorLayout(starts);
+    return [];
   }
-  if (starts.length > 0) warnInvalidIRacingSectorLayout(starts);
-  return [];
+  return starts;
 }
-
-export function normalizeIRacingFrame(
-  frame: IRacingSourceFrame,
-  state?: IRacingParserState | null,
-): TelemetryPacket {
+export function normalizeIRacingFrame(frame: IRacingSourceFrame, state?: IRacingParserState | null): TelemetryPacket {
   const { session, values } = frame;
 
   const rawLap = Math.max(0, Math.trunc(scalar(values, "Lap", 0)));
   const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));
   const lapDistancePct = clamp(scalar(values, "LapDistPct", 0), 0, 1);
   const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
-  const sdkCurrentLapTime = Math.max(
-    0,
-    scalar(values, "LapCurrentLapTime", 0),
-  );
+  const sdkCurrentLapTime = Math.max(0, scalar(values, "LapCurrentLapTime", 0));
   const sdkLastLapTime = Math.max(0, scalar(values, "LapLastLapTime", 0));
   const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
   let fuelCapacityL: number | undefined;
@@ -301,10 +239,12 @@ export function normalizeIRacingFrame(
   const gpsState = state?.gps ?? {
     originLatitudeRad: null,
     originLongitudeRad: 0,
-    originAltitudeM: null,
+    originAltitudeM: 0,
     lastX: 0,
     lastY: 0,
     lastZ: 0,
+    lastLatitudeDeg: null,
+    lastLongitudeDeg: null,
     lastAltitudeM: null,
     lastHeadingNorthRad: null,
     hasLast: false,
@@ -313,21 +253,24 @@ export function normalizeIRacingFrame(
   const positionX = hasRecordedGps ? gpsState.lastX : 0;
   const positionY = hasRecordedGps ? gpsState.lastY : 0;
   const positionZ = hasRecordedGps ? gpsState.lastZ : 0;
-  const canonicalYaw =
-    hasRecordedGps && gpsState.lastHeadingNorthRad !== null
-      ? gpsState.lastHeadingNorthRad
-      : -scalar(values, "Yaw", 0);
+  const recordedGeodetic =
+    hasRecordedGps && gpsState.lastLatitudeDeg !== null && gpsState.lastLongitudeDeg !== null
+      ? {
+          latitudeDeg: gpsState.lastLatitudeDeg,
+          longitudeDeg: gpsState.lastLongitudeDeg,
+          ...(gpsState.lastAltitudeM !== null ? { altitudeM: gpsState.lastAltitudeM } : {}),
+          ...(gpsState.lastHeadingNorthRad !== null ? { headingNorthRad: gpsState.lastHeadingNorthRad } : {}),
+        }
+      : {};
+  const canonicalYaw = hasRecordedGps && gpsState.lastHeadingNorthRad !== null ? gpsState.lastHeadingNorthRad : -scalar(values, "Yaw", 0);
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
   // Canonical Steer is negative-left/positive-right. Captured iRacing
   // controller angles use the opposite sign.
-  const steer = steeringMax > 0
-    ? Math.round(clamp(-steeringAngle / steeringMax, -1, 1) * 127)
-    : 0;
+  const steer = steeringMax > 0 ? Math.round(clamp(-steeringAngle / steeringMax, -1, 1) * 127) : 0;
   const trackLengthM = Math.max(0, session.trackLengthM);
-  const distanceTraveled =
-    trackLengthM > 0 ? rawLap * trackLengthM + lapDistanceM : lapDistanceM;
+  const distanceTraveled = trackLengthM > 0 ? rawLap * trackLengthM + lapDistanceM : lapDistanceM;
   const onTrack = bool(values, "IsOnTrack");
   const wetness = clamp(scalar(values, "TrackWetness", 0), 0, 7);
   const tireTemps = {
@@ -336,19 +279,13 @@ export function normalizeIRacingFrame(
     LR: tireCarcassTemperature(values, "LR"),
     RR: tireCarcassTemperature(values, "RR"),
   };
-  const pitTireTemperatureAvailable = Object.values(tireTemps).every(
-    (temperature) => temperature.average !== undefined,
-  );
-  const pitTireWearAvailable = (["LF", "RF", "LR", "RR"] as const).every(
-    (corner) =>
-      ["wearL", "wearM", "wearR"].every((band) =>
-        Number.isFinite(scalar(values, `${corner}${band}`, Number.NaN)),
-      ),
-  );
+  const pitTireTemperatureAvailable = Object.values(tireTemps).every((temperature) => temperature.average !== undefined);
+  const pitTireWearAvailable = (["LF", "RF", "LR", "RR"] as const).every((corner) => ["wearL", "wearM", "wearR"].every((band) => Number.isFinite(scalar(values, `${corner}${band}`, Number.NaN))));
 
   return {
     gameId: "iracing",
     iracing: {
+      ...recordedGeodetic,
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),
       sessionNum: session.sessionNum,
       driverCarIdx: session.driverCarIdx,
@@ -376,9 +313,9 @@ export function normalizeIRacingFrame(
     EngineIdleRpm: session.engineIdleRpm,
     CurrentEngineRpm: scalar(values, "RPM", 0),
 
-    // The iRacing SDK publishes these accelerations in m/s², matching the
-    // canonical values consumed by RaceIQ's G-force views.
-    AccelerationX: scalar(values, "LatAccel", 0),
+    // iRacing LatAccel is left-positive; RaceIQ's canonical lateral axis is
+    // right-positive so felt G renders opposite the direction of the turn.
+    AccelerationX: -scalar(values, "LatAccel", 0),
     AccelerationY: scalar(values, "VertAccel", 0),
     AccelerationZ: scalar(values, "LongAccel", 0),
 
