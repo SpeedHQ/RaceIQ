@@ -44,4 +44,5 @@ test/session-runs/contracts.test.ts
 test/session-runs/summary.test.ts
 test/telemetry/source-sequence.test.ts
 test/analysis-provenance/contracts.test.ts
+test/shared/canonical-archive-contracts.test.ts
 test/tooling/test-shards.test.ts
