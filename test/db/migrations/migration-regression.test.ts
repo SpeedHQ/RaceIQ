@@ -207,7 +207,7 @@ describe("migration regressions", () => {
   });
 
 
-  test("v60 migrates v58 sessions and laps without v59 classification columns", async () => {
+  test("v59 migrates v58 sessions and laps without classification columns", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 58);
@@ -230,7 +230,7 @@ describe("migration regressions", () => {
        VALUES (1, 2, 'legacy compare analysis')`,
     );
 
-    await runMigrations(client, 60);
+    await runMigrations(client, 59);
 
     const lapColumns = await client.execute("PRAGMA table_info(laps)");
     const cacheCounts = await client.execute(
@@ -435,7 +435,7 @@ describe("migration regressions", () => {
     ]);
     client.close();
   });
-  test("v60 keeps other-driver legacy participants unknown and non-local", async () => {
+  test("v59 keeps other-driver legacy participants unknown and non-local", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 58);
@@ -448,7 +448,7 @@ describe("migration regressions", () => {
        VALUES (1, 1, 90, 0, 'pit lap')`,
     );
 
-    await runMigrations(client, 60);
+    await runMigrations(client, 59);
 
     const sessionRow = await client.execute(
       "SELECT recording_quality FROM sessions WHERE id = 1",
@@ -485,17 +485,17 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v61 preserves nullable source profiles and round-trips profile JSON", async () => {
+  test("v59 preserves nullable source profiles and round-trips profile JSON", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 60);
+    await runMigrations(client, 58);
     await client.execute(
       `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
        VALUES (1, 10, 20, 'iracing', 'native-live'),
               (2, 10, 20, 'iracing', 'motec')`,
     );
 
-    await runMigrations(client, 61);
+    await runMigrations(client, 59);
 
     const profile = {
       schemaVersion: "1",
@@ -523,10 +523,10 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v62 adds quality generation without overwriting existing lap metrics", async () => {
+  test("v59 adds quality generation without overwriting existing lap metrics", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 61);
+    await runMigrations(client, 58);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -539,7 +539,7 @@ describe("migration regressions", () => {
       args: [1, 7, JSON.stringify([{ kind: "braking" }]), JSON.stringify([{ segment: 1 }])],
     });
 
-    await runMigrations(client, 62);
+    await runMigrations(client, 59);
 
     const columns = await client.execute("PRAGMA table_info(lap_metrics)");
     expect(columns.rows.map((row) => String(row.name))).toContain("quality_generation");
@@ -563,4 +563,54 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v59 restores pit_events after overlapping migration histories", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 58);
+    await client.execute("DROP TABLE pit_events");
+    expect(await runMigrations(client)).toBe(1);
+
+    const columns = await client.execute("PRAGMA table_info(pit_events)");
+    expect(columns.rows.map((row) => String(row.name))).toEqual([
+      "id",
+      "result_id",
+      "sequence",
+      "event_type",
+      "position_before",
+      "position_after",
+      "lap_number",
+      "elapsed_seconds",
+      "duration_seconds",
+      "service",
+      "tyre_change",
+      "fuel_added",
+      "fuel_before",
+      "fuel_after",
+      "linkage",
+      "source",
+      "created_at",
+    ]);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      "INSERT INTO session_results (id, session_id) VALUES (1, 1)",
+    );
+    await client.execute(
+      "INSERT INTO pit_events (result_id, sequence, lap_number) VALUES (1, 1, 42)",
+    );
+    const rows = await client.execute(
+      "SELECT event_type, linkage, lap_number FROM pit_events",
+    );
+    expect(
+      rows.rows.map((row) => ({
+        eventType: String(row.event_type),
+        linkage: String(row.linkage),
+        lapNumber: Number(row.lap_number),
+      })),
+    ).toEqual([
+      { eventType: "pit", linkage: "unknown", lapNumber: 42 },
+    ]);
+    client.close();
+  });
 });
