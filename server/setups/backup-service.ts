@@ -32,7 +32,8 @@ export function createBackupService(deps: BackupServiceDeps) {
     try { file = await local.read(input.gameId, input.localPath); }
     catch (error) {
       const code = errorCode(error);
-      throw codeError(code?.includes("setup-folder") ? "setup-folder-missing" : code === "local-setup-not-found" ? code : "local-setup-not-found");
+      const folderMissing = code === "setup-folder-missing" || code === "Setups folder not found";
+      throw codeError(folderMissing ? "setup-folder-missing" : code === "local-setup-not-found" ? code : "local-setup-not-found");
     }
     const items = await listBackups(input.gameId); const existing = findName(items, input.gameId, file.carId, file.trackId, stem(file.fileName));
     if (existing && input.conflict === "error") throw codeError("duplicate-name");

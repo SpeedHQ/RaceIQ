@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { strToU8, unzipSync, zipSync } from "fflate";
 import { buildSetupBackupArchive, parseSetupBackupArchive, renameSetupBackupArchive } from "../../server/setups/backup-archive";
@@ -22,6 +23,27 @@ describe("setup backup archive", () => {
     const archive = buildSetupBackupArchive({ manifest: manifest("ac-evo", "Default"), payload });
     expect(parseSetupBackupArchive(archive).files["Default.carsetup"]).toEqual(payload);
   });
+  test("rejects archives whose expanded payload exceeds the resource limit", () => {
+    const payload = Buffer.concat([
+      Buffer.from('{"carName":"car","basicSetup":{}}'),
+      Buffer.alloc(8 * 1024 * 1024, 0x20),
+    ]);
+    const oversizedManifest = {
+      ...manifest("acc", "Oversized"),
+      files: [{
+        path: "Oversized.json",
+        size: payload.length,
+        sha256: createHash("sha256").update(payload).digest("hex"),
+      }],
+    };
+    const archive = Buffer.from(zipSync({
+      "manifest.json": strToU8(JSON.stringify(oversizedManifest)),
+      "files/Oversized.json": payload,
+    }));
+
+    expect(() => parseSetupBackupArchive(archive)).toThrow("archive exceeds extraction limit");
+  });
+
 
   test("rejects traversal and corrupted payloads", () => {
     const payload = Buffer.from('{"carName":"car","basicSetup":{}}');

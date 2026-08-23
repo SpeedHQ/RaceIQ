@@ -5,6 +5,9 @@ import { AccSetupJsonSchema, setupFileFormat, setupNativeFormat } from "../../sh
 import { SetupBackupManifestV1Schema, SETUP_BACKUP_SCHEMA_VERSION, type SetupBackupManifestV1, type SetupGameId, type SetupNativeFormat, SetupBackupArchiveError } from "../../shared/racing/setups/backup";
 
 export type SetupBackupArchive = { manifest: SetupBackupManifestV1; files: Record<string, Buffer> };
+const MAX_ARCHIVE_BYTES = 8 * 1024 * 1024;
+const MAX_EXPANDED_BYTES = 8 * 1024 * 1024;
+const MAX_ARCHIVE_MEMBERS = 17;
 type BuildInput = { manifest: SetupBackupManifestV1; files: Record<string, Buffer> } | { manifest: Omit<SetupBackupManifestV1, "files">; payload: Buffer };
 const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 const fail = (code: ConstructorParameters<typeof SetupBackupArchiveError>[0], msg: string): never => { throw new SetupBackupArchiveError(code, msg); };
@@ -37,6 +40,10 @@ export function buildSetupBackupArchive(input: BuildInput): Buffer {
   if (!parsed.success) fail("invalid-manifest", "manifest does not match schema");
   const manifest = parsed.data as SetupBackupManifestV1;
   const files: Record<string, Buffer> = "payload" in input ? { [manifest.files[0]!.path]: input.payload } : input.files;
+  const expandedBytes = manifest.files.reduce((total, file) => total + file.size, 0);
+  if (manifest.files.length + 1 > MAX_ARCHIVE_MEMBERS || expandedBytes > MAX_EXPANDED_BYTES) {
+    fail("invalid-archive", "archive exceeds extraction limit");
+  }
   const entries: Record<string, Uint8Array> = { "manifest.json": strToU8(JSON.stringify(manifest)) };
   for (const f of manifest.files) {
     const bytes = files[f.path];
@@ -45,10 +52,32 @@ export function buildSetupBackupArchive(input: BuildInput): Buffer {
     if (bytes.length !== f.size || sha256(bytes) !== f.sha256) fail("invalid-archive", "payload integrity mismatch");
     entries[`files/${f.path}`] = bytes;
   }
-  return Buffer.from(zipSync(entries));
+  const archive = Buffer.from(zipSync(entries));
+  if (archive.length > MAX_ARCHIVE_BYTES) fail("invalid-archive", "archive exceeds extraction limit");
+  return archive;
 }
 export function parseSetupBackupArchive(bytes: Buffer): SetupBackupArchive {
-  let zip: Record<string, Uint8Array>; try { zip = unzipSync(bytes); } catch { return fail("invalid-archive", "unreadable ZIP"); }
+  if (bytes.length > MAX_ARCHIVE_BYTES) fail("invalid-archive", "archive exceeds extraction limit");
+  let expandedBytes = 0;
+  let memberCount = 0;
+  let exceedsLimit = false;
+  let zip: Record<string, Uint8Array>;
+  try {
+    zip = unzipSync(bytes, {
+      filter: ({ originalSize }) => {
+        memberCount++;
+        expandedBytes += originalSize;
+        if (memberCount > MAX_ARCHIVE_MEMBERS || expandedBytes > MAX_EXPANDED_BYTES) {
+          exceedsLimit = true;
+          return false;
+        }
+        return true;
+      },
+    });
+  } catch {
+    return fail("invalid-archive", "unreadable ZIP");
+  }
+  if (exceedsLimit) fail("invalid-archive", "archive exceeds extraction limit");
   const names = Object.keys(zip); if (names.filter((n) => n === "manifest.json").length !== 1 || names.some((n) => n !== "manifest.json" && !n.startsWith("files/"))) fail("invalid-archive", "unexpected archive members");
   let raw: unknown;
   try { raw = JSON.parse(strFromU8(zip["manifest.json"]!)); } catch { return fail("invalid-manifest", "malformed manifest"); }
