@@ -75,6 +75,7 @@
 ### Internal
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
+- Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
