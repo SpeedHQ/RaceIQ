@@ -431,6 +431,14 @@
       "sha256": "549141e71f7fcc6152d7f5f46b75adcbd4eb7685efeb4ce619de6baf1b51aee2",
       "durationMs": 852,
       "contentHash": "b2751bf8140f68d7341c66fae8aead2047cd8bf84d011b20e5226263c0940446"
+    },
+    {
+      "segmentId": "spotter.still-there",
+      "spokenText": "Still there.",
+      "path": "spotter__still-there.flac",
+      "sha256": "01512f3e79eef6a6f7ff69b955fd52d45fdabea804687b1ce12a5d47c298227d",
+      "durationMs": 940,
+      "contentHash": "8b7bdccb48d87c8e8c0e708ccc73554c0177028899bdcde9785d24e985ff9131"
     }
   ]
 }

@@ -38,6 +38,7 @@ PHRASES = {
     "phrase.exact.your-lap": "Your lap was",
     "spotter.car-left": "Car left.",
     "spotter.car-right": "Car right.",
+    "spotter.still-there": "Still there.",
     "spotter.three-wide-left": "Three wide, left.",
     "spotter.three-wide-right": "Three wide, right.",
     "spotter.clear-left": "Clear left.",

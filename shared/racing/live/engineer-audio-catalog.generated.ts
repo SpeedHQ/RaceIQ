@@ -317,6 +317,12 @@ export const LIVE_ENGINEER_AUDIO_CATALOG = { catalogVersion: LIVE_ENGINEER_AUDIO
     "url": "/audio/live-engineer/v1/spotter__clear-right.flac",
     "sha256": "549141e71f7fcc6152d7f5f46b75adcbd4eb7685efeb4ce619de6baf1b51aee2",
     "durationMs": 852
+  },
+  {
+    "segmentId": "spotter.still-there",
+    "url": "/audio/live-engineer/v1/spotter__still-there.flac",
+    "sha256": "01512f3e79eef6a6f7ff69b955fd52d45fdabea804687b1ce12a5d47c298227d",
+    "durationMs": 940
   }
 ] as const };
 export type LiveEngineerAudioSegment = (typeof LIVE_ENGINEER_AUDIO_CATALOG.segments)[number];
