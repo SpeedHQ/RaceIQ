@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "f3ec06893e301c12d607fea08902ef75f71c7f34e83775424fbfcde25a23faaf",
+      "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "d654780f733fc969347e77d97ebe6433b2b89eeaeb73952bba3721347834bab8"
+    "contentHash": "1055fc7931940324c1d2c345409c00e4e28318096f12148cb479d74e4bd12dc4"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -17316,18 +17316,30 @@
           }
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "iRacing.LatAccel"
           ],
           "freshness": "continuous",
+          "normalization": "-scalar(values, \"LatAccel\", 0)",
           "description": "iracing maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "iracing:motion.acceleration-x:derived",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iRacing.LatAccel"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "b490a7aeda783047fdfcd077d90a0076fb4e616c4b1b5df7e632433c151f787a"
+          }
         }
       },
       "valueType": "number",
