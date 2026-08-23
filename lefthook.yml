@@ -1,6 +1,9 @@
 pre-commit:
   parallel: false
   jobs:
+    - name: test shards
+      run: bun run test:shards
+
     - name: lint
       run: bun run lint
 
