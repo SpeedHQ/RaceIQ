@@ -132,6 +132,8 @@ export function LiveTrackMap({ view, issues }: Props) {
     }
 
     // Re-fetch boundaries — calibration may now provide game-space coords
+    // Boundary state is intentionally not an effect dependency: a response
+    // must not trigger another fetch before the next lap checks calibration.
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
       client.api["track-boundaries"][":ordinal"]
         .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
@@ -141,7 +143,7 @@ export function LiveTrackMap({ view, issues }: Props) {
         }) // eslint-disable-line @typescript-eslint/no-explicit-any
         .catch(() => {});
     }
-  }, [boundaries, gameId, isRecorded, sample?.lapNumber]);
+  }, [gameId, isRecorded, sample?.lapNumber]);
 
   // Track distance at lap boundaries for position estimation
   useEffect(() => {
