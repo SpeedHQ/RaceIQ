@@ -1,17 +1,17 @@
 import { type ReactNode, useLayoutEffect, useState } from "react";
 import type { GameId } from "../../../shared/games/ids";
-import { useGameStore } from "../stores/game";
+import { gameStore } from "../stores/game";
 
 export function GameStoryScope({ gameId, children }: { gameId: GameId; children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useLayoutEffect(() => {
-    useGameStore.getState().setGameId(gameId);
+    gameStore.actions.setGameId(gameId);
     setReady(true);
 
     return () => {
-      const store = useGameStore.getState();
-      if (store.gameId === gameId) store.setGameId(null);
+      const store = gameStore.get();
+      if (store.gameId === gameId) gameStore.actions.setGameId(null);
     };
   }, [gameId]);
 

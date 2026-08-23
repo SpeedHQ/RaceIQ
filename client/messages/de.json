@@ -968,7 +968,7 @@
   "ob_udp_send_rate_short": "Setze die UDP-Senderate auf 60 Hz.",
   "devstate_title": "Dev-Status",
   "devstate_server": "Server",
-  "devstate_zustand": "Zustand",
+  "devstate_tanstack_store": "Zustand",
   "devstate_waiting": "Warte...",
   "common_resume": "Fortsetzen",
   "common_pause": "Pause",

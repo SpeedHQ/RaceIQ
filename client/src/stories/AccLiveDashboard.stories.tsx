@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
-import { useGameStore } from "../stores/game";
-import { useTelemetryStore } from "../stores/telemetry";
+import { gameStore, useGameStore } from "../stores/game";
+import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { fakeAccDisplayPacket, fakeAccPacket, fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
@@ -13,7 +13,7 @@ queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeAccSemanticFixture;
-  useTelemetryStore.setState({
+  telemetryStore.setState((prev) => ({ ...prev,
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
@@ -35,9 +35,9 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       detectedGame: { id: "acc", name: "Assetto Corsa Competizione" },
       currentSession: { id: 3, carOrdinal: 301, trackOrdinal: 7 },
     },
-  });
+  }));
 
-  useGameStore.setState({ gameId: "acc" });
+  gameStore.setState((prev) => ({ ...prev, gameId: "acc" }));
 
   return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }

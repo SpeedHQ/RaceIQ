@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
-import { useGameStore } from "../../stores/game";
+import { gameStore, useGameStore } from "../../stores/game";
 import { fakeAccPacket, fakeAcEvoPacket, fakeF1Packet, fakeForzaPacket, generateFakeSessionLaps } from "../fakeData";
 
 const queryClient = new QueryClient({
@@ -33,7 +33,7 @@ function withRouter(node: React.ReactNode) {
 }
 
 function GameIdSync({ game }: { game: Game }) {
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   useEffect(() => {
     setGameId(game as GameId);
     return () => setGameId(null);

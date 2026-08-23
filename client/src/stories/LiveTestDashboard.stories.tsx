@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
-import { useTelemetryStore } from "../stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { fakeAccDisplayPacket, fakeAccPacket, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
@@ -29,7 +29,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
   // fresh object refs every render, which re-triggers subscribers → infinite
   // "Maximum update depth exceeded" loop (and a UI that never stops updating).
   useEffect(() => {
-    useTelemetryStore.setState({
+    telemetryStore.setState((prev) => ({ ...prev,
       connected: true,
       // Last frame of the pre-seeded lap so appending it doesn't reset the trace.
       rawPacket: liveTrace[liveTrace.length - 1] ?? fakeAccPacket,
@@ -38,7 +38,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
       sessionLaps: fakeSessionLaps,
       isRaceOn: true,
       lapIssuesFeed: [{ lapId: 10, lapNumber: 4, issues: fakeTuneIssues }],
-    });
+    }));
   }, []);
 
   // `animate` Storybook control replays the lap continuously (off by default).
@@ -47,7 +47,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
     let i = 0;
     const id = setInterval(() => {
       i = (i + 1) % liveTrace.length;
-      useTelemetryStore.setState({ rawPacket: liveTrace[i] });
+      telemetryStore.setState((prev) => ({ ...prev, rawPacket: liveTrace[i] }));
     }, 50);
     return () => clearInterval(id);
   }, [animate]);

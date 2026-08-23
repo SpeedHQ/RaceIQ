@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { m } from "../../paraglide/messages";
-import { useUiStore } from "../../stores/ui";
+import { uiStore, } from "../../stores/ui";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
 import { PanelSectionHeader } from "../ui/panel-section-header";
@@ -14,7 +14,7 @@ export type { CompareAiPanelHandle } from "./compare-ai-types";
 
 export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
   const { aiConfigured } = useComparisonAiSettings();
-  const openSettings = useUiStore((s) => s.openSettings);
+  const openSettings = uiStore.actions.openSettings;
   const [hasA, setHasA] = useState(false);
   const [hasB, setHasB] = useState(false);
   const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);

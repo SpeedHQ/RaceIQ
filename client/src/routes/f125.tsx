@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useGameStore } from "../stores/game";
+import { gameStore, } from "../stores/game";
 
 function F125Layout() {
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   useEffect(() => {
     setGameId("f1-2025");
     return () => setGameId(null);

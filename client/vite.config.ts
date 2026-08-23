@@ -1,6 +1,7 @@
 import path from "node:path";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import react from "@vitejs/plugin-react";
 import { createLogger, defineConfig } from "vite";
@@ -42,8 +43,8 @@ export default defineConfig(({ command }) => {
 
   return {
     envDir: path.resolve(import.meta.dirname, ".."),
-    envPrefix: ["VITE_", "RACEIQ_"],
     plugins: [
+      devtools(),
       react(),
       tailwindcss(),
       TanStackRouterVite(),
