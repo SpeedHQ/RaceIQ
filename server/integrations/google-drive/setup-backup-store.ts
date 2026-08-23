@@ -40,7 +40,8 @@ export function createSetupBackupStore(deps: SetupBackupStoreDeps = {}): SetupBa
         const output: SetupBackupListItem[] = [];
         for (const file of files) {
           try {
-            const parsed = parseSetupBackupArchive(await this.download(gameId, file.id!));
+            const result = await (await api()).files.get({ fileId: file.id!, alt: "media" }, { responseType: "arraybuffer" });
+            const parsed = parseSetupBackupArchive(Buffer.from(result.data as ArrayBuffer));
             output.push({ valid: true, id: file.id!, driveFileName: file.name ?? "", ...parsed.manifest });
           } catch (error) {
             if (error instanceof Error && "code" in error && (error.code === "drive-unavailable" || error.code === "drive-disconnected" || error.code === "backup-not-found")) throw error;
