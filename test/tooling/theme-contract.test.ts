@@ -14,7 +14,7 @@ function ownedSourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(dir, entry.name);
     if (entry.isDirectory()) return ownedSourceFiles(path);
-    return OWNED_EXTENSIONS.has(extname(entry.name)) ? [path] : [];
+    return !entry.name.endsWith(".d.ts") && OWNED_EXTENSIONS.has(extname(entry.name)) ? [path] : [];
   });
 }
 
