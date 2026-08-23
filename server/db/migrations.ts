@@ -2268,6 +2268,105 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX idx_analysis_receipts_artifact_generation_desc
        ON analysis_receipts(artifact_set_id, generation DESC)`,
     ],
-  }
+  },
+  // v64: Durable canonical telemetry archive identity, hierarchy, and jobs.
+  {
+    version: 64,
+    name: "add canonical telemetry archives",
+    sql: [
+      `CREATE TABLE canonical_archives (
+         archive_id          TEXT PRIMARY KEY,
+         session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         generation_id       TEXT NOT NULL,
+         status              TEXT NOT NULL CHECK (status IN ('pending', 'building', 'verified', 'partial', 'failed', 'superseded')),
+         archive_path        TEXT NOT NULL,
+         schema_version      TEXT NOT NULL,
+         algorithm_version   TEXT NOT NULL,
+         source_content_hash TEXT NOT NULL,
+         output_content_hash TEXT,
+         byte_size           INTEGER,
+         sample_count        INTEGER NOT NULL DEFAULT 0 CHECK (sample_count >= 0),
+         node_count          INTEGER NOT NULL DEFAULT 0 CHECK (node_count >= 0),
+         semantic_ids        TEXT NOT NULL,
+         context             TEXT NOT NULL,
+         manifest            TEXT NOT NULL,
+         completeness        TEXT NOT NULL CHECK (completeness IN ('complete', 'partial', 'empty', 'unavailable')),
+         verification        TEXT,
+         created_at          TEXT NOT NULL,
+         verified_at         TEXT,
+         failure             TEXT
+       )`,
+      `CREATE UNIQUE INDEX uq_canonical_archives_active_identity
+       ON canonical_archives(session_id, source_content_hash)
+       WHERE status IN ('pending', 'building', 'verified', 'partial')`,
+      `CREATE INDEX idx_canonical_archives_session_status
+       ON canonical_archives(session_id, status)`,
+      `CREATE INDEX idx_canonical_archives_generation
+       ON canonical_archives(session_id, generation_id)`,
+      `CREATE TABLE canonical_archive_nodes (
+         node_id                    TEXT PRIMARY KEY,
+         archive_id                 TEXT NOT NULL REFERENCES canonical_archives(archive_id) ON DELETE CASCADE,
+         parent_node_id             TEXT,
+         level                      TEXT NOT NULL CHECK (level IN ('participant', 'stint', 'lap', 'corner', 'segment')),
+         semantic_kind              TEXT NOT NULL,
+         stable_key                 TEXT NOT NULL,
+         ordinal                    INTEGER NOT NULL CHECK (ordinal >= 0),
+         participant_id             TEXT,
+         session_run_id             TEXT,
+         lap_id                     INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         start_row                  INTEGER NOT NULL CHECK (start_row >= 0),
+         end_row                    INTEGER NOT NULL CHECK (end_row >= start_row),
+         start_source_time_ms      INTEGER,
+         end_source_time_ms        INTEGER,
+         start_track_distance_m    REAL,
+         end_track_distance_m      REAL,
+         status                     TEXT NOT NULL,
+         definition_hash            TEXT,
+         boundary_algorithm_version TEXT NOT NULL
+       )`,
+      `CREATE INDEX idx_canonical_archive_nodes_parent
+       ON canonical_archive_nodes(parent_node_id)`,
+      `CREATE INDEX idx_canonical_archive_nodes_archive_level_order
+       ON canonical_archive_nodes(archive_id, level, ordinal)`,
+      `CREATE INDEX idx_canonical_archive_nodes_participant_order
+       ON canonical_archive_nodes(archive_id, participant_id, level, ordinal)`,
+      `CREATE INDEX idx_canonical_archive_nodes_source_ids
+       ON canonical_archive_nodes(session_run_id, lap_id)`,
+      `CREATE TABLE canonical_archive_jobs (
+         job_id             TEXT PRIMARY KEY,
+         session_id         INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         source_content_hash TEXT NOT NULL,
+         status              TEXT NOT NULL CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+         attempt_count      INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+         lease_expires_at   TEXT,
+         next_attempt_at    TEXT NOT NULL,
+         generation_id      TEXT,
+         last_error         TEXT,
+         created_at         TEXT NOT NULL,
+         updated_at         TEXT NOT NULL
+       )`,
+      `CREATE UNIQUE INDEX uq_canonical_archive_jobs_source
+       ON canonical_archive_jobs(session_id, source_content_hash)`,
+      `CREATE INDEX idx_canonical_archive_jobs_claim
+       ON canonical_archive_jobs(status, next_attempt_at, lease_expires_at)`,
+    ],
+  },
+  // v65: Lease capabilities and stable raw-file identity for canonical archive
+  // scheduling. Existing captures hash once after upgrade, then reuse identity
+  // while file metadata remains unchanged.
+  {
+    version: 65,
+    name: "harden canonical archive leases and raw identities",
+    sql: [
+      `ALTER TABLE canonical_archive_jobs ADD COLUMN lease_token TEXT`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_size INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_mtime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_ctime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_content_hash TEXT`,
+      `CREATE UNIQUE INDEX uq_canonical_archive_jobs_lease_token
+       ON canonical_archive_jobs(lease_token)
+       WHERE lease_token IS NOT NULL`,
+    ],
+  },
 ];
 

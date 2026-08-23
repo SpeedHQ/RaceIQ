@@ -82,6 +82,7 @@
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Define deterministic race-event contracts, ordering, detectors, and simulator adapters for durable session timelines
+- Define canonical telemetry archive manifests, hierarchy nodes, durable jobs, leases, and verification records
 - Persist immutable analysis receipts with staged, failed, superseded, and active generation lifecycles
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
