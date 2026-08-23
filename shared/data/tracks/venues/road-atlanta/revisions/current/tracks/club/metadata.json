@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "id": "road-atlanta/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 17,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 126,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "road-atlanta-s",
+    "track": "road-atlanta",
+    "layout": "club",
+    "layoutName": "Club",
+    "name": "Road Atlanta",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "10a/10b Chicane",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.0702
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0702,
+          "endFrac": 0.2306
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2306,
+          "endFrac": 0.2828
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2828,
+          "endFrac": 0.3042
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3042,
+          "endFrac": 0.369
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.369,
+          "endFrac": 0.4208
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4208,
+          "endFrac": 0.4568
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4568,
+          "endFrac": 0.497
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.497,
+          "endFrac": 0.603
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.603,
+          "endFrac": 0.746
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.746,
+          "endFrac": 0.8116
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8116,
+          "endFrac": 0.8581
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8581,
+          "endFrac": 0.9164
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.9164,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

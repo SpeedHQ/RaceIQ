@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/kurzanbindung-w-out-arena",
+  "name": "Kurzanbindung w/out Arena",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 260,
+      "confirmation": null
+    }
+  ]
+}

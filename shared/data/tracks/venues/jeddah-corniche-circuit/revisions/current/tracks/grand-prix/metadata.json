@@ -1,0 +1,303 @@
+{
+  "version": 1,
+  "id": "jeddah-corniche-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 29,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "jeddah",
+    "track": "jeddah",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Jeddah Corniche Circuit",
+    "source": "Official F1 track map (6.174 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "covers": [
+          3
+        ],
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 17,
+        "covers": [
+          18
+        ],
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 19,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 20,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 21,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 22,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 23,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 24,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 25,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 26,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 27,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.324,
+        "s2End": 0.664
+      },
+      "segments": [
+        {
+          "key": "s27",
+          "startFrac": 0,
+          "endFrac": 0.057
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.057,
+          "endFrac": 0.0872
+        },
+        {
+          "key": "t2-3",
+          "startFrac": 0.0872,
+          "endFrac": 0.1027
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1027,
+          "endFrac": 0.1439
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1439,
+          "endFrac": 0.1692
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.1692,
+          "endFrac": 0.2038
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.2038,
+          "endFrac": 0.2353
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.2353,
+          "endFrac": 0.2523
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.2523,
+          "endFrac": 0.2751
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.2751,
+          "endFrac": 0.2899
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.2899,
+          "endFrac": 0.3059
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.3059,
+          "endFrac": 0.3278
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.3278,
+          "endFrac": 0.3605
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.3605,
+          "endFrac": 0.4272
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.4272,
+          "endFrac": 0.4643
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.4643,
+          "endFrac": 0.4998
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.4998,
+          "endFrac": 0.5124
+        },
+        {
+          "key": "t17-18",
+          "startFrac": 0.5124,
+          "endFrac": 0.5519
+        },
+        {
+          "key": "t20",
+          "startFrac": 0.5519,
+          "endFrac": 0.5993
+        },
+        {
+          "key": "t21",
+          "startFrac": 0.5993,
+          "endFrac": 0.6466
+        },
+        {
+          "key": "s21",
+          "startFrac": 0.6466,
+          "endFrac": 0.6718
+        },
+        {
+          "key": "t22",
+          "startFrac": 0.6718,
+          "endFrac": 0.7091
+        },
+        {
+          "key": "t23",
+          "startFrac": 0.7091,
+          "endFrac": 0.7272
+        },
+        {
+          "key": "t24",
+          "startFrac": 0.7272,
+          "endFrac": 0.7538
+        },
+        {
+          "key": "t26",
+          "startFrac": 0.7538,
+          "endFrac": 0.8125
+        },
+        {
+          "key": "s26",
+          "startFrac": 0.8125,
+          "endFrac": 0.8743
+        },
+        {
+          "key": "t27",
+          "startFrac": 0.8743,
+          "endFrac": 0.9275
+        },
+        {
+          "key": "s27",
+          "startFrac": 0.9275,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

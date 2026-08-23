@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-nazionale-monza/combined",
+  "name": "Combined",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 247,
+      "confirmation": null
+    }
+  ]
+}

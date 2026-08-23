@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oxford-plains-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 12,
+      "confirmation": null
+    }
+  ]
+}

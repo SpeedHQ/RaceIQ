@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "fujimi-kaido/full-reverse",
+  "name": "Full Reverse",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 83,
+      "confirmation": null
+    }
+  ]
+}

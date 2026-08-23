@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-rallycross-and-dirt-road/rallycross-long",
+  "name": "Rallycross Long",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 293,
+      "confirmation": null
+    }
+  ]
+}

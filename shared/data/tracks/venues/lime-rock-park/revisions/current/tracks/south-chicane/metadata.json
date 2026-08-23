@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "id": "lime-rock-park/south-chicane",
+  "name": "South Chicane",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 882,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "lime-rock-sc",
+    "track": "lime-rock",
+    "layout": "south-chicane",
+    "layoutName": "South Chicane",
+    "name": "Lime Rock Park",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Big Bend",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "The Esses",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "West Bend",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Downhill",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s8",
+          "startFrac": 0,
+          "endFrac": 0.0501
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0501,
+          "endFrac": 0.2221
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2221,
+          "endFrac": 0.316
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.316,
+          "endFrac": 0.3847
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3847,
+          "endFrac": 0.4442
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4442,
+          "endFrac": 0.5172
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5172,
+          "endFrac": 0.5316
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.5316,
+          "endFrac": 0.6016
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6016,
+          "endFrac": 0.7428
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7428,
+          "endFrac": 0.8718
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.8718,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

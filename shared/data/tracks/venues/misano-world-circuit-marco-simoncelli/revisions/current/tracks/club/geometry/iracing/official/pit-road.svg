@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Pit_Road" data-name="EXAMPLE - Pit Road" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: #d82520;
+      }
+
+      .cls-1, .cls-2 {
+        fill: none;
+        stroke-dasharray: 0 0 20 20;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 5px;
+      }
+
+      .cls-3 {
+        fill: #0089ba;
+      }
+
+      .cls-3, .cls-4 {
+        stroke-width: 0px;
+      }
+
+      .cls-4 {
+        fill: #d82520;
+      }
+
+      .cls-2 {
+        stroke: #0089ba;
+      }
+    </style>
+  </defs>
+  <g id="Club">
+    <g>
+      <line class="cls-1" x1="497.08" y1="606.31" x2="626.61" y2="575.97"/>
+      <polygon class="cls-4" points="506.15 614.63 466.89 613.38 501.51 594.83 506.15 614.63"/>
+    </g>
+    <rect class="cls-3" x="399.6" y="595.09" width="5.02" height="32.47" transform="translate(507.83 -112.71) rotate(41.64)"/>
+    <path class="cls-2" d="M464.56,613.44c-38.58,7.42-26.89,6.95-61.12-1.72"/>
+  </g>
+</svg>

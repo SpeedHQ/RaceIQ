@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "charlotte-motor-speedway/rallyx",
+  "name": "Rallyx",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 558,
+      "confirmation": null
+    }
+  ]
+}

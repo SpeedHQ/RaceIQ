@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "new-smyrna-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 190,
+      "confirmation": null
+    }
+  ]
+}

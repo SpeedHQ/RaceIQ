@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "williams-grove-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 274,
+      "confirmation": null
+    }
+  ]
+}

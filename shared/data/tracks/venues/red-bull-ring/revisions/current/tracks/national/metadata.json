@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "red-bull-ring/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 404,
+      "confirmation": null
+    }
+  ]
+}

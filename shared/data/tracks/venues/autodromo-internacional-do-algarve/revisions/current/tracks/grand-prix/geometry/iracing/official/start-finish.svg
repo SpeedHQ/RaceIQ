@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Start_Finish" data-name="EXAMPLE - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <g id="Start_Finish_Line" data-name="Start / Finish Line">
+    <g>
+      <polygon class="cls-1" points="919.98 171.44 819.98 151.44 843.11 171.44 819.98 191.44 919.98 171.44"/>
+      <rect class="cls-1" x="796.53" y="183.77" width="10" height="70"/>
+    </g>
+  </g>
+</svg>

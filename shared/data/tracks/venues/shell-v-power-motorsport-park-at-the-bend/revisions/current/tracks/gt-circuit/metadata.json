@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "shell-v-power-motorsport-park-at-the-bend/gt-circuit",
+  "name": "GT Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 540,
+      "confirmation": null
+    }
+  ]
+}

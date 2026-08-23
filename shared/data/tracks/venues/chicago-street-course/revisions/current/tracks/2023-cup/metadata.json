@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "chicago-street-course/2023-cup",
+  "name": "2023 Cup",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 483,
+      "confirmation": null
+    }
+  ]
+}

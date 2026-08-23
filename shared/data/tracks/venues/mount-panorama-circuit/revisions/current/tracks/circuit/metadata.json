@@ -1,0 +1,477 @@
+{
+  "version": 1,
+  "id": "mount-panorama-circuit/circuit",
+  "name": "Circuit",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 540,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 23,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 3,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 219,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "mount-panorama",
+    "track": "mount-panorama",
+    "layout": "full",
+    "layoutName": "Circuit",
+    "name": "Mount Panorama Circuit",
+    "source": "Official corner names, sequential numbering of detected corners",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Hell Corner",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "Griffins Bend",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "The Cutting",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Reid Park",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "Sulman Park",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "McPhillamy Park",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "The Esses",
+        "direction": "right",
+        "group": "The Esses"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left",
+        "group": "The Esses"
+      },
+      {
+        "number": 9,
+        "name": "The Dipper",
+        "direction": "right",
+        "group": "The Esses"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left",
+        "group": "The Esses"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "Forrest's Elbow",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "The Chase",
+        "direction": "left",
+        "group": "The Chase"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right",
+        "group": "The Chase"
+      },
+      {
+        "number": 15,
+        "name": "Murray's Corner",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 1,
+        "name": "Mountain Straight"
+      },
+      {
+        "after": 12,
+        "name": "Conrod Straight"
+      },
+      {
+        "after": 15,
+        "name": "Pit Straight",
+        "group": "Pit Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3098,
+        "s2End": 0.6217,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0167
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0167,
+          "endFrac": 0.053
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.053,
+          "endFrac": 0.1877
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1877,
+          "endFrac": 0.2464
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.2464,
+          "endFrac": 0.2712
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2712,
+          "endFrac": 0.3098
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3098,
+          "endFrac": 0.3709
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3709,
+          "endFrac": 0.4362
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4362,
+          "endFrac": 0.4862
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4862,
+          "endFrac": 0.5166
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5166,
+          "endFrac": 0.5291
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.5291,
+          "endFrac": 0.5417
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5417,
+          "endFrac": 0.5676
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.5676,
+          "endFrac": 0.5923
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5923,
+          "endFrac": 0.6217
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.6217,
+          "endFrac": 0.8383
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8383,
+          "endFrac": 0.871
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.871,
+          "endFrac": 0.8994
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.8994,
+          "endFrac": 0.9288
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.9288,
+          "endFrac": 0.9734
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9734,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3363,
+        "s2End": 0.6465,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0318
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0318,
+          "endFrac": 0.0796
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0796,
+          "endFrac": 0.2097
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2097,
+          "endFrac": 0.2838
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2838,
+          "endFrac": 0.3363
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3363,
+          "endFrac": 0.3966
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3966,
+          "endFrac": 0.4608
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4608,
+          "endFrac": 0.5034
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5034,
+          "endFrac": 0.5357
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5357,
+          "endFrac": 0.5512
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.5512,
+          "endFrac": 0.5668
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5668,
+          "endFrac": 0.5909
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.5909,
+          "endFrac": 0.6171
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6171,
+          "endFrac": 0.6465
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.6465,
+          "endFrac": 0.8568
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8568,
+          "endFrac": 0.8998
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8998,
+          "endFrac": 0.9298
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9298,
+          "endFrac": 0.9494
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.9494,
+          "endFrac": 0.9921
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9921,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3106,
+        "s2End": 0.6226,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0168
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0168,
+          "endFrac": 0.0564
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0564,
+          "endFrac": 0.1888
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1888,
+          "endFrac": 0.2481
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.2481,
+          "endFrac": 0.272
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.272,
+          "endFrac": 0.3106
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3106,
+          "endFrac": 0.38
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.38,
+          "endFrac": 0.44
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.44,
+          "endFrac": 0.4842
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.4842,
+          "endFrac": 0.5074
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5074,
+          "endFrac": 0.5424
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5424,
+          "endFrac": 0.5508
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.5508,
+          "endFrac": 0.5642
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5642,
+          "endFrac": 0.5775
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.5775,
+          "endFrac": 0.5957
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5957,
+          "endFrac": 0.6226
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.6226,
+          "endFrac": 0.8379
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8379,
+          "endFrac": 0.8744
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8744,
+          "endFrac": 0.9064
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9064,
+          "endFrac": 0.9293
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.9293,
+          "endFrac": 0.9757
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9757,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

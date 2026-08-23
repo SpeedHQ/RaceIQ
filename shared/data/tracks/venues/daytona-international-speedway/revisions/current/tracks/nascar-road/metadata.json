@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/nascar-road",
+  "name": "NASCAR Road",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 381,
+      "confirmation": null
+    }
+  ]
+}

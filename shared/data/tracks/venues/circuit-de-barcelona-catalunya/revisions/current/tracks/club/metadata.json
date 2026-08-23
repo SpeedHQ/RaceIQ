@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-barcelona-catalunya/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 347,
+      "confirmation": null
+    }
+  ]
+}

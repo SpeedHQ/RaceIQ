@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "id": "red-bull-ring/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 17,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 34,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 13,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 403,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "spielberg",
+    "track": "spielberg",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Red Bull Ring",
+    "source": "Official Red Bull Ring circuit map (post-2021 corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Niki Lauda Kurve",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Remus",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Schlossgold",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Rauch",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "Rindt",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Red Bull Mobile",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.213,
+        "s2End": 0.626
+      },
+      "segments": [
+        {
+          "key": "s10",
+          "startFrac": 0,
+          "endFrac": 0.0709
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0709,
+          "endFrac": 0.1272
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1272,
+          "endFrac": 0.2892
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2892,
+          "endFrac": 0.3454
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3454,
+          "endFrac": 0.4739
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4739,
+          "endFrac": 0.5973
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5973,
+          "endFrac": 0.6742
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6742,
+          "endFrac": 0.7288
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7288,
+          "endFrac": 0.7863
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.7863,
+          "endFrac": 0.836
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.836,
+          "endFrac": 0.9086
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.9086,
+          "endFrac": 0.9497
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.9497,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.2943,
+        "s2End": 0.7488,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s10",
+          "startFrac": 0,
+          "endFrac": 0.0607
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0607,
+          "endFrac": 0.1309
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1309,
+          "endFrac": 0.2834
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2834,
+          "endFrac": 0.3472
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3472,
+          "endFrac": 0.4678
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4678,
+          "endFrac": 0.5916
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5916,
+          "endFrac": 0.6779
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6779,
+          "endFrac": 0.7488
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7488,
+          "endFrac": 0.7942
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.7942,
+          "endFrac": 0.8234
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.8234,
+          "endFrac": 0.9025
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.9025,
+          "endFrac": 0.9649
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.9649,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.2642,
+        "s2End": 0.7037,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s10",
+          "startFrac": 0,
+          "endFrac": 0.0354
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0354,
+          "endFrac": 0.1005
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1005,
+          "endFrac": 0.255
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.255,
+          "endFrac": 0.319
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.319,
+          "endFrac": 0.4415
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4415,
+          "endFrac": 0.5137
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.5137,
+          "endFrac": 0.55
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.55,
+          "endFrac": 0.6435
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6435,
+          "endFrac": 0.7037
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7037,
+          "endFrac": 0.7529
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.7529,
+          "endFrac": 0.7978
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7978,
+          "endFrac": 0.877
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.877,
+          "endFrac": 0.9269
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.9269,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

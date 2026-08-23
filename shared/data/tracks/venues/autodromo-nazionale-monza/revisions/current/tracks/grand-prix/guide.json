@@ -1,0 +1,87 @@
+{
+  "id": "monza",
+  "locale": "en",
+  "character": "The Temple of Speed — 5.8km low-downforce circuit with long straights and heavy braking chicanes. Top speed and braking stability are everything. Exit speed from slow corners feeds massive straights.",
+  "sources": "https://www.formula1.com/en/racing/2026/italy/circuit official F1 circuit guide; Lesmo/Ascari/Parabolica naming long-established",
+  "corners": [
+    {
+      "key": "variante-del-rettifilo",
+      "name": "Variante del Rettifilo",
+      "numbers": [
+        1,
+        2
+      ],
+      "type": "tight right-left chicane (T1-T2)",
+      "technique": "Brake between 150m and 100m board, trail brake to late apex in T1, smooth transition to T2. Hug flat inside kerb, avoid sausage kerbs",
+      "trap": "Braking too late and cutting the chicane; early T1 apex kills T2 exit speed"
+    },
+    {
+      "key": "curva-grande",
+      "name": "Curva Grande",
+      "numbers": [
+        3
+      ],
+      "type": "long fast right sweeper",
+      "technique": "Flat-out in most cars, use full track width, smooth steering",
+      "trap": "Any correction at this speed scrubs massive time"
+    },
+    {
+      "key": "variante-della-roggia",
+      "name": "Variante della Roggia",
+      "numbers": [
+        4,
+        5
+      ],
+      "type": "left-right chicane (T4-T5)",
+      "technique": "Hard braking from high speed, aggressive downshifts, use astroturf reference for turn-in",
+      "trap": "Bouncing over sausage kerbs destabilises the car for Lesmo approach"
+    },
+    {
+      "key": "lesmo-1",
+      "name": "Lesmo 1",
+      "numbers": [
+        6
+      ],
+      "type": "medium-fast right-hander",
+      "technique": "Keep left, brake later than you think. Use orange barrier as braking ref. Trail brake with 20% pressure into the turn",
+      "trap": "Excessive caution here — it's faster than it looks. Running wide kills Lesmo 2 entry"
+    },
+    {
+      "key": "lesmo-2",
+      "name": "Lesmo 2",
+      "numbers": [
+        7
+      ],
+      "type": "medium-speed right (tighter than Lesmo 1)",
+      "technique": "Brake at 50m board, mid-to-late apex. Clean exit is critical — feeds long straight to Ascari",
+      "trap": "Too tight an apex loses exit speed; use all exit kerbing and astroturf"
+    },
+    {
+      "key": "ascari",
+      "name": "Ascari",
+      "numbers": [
+        8,
+        9,
+        10
+      ],
+      "type": "left-right-left chicane (T8-T9-T10)",
+      "technique": "Brake late but maintain control through the sequence, smooth direction changes",
+      "trap": "Over-driving the entry compromises the final exit onto the straight to Parabolica"
+    },
+    {
+      "key": "parabolica",
+      "name": "Parabolica",
+      "numbers": [
+        11
+      ],
+      "type": "long tightening right-hander",
+      "technique": "Brake at 100m board, late apex, progressive throttle. Exit speed feeds the longest straight",
+      "trap": "Early apex = early throttle = massive oversteer on exit. Patience is everything here"
+    }
+  ],
+  "priorityCorners": [
+    "variante-del-rettifilo",
+    "lesmo-2",
+    "parabolica"
+  ]
+}

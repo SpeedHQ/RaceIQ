@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-internacional-do-algarve/grand-prix-chicanes",
+  "name": "Grand Prix - Chicanes",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 510,
+      "confirmation": null
+    }
+  ]
+}

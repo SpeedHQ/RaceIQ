@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "id": "circuit-paul-ricard/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 1,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 4,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 8,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "paul-ricard",
+    "track": "paul-ricard",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Circuit Paul Ricard",
+    "source": "Official Circuit Paul Ricard circuit map",
+    "corners": [
+      {
+        "number": 1,
+        "name": "S de la Verrerie",
+        "direction": "left",
+        "group": "S de la Verrerie"
+      },
+      {
+        "number": 2,
+        "name": "S de la Verrerie",
+        "direction": "right",
+        "group": "S de la Verrerie"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Sainte-Beaume",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "Signes",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "Beausset",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "Bendor",
+        "direction": "right",
+        "group": "Bendor"
+      },
+      {
+        "number": 11,
+        "name": "Bendor",
+        "direction": "left",
+        "group": "Bendor"
+      },
+      {
+        "number": 12,
+        "name": "Bendor",
+        "direction": "right",
+        "group": "Bendor"
+      }
+    ],
+    "straights": [
+      {
+        "after": 6,
+        "name": "Mistral Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "acc": {
+      "sectors": {
+        "s1End": 0.2897,
+        "s2End": 0.8423,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.078
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.078,
+          "endFrac": 0.1188
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1188,
+          "endFrac": 0.1569
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.1569,
+          "endFrac": 0.1972
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1972,
+          "endFrac": 0.2358
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2358,
+          "endFrac": 0.2537
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2537,
+          "endFrac": 0.2897
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2897,
+          "endFrac": 0.3541
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.3541,
+          "endFrac": 0.6276
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6276,
+          "endFrac": 0.7109
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7109,
+          "endFrac": 0.8033
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.8033,
+          "endFrac": 0.8423
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8423,
+          "endFrac": 0.897
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.897,
+          "endFrac": 0.9343
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.9343,
+          "endFrac": 0.9623
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.9623,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.2909,
+        "s2End": 0.847,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.0776
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0776,
+          "endFrac": 0.1188
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1188,
+          "endFrac": 0.1573
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.1573,
+          "endFrac": 0.1951
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1951,
+          "endFrac": 0.2348
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2348,
+          "endFrac": 0.2542
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2542,
+          "endFrac": 0.2909
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2909,
+          "endFrac": 0.3461
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.3461,
+          "endFrac": 0.6328
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6328,
+          "endFrac": 0.7119
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7119,
+          "endFrac": 0.8054
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.8054,
+          "endFrac": 0.847
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.847,
+          "endFrac": 0.8976
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8976,
+          "endFrac": 0.9361
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.9361,
+          "endFrac": 0.9616
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.9616,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

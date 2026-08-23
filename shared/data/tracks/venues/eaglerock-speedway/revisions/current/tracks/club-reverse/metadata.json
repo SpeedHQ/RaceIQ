@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "id": "eaglerock-speedway/club-reverse",
+  "name": "Club Reverse",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1663,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "eaglerock-r",
+    "track": "eaglerock",
+    "layout": "club-reverse",
+    "layoutName": "Club Reverse",
+    "name": "Eaglerock Speedway",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.4686
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.4686,
+          "endFrac": 0.5303
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.5303,
+          "endFrac": 0.591
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.591,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

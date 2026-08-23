@@ -1,0 +1,51 @@
+{
+  "id": "indianapolis",
+  "locale": "en",
+  "character": "Road course built inside the Indianapolis Motor Speedway oval, combining a stretch of the famous banking with a tight, technical infield section. Traction out of the infield hairpins and a clean run onto the oval banking define the lap.",
+  "sources": "https://www.tracktitan.io/post/indianapolis-track-guide ; https://www.racingcircuits.info/north-america/usa/indianapolis-motor-speedway.html",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "tight right-hander off the front straight",
+      "technique": "Brake hard, late apex, prioritise a clean exit into the infield",
+      "trap": "Over-braking and losing momentum into the technical infield section"
+    },
+    {
+      "key": "turn-7",
+      "name": "Turn 7",
+      "numbers": [
+        7
+      ],
+      "type": "tight hairpin at the end of Hulman Straight",
+      "technique": "Hard braking, patient entry, progressive throttle on exit",
+      "trap": "Carrying too much speed in and missing the apex"
+    },
+    {
+      "key": "turn-12-14",
+      "name": "Turn 12-14",
+      "numbers": [
+        12,
+        13,
+        14
+      ],
+      "type": "technical infield esses",
+      "technique": "Smooth, rhythmic direction changes through the sequence",
+      "trap": "Over-driving any single apex disrupts the whole complex"
+    },
+    {
+      "key": "turn-16",
+      "name": "Turn 16",
+      "type": "final corner onto the oval banking",
+      "technique": "Late apex, clean exit is critical — feeds the run down the front straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "turn-7",
+    "turn-16"
+  ]
+}

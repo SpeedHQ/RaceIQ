@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "suzuka-circuit/west-w-chicane",
+  "name": "West w/chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 176,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zandvoort/grand-prix-w-chicane",
+  "name": "Grand Prix w/chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 486,
+      "confirmation": null
+    }
+  ]
+}

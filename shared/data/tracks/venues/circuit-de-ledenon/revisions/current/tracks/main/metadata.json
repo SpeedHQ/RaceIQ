@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-ledenon/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 489,
+      "confirmation": null
+    }
+  ]
+}

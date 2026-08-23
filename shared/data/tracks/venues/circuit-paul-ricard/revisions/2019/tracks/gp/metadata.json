@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-paul-ricard/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 15,
+      "confirmation": null
+    }
+  ]
+}

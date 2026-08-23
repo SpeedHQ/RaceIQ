@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "donington-park/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 234,
+      "confirmation": null
+    }
+  ]
+}

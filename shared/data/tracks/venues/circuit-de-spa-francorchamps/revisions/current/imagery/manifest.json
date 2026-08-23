@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "venueId": "circuit-de-spa-francorchamps",
+  "calibration": {
+    "originLatitudeDeg": 50.43868783533807,
+    "originLongitudeDeg": 5.972261516739921,
+    "imageToEnu": [
+      2154.9297188115556,
+      3673.5376163786805,
+      2431.8503504708974,
+      -1426.5449654216445,
+      -2429.1907748232843,
+      -973.7049719409715
+    ]
+  },
+  "base": {
+    "pack": "imagery.rqi",
+    "artifact": {
+      "url": "https://media.githubusercontent.com/media/SpeedHQ/RaceIQ/main/shared/data/tracks/venues/circuit-de-spa-francorchamps/revisions/current/imagery/imagery.rqi",
+      "version": "track-imagery-v1",
+      "sha256": "14eaa42a38426f273bda57fb171d02d9dbc784b5c1c40297749cd1240941d3b9",
+      "sizeBytes": 48496640,
+      "attribution": "Source : Service public de Wallonie (SPW) - Orthophotos - Vues aériennes les plus récentes (2025-09-20) https://geodata.wallonie.be/id/dfc9f3a2-adff-4b7f-ab77-8a890c4cabbb"
+    },
+    "tileSize": 512,
+    "bounds": {
+      "west": 5.939821044011811,
+      "south": 50.424248320886,
+      "east": 5.999890955988189,
+      "north": 50.44957527911399
+    },
+    "source": {
+      "name": "SPW ORTHO_LAST",
+      "provider": "wallonia-spw",
+      "url": "https://geoservices.wallonie.be/arcgis/services/IMAGERIE/ORTHO_LAST/MapServer/WMSServer",
+      "license": "CC BY 4.0",
+      "attribution": "Source : Service public de Wallonie (SPW) - Orthophotos - Vues aériennes les plus récentes (2025-09-20) https://geodata.wallonie.be/id/dfc9f3a2-adff-4b7f-ab77-8a890c4cabbb",
+      "quality": "hq",
+      "coverage": "full",
+      "geographicReliability": "authoritative",
+      "providerStability": "stable",
+      "redistribution": "allowed",
+      "sourceResolutionM": 0.25,
+      "storedResolutionM": 0.25
+    }
+  },
+  "layers": []
+}

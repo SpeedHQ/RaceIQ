@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sachsenring/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 521,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuito-de-navarra/speed-circuit-medium",
+  "name": "Speed Circuit - Medium",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 516,
+      "confirmation": null
+    }
+  ]
+}

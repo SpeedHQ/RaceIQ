@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "las-vegas-motor-speedway/road-course-short",
+  "name": "Road Course Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 112,
+      "confirmation": null
+    }
+  ]
+}

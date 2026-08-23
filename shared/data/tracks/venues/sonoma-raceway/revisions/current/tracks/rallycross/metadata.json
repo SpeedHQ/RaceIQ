@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/rallycross",
+  "name": "Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 312,
+      "confirmation": null
+    }
+  ]
+}

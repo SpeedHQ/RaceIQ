@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oswego-speedway/dirt",
+  "name": "Dirt",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 520,
+      "confirmation": null
+    }
+  ]
+}

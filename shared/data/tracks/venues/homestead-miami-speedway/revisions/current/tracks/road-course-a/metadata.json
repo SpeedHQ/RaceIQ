@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "homestead-miami-speedway/road-course-a",
+  "name": "Road Course A",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 21,
+      "confirmation": null
+    }
+  ]
+}

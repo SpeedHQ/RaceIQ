@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "weedsport-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 373,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,531 @@
+{
+  "version": 1,
+  "id": "silverstone-racing-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 21,
+      "confirmation": null
+    },
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 7,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 3,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 6,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 341,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "silverstone",
+    "track": "silverstone",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Silverstone Racing Circuit",
+    "source": "Official Silverstone GP circuit map (Arena layout, 18 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Abbey",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Farm Curve",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Village",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "The Loop",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Aintree",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Brooklands",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "Luffield",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Woodcote",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "Copse",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Maggotts",
+        "direction": "left",
+        "group": "Maggotts/Becketts"
+      },
+      {
+        "number": 11,
+        "name": "Becketts",
+        "direction": "right",
+        "group": "Maggotts/Becketts"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left",
+        "group": "Maggotts/Becketts"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right",
+        "group": "Maggotts/Becketts"
+      },
+      {
+        "number": 14,
+        "name": "Chapel",
+        "direction": "left"
+      },
+      {
+        "number": 15,
+        "name": "Stowe",
+        "direction": "right"
+      },
+      {
+        "number": 16,
+        "name": "Vale",
+        "direction": "left"
+      },
+      {
+        "number": 17,
+        "covers": [
+          18
+        ],
+        "name": "Club",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 4,
+        "name": "Wellington Straight"
+      },
+      {
+        "after": 14,
+        "name": "Hangar Straight"
+      },
+      {
+        "after": 17,
+        "name": "Hamilton Straight",
+        "group": "Hamilton Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3287,
+        "s2End": 0.7101,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s17",
+          "startFrac": 0,
+          "endFrac": 0.0201
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0201,
+          "endFrac": 0.0648
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0648,
+          "endFrac": 0.113
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.113,
+          "endFrac": 0.1482
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1482,
+          "endFrac": 0.1708
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.1708,
+          "endFrac": 0.1763
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1763,
+          "endFrac": 0.2065
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2065,
+          "endFrac": 0.2794
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2794,
+          "endFrac": 0.3287
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3287,
+          "endFrac": 0.379
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.379,
+          "endFrac": 0.4365
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.4365,
+          "endFrac": 0.4682
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.4682,
+          "endFrac": 0.5274
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.5274,
+          "endFrac": 0.5614
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5614,
+          "endFrac": 0.6036
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.6036,
+          "endFrac": 0.6222
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6222,
+          "endFrac": 0.6494
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.6494,
+          "endFrac": 0.683
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.683,
+          "endFrac": 0.7098
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.7098,
+          "endFrac": 0.7993
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.7993,
+          "endFrac": 0.8687
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.8687,
+          "endFrac": 0.8888
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.8888,
+          "endFrac": 0.9219
+        },
+        {
+          "key": "t17-18",
+          "startFrac": 0.9219,
+          "endFrac": 0.9758
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.9758,
+          "endFrac": 1
+        }
+      ]
+    },
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.314,
+        "s2End": 0.636
+      },
+      "segments": [
+        {
+          "key": "s17",
+          "startFrac": 0,
+          "endFrac": 0.0429
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0429,
+          "endFrac": 0.0883
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0883,
+          "endFrac": 0.1352
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1352,
+          "endFrac": 0.1677
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1677,
+          "endFrac": 0.1959
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.1959,
+          "endFrac": 0.2015
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2015,
+          "endFrac": 0.2315
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2315,
+          "endFrac": 0.3085
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3085,
+          "endFrac": 0.3539
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3539,
+          "endFrac": 0.4131
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.4131,
+          "endFrac": 0.4616
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.4616,
+          "endFrac": 0.494
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.494,
+          "endFrac": 0.551
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.551,
+          "endFrac": 0.5879
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5879,
+          "endFrac": 0.6283
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.6283,
+          "endFrac": 0.6483
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6483,
+          "endFrac": 0.6736
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.6736,
+          "endFrac": 0.7033
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7033,
+          "endFrac": 0.734
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.734,
+          "endFrac": 0.8229
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.8229,
+          "endFrac": 0.8933
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.8933,
+          "endFrac": 0.9138
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.9138,
+          "endFrac": 0.9474
+        },
+        {
+          "key": "t17-18",
+          "startFrac": 0.9474,
+          "endFrac": 0.9905
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.9905,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.331,
+        "s2End": 0.662
+      },
+      "segments": [
+        {
+          "key": "t9",
+          "startFrac": 0,
+          "endFrac": 0.0749
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.0749,
+          "endFrac": 0.0947
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.0947,
+          "endFrac": 0.1372
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.1372,
+          "endFrac": 0.1627
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.1627,
+          "endFrac": 0.1889
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.1889,
+          "endFrac": 0.2182
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.2182,
+          "endFrac": 0.2496
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.2496,
+          "endFrac": 0.3357
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.3357,
+          "endFrac": 0.4252
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.4252,
+          "endFrac": 0.4622
+        },
+        {
+          "key": "t17-18",
+          "startFrac": 0.4622,
+          "endFrac": 0.4845
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.4845,
+          "endFrac": 0.5491
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.5491,
+          "endFrac": 0.6089
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.6089,
+          "endFrac": 0.6519
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.6519,
+          "endFrac": 0.6829
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.6829,
+          "endFrac": 0.716
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.716,
+          "endFrac": 0.8262
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.8262,
+          "endFrac": 0.8684
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.8684,
+          "endFrac": 0.9282
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.9282,
+          "endFrac": 0.9518
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.9518,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

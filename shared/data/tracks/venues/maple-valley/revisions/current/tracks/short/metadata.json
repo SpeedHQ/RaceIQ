@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "id": "maple-valley/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 68,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "maple-valley-s",
+    "track": "maple-valley",
+    "layout": "short",
+    "layoutName": "Short",
+    "name": "Maple Valley",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s6",
+          "startFrac": 0,
+          "endFrac": 0.063
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.063,
+          "endFrac": 0.4306
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.4306,
+          "endFrac": 0.5348
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.5348,
+          "endFrac": 0.6575
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.6575,
+          "endFrac": 0.7769
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.7769,
+          "endFrac": 0.8171
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.8171,
+          "endFrac": 0.9425
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.9425,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

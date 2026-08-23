@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "id": "hakone/club-reverse",
+  "name": "Club Reverse",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1643,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "hakone-sr",
+    "track": "hakone",
+    "layout": "club-reverse",
+    "layoutName": "Club Reverse",
+    "name": "Hakone",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s7",
+          "startFrac": 0,
+          "endFrac": 0.066
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.066,
+          "endFrac": 0.167
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.167,
+          "endFrac": 0.2848
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2848,
+          "endFrac": 0.3763
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3763,
+          "endFrac": 0.5369
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.5369,
+          "endFrac": 0.6282
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6282,
+          "endFrac": 0.7036
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.7036,
+          "endFrac": 0.7688
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7688,
+          "endFrac": 0.8902
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.8902,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

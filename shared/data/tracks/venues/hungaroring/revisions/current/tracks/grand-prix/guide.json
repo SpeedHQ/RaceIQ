@@ -1,0 +1,55 @@
+{
+  "id": "budapest",
+  "locale": "en",
+  "character": "Tight, twisty circuit dubbed 'Monaco without the walls' — low average speed, high downforce, and few overtaking opportunities. Rewards precision and mid-corner rotation over outright straight-line speed.",
+  "sources": "https://www.formula1.com/en/racing/2026/hungary/circuit official F1 circuit guide (numbered-turn convention)",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "uphill medium-speed right",
+      "technique": "Firm braking on the uphill approach, late apex to set up Turn 2",
+      "trap": "Running wide compromises the tight Turn 2 entry"
+    },
+    {
+      "key": "turn-4",
+      "name": "Turn 4",
+      "numbers": [
+        4
+      ],
+      "type": "tight, technical right",
+      "technique": "Patient trail brake, low speed, precise placement",
+      "trap": "Carrying too much speed and running wide on exit"
+    },
+    {
+      "key": "turn-11-12",
+      "name": "Turn 11-12",
+      "numbers": [
+        11,
+        12
+      ],
+      "type": "fast, flowing esses",
+      "technique": "Smooth, rhythmic direction changes, carry momentum through both parts",
+      "trap": "Over-driving the first part upsets the whole sequence"
+    },
+    {
+      "key": "turn-13-14",
+      "name": "Turn 13-14",
+      "numbers": [
+        13,
+        14
+      ],
+      "type": "final medium-speed chicane",
+      "technique": "Late apex, clean exit is critical — feeds the pit straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "turn-4",
+    "turn-11-12",
+    "turn-13-14"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "id": "sunset-peninsula/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1621,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "sunset-peninsula-s",
+    "track": "sunset-peninsula",
+    "layout": "club",
+    "layoutName": "Club",
+    "name": "Sunset Peninsula",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.1092
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1092,
+          "endFrac": 0.2042
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2042,
+          "endFrac": 0.2522
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2522,
+          "endFrac": 0.3104
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3104,
+          "endFrac": 0.3449
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.3449,
+          "endFrac": 0.4607
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4607,
+          "endFrac": 0.533
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.533,
+          "endFrac": 0.5779
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5779,
+          "endFrac": 0.6738
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6738,
+          "endFrac": 0.7151
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.7151,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

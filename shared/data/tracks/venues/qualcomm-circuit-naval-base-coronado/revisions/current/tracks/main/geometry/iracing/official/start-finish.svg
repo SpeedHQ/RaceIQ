@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Start_Finish" data-name="Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+      }
+    </style>
+  </defs>
+  <g id="start-finish">
+    <path class="cls-1" d="M1019.5131,954.3049l20.9031-25.0147-27.7717-17.0707,108.6479,3.8713-101.7794,38.2142ZM1070.1454,892.4567l-5.4482-33.3827-5.2606.8586,5.4482,33.3827,5.2606-.8586Z"/>
+  </g>
+</svg>

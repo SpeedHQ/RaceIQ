@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "irwindale-speedway/figure-eight",
+  "name": "Figure Eight",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 217,
+      "confirmation": null
+    }
+  ]
+}

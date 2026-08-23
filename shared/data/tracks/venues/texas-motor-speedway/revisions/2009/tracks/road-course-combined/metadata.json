@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "texas-motor-speedway/2009/road-course-combined",
+  "name": "Road Course Combined",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 122,
+      "confirmation": null
+    }
+  ]
+}

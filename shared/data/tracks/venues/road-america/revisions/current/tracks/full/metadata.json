@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "id": "road-america/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 3,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 18,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "road-america",
+    "track": "road-america",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Road America",
+    "source": "Official circuit map (14 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": ""
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": ""
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "covers": [
+          10
+        ],
+        "name": "The Carousel",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "The Kink",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "Canada Corner",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 1,
+        "name": "Moraine Sweep"
+      },
+      {
+        "after": 3,
+        "name": "Hurry Downs"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3838,
+        "s2End": 0.614,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0716
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0716,
+          "endFrac": 0.1227
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1227,
+          "endFrac": 0.1475
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1475,
+          "endFrac": 0.1964
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1964,
+          "endFrac": 0.3354
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3354,
+          "endFrac": 0.3838
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3838,
+          "endFrac": 0.4248
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4248,
+          "endFrac": 0.4595
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.4595,
+          "endFrac": 0.4827
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.4827,
+          "endFrac": 0.5216
+        },
+        {
+          "key": "t9-10",
+          "startFrac": 0.5216,
+          "endFrac": 0.614
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.614,
+          "endFrac": 0.6333
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.6333,
+          "endFrac": 0.6783
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.6783,
+          "endFrac": 0.7667
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.7667,
+          "endFrac": 0.8162
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8162,
+          "endFrac": 0.8687
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8687,
+          "endFrac": 0.9127
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9127,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kevin-harvick-s-kern-raceway/asphalt-track",
+  "name": "Asphalt Track",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 493,
+      "confirmation": null
+    }
+  ]
+}

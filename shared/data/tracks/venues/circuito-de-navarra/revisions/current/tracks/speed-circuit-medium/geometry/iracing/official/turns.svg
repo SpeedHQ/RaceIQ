@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Turns" data-name="EXAMPLE - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <g id="Medium">
+    <text class="cls-1" transform="translate(512.25 824)"><tspan x="0" y="0">1</tspan></text>
+    <text class="cls-1" transform="translate(288.79 689.6)"><tspan x="0" y="0">2</tspan></text>
+    <text class="cls-1" transform="translate(286.79 610.94)"><tspan x="0" y="0">3</tspan></text>
+    <text class="cls-1" transform="translate(476.12 715.6)"><tspan x="0" y="0">4</tspan></text>
+    <text class="cls-1" transform="translate(876.36 745.78)"><tspan x="0" y="0">5</tspan></text>
+    <text class="cls-1" transform="translate(1503.87 253.09)"><tspan x="0" y="0">6</tspan></text>
+    <text class="cls-1" transform="translate(1559.23 614.33)"><tspan x="0" y="0">7</tspan></text>
+    <text class="cls-1" transform="translate(1747.23 846.08)"><tspan x="0" y="0">8</tspan></text>
+  </g>
+</svg>

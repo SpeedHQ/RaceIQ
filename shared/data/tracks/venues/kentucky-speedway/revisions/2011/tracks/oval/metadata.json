@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kentucky-speedway/2011/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 188,
+      "confirmation": null
+    }
+  ]
+}

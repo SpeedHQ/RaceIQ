@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "knoxville-raceway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 305,
+      "confirmation": null
+    }
+  ]
+}

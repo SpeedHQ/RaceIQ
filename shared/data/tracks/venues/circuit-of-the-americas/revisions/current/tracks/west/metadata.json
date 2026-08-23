@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-of-the-americas/west",
+  "name": "West",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 231,
+      "confirmation": null
+    }
+  ]
+}

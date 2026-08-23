@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-jose-carlos-pace/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 213,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "id": "nordschleife",
+  "locale": "en",
+  "character": "The 'Green Hell' — a 20.8km, 73-corner ribbon through the Eifel forest with extreme elevation changes and blind crests. Demands memorisation and bravery; mistakes are severely punished by close barriers.",
+  "sources": "https://www.nuerburgring.de/en/ ; long-established Nordschleife corner naming (Hatzenbach, Flugplatz, Adenauer Forst, Fuchsröhre, Bergwerk, Karussell, Pflanzgarten, Döttinger Höhe)",
+  "corners": [
+    {
+      "key": "hatzenbach",
+      "name": "Hatzenbach",
+      "numbers": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "type": "fast, flowing forest section",
+      "technique": "Commit through the blind, undulating corners with smooth steering",
+      "trap": "Lifting unnecessarily on the blind crests loses significant time"
+    },
+    {
+      "key": "flugplatz",
+      "name": "Flugplatz",
+      "numbers": [
+        20
+      ],
+      "type": "fast crest where the car goes light",
+      "technique": "Stay smooth as the car unloads over the crest, minimal steering correction",
+      "trap": "Aggressive inputs while the car is light causes a snap"
+    },
+    {
+      "key": "adenauer-forst",
+      "name": "Adenauer Forst",
+      "numbers": [
+        22,
+        23,
+        24
+      ],
+      "type": "tight, technical double corner",
+      "technique": "Firm braking, patient double-apex line",
+      "trap": "Carrying too much speed into the tightening second part"
+    },
+    {
+      "key": "fuchsrohre",
+      "name": "Fuchsröhre",
+      "type": "very fast, dipping section",
+      "technique": "Commit through the compression at high speed, trust the car",
+      "trap": "Braking or lifting in the dip unsettles the car badly"
+    },
+    {
+      "key": "bergwerk",
+      "name": "Bergwerk",
+      "numbers": [
+        36
+      ],
+      "type": "slow, tight right-hander after a fast section",
+      "technique": "Hard braking from very high speed, patient entry",
+      "trap": "Misjudging the braking point after the fast approach — a notorious accident site"
+    },
+    {
+      "key": "karussell",
+      "name": "Karussell",
+      "numbers": [
+        39
+      ],
+      "type": "banked, off-camber left-hander",
+      "technique": "Use the banked concrete gutter to carry speed through the corner",
+      "trap": "Missing the banking and taking the corner conventionally loses significant time"
+    },
+    {
+      "key": "pflanzgarten",
+      "name": "Pflanzgarten",
+      "numbers": [
+        52,
+        53,
+        54
+      ],
+      "type": "fast, undulating jump section",
+      "technique": "Commit through the compressions and crests with smooth inputs",
+      "trap": "The car can become airborne here — excess speed or poor line risks a big moment"
+    },
+    {
+      "key": "dottinger-hohe",
+      "name": "Döttinger Höhe",
+      "type": "long flat-out straight before the final corners",
+      "technique": "Full commitment, prepare early for the braking zone at the end",
+      "trap": "Not preparing early enough for the heavy braking after the flat-out section"
+    }
+  ],
+  "priorityCorners": [
+    "bergwerk",
+    "karussell",
+    "pflanzgarten"
+  ]
+}

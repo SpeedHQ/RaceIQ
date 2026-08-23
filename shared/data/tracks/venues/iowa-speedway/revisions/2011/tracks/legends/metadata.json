@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "iowa-speedway/2011/legends",
+  "name": "Legends",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 171,
+      "confirmation": null
+    }
+  ]
+}

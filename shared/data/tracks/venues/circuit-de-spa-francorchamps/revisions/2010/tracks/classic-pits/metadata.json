@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-spa-francorchamps/2010/classic-pits",
+  "name": "Classic Pits",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 164,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "venueId": "daytona-international-speedway",
+  "calibration": {
+    "originLatitudeDeg": 29.18441723319677,
+    "originLongitudeDeg": -81.07013283823856,
+    "imageToEnu": [
+      2396.732822870985,
+      0,
+      0,
+      -2846.9379563452217,
+      -1061.3506446825154,
+      1498.2539961498856
+    ]
+  },
+  "base": {
+    "pack": "imagery.rqi",
+    "artifact": {
+      "url": "https://media.githubusercontent.com/media/SpeedHQ/RaceIQ/main/shared/data/tracks/venues/daytona-international-speedway/revisions/current/imagery/imagery.rqi",
+      "version": "track-imagery-v1",
+      "sha256": "c9c5b9f7252218fba89c00eeea19c24c4d37a9bd1bba492e64bb50778aaf0d5d",
+      "sizeBytes": 12488704,
+      "attribution": "National Agriculture Imagery Program (NAIP), USDA Farm Service Agency; distributed by the U.S. Geological Survey"
+    },
+    "tileSize": 512,
+    "bounds": {
+      "west": -81.08105343089841,
+      "south": 29.172301799047865,
+      "east": -81.0563926432462,
+      "north": 29.197876277839114
+    },
+    "source": {
+      "name": "USGS NAIP 2022",
+      "provider": "usgs-naip",
+      "url": "https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer",
+      "capturedAt": "2023-01-17",
+      "license": "Public domain",
+      "attribution": "National Agriculture Imagery Program (NAIP), USDA Farm Service Agency; distributed by the U.S. Geological Survey",
+      "quality": "hq",
+      "coverage": "full",
+      "geographicReliability": "authoritative",
+      "providerStability": "authoritative",
+      "redistribution": "allowed",
+      "sourceResolutionM": 0.3,
+      "storedResolutionM": 0.3
+    }
+  },
+  "layers": []
+}

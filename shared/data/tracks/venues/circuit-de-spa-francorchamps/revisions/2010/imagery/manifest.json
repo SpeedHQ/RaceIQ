@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "venueId": "circuit-de-spa-francorchamps/2010",
+  "calibration": {
+    "originLatitudeDeg": 50.43507882867458,
+    "originLongitudeDeg": 5.967457589121366,
+    "imageToEnu": [
+      -2115.9766550708296,
+      -3737.719747848867,
+      -2407.92850060081,
+      1363.1627939155592,
+      2298.8417331150586,
+      998.8210428987776
+    ]
+  },
+  "base": {
+    "pack": "imagery.rqi",
+    "artifact": {
+      "url": "https://media.githubusercontent.com/media/SpeedHQ/RaceIQ/main/shared/data/tracks/venues/circuit-de-spa-francorchamps/revisions/2010/imagery/imagery.rqi",
+      "version": "track-imagery-v1",
+      "sha256": "f60683e56621a7cd5cd2dca42e87be2a3af1e5ecfbc37899aeaac7d9da493e08",
+      "sizeBytes": 47857664,
+      "attribution": "Service public de Wallonie (SPW)"
+    },
+    "tileSize": 512,
+    "bounds": {
+      "west": 5.93956835274826,
+      "south": 50.42448357276523,
+      "east": 6.00014364725174,
+      "north": 50.44934002723476
+    },
+    "source": {
+      "name": "SPW Orthophotos 2023 summer",
+      "provider": "wallonia-spw",
+      "url": "https://geoservices.wallonie.be/arcgis/rest/services/IMAGERIE/ORTHO_2023_ETE/MapServer",
+      "capturedAt": "2023-06-01/2023-08-31",
+      "license": "CC BY 4.0",
+      "attribution": "Service public de Wallonie (SPW)",
+      "quality": "hq",
+      "coverage": "full",
+      "geographicReliability": "authoritative",
+      "providerStability": "stable",
+      "redistribution": "allowed",
+      "sourceResolutionM": 0.25,
+      "storedResolutionM": 0.25
+    }
+  },
+  "layers": []
+}

@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "id": "circuit-zandvoort/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 26,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 10,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 16,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 485,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "zandvoort",
+    "track": "zandvoort",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Circuit Zandvoort",
+    "source": "Official Circuit Zandvoort map (14-turn GP layout)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Tarzanbocht",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Gerlachbocht",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "Hugenholtzbocht",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Hunzerug",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Slotemakerbocht",
+        "direction": "right",
+        "group": "Slotemaker/Scheivlak"
+      },
+      {
+        "number": 6,
+        "name": "Scheivlak",
+        "direction": "right",
+        "group": "Slotemaker/Scheivlak"
+      },
+      {
+        "number": 7,
+        "name": "Mastersbocht",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "covers": [
+          9
+        ],
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "covers": [
+          12
+        ],
+        "name": "Hans Ernst Bocht",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 14,
+        "name": "Arie Luyendykbocht",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.291,
+        "s2End": 0.636
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0391
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0391,
+          "endFrac": 0.1319
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1319,
+          "endFrac": 0.1799
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1799,
+          "endFrac": 0.2517
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2517,
+          "endFrac": 0.3185
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3185,
+          "endFrac": 0.3595
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3595,
+          "endFrac": 0.4495
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4495,
+          "endFrac": 0.5572
+        },
+        {
+          "key": "t8-9",
+          "startFrac": 0.5572,
+          "endFrac": 0.6246
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.6246,
+          "endFrac": 0.6906
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6906,
+          "endFrac": 0.7336
+        },
+        {
+          "key": "t11-12",
+          "startFrac": 0.7336,
+          "endFrac": 0.7867
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.7867,
+          "endFrac": 0.8459
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8459,
+          "endFrac": 0.9349
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9349,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3618,
+        "s2End": 0.677,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0419
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0419,
+          "endFrac": 0.1286
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1286,
+          "endFrac": 0.1836
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1836,
+          "endFrac": 0.2535
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2535,
+          "endFrac": 0.3248
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3248,
+          "endFrac": 0.3618
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3618,
+          "endFrac": 0.4545
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4545,
+          "endFrac": 0.567
+        },
+        {
+          "key": "t8-9",
+          "startFrac": 0.567,
+          "endFrac": 0.6291
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.6291,
+          "endFrac": 0.6925
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6925,
+          "endFrac": 0.7416
+        },
+        {
+          "key": "t11-12",
+          "startFrac": 0.7416,
+          "endFrac": 0.7894
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7894,
+          "endFrac": 0.9353
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9353,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

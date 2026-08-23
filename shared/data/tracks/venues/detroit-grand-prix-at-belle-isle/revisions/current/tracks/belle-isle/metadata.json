@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "detroit-grand-prix-at-belle-isle/belle-isle",
+  "name": "Belle Isle",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 319,
+      "confirmation": null
+    }
+  ]
+}

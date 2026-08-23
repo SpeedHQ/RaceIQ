@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "knockhill-racing-circuit/national-reverse",
+  "name": "National Reverse",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 426,
+      "confirmation": null
+    }
+  ]
+}

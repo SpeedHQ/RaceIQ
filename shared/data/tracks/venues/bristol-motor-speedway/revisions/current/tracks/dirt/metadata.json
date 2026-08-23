@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "bristol-motor-speedway/dirt",
+  "name": "Dirt",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 442,
+      "confirmation": null
+    }
+  ]
+}

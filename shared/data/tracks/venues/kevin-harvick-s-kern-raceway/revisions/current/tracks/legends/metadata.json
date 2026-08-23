@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kevin-harvick-s-kern-raceway/legends",
+  "name": "Legends",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 496,
+      "confirmation": null
+    }
+  ]
+}

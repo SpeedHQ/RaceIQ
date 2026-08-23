@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/grand-prix-historic-reverse",
+  "name": "Grand Prix - Historic Reverse",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 503,
+      "confirmation": null
+    }
+  ]
+}

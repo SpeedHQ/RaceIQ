@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "id": "mid-ohio-sports-car-course/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1452,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 155,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "mid-ohio-s",
+    "track": "mid-ohio",
+    "layout": "short",
+    "layoutName": "Short",
+    "name": "Mid-Ohio Sports Car Course",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.0451
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0451,
+          "endFrac": 0.153
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.153,
+          "endFrac": 0.2424
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.2424,
+          "endFrac": 0.3339
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3339,
+          "endFrac": 0.4237
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4237,
+          "endFrac": 0.4849
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.4849,
+          "endFrac": 0.5347
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.5347,
+          "endFrac": 0.589
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.589,
+          "endFrac": 0.6263
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6263,
+          "endFrac": 0.6971
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6971,
+          "endFrac": 0.7898
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7898,
+          "endFrac": 0.8408
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8408,
+          "endFrac": 0.9328
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.9328,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

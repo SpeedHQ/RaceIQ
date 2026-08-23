@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/1000-chicane",
+  "name": "1000 Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 329,
+      "confirmation": null
+    }
+  ]
+}

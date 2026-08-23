@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-of-the-americas/nascar-west",
+  "name": "NASCAR West",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 579,
+      "confirmation": null
+    }
+  ]
+}
