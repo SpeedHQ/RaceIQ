@@ -1,15 +1,21 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { appendFileSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, describe, test, expect, spyOn } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../../server/telemetry/pipeline-ports"
+import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter, type SessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import * as DriverProfileRunner from "../../server/driver-profile/runner";
 import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { qualityPackets } from "../support/lap-analysis/quality-model";
+import { initGameAdapters } from "../../shared/games/init";
+import { initServerGameAdapters } from "../../server/games/init";
 
-function lapInput(
-  sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  overrides: Partial<PersistLapInput> = {},
-): PersistLapInput {
+initGameAdapters();
+initServerGameAdapters();
+afterAll(() => stopMaintenanceTasks());
+
+function lapInput(sessionId: number, lapNumber: number, lapTime: number, overrides: Partial<PersistLapInput> = {}): PersistLapInput {
   return {
     sessionId,
     lapNumber,
@@ -108,4 +114,90 @@ describe("NullWsAdapter", () => {
     expect(() => ws.broadcastNotification({ type: "test" })).not.toThrow();
     expect(() => ws.broadcastDevState({ key: "value" })).not.toThrow();
   });
+});
+
+class TestSessionRecorder implements SessionRecorderAdapter {
+  private readonly filePath: string;
+  active = false;
+  epoch = 0;
+
+  constructor(filePath: string) {
+    this.filePath = filePath;
+  }
+
+  get path(): string {
+    return this.filePath;
+  }
+
+  start(): void {
+    this.active = true;
+    this.epoch += 1;
+  }
+
+  writeMetaFrame(): void {
+    appendFileSync(this.filePath, Buffer.from("meta"));
+  }
+
+  writeRecord(buffer: Buffer): void {
+    appendFileSync(this.filePath, buffer);
+  }
+
+  getCurrentByteOffset(): number {
+    return statSync(this.filePath).size;
+  }
+
+  flush(): void {}
+
+  async stop(): Promise<void> {
+    this.active = false;
+  }
+}
+
+test("live pipeline persists provisional lap and finalized recording quality", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "raceiq-quality-pipeline-"));
+  try {
+    const recorder = new TestSessionRecorder(join(directory, "session.bin"));
+    const db = new CapturingDbAdapter();
+    const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
+      bypassPacketRateFilter: true,
+      recorder,
+      skipDevState: true,
+      skipHistorySeeding: true,
+    });
+    const packets = qualityPackets(40).map((packet, index) => ({
+      ...packet,
+      gameId: "fm-2023" as const,
+      iracing: undefined,
+      CarOrdinal: 100,
+      CarClass: 1,
+      CarPerformanceIndex: 800,
+      TrackOrdinal: 5,
+      LapNumber: 1,
+      CurrentLap: index / 4,
+      LastLap: 0,
+    }));
+    for (const [index, packet] of packets.entries()) {
+      await pipeline.processPacket(packet, Buffer.from([index]));
+    }
+    await pipeline.processPacket(
+      {
+        ...packets[packets.length - 1]!,
+        LapNumber: 2,
+        CurrentLap: 0,
+        LastLap: 10,
+        TimestampMS: 2_100,
+        DistanceTraveled: 5_100,
+      },
+      Buffer.from([40]),
+    );
+    await pipeline.finalizeCurrentSession();
+
+    expect(db.laps).toHaveLength(1);
+    expect(db.laps[0]?.quality?.provenance.outputGeneration).toBe("provisional");
+    expect(db.laps[0]?.eligibility).not.toBeNull();
+    expect(db.sessionQualities).toHaveLength(1);
+    expect(db.sessionQualities[0]?.quality.archiveVerification.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

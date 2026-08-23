@@ -6,14 +6,8 @@ import { deleteSession } from "../db/session-queries";
 import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import {
-  NullWsAdapter,
-  RealDbAdapter,
-  type DbAdapter,
-  type RealDbAdapterOptions,
-} from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, type DbAdapter, type RealDbAdapterOptions } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
-
 
 export interface ImportedLap {
   lapId: number;
@@ -29,7 +23,6 @@ export interface ImportSessionFramesOptions extends RealDbAdapterOptions {
   requireLaps?: boolean;
 }
 
-
 /**
  * Delegates to RealDbAdapter but captures the returned lap IDs + session
  * metadata so an import caller can tell the UI what got inserted and build
@@ -42,31 +35,14 @@ export class ImportCaptureAdapter implements DbAdapter {
   readonly rawFiles = new Set<string>();
   private readonly _pendingLapWrites = new Set<Promise<number>>();
   private _lapWriteFailure: unknown;
-  private readonly _sessionMeta = new Map<
-    number,
-    { carOrdinal: number; trackOrdinal: number }
-  >();
+  private readonly _sessionMeta = new Map<number, { carOrdinal: number; trackOrdinal: number }>();
 
   constructor(options: RealDbAdapterOptions = {}) {
     this._inner = new RealDbAdapter(options);
   }
 
-  async insertSession(
-    carOrdinal: number,
-    trackOrdinal: number,
-    gameId: GameId,
-    sessionType?: string,
-    versionIdentity?: TelemetryVersionIdentity,
-    ownership?: SessionOwnership,
-  ): Promise<number> {
-    const id = await this._inner.insertSession(
-      carOrdinal,
-      trackOrdinal,
-      gameId,
-      sessionType,
-      versionIdentity,
-      ownership,
-    );
+  async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
+    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership);
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
     return id;
@@ -110,6 +86,9 @@ export class ImportCaptureAdapter implements DbAdapter {
     this.rawFiles.add(rawFile);
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
+  updateSessionQuality(sessionId: number, quality: Parameters<DbAdapter["updateSessionQuality"]>[1]) {
+    return this._inner.updateSessionQuality(sessionId, quality);
+  }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
     this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
@@ -146,16 +125,12 @@ export class ImportCaptureAdapter implements DbAdapter {
   }
 }
 
-async function rollbackImport(
-  capture: ImportCaptureAdapter,
-  error: unknown,
-): Promise<never> {
+async function rollbackImport(capture: ImportCaptureAdapter, error: unknown): Promise<never> {
   await capture.rollback();
   throw error;
 }
 
 type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
-
 
 /**
  * Feed any canonical raw-frame stream through an isolated parser + pipeline.
@@ -174,9 +149,15 @@ export async function importSessionFrames(
 }> {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const db = new ImportCaptureAdapter(options);
+  const sourceKind = options.source ?? "raceiq-raw";
+  const db = new ImportCaptureAdapter({ ...options, source: sourceKind });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
+    qualityContext: {
+      sourceKind,
+      ownership: options.ownership,
+      sourceChannelProfile: options.sourceChannelProfile,
+    },
   });
 
   let packetCount = 0;
@@ -205,10 +186,7 @@ export async function importSessionFrames(
     return rollbackImport(db, failure);
   }
   if (options.requireLaps && db.laps.length === 0) {
-    return rollbackImport(
-      db,
-      new Error("No complete, importable laps were found"),
-    );
+    return rollbackImport(db, new Error("No complete, importable laps were found"));
   }
 
   try {
@@ -225,4 +203,3 @@ export async function importSessionFrames(
     sessionIds: [...db.sessionIds],
   };
 }
-

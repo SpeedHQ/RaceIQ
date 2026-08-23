@@ -83,11 +83,7 @@ interface NativeSequenceState {
   resetPending: boolean;
 }
 
-type NativeSequenceFamily =
-  | "iracing-session-tick"
-  | "kunos-physics"
-  | "kunos-graphics"
-  | number;
+type NativeSequenceFamily = "iracing-session-tick" | "kunos-physics" | "kunos-graphics" | number;
 
 function weightedMedian(counts: ReadonlyMap<number, number>, count: number, fallback: number): number {
   if (count <= 0) return fallback;
@@ -149,22 +145,12 @@ export class SourceSequenceTracker {
     const iracing = packet.iracing;
     if (iracing != null && Number.isFinite(iracing.sessionTick)) {
       hasNativeSequence = true;
-      this.observeNative(
-        "iracing-session-tick",
-        iracing.sessionTick,
-        packet.TimestampMS,
-        currentObservationIndex,
-      );
+      this.observeNative("iracing-session-tick", iracing.sessionTick, packet.TimestampMS, currentObservationIndex);
     } else if (packet.gameId === "f1-2025") {
       const f1 = packet.f1;
       const overall = f1?.overallFrameIdentifier;
       const packetId = f1?.packetId;
-      if (
-        typeof overall === "number" &&
-        Number.isFinite(overall) &&
-        typeof packetId === "number" &&
-        Number.isFinite(packetId)
-      ) {
+      if (typeof overall === "number" && Number.isFinite(overall) && typeof packetId === "number" && Number.isFinite(packetId)) {
         hasNativeSequence = true;
         this.observeNative(packetId, overall, packet.TimestampMS, currentObservationIndex);
       }
@@ -173,38 +159,20 @@ export class SourceSequenceTracker {
       const physics = acc?.physicsPacketId ?? acc?.acEvo?.physicsPacketId;
       if (typeof physics === "number" && Number.isFinite(physics)) {
         hasNativeSequence = true;
-        this.observeNative(
-          "kunos-physics",
-          physics,
-          packet.TimestampMS,
-          currentObservationIndex,
-        );
+        this.observeNative("kunos-physics", physics, packet.TimestampMS, currentObservationIndex);
       } else {
         const graphics = acc?.graphicsPacketId ?? acc?.acEvo?.graphicsPacketId;
         if (typeof graphics === "number" && Number.isFinite(graphics)) {
           hasNativeSequence = true;
-          this.observeNative(
-            "kunos-graphics",
-            graphics,
-            packet.TimestampMS,
-            currentObservationIndex,
-          );
+          this.observeNative("kunos-graphics", graphics, packet.TimestampMS, currentObservationIndex);
         }
       }
     }
 
-    this.observeTimestamp(
-      packet.TimestampMS,
-      currentObservationIndex,
-      hasNativeSequence,
-    );
+    this.observeTimestamp(packet.TimestampMS, currentObservationIndex, hasNativeSequence);
   }
 
-  private observeTimestamp(
-    sourceTimeMs: number,
-    currentObservationIndex: number,
-    hasNativeSequence: boolean,
-  ): void {
+  private observeTimestamp(sourceTimeMs: number, currentObservationIndex: number, hasNativeSequence: boolean): void {
     if (this.lastSourceTimeMs == null || this.lastObservationIndex == null) {
       this.lastSourceTimeMs = sourceTimeMs;
       this.lastObservationIndex = currentObservationIndex;
@@ -237,11 +205,7 @@ export class SourceSequenceTracker {
       return;
     }
 
-    if (
-      !hasNativeSequence &&
-      this.timestampCadenceSamples > 0 &&
-      delta > this.timestampNormalDeltaMax * 1.5
-    ) {
+    if (!hasNativeSequence && this.timestampCadenceSamples > 0 && delta > this.timestampNormalDeltaMax * 1.5) {
       this.timestampGapCandidates.push({
         previousSourceTimeMs,
         currentSourceTimeMs: sourceTimeMs,
@@ -255,13 +219,7 @@ export class SourceSequenceTracker {
       this.timestampProvisionalCurrentSourceTimeMs = sourceTimeMs;
       this.timestampProvisionalPreviousObservationIndex = previousObservationIndex;
       this.timestampProvisionalCurrentObservationIndex = currentObservationIndex;
-    } else if (
-      !hasNativeSequence &&
-      this.hasTimestampProvisionalBoundary &&
-      this.timestampProvisionalCurrentSourceTimeMs -
-        this.timestampProvisionalPreviousSourceTimeMs >
-        delta
-    ) {
+    } else if (!hasNativeSequence && this.hasTimestampProvisionalBoundary && this.timestampProvisionalCurrentSourceTimeMs - this.timestampProvisionalPreviousSourceTimeMs > delta) {
       this.timestampGapCandidates.push({
         previousSourceTimeMs: this.timestampProvisionalPreviousSourceTimeMs,
         currentSourceTimeMs: this.timestampProvisionalCurrentSourceTimeMs,
@@ -271,26 +229,15 @@ export class SourceSequenceTracker {
       this.hasTimestampProvisionalBoundary = false;
     }
 
-    this.positiveTimestampDeltaCounts.set(
-      delta,
-      (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1,
-    );
+    this.positiveTimestampDeltaCounts.set(delta, (this.positiveTimestampDeltaCounts.get(delta) ?? 0) + 1);
     this.positiveTimestampDeltaCount += 1;
-    this.timestampNormalDeltaMax =
-      this.timestampCadenceSamples === 0
-        ? delta
-        : Math.min(this.timestampNormalDeltaMax, delta);
+    this.timestampNormalDeltaMax = this.timestampCadenceSamples === 0 ? delta : Math.min(this.timestampNormalDeltaMax, delta);
     this.timestampCadenceSamples += 1;
     this.lastSourceTimeMs = sourceTimeMs;
     this.lastObservationIndex = currentObservationIndex;
   }
 
-  private observeNative(
-    family: NativeSequenceFamily,
-    sequence: number,
-    sourceTimeMs: number,
-    currentObservationIndex: number,
-  ): void {
+  private observeNative(family: NativeSequenceFamily, sequence: number, sourceTimeMs: number, currentObservationIndex: number): void {
     const previous = this.nativeStates.get(family);
     if (previous == null) {
       this.nativeStates.set(family, {
@@ -336,10 +283,7 @@ export class SourceSequenceTracker {
       (delta === 0 ? this.duplicates : this.outOfOrder).push(boundary);
       return;
     }
-    if (
-      previous.cadenceSamples > 0 &&
-      delta > previous.normalStepMax * 1.5
-    ) {
+    if (previous.cadenceSamples > 0 && delta > previous.normalStepMax * 1.5) {
       (previous.gapCandidates ??= []).push({
         previousSequence: previous.lastSequence,
         currentSequence: sequence,
@@ -357,11 +301,7 @@ export class SourceSequenceTracker {
       previous.provisionalCurrentSourceTimeMs = sourceTimeMs;
       previous.provisionalPreviousObservationIndex = previous.lastObservationIndex;
       previous.provisionalCurrentObservationIndex = currentObservationIndex;
-    } else if (
-      previous.hasProvisionalBoundary &&
-      previous.provisionalCurrentSequence - previous.provisionalPreviousSequence >
-        delta
-    ) {
+    } else if (previous.hasProvisionalBoundary && previous.provisionalCurrentSequence - previous.provisionalPreviousSequence > delta) {
       (previous.gapCandidates ??= []).push({
         previousSequence: previous.provisionalPreviousSequence,
         currentSequence: previous.provisionalCurrentSequence,
@@ -372,15 +312,9 @@ export class SourceSequenceTracker {
       });
       previous.hasProvisionalBoundary = false;
     }
-    previous.normalStepMax =
-      previous.cadenceSamples === 0
-        ? delta
-        : Math.min(previous.normalStepMax, delta);
+    previous.normalStepMax = previous.cadenceSamples === 0 ? delta : Math.min(previous.normalStepMax, delta);
     previous.cadenceSamples += 1;
-    previous.positiveStepCounts.set(
-      delta,
-      (previous.positiveStepCounts.get(delta) ?? 0) + 1,
-    );
+    previous.positiveStepCounts.set(delta, (previous.positiveStepCounts.get(delta) ?? 0) + 1);
     previous.positiveStepCount += 1;
     previous.lastSequence = sequence;
     previous.lastSourceTimeMs = sourceTimeMs;
@@ -398,28 +332,19 @@ export class SourceSequenceTracker {
     let missingCount = 0;
     let largestContiguousGapMs = 0;
     let countMethod: SourceSequenceCountMethod = "unavailable";
+    const hasNativeCadence = [...this.nativeStates.values()].some(({ positiveStepCount }) => positiveStepCount > 0);
 
-    if (this.nativeStates.size > 0) {
+    if (hasNativeCadence) {
       countMethod = "native-sequence";
       for (const [family, state] of this.nativeStates) {
         if (state.positiveStepCount === 0) continue;
         if (state.gapCandidates == null) continue;
-        const expectedStep = weightedMedian(
-          state.positiveStepCounts,
-          state.positiveStepCount,
-          1,
-        );
+        const expectedStep = weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
         for (const boundary of state.gapCandidates) {
           const step = boundary.currentSequence - boundary.previousSequence;
-          const inferredMissing = Math.max(
-            0,
-            Math.round(step / expectedStep) - 1,
-          );
+          const inferredMissing = Math.max(0, Math.round(step / expectedStep) - 1);
           if (inferredMissing === 0) continue;
-          const durationMs = Math.max(
-            0,
-            boundary.currentSourceTimeMs - boundary.previousSourceTimeMs,
-          );
+          const durationMs = Math.max(0, boundary.currentSourceTimeMs - boundary.previousSourceTimeMs);
           missingCount += inferredMissing;
           largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
           gaps.push({
@@ -431,20 +356,12 @@ export class SourceSequenceTracker {
           });
         }
       }
-    } else if (this.positiveTimestampDeltaCount > 0) {
+    } else if (this.nativeStates.size === 0 && this.positiveTimestampDeltaCount > 0) {
       countMethod = "timestamp-estimate";
-      const expectedIntervalMs = weightedMedian(
-        this.positiveTimestampDeltaCounts,
-        this.positiveTimestampDeltaCount,
-        1,
-      );
+      const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
       for (const boundary of this.timestampGapCandidates) {
-        const durationMs =
-          boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
-        const inferredMissing = Math.max(
-          0,
-          Math.round(durationMs / expectedIntervalMs) - 1,
-        );
+        const durationMs = boundary.currentSourceTimeMs - boundary.previousSourceTimeMs;
+        const inferredMissing = Math.max(0, Math.round(durationMs / expectedIntervalMs) - 1);
         if (inferredMissing === 0) continue;
         missingCount += inferredMissing;
         largestContiguousGapMs = Math.max(largestContiguousGapMs, durationMs);
@@ -467,22 +384,14 @@ export class SourceSequenceTracker {
         expectedCount,
         observedCount: this.packetCount,
         totalMissingCount: measured ? missingCount : null,
-        totalMissingFraction:
-          measured && expectedCount > 0 ? missingCount / expectedCount : null,
+        totalMissingFraction: measured && expectedCount > 0 ? missingCount / expectedCount : null,
         largestContiguousGapMs,
         countMethod,
       },
       gaps,
       duplicates: [...this.duplicates],
       outOfOrder: [...this.outOfOrder],
-      inferredIntervalMs:
-        this.positiveTimestampDeltaCount > 0
-          ? weightedMedian(
-              this.positiveTimestampDeltaCounts,
-              this.positiveTimestampDeltaCount,
-              1,
-            )
-          : null,
+      inferredIntervalMs: this.positiveTimestampDeltaCount > 0 ? weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1) : null,
     };
   }
 

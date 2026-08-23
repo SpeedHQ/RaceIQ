@@ -13,14 +13,7 @@ function iracingPacket(sessionTick: number, timestampMs: number): TelemetryPacke
 describe("source sequence tracking", () => {
   test("retains native gaps, duplicates, and out-of-order boundaries", () => {
     const tracker = new SourceSequenceTracker();
-    for (const sample of [
-      iracingPacket(1, 1_000),
-      iracingPacket(2, 1_050),
-      iracingPacket(5, 1_200),
-      iracingPacket(5, 1_200),
-      iracingPacket(4, 1_150),
-      iracingPacket(6, 1_250),
-    ]) {
+    for (const sample of [iracingPacket(1, 1_000), iracingPacket(2, 1_050), iracingPacket(5, 1_200), iracingPacket(5, 1_200), iracingPacket(4, 1_150), iracingPacket(6, 1_250)]) {
       tracker.observe(sample);
     }
 
@@ -157,6 +150,20 @@ describe("source sequence tracking", () => {
       gaps: [],
       duplicates: [],
       outOfOrder: [],
+    });
+  });
+
+  test("keeps missing-count evidence unavailable without native cadence", () => {
+    const tracker = new SourceSequenceTracker();
+    tracker.observe(iracingPacket(42, 1_000));
+
+    expect(tracker.finalize().summary).toEqual({
+      expectedCount: 1,
+      observedCount: 1,
+      totalMissingCount: null,
+      totalMissingFraction: null,
+      largestContiguousGapMs: 0,
+      countMethod: "unavailable",
     });
   });
 });
