@@ -1,30 +1,16 @@
-import type { TelemetryVariableId } from "@shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { CanonicalArchiveAvailability as SharedCanonicalArchiveAvailability } from "../archives/contracts";
 import type { EligibilityDecisionSet, EligibilityPolicyId, QualityReasonCode } from "./contracts";
 
 export const EVIDENCE_RETENTION_POLICY_VERSION = "1";
 
-export type CanonicalArchiveState = "available" | "unavailable" | "unknown";
-
-export interface CanonicalArchiveProvenance {
-  archiveIdentity: string;
-  schemaIdentity: string;
-  configIdentity: string;
-  sourceIdentity: string;
-  outputIdentity: string;
-}
-
-export interface CanonicalArchiveAvailability {
-  state: CanonicalArchiveState;
-  semanticIds: readonly TelemetryVariableId[];
-  eventIds: readonly string[];
-  provenance: CanonicalArchiveProvenance | null;
-  details: string | null;
-}
+export type CanonicalArchiveAvailability = SharedCanonicalArchiveAvailability;
 
 export interface EvidenceAvailability {
   rawCapture: boolean;
+  rawSourceIdentity?: string | null;
   canonicalArchive: CanonicalArchiveAvailability;
 }
+
 
 export interface RetentionLapDecision {
   lapId: number;

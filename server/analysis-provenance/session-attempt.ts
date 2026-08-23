@@ -11,7 +11,7 @@ import {
 } from "../db/analysis-receipt-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
-import { loadRawCaptureIdentity } from "../session-capture/identity";
+import { inspectRawCaptureIdentity } from "../session-capture/identity";
 import { currentAnalysisContract } from "./current-contract";
 import { createPersistedSessionAnalysisReceipt } from "./receipt";
 
@@ -43,7 +43,7 @@ export async function activateSessionAnalysisAttempt(
     if (!session) throw new Error("Session not found");
 
     const raw = session.rawFile
-      ? await loadRawCaptureIdentity(session.rawFile)
+      ? await inspectRawCaptureIdentity(session.rawFile)
       : undefined;
     const boundAttempt = raw
       ? await bindAnalysisGenerationSource({

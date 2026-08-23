@@ -345,6 +345,41 @@ describe("race event persistence", () => {
     expect((await listSessionRaceEvents(1)).items.map((event) => event.eventId)).toEqual([transport.eventId, replacement.eventId]);
     expect((await db.select().from(sessionResults).where(eq(sessionResults.sessionId, 1)).get())?.eventIds).toEqual([replacement.eventId]);
   });
+  test("returns distinct replacement IDs for duplicate lap numbers by old-lap identity", async () => {
+    const firstOldLapId = (
+      await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 91, rawByteOffset: 1_000 }).returning({ id: laps.id }).get()
+    ).id;
+    const secondOldLapId = (
+      await db.insert(laps).values({ sessionId: 1, lapNumber: 7, lapTime: 92, rawByteOffset: 2_000 }).returning({ id: laps.id }).get()
+    ).id;
+
+    const activated = await replaceReplayableSessionArtifacts({
+      sessionId: 1,
+      events: [],
+      runs: [],
+      memberships: [],
+      evidence: [],
+      laps: [
+        { lapNumber: 7, lapTime: 89, rawByteOffset: 1_000, replacesLapId: firstOldLapId },
+        { lapNumber: 7, lapTime: 90, rawByteOffset: 2_000, replacesLapId: secondOldLapId },
+      ],
+    });
+
+    const firstNewLapId = activated.lapIdsByReplacedId.get(firstOldLapId);
+    const secondNewLapId = activated.lapIdsByReplacedId.get(secondOldLapId);
+    if (firstNewLapId == null || secondNewLapId == null) {
+      throw new Error("Replacement did not return both exact lap mappings");
+    }
+    expect(firstNewLapId).toEqual(expect.any(Number));
+    expect(secondNewLapId).toEqual(expect.any(Number));
+    expect(firstNewLapId).not.toBe(secondNewLapId);
+    expect(
+      await db.select({ id: laps.id, rawByteOffset: laps.rawByteOffset }).from(laps).where(eq(laps.sessionId, 1)).orderBy(laps.rawByteOffset),
+    ).toEqual([
+      { id: firstNewLapId, rawByteOffset: 1_000 },
+      { id: secondNewLapId, rawByteOffset: 2_000 },
+    ]);
+  });
   test("validates replacement lap ownership before a caller transaction mutates", async () => {
     const oldEvent = raceEvent(1, "position_changed", {
       previousPosition: 2,

@@ -6,6 +6,7 @@ import { getSessionResult } from "../../server/db/session-result-queries";
 import { initServerGameAdapters } from "../../server/games/init";
 import { reconcileSessionResult } from "../../server/race-results/reconcile";
 import {
+  inspectRawCaptureIdentity,
   loadRawCaptureIdentity,
   rawCaptureObjectId,
 } from "../../server/session-capture/identity";
@@ -24,13 +25,27 @@ test("raw capture identity is stable across storage compression", async () => {
     Bun.write(gzipPath, compressed),
   ]);
   try {
-    const [raw, gzip] = await Promise.all([
+    const [raw, gzip, rawSummary, gzipSummary] = await Promise.all([
       loadRawCaptureIdentity(rawPath),
       loadRawCaptureIdentity(gzipPath),
+      inspectRawCaptureIdentity(rawPath),
+      inspectRawCaptureIdentity(gzipPath),
     ]);
-    expect(raw?.bytes).toEqual(payload);
-    expect(gzip?.bytes).toEqual(payload);
-    expect(gzip?.contentHash).toBe(raw?.contentHash);
+    if (!raw || !gzip || !rawSummary || !gzipSummary) {
+      throw new Error("Raw capture identity inspection failed");
+    }
+    expect(raw.bytes).toEqual(payload);
+    expect(gzip.bytes).toEqual(payload);
+    expect(rawSummary).toEqual({
+      contentHash: raw.contentHash,
+      byteSize: payload.byteLength,
+      storageEncoding: "identity",
+    });
+    expect(gzipSummary).toEqual({
+      contentHash: raw.contentHash,
+      byteSize: payload.byteLength,
+      storageEncoding: "gzip",
+    });
     expect(rawCaptureObjectId(42)).toBe("session:42:raw-capture");
   } finally {
     for (const path of [rawPath, gzipPath]) {

@@ -163,10 +163,14 @@ describe("canonical archive availability", () => {
     const availability = await getSessionCanonicalAvailability(session.id);
     expect(availability).toEqual({
       state: "unavailable",
+      status: null,
+      completeness: null,
+      archiveId: null,
+      generationId: null,
       semanticIds: [],
       eventIds: [],
       provenance: null,
-      details: "Canonical archive receipt metadata exists, but no storage reader can verify bytes or inventory",
+      details: "Canonical archive row, file, or output hash is unavailable",
     });
     if (!availability) throw new Error("Expected canonical archive availability");
     const quality = {

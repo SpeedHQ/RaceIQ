@@ -49,6 +49,7 @@ import { reconcileSessionResult } from "../race-results/reconcile";
 import { activateSessionAnalysisAttempt, beginSessionAnalysisAttempt } from "../analysis-provenance/session-attempt";
 import type { AnalysisReceiptRow } from "../db/analysis-receipt-queries";
 import { wsManager } from "../runtime/websocket-manager";
+import { enqueueCanonicalArchiveForSession } from "../session-capture/canonical-archive";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { RaceEventCoordinator } from "../race-events/coordinator";
 import type { RaceEventPreflightResult } from "../race-events/types";
@@ -79,7 +80,6 @@ interface ClosedRecordingSession {
   qualityAccumulator: RecordingQualityAccumulator | null;
   sourceVerification: ArchiveVerification;
   transportVerification?: ArchiveVerification;
-  canonicalVerification?: ArchiveVerification;
   finalizedQuality?: RecordingQualitySummary;
   finalizedSessionRuns?: readonly SessionRun[];
   closureEvents: RaceEvent[];
@@ -149,6 +149,7 @@ export class LiveTelemetryPipeline {
   private _onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
   private _onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
   private _onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
+  private _onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -227,6 +228,7 @@ export class LiveTelemetryPipeline {
       onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
       onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
       onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
+      onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
       sourceKind?: EvidenceSourceKind;
       participant?: ParticipantEvidence;
       sourceArchiveVerification?: ArchiveVerification;
@@ -250,6 +252,7 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
     this._onSessionAnalysisStarted = options?.onSessionAnalysisStarted;
     this._onSessionAnalysisFinalized = options?.onSessionAnalysisFinalized;
+    this._onCanonicalArchiveEnqueued = options?.onCanonicalArchiveEnqueued;
     this._participant = options?.participant ?? LOCAL_PLAYER_EVIDENCE;
     this._versionIdentity = options?.versionIdentity;
     this._sourceChannelProfile = options?.sourceChannelProfile;
@@ -572,9 +575,9 @@ export class LiveTelemetryPipeline {
     this._recordingSession = null;
     this._recordingQuality = null;
 
-    let canonicalVerification: ArchiveVerification;
+    let recorderVerification: ArchiveVerification;
     try {
-      canonicalVerification = await this.recorder.stop();
+      recorderVerification = await this.recorder.stop();
     } catch (error) {
       qualityAccumulator?.noteWriterFailure(error);
       closureEvents.push(
@@ -584,29 +587,27 @@ export class LiveTelemetryPipeline {
           details: error instanceof Error ? error.message : String(error),
         }),
       );
-      canonicalVerification = {
+      recorderVerification = {
         state: "corrupt" as const,
         sourceGeneration: null,
         details: error instanceof Error ? error.message : String(error),
       };
     }
-    if (canonicalVerification.state === "corrupt" || canonicalVerification.state === "truncated") {
+    if (recorderVerification.state === "corrupt" || recorderVerification.state === "truncated") {
       closureEvents.push(
         ...this.raceEvents.noteStorageFailure({
           kind: "failure",
           operation: "verify-session-recorder",
-          details: canonicalVerification.details ?? canonicalVerification.state,
+          details: recorderVerification.details ?? recorderVerification.state,
         }),
       );
     }
-    const hasOriginalSourceVerification = this._sourceArchiveVerification !== undefined;
     return {
       session,
       qualityAccumulator,
       closureEvents,
-      sourceVerification: this._sourceArchiveVerification ?? canonicalVerification,
+      sourceVerification: this._sourceArchiveVerification ?? recorderVerification,
       ...(this._sourceTransportVerification ? { transportVerification: this._sourceTransportVerification } : {}),
-      ...(hasOriginalSourceVerification ? { canonicalVerification } : {}),
     };
   }
 
@@ -623,7 +624,6 @@ export class LiveTelemetryPipeline {
         closed.sourceVerification,
         {
           transportVerification: closed.transportVerification,
-          canonicalVerification: closed.canonicalVerification,
         },
       );
       const finalized = await this.db.updateSessionQuality(closed.session.sessionId, summary);
@@ -693,7 +693,11 @@ export class LiveTelemetryPipeline {
     const sessionId = closed.session.sessionId;
     this._pendingClosedRunFinalizations.set(sessionId, { closed, endReason });
     closed.finalizedSessionRuns ??= await this._finalizeSessionRuns(sessionId);
-    const finalization = this._trackSessionFinalization(closed, endReason);
+    const analysisFinalization = this._trackSessionFinalization(closed, endReason);
+    const enqueue = this._onCanonicalArchiveEnqueued;
+    const finalization = enqueue
+      ? analysisFinalization.then(() => enqueue(sessionId, closed.session.gameId))
+      : analysisFinalization;
     void finalization
       .then(() => {
         for (
@@ -1336,6 +1340,13 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   },
   onSessionAnalysisFinalized: async (attempt, gameId) => {
     await activateSessionAnalysisAttempt(attempt, gameId);
+  },
+  onCanonicalArchiveEnqueued: async (sessionId, gameId) => {
+    try {
+      await enqueueCanonicalArchiveForSession(sessionId, gameId);
+    } catch (error) {
+      console.error(`[Live Telemetry] Failed to enqueue canonical archive for session ${sessionId}:`, error);
+    }
   },
 });
 

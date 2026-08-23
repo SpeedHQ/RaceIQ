@@ -15,7 +15,16 @@ export interface ReprocessingLapRow {
   conditions: LapClassification["conditions"];
   paceEligibility: LapClassification["paceEligibility"];
   notes: string | null;
+  profileId: number | null;
+  pi: number | null;
+  carSetup: string | null;
   tuneId: number | null;
+  experimentId: number | null;
+  experimentVersionId: number | null;
+  experimentExcluded: number | null;
+  experimentExcludedSource: string | null;
+  fuelPerLap: number | null;
+  tyreWear: number | null;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
   sectorTimes: number[] | null;
@@ -35,7 +44,16 @@ export async function getLapsForSession(sessionId: number): Promise<Reprocessing
       conditions: laps.conditions,
       paceEligibility: laps.paceEligibility,
       notes: laps.notes,
+      profileId: laps.profileId,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
       tuneId: laps.tuneId,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       sectorTimes: laps.sectorTimes,

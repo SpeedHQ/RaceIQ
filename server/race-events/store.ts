@@ -248,6 +248,7 @@ export class MemoryRaceEventStore {
         memberships: [...input.memberships],
         evidence: [...input.evidence],
         lapIdsByNumber: new Map<number, number>(),
+        lapIdsByReplacedId: new Map<number, number>(),
         conflictCount: 0,
       };
     } catch (error) {
