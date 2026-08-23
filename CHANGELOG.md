@@ -78,6 +78,7 @@
 - Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
+- Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
