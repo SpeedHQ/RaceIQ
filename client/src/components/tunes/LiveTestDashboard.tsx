@@ -1,5 +1,5 @@
 import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
@@ -83,7 +83,9 @@ export function LiveTestDashboard({
   initialViews?: LiveTelemetryView[];
 }) {
   const telemetryView = useTelemetryStore((state) => state.telemetryView);
-  const currentView = telemetryView ?? initialViews?.at(-1) ?? null;
+  const initialGameViews = useMemo(() => (initialViews ?? []).filter((view) => view.simulator === gameId), [gameId, initialViews]);
+  const liveView = telemetryView?.simulator === gameId ? telemetryView : null;
+  const currentView = liveView ?? initialGameViews.at(-1) ?? null;
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
 
@@ -94,22 +96,27 @@ export function LiveTestDashboard({
   const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
   const [mapZoom, setMapZoom] = useState(1);
 
-  // Canonical live trace for the in-progress lap.
-  const [viewTrace, setViewTrace] = useState<LiveTelemetryView[]>(() => initialViews ?? []);
-  const lastViewRef = useRef<LiveTelemetryView | null>(initialViews?.at(-1) ?? null);
+  // Canonical live trace for the in-progress lap. Trace carries its simulator
+  // identity so route changes cannot render samples from the previous game.
+  const [trace, setTrace] = useState<{ gameId: ExperimentGameId; views: LiveTelemetryView[] }>(() => ({ gameId, views: initialGameViews }));
   useEffect(() => {
-    if (!telemetryView) return;
-    const previous = lastViewRef.current;
-    if (previous?.streamId === telemetryView.streamId && previous.sequence === telemetryView.sequence) return;
-    lastViewRef.current = telemetryView;
-    setViewTrace((current) => {
-      const prior = current.at(-1);
-      const streamChanged = prior !== undefined && prior.streamId !== telemetryView.streamId;
-      const lapChanged = prior?.timing.lapNumber !== undefined && telemetryView.timing.lapNumber !== undefined && prior.timing.lapNumber !== telemetryView.timing.lapNumber;
-      const next = streamChanged || lapChanged ? [telemetryView] : [...current, telemetryView];
-      return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
+    if (!liveView) {
+      setTrace((current) => (current.gameId === gameId ? current : { gameId, views: initialGameViews }));
+      return;
+    }
+    setTrace((current) => {
+      const currentViews = current.gameId === gameId ? current.views : initialGameViews;
+      const previous = currentViews.at(-1);
+      if (previous?.streamId === liveView.streamId && previous.sequence === liveView.sequence) {
+        return current.gameId === gameId ? current : { gameId, views: currentViews };
+      }
+      const streamChanged = previous !== undefined && previous.streamId !== liveView.streamId;
+      const lapChanged = previous?.timing.lapNumber !== undefined && liveView.timing.lapNumber !== undefined && previous.timing.lapNumber !== liveView.timing.lapNumber;
+      const next = streamChanged || lapChanged ? [liveView] : [...currentViews, liveView];
+      return { gameId, views: next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next };
     });
-  }, [telemetryView]);
+  }, [gameId, initialGameViews, liveView]);
+  const viewTrace = trace.gameId === gameId ? trace.views : initialGameViews;
   const activeViews = viewTrace.length > 0 ? viewTrace : currentView ? [currentView] : [];
   const semanticTrace = useMemo(() => activeViews.map(viewToSemanticFrame), [activeViews]);
   const tuneTrace = useMemo(() => activeViews.map(semanticTuneSampleFromView), [activeViews]);

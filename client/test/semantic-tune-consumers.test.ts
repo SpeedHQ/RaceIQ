@@ -11,7 +11,7 @@ import { tireSnapshot } from "../src/components/tunes/review/tire-snapshot";
 import { semanticSamples } from "../src/components/tunes/semantic-tune";
 import { buildGeometry } from "../src/components/tunes/track-map-geometry";
 import type { SemanticReplayFrame } from "../src/hooks/laps";
-import { fakeAccSemanticFixture } from "../src/stories/fakeData";
+import { fakeAccSemanticFixture, fakeF1SemanticFixture } from "../src/stories/fakeData";
 import { useTelemetryStore } from "../src/stores/telemetry";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
@@ -132,5 +132,23 @@ describe("canonical tuning telemetry consumers", () => {
     const text = markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     expect(text).toContain("Lap 4");
     expect(text).not.toContain("Lap 92.146");
+  });
+  test("ignores live telemetry from a different simulator", () => {
+    const accView = {
+      ...fakeAccSemanticFixture.view,
+      timing: { ...fakeAccSemanticFixture.view.timing, lapNumber: 4 },
+    };
+    const f1View = {
+      ...fakeF1SemanticFixture.view,
+      timing: { ...fakeF1SemanticFixture.view.timing, lapNumber: 99 },
+    };
+    useTelemetryStore.setState({ telemetryView: f1View, sectors: null, sessionLaps: [] });
+    const markup = renderToStaticMarkup(
+      createElement(QueryClientProvider, { client: new QueryClient() }, createElement(LiveTestDashboard, { gameId: "acc", trackOrdinal: null, initialViews: [accView] })),
+    );
+    const text = markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    expect(text).toContain("Lap 4");
+    expect(text).not.toContain("Lap 99");
+    expect(markup).toContain(">L<");
   });
 });
