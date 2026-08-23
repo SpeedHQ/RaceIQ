@@ -398,7 +398,7 @@ const semanticFixtureIds = [
   "fuel.ers-harvested",
 ];
 
-function makeSemanticFixture(raw: TelemetryPacket) {
+export function makeSemanticFixture(raw: TelemetryPacket) {
   const values: unknown[] = semanticFixtureIds.map((id) => {
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
@@ -608,36 +608,9 @@ export const fakeAccPacket: TelemetryPacket = {
   },
 };
 
-// Story-only legacy packet fixture for development panels that intentionally
-// exercise raw display fields.
-interface StoryDisplayPacket extends TelemetryPacket {
-  DisplaySpeed: number;
-  DisplayTireTempFL: number;
-  DisplayTireTempFR: number;
-  DisplayTireTempRL: number;
-  DisplayTireTempRR: number;
-}
-
-function makeStoryDisplayPacket(raw: TelemetryPacket): StoryDisplayPacket {
-  const isForza = raw.gameId === "fm-2023";
-  const fahrenheitToC = (f: number) => (f - 32) / 1.8;
-  return {
-    ...raw,
-    DisplaySpeed: Math.round(raw.Speed * 3.6), // m/s → km/h
-    DisplayTireTempFL: isForza ? fahrenheitToC(raw.TireTempFL) : raw.TireTempFL,
-    DisplayTireTempFR: isForza ? fahrenheitToC(raw.TireTempFR) : raw.TireTempFR,
-    DisplayTireTempRL: isForza ? fahrenheitToC(raw.TireTempRL) : raw.TireTempRL,
-    DisplayTireTempRR: isForza ? fahrenheitToC(raw.TireTempRR) : raw.TireTempRR,
-  };
-}
-
 // AC Evo shares ACC's shared-memory shape and carries its own simulator identity.
 export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-evo" };
 
-export const fakeF1DisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeF1Packet);
-export const fakeForzaDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeForzaPacket);
-export const fakeAccDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeAccPacket);
-export const fakeAcEvoDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeAcEvoPacket);
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
 export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);

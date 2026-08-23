@@ -47,11 +47,15 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
     const asArray = (values: LiveTelemetryView["tires"]["combinedSlip"]) => (values ? [values.fl, values.fr, values.rl, values.rr] : undefined);
     const semanticFrame: SemanticMetricFrame = {
       values: {
+        "motion.speed": view.motion.speedMps,
+        "inputs.steer": view.inputs.steer,
         "tires.tire-combined-slip": asArray(view.tires.combinedSlip),
         "tire.temperature.average": asArray(view.tires.temperatureC),
         "tires.tire-wear": asArray(view.tires.wear),
         "tires.tire-slip-angle": asArray(view.tires.slipAngleRad),
         "tires.tire-slip-ratio": asArray(view.tires.slipRatio),
+        "tires.wheel-rotation-speed": asArray(view.tires.rotationRadS),
+        "tires.tire-radius": asArray(view.tires.radiusM),
         "suspension.norm-suspension-travel": asArray(view.tires.suspensionNormalized),
       },
     };

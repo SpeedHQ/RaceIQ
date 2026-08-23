@@ -99,4 +99,22 @@ describe("live telemetry view", () => {
     expect(value.damage.frontLeftWingPct).toBe(0);
     expect(value.session.type).toBe("race");
   });
+
+  it("projects player pit status and simulator compound names", () => {
+    const definition = schema(["race.pit-status", "tires.tire-compound-name"], "acc");
+    const value = buildLiveTelemetryView(definition, frame(["in_pit", "soft"]))!;
+
+    expect(value.race.pitStatus).toBe("in_pit");
+    expect(value.tires.compound).toBe("soft");
+  });
+
+  it("normalizes iRacing pit-road state and selects the F1 player competitor", () => {
+    const iracingSchema = schema(["race.on-pit-road"], "iracing");
+    const iracing = buildLiveTelemetryView(iracingSchema, frame([true], { schemaId: "schema-iracing" }))!;
+    const f1Schema = schema(["race.race-position", "race.competitor.position", "race.competitor.pit-status"], "f1-2025");
+    const f1 = buildLiveTelemetryView(f1Schema, frame([3, [1, 3], [0, 2]], { schemaId: "schema-f1-2025" }))!;
+
+    expect(iracing.race.pitStatus).toBe("pit_lane");
+    expect(f1.race.pitStatus).toBe(2);
+  });
 });

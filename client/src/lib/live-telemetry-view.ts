@@ -76,6 +76,7 @@ export interface LiveTelemetryView {
     sidepodPct?: number;
   };
   session: { type?: number | string };
+  race: { pitStatus?: number | boolean | string };
   competitors: readonly LiveCompetitorView[];
   statusBySemanticId: Readonly<Record<string, LiveTelemetryValueStatus>>;
 }
@@ -170,6 +171,11 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     }
     competitors.push(competitor);
   }
+  const racePosition = number("race.race-position");
+  const directPitStatus = numberOrString("race.pit-status");
+  const onPitRoad = boolean("race.on-pit-road");
+  const competitorPitStatus = competitors.find((competitor) => competitor.position === racePosition)?.pitStatus;
+  const pitStatus = directPitStatus ?? (onPitRoad === undefined ? competitorPitStatus : onPitRoad ? "pit_lane" : "out");
 
   return {
     simulator: schema.simulator,
@@ -216,7 +222,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       bestLapS: number("timing.best-lap"),
       totalLaps: number("timing.total-laps"),
       lapFraction: number("timing.lap-fraction"),
-      racePosition: number("race.race-position"),
+      racePosition,
     },
     tires: {
       temperatureC: wheelCelsius("tire.temperature.average"),
@@ -234,7 +240,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       surfaceRumble: wheel("tires.surface-rumble"),
       puddleDepth: wheel("tires.wheel-in-puddle-depth"),
       onRumbleStrip: wheel("tires.wheel-on-rumble-strip"),
-      compound: numberOrString("tires.tire-compound"),
+      compound: numberOrString("tires.tire-compound") ?? numberOrString("tires.tire-compound-name"),
     },
     weather: {
       kind: number("weather.weather-type"),
@@ -261,6 +267,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       sidepodPct: number("damage.sidepod-damage"),
     },
     session: { type: numberOrString("session.session-type") },
+    race: { pitStatus },
     competitors,
     statusBySemanticId,
   };

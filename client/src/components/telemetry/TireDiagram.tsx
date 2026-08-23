@@ -51,7 +51,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         wheelState={state}
         steerAngle={index < 2 ? steerAngle : 0}
         thresholds={units.thresholds}
-        tempFn={(value) => convertTemp(value, "C", units.tempUnit)}
+        tempFn={(value) => convertTemp(value, units.tempUnit, "C")}
         tempUnit={units.tempUnit}
         onRumble={false}
         puddleDepth={0}
@@ -115,6 +115,7 @@ export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gam
     const { view } = props;
     const values: SemanticAnalysisFrame["values"] = {
       "inputs.steer": view.inputs.steer,
+      "motion.speed": view.motion.speedMps,
       "tire.temperature.average": view.tires.temperatureC && Object.values(view.tires.temperatureC),
       "tires.tire-wear": view.tires.wear && Object.values(view.tires.wear),
       "tires.tire-slip-angle": view.tires.slipAngleRad && Object.values(view.tires.slipAngleRad),

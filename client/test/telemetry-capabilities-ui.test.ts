@@ -6,6 +6,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import type { GameId } from "../../shared/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { ComboDash } from "../src/components/dashes/ComboDash";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
 import { AnalyseDataPanel, buildAnalyseClipboardText } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
@@ -22,6 +23,7 @@ import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
 import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
+import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
@@ -63,6 +65,7 @@ function liveView(simulator: GameId, overrides: Partial<LiveTelemetryView> = {})
     ers: {},
     damage: {},
     session: {},
+    race: {},
     competitors: [],
     statusBySemanticId: {},
     ...overrides,
@@ -225,6 +228,46 @@ describe("telemetry capability UI", () => {
     expect(f1Markup).toContain("Power");
     expect(f1Markup).not.toContain("Torque");
     expect(accMarkup).toContain("flex justify-center gap-2");
+  });
+
+  test("renders canonical tire temperatures in the selected display unit", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, temperatureUnit: "F" });
+    const view = liveView("acc", {
+      motion: { speedMps: 10 },
+      inputs: { steer: 0 },
+      tires: {
+        temperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+        wear: { fl: 0, fr: 0, rl: 0, rr: 0 },
+        rotationRadS: { fl: 30, fr: 30, rl: 30, rr: 30 },
+        brakeTemperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+      },
+    });
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(TireDiagram, { view })));
+
+    expect(markup).toContain("212°F");
+    expect(markup).toContain("BRK 212°");
+    expect(markup).toContain("GRIP");
+    expect(markup).not.toContain("38°F");
+  });
+
+  test("keeps unavailable combo tire channels visibly unavailable", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(ComboDash, {
+          view: liveView("acc"),
+          sectors: null,
+          pit: null,
+          unitSystem: "metric",
+        }),
+      ),
+    );
+
+    expect(markup).not.toContain("0.0psi");
+    expect(markup).not.toContain("B:0");
+    expect(markup).toContain("—");
   });
 
   test("shows canonical litre fuel without inventing unavailable capacity", () => {
@@ -464,7 +507,7 @@ describe("telemetry capability UI", () => {
       tires: {
         suspensionTravelM: { fl: 0.04, fr: 0.04, rl: 0.04, rr: 0.04 },
       },
-      competitors: [{ pitStatus: "pit_lane" }],
+      race: { pitStatus: "pit_lane" },
     });
     const pit: LivePitData = {
       fuelPerLap: 2,

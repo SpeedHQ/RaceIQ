@@ -33,9 +33,13 @@ export function GripHistory({ view }: { view: LiveTelemetryView }) {
     const slipRatio = view.tires.slipRatio;
     const slipAngle = view.tires.slipAngleRad;
     const values = {
+      "motion.speed": view.motion.speedMps,
+      "inputs.steer": view.inputs.steer,
       "tires.tire-combined-slip": combinedSlip && [combinedSlip.fl, combinedSlip.fr, combinedSlip.rl, combinedSlip.rr],
       "tires.tire-slip-ratio": slipRatio && [slipRatio.fl, slipRatio.fr, slipRatio.rl, slipRatio.rr],
       "tires.tire-slip-angle": slipAngle && [slipAngle.fl, slipAngle.fr, slipAngle.rl, slipAngle.rr],
+      "tires.wheel-rotation-speed": view.tires.rotationRadS && Object.values(view.tires.rotationRadS),
+      "tires.tire-radius": view.tires.radiusM && Object.values(view.tires.radiusM),
     };
     const resolved = resolveGripDemand({ values }, analysis.gripDemand);
     if (!resolved || resolved.length < 4 || !resolved.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))) return;

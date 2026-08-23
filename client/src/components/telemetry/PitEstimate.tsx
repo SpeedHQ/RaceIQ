@@ -46,7 +46,7 @@ export function PitEstimate({ view, pit }: PitEstimateProps) {
     };
   });
 
-  const pitStatus = telemetryModel.pitStatus ? view.competitors[0]?.pitStatus : undefined;
+  const pitStatus = telemetryModel.pitStatus ? view.race.pitStatus : undefined;
   const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   return (
