@@ -138,6 +138,29 @@ describe("iRacing lap timing and native sectors", () => {
     expect(live?.currentSector).toBe(0);
   });
 
+  test("does not apply wall-clock trickle filtering to SDK frames", async () => {
+    const db = new CapturingDbAdapter();
+    const detector = new LapDetectorIRacing({
+      db,
+      bypassPacketRateFilter: false,
+    });
+    const state = createIRacingParserState();
+    const first = normalizeIRacingFrame(sampleFrame(), state);
+    const second = {
+      ...first,
+      CurrentLap: first.CurrentLap + 1 / 60,
+      CurrentRaceTime: first.CurrentRaceTime + 1 / 60,
+      TimestampMS: first.TimestampMS + 17,
+    };
+
+    await detector.feed(first, 100);
+    await detector.feed(second, 200);
+
+    expect(detector.getDebugState()).toMatchObject({
+      lapBufferLength: 2,
+    });
+  });
+
   test("attaches delayed LastLap to the physical lap and native lap number", async () => {
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorIRacing({

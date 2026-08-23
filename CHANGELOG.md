@@ -10,15 +10,18 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
+- Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
+- Skip recordings from games unavailable in the current RaceIQ build during stale-session checks and bulk reprocessing
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
@@ -30,8 +33,11 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
+- Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
+- Show iRacing lateral G-force on the correct side during turns
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
+- Restore the moving car pointer on iRacing Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
@@ -72,13 +78,16 @@
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
+- Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
+- Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
+- Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
