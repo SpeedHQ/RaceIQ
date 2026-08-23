@@ -12,7 +12,7 @@ export function ImageryImportEstimate({ budget }: { budget: TrackImageryOutputBu
     <div
       role="status"
       className={cn(
-        "mb-2 rounded border p-2 text-[11px]",
+        "mb-2 rounded border p-2 text-xs",
         budget.safe ? "border-app-border bg-app-surface-alt text-app-text-muted" : "border-severity-critical text-severity-critical",
       )}
     >

@@ -180,7 +180,7 @@ export function AnalyseTrackPanel({
       </div>
       {showImagery && imageryAttribution && (
         <div
-          className="pointer-events-none absolute bottom-2 left-1/2 max-w-[70%] -translate-x-1/2 truncate rounded bg-app-bg/70 px-1.5 py-0.5 text-[9px] text-app-text-muted"
+          className="pointer-events-none absolute bottom-2 left-1/2 max-w-[70%] -translate-x-1/2 truncate rounded bg-app-bg/70 px-1.5 py-0.5 text-xs text-app-text-muted"
           title={imageryAttribution}
         >
           {imageryAttribution}
