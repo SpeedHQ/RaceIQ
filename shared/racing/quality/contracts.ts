@@ -10,26 +10,6 @@ export const QUALITY_CONFIG_VERSION = "1" as const;
 
 export type EvidenceSourceKind = "native-live" | "raceiq-raw" | "raceiq-archive" | "canonical-archive" | "iracing-ibt" | "motec" | "remote-collector" | "external-log" | "unknown";
 
-const EVIDENCE_SOURCE_KINDS: Record<EvidenceSourceKind, true> = {
-  "native-live": true,
-  "raceiq-raw": true,
-  "raceiq-archive": true,
-  "canonical-archive": true,
-  "iracing-ibt": true,
-  motec: true,
-  "remote-collector": true,
-  "external-log": true,
-  unknown: true,
-};
-
-export function normalizeEvidenceSourceKind(
-  source: string | null | undefined,
-): EvidenceSourceKind {
-  return source != null && Object.hasOwn(EVIDENCE_SOURCE_KINDS, source)
-    ? (source as EvidenceSourceKind)
-    : "unknown";
-}
-
 export const SOURCE_CHANNEL_PROFILE_VERSION = "1" as const;
 
 export type SourceChannelTreatment = "direct" | "held" | "resampled" | "dead-reckoned" | "assumed" | "absent";

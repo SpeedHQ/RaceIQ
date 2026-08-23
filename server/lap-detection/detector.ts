@@ -13,19 +13,37 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
-import type { ILapDetector, LapDetectorOptions } from "./types";
+import {
+  EMPTY_LAP_TIMELINE_CONTEXT,
+  type ILapDetector,
+  type LapDetectorCallbacks,
+  type LapDetectorOptions,
+  type SessionEndReason,
+} from "./types";
+import type { RaceEventId } from "../../shared/racing/events/contracts";
 import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
-import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
+import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing";
 import { lapPath } from "../../shared/racing/tracks/path";
-import { classifyPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import { assessLapRecording } from "../lap-analysis/quality";
+import { classifyLap, type LapClassification } from "../../shared/racing/laps/classification";
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  type EligibilityDecisionSet,
+  type EvidenceSourceKind,
+  type LapQualitySummary,
+  type ParticipantEvidence,
+  type SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
+import { summarizeLapQuality } from "../../shared/racing/quality/measure";
+import { evaluateAllEligibility, isEligibilityUsable } from "../../shared/racing/quality/policies";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import { currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { updateLapCarSetup } from "../db/lap-mutation-queries";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
-import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
-
+import { detectSessionBoundary, detectLapBoundary, detectLapReset, type SessionBoundaryReason } from "./boundaries";
 
 export interface SessionState {
   sessionId: number;
@@ -34,7 +52,13 @@ export interface SessionState {
   carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
-  bestLapTime: number; // best valid lap time in current session (0 = none yet)
+  bestLapTime: number; // best valid pace lap in current session (0 = none yet)
+}
+
+export interface LapEventContext {
+  session: Readonly<SessionState>;
+  lapNumber: number;
+  eventIds: RaceEventId[];
 }
 
 export interface LapFuelData {
@@ -51,42 +75,60 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
-export interface LapSavedEvent {
+export interface LapSavedEvent extends LapClassification {
   lapId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
   sectors: number[] | null;
-  estimatedBestLapTime: number; // best lap time in session (0 if none yet)
+  estimatedBestLapTime: number; // best valid pace lap in session (0 if none)
+  quality: LapQualitySummary;
+  eligibility: EligibilityDecisionSet;
 }
 export interface LapSavedNotification extends LapSavedEvent {
   type: "lap-saved";
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_ID = "lapdetector_v2";
+export const LAP_DETECTOR_ID = "lapdetector_v4";
 
-export interface LapCompleteEvent {
+export interface LapCompleteEvent extends LapClassification {
   packets: TelemetryPacket[];
   lapDistStart: number;
   lapTime: number;
   isValid: boolean;
   sectors: number[] | null;
+  quality: LapQualitySummary;
+  eligibility: EligibilityDecisionSet;
 }
 
 export class LapDetector implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
+  private readonly sourceKind: EvidenceSourceKind;
+  private readonly participant: ParticipantEvidence;
+  private readonly versionIdentity?: TelemetryVersionIdentity;
+  private readonly sourceChannelProfile?: SourceChannelProfile;
+  private readonly lapTimelineContext: NonNullable<LapDetectorOptions["lapTimelineContext"]>;
   private db: LapDetectorOptions["db"];
 
-  onSessionStart?: (session: SessionState) => void | Promise<void>;
-  onLapComplete_?: (event: LapCompleteEvent) => void;
-  onLapSaved?: (event: LapSavedEvent) => void;
+  onSessionStart?: LapDetectorCallbacks["onSessionStart"];
+  onSessionEnd?: LapDetectorCallbacks["onSessionEnd"];
+  onLapEvaluated?: LapDetectorCallbacks["onLapEvaluated"];
+  onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
+  onLapSaved?: LapDetectorCallbacks["onLapSaved"];
 
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
     this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
+    this.sourceKind = opts.sourceKind ?? "native-live";
+    this.participant = opts.participant ?? LOCAL_PLAYER_EVIDENCE;
+    this.versionIdentity = opts.versionIdentity;
+    this.sourceChannelProfile = opts.sourceChannelProfile;
+    this.lapTimelineContext = opts.lapTimelineContext ?? EMPTY_LAP_TIMELINE_CONTEXT;
     this.onSessionStart = opts.callbacks?.onSessionStart;
+    this.onSessionEnd = opts.callbacks?.onSessionEnd;
+    this.onLapEvaluated = opts.callbacks?.onLapEvaluated;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
   }
@@ -111,6 +153,8 @@ export class LapDetector implements ILapDetector {
   private _lapByteOffset: number | null = null;
   private _lapFrameCount: number = 0;
   private _currentRawByteOffset: number | null = null;
+  private readonly _pendingLapWrites = new Map<number, Set<Promise<void>>>();
+  private readonly _lapWriteFailures = new Map<number, { error: unknown }>();
 
   get session(): SessionState | null {
     return this.currentSession;
@@ -139,11 +183,28 @@ export class LapDetector implements ILapDetector {
    * Finalize the current session immediately (e.g., when game process disconnects).
    * Clears session state without waiting for silence timeout.
    */
-  async finalizeCurrentSession(): Promise<void> {
+  async finalizeCurrentSession(reason: SessionEndReason = "source-disconnected"): Promise<void> {
     if (!this.currentSession) return;
-    console.log(`[Lap Detector] Finalizing session ${this.currentSession.sessionId} due to game disconnect`);
-    this.currentSession = null;
-    this.lapBuffer = [];
+    const session = { ...this.currentSession };
+    console.log(`[Lap Detector] Finalizing session ${session.sessionId}: ${reason}`);
+    let failure: unknown;
+    try {
+      await this.finalizeLapIfNeeded();
+    } catch (error) {
+      failure = error;
+    }
+    try {
+      await this.waitForPendingLapWrites(session.sessionId);
+    } catch (error) {
+      failure ??= error;
+    }
+    try {
+      await this.onSessionEnd?.(session, { reason, terminalObserved: false });
+    } finally {
+      this.currentSession = null;
+      this.lapBuffer = [];
+    }
+    if (failure) throw failure;
   }
 
   /**
@@ -176,23 +237,24 @@ export class LapDetector implements ILapDetector {
     }
 
     // Check for new session conditions
-    if (this.shouldStartNewSession(packet, now)) {
+    const sessionBoundaryReason = this.sessionBoundaryReason(packet, now);
+    if (sessionBoundaryReason) {
       // If we have a lap in progress, save it before starting new session
       await this.finalizeLapIfNeeded();
-      await this.startNewSession(packet);
+      // Durable session finalization drains these writes. Waiting here would
+      // block the new recorder and lose packets while the old DB write stalls.
+      if (this.currentSession) {
+        await this.onSessionEnd?.({ ...this.currentSession }, { reason: sessionBoundaryReason, terminalObserved: false });
+        this.currentSession = null;
+        this.lapBuffer = [];
+        this.currentLapNumber = -1;
+      }
+      await this.startNewSession(packet, sessionBoundaryReason);
     }
 
     // Race restart / final lap detection
-    if (
-      this.currentLapNumber >= 0 &&
-      this.lapBuffer.length > 30 &&
-      packet.LapNumber === this.currentLapNumber
-    ) {
-      const resetResult = detectLapReset(
-        this.lapBuffer[this.lapBuffer.length - 1],
-        this.lastLastLap,
-        packet
-      );
+    if (this.currentLapNumber >= 0 && this.lapBuffer.length > 30 && packet.LapNumber === this.currentLapNumber) {
+      const resetResult = detectLapReset(this.lapBuffer[this.lapBuffer.length - 1], this.lastLastLap, packet);
       if (resetResult.action === "complete-final-lap") {
         console.log(`[Lap] Final lap completed: LastLap ${this.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`);
         await this.onLapComplete(packet);
@@ -203,11 +265,7 @@ export class LapDetector implements ILapDetector {
     }
 
     // Rewind detection: TimestampMS decreased (within same lap)
-    if (
-      this.lastTimestampMS > 0 &&
-      packet.TimestampMS < this.lastTimestampMS &&
-      packet.LapNumber === this.currentLapNumber
-    ) {
+    if (this.lastTimestampMS > 0 && packet.TimestampMS < this.lastTimestampMS && packet.LapNumber === this.currentLapNumber) {
       if (this.lapIsValid) {
         console.log(`[Lap] Rewind: timestamp ${this.lastTimestampMS} -> ${packet.TimestampMS}. Marking lap invalid.`);
       }
@@ -249,34 +307,20 @@ export class LapDetector implements ILapDetector {
     this.lastPacketTime = now;
   }
 
-  private shouldStartNewSession(packet: TelemetryPacket, now: number): boolean {
-    const lastDist = this.lapBuffer.length > 0
-      ? this.lapBuffer[this.lapBuffer.length - 1].DistanceTraveled
-      : null;
-    const reason = detectSessionBoundary(
-      this.currentSession,
-      this.currentLapNumber,
-      lastDist,
-      this.lastPacketTime,
-      packet,
-      now
-    );
+  private sessionBoundaryReason(packet: TelemetryPacket, now: number) {
+    const lastDist = this.lapBuffer.length > 0 ? this.lapBuffer[this.lapBuffer.length - 1].DistanceTraveled : null;
+    const reason = detectSessionBoundary(this.currentSession, this.currentLapNumber, lastDist, this.lastPacketTime, packet, now);
     if (reason) console.log(`[Session] New session: ${reason}`);
-    return reason !== null;
+    return reason;
   }
 
-  private async startNewSession(packet: TelemetryPacket): Promise<void> {
+  private async startNewSession(packet: TelemetryPacket, reason: SessionBoundaryReason): Promise<void> {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType;
     let sessionId: number;
     try {
-      sessionId = await this.db.insertSession(
-        packet.CarOrdinal,
-        trackOrd,
-        gameId,
-        sessionType,
-      );
+      sessionId = await this.db.insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType, this.versionIdentity, this.sourceKind, this.sourceChannelProfile);
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
@@ -301,11 +345,9 @@ export class LapDetector implements ILapDetector {
     this._lapByteOffset = null;
     this._lapFrameCount = 0;
 
-    console.log(
-      `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
-    );
+    console.log(`[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`);
 
-    await this.onSessionStart?.(this.currentSession!);
+    await this.onSessionStart?.(this.currentSession!, { reason, packet });
   }
 
   private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<void> {
@@ -313,7 +355,7 @@ export class LapDetector implements ILapDetector {
       this.resetLapState(newLapFirstPacket);
       return;
     }
-
+    const session = this.currentSession;
 
     // Record fuel usage
     const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
@@ -350,121 +392,135 @@ export class LapDetector implements ILapDetector {
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
 
-
     // Running-start trim: strip pre-start-line packets
     this.trimRunningStartPackets();
 
     // Skip saving if lap time is too short (first lap, warmup, ghost fragments)
     if (lapTime < 10) {
-      console.log(
-        `[Lap] Skipping lap ${this.currentLapNumber} with time ${lapTime.toFixed(3)}s (< 10s)`
-      );
+      console.log(`[Lap] Skipping lap ${this.currentLapNumber} with time ${lapTime.toFixed(3)}s (< 10s)`);
       this.resetLapState(newLapFirstPacket);
       return;
     }
 
     {
-      const tuneAssignment = await this.db.getTuneAssignment(
-        this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
-      );
+      const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
       const tuneId = tuneAssignment?.tuneId ?? null;
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
 
-      // Catalog-normalized pit state becomes a lap-level exclusion only after
-      // the complete lap window is available.
-      const pitReason = classifyPitCycleLap(this.lapBuffer);
-      const quality = assessLapRecording(this.lapBuffer, lapTime);
-      const valid = this.lapIsValid && pitReason === null && quality.valid;
-      const invalidReason = this.invalidReason ?? pitReason ?? (!quality.valid ? quality.reason : null);
+      // Structural validity and pace classification remain independent.
+      const recordingAssessment = assessLapRecording(this.lapBuffer, lapTime);
+      const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNum));
+      const valid = this.lapIsValid && recordingAssessment.valid;
+      const invalidReason = this.invalidReason ?? recordingAssessment.reason;
+      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
+      const quality = summarizeLapQuality({
+        packets: this.lapBuffer,
+        lapTime,
+        timingSource: "simulator-last-lap",
+        complete: true,
+        structurallyValid: valid,
+        invalidReason,
+        classification,
+        sourceKind: this.sourceKind,
+        participant: this.participant,
+        versionIdentity,
+        sourceChannelProfile: this.sourceChannelProfile,
+      });
+      const eligibility = evaluateAllEligibility(quality);
+      const normalPaceEligible = valid && classification.paceEligibility === "eligible" && isEligibilityUsable(eligibility["normal-pace"]);
+      const sectors = await this.computeLapSectors(session, this.lapBuffer, lapTime);
 
-      const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+      if (normalPaceEligible && (session.bestLapTime === 0 || lapTime < session.bestLapTime)) {
+        session.bestLapTime = lapTime;
+      }
+
+      const event: LapCompleteEvent = {
+        packets: this.lapBuffer,
+        lapDistStart: this.lapBuffer[0].DistanceTraveled,
+        lapTime,
+        isValid: valid,
+        ...classification,
+        sectors,
+        quality,
+        eligibility,
+      };
+      const context: LapEventContext = {
+        session: { ...session },
+        lapNumber: lapNum,
+        eventIds: this.lapTimelineContext.eventIdsForLap(session.sessionId, lapNum),
+      };
+      await this.onLapEvaluated?.(event, context);
 
       // iRacing exposes heading, speed, and native LapDistPct but no public
       // world position. Keep RaceIQ's existing recorded-outline fallback warm
       // for layouts without exact shared geometry (or when the official SVG
       // cannot be reached). Higher-quality shared/SVG sources still win in the
       // outline resolver.
-      if (
-        valid &&
-        this.currentSession.gameId === "iracing" &&
-        this.currentSession.trackOrdinal > 0 &&
-        !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
-      ) {
+      if (normalPaceEligible && session.gameId === "iracing" && session.trackOrdinal > 0 && !getIRacingSharedTrackName(session.trackOrdinal)) {
         const path = lapPath(this.lapBuffer);
         const trace = path.x.map((x, index) => ({
           x,
           z: path.z[index],
         }));
-        recordLapTrace(
-          this.currentSession.trackOrdinal,
-          trace,
-          trace[0] ?? null,
-          this.lapBuffer[0]?.Yaw ?? null,
-          "iracing",
-        );
+        recordLapTrace(session.trackOrdinal, trace, trace[0] ?? null, this.lapBuffer[0]?.Yaw ?? null, "iracing");
       }
 
-      // Update session best lap time
-      if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-        this.currentSession!.bestLapTime = lapTime;
-      }
-
-      // Notify pipeline so sector tracker can update reference lap for delta
-      if (valid) {
-        this.onLapComplete_?.({
-          packets: this.lapBuffer,
-          lapDistStart: this.lapBuffer[0].DistanceTraveled,
-          lapTime,
-          isValid: valid,
-          sectors,
-        });
+      if (normalPaceEligible) {
+        await this.onLapComplete_?.(event, context);
       }
 
       // Capture the frame buffer before resetLapState reassigns it — the insert
       // below is fire-and-forget, so persistLapMetrics runs after the reset.
       const lapPackets = this.lapBuffer;
-      this.db.insertLap({
-        sessionId: this.currentSession.sessionId,
-        lapNumber: lapNum,
-        lapTime,
-        isValid: valid,
-        rawByteOffset: this._lapByteOffset,
-        rawFrameCount: this._lapFrameCount,
-        profileId: null,
-        tuneId,
-        invalidReason,
-        sectors,
-        quality: null,
-        eligibility: null,
-      }).then(async (lapId) => {
-        // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
-        // never decodes on first open.
-        await this.persistLapFollowups(lapId, lapPackets);
-        console.log(
-          `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
-        );
-        this.onLapSaved?.({
-          lapId,
-          lapNumber: lapNum,
-          lapTime,
-          isValid: valid,
-          sectors,
-          estimatedBestLapTime: this.currentSession!.bestLapTime,
-        });
-      }).catch((err) => {
-        console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
-      });
-    }
+      this.trackLapWrite(
+        context.session.sessionId,
+        this.db
+          .insertLap({
+            sessionId: context.session.sessionId,
+            lapNumber: lapNum,
+            lapTime,
+            isValid: valid,
+            rawByteOffset: this._lapByteOffset,
+            rawFrameCount: this._lapFrameCount,
+            profileId: null,
+            tuneId,
+            invalidReason,
+            sectors,
+            classification,
+            quality,
+            eligibility,
+            versionIdentity,
+          })
+          .then(async (lapId) => {
+            // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
+            // never decodes on first open.
+            await this.persistLapFollowups(lapId, lapPackets);
+            console.log(`[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`);
+            await this.onLapSaved?.(
+              {
+                lapId,
+                lapNumber: lapNum,
+                lapTime,
+                isValid: valid,
+                ...classification,
+                sectors,
+                estimatedBestLapTime: context.session.bestLapTime,
+                quality,
+                eligibility,
+              },
+              context,
+            );
+          }),
+        `[Lap] Failed to save lap ${lapNum}:`,
+      );
 
-
-    // Extract and record curb data from any valid lap
-    if (this.lapIsValid && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
-      const curbSegments = extractCurbSegments(this.lapBuffer);
-      if (curbSegments.length > 0) {
-        recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
+      // Extract and record curb data from laps allowed for normal-pace geometry seeding.
+      if (normalPaceEligible && session.trackOrdinal > 0 && this.lapBuffer.length > 50) {
+        const curbSegments = extractCurbSegments(this.lapBuffer);
+        if (curbSegments.length > 0) {
+          recordCurbData(session.trackOrdinal, curbSegments, session.gameId);
+        }
       }
     }
 
@@ -474,41 +530,57 @@ export class LapDetector implements ILapDetector {
   /** Best-effort save of an incomplete lap when the session ends mid-lap. */
   private async finalizeLapIfNeeded(): Promise<void> {
     // Try to save current in-progress lap when session changes
-    if (
-      this.currentSession &&
-      this.lapBuffer.length > 0 &&
-      this.currentLapNumber >= 0
-    ) {
+    if (this.currentSession && this.lapBuffer.length > 0 && this.currentLapNumber >= 0) {
+      const session = this.currentSession;
+      const lapNumber = this.currentLapNumber;
       this.trimRunningStartPackets();
       // Use the last known CurrentLap as time estimate (not ideal but best we have)
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
-          const tuneAssignment = await this.db.getTuneAssignment(
-            this.currentSession.gameId,
-            this.currentSession.carOrdinal,
-            this.currentSession.trackOrdinal
-          );
-          const lapPackets = this.lapBuffer;
-          this.db.insertLap({
-            sessionId: this.currentSession.sessionId,
-            lapNumber: this.currentLapNumber,
-            lapTime,
-            isValid: false,
-            rawByteOffset: this._lapByteOffset,
-            rawFrameCount: this._lapFrameCount,
-            profileId: null,
-            tuneId: tuneAssignment?.tuneId ?? null,
-            invalidReason: "incomplete",
-            sectors: null,
-            quality: null,
-            eligibility: null,
-          }).then(async (lapId) => {
-            await this.persistLapFollowups(lapId, lapPackets);
-            console.log(`[Lap] Saved incomplete lap (session ended)`);
-          }).catch((err) => {
-            console.error("[Lap] Failed to save incomplete lap:", err);
-          });
+        const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
+        const lapPackets = this.lapBuffer;
+        const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNumber));
+        const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
+        const quality = summarizeLapQuality({
+          packets: lapPackets,
+          lapTime,
+          timingSource: "estimated",
+          complete: false,
+          structurallyValid: false,
+          invalidReason: "incomplete",
+          classification,
+          sourceKind: this.sourceKind,
+          participant: this.participant,
+          versionIdentity,
+          sourceChannelProfile: this.sourceChannelProfile,
+        });
+        const eligibility = evaluateAllEligibility(quality);
+        this.trackLapWrite(
+          session.sessionId,
+          this.db
+            .insertLap({
+              sessionId: session.sessionId,
+              lapNumber,
+              lapTime,
+              isValid: false,
+              rawByteOffset: this._lapByteOffset,
+              rawFrameCount: this._lapFrameCount,
+              profileId: null,
+              tuneId: tuneAssignment?.tuneId ?? null,
+              invalidReason: "incomplete",
+              sectors: null,
+              classification,
+              quality,
+              eligibility,
+              versionIdentity,
+            })
+            .then(async (lapId) => {
+              await this.persistLapFollowups(lapId, lapPackets);
+              console.log(`[Lap] Saved incomplete lap (session ended)`);
+            }),
+          "[Lap] Failed to save incomplete lap:",
+        );
       }
     }
   }
@@ -519,12 +591,8 @@ export class LapDetector implements ILapDetector {
    * have been received for >10 seconds and there's meaningful data.
    */
   async flushStaleLap(): Promise<void> {
-    if (
-      !this.currentSession ||
-      this.lapBuffer.length < 30 ||
-      this.currentLapNumber < 0 ||
-      this.lastPacketTime === 0
-    ) return;
+    if (!this.currentSession || this.lapBuffer.length < 30 || this.currentLapNumber < 0 || this.lastPacketTime === 0) return;
+    const session = this.currentSession;
 
     const silenceMs = Date.now() - this.lastPacketTime;
     if (silenceMs < 10_000) return;
@@ -533,9 +601,10 @@ export class LapDetector implements ILapDetector {
     if (this.lapBuffer.length < 30) return;
 
     const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
-    const lapTime = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap
-      ? lastPacket.LastLap   // game reported a final lap time
-      : lastPacket.CurrentLap; // use elapsed time as best estimate
+    const lapTime =
+      lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap
+        ? lastPacket.LastLap // game reported a final lap time
+        : lastPacket.CurrentLap; // use elapsed time as best estimate
 
     if (lapTime < 10) return; // ignore trivial fragments (e.g. post-race trickle packets)
 
@@ -543,35 +612,76 @@ export class LapDetector implements ILapDetector {
     const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
 
     {
-      const tuneAssignment = await this.db.getTuneAssignment(
-        this.currentSession.gameId,
-        this.currentSession.carOrdinal,
-        this.currentSession.trackOrdinal
-      );
+      const tuneAssignment = await this.db.getTuneAssignment(session.gameId, session.carOrdinal, session.trackOrdinal);
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
-      this.db.insertLap({
-        sessionId: this.currentSession.sessionId,
-        lapNumber: lapNum,
+      const recordingAssessment = assessLapRecording(lapPackets, lapTime);
+      const classification = classifyLap(this.lapTimelineContext.classificationForLap(session.sessionId, lapNum));
+      const valid = isComplete && this.lapIsValid && recordingAssessment.valid;
+      const invalidReason = isComplete ? (this.invalidReason ?? recordingAssessment.reason) : "incomplete";
+      const versionIdentity = this.versionIdentity ?? currentTelemetryVersionIdentity(session.gameId);
+      const quality = summarizeLapQuality({
+        packets: lapPackets,
         lapTime,
-        isValid: isComplete && this.lapIsValid,
-        rawByteOffset: this._lapByteOffset,
-        rawFrameCount: this._lapFrameCount,
-        profileId: null,
-        tuneId: tuneAssignment?.tuneId ?? null,
-        invalidReason: isComplete ? this.invalidReason : "incomplete",
-        sectors: null,
-        quality: null,
-        eligibility: null,
-      }).then(async (lapId) => {
-        await this.persistLapFollowups(lapId, lapPackets);
-        console.log(
-          `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
-        );
-      }).catch((err) => {
-        console.error("[Lap] Failed to flush stale lap:", err);
+        timingSource: isComplete ? "simulator-last-lap" : "estimated",
+        complete: isComplete,
+        structurallyValid: valid,
+        invalidReason,
+        classification,
+        sourceKind: this.sourceKind,
+        participant: this.participant,
+        versionIdentity,
+        sourceChannelProfile: this.sourceChannelProfile,
       });
+      const eligibility = evaluateAllEligibility(quality);
+      if (isComplete) {
+        const context: LapEventContext = {
+          session: { ...session },
+          lapNumber: lapNum,
+          eventIds: this.lapTimelineContext.eventIdsForLap(session.sessionId, lapNum),
+        };
+        await this.onLapEvaluated?.(
+          {
+            packets: lapPackets,
+            lapDistStart: lapPackets[0].DistanceTraveled,
+            lapTime,
+            isValid: valid,
+            ...classification,
+            sectors: null,
+            quality,
+            eligibility,
+          },
+          context,
+        );
+      }
+      this.trackLapWrite(
+        session.sessionId,
+        this.db
+          .insertLap({
+            sessionId: session.sessionId,
+            lapNumber: lapNum,
+            lapTime,
+            isValid: valid,
+            rawByteOffset: this._lapByteOffset,
+            rawFrameCount: this._lapFrameCount,
+            profileId: null,
+            tuneId: tuneAssignment?.tuneId ?? null,
+            invalidReason,
+            sectors: null,
+            classification,
+            quality,
+            eligibility,
+            versionIdentity,
+          })
+          .then(async (lapId) => {
+            await this.persistLapFollowups(lapId, lapPackets);
+            console.log(
+              `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`,
+            );
+          }),
+        "[Lap] Failed to flush stale lap:",
+      );
     }
 
     // Reset state so we don't flush again
@@ -597,27 +707,18 @@ export class LapDetector implements ILapDetector {
     // A true running-start reset happens early (mid-previous-lap data at the front).
     // A lap-end reset happens at the very end and must not be treated as a running start.
     if (resetIdx > 0 && resetIdx < this.lapBuffer.length / 2) {
-      console.log(
-        `[Lap] Trimmed ${resetIdx} pre-start packets (running start), ${this.lapBuffer.length - resetIdx} remain`
-      );
+      console.log(`[Lap] Trimmed ${resetIdx} pre-start packets (running start), ${this.lapBuffer.length - resetIdx} remain`);
       this.lapBuffer = this.lapBuffer.slice(resetIdx);
     }
   }
 
   /** Compute s1/s2/s3 sector times from a lap's telemetry buffer. */
-  private async computeLapSectors(
-    packets: TelemetryPacket[],
-    lapTime: number
-  ): Promise<number[] | null> {
-    if (!this.currentSession) return null;
-    const { trackOrdinal, gameId } = this.currentSession;
+  private async computeLapSectors(session: Readonly<SessionState>, packets: TelemetryPacket[], lapTime: number): Promise<number[] | null> {
+    const { trackOrdinal, gameId } = session;
     return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
   }
 
-  private async persistLapFollowups(
-    lapId: number,
-    lapPackets: TelemetryPacket[],
-  ): Promise<void> {
+  private async persistLapFollowups(lapId: number, lapPackets: TelemetryPacket[]): Promise<void> {
     const setup = lapPackets.find((packet) => packet.f1?.setup)?.f1?.setup;
     if (setup) {
       try {
@@ -636,6 +737,33 @@ export class LapDetector implements ILapDetector {
     } catch (error) {
       console.error("[Lap] reconcileAutoExclusionsForLap failed:", error);
     }
+  }
+
+  private trackLapWrite(sessionId: number, pending: Promise<void>, failureMessage: string): void {
+    const pendingWrites = this._pendingLapWrites.get(sessionId) ?? new Set<Promise<void>>();
+    pendingWrites.add(pending);
+    this._pendingLapWrites.set(sessionId, pendingWrites);
+    void pending.then(
+      () => pendingWrites.delete(pending),
+      (error) => {
+        pendingWrites.delete(pending);
+        if (!this._lapWriteFailures.has(sessionId)) {
+          this._lapWriteFailures.set(sessionId, { error });
+        }
+        console.error(failureMessage, error);
+      },
+    );
+  }
+
+  async waitForPendingLapWrites(sessionId: number): Promise<void> {
+    const pendingWrites = this._pendingLapWrites.get(sessionId);
+    while (pendingWrites && pendingWrites.size > 0) {
+      await Promise.allSettled([...pendingWrites]);
+    }
+    this._pendingLapWrites.delete(sessionId);
+    const failure = this._lapWriteFailures.get(sessionId);
+    this._lapWriteFailures.delete(sessionId);
+    if (failure) throw failure.error;
   }
 
   private invalidateLap(reason: string): void {
@@ -686,14 +814,12 @@ export class LapDetector implements ILapDetector {
 /**
  * Smooth an outline using a circular moving average (wraps around start/finish).
  */
-export function smoothOutline(
-  points: { x: number; z: number }[],
-  window: number = 5
-): { x: number; z: number }[] {
+export function smoothOutline(points: { x: number; z: number }[], window: number = 5): { x: number; z: number }[] {
   const n = points.length;
   const half = Math.floor(window / 2);
   return points.map((_, i) => {
-    let sx = 0, sz = 0;
+    let sx = 0,
+      sz = 0;
     const count = half * 2 + 1;
     for (let j = -half; j <= half; j++) {
       const idx = (i + j + n) % n;
@@ -708,10 +834,7 @@ export function smoothOutline(
  * Normalize a variable-length point array to a fixed number of points
  * using linear interpolation along cumulative distance.
  */
-export function normalizeToFixedPoints(
-  raw: { x: number; z: number; speed: number }[],
-  targetPoints: number
-): { x: number; z: number; speed: number }[] {
+export function normalizeToFixedPoints(raw: { x: number; z: number; speed: number }[], targetPoints: number): { x: number; z: number; speed: number }[] {
   if (raw.length <= targetPoints) return raw;
 
   // Compute cumulative distances
@@ -757,9 +880,7 @@ export function normalizeToFixedPoints(
  * Filter outlier jumps from raw lap telemetry (rewinds, pit teleports).
  * Removes points where the step distance exceeds median * 5.
  */
-export function filterLapOutliers(
-  points: { x: number; z: number; speed: number }[]
-): { x: number; z: number; speed: number }[] {
+export function filterLapOutliers(points: { x: number; z: number; speed: number }[]): { x: number; z: number; speed: number }[] {
   if (points.length < 10) return points;
 
   // Compute step distances
@@ -787,9 +908,7 @@ export function filterLapOutliers(
  * Aligns each subsequent lap to the reference (first lap) by finding
  * the best rotational offset that minimizes position error, then averages.
  */
-export function averageOutlines(
-  laps: { x: number; z: number; speed: number }[][]
-): { x: number; z: number; speed: number }[] {
+export function averageOutlines(laps: { x: number; z: number; speed: number }[][]): { x: number; z: number; speed: number }[] {
   if (laps.length === 0) return [];
   if (laps.length === 1) return laps[0];
 
@@ -800,7 +919,10 @@ export function averageOutlines(
   const aligned: typeof laps = [ref];
   for (let l = 1; l < laps.length; l++) {
     const lap = laps[l];
-    if (lap.length !== len) { aligned.push(lap); continue; }
+    if (lap.length !== len) {
+      aligned.push(lap);
+      continue;
+    }
 
     // Test shifts at coarse intervals, then refine around the best
     let bestShift = 0;
@@ -815,7 +937,10 @@ export function averageOutlines(
         const dz = lap[j].z - ref[i].z;
         err += dx * dx + dz * dz;
       }
-      if (err < bestError) { bestError = err; bestShift = shift; }
+      if (err < bestError) {
+        bestError = err;
+        bestShift = shift;
+      }
     }
     // Refine around best coarse shift
     const refineStart = Math.max(0, bestShift - step);
@@ -828,7 +953,10 @@ export function averageOutlines(
         const dz = lap[j].z - ref[i].z;
         err += dx * dx + dz * dz;
       }
-      if (err < bestError) { bestError = err; bestShift = shift; }
+      if (err < bestError) {
+        bestError = err;
+        bestShift = shift;
+      }
     }
 
     // Apply shift
@@ -842,7 +970,9 @@ export function averageOutlines(
   // Point-by-point average of aligned laps
   const result: { x: number; z: number; speed: number }[] = [];
   for (let i = 0; i < len; i++) {
-    let sx = 0, sz = 0, ss = 0;
+    let sx = 0,
+      sz = 0,
+      ss = 0;
     for (const lap of aligned) {
       sx += lap[i].x;
       sz += lap[i].z;
@@ -855,10 +985,8 @@ export function averageOutlines(
   return result;
 }
 
-
 function formatLapTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 }
-

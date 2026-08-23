@@ -4,7 +4,7 @@ import type { TelemetryGroupId, TelemetryVariableId } from "@shared/telemetry/ca
 import { compileTelemetryResolver } from "@shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, FreshnessState, ResolutionState, ResolvedValue, TelemetryFrameView } from "@shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import { SourceSequenceTracker } from "@shared/telemetry/source-sequence";
+import { SourceSequenceTracker, type SourceSequenceObservation } from "@shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 import {
   ELIGIBILITY_POLICY_VERSION,
@@ -504,7 +504,7 @@ function observeChannel(
 function applySourceChannelProfile(summary: ChannelQualitySummary, profile?: SourceChannelProfile): void {
   const entry = profile?.channels[summary.semanticId];
   if (!entry) return;
-  summary.mappingStatus = entry.treatment === "absent" ? "unavailable" : entry.mappingStatus;
+  summary.mappingStatus = entry.mappingStatus;
   summary.sourceProfile = {
     schemaVersion: profile.schemaVersion,
     sourceKind: profile.sourceKind,
@@ -515,7 +515,7 @@ function applySourceChannelProfile(summary: ChannelQualitySummary, profile?: Sou
   for (const limitation of entry.limitations) {
     if (!summary.limitations.includes(limitation)) summary.limitations.push(limitation);
   }
-  if (summary.mappingStatus !== "unavailable") return;
+  if (entry.mappingStatus !== "unavailable") return;
   summary.observedCount = 0;
   summary.coverage = null;
   summary.confidenceMean = null;
@@ -740,12 +740,7 @@ export function summarizeLapQuality(input: {
   };
   const totalMissingFraction = timeline.summary.totalMissingFraction ?? 0;
   for (const gap of timeline.gaps) {
-    const gapMissingFraction =
-      timeline.summary.expectedCount > 0 ? gap.missingCount / timeline.summary.expectedCount : null;
-    const minor =
-      gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs &&
-      gapMissingFraction != null &&
-      gapMissingFraction <= QUALITY_THRESHOLDS_V1.minorMissingFractionMax;
+    const minor = gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs && totalMissingFraction <= QUALITY_THRESHOLDS_V1.minorMissingFractionMax;
     pushFact(minor ? "telemetry_gap_minor" : "telemetry_gap_major", {
       timeRange: gap.timeRange,
       distanceRange: gap.distanceRange,
@@ -811,18 +806,17 @@ export function summarizeLapQuality(input: {
   const peakTelemetryLapTime = input.packets.reduce((peak, packet) => (Number.isFinite(packet.CurrentLap) ? Math.max(peak, packet.CurrentLap) : peak), -Infinity);
   const peakTelemetryLapTimeMs = peakTelemetryLapTime > 0 ? peakTelemetryLapTime * 1_000 : null;
   const lapTimeMs = input.lapTime * 1_000;
-  const hasValidLapTime = Number.isFinite(lapTimeMs) && lapTimeMs > 0;
   const credibleSource = input.timingSource === "simulator-last-lap" || input.timingSource === "simulator-history";
-  const timingMatches = hasValidLapTime && (peakTelemetryLapTimeMs == null || Math.abs(peakTelemetryLapTimeMs - lapTimeMs) <= 2_000);
+  const timingMatches = peakTelemetryLapTimeMs == null || Math.abs(peakTelemetryLapTimeMs - lapTimeMs) <= 2_000;
   const timingConfirmed = credibleSource && timingMatches;
   if (input.timingSource === "telemetry-elapsed") pushFact("lap_time_fallback");
-  if (!hasValidLapTime || (!timingConfirmed && input.timingSource !== "telemetry-elapsed")) pushFact("lap_time_unconfirmed");
+  if (!timingConfirmed && input.timingSource !== "telemetry-elapsed") pushFact("lap_time_unconfirmed");
   if (!input.complete) pushFact("partial_lap");
   if (!input.structurallyValid) {
     pushFact("structurally_invalid", { details: { invalidReason: input.invalidReason } });
   }
-  if (input.classification.paceEligibility !== "eligible") pushFact("non_pace_classification", { eventIds: input.eventIds });
-  if (input.classification.conditions.length > 0) pushFact("caution_context", { eventIds: input.eventIds });
+  if (input.classification.paceEligibility !== "eligible") pushFact("non_pace_classification");
+  if (input.classification.conditions.length > 0) pushFact("caution_context");
   if (input.sourceKind !== "native-live") pushFact("imported_source");
   if (input.sourceKind === "remote-collector" && timeline.summary.countMethod === "native-sequence") {
     for (const gap of timeline.gaps) {
@@ -905,7 +899,16 @@ export class RecordingQualityAccumulator {
     this.provenance = baseProvenance(sourceKind, participant, versionIdentity);
   }
 
-  observe(packet: TelemetryPacket): void {
+  private recordOutOfOrder(startMs: number, endMs: number): void {
+    this.facts.push(
+      fact(this.provenance, this.facts.length + 1, "out_of_order_observations", {
+        timeRange: { startMs: Math.min(startMs, endMs), endMs: Math.max(startMs, endMs) },
+        details: { count: 1 },
+      }),
+    );
+  }
+
+  observe(packet: TelemetryPacket, sourceSequences?: SourceSequenceObservation[]): void {
     for (const pendingFact of this.pendingFacts) {
       if (pendingFact.timeRange) {
         pendingFact.timeRange.endMs = Math.max(pendingFact.timeRange.startMs, packet.TimestampMS);
@@ -913,7 +916,15 @@ export class RecordingQualityAccumulator {
     }
     this.pendingFacts.length = 0;
     this.startTimestampMs ??= packet.TimestampMS;
-    this.sourceSequence.observe(packet);
+    const observedSequence = this.sourceSequence.observe(packet, sourceSequences);
+    for (const boundary of observedSequence.boundaries) {
+      if (boundary.kind === "out-of-order") {
+        this.recordOutOfOrder(
+          boundary.previousSourceTimeMs,
+          boundary.currentSourceTimeMs,
+        );
+      }
+    }
     this.lastTimestampMs = packet.TimestampMS;
     this.endTimestampMs = packet.TimestampMS;
   }
@@ -984,56 +995,6 @@ export class RecordingQualityAccumulator {
       );
     }
     const sequenceMeasurement = this.sourceSequence.finalize();
-    for (const boundary of sequenceMeasurement.outOfOrder) {
-      this.facts.push(
-        fact(this.provenance, this.facts.length + 1, "out_of_order_observations", {
-          timeRange: {
-            startMs: Math.min(
-              boundary.previousSourceTimeMs,
-              boundary.currentSourceTimeMs,
-            ),
-            endMs: Math.max(
-              boundary.previousSourceTimeMs,
-              boundary.currentSourceTimeMs,
-            ),
-          },
-          details: { count: 1 },
-        }),
-      );
-    }
-    for (const gap of sequenceMeasurement.gaps) {
-      const gapMissingFraction =
-        sequenceMeasurement.summary.expectedCount > 0 ? gap.missingCount / sequenceMeasurement.summary.expectedCount : null;
-      const minor =
-        gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs &&
-        gapMissingFraction != null &&
-        gapMissingFraction <= QUALITY_THRESHOLDS_V1.minorMissingFractionMax;
-      this.facts.push(
-        fact(
-          this.provenance,
-          this.facts.length + 1,
-          minor ? "telemetry_gap_minor" : "telemetry_gap_major",
-          {
-            timeRange: {
-              startMs: Math.min(
-                gap.previousSourceTimeMs,
-                gap.currentSourceTimeMs,
-              ),
-              endMs: Math.max(
-                gap.previousSourceTimeMs,
-                gap.currentSourceTimeMs,
-              ),
-            },
-            details: {
-              durationMs: gap.durationMs,
-              inferredMissingCount: gap.missingCount,
-              countMethod: gap.countMethod,
-              sequenceFamily: gap.sourceSequenceFamily ?? "timestamp",
-            },
-          },
-        ),
-      );
-    }
     if (sequenceMeasurement.duplicates.length > 0) {
       this.facts.push(
         fact(this.provenance, this.facts.length + 1, "duplicate_observations", {
@@ -1047,16 +1008,7 @@ export class RecordingQualityAccumulator {
     if (verificationStates.includes("corrupt")) lifecycleState = "corrupt";
     else if (verificationStates.includes("truncated")) lifecycleState = "incomplete";
     else if (verificationStates.includes("unavailable")) lifecycleState = "unavailable";
-    else if (
-      this.facts.some(
-        ({ code }) =>
-          code === "writer_drop" ||
-          code === "timeline_discontinuity" ||
-          code === "source_reconnect" ||
-          code === "out_of_order_observations" ||
-          code === "telemetry_gap_major",
-      )
-    )
+    else if (this.facts.some(({ code }) => code === "writer_drop" || code === "timeline_discontinuity" || code === "source_reconnect" || code === "out_of_order_observations"))
       lifecycleState = "degraded";
     else if ((gapSummary.totalMissingFraction ?? 0) > QUALITY_THRESHOLDS_V1.minorMissingFractionMax) lifecycleState = "degraded";
     else if ((gapSummary.totalMissingCount ?? 0) > 0) lifecycleState = "minor_gaps";
