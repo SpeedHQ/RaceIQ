@@ -86,12 +86,12 @@ describe("quality rebuild detector identity", () => {
     return path;
   }
 
-  test("marks legacy current quality without a receipt unavailable when source is absent", async () => {
+  test("keeps legacy current quality without a receipt current when source is absent", async () => {
     const { id } = await insertSession();
 
     expect(await getQualityRebuildStatus(id)).toMatchObject({
       sessionId: id,
-      action: "unavailable",
+      action: "current",
       currentDetectorId: LAP_DETECTOR_ID,
       rawAvailable: false,
       stale: {
@@ -108,13 +108,13 @@ describe("quality rebuild detector identity", () => {
     });
   });
 
-  test("marks legacy policy-only quality without a receipt unavailable when source is absent", async () => {
+  test("rebuilds legacy policy-only quality without a receipt when source is absent", async () => {
     const { id } = await insertSession({
       qualityPolicyVersion: "stale-policy",
     });
 
     const before = await getQualityRebuildStatus(id);
-    expect(before.action).toBe("unavailable");
+    expect(before.action).toBe("rebuild_eligibility");
     expect(before.stale).toEqual({
       detector: false,
       schema: false,
@@ -124,19 +124,12 @@ describe("quality rebuild detector identity", () => {
     });
 
     const rebuilt = await rebuildSessionEligibility(id);
-    expect(rebuilt.action).toBe("unavailable");
+    expect(rebuilt.action).toBe("current");
   });
 
-  test("routes legacy current quality with source bytes but no receipt through full reprocess", async () => {
+  test("marks source verification current only when retained raw identity matches", async () => {
     const bytes = Buffer.from("unchanged-capture");
     const generation = sha256ContentHash(bytes);
-    const canonicalQuality: RecordingQualitySummary = {
-      ...recordingQuality(),
-      canonicalVerification: {
-        state: "verified",
-        sourceGeneration: generation,
-      },
-    };
     const sourceQuality: RecordingQualitySummary = {
       ...recordingQuality(),
       archiveVerification: {
@@ -144,24 +137,43 @@ describe("quality rebuild detector identity", () => {
         sourceGeneration: generation,
       },
     };
+    const { id } = await insertSession({
+      rawFile: rawCapture("legacy-source.bin", bytes),
+      recordingQuality: sourceQuality,
+    });
+    const status = await getQualityRebuildStatus(id);
+    expect(status.action).toBe("current");
+    expect(status.rawAvailable).toBe(true);
+    expect(status.stale.source).toBe(false);
+    expect(status.analysisStatus).toMatchObject({
+      status: "stale_rebuild_available",
+      staleReasons: ["receipt_missing"],
+    });
+  });
 
-    for (const [name, quality] of [
-      ["canonical.bin", canonicalQuality],
-      ["legacy-source.bin", sourceQuality],
-    ] as const) {
-      const { id } = await insertSession({
-        rawFile: rawCapture(name, bytes),
-        recordingQuality: quality,
-      });
-      const status = await getQualityRebuildStatus(id);
-      expect(status.action).toBe("reprocess");
-      expect(status.rawAvailable).toBe(true);
-      expect(status.stale.source).toBe(false);
-      expect(status.analysisStatus).toMatchObject({
-        status: "stale_rebuild_available",
-        staleReasons: ["receipt_missing"],
-      });
-    }
+  test("does not mark missing canonical output stale before activation", async () => {
+    const bytes = Buffer.from("unchanged-capture");
+    const quality: RecordingQualitySummary = {
+      ...recordingQuality(),
+      archiveVerification: {
+        state: "verified",
+        sourceGeneration: sha256ContentHash(bytes),
+      },
+      canonicalVerification: {
+        state: "verified",
+        sourceGeneration: sha256ContentHash(bytes),
+      },
+    };
+    const { id } = await insertSession({
+      rawFile: rawCapture("unactivated-canonical.bin", bytes),
+      recordingQuality: quality,
+    });
+
+    expect(await getQualityRebuildStatus(id)).toMatchObject({
+      action: "current",
+      rawAvailable: true,
+      stale: { source: false },
+    });
   });
 
   test("requires reprocessing when retained bytes change", async () => {
@@ -169,7 +181,7 @@ describe("quality rebuild detector identity", () => {
     const changed = Buffer.from("changed-capture");
     const quality: RecordingQualitySummary = {
       ...recordingQuality(),
-      canonicalVerification: {
+      archiveVerification: {
         state: "verified",
         sourceGeneration: sha256ContentHash(original),
       },
@@ -185,7 +197,7 @@ describe("quality rebuild detector identity", () => {
     expect(status.stale.source).toBe(true);
   });
 
-  test("reports unavailable for missing, unreadable, and corrupt retained bytes", async () => {
+  test("keeps legacy quality current when retained source becomes unavailable", async () => {
     const missing = join(testDir, "missing.bin");
     const unreadable = join(testDir, "capture-directory");
     mkdirSync(unreadable);
@@ -194,9 +206,9 @@ describe("quality rebuild detector identity", () => {
     for (const rawFile of [missing, unreadable, corrupt]) {
       const { id } = await insertSession({ rawFile });
       const status = await getQualityRebuildStatus(id);
-      expect(status.action).toBe("unavailable");
+      expect(status.action).toBe("current");
       expect(status.rawAvailable).toBe(false);
-      expect(status.stale.source).toBe(true);
+      expect(status.stale.source).toBe(false);
     }
   });
 

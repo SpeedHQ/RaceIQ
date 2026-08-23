@@ -115,7 +115,7 @@ function canonicalReceipt(sessionId: number, generationId: string, artifactSetId
       artifactType: "canonical_archive",
       schemaVersion: "canonical-archive-v1",
       count: 1,
-      contentHash: HASH_C,
+      contentHash: HASH_A,
       timeCoverageMs: { start: 0, end: 1 },
       lapCoverage: null,
       participantCoverage: null,
@@ -152,13 +152,21 @@ describe("canonical archive availability", () => {
       .get();
     createdSessionIds.push(session.id);
 
-    await activateCanonicalArchiveReceipt({
-      sessionId: session.id,
-      sourceContentHash: HASH_A,
-      contractHash: HASH_D,
-      configurationHash: HASH_B,
-      buildReceipt: async (attempt) => canonicalReceipt(session.id, attempt.generationId, attempt.artifactSetId, attempt.generation),
-    });
+    await expect(
+      activateCanonicalArchiveReceipt({
+        sessionId: session.id,
+        sourceContentHash: HASH_A,
+        contractHash: HASH_D,
+        configurationHash: HASH_B,
+        buildReceipt: async (attempt) =>
+          canonicalReceipt(
+            session.id,
+            attempt.generationId,
+            attempt.artifactSetId,
+            attempt.generation,
+          ),
+      }),
+    ).rejects.toThrow("Canonical archive identities do not match generation attempt");
 
     const availability = await getSessionCanonicalAvailability(session.id);
     expect(availability).toEqual({
@@ -170,7 +178,7 @@ describe("canonical archive availability", () => {
       semanticIds: [],
       eventIds: [],
       provenance: null,
-      details: "Canonical archive row, file, or output hash is unavailable",
+      details: "No verified active canonical archive receipt",
     });
     if (!availability) throw new Error("Expected canonical archive availability");
     const quality = {
