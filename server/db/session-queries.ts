@@ -15,18 +15,13 @@ import {
   type RecordingQualitySummary,
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
-import { isQualitySnapshotCurrent } from "../../shared/racing/quality/policies";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
-import {
-  finalizeLapQualityGeneration,
-  finalizeRecordingQualityGeneration,
-  mergeRecordingQualityIntoLapQuality,
-} from "../lap-analysis/quality-generation";
+import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration, mergeRecordingQualityIntoLapQuality } from "../lap-analysis/quality-generation";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -59,12 +54,7 @@ export async function insertSession(
   return result.id;
 }
 
-
-export async function updateSessionQuality(
-  sessionId: number,
-  quality: RecordingQualitySummary,
-  transaction?: DbTransaction,
-): Promise<RecordingQualitySummary> {
+export async function updateSessionQuality(sessionId: number, quality: RecordingQualitySummary, transaction?: DbTransaction): Promise<RecordingQualitySummary> {
   const finalized = finalizeRecordingQualityGeneration(quality);
   const update = async (tx: DbTransaction) => {
     const lapRows = await tx
@@ -85,31 +75,26 @@ export async function updateSessionQuality(
     const changedLapIds: number[] = [];
 
     for (const lap of lapRows) {
+      const provenance = lap.quality?.provenance;
       if (
         !lap.quality ||
-        !isQualitySnapshotCurrent({
-          quality: lap.quality,
-          qualityGeneration: lap.qualityGeneration,
-          qualitySchemaVersion: lap.qualitySchemaVersion,
-          qualityPolicyVersion: lap.qualityPolicyVersion,
-          qualityConfigVersion: lap.qualityConfigVersion,
-        })
+        !provenance ||
+        provenance.schemaVersion !== QUALITY_SCHEMA_VERSION ||
+        provenance.policyVersion !== ELIGIBILITY_POLICY_VERSION ||
+        provenance.configurationVersion !== QUALITY_CONFIG_VERSION ||
+        lap.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+        lap.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+        lap.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+        lap.qualityGeneration !== provenance.outputGeneration
       ) {
         continue;
       }
-      const qualityWithSessionEvidence = mergeRecordingQualityIntoLapQuality(
-        finalized,
-        lap.quality,
-      );
-      const generated = finalizeLapQualityGeneration(
-        qualityWithSessionEvidence,
-        finalized.provenance.sourceGeneration,
-        {
-          lapNumber: lap.lapNumber,
-          rawByteOffset: lap.rawByteOffset,
-          rawFrameCount: lap.rawFrameCount,
-        },
-      );
+      const qualityWithSessionEvidence = mergeRecordingQualityIntoLapQuality(finalized, lap.quality);
+      const generated = finalizeLapQualityGeneration(qualityWithSessionEvidence, finalized.provenance.sourceGeneration, {
+        lapNumber: lap.lapNumber,
+        rawByteOffset: lap.rawByteOffset,
+        rawFrameCount: lap.rawFrameCount,
+      });
       if (
         generated.quality.provenance.outputGeneration === lap.qualityGeneration &&
         lap.qualitySchemaVersion === generated.quality.provenance.schemaVersion &&
@@ -137,12 +122,7 @@ export async function updateSessionQuality(
       await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, changedLapIds)).run();
       await tx
         .delete(compareAnalyses)
-        .where(
-          or(
-            inArray(compareAnalyses.lapAId, changedLapIds),
-            inArray(compareAnalyses.lapBId, changedLapIds),
-          ),
-        )
+        .where(or(inArray(compareAnalyses.lapAId, changedLapIds), inArray(compareAnalyses.lapBId, changedLapIds)))
         .run();
     }
     await tx
@@ -165,10 +145,7 @@ export async function updateSessionQuality(
  * Update session metadata (e.g. session type discovered after session start).
  */
 
-export async function updateSession(
-  id: number,
-  updates: { sessionType?: string; notes?: string | null }
-): Promise<void> {
+export async function updateSession(id: number, updates: { sessionType?: string; notes?: string | null }): Promise<void> {
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
 }
 
@@ -176,14 +153,7 @@ export async function updateSessionCarTrack(sessionId: number, carOrdinal: numbe
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
 
-
-export async function updateSessionRawFile(
-  sessionId: number,
-  rawFile: string,
-  lapDetectorVersion: string,
-  versionIdentity?: TelemetryVersionIdentity,
-  transaction?: DbTransaction,
-): Promise<void> {
+export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, versionIdentity?: TelemetryVersionIdentity, transaction?: DbTransaction): Promise<void> {
   const executor = transaction ?? db;
   await executor
     .update(sessions)
@@ -198,42 +168,24 @@ export async function updateSessionRawFile(
  * cards and per-game pages now both report the full picture.
  */
 
-async function getAvailableStaleSessionRows(
-  currentIds: string | string[],
-  reprocessableGameIds: GameId[],
-): Promise<{ id: number; rawFile: string }[]> {
+async function getAvailableStaleSessionRows(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<{ id: number; rawFile: string }[]> {
   const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
   const rows = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
-    .where(
-      and(
-        sql`${sessions.rawFile} IS NOT NULL`,
-        inArray(sessions.gameId, reprocessableGameIds),
-        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
-      )
-    )
+    .where(and(sql`${sessions.rawFile} IS NOT NULL`, inArray(sessions.gameId, reprocessableGameIds), or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))))
     .all();
-  return rows.filter(
-    (row): row is { id: number; rawFile: string } =>
-      row.rawFile != null && existsSync(row.rawFile),
-  );
+  return rows.filter((row): row is { id: number; rawFile: string } => row.rawFile != null && existsSync(row.rawFile));
 }
 
-export async function countStaleSessions(
-  currentIds: string | string[],
-  reprocessableGameIds: GameId[],
-): Promise<number> {
+export async function countStaleSessions(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<number> {
   return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).length;
 }
 
 /**
  * Get IDs of sessions with stale lap detector versions and available raw files.
  */
-export async function getStaleSessions(
-  currentIds: string | string[],
-  reprocessableGameIds: GameId[],
-): Promise<number[]> {
+export async function getStaleSessions(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<number[]> {
   return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).map((row) => row.id);
 }
 
@@ -246,13 +198,7 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
   const rows = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
-    .where(
-      and(
-        sql`${sessions.rawFile} IS NOT NULL`,
-        sql`${sessions.rawFile} NOT LIKE '%.gz'`,
-        sql`${sessions.createdAt} < ${cutoff}`
-      )
-    )
+    .where(and(sql`${sessions.rawFile} IS NOT NULL`, sql`${sessions.rawFile} NOT LIKE '%.gz'`, sql`${sessions.createdAt} < ${cutoff}`))
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
@@ -264,12 +210,7 @@ function isOwnedSessionRawFile(rawFile: string): boolean {
 
 async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {
   if (!rawFile || !isOwnedSessionRawFile(rawFile)) return;
-  const stillReferenced = await db
-    .select({ id: sessions.id })
-    .from(sessions)
-    .where(eq(sessions.rawFile, rawFile))
-    .limit(1)
-    .get();
+  const stillReferenced = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.rawFile, rawFile)).limit(1).get();
   if (stillReferenced) return;
   try {
     if (existsSync(rawFile)) unlinkSync(rawFile);
@@ -278,17 +219,12 @@ async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> 
   }
 }
 
-
 /**
  * Delete a session and all its laps. Returns number of laps deleted.
  */
 
 export async function deleteSession(sessionId: number): Promise<number> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .get();
+  const session = await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get();
   const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   let count = 0;
   for (const lap of sessionLaps) {
@@ -309,9 +245,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
     .groupBy(sessions.id)
     .having(sql`count(${laps.id}) = 0`)
     .all();
-  const filtered = activeSessionId
-    ? empties.filter((e) => e.id !== activeSessionId)
-    : empties;
+  const filtered = activeSessionId ? empties.filter((e) => e.id !== activeSessionId) : empties;
   if (filtered.length === 0) return 0;
   for (const { rawFile } of filtered) {
     if (!rawFile) continue;
@@ -321,7 +255,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
       console.warn(`[DB] Failed to unlink raw file ${rawFile}:`, err instanceof Error ? err.message : err);
     }
   }
-  const ids = filtered.map(r => r.id);
+  const ids = filtered.map((r) => r.id);
   await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
 }
@@ -358,9 +292,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     .from(sessions)
     .orderBy(desc(sessions.id));
 
-  const rows = gameId
-    ? await query.where(eq(sessions.gameId, gameId)).all()
-    : await query.all();
+  const rows = gameId ? await query.where(eq(sessions.gameId, gameId)).all() : await query.all();
 
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
@@ -396,10 +328,10 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .get();
     const pitDurationRow = resultRow
       ? await db
-        .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
-        .from(pitEvents)
-        .where(eq(pitEvents.resultId, resultRow.id))
-        .get()
+          .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
+          .from(pitEvents)
+          .where(eq(pitEvents.resultId, resultRow.id))
+          .get()
       : null;
     result.push({
       ...normalizedSession,
@@ -426,17 +358,12 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       qualityGeneration: session.qualityGeneration ?? undefined,
       qualityStale:
         session.recordingQuality != null &&
-        (!FINALIZED_QUALITY_GENERATION_PATTERN.test(
-          session.recordingQuality.provenance.sourceGeneration,
-        ) ||
-          !FINALIZED_QUALITY_GENERATION_PATTERN.test(
-            session.recordingQuality.provenance.outputGeneration,
-          ) ||
+        (!FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
+          !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
           session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
           session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
           session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
-          session.qualityGeneration !==
-            session.recordingQuality.provenance.outputGeneration),
+          session.qualityGeneration !== session.recordingQuality.provenance.outputGeneration),
       ownership: session.ownership === "others" ? "others" : "mine",
     });
   }
@@ -494,13 +421,7 @@ export async function getSessionRecapData(
 
   const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
   const sessionSectorCount =
-    lapRows.find(
-      (lap) =>
-        Boolean(lap.isValid) &&
-        lap.sectorTimes != null &&
-        lap.sectorTimes.length >= 2 &&
-        lap.sectorTimes.every((time) => time > 0),
-    )?.sectorTimes?.length ?? 0;
+    lapRows.find((lap) => Boolean(lap.isValid) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
 
   let sectorStarts: number[] | null = null;
   const gameAdapter = tryGetGame(gameId);
@@ -508,9 +429,7 @@ export async function getSessionRecapData(
     for (const row of lapRows) {
       if (row.sectorTimes?.length !== sessionSectorCount) continue;
       const lap = await getLapById(row.id);
-      const layout = lap?.telemetry
-        .map((packet) => gameAdapter.getNativeSectorLayout!(packet))
-        .find((candidate) => candidate?.starts.length === sessionSectorCount);
+      const layout = lap?.telemetry.map((packet) => gameAdapter.getNativeSectorLayout!(packet)).find((candidate) => candidate?.starts.length === sessionSectorCount);
       if (layout) {
         sectorStarts = [...layout.starts];
         break;
@@ -552,19 +471,16 @@ export async function getSessionRecapData(
       ),
     )
     .all();
-  const allTimeBestSectors = otherSectorRows.reduce<Array<number | null>>(
-    (best, row) => {
-      if (row.sectorTimes?.length !== sessionSectorCount) return best;
-      for (let index = 0; index < (row.sectorTimes?.length ?? 0); index++) {
-        const time = row.sectorTimes![index];
-        if (time > 0 && (best[index] === undefined || best[index] === null || time < best[index]!)) {
-          best[index] = time;
-        }
+  const allTimeBestSectors = otherSectorRows.reduce<Array<number | null>>((best, row) => {
+    if (row.sectorTimes?.length !== sessionSectorCount) return best;
+    for (let index = 0; index < (row.sectorTimes?.length ?? 0); index++) {
+      const time = row.sectorTimes![index];
+      if (time > 0 && (best[index] === undefined || best[index] === null || time < best[index]!)) {
+        best[index] = time;
       }
-      return best;
-    },
-    [],
-  );
+    }
+    return best;
+  }, []);
 
   return {
     session: {
@@ -578,8 +494,7 @@ export async function getSessionRecapData(
     laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
     trackLengthM,
     allTimeBestSec: bestOtherRow?.lapTime ?? null,
-    allTimeBestSectors:
-      allTimeBestSectors.length > 0 ? allTimeBestSectors : null,
+    allTimeBestSectors: allTimeBestSectors.length > 0 ? allTimeBestSectors : null,
     sectorStarts,
   };
 }

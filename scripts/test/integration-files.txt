@@ -116,6 +116,7 @@ test/live-strategy/pit-tracker.test.ts
 test/live-strategy/sector-tracker.test.ts
 test/motec/motec-import.test.ts
 test/motec/motec-viz.test.ts
+test/race-events/source-adapters.test.ts
 test/race-results/race-results-authority.test.ts
 test/race-results/race-results-derive.test.ts
 test/race-results/race-results-source.test.ts

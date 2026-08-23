@@ -6,16 +6,10 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
 import type { SessionBoundaryReason } from "./boundaries";
+import type { LapQualityCaptureContext } from "../lap-analysis/quality";
 
 // Re-export all event/state types so callers only need one import point
-export type {
-  SessionState,
-  LapSavedEvent,
-  LapSavedNotification,
-  LapCompleteEvent,
-  LapFuelData,
-  LapTireWearData,
-} from "./detector";
+export type { SessionState, LapSavedEvent, LapSavedNotification, LapCompleteEvent, LapFuelData, LapTireWearData } from "./detector";
 
 import type {
   SessionState,
@@ -32,7 +26,6 @@ export type SessionEndReason =
   | "stream-ended"
   | "session-rotated";
 
-
 /** Optional event callbacks available to every detector implementation. */
 export interface LapDetectorCallbacks {
   onLapSaved?: (event: LapSavedEvent | LapSavedNotification) => void;
@@ -46,6 +39,8 @@ export interface LapDetectorOptions {
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
+  /** Source, participant, and version evidence used to measure each persisted lap. */
+  qualityContext?: LapQualityCaptureContext;
 }
 
 /** Common interface implemented by all lap detector variants. */

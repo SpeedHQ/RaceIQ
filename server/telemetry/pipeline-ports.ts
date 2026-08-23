@@ -2,26 +2,16 @@ import { resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
-import type {
-  EvidenceSourceKind,
-  SourceChannelProfile,
-} from "../../shared/racing/quality/contracts";
+import type { EvidenceSourceKind, RecordingQualitySummary, SourceChannelProfile } from "../../shared/racing/quality/contracts";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { LiveProjection } from "./live-projector";
-import {
-  TELEMETRY_CATALOG_HASH,
-  TELEMETRY_CATALOG_SCHEMA_VERSION,
-  TELEMETRY_CATALOG_VERSION,
-} from "../../shared/telemetry/catalog/data";
+import { TELEMETRY_CATALOG_HASH, TELEMETRY_CATALOG_SCHEMA_VERSION, TELEMETRY_CATALOG_VERSION } from "../../shared/telemetry/catalog/data";
 import { TELEMETRY_DERIVATION_VERSION } from "../../shared/telemetry/derivations/builtins";
-import {
-  TELEMETRY_PARSER_VERSIONS,
-  TELEMETRY_RESOLVER_VERSION,
-} from "../../shared/telemetry/resolver/versions";
-import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
+import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry/resolver/versions";
+import { insertSession, updateSessionQuality as persistSessionQuality, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
 import { insertLap, setLapMetrics, type PersistLapInput } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
@@ -57,14 +47,7 @@ export interface CapturedLap extends PersistLapInput {
 }
 
 export interface DbAdapter {
-  insertSession(
-    carOrdinal: number,
-    trackOrdinal: number,
-    gameId: GameId,
-    sessionType?: string,
-    versionIdentity?: TelemetryVersionIdentity,
-    ownership?: SessionOwnership,
-  ): Promise<number>;
+  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number>;
   insertLap(input: PersistLapInput): Promise<number>;
   /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
    *  Called right after insertLap so /lap-metrics is a pure column read and
@@ -72,12 +55,9 @@ export interface DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
+  updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
-  getTuneAssignment(
-    gameId: GameId,
-    carOrdinal: number,
-    trackOrdinal: number
-  ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
+  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
   /** Auto-exclude fastest-5 curation (server/experiments/auto-exclude.ts). */
   getLapsForExclusionScope(experimentId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
   setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void>;
@@ -133,12 +113,15 @@ export interface RealDbAdapterOptions {
 
 /** Delegates to the real query functions. Used in production. */
 export class RealDbAdapter implements DbAdapter {
-  private readonly sessionScopes = new Map<number, {
-    gameId: GameId;
-    carOrdinal: number;
-    trackOrdinal: number;
-    versionIdentity: TelemetryVersionIdentity;
-  }>();
+  private readonly sessionScopes = new Map<
+    number,
+    {
+      gameId: GameId;
+      carOrdinal: number;
+      trackOrdinal: number;
+      versionIdentity: TelemetryVersionIdentity;
+    }
+  >();
   private readonly options: RealDbAdapterOptions;
 
   constructor(options: RealDbAdapterOptions = {}) {
@@ -178,6 +161,9 @@ export class RealDbAdapter implements DbAdapter {
   }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
+  }
+  updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
+    return persistSessionQuality(sessionId, quality);
   }
   async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
     await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
@@ -227,6 +213,14 @@ export class CapturingDbAdapter implements DbAdapter {
 
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
     return Promise.resolve();
+  }
+  readonly sessionQualities: Array<{
+    sessionId: number;
+    quality: RecordingQualitySummary;
+  }> = [];
+  updateSessionQuality(sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
+    this.sessionQualities.push({ sessionId, quality });
+    return Promise.resolve(quality);
   }
 
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
@@ -283,6 +277,9 @@ export class NullDbAdapter implements DbAdapter {
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
     return Promise.resolve();
   }
+  updateSessionQuality(_sessionId: number, quality: RecordingQualitySummary): Promise<RecordingQualitySummary> {
+    return Promise.resolve(quality);
+  }
   updateSessionCarTrack(_sessionId: number, _carOrdinal: number, _trackOrdinal: number): Promise<void> {
     return Promise.resolve();
   }
@@ -305,9 +302,15 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   private _inner: SessionRecorder | null = null;
   private _epoch = 0;
 
-  get active(): boolean { return this._inner?.recording ?? false; }
-  get path(): string | null { return this._inner?.path ?? null; }
-  get epoch(): number { return this._epoch; }
+  get active(): boolean {
+    return this._inner?.recording ?? false;
+  }
+  get path(): string | null {
+    return this._inner?.path ?? null;
+  }
+  get epoch(): number {
+    return this._epoch;
+  }
 
   start(gameId: GameId): void {
     const dataDir = resolveDataDir();
@@ -320,10 +323,18 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
     this._epoch++;
   }
 
-  writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
-  writeRecord(buf: Buffer): void { this._inner?.writeRecord(buf); }
-  getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
-  flush(): void { this._inner?.flush(); }
+  writeMetaFrame(): void {
+    this._inner?.writeMetaFrame();
+  }
+  writeRecord(buf: Buffer): void {
+    this._inner?.writeRecord(buf);
+  }
+  getCurrentByteOffset(): number {
+    return this._inner?.getCurrentByteOffset() ?? 0;
+  }
+  flush(): void {
+    this._inner?.flush();
+  }
   async stop(): Promise<void> {
     const inner = this._inner;
     this._inner = null;
@@ -333,13 +344,21 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
 
 /** No-op session recorder — used in tests/benchmarks that re-feed recorded dumps. */
 export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
-  get active(): boolean { return false; }
-  get path(): string | null { return null; }
-  get epoch(): number { return 0; }
+  get active(): boolean {
+    return false;
+  }
+  get path(): string | null {
+    return null;
+  }
+  get epoch(): number {
+    return 0;
+  }
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
   writeRecord(_buf: Buffer): void {}
-  getCurrentByteOffset(): number { return 0; }
+  getCurrentByteOffset(): number {
+    return 0;
+  }
   flush(): void {}
   async stop(): Promise<void> {}
 }
@@ -351,14 +370,22 @@ export class CapturingWsAdapter implements WsAdapter {
   readonly stagedDevTelemetry: TelemetryPacket[] = [];
   private readonly capturePackets: boolean;
   readonly wantsDevTelemetry = true;
-  constructor(capturePackets = true) { this.capturePackets = capturePackets; }
+  constructor(capturePackets = true) {
+    this.capturePackets = capturePackets;
+  }
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
     if (this.capturePackets) this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
   }
-  stageDevTelemetry(packet: TelemetryPacket): void { this.stagedDevTelemetry.push(packet); }
+  stageDevTelemetry(packet: TelemetryPacket): void {
+    this.stagedDevTelemetry.push(packet);
+  }
   publishTelemetry(publication: LiveTelemetryPublication): void {
     this.broadcast(publication.packet, publication.sectors, publication.pit, publication.liveIssues);
   }
-  broadcastNotification(event: Record<string, unknown>): void { this.broadcastedNotifications.push(event); }
-  broadcastDevState(state: Record<string, unknown>): void { this.broadcastedDevStates.push(state); }
+  broadcastNotification(event: Record<string, unknown>): void {
+    this.broadcastedNotifications.push(event);
+  }
+  broadcastDevState(state: Record<string, unknown>): void {
+    this.broadcastedDevStates.push(state);
+  }
 }
