@@ -2,16 +2,34 @@ import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents } from "./schema";
+import { sessions, laps, sessionResults, pitEvents, lapAnalyses, compareAnalyses } from "./schema";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  normalizeEvidenceSourceKind,
+  type EvidenceSourceKind,
+  type RecordingQualitySummary,
+  type SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import {
+  finalizeLapQualityGeneration,
+  finalizeRecordingQualityGeneration,
+  mergeRecordingQualityIntoLapQuality,
+} from "../lap-analysis/quality-generation";
+
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 export async function insertSession(
   carOrdinal: number,
@@ -20,13 +38,125 @@ export async function insertSession(
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
   ownership?: SessionOwnership,
+  source: EvidenceSourceKind = "native-live",
+  sourceChannelProfile?: SourceChannelProfile,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity })
+    .values({
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      ownership,
+      source,
+      sourceChannelProfile,
+      ...versionIdentity,
+    })
     .returning({ id: sessions.id })
     .get();
   return result.id;
+}
+
+
+export async function updateSessionQuality(
+  sessionId: number,
+  quality: RecordingQualitySummary,
+  transaction?: DbTransaction,
+): Promise<RecordingQualitySummary> {
+  const finalized = finalizeRecordingQualityGeneration(quality);
+  const update = async (tx: DbTransaction) => {
+    const lapRows = await tx
+      .select({
+        id: laps.id,
+        lapNumber: laps.lapNumber,
+        rawByteOffset: laps.rawByteOffset,
+        rawFrameCount: laps.rawFrameCount,
+        quality: laps.quality,
+        qualitySchemaVersion: laps.qualitySchemaVersion,
+        qualityPolicyVersion: laps.qualityPolicyVersion,
+        qualityConfigVersion: laps.qualityConfigVersion,
+        qualityGeneration: laps.qualityGeneration,
+      })
+      .from(laps)
+      .where(eq(laps.sessionId, sessionId))
+      .all();
+    const changedLapIds: number[] = [];
+
+    for (const lap of lapRows) {
+      if (
+        !lap.quality ||
+        !FINALIZED_QUALITY_GENERATION_PATTERN.test(
+          lap.quality.provenance.sourceGeneration,
+        ) ||
+        !FINALIZED_QUALITY_GENERATION_PATTERN.test(
+          lap.quality.provenance.outputGeneration,
+        )
+      ) {
+        continue;
+      }
+      const qualityWithSessionEvidence = mergeRecordingQualityIntoLapQuality(
+        finalized,
+        lap.quality,
+      );
+      const generated = finalizeLapQualityGeneration(
+        qualityWithSessionEvidence,
+        finalized.provenance.sourceGeneration,
+        {
+          lapNumber: lap.lapNumber,
+          rawByteOffset: lap.rawByteOffset,
+          rawFrameCount: lap.rawFrameCount,
+        },
+      );
+      if (
+        generated.quality.provenance.outputGeneration === lap.qualityGeneration &&
+        lap.qualitySchemaVersion === generated.quality.provenance.schemaVersion &&
+        lap.qualityPolicyVersion === generated.quality.provenance.policyVersion &&
+        lap.qualityConfigVersion === generated.quality.provenance.configurationVersion
+      ) {
+        continue;
+      }
+      await tx
+        .update(laps)
+        .set({
+          quality: generated.quality,
+          eligibility: generated.eligibility,
+          qualitySchemaVersion: generated.quality.provenance.schemaVersion,
+          qualityPolicyVersion: generated.quality.provenance.policyVersion,
+          qualityConfigVersion: generated.quality.provenance.configurationVersion,
+          qualityGeneration: generated.quality.provenance.outputGeneration,
+        })
+        .where(eq(laps.id, lap.id))
+        .run();
+      changedLapIds.push(lap.id);
+    }
+
+    if (changedLapIds.length > 0) {
+      await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, changedLapIds)).run();
+      await tx
+        .delete(compareAnalyses)
+        .where(
+          or(
+            inArray(compareAnalyses.lapAId, changedLapIds),
+            inArray(compareAnalyses.lapBId, changedLapIds),
+          ),
+        )
+        .run();
+    }
+    await tx
+      .update(sessions)
+      .set({
+        recordingQuality: finalized,
+        qualitySchemaVersion: finalized.provenance.schemaVersion,
+        qualityPolicyVersion: finalized.provenance.policyVersion,
+        qualityConfigVersion: finalized.provenance.configurationVersion,
+        qualityGeneration: finalized.provenance.outputGeneration,
+      })
+      .where(eq(sessions.id, sessionId))
+      .run();
+    return finalized;
+  };
+  return transaction ? update(transaction) : db.transaction(update);
 }
 
 /**
@@ -207,12 +337,18 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       sessionType: sessions.sessionType,
       notes: sessions.notes,
       source: sessions.source,
+      sourceChannelProfile: sessions.sourceChannelProfile,
       catalogVersion: sessions.catalogVersion,
       catalogHash: sessions.catalogHash,
       catalogSchemaVersion: sessions.catalogSchemaVersion,
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
+      recordingQuality: sessions.recordingQuality,
+      qualitySchemaVersion: sessions.qualitySchemaVersion,
+      qualityPolicyVersion: sessions.qualityPolicyVersion,
+      qualityConfigVersion: sessions.qualityConfigVersion,
+      qualityGeneration: sessions.qualityGeneration,
       ownership: sessions.ownership,
     })
     .from(sessions)
@@ -226,12 +362,16 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   const result: SessionMeta[] = [];
   for (const session of rows) {
     const lapRows = await db
-      .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
+      .select({
+        id: laps.id,
+        lapTime: laps.lapTime,
+        isValid: laps.isValid,
+      })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
 
-    const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
+    const validLaps = lapRows.filter((lap) => lap.isValid && lap.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     const normalizedSession = {
       ...session,
@@ -269,7 +409,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       pitCount: resultRow?.pitCount ?? null,
       pitDurationSeconds: pitDurationRow?.duration ?? null,
       notes: session.notes ?? undefined,
-      source: session.source ?? undefined,
+      source: normalizeEvidenceSourceKind(session.source),
+      sourceChannelProfile: session.sourceChannelProfile ?? undefined,
       gameId: session.gameId as GameId,
       catalogVersion: session.catalogVersion ?? undefined,
       catalogHash: session.catalogHash ?? undefined,
@@ -277,6 +418,21 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       parserVersion: session.parserVersion ?? undefined,
       resolverVersion: session.resolverVersion ?? undefined,
       derivationVersion: session.derivationVersion ?? undefined,
+      recordingQuality: session.recordingQuality ?? undefined,
+      qualityGeneration: session.qualityGeneration ?? undefined,
+      qualityStale:
+        session.recordingQuality != null &&
+        (!FINALIZED_QUALITY_GENERATION_PATTERN.test(
+          session.recordingQuality.provenance.sourceGeneration,
+        ) ||
+          !FINALIZED_QUALITY_GENERATION_PATTERN.test(
+            session.recordingQuality.provenance.outputGeneration,
+          ) ||
+          session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+          session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+          session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+          session.qualityGeneration !==
+            session.recordingQuality.provenance.outputGeneration),
       ownership: session.ownership === "others" ? "others" : "mine",
     });
   }

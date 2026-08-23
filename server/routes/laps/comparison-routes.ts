@@ -5,7 +5,13 @@ import { Hono } from "hono";
 import type { GameId } from "../../../shared/games/ids";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
-import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
+import {
+  analysisQualityIdentityForLap,
+  deleteCompareAnalysis,
+  getAnalysis,
+  getCompareAnalysis,
+  saveCompareAnalysis,
+} from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
@@ -275,7 +281,17 @@ export const comparisonRoutes = new Hono()
         durationMs,
         model: settings.aiModel || settings.aiProvider,
       };
-      await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
+      await saveCompareAnalysis(
+        id1,
+        id2,
+        analysisJson,
+        usage,
+        [
+          analysisQualityIdentityForLap(lapA),
+          analysisQualityIdentityForLap(lapB),
+        ],
+        "inputs",
+      );
       return c.json({ analysis: analysisJson, cached: false, usage });
     } catch (err: any) {
       console.error("[InputsCompare] Failed:", err.message);

@@ -24,6 +24,10 @@ export interface F1GridEntry {
 }
 
 export interface F1ExtendedData {
+  /** Native UDP packet-family identifier for source-sequence quality. */
+  packetId?: number;
+  /** Native cross-family UDP frame identifier for source-sequence quality. */
+  overallFrameIdentifier?: number;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;

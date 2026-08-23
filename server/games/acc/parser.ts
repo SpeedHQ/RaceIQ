@@ -291,6 +291,8 @@ export function parseAccBuffers(
   const isRaceOn = status === 2 ? 1 : 0;
 
   const acc: KunosExtendedData = {
+    physicsPacketId: physicsBuf.readInt32LE(PHYSICS.packetId.offset),
+    graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS.packetId.offset),
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],

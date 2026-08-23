@@ -426,18 +426,20 @@ export class LapDetector implements ILapDetector {
       // Capture the frame buffer before resetLapState reassigns it — the insert
       // below is fire-and-forget, so persistLapMetrics runs after the reset.
       const lapPackets = this.lapBuffer;
-      this.db.insertLap(
-        this.currentSession.sessionId,
-        lapNum,
+      this.db.insertLap({
+        sessionId: this.currentSession.sessionId,
+        lapNumber: lapNum,
         lapTime,
-        valid,
-        this._lapByteOffset,
-        this._lapFrameCount,
-        null,
+        isValid: valid,
+        rawByteOffset: this._lapByteOffset,
+        rawFrameCount: this._lapFrameCount,
+        profileId: null,
         tuneId,
         invalidReason,
-        sectors
-      ).then(async (lapId) => {
+        sectors,
+        quality: null,
+        eligibility: null,
+      }).then(async (lapId) => {
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
         await this.persistLapFollowups(lapId, lapPackets);
@@ -488,18 +490,20 @@ export class LapDetector implements ILapDetector {
             this.currentSession.trackOrdinal
           );
           const lapPackets = this.lapBuffer;
-          this.db.insertLap(
-            this.currentSession.sessionId,
-            this.currentLapNumber,
+          this.db.insertLap({
+            sessionId: this.currentSession.sessionId,
+            lapNumber: this.currentLapNumber,
             lapTime,
-            false,
-            this._lapByteOffset,
-            this._lapFrameCount,
-            null,
-            tuneAssignment?.tuneId ?? null,
-            "incomplete",
-            null
-          ).then(async (lapId) => {
+            isValid: false,
+            rawByteOffset: this._lapByteOffset,
+            rawFrameCount: this._lapFrameCount,
+            profileId: null,
+            tuneId: tuneAssignment?.tuneId ?? null,
+            invalidReason: "incomplete",
+            sectors: null,
+            quality: null,
+            eligibility: null,
+          }).then(async (lapId) => {
             await this.persistLapFollowups(lapId, lapPackets);
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
@@ -547,18 +551,20 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
       const lapPackets = this.lapBuffer;
-      this.db.insertLap(
-        this.currentSession.sessionId,
-        lapNum,
+      this.db.insertLap({
+        sessionId: this.currentSession.sessionId,
+        lapNumber: lapNum,
         lapTime,
-        isComplete && this.lapIsValid,
-        this._lapByteOffset,
-        this._lapFrameCount,
-        null,
-        tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete",
-        null
-      ).then(async (lapId) => {
+        isValid: isComplete && this.lapIsValid,
+        rawByteOffset: this._lapByteOffset,
+        rawFrameCount: this._lapFrameCount,
+        profileId: null,
+        tuneId: tuneAssignment?.tuneId ?? null,
+        invalidReason: isComplete ? this.invalidReason : "incomplete",
+        sectors: null,
+        quality: null,
+        eligibility: null,
+      }).then(async (lapId) => {
         await this.persistLapFollowups(lapId, lapPackets);
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`

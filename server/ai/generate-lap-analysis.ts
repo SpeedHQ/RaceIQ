@@ -2,7 +2,11 @@ import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getCorners } from "../db/track-queries";
-import { getAnalysis, saveAnalysis } from "../db/analysis-queries";
+import {
+  analysisQualityIdentityForLap,
+  getAnalysis,
+  saveAnalysis,
+} from "../db/analysis-queries";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../lap-analysis/corners";
 import { loadSettings } from "../runtime/config/settings";
@@ -293,7 +297,12 @@ export async function generateLapAnalysis(
       durationMs: numberFor("durationMs") || Date.now() - startedAt,
       model,
     };
-    await writeAnalysis(lapId, text, usage);
+    await writeAnalysis(
+      lapId,
+      text,
+      usage,
+      analysisQualityIdentityForLap(lap),
+    );
     return { analysis: text, cached: false, usage, cornerFracs, hasTune };
   } catch (err) {
     return {

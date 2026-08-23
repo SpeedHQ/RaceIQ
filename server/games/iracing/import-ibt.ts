@@ -488,7 +488,7 @@ export async function commitStagedIbt(token: string, ownership: SessionOwnership
       const result = await importSessionFrames(
         ibtFrames(paths.ibt, manifest.preview),
         "iracing",
-        { requireLaps: true, ownership },
+        { requireLaps: true, ownership, source: "iracing-ibt" },
       );
       return {
         packetCount: result.packetCount,

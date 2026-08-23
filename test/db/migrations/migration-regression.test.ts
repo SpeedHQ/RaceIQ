@@ -117,6 +117,48 @@ describe("migration regressions", () => {
       { lapNumber: 8, isValid: 0, invalidReason: "outlap" },
       { lapNumber: 9, isValid: 1, invalidReason: null },
     ]);
+    const qualityRows = await client.execute(
+      "SELECT quality, eligibility FROM laps WHERE lap_number IN (7, 8) ORDER BY lap_number",
+    );
+    expect(
+      qualityRows.rows.map((row) => {
+        const quality = JSON.parse(String(row.quality));
+        const eligibility = JSON.parse(String(row.eligibility));
+        return {
+          phase: quality.classification.phase,
+          paceEligibility: quality.classification.paceEligibility,
+          structurallyValid: quality.structurallyValid,
+          invalidReason: quality.invalidReason,
+          factCodes: quality.facts.map(({ code }: { code: string }) => code),
+          reason: eligibility["normal-pace"].reasons[0].code,
+        };
+      }),
+    ).toEqual([
+      {
+        phase: "in",
+        paceEligibility: "excluded",
+        structurallyValid: true,
+        invalidReason: null,
+        factCodes: [
+          "quality_not_rebuilt",
+          "provenance_missing",
+          "non_pace_classification",
+        ],
+        reason: "non_pace_classification",
+      },
+      {
+        phase: "out",
+        paceEligibility: "excluded",
+        structurallyValid: true,
+        invalidReason: null,
+        factCodes: [
+          "quality_not_rebuilt",
+          "provenance_missing",
+          "non_pace_classification",
+        ],
+        reason: "non_pace_classification",
+      },
+    ]);
     client.close();
   });
 
@@ -164,5 +206,361 @@ describe("migration regressions", () => {
     client.close();
   });
 
+
+  test("v60 migrates v58 sessions and laps without v59 classification columns", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 58);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
+       VALUES (1, 10, 20, 'iracing', 'seed'),
+              (2, 10, 20, 'iracing', NULL)`,
+    );
+    await client.execute(
+      `INSERT INTO laps (session_id, lap_number, lap_time, is_valid, invalid_reason)
+       VALUES (1, 1, 90, 1, NULL),
+              (2, 1, 110, 0, 'offtrack')`,
+    );
+    await client.execute(
+      `INSERT INTO lap_analyses (lap_id, analysis)
+       VALUES (1, 'legacy lap analysis')`,
+    );
+    await client.execute(
+      `INSERT INTO compare_analyses (lap_a_id, lap_b_id, analysis)
+       VALUES (1, 2, 'legacy compare analysis')`,
+    );
+
+    await runMigrations(client, 60);
+
+    const lapColumns = await client.execute("PRAGMA table_info(laps)");
+    const cacheCounts = await client.execute(
+      `SELECT
+         (SELECT COUNT(*) FROM lap_analyses) AS lap_analysis_count,
+         (SELECT COUNT(*) FROM compare_analyses) AS compare_analysis_count`,
+    );
+    expect({
+      lapAnalysisCount: Number(cacheCounts.rows[0]?.lap_analysis_count),
+      compareAnalysisCount: Number(cacheCounts.rows[0]?.compare_analysis_count),
+    }).toEqual({
+      lapAnalysisCount: 0,
+      compareAnalysisCount: 0,
+    });
+    expect(lapColumns.rows.map((row) => String(row.name))).not.toEqual(
+      expect.arrayContaining(["phase", "conditions", "pace_eligibility"]),
+    );
+    const sessionRows = await client.execute(
+      `SELECT id, source, recording_quality, quality_schema_version,
+              quality_policy_version, quality_config_version, quality_generation
+       FROM sessions
+       ORDER BY id`,
+    );
+    expect(
+      sessionRows.rows.map((row) => {
+        const quality = JSON.parse(String(row.recording_quality));
+        return {
+          id: Number(row.id),
+          source: row.source,
+          sourceKind: quality.sourceKind,
+          facts: quality.facts.map(({ code, severity }: { code: string; severity: string }) => ({ code, severity })),
+          provenance: quality.provenance,
+          schemaVersion: row.quality_schema_version,
+          policyVersion: row.quality_policy_version,
+          configVersion: row.quality_config_version,
+          generation: row.quality_generation,
+        };
+      }),
+    ).toEqual([
+      {
+        id: 1,
+        source: "seed",
+        sourceKind: "unknown",
+        facts: [
+          { code: "quality_not_rebuilt", severity: "warning" },
+          { code: "provenance_missing", severity: "error" },
+        ],
+        provenance: {
+          schemaVersion: "legacy",
+          policyVersion: "legacy",
+          configurationVersion: "legacy",
+          sourceGeneration: "legacy",
+          outputGeneration: "legacy",
+        },
+        schemaVersion: "legacy",
+        policyVersion: "legacy",
+        configVersion: "legacy",
+        generation: "legacy",
+      },
+      {
+        id: 2,
+        source: null,
+        sourceKind: "unknown",
+        facts: [
+          { code: "quality_not_rebuilt", severity: "warning" },
+          { code: "provenance_missing", severity: "error" },
+        ],
+        provenance: {
+          schemaVersion: "legacy",
+          policyVersion: "legacy",
+          configurationVersion: "legacy",
+          sourceGeneration: "legacy",
+          outputGeneration: "legacy",
+        },
+        schemaVersion: "legacy",
+        policyVersion: "legacy",
+        configVersion: "legacy",
+        generation: "legacy",
+      },
+    ]);
+
+    const lapRows = await client.execute(
+      `SELECT session_id, lap_number, quality, eligibility, quality_schema_version,
+              quality_policy_version, quality_config_version, quality_generation
+       FROM laps
+       ORDER BY session_id, lap_number`,
+    );
+    expect(
+      lapRows.rows.map((row) => {
+        const quality = JSON.parse(String(row.quality));
+        const eligibility = JSON.parse(String(row.eligibility));
+        return {
+          sessionId: Number(row.session_id),
+          sourceKind: quality.sourceKind,
+          lifecycleState: quality.lifecycleState,
+          complete: quality.complete,
+          structurallyValid: quality.structurallyValid,
+          invalidReason: quality.invalidReason,
+          timing: quality.timing,
+          classification: quality.classification,
+          provenance: quality.provenance,
+          facts: quality.facts.map(
+            ({ code, severity }: { code: string; severity: string }) => ({ code, severity }),
+          ),
+          officialTiming: {
+            status: eligibility["official-timing"].status,
+            reason: eligibility["official-timing"].reasons[0].code,
+            severity: eligibility["official-timing"].reasons[0].severity,
+          },
+          normalPace: {
+            status: eligibility["normal-pace"].status,
+            reason: eligibility["normal-pace"].reasons[0].code,
+            severity: eligibility["normal-pace"].reasons[0].severity,
+          },
+          schemaVersion: row.quality_schema_version,
+          policyVersion: row.quality_policy_version,
+          configVersion: row.quality_config_version,
+          generation: row.quality_generation,
+        };
+      }),
+    ).toEqual([
+      {
+        sessionId: 1,
+        sourceKind: "unknown",
+        lifecycleState: "unavailable",
+        complete: true,
+        structurallyValid: true,
+        invalidReason: null,
+        timing: {
+          source: "simulator-history",
+          lapTimeMs: 90_000,
+          peakTelemetryLapTimeMs: null,
+          confirmed: true,
+        },
+        classification: { phase: "flying", conditions: [], paceEligibility: "eligible" },
+        provenance: {
+          schemaVersion: "legacy",
+          policyVersion: "legacy",
+          configurationVersion: "legacy",
+          sourceGeneration: "legacy",
+          outputGeneration: "legacy",
+        },
+        facts: [
+          { code: "quality_not_rebuilt", severity: "warning" },
+          { code: "provenance_missing", severity: "error" },
+        ],
+        officialTiming: {
+          status: "eligible_with_warning",
+          reason: "quality_not_rebuilt",
+          severity: "warning",
+        },
+        normalPace: {
+          status: "eligible_with_warning",
+          reason: "quality_not_rebuilt",
+          severity: "warning",
+        },
+        schemaVersion: "legacy",
+        policyVersion: "legacy",
+        configVersion: "legacy",
+        generation: "legacy",
+      },
+      {
+        sessionId: 2,
+        sourceKind: "unknown",
+        lifecycleState: "unavailable",
+        complete: true,
+        structurallyValid: false,
+        invalidReason: "offtrack",
+        timing: {
+          source: "simulator-history",
+          lapTimeMs: 110_000,
+          peakTelemetryLapTimeMs: null,
+          confirmed: true,
+        },
+        classification: { phase: "flying", conditions: [], paceEligibility: "eligible" },
+        provenance: {
+          schemaVersion: "legacy",
+          policyVersion: "legacy",
+          configurationVersion: "legacy",
+          sourceGeneration: "legacy",
+          outputGeneration: "legacy",
+        },
+        facts: [
+          { code: "quality_not_rebuilt", severity: "warning" },
+          { code: "provenance_missing", severity: "error" },
+        ],
+        officialTiming: {
+          status: "eligible_with_warning",
+          reason: "quality_not_rebuilt",
+          severity: "warning",
+        },
+        normalPace: {
+          status: "ineligible",
+          reason: "structurally_invalid",
+          severity: "error",
+        },
+        schemaVersion: "legacy",
+        policyVersion: "legacy",
+        configVersion: "legacy",
+        generation: "legacy",
+      },
+    ]);
+    client.close();
+  });
+  test("v60 keeps other-driver legacy participants unknown and non-local", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 58);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, ownership)
+       VALUES (1, 10, 20, 'iracing', 'others')`,
+    );
+    await client.execute(
+      `INSERT INTO laps (session_id, lap_number, lap_time, is_valid, invalid_reason)
+       VALUES (1, 1, 90, 0, 'pit lap')`,
+    );
+
+    await runMigrations(client, 60);
+
+    const sessionRow = await client.execute(
+      "SELECT recording_quality FROM sessions WHERE id = 1",
+    );
+    const lapRow = await client.execute(
+      "SELECT quality, invalid_reason FROM laps WHERE session_id = 1",
+    );
+    expect(JSON.parse(String(sessionRow.rows[0]?.recording_quality)).participant).toEqual({
+      kind: "opponent",
+      sourceId: null,
+      stableId: null,
+      identityState: "unknown",
+    });
+    const lapQuality = JSON.parse(String(lapRow.rows[0]?.quality));
+    expect(lapQuality.participant).toEqual({
+      kind: "opponent",
+      sourceId: null,
+      stableId: null,
+      identityState: "unknown",
+    });
+    expect(lapQuality).toMatchObject({
+      invalidReason: null,
+      structurallyValid: true,
+      classification: {
+        phase: "pit",
+        conditions: [],
+        paceEligibility: "excluded",
+      },
+    });
+    expect(lapRow.rows[0]?.invalid_reason).toBe("pit lap");
+    expect(lapQuality.facts.map(({ code }: { code: string }) => code)).toContain(
+      "non_pace_classification",
+    );
+    client.close();
+  });
+
+  test("v61 preserves nullable source profiles and round-trips profile JSON", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 60);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, source)
+       VALUES (1, 10, 20, 'iracing', 'native-live'),
+              (2, 10, 20, 'iracing', 'motec')`,
+    );
+
+    await runMigrations(client, 61);
+
+    const profile = {
+      schemaVersion: "1",
+      sourceKind: "motec",
+      channels: {
+        "motion.speed": {
+          treatment: "resampled",
+          mappingStatus: "normalized",
+          sourceChannels: [{ name: "Ground Speed", declaredHz: 50, effectiveHz: 20 }],
+          limitations: ["resampled export"],
+          evidenceId: "source-profile:speed",
+        },
+      },
+    };
+    await client.execute({
+      sql: "UPDATE sessions SET source_channel_profile = ? WHERE id = 2",
+      args: [JSON.stringify(profile)],
+    });
+
+    const rows = await client.execute(
+      "SELECT id, source_channel_profile FROM sessions ORDER BY id",
+    );
+    expect(rows.rows[0]?.source_channel_profile).toBeNull();
+    expect(JSON.parse(String(rows.rows[1]?.source_channel_profile))).toEqual(profile);
+    client.close();
+  });
+
+  test("v62 adds quality generation without overwriting existing lap metrics", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 61);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      "INSERT INTO laps (id, session_id, lap_number, lap_time, is_valid) VALUES (1, 1, 1, 90, 1)",
+    );
+    await client.execute({
+      sql: `INSERT INTO lap_metrics (lap_id, algo_version, insights, segment_stats)
+            VALUES (?, ?, ?, ?)`,
+      args: [1, 7, JSON.stringify([{ kind: "braking" }]), JSON.stringify([{ segment: 1 }])],
+    });
+
+    await runMigrations(client, 62);
+
+    const columns = await client.execute("PRAGMA table_info(lap_metrics)");
+    expect(columns.rows.map((row) => String(row.name))).toContain("quality_generation");
+    const row = await client.execute(
+      "SELECT lap_id, algo_version, insights, segment_stats, quality_generation FROM lap_metrics WHERE lap_id = 1",
+    );
+    const metric = row.rows[0];
+    expect({
+      lap_id: metric?.lap_id,
+      algo_version: metric?.algo_version,
+      insights: metric?.insights,
+      segment_stats: metric?.segment_stats,
+      quality_generation: metric?.quality_generation,
+    }).toEqual({
+      lap_id: 1,
+      algo_version: 7,
+      insights: JSON.stringify([{ kind: "braking" }]),
+      segment_stats: JSON.stringify([{ segment: 1 }]),
+      quality_generation: null,
+    });
+    client.close();
+  });
 
 });

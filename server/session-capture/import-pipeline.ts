@@ -3,9 +3,15 @@ import type { GameId } from "../../shared/games/ids";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
+import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
+import {
+  NullWsAdapter,
+  RealDbAdapter,
+  type DbAdapter,
+  type RealDbAdapterOptions,
+} from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 
@@ -18,6 +24,11 @@ export interface ImportedLap {
   carOrdinal: number;
   trackOrdinal: number;
 }
+export interface ImportSessionFramesOptions extends RealDbAdapterOptions {
+  /** Roll back the imported session and capture when no complete lap exists. */
+  requireLaps?: boolean;
+}
+
 
 /**
  * Delegates to RealDbAdapter but captures the returned lap IDs + session
@@ -36,7 +47,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     { carOrdinal: number; trackOrdinal: number }
   >();
 
-  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
+  constructor(options: RealDbAdapterOptions = {}) {
     this._inner = new RealDbAdapter(options);
   }
 
@@ -61,29 +72,15 @@ export class ImportCaptureAdapter implements DbAdapter {
     return id;
   }
 
-  insertLap(
-    sessionId: number,
-    lapNumber: number,
-    lapTime: number,
-    isValid: boolean,
-    rawByteOffset: number | null,
-    rawFrameCount: number,
-    profileId: number | null,
-    tuneId: number | null,
-    invalidReason: string | null,
-    sectors: number[] | null,
-    versionIdentity?: TelemetryVersionIdentity,
-  ): Promise<number> {
-    const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
-    ).then((id) => {
-      const meta = this._sessionMeta.get(sessionId);
+  insertLap(input: PersistLapInput): Promise<number> {
+    const pending = this._inner.insertLap(input).then((id) => {
+      const meta = this._sessionMeta.get(input.sessionId);
       this.laps.push({
         lapId: id,
-        sessionId,
-        lapNumber,
-        lapTime,
-        isValid,
+        sessionId: input.sessionId,
+        lapNumber: input.lapNumber,
+        lapTime: input.lapTime,
+        isValid: input.isValid,
         carOrdinal: meta?.carOrdinal ?? 0,
         trackOrdinal: meta?.trackOrdinal ?? 0,
       });
@@ -159,14 +156,6 @@ async function rollbackImport(
 
 type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
 
-interface ImportSessionFramesOptions {
-  /** Roll back the imported session and capture when no complete lap exists. */
-  requireLaps?: boolean;
-  /** Opt out of background profile generation for offline imports such as seeds. */
-  notifyDriverProfile?: boolean;
-  /** Ownership classification applied to every created session. */
-  ownership?: SessionOwnership;
-}
 
 /**
  * Feed any canonical raw-frame stream through an isolated parser + pipeline.
@@ -185,10 +174,7 @@ export async function importSessionFrames(
 }> {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const db = new ImportCaptureAdapter({
-    notifyDriverProfile: options.notifyDriverProfile,
-    ownership: options.ownership,
-  });
+  const db = new ImportCaptureAdapter(options);
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
   });

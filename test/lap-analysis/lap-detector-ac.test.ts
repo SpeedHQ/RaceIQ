@@ -2,9 +2,13 @@ import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "../support/recordings/parse-dump";
 import { LapDetectorAcc } from "../../server/games/acc/lap-detector"
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { initGameAdapters } from "../../shared/games/init";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
+
+initGameAdapters();
 
 afterAll(() => stopMaintenanceTasks());
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 // Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
 function makeFakeDb() {
@@ -12,19 +16,13 @@ function makeFakeDb() {
   return {
     inserted,
     insertSession: async () => 1,
-    insertLap: async (
-      _sessionId: number,
-      lapNumber: number,
-      lapTime: number,
-      valid: boolean,
-      _rawByteOffset: unknown,
-      _rawFrameCount: unknown,
-      _profileId: unknown,
-      _tuneId: unknown,
-      invalidReason: string | null,
-      _sectors: unknown
-    ) => {
-      inserted.push({ lapNumber, lapTime, valid, invalidReason });
+    insertLap: async (input: PersistLapInput) => {
+      inserted.push({
+        lapNumber: input.lapNumber,
+        lapTime: input.lapTime,
+        valid: input.isValid,
+        invalidReason: input.invalidReason,
+      });
       return inserted.length;
     },
     getTuneAssignment: async () => null,

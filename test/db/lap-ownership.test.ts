@@ -17,8 +17,8 @@ test("owned stats and profile pool exclude others while general reads preserve o
   const mine = await insertSession(1, 2, testGameId, "race", undefined, "mine");
   const others = await insertSession(1, 2, testGameId, "race", undefined, "others");
   sessionIds.push(mine, others);
-  await insertLap(mine, 1, 90_000, true, null, 0);
-  await insertLap(others, 1, 80_000, true, null, 0);
+  await insertLap({ sessionId: mine, lapNumber: 1, lapTime: 90_000, isValid: true, rawByteOffset: null, rawFrameCount: 0, profileId: null, tuneId: null, invalidReason: null, sectors: null, quality: null, eligibility: null });
+  await insertLap({ sessionId: others, lapNumber: 1, lapTime: 80_000, isValid: true, rawByteOffset: null, rawFrameCount: 0, profileId: null, tuneId: null, invalidReason: null, sectors: null, quality: null, eligibility: null });
 
   const stats = await getLapStats(testGameId);
   expect(stats.totalLaps).toBe(1);
@@ -37,7 +37,7 @@ test("legacy null ownership normalizes to mine at read boundary", async () => {
   const id = await insertSession(3, 4, testGameId);
   sessionIds.push(id);
   await db.update(sessions).set({ ownership: sql`'legacy'` }).where(eq(sessions.id, id)).run();
-  await insertLap(id, 1, 100_000, true, null, 0);
+  await insertLap({ sessionId: id, lapNumber: 1, lapTime: 100_000, isValid: true, rawByteOffset: null, rawFrameCount: 0, profileId: null, tuneId: null, invalidReason: null, sectors: null, quality: null, eligibility: null });
   expect((await getSessions(testGameId)).find((session) => session.id === id)?.ownership).toBe("mine");
   expect((await getLaps(testGameId)).find((lap) => lap.sessionId === id)?.ownership).toBe("mine");
 });

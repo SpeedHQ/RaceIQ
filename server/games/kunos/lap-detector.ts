@@ -241,18 +241,20 @@ export abstract class KunosLapDetector implements ILapDetector {
       this.currentSession!.bestLapTime = lapTime;
     }
 
-    const lapId = await this.db.insertLap(
-      this.currentSession!.sessionId,
-      lapNum,
+    const lapId = await this.db.insertLap({
+      sessionId: this.currentSession!.sessionId,
+      lapNumber: lapNum,
       lapTime,
       isValid,
-      lapByteOffset,
-      lapFrameCount,
-      null,
-      null,
+      rawByteOffset: lapByteOffset,
+      rawFrameCount: lapFrameCount,
+      profileId: null,
+      tuneId: null,
       invalidReason,
       sectors,
-    );
+      quality: null,
+      eligibility: null,
+    });
     // Precompute fuel/tyre metrics now (frames already in memory) so
     // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
