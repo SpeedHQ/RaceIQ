@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "langley-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 201,
+      "confirmation": null
+    }
+  ]
+}

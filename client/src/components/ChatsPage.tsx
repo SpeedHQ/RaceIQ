@@ -112,9 +112,8 @@ export function ChatsPage() {
           to: `${prefix}/compare` as never,
           search: {
             lapA: a.id,
-            lapB: b.id,
+            laps: String(b.id),
             carA: undefined,
-            carB: undefined,
             ai: 1,
           } as never,
         });

@@ -135,6 +135,8 @@ describe("iRacing raw source frame parser integration", () => {
       Yaw: 0.75,
       AngularVelocityY: 0.2,
     });
+    expect(normalizeIRacingFrame(leftFrame).iracing).not.toHaveProperty("latitudeDeg");
+    expect(normalizeIRacingFrame(leftFrame).iracing).not.toHaveProperty("headingNorthRad");
   });
 
   test("keeps historical v2 frames compatible without inventing raw YAML", () => {
@@ -313,7 +315,7 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet.iracing).not.toHaveProperty("sessionInfoUpdate");
   });
 
-  test("maps lateral, vertical, and braking acceleration onto canonical axes", () => {
+  test("normalizes iRacing left-positive lateral acceleration onto the canonical axis", () => {
     const frame = sampleFrame();
     frame.values = {
       ...frame.values,
@@ -324,7 +326,7 @@ describe("iRacing raw source frame parser integration", () => {
 
     const packet = normalizeIRacingFrame(frame);
 
-    expect(packet.AccelerationX).toBeCloseTo(4.2);
+    expect(packet.AccelerationX).toBeCloseTo(-4.2);
     expect(packet.AccelerationY).toBeCloseTo(9.8);
     expect(packet.AccelerationZ).toBeCloseTo(-3.5);
   });

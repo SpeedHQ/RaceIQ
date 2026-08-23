@@ -12,6 +12,7 @@ import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import { isValidNativeSectorStarts } from "../lap-analysis/sectors";
 
 export async function insertSession(
   carOrdinal: number,
@@ -66,7 +67,6 @@ export async function updateSessionRawFile(
 
 async function getAvailableStaleSessionRows(
   currentIds: string | string[],
-  reprocessableGameIds: GameId[],
 ): Promise<{ id: number; rawFile: string }[]> {
   const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
   const rows = await db
@@ -75,7 +75,6 @@ async function getAvailableStaleSessionRows(
     .where(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
-        inArray(sessions.gameId, reprocessableGameIds),
         or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )
@@ -86,21 +85,15 @@ async function getAvailableStaleSessionRows(
   );
 }
 
-export async function countStaleSessions(
-  currentIds: string | string[],
-  reprocessableGameIds: GameId[],
-): Promise<number> {
-  return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).length;
+export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
+  return (await getAvailableStaleSessionRows(currentIds)).length;
 }
 
 /**
  * Get IDs of sessions with stale lap detector versions and available raw files.
  */
-export async function getStaleSessions(
-  currentIds: string | string[],
-  reprocessableGameIds: GameId[],
-): Promise<number[]> {
-  return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).map((row) => row.id);
+export async function getStaleSessions(currentIds: string | string[]): Promise<number[]> {
+  return (await getAvailableStaleSessionRows(currentIds)).map((row) => row.id);
 }
 
 /**
@@ -350,7 +343,7 @@ export async function getSessionRecapData(
       const lap = await getLapById(row.id);
       const layout = lap?.telemetry
         .map((packet) => gameAdapter.getNativeSectorLayout!(packet))
-        .find((candidate) => candidate?.starts.length === sessionSectorCount);
+        .find((candidate) => candidate?.starts.length === sessionSectorCount && isValidNativeSectorStarts(candidate.starts));
       if (layout) {
         sectorStarts = [...layout.starts];
         break;

@@ -9,22 +9,24 @@
  * The racing line is preserved as `-raceline.csv` (it is a genuine reference line
  * for coaching, just not a centreline).
  *
- * Migration is per-track: the curated name lists in shared/data/tracks/meta/
- * were written against the racing line's segmentation, so the true centre — which
- * resolves corners the racing line had fused — only aligns writably on the tracks
- * in ADOPTED. The rest keep the racing line as their centerline until their name
- * list is re-curated against it (see issue #98).
+ * Migration is per-track: curated registry name lists were written against
+ * racing-line segmentation, so true centre — which resolves corners racing line
+ * fused — only aligns writably on tracks in ADOPTED. Others keep racing line as
+ * centerline until their roster is re-curated against it (see issue #98).
  *
  * Usage: bun scripts/games/acc/centerline-from-boundaries.ts [--write] [slug...]
  *   --write        persist; otherwise dry-run
  *   slug...        restrict to these tracks (defaults to ADOPTED)
  *   --all-pending  also report shift stats for not-yet-adopted tracks
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-
-const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const ACC_DIR = resolve(REPO_ROOT, "shared", "data", "tracks", "acc");
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  findTrackAssetIdentities,
+  isSharedAccGeometryAsset,
+} from "../../../shared/racing/tracks/storage/assets";
+import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 
 type Point = { x: number; z: number };
 
@@ -61,17 +63,34 @@ function main(): void {
   const allPending = args.includes("--all-pending");
   const only = args.filter((a) => !a.startsWith("--"));
 
-  const allSlugs = readdirSync(ACC_DIR)
-    .filter((f) => f.endsWith("-boundaries.json"))
-    .map((f) => f.replace("-boundaries.json", ""))
-    .sort();
+  const allSlugs = [...new Set(
+    [...getAccTracks().values()]
+      .map((track) => track.commonTrackName)
+      .filter((slug): slug is string => Boolean(slug)),
+  )].sort();
 
   const target = only.length > 0 ? only : allPending ? allSlugs : ADOPTED;
 
   for (const slug of allSlugs) {
-    const boundariesPath = join(ACC_DIR, `${slug}-boundaries.json`);
-    const centerlinePath = join(ACC_DIR, `${slug}-centerline.csv`);
-    const racelinePath = join(ACC_DIR, `${slug}-raceline.csv`);
+    const identity = findTrackAssetIdentities(slug, "acc")[0];
+    if (!identity) {
+      console.error(`[${slug}] no canonical registry assignment — skipped`);
+      continue;
+    }
+    const shared = isSharedAccGeometryAsset(identity);
+    const boundariesPath = shared
+      ? bundledSharedGeometryPath(identity, "acc", slug, "boundaries")
+      : bundledGeometryPath(identity, "boundaries");
+    const centerlinePath = shared
+      ? bundledSharedGeometryPath(identity, "acc", slug, "centerline")
+      : bundledGeometryPath(identity, "centerline");
+    const racelinePath = shared
+      ? bundledSharedGeometryPath(identity, "acc", slug, "raceline")
+      : bundledGeometryPath(identity, "raceline");
+    if (!boundariesPath || !centerlinePath || !racelinePath || !existsSync(boundariesPath)) {
+      console.error(`[${slug}] bundled ACC geometry missing — skipped`);
+      continue;
+    }
 
     const boundaries = JSON.parse(readFileSync(boundariesPath, "utf8")) as {
       leftEdge: Point[];

@@ -115,7 +115,17 @@ export function FuelGauge({ packet, view }: { packet?: TelemetryPacket; view?: L
   }, [packet?.LapNumber, packet?.Fuel]);
 
   if (!packet && view) {
-    const fuel = getFuelDisplaySemantic(view.fuel.amount ?? 0, view.fuel.capacity, fuelSpec);
+    if (
+      !Number.isFinite(view.fuel.remainingVolumeL) &&
+      !Number.isFinite(view.fuel.remainingFraction)
+    ) {
+      return null;
+    }
+    const fuel = getFuelDisplaySemantic({
+      remainingVolumeL: view.fuel.remainingVolumeL,
+      remainingFraction: view.fuel.remainingFraction,
+      capacityL: view.fuel.capacityL,
+    });
     const fillPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
     const isCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
     const isWarning = !isCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);

@@ -57,13 +57,12 @@ describe("game route helpers", () => {
     });
   });
 
-  test("validates comparison search values", () => {
-    expect(validateCompareSearch({ track: "12", carA: 34, carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1", ignored: "x" })).toEqual({
+  test("validates multi-lap comparison search values", () => {
+    expect(validateCompareSearch({ track: "12", carA: 34, lapA: "8", laps: "9,10,9,bad,-2", cursor: "15", ai: "1", ignored: "x" })).toEqual({
       track: 12,
       carA: 34,
-      carB: 35,
       lapA: 8,
-      lapB: 9,
+      laps: [9, 10],
       cursor: 15,
       ai: 1,
     });

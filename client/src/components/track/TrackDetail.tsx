@@ -1,6 +1,7 @@
-import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import { logicalSegmentCounts } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TrackMapLayerKey, TrackMapLayerState } from "@/components/track-map/types";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125TrackGuide } from "@/components/f1/f125/TrackGuide";
@@ -16,14 +17,15 @@ import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
-import { TrackDebugPanel } from "./debug/TrackDebugPanel";
+import { TrackGeometryWorkspace } from "./detail/TrackGeometryWorkspace";
 import { LapManagement } from "./detail/LapManagement";
 import { TrackCanvasPanel } from "./detail/TrackCanvasPanel";
-import { TrackDebugSidebar } from "./detail/TrackDebugSidebar";
 import type { TrackLap } from "./detail/types";
-import { useTrackSegmentEditor } from "./detail/useTrackSegmentEditor";
+import { useTrackGeometryEditor } from "./detail/useTrackGeometryEditor";
+import { TrackBaseImagery } from "./TrackBaseImagery";
+import { TrackLayoutSelector } from "./TrackLayoutSelector";
 import { TrackInfoPanel } from "./TrackInfoPanel";
-import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
+import type { TrackInfo } from "./types";
 
 /**
  * TrackDetail — Full-size track view with segment overlay and stats sidebar.
@@ -31,11 +33,15 @@ import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
  */
 export function TrackDetail({
   track,
+  layouts,
+  onTrackChange,
   onBack,
   tab,
   onTabChange,
 }: {
   track: TrackInfo;
+  layouts: TrackInfo[];
+  onTrackChange: (track: TrackInfo) => void;
   onBack: () => void;
   /** The active tab, from the route. This component doesn't own it. */
   tab: string;
@@ -43,12 +49,9 @@ export function TrackDetail({
   onTabChange: (tab: string) => void;
 }) {
   const gameId = useGameId();
-  const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [outline, setOutline] = useState<Point[] | null>(null);
-  const [flipX, setFlipX] = useState(false);
-  const [sectors, setSectors] = useState<TrackSectors | null>(null);
-  const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
+  const geometry = useTrackGeometryEditor({ gameId, track });
+  const { outline, pitLines, flipX, sectors, segmentSource: segSource, sectorBounds, editing, editSegments, editingSectors, editS1, editS2 } = geometry;
 
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, z: 0 });
@@ -58,14 +61,20 @@ export function TrackDetail({
   panRef.current = pan;
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
-  const [editing, setEditing] = useState(false);
-  const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [sectorBounds, setSectorBounds] = useState<{ s1End: number; s2End: number } | null>(null);
-  const [editingSectors, setEditingSectors] = useState(false);
-  const [editS1, setEditS1] = useState(33.3);
-  const [editS2, setEditS2] = useState(66.6);
-  const [savingSectors, setSavingSectors] = useState(false);
+  const [debugLayers, setDebugLayers] = useState<TrackMapLayerState>({
+    imagery: false,
+    boundaries: true,
+    pitLane: true,
+    outline: true,
+    racingLine: false,
+    segments: true,
+    sectors: false,
+    curbs: true,
+    trace: false,
+    inputs: false,
+    highlights: false,
+    car: false,
+  });
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
@@ -81,71 +90,20 @@ export function TrackDetail({
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
-  const { startEditing, updateSegFrac, toggleSegType, addSegment, removeSegment, saveSegments, startEditingSectors, saveSectorBounds } = useTrackSegmentEditor({
-    trackOrdinal: track.ordinal,
-    gameId: gid,
-    sectors,
-    setSectors,
-    sectorBounds,
-    setSectorBounds,
-    editSegments,
-    setEditSegments,
-    setEditing,
-    setSaving,
-    editS1,
-    editS2,
-    setEditS1,
-    setEditS2,
-    setEditingSectors,
-    setSavingSectors,
-  });
   // "info" leads: reference data and index route for unfamiliar tracks.
   const allTabs = hasCatalogSetups
-    ? (["info", "laps", "setups", "debug"] as const)
+    ? (["info", "imagery", "laps", "setups", "debug"] as const)
     : isF125
-      ? (["info", "laps", "setups", "guide", "debug"] as const)
+      ? (["info", "imagery", "laps", "setups", "guide", "debug"] as const)
       : isAcc
-        ? (["info", "laps", "setups", "guide", "debug"] as const)
-        : (["info", "laps", "debug"] as const);
+        ? (["info", "imagery", "laps", "setups", "guide", "debug"] as const)
+        : (["info", "imagery", "laps", "debug"] as const);
   type Tab = (typeof allTabs)[number];
   const validTabs = allTabs;
   // The tab is the route — the URL owns it, not this component. A tab the
   // current game doesn't have falls back to info rather than rendering blank.
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
 
-  const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", track.ordinal, gameId ?? null],
-    queryFn: () =>
-      Promise.all([
-        client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
-          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
-        client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
-        client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
-      ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: track.hasOutline && !!gameId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    if (!trackMapData) return;
-    const { outlineData, sectorData, boundsData } = trackMapData;
-    if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
-      setOutline(outlineData.points);
-      setFlipX(outlineData.flipX ?? false);
-    } else if (Array.isArray(outlineData)) {
-      setOutline(outlineData as Point[]);
-    } else {
-      setOutline(null);
-    }
-    setSectors(sectorData);
-    setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
-    if (boundsData?.s1End) setSectorBounds(boundsData);
-  }, [trackMapData]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
@@ -171,8 +129,8 @@ export function TrackDetail({
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, pitLines, editing);
+  }, [outline, pitLines, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -207,11 +165,8 @@ export function TrackDetail({
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Corner names carry their official turn numbers; straights are auto-numbered.
-  const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
 
-  const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
-  const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
+  const { corners: cornerCount, straights: straightCount } = useMemo(() => logicalSegmentCounts(displaySectors?.segments ?? []), [displaySectors]);
 
   // Lap manager: unique cars, filtered & sorted laps
   const uniqueCars = useMemo(() => {
@@ -317,8 +272,9 @@ export function TrackDetail({
           <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
             <div className="text-app-label text-app-text-muted">
-              {track.variant} · {track.location}, {countryName(track.country)}
-              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+              {track.variant} · {track.location}
+              {track.country && `, ${countryName(track.country)}`}
+              {track.lengthKm > 0 && ` · ${track.lengthKm} km`} · {layouts.length} {layouts.length === 1 ? m.trackcard_layout() : m.trackcard_layouts()}
             </div>
           </div>
         </div>
@@ -331,74 +287,42 @@ export function TrackDetail({
                   ? `${m.label_laps()} (${trackLaps.length})`
                   : tab === "info"
                     ? m.track_detail_info_tab()
-                    : tab === "guide"
-                      ? m.track_detail_guides_tab()
-                      : tab === "setups"
-                        ? m.track_detail_setup_tab()
-                        : tab === "debug"
-                          ? m.trackdetail_debug_tab()
-                          : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    : tab === "imagery"
+                      ? m.track_detail_imagery_tab()
+                      : tab === "guide"
+                        ? m.track_detail_guides_tab()
+                        : tab === "setups"
+                          ? m.track_detail_setup_tab()
+                          : tab === "debug"
+                            ? m.trackdetail_debug_tab()
+                            : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
       </div>
 
-      {/* Debug: full-page view with segments/sectors sidebar */}
+      {/* Debug: shared geometry renderer and both production editors. */}
       {activeTab === "debug" ? (
-        <div className="flex gap-4 h-[calc(100vh-160px)]">
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <TrackDebugPanel
-              trackOrdinal={track.ordinal}
-              outline={outline}
-              flipX={flipX}
-              displaySectors={displaySectors}
-              sectorBounds={editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : sectorBounds}
-              editingSegments={editing}
-              editingSectors={editingSectors}
-              trackLengthKm={track.lengthKm}
-              trackCreatedAt={track.createdAt ?? undefined}
-              corners={corners.length}
-              straights={straights.length}
-            />
-          </div>
-          <TrackDebugSidebar
-            track={track}
-            gameId={gameId}
-            displaySectors={displaySectors}
-            segSource={segSource}
-            editing={editing}
-            editSegments={editSegments}
-            saving={saving}
-            sectorBounds={sectorBounds}
-            editingSectors={editingSectors}
-            editS1={editS1}
-            editS2={editS2}
-            savingSectors={savingSectors}
-            segDisplayNames={segDisplayNames}
-            startEditing={startEditing}
-            saveSegments={saveSegments}
-            toggleSegType={toggleSegType}
-            addSegment={addSegment}
-            removeSegment={removeSegment}
-            updateSegFrac={updateSegFrac}
-            setEditing={setEditing}
-            startEditingSectors={startEditingSectors}
-            saveSectorBounds={saveSectorBounds}
-            setEditingSectors={setEditingSectors}
-            setEditS1={setEditS1}
-            setEditS2={setEditS2}
+        <div className="min-h-[32rem]">
+          <TrackGeometryWorkspace
+            model={geometry}
+            mode={mapDisplayMode === "segments" ? "turns" : "sectors"}
+            layers={debugLayers}
+            onLayerChange={(key: TrackMapLayerKey, checked: boolean) => setDebugLayers((current) => ({ ...current, [key]: checked }))}
+            editorScope="all"
           />
         </div>
       ) : (
         <div className="flex flex-col gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col gap-4 @3xl/workspace:overflow-hidden">
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
-            {activeTab !== "setups" && (
+            {activeTab !== "setups" && activeTab !== "imagery" && (
               <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
-                {/* Info summary left of map, same shape as the laps leaderboard */}
+                {/* Base-track layouts and selected layout summary */}
                 {activeTab === "info" && (
-                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                  <div className="order-2 flex min-h-[200px] w-full shrink-0 flex-col gap-3 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                    <TrackLayoutSelector layouts={layouts} selectedOrdinal={track.ordinal} onSelect={onTrackChange} />
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
                   </div>
                 )}
@@ -422,14 +346,19 @@ export function TrackDetail({
                   displaySectors={displaySectors}
                   mapDisplayMode={mapDisplayMode}
                   setMapDisplayMode={setMapDisplayMode}
-                  corners={corners}
-                  straights={straights}
+                  cornerCount={cornerCount}
+                  straightCount={straightCount}
                 />
               </div>
             )}
 
             {/* Tab content */}
             <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {activeTab === "imagery" && (
+                <div className="min-h-0 flex-1 overflow-auto p-1">
+                  <TrackBaseImagery baseTrackName={track.name} imageUrl={track.baseImageUrl ?? null} />
+                </div>
+              )}
               {/* Setups tab — no outer scroll, component handles its own */}
               {activeTab === "setups" && (
                 <div className="flex-1 min-h-0">
@@ -450,7 +379,9 @@ export function TrackDetail({
                 </div>
               )}
 
-              <div className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+              <div
+                className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" || activeTab === "imagery" ? "hidden" : ""}`}
+              >
                 {/* Info tab — guide + segments read full width under the map */}
                 {activeTab === "info" && (
                   <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />

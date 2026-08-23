@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { useTracks } from "@/hooks/catalog-queries";
+import { baseTrackKey } from "@/lib/track-groups";
 import { trackRoutePath, tracksIndexPath } from "@/lib/track-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
@@ -22,6 +23,7 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
 
   const { data: tracks = [], isLoading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
   const track = tracks.find((t) => t.ordinal === ordinal) ?? null;
+  const layouts = track ? tracks.filter((candidate) => baseTrackKey(candidate.name) === baseTrackKey(track.name)) : [];
 
   const onTabChange = useCallback(
     (next: string) => {
@@ -29,6 +31,13 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
       navigate({ to: trackRoutePath(gameId, ordinal, next), replace: true });
     },
     [navigate, gameId, ordinal],
+  );
+  const onTrackChange = useCallback(
+    (nextTrack: TrackInfo) => {
+      if (!gameId) return;
+      navigate({ to: trackRoutePath(gameId, nextTrack.ordinal, tab) });
+    },
+    [navigate, gameId, tab],
   );
 
   const onBack = useCallback(() => {
@@ -39,5 +48,5 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   if (isLoading) return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
   if (!track) return <div className="p-4 text-app-text-dim">{m.trackdetailroute_not_found()}</div>;
 
-  return <TrackDetail track={track} onBack={onBack} tab={tab} onTabChange={onTabChange} />;
+  return <TrackDetail track={track} layouts={layouts} onTrackChange={onTrackChange} onBack={onBack} tab={tab} onTabChange={onTabChange} />;
 }

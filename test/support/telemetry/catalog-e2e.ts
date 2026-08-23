@@ -197,6 +197,7 @@ export async function assertRecordedCatalogCoverage(coverage: RecordedCatalogCov
 
       if (!resolvedById.has(expectation.semanticId)) {
         expect(resolved.mappingStatus).toBe(expectation.mappingStatus);
+        expect(resolved.unit).toBe(expectation.unit);
         expect(resolved.schemaVersion).toBe(TELEMETRY_CATALOG.metadata.schemaVersion);
         expect(resolved.confidence).toBeGreaterThan(0);
         expect(resolved.provenance.simulator).toBe(coverage.gameId);

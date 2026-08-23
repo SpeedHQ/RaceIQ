@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mid-ohio-sports-car-course/full-course",
+  "name": "Full Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 153,
+      "confirmation": null
+    }
+  ]
+}

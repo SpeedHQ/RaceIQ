@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "knockhill-racing-circuit/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 425,
+      "confirmation": null
+    }
+  ]
+}

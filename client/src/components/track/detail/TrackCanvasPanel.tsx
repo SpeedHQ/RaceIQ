@@ -18,12 +18,12 @@ interface TrackCanvasPanelProps {
   displaySectors: TrackSectors | null;
   mapDisplayMode: "segments" | "sectors";
   setMapDisplayMode: Dispatch<SetStateAction<"segments" | "sectors">>;
-  corners: TrackSectors["segments"];
-  straights: TrackSectors["segments"];
+  cornerCount: number;
+  straightCount: number;
 }
 
 export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
-  const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorBounds, displaySectors, mapDisplayMode, setMapDisplayMode, corners, straights } = props;
+  const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorBounds, displaySectors, mapDisplayMode, setMapDisplayMode, cornerCount, straightCount } = props;
   return (
     <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
       {outline ? (
@@ -99,16 +99,16 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
       {/* Track info overlay — bottom left */}
       <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-app-caption font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
         {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
-        {corners.length > 0 && (
+        {cornerCount > 0 && (
           <>
             <span className="text-app-text-dim/40">·</span>
-            <span>{corners.length} corners</span>
+            <span>{cornerCount} corners</span>
           </>
         )}
-        {straights.length > 0 && (
+        {straightCount > 0 && (
           <>
             <span className="text-app-text-dim/40">·</span>
-            <span>{straights.length} straights</span>
+            <span>{straightCount} straights</span>
           </>
         )}
         {track.createdAt && (

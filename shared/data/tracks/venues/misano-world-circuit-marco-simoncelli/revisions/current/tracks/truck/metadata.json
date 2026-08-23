@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/truck",
+  "name": "Truck",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 505,
+      "confirmation": null
+    }
+  ]
+}

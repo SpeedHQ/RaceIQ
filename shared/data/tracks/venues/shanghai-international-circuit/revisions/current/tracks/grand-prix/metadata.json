@@ -1,0 +1,228 @@
+{
+  "version": 1,
+  "id": "shanghai-international-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 2,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "shanghai",
+    "track": "shanghai",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Shanghai International Circuit",
+    "source": "Official F1 track map (16 turns); Snail T1-2",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Snail",
+        "direction": "right",
+        "group": "Snail"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right",
+        "group": "Snail"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left",
+        "group": "T3-4"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left",
+        "group": "T3-4"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right",
+        "group": "T12-13"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right",
+        "group": "T12-13"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "name": ""
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 13,
+        "name": "Back Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.342,
+        "s2End": 0.6809999999999999
+      },
+      "segments": [
+        {
+          "key": "s16",
+          "startFrac": 0,
+          "endFrac": 0.1032
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1032,
+          "endFrac": 0.1423
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1423,
+          "endFrac": 0.1561
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1561,
+          "endFrac": 0.1661
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1661,
+          "endFrac": 0.1885
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.1885,
+          "endFrac": 0.2173
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2173,
+          "endFrac": 0.2697
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2697,
+          "endFrac": 0.3336
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3336,
+          "endFrac": 0.4095
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.4095,
+          "endFrac": 0.4582
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.4582,
+          "endFrac": 0.4807
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.4807,
+          "endFrac": 0.507
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.507,
+          "endFrac": 0.549
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.549,
+          "endFrac": 0.5843
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5843,
+          "endFrac": 0.5929
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.5929,
+          "endFrac": 0.6114
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.6114,
+          "endFrac": 0.8533
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8533,
+          "endFrac": 0.8986
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.8986,
+          "endFrac": 0.9212
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.9212,
+          "endFrac": 0.9666
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.9666,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

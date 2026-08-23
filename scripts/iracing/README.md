@@ -9,6 +9,7 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 | `bun scripts/iracing/probe-ibt.ts <recording.ibt>` | Summarize IBT metadata and normalized stream health | Reads IBT; writes JSON to stdout |
 | `bun scripts/iracing/seed-cars.ts` | Seed car catalog and bundled car images | Reads JSON source; writes `shared/games/iracing/cars.csv` and `client/public/iracing-car-images/` |
 | `bun scripts/iracing/seed-tracks.ts` | Seed track layout catalog | Reads track and asset JSON sources; writes `shared/games/iracing/tracks.csv` |
+| `bun scripts/iracing/seed-track-maps.ts` | Seed bundled official track-map layers | Downloads upstream SVG layers; writes `venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/iracing/official/{active,start-finish,turns,pit-road}.svg` |
 | `bun scripts/iracing/generate-recording-fixture.ts` | Rebuild deterministic recorder fixture | Writes `test/artifacts/sessions/iracing-road-america-gt3.bin.gz` |
 | `bun scripts/iracing/generate-seed-fixture.ts <recording.ibt>` | Build compact real-telemetry fixture | Reads IBT; writes `test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz` |
 
@@ -30,7 +31,12 @@ Domain tooling for inspecting IBT recordings, rebuilding committed fixtures, and
 - `--output <file>`: CSV destination.
 - `--include-retired`: retain retired layouts.
 
-Both seeders accept HTTP(S) URLs or local JSON files. URL headers and error messages remain domain-specific. CSV quoting and option lookup come from `scripts/lib`.
+`seed-track-maps.ts` reads the committed track catalog and stores source SVG bytes without a normalized combined JSON copy. Options:
+
+- `--output <directory>`: track-data root containing `venues/<root>/revisions/<revision-path>/tracks/<layout>/geometry/iracing/official/`; defaults to `shared/data/tracks`.
+- `--reuse-maps`: reuse complete raw layer sets already in output directory.
+
+Catalog seeders accept HTTP(S) URLs or local JSON files. URL headers and error messages remain domain-specific. CSV quoting and option lookup come from `scripts/lib`.
 
 ## Boundaries and verification
 

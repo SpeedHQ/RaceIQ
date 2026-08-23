@@ -1,62 +1,62 @@
 # Track data
 
-Static track assets used by `shared/racing/tracks` loaders.
+Static registry source, generated runtime projection, and shippable track assets used by `shared/racing/tracks`.
 
-## Purpose
-- Store canonical facts and per-game geometry snapshots.
-- Store shared outlines, boundaries, detector hints, guides, and coverage signatures.
+## Hierarchy and identity
 
-## Top-level map
-- `meta/<slug>.json` — game-agnostic facts.
-- `detect-hints.json` — optional curve-detection allowances keyed by `<slug>`.
-- `verified.json` — manual verification ledger for curation.
-- `guides/<slug>.json` — authored guidance and corner callouts.
-- `tumftm/<slug>-centerline.csv`, `tumftm/<slug>-boundaries.json` — shared baseline geometry.
-- `<gameId>/<slug>-segments.json` and extracted files for game-specific geometry.
+```text
+venues/<root-venue>/venue.json
+venues/<root-venue>/revisions/<revision-path>/revision.json
+venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
+```
 
-Per-game dirs currently present:
-- `acc/`, `ac-evo/`, `fm-2023/`, `f1-2025/`.
+- `venue.json` identifies stable physical venue root.
+- `revision.json` has `{ version: 1, id: <revision-path>, name }`.
+- `current` is source-only default revision. Current layout ID is `<root-venue>/<layout>`; do not add `/current/`.
+- Historical layout ID includes its revision: `<root-venue>/<revision-path>/<layout>`. Example: `monza/2010/grand-prix`; nested revision example: `monza/historical/2011/grand-prix`.
+- Layout ID order is always venue, optional historical revision, layout. Never layout then revision.
+- `current` does not create a projected venue node. Historical revision documents reconstruct existing nested venue nodes.
 
-## File formats
-- **meta** (`slug.json`):
-  - `{ slug, track, layout, layoutName, name, source?, corners[], straights? }`.
-  - Corner fields include number, optional covers, name, optional direction/group.
-- **segments** (`<slug>-segments.json`):
-  - `{ sectors?: { s1End, s2End }, segments: [{ key, startFrac, endFrac }] }`.
-  - Keys are shared-semantics keys from `shared/racing/tracks/keys.ts` (`t1`, `t10-11`, `s3`).
-- **centerline/raceline CSV**:
-  - header `x,z`, one point per row.
-- **boundaries JSON**:
-  - `leftEdge` and `rightEdge` point arrays, plus source-specific metadata such as `centerLine`, `pitLane`, `coordSystem`, `altitude`, `waypoints`, or `aligned`.
-- **detect hints**:
-  - `{ [slug]: { [turnNumber]: { spans?, optional? } } }`.
-- **guide JSON**:
-  - `{ id, locale, character, sources, corners[], priorityCorners }`.
-- **verified ledger**:
-  - `{ path: { hash, date, by?, note? } }` keyed by repository-relative asset path.
+## Asset ownership
 
-## Sources of truth
-- `meta/<slug>.json` is authoritative for physical track identity, corner numbering/names, groups, and named straights. Its `source` field must cite the real-world claim.
-- `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are generated snapshots of game data. The installed game data read by the matching extractor is authoritative.
-- `tumftm/*` is imported baseline geometry from TUMFTM/racetrack-database; retain its source identity when refreshing it.
-- `guides/*` and `detect-hints.json` are reviewed, hand-curated inputs. Hints describe detector behavior only and must not carry physical track facts.
-- `verified.json` records human review of exact file hashes. Generation must never stamp verification automatically.
+- Revision-scoped imagery: `venues/<root-venue>/revisions/<revision-path>/imagery/`.
+- Layout structural source: `tracks/<layout>/metadata.json`, with assignments, optional facts, `geometryByGame`, and verification.
+- Layout-local assets: `tracks/<layout>/geometry/<gameId>/`, `guide.json`, and optional `detect-hints.json`.
+  - Every game-scoped asset needs explicit `gameId`; never infer/default one.
+  - iRacing source layers live at `geometry/iracing/official/{active,start-finish,turns,pit-road}.svg`.
+- Shared root geometry is exceptional: `venues/<root-venue>/geometry/acc/` and `venues/<root-venue>/geometry/tumftm/`. Do not move it into a revision or layout.
+- `registry.sqlite` projects source for runtime; `registry-report.json` is generated audit output.
+
+## Data formats
+
+- Centerline/raceline CSV: header `x,z`, one point each row.
+- Boundaries JSON: `leftEdge` and `rightEdge`, plus source metadata such as `centerLine`, `pitLane`, `coordSystem`, `altitude`, `waypoints`, or `aligned`.
+- Detect hints: `{ [turnNumber]: { spans?, optional? } }`.
+- Guide JSON: `{ id, locale, character, sources, corners[], priorityCorners }`.
+- Segment keys from `shared/racing/tracks/keys.ts`: turns `t1`, `t10-11`; straights `s3`.
+
+## Source and runtime boundary
+
+- Venue, revision, and layout manifests are editable source authority. Authoring APIs update source, then regenerate `registry.sqlite` and `registry-report.json`.
+- Never edit generated artifacts or export SQLite into source.
+- Runtime ships `registry.sqlite` plus revision imagery, layout geometry, and guides. It excludes `venue.json`, `revision.json`, `metadata.json`, `detect-hints.json`, and registry report/source files.
+- Merge generated-artifact conflicts through source manifests, then run `bun run tracks:registry`.
+- `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are extractor snapshots. Installed-game data is authoritative when refreshing them.
+- Root `geometry/tumftm/` is imported baseline data; retain source identity.
 
 ## Regeneration
-1. Refresh the committed track catalog in `shared/games/<game>/tracks.csv` when game content changes.
-2. Run the matching extractor:
-   - `bun run extract:tracks:forza`
-   - `bun run extract:tracks:f1`
-   - `bun run extract:tracks:acc`
-   - `bun run extract:tracks:ac-evo`
-3. Dry-run alignment with `bun run tracks:segments --track <slug> [--game <gameId>]`.
-4. Inspect alignment issues, then persist acceptable output with `bun run tracks:segments --track <slug> --write`. Use `--allow-fuzzy` only after reviewing the reported mismatch.
-5. Manually compare facts to the cited circuit source and geometry to a rendered/extracted lap before recording sign-off with `bun run tracks:coverage --verify ...`.
-6. Refresh contribution-guide coverage tables with `bun run tracks:coverage --write`.
 
-## Curation expectations
-- Preserve the core invariant: facts contain classification and names but no fractions; game geometry contains fractions and keys but no names.
-- Keep one canonical slug across `meta/`, per-game assets, guides, detector hints, and verification keys.
-- Account for every official turn exactly once and keep turns in racing order. Use `covers` for one physical corner spanning several official numbers.
-- Add `optional` or `spans` hints only for demonstrated centerline/detector behavior.
-- Do not invent corner names or citations, hand-edit generated fraction ranges, or verify data that was not manually inspected.
+1. Refresh `shared/games/<game>/tracks.csv`.
+2. Run matching extractor: `bun run extract:tracks:forza`, `bun run extract:tracks:f1`, `bun run extract:tracks:acc`, or `bun run extract:tracks:ac-evo`.
+3. Inspect alignment: `bun run tracks:segments --track <slug> [--game <gameId>]`.
+4. Persist reviewed source: `bun run tracks:segments --track <slug> --write`; use `--allow-fuzzy` only after review.
+5. Compare facts and geometry to cited circuit sources before human `bun run tracks:coverage --verify ...`.
+6. Regenerate registry and coverage tables after source changes.
+
+## Curation rules
+
+- One canonical layout identity joins metadata, game assignments, assets, guides, hints, and runtime projection.
+- Keep facts, `geometryByGame`, and verification in one layout `metadata.json`; omit uncurated optional sections.
+- Account for each official turn once, in racing order; use `covers` for one physical corner spanning official numbers.
+- Add hint `optional` or `spans` only for demonstrated detector behavior.
+- Do not invent corner names/citations or mutate generated projection.

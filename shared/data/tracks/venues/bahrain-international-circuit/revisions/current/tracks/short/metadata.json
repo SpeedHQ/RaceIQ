@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "bahrain-international-circuit/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 21,
+      "confirmation": null
+    }
+  ]
+}

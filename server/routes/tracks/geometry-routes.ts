@@ -275,8 +275,7 @@ export const trackGeometryRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
 
       const curbs = getTrackCurbs(ordinal, requireGameId(c));
-      if (!curbs) return c.json({ error: "No curb data" }, 404);
-      return c.json(curbs);
+      return c.json(curbs ?? null);
     }
   )
 

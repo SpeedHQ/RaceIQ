@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "autodromo-internacional-do-algarve/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 28,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 509,
+      "confirmation": null
+    }
+  ]
+}

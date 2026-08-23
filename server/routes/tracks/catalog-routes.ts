@@ -13,6 +13,7 @@ import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
+import { getBaseTrackImageUrl } from "../../tracks/imagery";
 
 export const trackCatalogInfoRoutes = new Hono()
 
@@ -65,6 +66,7 @@ export const trackCatalogRoutes = new Hono()
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
+            baseImageUrl: getBaseTrackImageUrl("f1-2025", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -87,6 +89,7 @@ export const trackCatalogRoutes = new Hono()
             lengthKm: 0,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
+            baseImageUrl: getBaseTrackImageUrl("acc", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -109,6 +112,7 @@ export const trackCatalogRoutes = new Hono()
             lengthKm: 0,
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
+            baseImageUrl: getBaseTrackImageUrl("ac-evo", info.name),
             createdAt: null,
             lapCount: lapCounts.get(id) ?? 0,
           };
@@ -147,6 +151,18 @@ export const trackCatalogRoutes = new Hono()
             variant: info.variant,
             lengthKm: info.lengthKm,
             category: info.category,
+            cornersPerLap: info.cornersPerLap,
+            pitRoadSpeedLimitMph: info.pitRoadSpeedLimitMph,
+            numberPitStalls: info.numberPitStalls,
+            maxCars: info.maxCars,
+            nightLighting: info.nightLighting,
+            rainEnabled: info.rainEnabled,
+            latitude: info.latitude,
+            longitude: info.longitude,
+            timeZone: info.timeZone,
+            pitMapUrl: info.pitMapUrl || null,
+            startFinishMapUrl: info.startFinishMapUrl || null,
+            turnsMapUrl: info.turnsMapUrl || null,
             hasOutline,
             hasMap: hasOutline,
             mapUrl: info.mapUrl || null,
@@ -158,6 +174,7 @@ export const trackCatalogRoutes = new Hono()
                   ? "generated"
                   : null,
             commonTrackName: info.commonTrackName || null,
+            baseImageUrl: getBaseTrackImageUrl("iracing", info.name),
             createdAt: null,
             lapCount: lapCounts.get(info.ordinal) ?? 0,
           };
@@ -172,11 +189,24 @@ export const trackCatalogRoutes = new Hono()
             variant: "",
             lengthKm: 0,
             category: "",
+            cornersPerLap: null,
+            pitRoadSpeedLimitMph: null,
+            numberPitStalls: null,
+            maxCars: null,
+            nightLighting: null,
+            rainEnabled: null,
+            latitude: null,
+            longitude: null,
+            timeZone: null,
+            pitMapUrl: null,
+            startFinishMapUrl: null,
+            turnsMapUrl: null,
             hasOutline: false,
             hasMap: false,
             mapUrl: null,
             outlineSource: null,
             commonTrackName: null,
+            baseImageUrl: getBaseTrackImageUrl("iracing", track.name),
             createdAt: track.createdAt,
             lapCount: lapCounts.get(track.ordinal) ?? 0,
           }));
@@ -207,6 +237,7 @@ export const trackCatalogRoutes = new Hono()
           lengthKm: info.lengthKm,
           hasOutline: hasBundled,
           outlineSource: hasBundled ? "bundled" : null,
+          baseImageUrl: getBaseTrackImageUrl("fm-2023", info.name),
           createdAt: null,
           lapCount: lapCounts.get(ordinal) ?? 0,
         };

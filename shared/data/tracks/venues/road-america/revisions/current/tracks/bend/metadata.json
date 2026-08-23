@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "road-america/bend",
+  "name": "Bend",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 50,
+      "confirmation": null
+    }
+  ]
+}

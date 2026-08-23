@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 577,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kokomo-speedway/tires-in",
+  "name": "Tires in",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 320,
+      "confirmation": null
+    }
+  ]
+}

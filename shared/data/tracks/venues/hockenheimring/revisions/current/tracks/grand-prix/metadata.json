@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "hockenheimring/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 8,
+      "confirmation": null
+    }
+  ]
+}

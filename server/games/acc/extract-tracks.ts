@@ -7,11 +7,14 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, dirname } from "node:path";
 import { findSteamInstall } from "../shared/steam-install";
-
-const _scriptDir = dirname(fileURLToPath(import.meta.url));
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  getTrackAssetIdentity,
+  isSharedAccGeometryAsset,
+} from "../../../shared/racing/tracks/storage/assets";
 
 export interface ProgressEvent {
   type: "total" | "extracted" | "skipped";
@@ -51,34 +54,8 @@ const ACC_DIR_TO_ORDINAL: Record<string, number> = {
   nurburgring_24h: 35,
 };
 
-// ── CSV track name lookup ────────────────────────────────────────────
+// ── fastlane.ai parser ───────────────────────────────────────────────────
 
-function loadTrackNames(): Map<number, string> {
-  const map = new Map<number, string>();
-  const csvPath = resolve(_scriptDir, "../../../shared/games/acc/tracks.csv");
-  try {
-    const csv = readFileSync(csvPath, "utf-8");
-    for (const line of csv.trim().split("\n")) {
-      const parts = line.split(",");
-      const id = parseInt(parts[0], 10);
-      if (Number.isNaN(id)) continue;
-      const commonName = parts[3]?.trim();
-      map.set(id, commonName || "");
-    }
-  } catch (e) {
-    console.warn(`[ACC] Could not load tracks.csv: ${(e as Error).message}`);
-  }
-  return map;
-}
-
-function trackOutputName(dirName: string, ordinal: number, trackNames: Map<number, string>): string {
-  const commonName = trackNames.get(ordinal);
-  if (commonName) return commonName;
-  // Fall back to directory name with underscores → hyphens
-  return dirName.replace(/_/g, "-");
-}
-
-// ── fastlane.ai parser ───────────────────────────────────────────────
 
 /**
  * fastlane.ai binary format (version 8):
@@ -257,7 +234,6 @@ function computeEdges(
 // ── Main extraction function ─────────────────────────────────────────
 
 export async function extractAccTracks(
-  outDir: string,
   onProgress?: ProgressCallback,
 ): Promise<{ extracted: number }> {
   const accDir = findSteamInstall("Assetto Corsa Competizione", [
@@ -270,10 +246,6 @@ export async function extractAccTracks(
   if (!existsSync(cacheDir)) {
     throw new Error(`ACC Cache directory not found: ${cacheDir}`);
   }
-
-  mkdirSync(outDir, { recursive: true });
-
-  const trackNames = loadTrackNames();
 
   // Scan cache directory for track subdirectories
   const trackDirs = readdirSync(cacheDir).filter((d) => {
@@ -314,10 +286,26 @@ export async function extractAccTracks(
       if (!validWidths) {
         console.warn(`[ACC] ${dirName} — width values out of expected range, using default 7m half-width`);
       }
-
       const { leftEdge, rightEdge } = computeEdges(nodes, widths, validWidths);
-      const name = trackOutputName(dirName, ordinal, trackNames);
 
+      const identity = getTrackAssetIdentity("acc", ordinal);
+      const slug = identity?.factsSlug;
+      const geometryPath = identity && slug
+        ? isSharedAccGeometryAsset(identity)
+          ? bundledSharedGeometryPath(identity, "acc", slug, "raceline")
+          : bundledGeometryPath(identity, "raceline")
+        : null;
+      const boundariesPath = identity && slug
+        ? isSharedAccGeometryAsset(identity)
+          ? bundledSharedGeometryPath(identity, "acc", slug, "boundaries")
+          : bundledGeometryPath(identity, "boundaries")
+        : null;
+      if (!geometryPath || !boundariesPath) {
+        console.log(`[ACC] ${dirName} — no canonical registry assignment, skipping`);
+        onProgress?.({ type: "skipped", track: dirName, count: 0 });
+        continue;
+      }
+      mkdirSync(dirname(geometryPath), { recursive: true });
       // Write raceline CSV: header x,z, one point per line.
       //
       // These nodes are fastlane.ai's RACING LINE — it apexes and cuts, so it is
@@ -337,11 +325,11 @@ export async function extractAccTracks(
       for (const node of nodes) {
         racelineLines.push(`${node.x.toFixed(4)},${node.z.toFixed(4)}`);
       }
-      writeFileSync(join(outDir, `${name}-raceline.csv`), racelineLines.join("\n"));
+      writeFileSync(geometryPath, racelineLines.join("\n"));
 
       // Write boundaries JSON
       writeFileSync(
-        join(outDir, `${name}-boundaries.json`),
+        boundariesPath,
         JSON.stringify(
           {
             source: "acc-extracted",
@@ -356,7 +344,7 @@ export async function extractAccTracks(
       );
 
       console.log(
-        `[ACC] ${dirName} (ordinal ${ordinal}, name "${name}") — ${nodes.length} nodes${validWidths ? "" : " [default width]"} → OK`,
+        `[ACC] ${dirName} (ordinal ${ordinal}, name "${slug}") — ${nodes.length} nodes${validWidths ? "" : " [default width]"} → OK`,
       );
       extracted++;
       onProgress?.({ type: "extracted", track: dirName, count: extracted });
@@ -366,6 +354,6 @@ export async function extractAccTracks(
     }
   }
 
-  console.log(`[ACC] Extracted ${extracted} tracks to ${outDir}`);
+  console.log(`[ACC] Extracted ${extracted} tracks`);
   return { extracted };
 }

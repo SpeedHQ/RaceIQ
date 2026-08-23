@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "firebird-motorsports-park/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 334,
+      "confirmation": null
+    }
+  ]
+}

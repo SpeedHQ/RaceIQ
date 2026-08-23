@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "indianapolis-motor-speedway/2009/open-wheel-oval",
+  "name": "Open Wheel Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 178,
+      "confirmation": null
+    }
+  ]
+}

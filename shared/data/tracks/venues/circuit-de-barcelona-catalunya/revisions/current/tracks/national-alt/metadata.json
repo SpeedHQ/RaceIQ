@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "id": "circuit-de-barcelona-catalunya/national-alt",
+  "name": "National Alt",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 113,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "catalunya-s2",
+    "track": "catalunya",
+    "layout": "national-alt",
+    "layoutName": "National Alt",
+    "name": "Circuit de Barcelona-Catalunya",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Würth",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Campsa",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "La Caixa",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Banc Sabadell",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "New Holland",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s8",
+          "startFrac": 0,
+          "endFrac": 0.1238
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1238,
+          "endFrac": 0.2302
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2302,
+          "endFrac": 0.271
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.271,
+          "endFrac": 0.3218
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3218,
+          "endFrac": 0.4241
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.4241,
+          "endFrac": 0.511
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.511,
+          "endFrac": 0.6114
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6114,
+          "endFrac": 0.7248
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7248,
+          "endFrac": 0.81
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.81,
+          "endFrac": 0.911
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.911,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

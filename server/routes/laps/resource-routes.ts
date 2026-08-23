@@ -17,9 +17,10 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutat
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
+import { computeNativeSectorTimeline, computeLapSectors, isValidNativeSectorStarts } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
+import { resolveLapGeoreference } from "../../tracks/georeference";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
@@ -29,18 +30,23 @@ export function semanticReplayIds(): readonly string[] {
     ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
     "engine.current-engine-rpm",
     "inputs.gear",
-    "inputs.accel",
+    "inputs.throttle",
     "inputs.brake",
-    "inputs.steer",
+    "inputs.steering",
     "motion.speed",
     "motion.acceleration-x",
     "motion.angular-velocity-y",
+    "motion.pitch",
+    "motion.roll",
     "motion.position-x",
     "motion.position-z",
     "motion.yaw",
+    "motion.pitch",
+    "motion.roll",
     "timing.current-lap",
     "timing.current-race-time",
     "timing.distance-traveled",
+    "timing.lap-fraction",
     "aero.drs-active",
     "weather.air-temp",
     "fuel.ers-store-energy",
@@ -48,7 +54,10 @@ export function semanticReplayIds(): readonly string[] {
     "brakes.brake-bias",
     "fuel.ers-deployed",
     "fuel.ers-harvested",
-    "fuel.fuel-capacity",
+    "fuel.capacity",
+    "fuel.remaining-fraction",
+    "fuel.remaining-percent",
+    "fuel.remaining-volume",
     "identity.car-ordinal",
     "identity.player-track-surface",
     "tires.tire-radius",
@@ -85,13 +94,33 @@ export const resourceRoutes = new Hono()
       }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
-      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const game = getGame(lap.gameId);
+      const nativeLayout = game.nativeSectors
+        ? lap.telemetry
+          .map((packet) => game.getNativeSectorLayout?.(packet))
+          .find((layout) => isValidNativeSectorStarts(layout?.starts))
+        : undefined;
+      const trackOrdinal = lap.trackOrdinal;
+      const georeference = trackOrdinal == null
+        ? null
+        : await resolveLapGeoreference({
+            canonicalSlug: game.getSharedTrackName?.(trackOrdinal),
+            gameId: lap.gameId,
+            trackOrdinal,
+            packets: lap.telemetry,
+          });
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
         sectorStarts: nativeLayout?.starts ?? null,
         insights: analyzeLap(lap.telemetry, lap.gameId),
+        ...(georeference
+          ? {
+              geographicPositions: georeference.positions,
+              georeference: georeference.metadata,
+            }
+          : {}),
         parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),

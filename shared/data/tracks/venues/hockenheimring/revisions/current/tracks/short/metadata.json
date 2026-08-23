@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "id": "hockenheimring/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 252,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "hockenheim-s2",
+    "track": "hockenheim",
+    "layout": "short",
+    "layoutName": "Short",
+    "name": "Hockenheimring",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Sachskurve",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Südkurve",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s10",
+          "startFrac": 0,
+          "endFrac": 0.0494
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0494,
+          "endFrac": 0.163
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.163,
+          "endFrac": 0.2658
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2658,
+          "endFrac": 0.3661
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3661,
+          "endFrac": 0.4522
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.4522,
+          "endFrac": 0.5317
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.5317,
+          "endFrac": 0.6381
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6381,
+          "endFrac": 0.738
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.738,
+          "endFrac": 0.7781
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7781,
+          "endFrac": 0.8091
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8091,
+          "endFrac": 0.9533
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.9533,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

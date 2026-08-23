@@ -37,6 +37,14 @@ const SEMANTIC_DEFINITIONS_COMPETITOR: Record<string, SemanticDefinition> = {
     parentId: "race.competitor.results",
     canonicalUnit: "enum",
     shape: "structured",
+    enumDomain: ["none", "pitting", "in-pit-area"],
+  },
+  "race.competitor.on-pit-road": {
+    label: "Competitor on pit road",
+    description: "Whether each competitor is currently on pit road.",
+    parentId: "race.competitor.results",
+    canonicalUnit: "boolean",
+    shape: "structured",
   },
   "race.competitor.pit-stops": {
     label: "Competitor pit-stop count",

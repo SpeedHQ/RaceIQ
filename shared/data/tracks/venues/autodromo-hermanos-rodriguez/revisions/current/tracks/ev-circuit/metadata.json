@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/ev-circuit",
+  "name": "EV Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 576,
+      "confirmation": null
+    }
+  ]
+}

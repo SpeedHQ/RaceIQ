@@ -1,9 +1,9 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { bundledTrackDir as bundledGameDir, computedAverageFileName, getBundledTrackName, loadBundledPointCsv } from "../resolve-name";
+import { computedAverageFileName, loadBundledPointCsv } from "../resolve-name";
 import { filterOutlierPoints } from "../geometry/points";
 import { getBundledOutlineByOrdinal, hasBundledOutlineByOrdinal } from "../geometry/outlines";
-import { loadSharedOutline } from "../geometry/shared";
+import { loadSharedOutline, loadSharedOutlineByOrdinal } from "../geometry/shared";
 import type { Point } from "../geometry/types";
 import { ttlCache } from "../storage/cache";
 import { listDataFiles, readDataFile, userDir, userGameDir, validateGameId } from "../storage/files";
@@ -34,11 +34,9 @@ export function scanRecordedFiles(): void {
 }
 function ensureRecordedScanned() { if (!_recordedScanned) scanRecordedFiles(); }
 
-/** Check if a game-extracted centerline exists (user-extracted or bundled). */
+/** Check if game-extracted centerline exists in canonical bundled geometry. */
 function hasExtractedOutline(ordinal: number, gameId: string): boolean {
-  const name = getBundledTrackName(gameId, ordinal);
-  if (name && existsSync(resolve(bundledGameDir(gameId), `${name}-centerline.csv`))) return true;
-  return false;
+  return loadBundledPointCsv(ordinal, gameId, "centerline") !== null;
 }
 
 function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
@@ -205,15 +203,14 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
 
 /**
  * Get centerline for a track. Priority: bundled game data → computed average → TUMFTM.
- * sharedName: optional shared outline file name (e.g. "silverstone") for cross-game tracks.
+ * sharedName is a registry facts slug for callers resolving cross-game tracks.
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
-  const resolvedSharedName =
-    sharedName ?? getBundledTrackName(gameId, ordinal);
   return loadBundledPointCsv(ordinal, gameId, "centerline") ??
     loadRecordedOutline(ordinal, gameId) ??
-    loadSharedOutline(resolvedSharedName ?? "") ??
+    loadSharedOutlineByOrdinal(ordinal, gameId) ??
+    (sharedName ? loadSharedOutline(sharedName) : null) ??
     (gameId === "fm-2023" ? getBundledOutlineByOrdinal(ordinal) : null);
 }
 

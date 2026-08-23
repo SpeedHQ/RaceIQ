@@ -10,8 +10,7 @@ export interface LapHeader {
 }
 
 export interface CompareAiPanelProps {
-  lapA: LapHeader;
-  lapB: LapHeader;
+  laps: LapHeader[];
   panelOpen?: boolean;
   segments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;

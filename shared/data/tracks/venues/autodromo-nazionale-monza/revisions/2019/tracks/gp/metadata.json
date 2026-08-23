@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-nazionale-monza/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 11,
+      "confirmation": null
+    }
+  ]
+}

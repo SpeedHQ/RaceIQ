@@ -1,8 +1,16 @@
 import { resolve } from "node:path";
-import { bundledTrackDir as bundledGameDir, computedAverageFileName, getBundledTrackName, readUserOrBundled } from "../resolve-name";
+import { computedAverageFileName, loadBundledPointCsv } from "../resolve-name";
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  getTrackAssetIdentity,
+  sharedAccGeometrySlug,
+  usesAccGeometryFallback,
+  type TrackAssetIdentity,
+} from "../storage/assets";
 import { readDataFile, userGameDir } from "../storage/files";
 import { applyAlignment, computeAlignment } from "./points";
-import { getTrackNameByOrdinal, hasBundledBoundaryByOrdinal, loadBoundaryByName } from "./outlines";
+import { getForzaSharedOutline, hasBundledBoundaryByOrdinal, loadBoundaryByName } from "./outlines";
 import type { Point, TrackBoundary } from "./types";
 
 export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): TrackBoundary | null {
@@ -15,24 +23,33 @@ export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): Tr
   if (gameId !== "fm-2023") return null;
 
   if (!hasBundledBoundaryByOrdinal(ordinal)) return null;
-  const name = getTrackNameByOrdinal(ordinal);
-  if (!name) return null;
-  return loadBoundaryByName(name);
+  const factsSlug = getForzaSharedOutline(ordinal);
+  return factsSlug ? loadBoundaryByName(factsSlug) : null;
 }
 
 
 /** Load extracted boundary data, aligned to telemetry coordinate space if possible. */
 export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary | null {
   const userExtracted = resolve(userGameDir(gameId), "extracted", `boundaries-${ordinal}.json`);
-  const trackName = getBundledTrackName(gameId, ordinal);
-  const bundledFile = trackName ? resolve(bundledGameDir(gameId), `${trackName}-boundaries.json`) : null;
-  // AC Evo and ACC share the same Kunos coord space and the same track geometry
-  // for common layouts. Reuse ACC's bundled boundary files for AC Evo when we
-  // don't have an AC Evo-specific file.
-  const accFallback = gameId === "ac-evo" && trackName ? resolve(bundledGameDir("acc"), `${trackName}-boundaries.json`) : null;
-  const content = readDataFile(userExtracted)
-    ?? (bundledFile ? readDataFile(bundledFile) : null)
-    ?? (accFallback ? readDataFile(accFallback) : null);
+  const identity = getTrackAssetIdentity(gameId, ordinal);
+  let content = readDataFile(userExtracted);
+  if (!content && identity) {
+    content = readDataFile(bundledGeometryPath(identity, "boundaries"));
+  }
+  const accSlug = identity ? sharedAccGeometrySlug(identity) : null;
+  if (!content && identity && accSlug) {
+    const sharedPath = bundledSharedGeometryPath(identity, "acc", accSlug, "boundaries");
+    content = sharedPath ? readDataFile(sharedPath) : null;
+  }
+  const fallbackSlug = identity?.factsSlug ?? null;
+  if (!content && identity && fallbackSlug && usesAccGeometryFallback(identity, fallbackSlug)) {
+    const accIdentity: TrackAssetIdentity = { ...identity, gameId: "acc" };
+    content = readDataFile(bundledGeometryPath(accIdentity, "boundaries"));
+    if (!content) {
+      const sharedPath = bundledSharedGeometryPath(identity, "acc", fallbackSlug, "boundaries");
+      content = sharedPath ? readDataFile(sharedPath) : null;
+    }
+  }
   if (!content) return null;
   try {
     const data = JSON.parse(content);
@@ -45,15 +62,18 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
     // ACC's extracted boundaries are already in telemetry coordinate space.
     // AC Evo reuses ACC boundary files but may have a different world origin,
     // so it must NOT be marked pre-aligned — it needs Procrustes alignment.
-    const isPreAligned = data.aligned || data.coordSystem === "acc" || gameId === "acc";
+    const isPreAligned = data.aligned || gameId === "acc";
     if (!isPreAligned) {
-      const extContent = readUserOrBundled(gameId, `extracted/recorded-${ordinal}.csv`);
+      const parseCsv = (csv: string) => csv.split("\n").filter(Boolean).slice(1).map((line) => {
+        const [x, z] = line.split(",").map(Number);
+        return { x, z };
+      });
+      const recorded = readDataFile(resolve(userGameDir(gameId), "extracted", `recorded-${ordinal}.csv`));
+      const extCenter = recorded ? parseCsv(recorded) : loadBundledPointCsv(ordinal, gameId, "centerline");
       const caName = computedAverageFileName(gameId, ordinal);
       const telContent = readDataFile(resolve(userGameDir(gameId), `${caName}.csv`));
-      if (extContent && telContent) {
-        const parseCSV = (c: string) => c.split("\n").filter(Boolean).slice(1).map(l => { const [x, z] = l.split(",").map(Number); return { x, z }; });
-        const extCenter = parseCSV(extContent);
-        const telCenter = parseCSV(telContent);
+      const telCenter = telContent ? parseCsv(telContent) : null;
+      if (extCenter && telCenter) {
         const align = computeAlignment(extCenter, telCenter);
         if (align) {
           left = left.map(p => applyAlignment(p, align));
@@ -70,7 +90,9 @@ export function loadExtractedBoundary(ordinal: number, gameId: string): TrackBou
 
 /** Load altitude (elevation) array for a track from extracted game data. */
 export function getTrackAltitudeByOrdinal(ordinal: number): number[] | null {
-  const content = readUserOrBundled("fm-2023", `extracted/boundaries-${ordinal}.json`);
+  const identity = getTrackAssetIdentity("fm-2023", ordinal);
+  const content = readDataFile(resolve(userGameDir("fm-2023"), "extracted", `boundaries-${ordinal}.json`))
+    ?? (identity ? readDataFile(bundledGeometryPath(identity, "boundaries")) : null);
   if (!content) return null;
   try {
     const data = JSON.parse(content);

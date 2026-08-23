@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "pocono-raceway/2009/south",
+  "name": "South",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 138,
+      "confirmation": null
+    }
+  ]
+}

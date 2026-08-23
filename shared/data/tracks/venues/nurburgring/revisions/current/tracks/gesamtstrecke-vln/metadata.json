@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/gesamtstrecke-vln",
+  "name": "Gesamtstrecke VLN",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 262,
+      "confirmation": null
+    }
+  ]
+}

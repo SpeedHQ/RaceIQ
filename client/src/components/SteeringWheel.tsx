@@ -2,17 +2,16 @@ import { getSteeringLock, getWheelStyle } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
 
 interface Props {
-  steer: number; // signed int8: -128 to 127, 0 = center
+  steeringRatio: number; // normalized: -1 = full left, 0 = center, 1 = full right
   rpm?: number;
   maxRpm?: number;
   size?: number; // px, default 160
 }
 
-export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
+export function SteeringWheel({ steeringRatio, rpm, maxRpm, size = 160 }: Props) {
   const lock = getSteeringLock();
   const wheelSrc = getWheelStyle();
-  const normalized = steer / 127;
-  const degrees = normalized * (lock / 2);
+  const degrees = steeringRatio * (lock / 2);
   const rpmPct = rpm && maxRpm && maxRpm > 0 ? (rpm / maxRpm) * 100 : 0;
 
   const imgSrc = wheelSrc;

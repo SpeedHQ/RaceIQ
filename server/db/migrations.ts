@@ -1251,5 +1251,51 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Persist geographic references and accepted cross-game transforms.
+  {
+    version: 59,
+    name: "persist georeference paths and transforms",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS georeference_references (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        canonical_slug        TEXT NOT NULL,
+        source_identity       TEXT NOT NULL,
+        reference_version     TEXT NOT NULL,
+        reference_path        TEXT NOT NULL,
+        origin_latitude_deg   REAL NOT NULL,
+        origin_longitude_deg  REAL NOT NULL,
+        origin_altitude_m     REAL NOT NULL,
+        sample_count          INTEGER NOT NULL,
+        quality_rmse_m        REAL NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(canonical_slug, source_identity)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_georef_references_slug
+       ON georeference_references(canonical_slug)`,
+      `CREATE TABLE IF NOT EXISTS georeference_transforms (
+        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+        canonical_slug        TEXT NOT NULL,
+        target_game_id        TEXT NOT NULL,
+        target_track_ordinal  INTEGER NOT NULL,
+        source_identity       TEXT NOT NULL,
+        reference_version     TEXT NOT NULL,
+        scale                 REAL NOT NULL,
+        rotation              REAL NOT NULL,
+        flip_x                INTEGER NOT NULL DEFAULT 0,
+        flip_z                INTEGER NOT NULL DEFAULT 0,
+        translation_east_m    REAL NOT NULL,
+        translation_north_m   REAL NOT NULL,
+        rmse_m                REAL NOT NULL,
+        quality               REAL NOT NULL,
+        sample_count          INTEGER NOT NULL,
+        created_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(canonical_slug, target_game_id, target_track_ordinal, reference_version)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_georef_transforms_target
+       ON georeference_transforms(target_game_id, target_track_ordinal)`,
+    ],
+  },
 ];
 

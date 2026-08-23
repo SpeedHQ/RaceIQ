@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Pit_Road" data-name="EXAMPLE - Pit Road" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Rally_Cross" data-name="Rally Cross">
+    <path d="M1021.08247,476.42022l175.31766,39.17571s131.55556,19.55556,139.55556,181.33333l-3.44999,99.18724c0,42.03498,65.00555,34.03498,87.67221,35.36831s61.33333,1.33333,71.33333-30.66667,30.66667-47.33333,77.33333-65.33333" style="fill: none; stroke: #ff9100; stroke-dasharray: 25; stroke-linecap: round; stroke-miterlimit: 10; stroke-width: 10px;"/>
+    <g>
+      <path d="M978.17791,962.15149c59.40417,0,118.72705.78564,178.04211-3.36945,64.17419-4.49554,137.17749-10.76819,193.90417-44.02301,11.63586-6.82129,23.36011-14.75452,30.29736-26.62134,16.47156-28.17609,11.57544-71.18256,9.35059-102.42877-1.39343-19.57031-3.2583-39.49652-6.59973-59.05603" style="fill: none; stroke: #d82520; stroke-dasharray: 30 30; stroke-linecap: round; stroke-miterlimit: 10; stroke-width: 10px;"/>
+      <polygon points="1403.96515 736.65686 1384.23297 732.73944 1367.7149 744.22259 1376.87274 697.47393 1403.96515 736.65686" style="fill: #d82520;"/>
+    </g>
+  </g>
+</svg>

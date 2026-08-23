@@ -1,6 +1,6 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SemanticAnalysisFrame } from "@/components/track-map/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CarWireframe } from "@/components/CarWireframe";
@@ -17,7 +17,7 @@ function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
     "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
     "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
     "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
+    "inputs.gear": packet.Gear, "inputs.steering": Math.max(-1, Math.min(1, packet.Steer >= 0 ? packet.Steer / 127 : packet.Steer / 128)), "timing.distance-traveled": packet.DistanceTraveled,
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
   };
   return { values, states: {}, freshness: {} };

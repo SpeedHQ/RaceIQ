@@ -3,17 +3,26 @@ import { Card } from "@/components/ui/card";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { isDevelopment } from "@/lib/env";
 import { m } from "@/paraglide/messages";
+import type { TrackTimingSectorLayout } from "@/hooks/track-queries";
 import type { TrackInfo, TrackSectors, TrackSegment } from "../types";
-
 interface TrackDebugSidebarProps {
   track: TrackInfo;
   gameId: string | null;
   displaySectors: TrackSectors | null;
   segSource: string;
+  showSegments: boolean;
+  showSectors: boolean;
   editing: boolean;
   editSegments: TrackSegment[];
   saving: boolean;
+  saveError?: string | null;
+  generatingSegments: boolean;
+  generateSegmentsError?: string | null;
   sectorBounds: { s1End: number; s2End: number } | null;
+  timingSectors?: TrackTimingSectorLayout;
+  timingSectorsLoading?: boolean;
+  timingSectorsError?: Error | null;
+  sectorSaveError?: string | null;
   editingSectors: boolean;
   editS1: number;
   editS2: number;
@@ -21,11 +30,12 @@ interface TrackDebugSidebarProps {
   segDisplayNames: string[];
   startEditing: () => void;
   saveSegments: () => void;
+  generateSegments: () => void;
   toggleSegType: (index: number) => void;
   addSegment: (index: number) => void;
   removeSegment: (index: number) => void;
   updateSegFrac: (index: number, field: "startFrac" | "endFrac", value: number) => void;
-  setEditing: (editing: boolean) => void;
+  cancelEditing: () => void;
   startEditingSectors: () => void;
   saveSectorBounds: () => void;
   setEditingSectors: (editing: boolean) => void;
@@ -36,13 +46,21 @@ interface TrackDebugSidebarProps {
 export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
   const {
     track,
-    gameId,
     displaySectors,
     segSource,
+    showSegments,
+    showSectors,
     editing,
     editSegments,
     saving,
+    saveError,
+    generatingSegments,
+    generateSegmentsError,
     sectorBounds,
+    timingSectors,
+    timingSectorsLoading,
+    timingSectorsError,
+    sectorSaveError,
     editingSectors,
     editS1,
     editS2,
@@ -50,11 +68,12 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
     segDisplayNames,
     startEditing,
     saveSegments,
+    generateSegments,
     toggleSegType,
     addSegment,
     removeSegment,
     updateSegFrac,
-    setEditing,
+    cancelEditing,
     startEditingSectors,
     saveSectorBounds,
     setEditingSectors,
@@ -62,9 +81,23 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
     setEditS2,
   } = props;
   return (
-    <div className="w-80 shrink-0 flex flex-col gap-3 overflow-auto">
+    <div className="flex w-full min-w-0 shrink-0 flex-col gap-3 overflow-auto @7xl/workspace:w-80">
       {/* Segment list / editor */}
-      {displaySectors && displaySectors.segments.length > 0 && (
+      {showSegments && (!displaySectors || displaySectors.segments.length === 0) && (
+        <Card>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
+            {isDevelopment && (
+              <Button type="button" onClick={generateSegments} disabled={generatingSegments} className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50">
+                {generatingSegments ? "Generating..." : "Generate"}
+              </Button>
+            )}
+          </div>
+          <p className="text-app-label text-app-text-dim">Missing segment data. Generate a preview, then save it to the track registry.</p>
+          {generateSegmentsError && <p className="mt-2 text-app-label text-status-danger">{generateSegmentsError}</p>}
+        </Card>
+      )}
+      {showSegments && displaySectors && displaySectors.segments.length > 0 && (
         <Card>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -88,7 +121,7 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => setEditing(false)}
+                    onClick={cancelEditing}
                     className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                   >
                     {m.common_cancel()}
@@ -96,6 +129,7 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
                 </div>
               ))}
           </div>
+          {saveError && <div className="text-app-label text-status-danger">{saveError}</div>}
           <div className="flex flex-col gap-0.5 max-h-[300px] overflow-auto">
             {(editing ? editSegments : displaySectors.segments).map((seg, i) => {
               const pct = ((seg.endFrac - seg.startFrac) * 100).toFixed(1);
@@ -172,15 +206,19 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
         </Card>
       )}
       {/* Sector Boundaries */}
-      <Card className={gameId === "iracing" ? "hidden" : undefined}>
+      {showSectors && (
+      <Card>
         <div className="flex items-center justify-between mb-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
-          {isDevelopment &&
+          {timingSectors?.ownership === "game" && <span className="text-app-compact text-app-text-dim">Game supplied · read-only</span>}
+          {timingSectors?.ownership !== "game" &&
+            isDevelopment &&
             (!editingSectors ? (
               <Button
                 type="button"
+                aria-label="Edit sector boundaries"
                 onClick={startEditingSectors}
-                disabled={!sectorBounds}
+                disabled={!sectorBounds || timingSectorsLoading}
                 className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
               >
                 {m.common_edit()}
@@ -189,6 +227,7 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
               <div className="flex gap-1">
                 <Button
                   type="button"
+                  aria-label="Save sector boundaries"
                   onClick={saveSectorBounds}
                   disabled={savingSectors}
                   className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
@@ -205,7 +244,30 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
               </div>
             ))}
         </div>
-        {sectorBounds ? (
+        {sectorSaveError && <div className="text-app-label text-status-danger">{sectorSaveError}</div>}
+        {timingSectorsError && <div className="text-app-label text-status-danger">{timingSectorsError.message}</div>}
+        {timingSectors?.ownership === "game" ? (
+          timingSectors.starts ? (
+            <div className="flex flex-col gap-1">
+              <div className="text-app-label text-app-text-muted">
+                Recorded sector starts: {timingSectors.starts.map((start) => `${(start * 100).toFixed(1)}%`).join(", ")}
+              </div>
+              {timingSectors.starts.map((start, index) => {
+                const end = timingSectors.starts?.[index + 1] ?? 1;
+                return (
+                  <div key={`${start}-${index}`} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
+                    <div className="size-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[index % SECTOR_COLOR_VARS.length] }} />
+                    <span className="text-app-label font-mono font-bold text-app-text">S{index + 1}</span>
+                    <span className="text-app-label font-mono text-app-text-secondary ml-auto">{((end - start) * 100).toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-app-label text-app-text-dim">Game supplied · no recorded layout</div>
+          )
+        ) : null}
+        {timingSectors?.ownership !== "game" && (sectorBounds ? (
           editingSectors ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -283,8 +345,9 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
           )
         ) : (
           <div className="text-app-label text-app-text-dim">{m.trackdetail_no_sector_data()}</div>
-        )}
+        ))}
       </Card>
+      )}
     </div>
   );
 }

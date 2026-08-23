@@ -73,7 +73,7 @@ function main(): void {
   for (const slug of slugs) {
     const facts = loadTrackFacts(slug);
     if (!facts) {
-      console.error(`[${slug}] no facts file in shared/data/tracks/meta`);
+      console.error(`[${slug}] no facts rows in track registry`);
       failures++;
       continue;
     }

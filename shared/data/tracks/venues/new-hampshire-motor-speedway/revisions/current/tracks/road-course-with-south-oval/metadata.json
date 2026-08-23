@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "new-hampshire-motor-speedway/road-course-with-south-oval",
+  "name": "Road Course with South Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 132,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lankebanen-hell-rx/hell-rallycross",
+  "name": "Hell Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 358,
+      "confirmation": null
+    }
+  ]
+}

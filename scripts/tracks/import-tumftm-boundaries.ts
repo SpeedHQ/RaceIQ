@@ -2,18 +2,15 @@
  * Import TUMFTM racetrack-database boundary data.
  *
  * Downloads CSVs with center-line + track widths, computes left/right edge
- * points by offsetting perpendicular to the tangent, and writes JSON boundary
- * files to shared/data/tracks/tumftm/.
+ * points by offsetting perpendicular to tangent, and writes shared boundaries
+ * at each canonical root venue.
  *
- * Usage: bun run scripts/tracks/import-tumftm-boundaries.ts
+ * Usage: bun scripts/tracks/import-tumftm-boundaries.ts
  */
 
-import { writeFileSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(__dirname, "../../shared/data/tracks/tumftm");
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { bundledSharedGeometryPath, findTrackAssetIdentities } from "../../shared/racing/tracks/storage/assets";
 
 interface Point {
   x: number;
@@ -104,7 +101,6 @@ function computeEdges(rows: RawRow[]): { leftEdge: Point[]; rightEdge: Point[] }
 }
 
 async function main() {
-  mkdirSync(OUT_DIR, { recursive: true });
 
   let success = 0;
   let failed = 0;
@@ -117,7 +113,14 @@ async function main() {
 
       const { leftEdge, rightEdge } = computeEdges(rows);
 
-      const outPath = resolve(OUT_DIR, `${localName}-boundaries.json`);
+      const identity = findTrackAssetIdentities(localName)[0];
+      const outPath = identity && bundledSharedGeometryPath(identity, "tumftm", localName, "boundaries");
+      if (!outPath) {
+        console.log(`  No canonical registry assignment for ${localName}, skipping`);
+        failed++;
+        continue;
+      }
+      mkdirSync(dirname(outPath), { recursive: true });
       const data = {
         leftEdge: leftEdge.map((p) => ({ x: round(p.x), z: round(p.z) })),
         rightEdge: rightEdge.map((p) => ({ x: round(p.x), z: round(p.z) })),
@@ -125,7 +128,6 @@ async function main() {
       };
       writeFileSync(outPath, JSON.stringify(data));
       console.log(`  → ${outPath}`);
-      success++;
     } catch (err) {
       console.error(`  FAILED: ${(err as Error).message}`);
       failed++;

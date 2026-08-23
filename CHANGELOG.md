@@ -8,6 +8,8 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Find, preview, and install location-matched aerial imagery, then reuse venue imagery across Analyse and Compare maps
+- Curate canonical track layouts, geometry, sectors, guides, and imagery through bundled registry and development workbench
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes

@@ -327,12 +327,12 @@ function addCrossSourceProjections(
       sources: Object.fromEntries(
         ["FL", "FR", "RL", "RR"].map((wheel, index) => [
           wheel,
-          [`ForzaDataOut.${forzaSlipFields[index]}`],
+          [`TelemetryPacket.${forzaSlipFields[index]}`],
         ]),
       ),
       freshness: "continuous",
       description:
-        "Forza provides source-normalized per-wheel lateral slip rather than a physical angle.",
+        "Uses TelemetryPacket per-wheel normalized lateral slip; parser provenance: ForzaDataOut.TireSlipAngleFL/FR/RL/RR.",
     };
   }
 
@@ -344,6 +344,45 @@ function addCrossSourceProjections(
       "prefer improved SessionLapsRemainEx; fallback to deprecated SessionLapsRemain",
       "RaceIQ can use improved iRacing laps-remaining value with legacy fallback.",
     );
+  }
+
+  const recordedPositionLimitation =
+    "Available only in imported IBT recordings; iRacing live shared memory does not publish geographic coordinates.";
+  const positionX = variables.get("motion.position-x");
+  if (positionX) {
+    positionX.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg"],
+        "project WGS84 longitude delta onto local east axis",
+        "Projects disk-only iRacing IBT geographic coordinates into a local metric X position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
+  }
+  const positionY = variables.get("motion.position-y");
+  if (positionY) {
+    positionY.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg", "iracing.altitudeM"],
+        "subtract first valid altitude from current recorded altitude",
+        "Projects disk-only iRacing IBT altitude into a local metric Y position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
+  }
+  const positionZ = variables.get("motion.position-z");
+  if (positionZ) {
+    positionZ.games.iracing = {
+      ...normalizedLink(
+        "m",
+        ["iracing.latitudeDeg", "iracing.longitudeDeg"],
+        "project WGS84 latitude delta onto local north axis",
+        "Projects disk-only iRacing IBT geographic coordinates into a local metric Z position.",
+      ),
+      limitations: [recordedPositionLimitation],
+    };
   }
 
   const pitServicePressure = variables.get("race.pit-service.tire-pressure");
@@ -406,62 +445,103 @@ function addCrossSourceProjections(
       description: "iRacing common compound is projected from detailed source code.",
     };
   }
+  const fuelCapacity = variables.get("fuel.capacity");
+  const iracingCapacity = fuelCapacity?.games.iracing;
+  if (fuelCapacity && iracingCapacity && iracingCapacity.kind !== "unavailable") {
+    const sessionSources = Array.isArray(iracingCapacity.sources)
+      ? iracingCapacity.sources
+      : Object.values(iracingCapacity.sources).flat();
+    fuelCapacity.games.iracing = {
+      kind: "direct",
+      nativeUnit: "L",
+      sources: [
+        "TelemetryPacket.FuelCapacity",
+        ...sessionSources.filter(
+          (source) => source !== "TelemetryPacket.FuelCapacity",
+        ),
+      ],
+      freshness: "static",
+      description:
+        "Uses normalized packet fuel capacity first and SessionInfo capacity when packet value is absent.",
+    };
+  }
+  if (fuelCapacity) {
+    fuelCapacity.games["f1-2025"] = unavailable(
+      "source-not-provided",
+      "F1 exposes fuel mass in kilograms, not tank volume in litres.",
+    );
+  }
 
-  addDefinedVariable(variables, groups, "fuel.remaining-volume", {
-    "fm-2023": unavailable(
+
+  addDefinedVariable(
+    variables,
+    groups,
+    "fuel.remaining-volume",
+    unavailableGames("No fuel-volume representation is currently available."),
+  );
+  const remainingVolume = variables.get("fuel.remaining-volume")!;
+  if (remainingVolume.games["fm-2023"].kind === "unavailable") {
+    remainingVolume.games["fm-2023"] = unavailable(
       "source-not-provided",
       "Forza packet provides fuel fraction but no tank capacity, so litres cannot be derived safely.",
-    ),
-    "f1-2025": derivedLink(
-      "fraction and L",
-      ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
-      "fuel fraction * fuel capacity",
-      "RaceIQ derives F1 fuel volume from native fraction and capacity.",
-    ),
-    acc: {
-      kind: "direct",
-      nativeUnit: "L",
-      sources: ["TelemetryPacket.Fuel"],
-      freshness: "continuous",
-      description: "ACC normalized packet retains source fuel litres.",
-    },
-    "ac-evo": {
-      kind: "direct",
-      nativeUnit: "L",
-      sources: ["TelemetryPacket.Fuel"],
-      freshness: "continuous",
-      description: "AC Evo normalized packet retains source fuel litres.",
-    },
-    iracing: {
-      kind: "direct",
-      nativeUnit: "L",
-      sources: ["TelemetryPacket.Fuel"],
-      freshness: "continuous",
-      description: "iRacing normalized packet retains SDK fuel litres.",
-    },
-  });
+    );
+  }
+  remainingVolume.games["f1-2025"] = unavailable(
+    "source-not-provided",
+    "F1 exposes a fuel fraction and kilogram mass values, so litres cannot be derived safely.",
+  );
 
-  const fuelPercent = variables.get("fuel.fuel-percent");
-  if (fuelPercent) {
-    fuelPercent.games["fm-2023"] = normalizedLink(
-      "fraction",
-      ["TelemetryPacket.Fuel"],
-      "fraction * 100",
-      "RaceIQ converts Forza fuel fraction to percentage.",
+  addDefinedVariable(
+    variables,
+    groups,
+    "fuel.remaining-fraction",
+    unavailableGames("No fuel-fraction representation is currently available."),
+  );
+  const remainingFraction = variables.get("fuel.remaining-fraction")!;
+  for (const gameId of ["acc", "ac-evo"] as const) {
+    if (remainingFraction.games[gameId].kind !== "unavailable") continue;
+    remainingFraction.games[gameId] = derivedLink(
+      "L",
+      ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
+      "fuel remaining volume / fuel capacity",
+      `RaceIQ derives ${gameId} fuel fraction from volume and capacity.`,
     );
-    fuelPercent.games["f1-2025"] = normalizedLink(
+  }
+  remainingFraction.games.iracing = normalizedLink(
+    "fraction or L",
+    [
+      "iRacing.FuelLevelPct",
+      "TelemetryPacket.Fuel",
+      "TelemetryPacket.FuelCapacity",
+    ],
+    "use FuelLevelPct when available; otherwise divide fuel remaining volume by fuel capacity",
+    "RaceIQ prefers iRacing's live fuel fraction and falls back to packet volume/capacity only when the live channel is absent.",
+  );
+
+
+  addDefinedVariable(
+    variables,
+    groups,
+    "fuel.remaining-percent",
+    unavailableGames("No fuel-percentage representation is currently available."),
+  );
+  const remainingPercent = variables.get("fuel.remaining-percent")!;
+  const percentSources: Record<GameId, string[]> = {
+    "fm-2023": ["TelemetryPacket.Fuel"],
+    "f1-2025": ["TelemetryPacket.Fuel"],
+    acc: ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
+    "ac-evo": ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
+    iracing: ["iRacing.FuelLevelPct"],
+  };
+  for (const gameId of GAME_IDS) {
+    if (remainingPercent.games[gameId].kind !== "unavailable") continue;
+    remainingPercent.games[gameId] = derivedLink(
       "fraction",
-      ["TelemetryPacket.Fuel"],
-      "fraction * 100",
-      "RaceIQ converts F1 fuel fraction to percentage.",
+      percentSources[gameId],
+      "fuel remaining fraction * 100",
+      gameId === "iracing"
+        ? "RaceIQ prefers iRacing's direct FuelLevelPct fraction over a volume/capacity fallback."
+        : `RaceIQ derives ${gameId} fuel percentage from its canonical fraction.`,
     );
-    for (const gameId of ["acc", "ac-evo"] as const) {
-      fuelPercent.games[gameId] = derivedLink(
-        "L",
-        ["TelemetryPacket.Fuel", "TelemetryPacket.FuelCapacity"],
-        "fuel litres / capacity litres * 100",
-        `RaceIQ derives ${gameId} fuel percentage from volume and capacity.`,
-      );
-    }
   }
 }

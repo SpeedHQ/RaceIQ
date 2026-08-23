@@ -2,10 +2,9 @@
  * ONE-SHOT migration tool — delete once the track-guide JSON migration lands.
  *
  * Captures the exact output of every public entry point in
- * server/ai/track-guides.ts, BEFORE the inline `guides` array is moved out to
- * shared/data/tracks/guides/<slug>.json. test/track-guide-golden.test.ts replays the
- * result, so the migration is provably byte-faithful — including the prompt text
- * that the AI eval baselines are pinned to.
+ * server/ai/track-guides.ts, before guides moved beside canonical track metadata
+ * as `guide.json`. Historical golden output proves that migration byte-faithful,
+ * including prompt text pinned by AI eval baselines.
  *
  * Usage:
  *   bun scripts/tracks/snapshot-track-guides.ts > test/fixtures/track-guide-context.golden.json

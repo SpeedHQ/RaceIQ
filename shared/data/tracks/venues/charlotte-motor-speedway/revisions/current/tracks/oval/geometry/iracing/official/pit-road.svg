@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Pit_Road" data-name="EXAMPLE - Pit Road" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <g id="Oval">
+    <g>
+      <path d="M1278.4856,830.42578l-796.15225-6.42578c-78.66669,1.33331-128.15543-9.92023-128.15543-9.92023,0,0-44.2045-5.01166-110.87117-52.12274" style="fill: none; stroke: #d82520; stroke-dasharray: 30 30; stroke-linecap: round; stroke-miterlimit: 10; stroke-width: 5px;"/>
+      <polygon points="1264.59265 811.79736 1272.30908 830.37592 1264.2937 848.82745 1308.33337 830.66669 1264.59265 811.79736" style="fill: #d82520;"/>
+    </g>
+    <g id="Mergeline">
+      <g>
+        <path d="M1308.33337,830.66669l148.66663,1.33331c5.32202-.72083,376.11108-59.33331,381.33337-416.66666,0,0-7.0553-304.81124-425.69031-346.84789" style="fill: none; stroke: #0089ba; stroke-dasharray: 30 30; stroke-linecap: round; stroke-miterlimit: 10; stroke-width: 10px;"/>
+        <rect x="1380.13879" y="63.52737" width="65.00001" height="9.99999" transform="translate(1195.49731 1466.05874) rotate(-83.94554)" style="fill: #0089ba;"/>
+      </g>
+    </g>
+  </g>
+</svg>

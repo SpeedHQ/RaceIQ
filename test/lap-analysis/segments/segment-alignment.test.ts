@@ -5,6 +5,7 @@ import { detectCornerRegions, type CornerRegion } from "../../../shared/racing/t
 import { alignSegments } from "../../../shared/racing/tracks/curation/segment-align-match";
 import { validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";
 import type { TrackFacts } from "../../../shared/racing/tracks/facts";
+import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
 
 /** Identity fields alignment never reads — every fixture shares them. */
 const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };
@@ -298,14 +299,12 @@ describe("validateFacts", () => {
 });
 
 describe("real geometry: Spa (ACC centerline)", () => {
-  const csv = readFileSync(resolve(import.meta.dir, "../../../shared/data/tracks/acc/spa-centerline.csv"), "utf-8");
+  const csv = readFileSync(resolve(import.meta.dir, "../../../shared/data/tracks/venues/circuit-de-spa-francorchamps/geometry/acc/spa-centerline.csv"), "utf-8");
   const pts = csv.split("\n").filter(Boolean).slice(1).map((l) => {
     const [x, z] = l.split(",").map(Number);
     return { x, z };
   });
-  const facts: TrackFacts = JSON.parse(
-    readFileSync(resolve(import.meta.dir, "../../../shared/data/tracks/meta/spa.json"), "utf-8"),
-  );
+  const facts = loadTrackFacts("spa")!;
 
   test("detects and names the full corner sequence", () => {
     const { corners, totalDist } = detectCornerRegions(pts);

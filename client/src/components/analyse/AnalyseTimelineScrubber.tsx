@@ -2,7 +2,7 @@ import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
-import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
+import { type SemanticAnalysisFrame, semanticNumber } from "../track-map/types";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 

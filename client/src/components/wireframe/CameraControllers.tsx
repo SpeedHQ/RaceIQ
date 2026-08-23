@@ -2,7 +2,7 @@ import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "../track-map/types";
 import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
 
 export function AutoChaseCamera({ packet }: { packet: SemanticAnalysisFrame }) {

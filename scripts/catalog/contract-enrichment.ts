@@ -19,4 +19,5 @@ export {
 export {
   mappingArtifact,
   enrichCatalogContracts,
+  assertCatalogSemanticQuality,
 } from "./contract-provenance";

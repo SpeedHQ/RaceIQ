@@ -1,8 +1,7 @@
 /**
- * ONE-SHOT migration tool — delete once shared/data/tracks/guides/*.json is committed.
- *
- * Converts the inline `guides` array in server/ai/track-guides.ts into one JSON
- * file per layout.
+ * HISTORICAL one-shot migration from inline guides into the retired flat guide
+ * store. Current guides live beside canonical track metadata as `guide.json`;
+ * this source remains only as migration provenance.
  *
  * Guide *data* is read from the live module, never regexed out of the source:
  * the fragility of parsing that 1000-line literal is exactly what this

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "crandon-international-raceway/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 382,
+      "confirmation": null
+    }
+  ]
+}

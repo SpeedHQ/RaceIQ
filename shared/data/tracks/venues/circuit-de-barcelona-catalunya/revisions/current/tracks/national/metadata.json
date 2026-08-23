@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "id": "circuit-de-barcelona-catalunya/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 111,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 346,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "catalunya-s",
+    "track": "catalunya",
+    "layout": "national",
+    "layoutName": "National",
+    "name": "Circuit de Barcelona-Catalunya",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Würth",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Campsa",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "La Caixa",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "New Holland",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.1225
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1225,
+          "endFrac": 0.2279
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2279,
+          "endFrac": 0.2683
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2683,
+          "endFrac": 0.3186
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3186,
+          "endFrac": 0.407
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.407,
+          "endFrac": 0.4559
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4559,
+          "endFrac": 0.5176
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5176,
+          "endFrac": 0.6119
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6119,
+          "endFrac": 0.7249
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7249,
+          "endFrac": 0.7771
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7771,
+          "endFrac": 0.8046
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8046,
+          "endFrac": 0.8275
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8275,
+          "endFrac": 0.9119
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.9119,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

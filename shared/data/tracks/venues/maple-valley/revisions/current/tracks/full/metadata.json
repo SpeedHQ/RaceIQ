@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "id": "maple-valley/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 67,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "maple-valley",
+    "track": "maple-valley",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Maple Valley",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s13",
+          "startFrac": 0,
+          "endFrac": 0.0244
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0244,
+          "endFrac": 0.1663
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1663,
+          "endFrac": 0.2063
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2063,
+          "endFrac": 0.2671
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2671,
+          "endFrac": 0.3135
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3135,
+          "endFrac": 0.3878
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3878,
+          "endFrac": 0.4668
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4668,
+          "endFrac": 0.5398
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5398,
+          "endFrac": 0.5733
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5733,
+          "endFrac": 0.6295
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6295,
+          "endFrac": 0.7446
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7446,
+          "endFrac": 0.7761
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7761,
+          "endFrac": 0.8119
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8119,
+          "endFrac": 0.8731
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.8731,
+          "endFrac": 0.8993
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8993,
+          "endFrac": 0.9568
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.9568,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "id": "sebring-international-raceway/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 40,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 21,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 95,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "sebring",
+    "track": "sebring",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Sebring International Raceway",
+    "source": "Official Sebring 17-turn Grand Prix numbering; names per 24h-lemans.com and IMSA corner-name guides; directions cross-checked against the Le Mans Ultimate and The Track Source turn-by-turn guides",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Big Bend",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Hairpin",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Fangio",
+        "direction": "right",
+        "group": "Fangio Chicane"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left",
+        "group": "Fangio Chicane"
+      },
+      {
+        "number": 10,
+        "name": "Cunningham Corner",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "Collier Curve",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "Tower Turn",
+        "direction": "right"
+      },
+      {
+        "number": 14,
+        "name": "Bishop Bend",
+        "direction": "left"
+      },
+      {
+        "number": 15,
+        "name": "The S"
+      },
+      {
+        "number": 16,
+        "name": "Le Mans",
+        "direction": "right"
+      },
+      {
+        "number": 17,
+        "name": "Sunset Bend",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 16,
+        "name": "Ulmann Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.33,
+        "s2End": 0.66
+      },
+      "segments": [
+        {
+          "key": "s17",
+          "startFrac": 0,
+          "endFrac": 0.0518
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0518,
+          "endFrac": 0.1354
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1354,
+          "endFrac": 0.1702
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1702,
+          "endFrac": 0.183
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.183,
+          "endFrac": 0.2155
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2155,
+          "endFrac": 0.3134
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3134,
+          "endFrac": 0.352
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.352,
+          "endFrac": 0.3722
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.3722,
+          "endFrac": 0.4034
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.4034,
+          "endFrac": 0.4516
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.4516,
+          "endFrac": 0.4867
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.4867,
+          "endFrac": 0.5357
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.5357,
+          "endFrac": 0.5791
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.5791,
+          "endFrac": 0.6613
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.6613,
+          "endFrac": 0.7041
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7041,
+          "endFrac": 0.722
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.722,
+          "endFrac": 0.754
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.754,
+          "endFrac": 0.8694
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.8694,
+          "endFrac": 0.9087
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.9087,
+          "endFrac": 0.9143
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.9143,
+          "endFrac": 0.957
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.957,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "key": "s17",
+          "startFrac": 0,
+          "endFrac": 0.0465
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0465,
+          "endFrac": 0.1062
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1062,
+          "endFrac": 0.1297
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1297,
+          "endFrac": 0.1688
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1688,
+          "endFrac": 0.1814
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1814,
+          "endFrac": 0.2053
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2053,
+          "endFrac": 0.2657
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.2657,
+          "endFrac": 0.3099
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3099,
+          "endFrac": 0.3504
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.3504,
+          "endFrac": 0.3995
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.3995,
+          "endFrac": 0.4445
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.4445,
+          "endFrac": 0.4835
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.4835,
+          "endFrac": 0.5342
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.5342,
+          "endFrac": 0.5798
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.5798,
+          "endFrac": 0.5999
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.5999,
+          "endFrac": 0.6723
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.6723,
+          "endFrac": 0.7191
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.7191,
+          "endFrac": 0.7546
+        },
+        {
+          "key": "s16",
+          "startFrac": 0.7546,
+          "endFrac": 0.8854
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.8854,
+          "endFrac": 0.958
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.958,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

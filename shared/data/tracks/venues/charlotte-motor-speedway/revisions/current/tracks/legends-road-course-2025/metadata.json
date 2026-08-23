@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "charlotte-motor-speedway/legends-road-course-2025",
+  "name": "Legends Road Course 2025",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 550,
+      "confirmation": null
+    }
+  ]
+}

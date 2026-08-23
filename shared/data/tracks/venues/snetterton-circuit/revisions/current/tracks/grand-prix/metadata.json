@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "id": "snetterton-circuit/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 28,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 297,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "snetterton",
+    "track": "snetterton",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Snetterton Circuit",
+    "source": "Official circuit map (12 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Riches",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Montreal",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "Palmer",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Agostini",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Hamilton",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Oggies",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Williams",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Brundle",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "Nelson",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Bomb Hole",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "Coram",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "Murrays",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 7,
+        "name": "Bentley Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "acc": {
+      "sectors": {
+        "s1End": 0.3882,
+        "s2End": 0.7452,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s12",
+          "startFrac": 0,
+          "endFrac": 0.038
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.038,
+          "endFrac": 0.1367
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1367,
+          "endFrac": 0.2004
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2004,
+          "endFrac": 0.2764
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2764,
+          "endFrac": 0.3176
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3176,
+          "endFrac": 0.3882
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3882,
+          "endFrac": 0.4499
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4499,
+          "endFrac": 0.4947
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4947,
+          "endFrac": 0.5506
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5506,
+          "endFrac": 0.6741
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6741,
+          "endFrac": 0.7189
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7189,
+          "endFrac": 0.7452
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7452,
+          "endFrac": 0.7985
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7985,
+          "endFrac": 0.8929
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8929,
+          "endFrac": 0.922
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.922,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

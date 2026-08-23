@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import * as fzstd from "fzstd";
 import { findSteamInstall } from "../../../../server/games/shared/steam-install";
 import { USER_TRACKS_DIR } from "../../../../shared/platform/runtime/data-paths";
+import { bundledGeometryPath, getTrackAssetIdentity } from "../../../../shared/racing/tracks/storage/assets";
 import { parseBxml, type BxmlGate } from "./bxml";
 import { applyAlignment, alignGeometry, type Point } from "./geometry-alignment";
 import { extractMatchingErpFragments } from "./erp";
@@ -76,20 +77,8 @@ function gateOffset(gate: BxmlGate, type: string): Point {
   return { x: gate.position.x + gate.normal.x * length, z: gate.position.z + gate.normal.z * length };
 }
 
-function cleanOutputDirectory(outputDir: string): void {
-  if (!existsSync(outputDir)) return;
-  for (const file of readdirSync(outputDir)) {
-    const path = join(outputDir, file);
-    try {
-      if (statSync(path).isFile()) unlinkSync(path);
-    } catch {
-      // Preserve historical best-effort cleanup behavior.
-    }
-  }
-}
 
-export function runTrackExtraction(repoRoot: string): void {
-  const outputDir = resolve(repoRoot, "shared/data/tracks/f1-2025");
+export function runTrackExtraction(_repoRoot: string): void {
   const f1Dir = findSteamInstall("F1 25");
   if (!f1Dir) {
     console.error("F1 25 not found. Make sure it's installed via Steam.");
@@ -97,22 +86,7 @@ export function runTrackExtraction(repoRoot: string): void {
   }
   const tracksDir = join(f1Dir, "2025_asset_groups", "environment_package", "tracks");
 
-  const trackIdToName = new Map<number, string>();
-  try {
-    const csv = readFileSync(resolve(repoRoot, "shared/games/f1-2025/tracks.csv"), "utf-8");
-    for (const line of csv.trim().split("\n")) {
-      const parts = line.split(",");
-      const id = parseInt(parts[0], 10);
-      const sharedName = parts[6]?.trim();
-      if (!Number.isNaN(id) && sharedName) trackIdToName.set(id, sharedName);
-    }
-  } catch {
-    // Track names remain numeric when source metadata is unavailable.
-  }
-  const trackFileName = (trackId: number) => trackIdToName.get(trackId) ?? `${trackId}`;
 
-  cleanOutputDirectory(outputDir);
-  mkdirSync(outputDir, { recursive: true });
   const trackDirs = readdirSync(tracksDir).filter((directory) => {
     try { return statSync(join(tracksDir, directory)).isDirectory(); } catch { return false; }
   });
@@ -264,15 +238,21 @@ export function runTrackExtraction(repoRoot: string): void {
       if (pitLane) pitLane = pitLane.map(negateX);
       [leftEdge, rightEdge] = [rightEdge, leftEdge];
 
-      const name = trackFileName(trackId);
-      writeFileSync(join(outputDir, `${name}-centerline.csv`), ["x,z", ...centerline.map((point) => `${point.x.toFixed(4)},${point.z.toFixed(4)}`)].join("\n"));
-      writeFileSync(join(outputDir, `${name}-boundaries.json`), JSON.stringify({ waypoints: trackGates.length, leftEdge, rightEdge, altitude, pitLane }, null, 2));
-      console.log(`${trackGates.length} gates, ${pitGates.length} pit${aligned ? " [aligned]" : ""} → ${name}`);
+      const identity = getTrackAssetIdentity("f1-2025", trackId);
+      if (!identity) {
+        console.log("no canonical registry assignment");
+        continue;
+      }
+      const centerlinePath = bundledGeometryPath(identity, "centerline");
+      mkdirSync(dirname(centerlinePath), { recursive: true });
+      writeFileSync(centerlinePath, ["x,z", ...centerline.map((point) => `${point.x.toFixed(4)},${point.z.toFixed(4)}`)].join("\n"));
+      writeFileSync(bundledGeometryPath(identity, "boundaries"), JSON.stringify({ waypoints: trackGates.length, leftEdge, rightEdge, altitude, pitLane }, null, 2));
+      console.log(`${trackGates.length} gates, ${pitGates.length} pit${aligned ? " [aligned]" : ""} → ${identity.venuePath}/${identity.layoutSlug}`);
       extracted++;
     } catch (error) {
       console.log(`error: ${(error as Error).message}`);
     }
   }
 
-  console.log(`\nExtracted ${extracted} tracks to ${outputDir}`);
+  console.log(`\nExtracted ${extracted} tracks to canonical venue geometry`);
 }

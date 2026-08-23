@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Start_Finish" data-name="EXAMPLE - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+      }
+    </style>
+  </defs>
+  <g id="Dirt_road" data-name="Dirt road">
+    <path id="start-finish" class="cls-1" d="M1106.1909,420.153l18.6487,24.234-93.9546-39.6553,101.9792.4684-26.6733,14.9528ZM1046.3992,510.3073l9.7968,2.0062,14.0433-68.5768-9.7966-2.0062-14.0435,68.5768Z"/>
+  </g>
+</svg>

@@ -49,11 +49,42 @@ export function getFuelDisplay(
 }
 
 export function getFuelDisplaySemantic(
-  fuel: number,
-  capacity: number | undefined,
-  spec: TelemetryModel["fuel"],
+  {
+    remainingVolumeL,
+    remainingFraction,
+    capacityL,
+  }: {
+    remainingVolumeL?: number;
+    remainingFraction?: number;
+    capacityL?: number;
+  },
 ): FuelDisplay {
-  return getFuelDisplay({ Fuel: fuel, FuelCapacity: capacity }, spec);
+  const hasVolume =
+    remainingVolumeL !== undefined && Number.isFinite(remainingVolumeL);
+  const hasFraction =
+    remainingFraction !== undefined && Number.isFinite(remainingFraction);
+  const hasCapacity =
+    capacityL !== undefined && Number.isFinite(capacityL) && capacityL > 0;
+
+  const fillRatio = hasFraction
+    ? clampRatio(remainingFraction)
+    : hasVolume && hasCapacity
+      ? clampRatio(remainingVolumeL / capacityL)
+      : undefined;
+
+  if (hasVolume) {
+    return {
+      amount: remainingVolumeL,
+      unit: "L",
+      ...(fillRatio === undefined ? {} : { fillRatio }),
+    };
+  }
+
+  return {
+    amount: hasFraction ? remainingFraction * 100 : Number.NaN,
+    unit: "%",
+    ...(fillRatio === undefined ? {} : { fillRatio }),
+  };
 }
 
 export function getTireTemperatureSourceUnit(

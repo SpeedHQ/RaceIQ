@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "summit-point-raceway/summit-point-raceway",
+  "name": "Summit Point Raceway",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 9,
+      "confirmation": null
+    }
+  ]
+}

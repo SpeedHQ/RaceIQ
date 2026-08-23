@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-rallycross-and-dirt-road/rallycross-short",
+  "name": "Rallycross Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 296,
+      "confirmation": null
+    }
+  ]
+}

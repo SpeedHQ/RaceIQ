@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "hockenheimring/national-a",
+  "name": "National A",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 391,
+      "confirmation": null
+    }
+  ]
+}

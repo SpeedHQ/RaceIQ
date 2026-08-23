@@ -85,24 +85,24 @@ test(
       expectations: [
         {
           semanticId: "motion.speed",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "m/s",
           accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 1 && value < 150,
           minimumRange: 1,
         },
         {
-          semanticId: "inputs.accel",
+          semanticId: "inputs.throttle",
           mappingStatus: "normalized",
-          unit: "0–255",
-          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 255,
-          minimumRange: 1,
+          unit: "ratio",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1,
+          minimumRange: 1 / 255,
         },
         {
           semanticId: "inputs.brake",
           mappingStatus: "normalized",
-          unit: "0–255",
-          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 255,
-          minimumRange: 1,
+          unit: "ratio",
+          accepts: (value) => typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1,
+          minimumRange: 1 / 255,
         },
         {
           semanticId: "timing.current-race-time",

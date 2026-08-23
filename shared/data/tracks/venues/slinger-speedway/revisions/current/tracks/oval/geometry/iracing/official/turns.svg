@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Oval - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .b {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <text class="b" transform="translate(1287.45 695.32)"><tspan x="0" y="0">1</tspan></text>
+  <text class="b" transform="translate(1297.25 443.69)"><tspan x="0" y="0">2</tspan></text>
+  <text class="b" transform="translate(702.67 647.45)"><tspan x="0" y="0">4</tspan></text>
+  <text class="b" transform="translate(641.72 443.69)"><tspan x="0" y="0">3</tspan></text>
+</svg>

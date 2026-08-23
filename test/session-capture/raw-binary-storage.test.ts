@@ -333,14 +333,10 @@ describe("countStaleSessions", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  async function insertSession(
-    rawFile: string | null,
-    lapDetectorVersion: string | null,
-    gameId = "fm-2023",
-  ): Promise<number> {
+  async function insertSession(rawFile: string | null, lapDetectorVersion: string | null): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId, rawFile, lapDetectorVersion })
+      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;
@@ -348,49 +344,43 @@ describe("countStaleSessions", () => {
     return id;
   }
 
-  test("counts only available supported raw sessions with stale detector versions", async () => {
-    const beforeCount = await countStaleSessions(detectorId, ["fm-2023"]);
+  test("counts only available raw sessions with stale detector versions", async () => {
+    const beforeCount = await countStaleSessions(detectorId);
     const staleOldPath = join(tmpDir, "stale-old.bin");
     const staleNullPath = join(tmpDir, "stale-null.bin");
     const currentPath = join(tmpDir, "current.bin");
-    const unsupportedPath = join(tmpDir, "unsupported.bin");
     writeFileSync(staleOldPath, Buffer.alloc(16));
     writeFileSync(staleNullPath, Buffer.alloc(16));
     writeFileSync(currentPath, Buffer.alloc(16));
-    writeFileSync(unsupportedPath, Buffer.alloc(16));
 
     await insertSession(staleOldPath, "lapdetector_v0");
     await insertSession(staleNullPath, null);
     await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
     await insertSession(currentPath, detectorId);
     await insertSession(null, null);
-    await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
 
-    const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
+    const afterCount = await countStaleSessions(detectorId);
 
     expect(afterCount - beforeCount).toBe(2);
   });
 
-  test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
-    const baselineIds = await getStaleSessions(detectorId, ["fm-2023"]);
+  test("getStaleSessions returns only available stale raw sessions", async () => {
+    const baselineIds = await getStaleSessions(detectorId);
     const baselineSet = new Set(baselineIds);
     const staleOldPath = join(tmpDir, "stale-old.bin");
     const staleNullPath = join(tmpDir, "stale-null.bin");
     const currentPath = join(tmpDir, "current.bin");
-    const unsupportedPath = join(tmpDir, "unsupported.bin");
     writeFileSync(staleOldPath, Buffer.alloc(16));
     writeFileSync(staleNullPath, Buffer.alloc(16));
     writeFileSync(currentPath, Buffer.alloc(16));
-    writeFileSync(unsupportedPath, Buffer.alloc(16));
 
     const staleRawOldVersion = await insertSession(staleOldPath, "lapdetector_v0");
     const staleRawNullVersion = await insertSession(staleNullPath, null);
     const missingRaw = await insertSession(join(tmpDir, "missing.bin"), "lapdetector_v0");
     const currentVersion = await insertSession(currentPath, detectorId);
     const noRaw = await insertSession(null, null);
-    const unsupportedGame = await insertSession(unsupportedPath, "lapdetector_v0", "lmu");
 
-    const allIds = await getStaleSessions(detectorId, ["fm-2023"]);
+    const allIds = await getStaleSessions(detectorId);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
 
     expect(insertedIdsOnly).toHaveLength(2);
@@ -399,6 +389,5 @@ describe("countStaleSessions", () => {
     expect(insertedIdsOnly).not.toContain(missingRaw);
     expect(insertedIdsOnly).not.toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(noRaw);
-    expect(insertedIdsOnly).not.toContain(unsupportedGame);
   });
 });

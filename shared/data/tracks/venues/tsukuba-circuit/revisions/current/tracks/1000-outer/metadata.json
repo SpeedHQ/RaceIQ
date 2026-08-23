@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/1000-outer",
+  "name": "1000 Outer",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 328,
+      "confirmation": null
+    }
+  ]
+}

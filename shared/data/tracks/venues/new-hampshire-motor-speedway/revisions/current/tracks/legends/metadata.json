@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "new-hampshire-motor-speedway/legends",
+  "name": "Legends",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 222,
+      "confirmation": null
+    }
+  ]
+}

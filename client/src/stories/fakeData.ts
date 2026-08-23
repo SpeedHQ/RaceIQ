@@ -194,7 +194,7 @@ export const fakeF1Packet: TelemetryPacket = {
     brakesDamageRL: 0,
     brakesDamageRR: 0,
     tyreBlistersFL: 0,
-    tyreBlistsFR: 0,
+    tyreBlistersFR: 0,
     tyreBlistersRL: 0,
     tyreBlistersRR: 0,
     drsFault: 0,
@@ -248,7 +248,8 @@ export const fakeF1Packet: TelemetryPacket = {
         bestLapTime: 92.341,
         gapToLeader: 0,
         gapToCarAhead: 0,
-        pitStatus: 0,
+        pitStatus: "none",
+        onPitRoad: false,
         numPitStops: 0,
         tyreCompound: "medium",
         tyreAge: 12,
@@ -270,7 +271,8 @@ export const fakeF1Packet: TelemetryPacket = {
         bestLapTime: 92.68,
         gapToLeader: 0.3,
         gapToCarAhead: 0.3,
-        pitStatus: 0,
+        pitStatus: "none",
+        onPitRoad: false,
         numPitStops: 0,
         tyreCompound: "medium",
         tyreAge: 12,
@@ -292,7 +294,8 @@ export const fakeF1Packet: TelemetryPacket = {
         bestLapTime: 92.99,
         gapToLeader: 0.8,
         gapToCarAhead: 0.5,
-        pitStatus: 0,
+        pitStatus: "none",
+        onPitRoad: false,
         numPitStops: 0,
         tyreCompound: "soft",
         tyreAge: 8,
@@ -314,7 +317,8 @@ export const fakeF1Packet: TelemetryPacket = {
         bestLapTime: 93.1,
         gapToLeader: 1.4,
         gapToCarAhead: 0.6,
-        pitStatus: 0,
+        pitStatus: "none",
+        onPitRoad: false,
         numPitStops: 0,
         tyreCompound: "soft",
         tyreAge: 8,
@@ -336,7 +340,8 @@ export const fakeF1Packet: TelemetryPacket = {
         bestLapTime: 93.4,
         gapToLeader: 2.1,
         gapToCarAhead: 0.7,
-        pitStatus: 0,
+        pitStatus: "none",
+        onPitRoad: false,
         numPitStops: 1,
         tyreCompound: "hard",
         tyreAge: 4,
@@ -354,14 +359,23 @@ export const fakeF1Packet: TelemetryPacket = {
 const semanticFixtureIds = [
   "identity.car-ordinal", "identity.track-ordinal", "identity.car-class", "identity.car-performance-index", "identity.drivetrain-type",
   "motion.speed", "motion.acceleration-x", "motion.acceleration-z", "motion.position-x", "motion.position-z", "motion.roll", "motion.pitch", "motion.yaw",
-  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm", "engine.power", "engine.torque", "engine.boost",
-  "fuel.fuel", "fuel.fuel-capacity", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
+  "inputs.throttle", "inputs.brake", "inputs.clutch", "inputs.handbrake", "inputs.steering", "inputs.gear", "engine.current-engine-rpm", "engine.engine-max-rpm", "engine.engine-idle-rpm", "engine.power", "engine.torque", "engine.boost",
+  "fuel.capacity", "fuel.remaining-fraction", "fuel.remaining-percent", "fuel.remaining-volume", "timing.best-lap", "timing.last-lap", "timing.current-lap", "timing.lap-number",
   "timing.distance-traveled", "race.race-position", "tire.temperature.average", "tires.tire-wear", "tires.tire-pressure", "brakes.brake-temp",
+  "damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage", "damage.floor-damage", "damage.diffuser-damage", "damage.sidepod-damage",
   "aero.drs-active", "aero.drs-available", "aero.drs-zone-approaching", "weather.weather-type", "weather.track-temp", "weather.air-temp", "weather.rain-percent",
   "fuel.ers-store-energy", "fuel.ers-deploy-mode", "fuel.ers-deployed", "fuel.ers-harvested",
 ];
 
 function makeSemanticFixture(raw: TelemetryPacket) {
+  const fuelUsesFraction = raw.gameId === "fm-2023" || raw.gameId === "f1-2025";
+  const capacityL = raw.FuelCapacity;
+  const remainingVolumeL = fuelUsesFraction
+    ? capacityL === undefined ? undefined : raw.Fuel * capacityL
+    : raw.Fuel;
+  const remainingFraction = fuelUsesFraction
+    ? raw.Fuel
+    : capacityL === undefined || capacityL <= 0 ? undefined : raw.Fuel / capacityL;
   const values: unknown[] = semanticFixtureIds.map((id) => {
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
@@ -369,15 +383,26 @@ function makeSemanticFixture(raw: TelemetryPacket) {
       "identity.car-performance-index": raw.CarPerformanceIndex, "identity.drivetrain-type": raw.DrivetrainType,
       "motion.speed": raw.Speed, "motion.acceleration-x": raw.AccelerationX, "motion.acceleration-z": raw.AccelerationZ,
       "motion.position-x": raw.PositionX, "motion.position-z": raw.PositionZ, "motion.roll": raw.Roll, "motion.pitch": raw.Pitch, "motion.yaw": raw.Yaw,
-      "inputs.accel": raw.Accel, "inputs.brake": raw.Brake, "inputs.steer": raw.Steer, "inputs.gear": raw.Gear,
+      "inputs.throttle": raw.Accel / 255, "inputs.brake": raw.Brake / 255,
+      "inputs.clutch": raw.Clutch / 255, "inputs.handbrake": raw.HandBrake / 255,
+      "inputs.steering": Math.max(-1, Math.min(1, raw.Steer >= 0 ? raw.Steer / 127 : raw.Steer / 128)), "inputs.gear": raw.Gear,
       "engine.current-engine-rpm": raw.CurrentEngineRpm, "engine.engine-max-rpm": raw.EngineMaxRpm, "engine.engine-idle-rpm": raw.EngineIdleRpm,
-      "engine.power": raw.Power, "engine.torque": raw.Torque, "engine.boost": raw.Boost, "fuel.fuel": raw.Fuel, "fuel.fuel-capacity": raw.FuelCapacity,
+      "engine.power": raw.Power, "engine.torque": raw.Torque, "engine.boost": raw.Boost,
+      "fuel.capacity": capacityL, "fuel.remaining-fraction": remainingFraction,
+      "fuel.remaining-percent": remainingFraction === undefined ? undefined : remainingFraction * 100,
+      "fuel.remaining-volume": remainingVolumeL,
       "timing.best-lap": raw.BestLap, "timing.last-lap": raw.LastLap, "timing.current-lap": raw.CurrentLap, "timing.lap-number": raw.LapNumber,
       "timing.distance-traveled": raw.DistanceTraveled, "race.race-position": raw.RacePosition,
       "tire.temperature.average": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
       "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
       "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
       "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
+      "damage.front-left-wing-damage": f1?.frontLeftWingDamage,
+      "damage.front-right-wing-damage": f1?.frontRightWingDamage,
+      "damage.rear-wing-damage": f1?.rearWingDamage,
+      "damage.floor-damage": f1?.floorDamage,
+      "damage.diffuser-damage": f1?.diffuserDamage,
+      "damage.sidepod-damage": f1?.sidepodDamage,
       "weather.weather-type": f1?.weather, "weather.track-temp": f1?.trackTemperature, "weather.air-temp": f1?.airTemperature, "weather.rain-percent": f1?.rainPercentage,
       "aero.drs-active": f1?.drsActivated, "aero.drs-available": f1?.drsAllowed, "aero.drs-zone-approaching": f1?.drsZoneApproaching,
       "fuel.ers-store-energy": f1?.ersStoreEnergy,

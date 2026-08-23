@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oran-park-raceway/south",
+  "name": "South",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 208,
+      "confirmation": null
+    }
+  ]
+}

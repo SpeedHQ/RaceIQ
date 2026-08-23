@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "fujimi-kaido/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 78,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "fujimi-kaido",
+    "track": "fujimi-kaido",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Fujimi Kaido",
+    "corners": []
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.33299999999999996,
+        "s2End": 0.6659999999999999
+      },
+      "segments": []
+    }
+  }
+}

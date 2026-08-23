@@ -6,6 +6,7 @@ import {
   getTelemetrySources,
   getTelemetryVariable,
   IRACING_SESSION_INFO_SOURCE_VARIABLES,
+  IRACING_TELEMETRY_SOURCE_VARIABLES,
   KNOWN_GAME_IDS,
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
@@ -115,7 +116,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(735);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(723);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -128,8 +129,8 @@ describe("semantic telemetry catalog artifacts", () => {
       },
       "f1-2025": {
         total: 288,
-        packet: 119,
-        extension: 169,
+        packet: 118,
+        extension: 170,
         sdk: 0,
         yaml: 0,
         setup: 0,
@@ -154,13 +155,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 219,
       },
       iracing: {
-        total: 955,
+        total: 959,
         packet: 119,
-        extension: 17,
+        extension: 21,
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 705,
+        recorded: 718,
       },
     });
 
@@ -193,13 +194,13 @@ describe("semantic telemetry catalog artifacts", () => {
     );
     expect(getTelemetryVariable("fuel.remaining-volume").games).toMatchObject({
       "fm-2023": { kind: "unavailable" },
-      "f1-2025": { kind: "derived" },
+      "f1-2025": { kind: "unavailable" },
       acc: { kind: "direct", nativeUnit: "L" },
       "ac-evo": { kind: "direct", nativeUnit: "L" },
       iracing: { kind: "direct", nativeUnit: "L" },
     });
     expect(
-      Object.values(getTelemetryVariable("fuel.fuel-percent").games).every(
+      Object.values(getTelemetryVariable("fuel.remaining-percent").games).every(
         (mapping) => mapping.kind !== "unavailable",
       ),
     ).toBe(true);
@@ -244,20 +245,27 @@ describe("semantic telemetry catalog artifacts", () => {
     expect(getTelemetryVariable("race.is-race-on").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       iracing: {
-        kind: "normalized",
-        sources: ["iRacing.IsOnTrack"],
+        kind: "direct",
+        sources: ["TelemetryPacket.IsRaceOn", "iRacing.IsOnTrack"],
       },
     });
-    expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
-      kind: "normalized",
-      nativeUnit: "kPa",
+    const iracingPressure =
+      getTelemetryVariable("tires.tire-pressure").games.iracing;
+    expect(iracingPressure).toMatchObject({
+      kind: "direct",
+      nativeUnit: "psi",
       sources: {
-        FL: ["iRacing.LFcoldPressure"],
-        FR: ["iRacing.RFcoldPressure"],
-        RL: ["iRacing.LRcoldPressure"],
-        RR: ["iRacing.RRcoldPressure"],
+        FL: ["TelemetryPacket.TirePressureFrontLeft"],
+        FR: ["TelemetryPacket.TirePressureFrontRight"],
+        RL: ["TelemetryPacket.TirePressureRearLeft"],
+        RR: ["TelemetryPacket.TirePressureRearRight"],
       },
     });
+    expect(
+      iracingPressure.kind === "unavailable"
+        ? ""
+        : iracingPressure.description,
+    ).toContain("iRacing.LFcoldPressure");
 
     expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
       "normalized",
@@ -270,6 +278,35 @@ describe("semantic telemetry catalog artifacts", () => {
         (source) => source.path === "TelemetryPacket.TireTempFL",
       ),
     ).toMatchObject({ unit: "°F" });
+    for (const gameId of KNOWN_GAME_IDS) {
+      const sources = getTelemetrySources(gameId);
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Accel"),
+      ).toMatchObject({ unit: "0–255" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Steer"),
+      ).toMatchObject({ unit: "-128–127" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.TimestampMS"),
+      ).toMatchObject({ unit: "ms" });
+    }
+    for (const path of [
+      "BrakeABSactive",
+      "CarIdxOnPitRoad",
+      "FuelLevelPct",
+      "PlayerCarSLFirstRPM",
+      "PlayerCarSLShiftRPM",
+      "PlayerCarSLLastRPM",
+      "PlayerCarSLBlinkRPM",
+      "SessionTimeOfDay",
+      "SessionTimeRemain",
+    ]) {
+      expect(
+        IRACING_TELEMETRY_SOURCE_VARIABLES.find(
+          (source) => source.path === path,
+        ),
+      ).toMatchObject({ recordedByRaceIQ: true, retention: "exact" });
+    }
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
         (source) => source.path === "SessionInfo.WeekendInfo.TrackDirection",

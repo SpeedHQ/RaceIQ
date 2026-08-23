@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "long-beach-street-circuit/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 179,
+      "confirmation": null
+    }
+  ]
+}
