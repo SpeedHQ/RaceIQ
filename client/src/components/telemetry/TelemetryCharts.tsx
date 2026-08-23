@@ -4,6 +4,7 @@ import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/m
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import { convertTemp } from "@/lib/temperature";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
 
@@ -84,7 +85,7 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
       }
     };
     appendWheel(history.grip, metricValues("combinedSlip"), Math.abs);
-    appendWheel(history.temp, metricValues("temperatureC"), (value) => value);
+    appendWheel(history.temp, metricValues("temperatureC"), (value) => convertTemp(value, units.tempUnit, "C"));
     appendWheel(history.wear, metricValues("wear"), (value) => value);
     appendWheel(history.slipAngle, metricValues("slipAngleRad"), (value) => value * (180 / Math.PI));
     appendWheel(history.slipRatio, metricValues("slipRatio"), Math.abs);
@@ -101,7 +102,7 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
   return (
     <div className="grid gap-2">
       {showGrip && <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />}
-      {showTemperature && <FourLineChart data={chartData.temp} label="Tire Temp" unit="°" />}
+      {showTemperature && <FourLineChart data={chartData.temp} label="Tire Temp" unit={`°${units.tempUnit}`} />}
       {showWear && <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />}
       {showSlipAngle && <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />}
       {showSlipRatio && <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />}

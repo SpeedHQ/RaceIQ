@@ -129,10 +129,10 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       <div className="grid gap-0 p-0">
         <div className="border-b border-app-border">
           <TireGrid
-            fl={{ tempC: units.toTempC(view.tires.temperatureC?.fl ?? 0), wear: view.tires.wear?.fl ?? 0 }}
-            fr={{ tempC: units.toTempC(view.tires.temperatureC?.fr ?? 0), wear: view.tires.wear?.fr ?? 0 }}
-            rl={{ tempC: units.toTempC(view.tires.temperatureC?.rl ?? 0), wear: view.tires.wear?.rl ?? 0 }}
-            rr={{ tempC: units.toTempC(view.tires.temperatureC?.rr ?? 0), wear: view.tires.wear?.rr ?? 0 }}
+            fl={{ tempC: view.tires.temperatureC?.fl ?? 0, wear: view.tires.wear?.fl ?? 0 }}
+            fr={{ tempC: view.tires.temperatureC?.fr ?? 0, wear: view.tires.wear?.fr ?? 0 }}
+            rl={{ tempC: view.tires.temperatureC?.rl ?? 0, wear: view.tires.wear?.rl ?? 0 }}
+            rr={{ tempC: view.tires.temperatureC?.rr ?? 0, wear: view.tires.wear?.rr ?? 0 }}
             healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
             freshnessNote={tireFreshnessNote}

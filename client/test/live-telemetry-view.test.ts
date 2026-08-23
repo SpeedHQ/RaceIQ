@@ -3,7 +3,7 @@ import type { GameId } from "../../shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
 import { buildLiveTelemetryView, indexTelemetrySchema, readIndexedValue } from "../src/lib/live-telemetry-view";
 
-function schema(semanticIds: string[], simulator: GameId = "acc"): LiveTelemetrySchemaMessageV1 {
+function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {
   return {
     type: "telemetry-schema",
     protocolVersion: 1,
@@ -15,7 +15,7 @@ function schema(semanticIds: string[], simulator: GameId = "acc"): LiveTelemetry
     parserVersion: "parser",
     resolverVersion: "resolver",
     derivationVersion: "derivation",
-    definitions: semanticIds.map((semanticId) => ({ semanticId, unit: null, mappingStatus: "direct", schemaVersion: "1", limitations: [] })),
+    definitions: semanticIds.map((semanticId) => ({ semanticId, unit: units[semanticId] ?? null, mappingStatus: "direct", schemaVersion: "1", limitations: [] })),
   };
 }
 
@@ -75,6 +75,17 @@ describe("live telemetry view", () => {
 
     expect(incomplete.motion.position).toBeUndefined();
     expect(legitimateZero.motion.position).toEqual({ x: 0, z: 0 });
+  });
+
+  it("normalizes simulator tire temperature units to explicit Celsius", () => {
+    const semanticIds = ["tire.temperature.average"];
+    const forzaSchema = schema(semanticIds, "fm-2023", { "tire.temperature.average": "°F" });
+    const accSchema = schema(semanticIds, "acc", { "tire.temperature.average": "°C" });
+    const forza = buildLiveTelemetryView(forzaSchema, frame([[212, 32, 68, 86]], { schemaId: "schema-fm-2023" }))!;
+    const acc = buildLiveTelemetryView(accSchema, frame([[100, 0, 20, 30]]))!;
+
+    expect(forza.tires.temperatureC).toEqual({ fl: 100, fr: 0, rl: 20, rr: 30 });
+    expect(acc.tires.temperatureC).toEqual({ fl: 100, fr: 0, rl: 20, rr: 30 });
   });
 
   it("projects game features through canonical groups without simulator branches", () => {

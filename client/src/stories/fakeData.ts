@@ -8,7 +8,6 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
-import type { DisplayPacket } from "../lib/convert-packet";
 
 // ── Shared base packet fields ────────────────────────────────────────────────
 
@@ -463,7 +462,13 @@ function makeSemanticFixture(raw: TelemetryPacket) {
     parserVersion: "storybook",
     resolverVersion: "storybook",
     derivationVersion: "storybook",
-    definitions: semanticFixtureIds.map((semanticId) => ({ semanticId, unit: null, mappingStatus: "direct" as const, schemaVersion: "1", limitations: [] })),
+    definitions: semanticFixtureIds.map((semanticId) => ({
+      semanticId,
+      unit: semanticId === "tire.temperature.average" ? (raw.gameId === "fm-2023" ? "°F" : "°C") : null,
+      mappingStatus: "direct" as const,
+      schemaVersion: "1",
+      limitations: [],
+    })),
   };
   const frame: LiveTelemetryFrameMessageV1 = {
     type: "telemetry-frame",
@@ -603,9 +608,17 @@ export const fakeAccPacket: TelemetryPacket = {
   },
 };
 
-// ── Converted Display Packets ────────────────────────────────────────────────
+// Story-only legacy packet fixture for development panels that intentionally
+// exercise raw display fields.
+interface StoryDisplayPacket extends TelemetryPacket {
+  DisplaySpeed: number;
+  DisplayTireTempFL: number;
+  DisplayTireTempFR: number;
+  DisplayTireTempRL: number;
+  DisplayTireTempRR: number;
+}
 
-function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
+function makeStoryDisplayPacket(raw: TelemetryPacket): StoryDisplayPacket {
   const isForza = raw.gameId === "fm-2023";
   const fahrenheitToC = (f: number) => (f - 32) / 1.8;
   return {
@@ -618,14 +631,13 @@ function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
   };
 }
 
-// AC Evo shares ACC's shared-memory shape; the packet differs only in the
-// gameId the store holds alongside it.
+// AC Evo shares ACC's shared-memory shape and carries its own simulator identity.
 export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-evo" };
 
-export const fakeF1DisplayPacket: DisplayPacket = makeDisplayPacket(fakeF1Packet);
-export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForzaPacket);
-export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
-export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
+export const fakeF1DisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeF1Packet);
+export const fakeForzaDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeForzaPacket);
+export const fakeAccDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeAccPacket);
+export const fakeAcEvoDisplayPacket: StoryDisplayPacket = makeStoryDisplayPacket(fakeAcEvoPacket);
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
 export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);
