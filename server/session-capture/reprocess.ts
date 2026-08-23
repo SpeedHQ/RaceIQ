@@ -13,6 +13,7 @@ import {
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
+import { invalidateLapEvidence } from "../db/lap-evidence-invalidation";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 
@@ -58,19 +59,20 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   if (!session.rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
+  const rawFile = session.rawFile;
 
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
   // Read the raw session file
-  const rawFileHandle = Bun.file(session.rawFile);
+  const rawFileHandle = Bun.file(rawFile);
   if (!(await rawFileHandle.exists())) {
-    throw new SessionRawFileMissingError(sessionId, session.rawFile);
+    throw new SessionRawFileMissingError(sessionId, rawFile);
   }
   const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
   // Decompress if file is gzipped
-  const buf = session.rawFile.endsWith(".gz")
+  const buf = rawFile.endsWith(".gz")
     ? await gunzipBuffer(rawBuffer)
     : rawBuffer;
 
@@ -100,83 +102,96 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const detectedLaps = capturingDb.laps;
   const existingLaps = await getLapsForSession(sessionId);
 
-  let strategy: "in-place" | "replace";
+  const strategy: "in-place" | "replace" =
+    detectedLaps.length === existingLaps.length ? "in-place" : "replace";
   let lapsUpdated = 0;
+  const affectedLapIds = existingLaps.map(({ id }) => id);
 
-  if (detectedLaps.length === existingLaps.length) {
-    // Same count — update frame indexes and metadata in-place, matched by lap number
-    strategy = "in-place";
-    const existingByLapNum = new Map(existingLaps.map(l => [l.lapNumber, l]));
-    for (const detected of detectedLaps) {
-      const existing = existingByLapNum.get(detected.lapNumber);
-      if (!existing) continue;
-      const sectors = detected.sectors ? [...detected.sectors] : null;
-      await updateLapRawIndex(
-        existing.id,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        detected.lapTime,
-        detected.isValid,
-        detected.invalidReason,
-        sectors,
-        versionIdentity,
-      );
-      lapsUpdated++;
-    }
-  } else {
-    // Count changed — rebuild detected laps. Match old rows by lap number and
-    // raw offset so notes and tune links survive on detected replacements.
-    // Existing rows without a detected replacement are removed.
-    strategy = "replace";
-    const candidatesByLapNumber = new Map<
-      number,
-      (typeof existingLaps)[number][]
-    >();
-    for (const existing of existingLaps) {
-      const candidates = candidatesByLapNumber.get(existing.lapNumber);
-      if (candidates) candidates.push(existing);
-      else candidatesByLapNumber.set(existing.lapNumber, [existing]);
-    }
-    const replacements = detectedLaps.map((detected) => {
-      const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
-      const exactIndex = candidates.findIndex(
-        (candidate) =>
-          candidate.rawByteOffset === detected.rawByteOffset,
-      );
-      const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
-      const preserved =
-        candidates.length > 0
-          ? candidates.splice(candidateIndex, 1)[0]
-          : undefined;
-      return { detected, preserved };
-    });
-    await deleteLapsForSession(sessionId);
-    for (const { detected, preserved } of replacements) {
-      const sectors = detected.sectors ? [...detected.sectors] : null;
-      await insertReprocessedLap(
+  await db.transaction(async (tx) => {
+    await invalidateLapEvidence(
+      {
+        lapIds: affectedLapIds,
         sessionId,
-        detected.lapNumber,
-        detected.lapTime,
-        detected.isValid,
-        detected.rawByteOffset,
-        detected.rawFrameCount,
-        preserved?.tuneId ?? null,
-        preserved?.notes ?? null,
-        detected.invalidReason,
-        sectors,
-        versionIdentity,
-      );
-      lapsUpdated++;
-    }
-  }
+        telemetryBoundariesChanged: true,
+      },
+      tx,
+    );
 
-  // Update session lap detector version
-  await updateSessionRawFile(
-    sessionId,
-    session.rawFile,
-    detector.detectorId,
-    versionIdentity,
-  );
+    if (strategy === "in-place") {
+      // Same count — update frame indexes and metadata in-place, matched by lap number.
+      const existingByLapNum = new Map(existingLaps.map((lap) => [lap.lapNumber, lap]));
+      for (const detected of detectedLaps) {
+        const existing = existingByLapNum.get(detected.lapNumber);
+        if (!existing) continue;
+        const sectors = detected.sectors ? [...detected.sectors] : null;
+        await updateLapRawIndex(
+          existing.id,
+          detected.rawByteOffset,
+          detected.rawFrameCount,
+          detected.lapTime,
+          detected.isValid,
+          detected.invalidReason,
+          sectors,
+          versionIdentity,
+          tx,
+        );
+        lapsUpdated++;
+      }
+    } else {
+      // Count changed — rebuild detected laps. Match old rows by lap number and
+      // raw offset so notes and tune links survive on detected replacements.
+      // Existing rows without a detected replacement are removed.
+      const candidatesByLapNumber = new Map<
+        number,
+        (typeof existingLaps)[number][]
+      >();
+      for (const existing of existingLaps) {
+        const candidates = candidatesByLapNumber.get(existing.lapNumber);
+        if (candidates) candidates.push(existing);
+        else candidatesByLapNumber.set(existing.lapNumber, [existing]);
+      }
+      const replacements = detectedLaps.map((detected) => {
+        const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
+        const exactIndex = candidates.findIndex(
+          (candidate) =>
+            candidate.rawByteOffset === detected.rawByteOffset,
+        );
+        const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
+        const preserved =
+          candidates.length > 0
+            ? candidates.splice(candidateIndex, 1)[0]
+            : undefined;
+        return { detected, preserved };
+      });
+      await deleteLapsForSession(sessionId, [], tx);
+      for (const { detected, preserved } of replacements) {
+        const sectors = detected.sectors ? [...detected.sectors] : null;
+        await insertReprocessedLap(
+          sessionId,
+          detected.lapNumber,
+          detected.lapTime,
+          detected.isValid,
+          detected.rawByteOffset,
+          detected.rawFrameCount,
+          preserved?.tuneId ?? null,
+          preserved?.notes ?? null,
+          detected.invalidReason,
+          sectors,
+          versionIdentity,
+          tx,
+        );
+        lapsUpdated++;
+      }
+    }
+
+    await updateSessionRawFile(
+      sessionId,
+      rawFile,
+      detector.detectorId,
+      versionIdentity,
+      tx,
+    );
+  });
 
   return {
     sessionId,

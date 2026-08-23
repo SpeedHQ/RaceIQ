@@ -4,6 +4,8 @@ import { db } from "./index";
 import { laps } from "./schema";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean;
   notes: string | null; tuneId: number | null;
@@ -40,9 +42,11 @@ export async function updateLapRawIndex(
   invalidReason: string | null,
   sectors: number[] | null,
   versionIdentity?: TelemetryVersionIdentity,
+  transaction?: DbTransaction,
 ): Promise<void> {
+  const executor = transaction ?? db;
   cacheDelete(lapId);
-  await db.update(laps).set({
+  await executor.update(laps).set({
     rawByteOffset,
     rawFrameCount,
     lapTime,
@@ -67,8 +71,10 @@ export async function insertReprocessedLap(
   invalidReason: string | null,
   sectors: number[] | null,
   versionIdentity?: TelemetryVersionIdentity,
+  transaction?: DbTransaction,
 ): Promise<number> {
-  const result = await db.insert(laps).values({
+  const executor = transaction ?? db;
+  const result = await executor.insert(laps).values({
     sessionId, lapNumber, lapTime, isValid,
     rawByteOffset, rawFrameCount,
     tuneId, notes, invalidReason,
@@ -83,8 +89,10 @@ export async function insertReprocessedLap(
 export async function deleteLapsForSession(
   sessionId: number,
   preserveLapIds: readonly number[] = [],
+  transaction?: DbTransaction,
 ): Promise<void> {
-  const rows = await db
+  const executor = transaction ?? db;
+  const rows = await executor
     .select({ id: laps.id })
     .from(laps)
     .where(eq(laps.sessionId, sessionId))
@@ -96,10 +104,10 @@ export async function deleteLapsForSession(
   for (const id of deletedIds) cacheDelete(id);
   if (deletedIds.length === 0) return;
   if (preserveLapIds.length === 0) {
-    await db.delete(laps).where(eq(laps.sessionId, sessionId));
+    await executor.delete(laps).where(eq(laps.sessionId, sessionId));
     return;
   }
-  await db.delete(laps).where(
+  await executor.delete(laps).where(
     and(
       eq(laps.sessionId, sessionId),
       notInArray(laps.id, [
