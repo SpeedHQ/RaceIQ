@@ -1,21 +1,12 @@
 import type { GameId } from "@shared/games/ids";
+import type { RaceEventId } from "@shared/racing/events/contracts";
+import type { EligibilityDecision, EligibilityPolicyId, EligibilityStatus, QualityReasonCode } from "@shared/racing/quality/contracts";
 
 export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
 export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
-export type RaceResultStatus =
-  | "finished"
-  | "dnf"
-  | "disqualified"
-  | "not-classified"
-  | "retired"
-  | "qualifying"
-  | "unknown";
+export type RaceResultStatus = "finished" | "dnf" | "disqualified" | "not-classified" | "retired" | "qualifying" | "unknown";
 
-export type RaceResultAuthorityStrategy =
-  | "highest-authority"
-  | "preserve-alternatives"
-  | "require-consensus"
-  | "abstain-on-conflict";
+export type RaceResultAuthorityStrategy = "highest-authority" | "preserve-alternatives" | "require-consensus" | "abstain-on-conflict";
 
 export type RaceResultEvidenceKind = "deterministic" | "ml" | "human";
 
@@ -144,12 +135,35 @@ export interface RaceResultEvidence {
     qualifyingPosition: RaceResultSourceStatus;
     isPodium: RaceResultSourceStatus;
     isFastestLap: RaceResultSourceStatus;
-    pitEvents: RaceResultSourceStatus;
+    pitTimeline: RaceResultSourceStatus;
     tyreStrategy: RaceResultSourceStatus;
     fuelStrategy: RaceResultSourceStatus;
   };
   conflicts: string[];
   decisions?: Record<string, RaceResultAuthorityDecision>;
+}
+export interface RaceResultLapQualityEvidence {
+  lapId: number;
+  lapNumber: number;
+  qualityGeneration: string | null;
+  officialTiming: EligibilityDecision;
+  normalPace: EligibilityDecision;
+}
+
+export type RaceResultEligibilityStatusCounts = Record<EligibilityStatus, number>;
+
+export interface RaceResultPolicyQualityAggregate {
+  policyId: EligibilityPolicyId;
+  policyVersions: string[];
+  statuses: RaceResultEligibilityStatusCounts;
+  reasons: Partial<Record<QualityReasonCode, number>>;
+}
+
+export interface RaceResultLapQualityAggregate {
+  evidenceGeneration: string | null;
+  total: number;
+  officialTiming: RaceResultPolicyQualityAggregate;
+  normalPace: RaceResultPolicyQualityAggregate;
 }
 
 export interface RaceResult {
@@ -164,28 +178,14 @@ export interface RaceResult {
   isPodium: boolean | null;
   isFastestLap: boolean | null;
   pitCount: number;
+  eventIds: RaceEventId[];
   tyreStrategy: unknown;
   fuelStrategy: unknown;
   provenance: RaceResultProvenance;
   reasons: string[];
   outcomeStatus: RaceResultOutcomeStatus;
   evidence: RaceResultEvidence;
-  events: Array<{
-    eventType?: "pit" | "position-change";
-    sequence: number;
-    lapNumber: number | null;
-    elapsedSeconds: number | null;
-    durationSeconds: number | null;
-    service: "tyres" | "fuel" | "combined" | "unknown";
-    tyreChange: unknown;
-    fuelAdded: number | null;
-    fuelBefore: number | null;
-    fuelAfter: number | null;
-    positionBefore?: number | null;
-    positionAfter?: number | null;
-    linkage: "linked" | "unlinked" | "unknown";
-    source: unknown;
-  }>;
+  lapQuality: RaceResultLapQualityEvidence[];
 }
 
 export interface RaceResultAggregate {
@@ -208,4 +208,5 @@ export interface RaceResultAggregate {
   confirmed: number;
   provisional: number;
   unavailable: number;
+  lapQuality: RaceResultLapQualityAggregate;
 }

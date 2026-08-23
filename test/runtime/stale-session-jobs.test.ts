@@ -42,7 +42,7 @@ const evidence: RaceResultEvidence = {
     qualifyingPosition: "direct",
     isPodium: "derived",
     isFastestLap: "derived",
-    pitEvents: "derived",
+    pitTimeline: "derived",
     tyreStrategy: "simplified",
     fuelStrategy: "unavailable",
   },
@@ -63,7 +63,7 @@ async function insertResult(sessionId: number, processorVersion: string) {
   const input: SessionResultInput = {
     sessionId, processorVersion, sessionType: "race", classification: "finished", outcomeStatus: "confirmed",
     finishingPosition: 1, qualifyingPosition: null, isPodium: true, isFastestLap: null, pitCount: 0,
-    tyreStrategy: null, fuelStrategy: null, provenance, evidence, reasons: [],
+    eventIds: [], tyreStrategy: null, fuelStrategy: null, provenance, evidence, reasons: [],
   };
   await upsertSessionResult(input);
 }

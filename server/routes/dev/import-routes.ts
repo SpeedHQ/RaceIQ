@@ -15,7 +15,7 @@ import { readWString } from "../../games/acc/utils";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/parser";
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
-import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { readKunosFrames, type KunosRecordingFrame } from "../../games/kunos/frame-reader";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
@@ -75,17 +75,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     let carModel: string | null = null;
     let trackName: string | null = null;
 
-    const db = new ImportCaptureAdapter({
-      ownership: ownership.data,
-      source: "raceiq-raw",
-    });
+    const db = new ImportCaptureAdapter({ ownership: ownership.data });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
     });
     const start = Date.now();
 
     if (gameId === "acc") {
-      let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+      let frames: KunosRecordingFrame[];
       try {
         frames = readKunosFrames(tmpPath);
       } catch (e) {
@@ -109,6 +106,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
           carOrdinal,
           trackOrdinal,
+          timestampMS: frame.timestampMS,
         });
         if (!packet) continue;
         const sourceFrame = packTriplet(
@@ -117,13 +115,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           packet.TrackOrdinal ?? 0,
           frame.physics,
           frame.graphics,
-          frame.staticData
+          frame.staticData,
+          packet.TimestampMS,
         );
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }
     } else if (gameId === "ac-evo") {
-      let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+      let frames: KunosRecordingFrame[];
       try {
         frames = readKunosFrames(tmpPath);
       } catch (e) {
@@ -147,7 +146,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
             if (track) cache.trackOrdinal = track.id;
           }
         }
-        const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
+        const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache, frame.timestampMS);
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
@@ -155,7 +154,8 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           packet.TrackOrdinal ?? -1,
           frame.physics,
           frame.graphics,
-          frame.staticData
+          frame.staticData,
+          packet.TimestampMS,
         );
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;

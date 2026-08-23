@@ -113,8 +113,8 @@ describe("migration regressions", () => {
 
     const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason FROM laps ORDER BY lap_number");
     expect(rows.rows.map((row) => ({ lapNumber: Number(row.lap_number), isValid: Number(row.is_valid), invalidReason: row.invalid_reason }))).toEqual([
-      { lapNumber: 7, isValid: 0, invalidReason: "inlap" },
-      { lapNumber: 8, isValid: 0, invalidReason: "outlap" },
+      { lapNumber: 7, isValid: 1, invalidReason: null },
+      { lapNumber: 8, isValid: 1, invalidReason: null },
       { lapNumber: 9, isValid: 1, invalidReason: null },
     ]);
     const qualityRows = await client.execute(
@@ -568,7 +568,7 @@ describe("migration regressions", () => {
     await bootstrap(client);
     await runMigrations(client, 58);
     await client.execute("DROP TABLE pit_events");
-    expect(await runMigrations(client)).toBe(1);
+    expect(await runMigrations(client, 59)).toBe(1);
 
     const columns = await client.execute("PRAGMA table_info(pit_events)");
     expect(columns.rows.map((row) => String(row.name))).toEqual([

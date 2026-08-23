@@ -7,9 +7,13 @@ import {
 	index,
 	unique,
 	primaryKey,
+	check,
+	type AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/racing/results/types";
+import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
+import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type {
 	EligibilityDecisionSet,
 	LapQualitySummary,
@@ -100,7 +104,7 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+	// Runtime telemetry identity snapshot attached at first persisted capture (migration v53).
 	// Null for rows inserted before that migration.
 	catalogVersion: text("catalog_version"),
 	catalogHash: text("catalog_hash"),
@@ -108,9 +112,10 @@ export const sessions = sqliteTable("sessions", {
 	parserVersion: text("parser_version"),
 	resolverVersion: text("resolver_version"),
 	derivationVersion: text("derivation_version"),
-	// How this session's telemetry was obtained (migration v43). NULL = recorded
-	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
-	// racing line is dead-reckoned rather than logged — see server/motec/.
+	// How this session's telemetry was obtained (migration v43). Pre-v43 NULL
+	// values are direct live captures and migrate to 'native-live' in v59.
+	// 'motec' marks a transcoded MoTeC .ld export, where the racing line is
+	// dead-reckoned rather than logged — see server/motec/.
 	source: text("source"),
 	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
 	sourceChannelProfile: text("source_channel_profile", { mode: "json" }).$type<SourceChannelProfile>(),
@@ -142,6 +147,7 @@ export const sessionResults = sqliteTable(
 		provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
 		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
 		evidence: text("evidence", { mode: "json" }).$type<RaceResultEvidence>(),
+		eventIds: text("event_ids", { mode: "json" }).$type<RaceEventId[]>().notNull().default(sql`'[]'`),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -150,36 +156,6 @@ export const sessionResults = sqliteTable(
 		index("idx_session_results_session").on(table.sessionId),
 	],
 );
-
-export const pitEvents = sqliteTable(
-	"pit_events",
-	{
-		id: integer("id").primaryKey({ autoIncrement: true }),
-		resultId: integer("result_id")
-			.notNull()
-			.references(() => sessionResults.id, { onDelete: "cascade" }),
-		sequence: integer("sequence").notNull(),
-		eventType: text("event_type").notNull().default("pit"),
-		positionBefore: integer("position_before"),
-		positionAfter: integer("position_after"),
-		lapNumber: integer("lap_number"),
-		elapsedSeconds: real("elapsed_seconds"),
-		durationSeconds: real("duration_seconds"),
-		service: text("service").notNull().default("unknown"),
-		tyreChange: text("tyre_change", { mode: "json" }).$type<unknown>(),
-		fuelAdded: real("fuel_added"),
-		fuelBefore: real("fuel_before"),
-		fuelAfter: real("fuel_after"),
-		linkage: text("linkage").notNull().default("unknown"),
-		source: text("source", { mode: "json" }).$type<unknown>(),
-		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-	},
-	(table) => [
-		unique().on(table.resultId, table.sequence),
-		index("idx_pit_events_result").on(table.resultId, table.sequence),
-	],
-);
-
 
 export const laps = sqliteTable(
 	"laps",
@@ -191,6 +167,9 @@ export const laps = sqliteTable(
 		lapNumber: integer("lap_number").notNull(),
 		lapTime: real("lap_time").notNull(),
 		isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+		phase: text("phase").$type<LapPhase>().notNull().default("flying"),
+		conditions: text("conditions", { mode: "json" }).$type<LapCondition[]>().notNull().default(sql`'[]'`),
+		paceEligibility: text("pace_eligibility").$type<PaceEligibility>().notNull().default("eligible"),
 		invalidReason: text("invalid_reason"),
 		notes: text("notes"),
 		profileId: integer("profile_id").references(() => profiles.id),
@@ -574,10 +553,9 @@ export const compareAnalyses = sqliteTable(
  * Per-lap derived metrics (insights + per-segment input stats), cached so the
  * tuning views don't re-decode a lap's raw .bin on every read.
  *
- * `algo_version` is the cache key alongside `lap_id`: bumping
- * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
- * than requiring a migration to recompute. One row per lap — the recompute
- * overwrites in place.
+ * `algo_version` and `quality_generation` validate the cache alongside
+ * `lap_id`: changing either dependency invalidates the stored row on next
+ * read. One row per lap — the recompute overwrites in place.
  */
 export const lapMetrics = sqliteTable("lap_metrics", {
 	lapId: integer("lap_id")
@@ -655,5 +633,130 @@ export const driverProfileRuns = sqliteTable(
 	(table) => [
 		index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status),
 		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+	],
+);
+
+/**
+ * Canonical, session-owned racing facts. Event identity and order are stable
+ * across live ingestion and deterministic replay; insertion order is never a
+ * timeline coordinate.
+ */
+export const raceEvents = sqliteTable(
+	"race_events",
+	{
+		eventId: text("event_id").$type<RaceEventId>().primaryKey(),
+		eventType: text("event_type").$type<RaceEvent["eventType"]>().notNull(),
+		schemaVersion: text("schema_version").$type<RaceEvent["schemaVersion"]>().notNull(),
+		sessionId: integer("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		participantId: text("participant_id"),
+		participantKind: text("participant_kind").$type<RaceEvent["participantKind"]>(),
+		driverId: text("driver_id"),
+		teamId: text("team_id"),
+		timelineEpoch: integer("timeline_epoch").notNull(),
+		sequence: integer("sequence").notNull(),
+		eventOrder: integer("event_order").notNull(),
+		sourceTimeMs: integer("source_time_ms"),
+		sourceEndTimeMs: integer("source_end_time_ms"),
+		sourceSequenceFamily: text("source_sequence_family"),
+		sourceSequence: integer("source_sequence"),
+		receivedAtMs: integer("received_at_ms").notNull(),
+		lapNumber: integer("lap_number"),
+		lapId: integer("lap_id").references(() => laps.id, { onDelete: "set null" }),
+		trackDistanceM: real("track_distance_m"),
+		trackDistancePct: real("track_distance_pct"),
+		worldPosition: text("world_position", { mode: "json" }).$type<RaceEvent["worldPosition"]>(),
+		evidenceKind: text("evidence_kind").$type<RaceEvent["evidenceKind"]>().notNull(),
+		confidence: text("confidence").$type<RaceEvent["confidence"]>().notNull(),
+		qualityState: text("quality_state").$type<RaceEvent["qualityState"]>().notNull(),
+		sourceKind: text("source_kind").$type<RaceEvent["sourceKind"]>().notNull(),
+		payload: text("payload", { mode: "json" }).$type<RaceEvent["payload"]>().notNull(),
+		lifecycleId: text("lifecycle_id"),
+		linkedEventId: text("linked_event_id")
+			.$type<RaceEventId>()
+			.references((): AnySQLiteColumn => raceEvents.eventId, { onDelete: "set null" }),
+		detectorId: text("detector_id").notNull(),
+		detectorVersion: text("detector_version").notNull(),
+		sourceGeneration: text("source_generation"),
+		analysisGenerationId: text("analysis_generation_id"),
+		contentHash: text("content_hash"),
+		createdAt: text("created_at")
+			.notNull()
+			.default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+	},
+	(table) => [
+		check(
+			"race_events_timeline_epoch_safe",
+			sql`typeof(${table.timelineEpoch}) = 'integer' and ${table.timelineEpoch} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_sequence_safe",
+			sql`typeof(${table.sequence}) = 'integer' and ${table.sequence} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_order_safe",
+			sql`typeof(${table.eventOrder}) = 'integer' and ${table.eventOrder} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_source_time_safe",
+			sql`${table.sourceTimeMs} is null or (typeof(${table.sourceTimeMs}) = 'integer' and ${table.sourceTimeMs} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_end_time_safe",
+			sql`${table.sourceEndTimeMs} is null or (typeof(${table.sourceEndTimeMs}) = 'integer' and ${table.sourceEndTimeMs} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_sequence_safe",
+			sql`${table.sourceSequence} is null or (typeof(${table.sourceSequence}) = 'integer' and ${table.sourceSequence} between -9007199254740991 and 9007199254740991)`,
+		),
+		check(
+			"race_events_received_at_safe",
+			sql`typeof(${table.receivedAtMs}) = 'integer' and ${table.receivedAtMs} between 0 and 9007199254740991`,
+		),
+		check(
+			"race_events_lap_number_safe",
+			sql`${table.lapNumber} is null or (typeof(${table.lapNumber}) = 'integer' and ${table.lapNumber} between 0 and 9007199254740991)`,
+		),
+		check(
+			"race_events_source_time_range",
+			sql`(${table.sourceTimeMs} is null and ${table.sourceEndTimeMs} is null) or (${table.sourceTimeMs} is not null and ${table.sourceEndTimeMs} is not null and ${table.sourceEndTimeMs} >= ${table.sourceTimeMs})`,
+		),
+		check(
+			"race_events_track_distance_pct",
+			sql`${table.trackDistancePct} is null or ${table.trackDistancePct} between 0 and 1`,
+		),
+		index("idx_race_events_session_order").on(
+			table.sessionId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_participant").on(
+			table.sessionId,
+			table.participantId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_lap").on(
+			table.lapId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_source_time").on(table.sessionId, table.sourceTimeMs, table.sourceEndTimeMs),
+		index("idx_race_events_lifecycle").on(
+			table.sessionId,
+			table.lifecycleId,
+			table.timelineEpoch,
+			table.sequence,
+			table.eventOrder,
+			table.eventId,
+		),
+		index("idx_race_events_linked_event").on(table.linkedEventId),
 	],
 );
