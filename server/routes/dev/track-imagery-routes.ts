@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { open, statfs, type FileHandle } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -60,6 +61,8 @@ const trackImageryIdentitySchema = z.object({
   gameId: GameIdSchema,
   trackOrdinal: z.number().int().nonnegative(),
 });
+const TrackImageryGameQuerySchema = z.object({ gameId: GameIdSchema });
+const TrackImageryVenueQuerySchema = z.object({ venueId: TrackVenueIdSchema });
 
 function trackIdentityFromQuery(c: { req: { query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
   const gameId = GameIdSchema.parse(c.req.query("gameId"));
@@ -299,7 +302,7 @@ function removeLayerFromLayouts(venueId: string, layerId: string): void {
 
 export const trackImageryDevRoutes = new Hono()
   .get("/api/dev/track-imagery", (c) => c.json(listTrackImageryConfigurations()))
-  .get("/api/dev/track-imagery/reference/:ordinal", async (c) => {
+  .get("/api/dev/track-imagery/reference/:ordinal", zValidator("query", TrackImageryGameQuerySchema), async (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const source = resolveTrackGeographicCatalogSource(gameId, trackOrdinal);
@@ -385,7 +388,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to preview open imagery" }, 400);
     }
   })
-  .post("/api/dev/track-imagery/venues/base/source", async (c) => {
+  .post("/api/dev/track-imagery/venues/base/source", zValidator("query", TrackImageryVenueQuerySchema), async (c) => {
     let countedAsActive = false;
     try {
       const venueId = venueIdFromQuery(c);
@@ -440,14 +443,14 @@ export const trackImageryDevRoutes = new Hono()
       if (countedAsActive) activeOpenImageryImports -= 1;
     }
   })
-  .get("/api/dev/track-imagery/venues/manifest", (c) => {
+  .get("/api/dev/track-imagery/venues/manifest", zValidator("query", TrackImageryVenueQuerySchema), (c) => {
     try {
       return c.json(loadTrackImageryVenue(venueIdFromQuery(c)));
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery venue" }, 400);
     }
   })
-  .get("/api/dev/track-imagery/venues/texture/:textureId", async (c) => {
+  .get("/api/dev/track-imagery/venues/texture/:textureId", zValidator("query", TrackImageryVenueQuerySchema), async (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const textureId = c.req.param("textureId") === "base" ? "base" : safeId(c.req.param("textureId"), "Texture ID");
@@ -470,7 +473,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery texture" }, 400);
     }
   })
-  .post("/api/dev/track-imagery/venues/base", async (c) => {
+  .post("/api/dev/track-imagery/venues/base", zValidator("query", TrackImageryVenueQuerySchema), async (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const form = await c.req.formData();
@@ -525,7 +528,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save base texture" }, 400);
     }
   })
-  .put("/api/dev/track-imagery/venues/manifest", async (c) => {
+  .put("/api/dev/track-imagery/venues/manifest", zValidator("query", TrackImageryVenueQuerySchema), async (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const current = loadTrackImageryVenue(venueId);
@@ -548,7 +551,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to update imagery venue" }, 400);
     }
   })
-  .post("/api/dev/track-imagery/venues/layers/:layerId", async (c) => {
+  .post("/api/dev/track-imagery/venues/layers/:layerId", zValidator("query", TrackImageryVenueQuerySchema), async (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const layerId = safeId(c.req.param("layerId"), "Layer ID");
@@ -573,7 +576,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layer" }, 400);
     }
   })
-  .delete("/api/dev/track-imagery/venues/layers/:layerId", (c) => {
+  .delete("/api/dev/track-imagery/venues/layers/:layerId", zValidator("query", TrackImageryVenueQuerySchema), (c) => {
     try {
       const venueId = venueIdFromQuery(c);
       const layerId = safeId(c.req.param("layerId"), "Layer ID");
@@ -591,7 +594,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to remove imagery layer" }, 400);
     }
   })
-  .get("/api/dev/track-imagery/layouts/:ordinal", (c) => {
+  .get("/api/dev/track-imagery/layouts/:ordinal", zValidator("query", TrackImageryGameQuerySchema), (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       return c.json(loadTrackImageryLayout(gameId, trackOrdinal));
@@ -599,7 +602,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to load imagery layout" }, 400);
     }
   })
-  .put("/api/dev/track-imagery/layouts/:ordinal", async (c) => {
+  .put("/api/dev/track-imagery/layouts/:ordinal", zValidator("query", TrackImageryGameQuerySchema), async (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const configuration = loadTrackConfiguration(gameId, trackOrdinal);
@@ -618,7 +621,7 @@ export const trackImageryDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save imagery layout" }, 400);
     }
   })
-  .delete("/api/dev/track-imagery/layouts/:ordinal", (c) => {
+  .delete("/api/dev/track-imagery/layouts/:ordinal", zValidator("query", TrackImageryGameQuerySchema), (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const path = trackImageryLayoutPath(gameId, trackOrdinal);

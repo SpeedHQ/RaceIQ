@@ -1,4 +1,6 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
 import { loadTrackFacts } from "../../../shared/racing/tracks/storage/meta";
@@ -7,6 +9,8 @@ import { productionTrackGuideStore, validateTrackGuide, type TrackGuideStore } f
 import type { TrackGuideFile, ResolvedTrackGuide } from "../../../shared/racing/tracks/guide/types";
 import { resolveTrackGuideFile } from "../../ai/track-guides";
 import { getSharedTrackName } from "../tracks/support";
+
+const TrackGuideQuerySchema = z.object({ gameId: GameIdSchema });
 
 export interface TrackGuideEnvelope {
   gameId: GameId;
@@ -47,9 +51,9 @@ function validateAnchors(guide: TrackGuideFile, facts: TrackFacts | null): void 
   }
 }
 
-export function createTrackGuideDevRoutes({ store = productionTrackGuideStore }: { store?: TrackGuideStore } = {}): Hono {
+export function createTrackGuideDevRoutes({ store = productionTrackGuideStore }: { store?: TrackGuideStore } = {}) {
   return new Hono()
-    .get("/api/dev/track-guides/:ordinal", (c) => {
+    .get("/api/dev/track-guides/:ordinal", zValidator("query", TrackGuideQuerySchema), (c) => {
       try {
         const { gameId, trackOrdinal } = selectedTrack(c);
         const slug = getSharedTrackName(trackOrdinal, gameId);
@@ -59,7 +63,7 @@ export function createTrackGuideDevRoutes({ store = productionTrackGuideStore }:
         return c.json({ error: errorMessage(error) }, 400);
       }
     })
-    .put("/api/dev/track-guides/:ordinal", async (c) => {
+    .put("/api/dev/track-guides/:ordinal", zValidator("query", TrackGuideQuerySchema), async (c) => {
       try {
         const { gameId, trackOrdinal } = selectedTrack(c);
         const slug = getSharedTrackName(trackOrdinal, gameId);

@@ -21,3 +21,5 @@ export const devRoutes = new Hono()
   .route("/", trackGuideDevRoutes)
   .route("/", replayRoutes)
   .route("/", recordingPacketRoutes);
+
+export type DevRoutesType = typeof devRoutes;

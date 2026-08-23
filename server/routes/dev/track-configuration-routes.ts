@@ -1,7 +1,11 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
+import { z } from "zod";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { TrackConfigurationConfirmationSchema, TrackConfigurationSchema, type TrackConfiguration } from "../../../shared/racing/tracks/configuration";
 import { deleteTrackConfiguration, listTrackConfigurations, loadTrackConfiguration, saveTrackConfiguration } from "../../tracks/configuration";
+
+const TrackConfigurationQuerySchema = z.object({ gameId: GameIdSchema });
 
 function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: string) => string | undefined } }): { gameId: GameId; trackOrdinal: number } {
   const gameId = GameIdSchema.parse(c.req.query("gameId"));
@@ -12,7 +16,7 @@ function gameAndTrack(c: { req: { param: (key: string) => string; query: (key: s
 
 export const trackConfigurationDevRoutes = new Hono()
   .get("/api/dev/track-configurations", (c) => c.json(listTrackConfigurations()))
-  .get("/api/dev/track-configurations/:ordinal", (c) => {
+  .get("/api/dev/track-configurations/:ordinal", zValidator("query", TrackConfigurationQuerySchema), (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       return c.json(loadTrackConfiguration(gameId, trackOrdinal));
@@ -20,7 +24,7 @@ export const trackConfigurationDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to load track configuration" }, 400);
     }
   })
-  .put("/api/dev/track-configurations/:ordinal", async (c) => {
+  .put("/api/dev/track-configurations/:ordinal", zValidator("query", TrackConfigurationQuerySchema), async (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const raw = (await c.req.json()) as TrackConfiguration;
@@ -36,7 +40,7 @@ export const trackConfigurationDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to save track configuration" }, 400);
     }
   })
-  .put("/api/dev/track-configurations/:ordinal/confirmation", async (c) => {
+  .put("/api/dev/track-configurations/:ordinal/confirmation", zValidator("query", TrackConfigurationQuerySchema), async (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const current = loadTrackConfiguration(gameId, trackOrdinal);
@@ -47,7 +51,7 @@ export const trackConfigurationDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to confirm track configuration" }, 400);
     }
   })
-  .delete("/api/dev/track-configurations/:ordinal/confirmation", (c) => {
+  .delete("/api/dev/track-configurations/:ordinal/confirmation", zValidator("query", TrackConfigurationQuerySchema), (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       const current = loadTrackConfiguration(gameId, trackOrdinal);
@@ -57,7 +61,7 @@ export const trackConfigurationDevRoutes = new Hono()
       return c.json({ error: error instanceof Error ? error.message : "Unable to clear track confirmation" }, 400);
     }
   })
-  .delete("/api/dev/track-configurations/:ordinal", (c) => {
+  .delete("/api/dev/track-configurations/:ordinal", zValidator("query", TrackConfigurationQuerySchema), (c) => {
     try {
       const { gameId, trackOrdinal } = gameAndTrack(c);
       deleteTrackConfiguration(gameId, trackOrdinal);
