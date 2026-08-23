@@ -186,6 +186,21 @@ describe("lap evidence invalidation", () => {
       or(eq(compareAnalyses.lapAId, target.id), eq(compareAnalyses.lapBId, target.id)),
     ).get()).toBeUndefined();
     expect(await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, target.id)).get()).toBeUndefined();
+
+    await updateSessionQuality(sessionId, recordingQualityFor(qualityPackets(50)));
+
+    const afterQualityUpdate = await db.select().from(laps)
+      .where(eq(laps.id, target.id)).get();
+    expect(afterQualityUpdate).toMatchObject({
+      eligibility: null,
+      qualityGeneration: null,
+    });
+    expect(afterQualityUpdate?.quality?.provenance.outputGeneration).toBe(
+      target.quality.provenance.outputGeneration,
+    );
+    expect(await getLapById(target.id)).toMatchObject({
+      qualityStale: true,
+    });
   });
 
   test("same-count reprocessing stales session and lap quality and deletes telemetry caches", async () => {

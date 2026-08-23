@@ -15,6 +15,7 @@ import {
   type RecordingQualitySummary,
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
+import { isQualitySnapshotCurrent } from "../../shared/racing/quality/policies";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
@@ -86,12 +87,13 @@ export async function updateSessionQuality(
     for (const lap of lapRows) {
       if (
         !lap.quality ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(
-          lap.quality.provenance.sourceGeneration,
-        ) ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(
-          lap.quality.provenance.outputGeneration,
-        )
+        !isQualitySnapshotCurrent({
+          quality: lap.quality,
+          qualityGeneration: lap.qualityGeneration,
+          qualitySchemaVersion: lap.qualitySchemaVersion,
+          qualityPolicyVersion: lap.qualityPolicyVersion,
+          qualityConfigVersion: lap.qualityConfigVersion,
+        })
       ) {
         continue;
       }
