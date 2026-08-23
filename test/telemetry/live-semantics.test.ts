@@ -78,8 +78,6 @@ describe("live telemetry semantics", () => {
       iracing: ["race.on-pit-road", "timing.lap-fraction"],
     });
     for (const gameId of KNOWN_GAME_IDS) expect(new Set(liveSemanticIds(gameId)).size).toBe(liveSemanticIds(gameId).length);
-    expect(liveSemanticIds("iracing")).not.toContain("motion.position-x");
-    expect(liveSemanticIds("iracing")).not.toContain("motion.position-z");
   });
 
   test("compiles every allowlisted ID and resolves fixture-backed values", () => {

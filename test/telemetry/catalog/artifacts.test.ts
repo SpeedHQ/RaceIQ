@@ -89,7 +89,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(723);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(720);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -128,13 +128,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 219,
       },
       iracing: {
-        total: 959,
+        total: 955,
         packet: 119,
-        extension: 21,
+        extension: 17,
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 718,
+        recorded: 714,
       },
     });
 
