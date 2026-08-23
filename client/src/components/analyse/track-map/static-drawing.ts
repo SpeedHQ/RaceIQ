@@ -283,7 +283,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
         ny = dx / len,
         frame = telemetry[telemetryPointsWithIdx[i].idx];
       if (!frame) continue;
-      const throttle = (semanticNumber(frame, "inputs.accel") ?? 0) / 255;
+      const throttle = (semanticNumber(frame, "inputs.throttle") ?? 0) / 255;
       const brake = (semanticNumber(frame, "inputs.brake") ?? 0) / 255;
       if (throttle > 0) {
         ctx.beginPath();

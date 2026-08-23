@@ -416,9 +416,9 @@ function GridSection({ competitors, playerPosition }: { competitors: LiveTelemet
                     {entry.tireAge ?? "—"}
                   </TableCell>
                   <TableCell align="center" tone="muted">
-                    {entry.pitStatus === 1 ? (
+                    {entry.pitStatus === "pitting" ? (
                       <span className="text-status-warning font-bold">IN</span>
-                    ) : entry.pitStatus === 2 ? (
+                    ) : entry.pitStatus === "in-pit-area" ? (
                       <span className="text-status-warning">PIT</span>
                     ) : (entry.pitStops ?? 0) > 0 ? (
                       entry.pitStops

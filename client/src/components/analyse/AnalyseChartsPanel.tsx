@@ -67,10 +67,10 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {
     speed.push(numeric(frame, "motion.speed") ?? NaN);
-    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
+    throttle.push(numeric(frame, "inputs.throttle") ?? NaN);
     brake.push(numeric(frame, "inputs.brake") ?? NaN);
     rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
-    steering.push(numeric(frame, "inputs.steer") ?? NaN);
+    steering.push(numeric(frame, "inputs.steering") ?? NaN);
     tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
     tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);

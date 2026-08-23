@@ -4,7 +4,7 @@ import { semanticWheelDynamics, steerBalanceFromSignals } from "../../shared/rac
 
 describe("semantic Analyse panel parity", () => {
   test("formats fraction fuel as percentage", () => {
-    expect(getFuelDisplaySemantic(0.625, 1, { packetUnit: "fraction" })).toEqual({
+    expect(getFuelDisplaySemantic({ remainingFraction: 0.625, capacityL: 1 })).toEqual({
       amount: 62.5,
       unit: "%",
       fillRatio: 0.625,
@@ -12,7 +12,7 @@ describe("semantic Analyse panel parity", () => {
   });
 
   test("formats litre fuel as litres", () => {
-    expect(getFuelDisplaySemantic(18.4, 95, { packetUnit: "litre" })).toEqual({
+    expect(getFuelDisplaySemantic({ remainingVolumeL: 18.4, capacityL: 95 })).toEqual({
       amount: 18.4,
       unit: "L",
       fillRatio: 18.4 / 95,
@@ -22,7 +22,7 @@ describe("semantic Analyse panel parity", () => {
   test("semantic wheel dynamics preserves idle and lockup states", () => {
     const states = semanticWheelDynamics({
       speedMps: 12,
-      steer: 0,
+      steeringRatio: 0,
       wheelRotationRadS: { fl: 0, fr: 0, rl: 36, rr: 36 },
       wheelRadiusM: 0.33,
     });
@@ -31,7 +31,7 @@ describe("semantic Analyse panel parity", () => {
 
     const idle = semanticWheelDynamics({
       speedMps: 0.5,
-      steer: 0,
+      steeringRatio: 0,
       wheelRotationRadS: { fl: 0, fr: 0, rl: 0, rr: 0 },
       wheelRadiusM: 0.33,
     });

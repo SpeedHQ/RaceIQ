@@ -398,7 +398,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.textBaseline = "alphabetic";
   };
 
-  const steerA = num(pA!, "inputs.steer") ?? 0;
+  const steerA = num(pA!, "inputs.steering") ?? 0;
   const gearA = num(pA!, "inputs.gear") ?? 0;
   const wheelAcx = cx + wheelR;
   const wheelAcy = y0 + barH / 2 - 6;
@@ -406,7 +406,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   cx += wheelR * 2 + sectionGap;
 
   // --- Steering wheel B ---
-  const steerB = num(pB!, "inputs.steer") ?? 0;
+  const steerB = num(pB!, "inputs.steering") ?? 0;
   const gearB = num(pB!, "inputs.gear") ?? 0;
   const wheelBcx = cx + wheelR;
   const wheelBcy = y0 + barH / 2 - 6;
@@ -420,8 +420,8 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   ctx.fillText("Steering / Gear", (wheelAcx + wheelBcx) / 2, y0 + barH + 14);
 
   // --- Throttle bars for laps A and B ---
-  const throttleA = num(pA!, "inputs.accel") ?? 0;
-  const throttleB = num(pB!, "inputs.accel") ?? 0;
+  const throttleA = num(pA!, "inputs.throttle") ?? 0;
+  const throttleB = num(pB!, "inputs.throttle") ?? 0;
   drawBar(cx, throttleA, "var(--ch-throttle)", COLOR_A);
   cx += barW + barGap;
   drawBar(cx, throttleB, "var(--ch-throttle)", COLOR_B);

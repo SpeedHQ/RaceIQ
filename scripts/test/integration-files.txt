@@ -166,12 +166,14 @@ test/telemetry/catalog-type-safety.test.ts
 test/telemetry/catalog/artifacts.test.ts
 test/telemetry/catalog/contracts.test.ts
 test/telemetry/catalog/iracing-sources.test.ts
+test/telemetry/catalog/semantic-quality.test.ts
 test/telemetry/catalog/semantics.test.ts
 test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+test/telemetry/catalog/wheel-field-quality.test.ts
 test/telemetry/dynamic-sector-persistence.test.ts
 test/telemetry/game-metric-contracts.test.ts
 test/telemetry/line-spread-cache.test.ts

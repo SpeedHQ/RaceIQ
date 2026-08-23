@@ -74,7 +74,7 @@ test(
       expectations: [
         {
           semanticId: "motion.speed",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "m/s",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
@@ -84,19 +84,19 @@ test(
           minimumRange: 1,
         },
         {
-          semanticId: "inputs.accel",
+          semanticId: "inputs.throttle",
           mappingStatus: "normalized",
-          unit: "0–255",
+          unit: "ratio",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
             if (!Number.isFinite(value)) return false;
-            return value > 0 && value <= 255;
+            return value > 0 && value <= 1;
           },
-          minimumRange: 1,
+          minimumRange: 1 / 255,
         },
         {
           semanticId: "timing.current-lap",
-          mappingStatus: "normalized",
+          mappingStatus: "direct",
           unit: "s",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;
@@ -107,7 +107,7 @@ test(
         },
         {
           semanticId: "timing.lap-number",
-          mappingStatus: "derived",
+          mappingStatus: "direct",
           unit: "count",
           accepts: (value: unknown): boolean => {
             if (typeof value !== "number") return false;

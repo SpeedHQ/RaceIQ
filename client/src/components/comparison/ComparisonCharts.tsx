@@ -33,8 +33,8 @@ export function ComparisonCharts({
   const distance = numericSeries(comparison.telemetryA, "timing.distance-traveled").filter(Number.isFinite);
   const speedA = interpolateSeries(comparison.telemetryA, "motion.speed", distance);
   const speedB = interpolateSeries(comparison.telemetryB, "motion.speed", distance);
-  const throttleA = interpolateSeries(comparison.telemetryA, "inputs.accel", distance);
-  const throttleB = interpolateSeries(comparison.telemetryB, "inputs.accel", distance);
+  const throttleA = interpolateSeries(comparison.telemetryA, "inputs.throttle", distance);
+  const throttleB = interpolateSeries(comparison.telemetryB, "inputs.throttle", distance);
   const brakeA = interpolateSeries(comparison.telemetryA, "inputs.brake", distance);
   const brakeB = interpolateSeries(comparison.telemetryB, "inputs.brake", distance);
   const rpmA = interpolateSeries(comparison.telemetryA, "engine.current-engine-rpm", distance);

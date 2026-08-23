@@ -39,7 +39,7 @@ export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysi
         if (localFwd < -BEHIND || localFwd > AHEAD || Math.abs(localLat) > 30) inRange = false;
       }
       if (inRange) {
-        current.push({ sourceIndex, fwd: localFwd, lat: localLat, throttle: semanticNumber(p, "inputs.accel") ?? 0, brake: (semanticNumber(p, "inputs.brake") ?? 0) / 255 });
+        current.push({ sourceIndex, fwd: localFwd, lat: localLat, throttle: semanticNumber(p, "inputs.throttle") ?? 0, brake: (semanticNumber(p, "inputs.brake") ?? 0) / 255 });
       } else if (current.length > 0) {
         runs.push(current);
         current = [];

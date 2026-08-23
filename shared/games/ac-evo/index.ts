@@ -6,7 +6,7 @@ export const acEvoAdapter: GameAdapter = {
   shortName: "AC Evo",
   routePrefix: "ac-evo",
   telemetry: {
-    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
+    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.remaining-volume" } },
     tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.average" } },
     brakeTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "brakes.brake-temp" } },
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
@@ -29,8 +29,8 @@ export const acEvoAdapter: GameAdapter = {
         source: "derived",
         confidence: "exact",
         display: "per-wheel",
-        binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] },
-      },
+        binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steering", "tires.wheel-rotation-speed"] },
+      }
       tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },
