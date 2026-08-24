@@ -25,8 +25,13 @@ class GenerateTest(unittest.TestCase):
 
     def test_transcript_validation_accepts_numeric_alias(self) -> None:
         self.assertIsNone(module.validate_transcript("number.eight", "8", "eight"))
-    def test_transcript_validation_allows_whisper_article_for_number(self) -> None:
-        self.assertIsNone(module.validate_transcript("number.one", "A one", "one"))
+    def test_transcript_validation_rejects_leading_article_for_number(self) -> None:
+        failure = module.validate_transcript("number.one", "A one", "one")
+        self.assertIn("transcript mismatch", failure)
+    def test_generation_uses_english_natural_speed(self) -> None:
+        self.assertEqual(module.LANGUAGE, "en")
+        self.assertEqual(module.SPEED, 1.0)
+        self.assertEqual(module.NUM_STEPS, 48)
 
 if __name__ == "__main__":
     unittest.main()

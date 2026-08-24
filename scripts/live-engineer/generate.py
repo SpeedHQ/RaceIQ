@@ -19,7 +19,9 @@ CATALOG_VERSION = "live-engineer-v1"
 SAMPLE_RATE = 24000
 INSTRUCT = "male, Australian accent"
 DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie-medium.flac"
-SPEED = 1.35
+LANGUAGE = "en"
+SPEED = 1.0
+NUM_STEPS = 48
 SPEED_OVERRIDES: dict[str, float] = {}
 SEED_OVERRIDES: dict[str, int] = {}
 INSTRUCT_OVERRIDES = {
@@ -100,7 +102,7 @@ def trim_normalize(audio, pad: int = int(SAMPLE_RATE * TRIM_PADDING_MS / 1000)):
 def render(args) -> int:
     try:
         import numpy as np, soundfile as sf, torch
-        from omnivoice import OmniVoice
+        from omnivoice import OmniVoice, OmniVoiceGenerationConfig
     except ImportError as exc:
         print(f"missing OmniVoice dependencies: {exc}", file=sys.stderr); return 2
     ref = Path(args.ref_audio).expanduser()
@@ -139,16 +141,18 @@ def render(args) -> int:
     for index, (segment_id, spoken, target, clip_hash) in enumerate(pending, start=1):
         print(f"generating clip {index}/{len(pending)}: {segment_id}")
         base_seed = SEED_OVERRIDES.get(segment_id, SEED)
-        attempts = 5 if validation_model is not None else 1
+        attempts = 12 if validation_model is not None else 1
         audio = None
         for attempt in range(attempts):
             torch.manual_seed(base_seed + attempt); np.random.seed(base_seed + attempt)
             generated = model.generate(
                 text=[synthesis_text(segment_id, spoken)],
+                language=[LANGUAGE],
                 ref_audio=[str(ref)],
                 ref_text=[args.ref_text],
                 instruct=[INSTRUCT_OVERRIDES.get(segment_id, INSTRUCT)],
                 speed=[SPEED_OVERRIDES.get(segment_id, SPEED)],
+                generation_config=OmniVoiceGenerationConfig(num_step=NUM_STEPS),
             )
             audio = trim_normalize(generated[0])
             candidate = target.with_name(f"{target.stem}.attempt-{attempt}{target.suffix}")
@@ -192,10 +196,7 @@ def _canonical_tokens(text: str) -> list[str]:
 def validate_transcript(segment_id: str, transcript: str, expected: str) -> str | None:
     actual_tokens = _canonical_tokens(transcript)
     expected_tokens = _canonical_tokens(expected)
-    accepted = [expected_tokens]
-    if segment_id.startswith("number.") and len(expected_tokens) == 1:
-        accepted.extend((["a", expected_tokens[0]], ["the", expected_tokens[0]]))
-    if actual_tokens in accepted:
+    if actual_tokens == expected_tokens:
         return None
     return f"{segment_id}: transcript mismatch; expected {expected_tokens}, got {actual_tokens}"
 
