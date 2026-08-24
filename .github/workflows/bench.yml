@@ -99,31 +99,35 @@ jobs:
           Get-Content ../replay-io-comparison.md | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Post fresh benchmark comment
-        working-directory: pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          @(
-            '<!-- bench-comparison -->'
-            Get-Content ../comparison.md
-          ) | Set-Content -Encoding utf8 ../benchmark-comment.md
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { readFileSync } = require("node:fs");
+            const { join } = require("node:path");
+            const marker = "<!-- bench-comparison -->";
+            const comparison = readFileSync(join(process.env.GITHUB_WORKSPACE, "comparison.md"), "utf8").replace(/^\uFEFF/, "");
+            const body = `${marker}\n${comparison}`;
+            const issueNumber = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: issueNumber,
+              per_page: 100,
+            });
 
-          # Match screenshot-comment behavior: delete stale reports, then post
-          # a fresh comment so the current result appears at the bottom.
-          $commentIds = @(
-            gh api --paginate "repos/$env:REPO/issues/$env:PR/comments" --jq '.[] | select((.body | contains("<!-- bench-comparison -->")) or (.body | startswith("## Bench comparison"))) | .id'
-          )
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($commentId in $commentIds) {
-            if ($commentId) {
-              gh api --method DELETE "repos/$env:REPO/issues/comments/$commentId"
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            // Delete stale reports before posting so the current result appears last.
+            for (const comment of comments) {
+              if (comment.body?.includes(marker) || comment.body?.startsWith("## Bench comparison")) {
+                await github.rest.issues.deleteComment({
+                  ...context.repo,
+                  comment_id: comment.id,
+                });
+              }
             }
-          }
-          gh api "repos/$env:REPO/issues/$env:PR/comments" -F 'body=@../benchmark-comment.md'
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issueNumber,
+              body,
+            });
 
       - name: Enforce CPU benchmark guardrails
         working-directory: pr
