@@ -5,8 +5,20 @@ import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
-type DetectedFormat = "zip" | "bin" | "ibt" | "motec" | "unknown";
-type DetectionResult = { format: DetectedFormat; supported: boolean; gameIds: string[]; captureCount: number; message: string | null };
+type DetectedFormat = "zip" | "bin" | "duckdb" | "ibt" | "motec" | "unknown";
+type DetectionResult = {
+  format: DetectedFormat;
+  supported: boolean;
+  gameIds: string[];
+  captureCount: number;
+  message: string | null;
+  preview?: {
+    driverName: string;
+    carName: string;
+    trackName: string;
+    completedLapCount: number;
+  };
+};
 
 type ImportResult = {
   imported: number;
@@ -22,6 +34,8 @@ function formatLabel(format: DetectedFormat): string {
       return "ZIP archive (.zip)";
     case "bin":
       return "Telemetry capture (.bin)";
+    case "duckdb":
+      return "Le Mans Ultimate telemetry (.duckdb)";
     case "ibt":
       return "iRacing telemetry (.ibt)";
     case "motec":
@@ -34,6 +48,7 @@ function formatLabel(format: DetectedFormat): string {
 export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: ImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [walFile, setWalFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
@@ -41,8 +56,9 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
-  async function chooseFile(nextFile: File | null) {
+  async function chooseFile(nextFile: File | null, nextWalFile: File | null) {
     setFile(nextFile);
+    setWalFile(nextWalFile);
     setDetected(null);
     setError(null);
     setResult(null);
@@ -51,6 +67,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
     try {
       const body = new FormData();
       body.append("file", nextFile);
+      if (nextWalFile) body.append("wal", nextWalFile);
       const response = await fetch("/api/laps/detect-import", { method: "POST", body });
       const data = (await response.json().catch(() => null)) as DetectionResult | { error?: string } | null;
       if (!response.ok) {
@@ -67,7 +84,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   }
 
   async function importFile() {
-    if (!file || !detected?.supported || (detected.format !== "zip" && detected.format !== "bin")) return;
+    if (!file || !detected?.supported || !["zip", "bin", "duckdb"].includes(detected.format)) return;
     setBusy(true);
     setError(null);
     try {
@@ -79,9 +96,14 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
         const body = new FormData();
         body.append("file", file);
         body.append("ownership", ownership);
+        if (walFile) body.append("wal", walFile);
         const response = await fetch("/api/laps/import", { method: "POST", body });
-        const data = (await response.json().catch(() => null)) as ImportResult & { error?: string };
-        if (!response.ok) throw new Error(data?.error ?? `Import failed (${response.status})`);
+        const data = (await response.json().catch(() => null)) as ImportResult & {
+          error?: string;
+        };
+        if (!response.ok) {
+          throw new Error(data?.error ?? `Import failed (${response.status})`);
+        }
         imported = data;
       }
       setResult(imported);
@@ -93,7 +115,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
     }
   }
 
-  const canImport = !!file && !!detected?.supported && (detected.format === "zip" || detected.format === "bin") && !busy;
+  const canImport = !!file && !!detected?.supported && ["zip", "bin", "duckdb"].includes(detected.format) && !busy;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -117,10 +139,43 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
             <>
               <p className="text-app-text-dim">Choose a file. Format and game metadata are checked from its contents.</p>
               <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
-              <input ref={inputRef} type="file" accept=".zip,.bin,.bin.gz,.ibt,.ld" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
-              <div className="flex items-center gap-2">
-                <Button variant="app-outline" size="app-md" onClick={() => inputRef.current?.click()} disabled={busy}>Choose file</Button>
-                <span className="truncate text-app-text-dim">{file?.name ?? "No file selected"}</span>
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".zip,.bin,.bin.gz,.duckdb,.wal,.ibt,.ld"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  const primary =
+                    files.find(
+                      (candidate) =>
+                        !candidate.name.toLowerCase().endsWith(".wal"),
+                    ) ?? null;
+                  const wal = primary
+                    ? files.find(
+                        (candidate) =>
+                          candidate.name.toLowerCase() ===
+                          `${primary.name}.wal`.toLowerCase(),
+                      ) ?? null
+                    : null;
+                  void chooseFile(primary, wal);
+                }}
+              />
+              <div className="flex min-w-0 items-center gap-2">
+                <Button variant="app-outline" size="app-md" className="shrink-0" onClick={() => inputRef.current?.click()} disabled={busy}>Choose file</Button>
+                <span
+                  className="min-w-0 flex-1 truncate text-app-text-dim"
+                  title={
+                    file
+                      ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}`
+                      : undefined
+                  }
+                >
+                  {file
+                    ? `${file.name}${walFile ? ` + ${walFile.name}` : ""}`
+                    : "No file selected"}
+                </span>
               </div>
               {file && (
                 <div className="rounded border border-app-border bg-app-surface-alt/40 p-3 text-app-text-dim">
@@ -134,6 +189,21 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
                       </div>
                       {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? "File contents are not supported."}</p>}
                       {detected.supported && detected.format === "bin" && <p className="mt-1">Game detected from telemetry content.</p>}
+                      {detected.supported && detected.format === "duckdb" && <p className="mt-1">LMU game telemetry will be converted into a normal RaceIQ session capture.</p>}
+                      {detected.format === "duckdb" && detected.preview && (
+                        <p className="mt-1">
+                          {detected.preview.carName} at{" "}
+                          {detected.preview.trackName}:{" "}
+                          {detected.preview.completedLapCount} complete lap
+                          {detected.preview.completedLapCount === 1 ? "" : "s"}.
+                        </p>
+                      )}
+                      {detected.format === "duckdb" && !walFile && (
+                        <p className="mt-1">
+                          If a matching <code>.duckdb.wal</code> file exists,
+                          select both files together.
+                        </p>
+                      )}
                       {detected.supported && detected.format === "zip" && <p className="mt-1">{detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.</p>}
                       {detected.format === "ibt" && <p className="mt-1">iRacing imports require preview and confirmation from Analyse.</p>}
                       {detected.format === "motec" && <p className="mt-1">MoTeC imports require game, car, and track setup from Analyse.</p>}

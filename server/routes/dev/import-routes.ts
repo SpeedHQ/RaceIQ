@@ -16,6 +16,10 @@ import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/pa
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { readLMUFrames } from "../../games/lmu/recorder";
+import { decodeLMUSourceFrame } from "../../games/lmu/source-frame";
+import { identityFromLMUSourceFrame } from "../../games/lmu/normalizer";
+import { registerImportedLMUIdentity } from "../../games/lmu/identity";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
@@ -154,6 +158,28 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           frame.graphics,
           frame.staticData
         );
+        await pipeline.processPacket(packet, sourceFrame);
+        packetCount++;
+      }
+    } else if (gameId === "lmu") {
+      const serverAdapter = getAllServerGames().find((adapter) => adapter.id === "lmu");
+      if (!serverAdapter) {
+        return c.json({ error: "No server adapter for gameId lmu" }, 400);
+      }
+      const frames = readLMUFrames(tmpPath);
+      let identityRegistered = false;
+      for (const sourceFrame of frames) {
+        const decoded = decodeLMUSourceFrame(sourceFrame);
+        if (!decoded) continue;
+        if (!identityRegistered) {
+          const identity = identityFromLMUSourceFrame(decoded);
+          await registerImportedLMUIdentity(identity);
+          identityRegistered = true;
+          carModel = identity.carName;
+          trackName = identity.trackName;
+        }
+        const packet = serverAdapter.tryParse(sourceFrame, null);
+        if (!packet) continue;
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }

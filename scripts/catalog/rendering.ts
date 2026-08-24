@@ -97,11 +97,11 @@ function renderCompatibilityMatrix(catalog: BuiltTelemetryCatalog): string {
     "",
     `Catalog \`${catalog.metadata.catalogVersion}\`, schema \`${catalog.metadata.schemaVersion}\`, content \`${catalog.metadata.contentHash}\`.`,
     "",
-    "| Semantic ID | Type | Dimensions | Unit | Cardinality | FM 2023 | F1 2025 | ACC | AC Evo | iRacing |",
-    "|---|---|---|---|---|---|---|---|---|---|",
+    "| Semantic ID | Type | Dimensions | Unit | Cardinality | FM 2023 | F1 2025 | ACC | AC Evo | iRacing | LMU |",
+    "|---|---|---|---|---|---|---|---|---|---|---|",
     ...catalog.variables.map(
       (variable) =>
-        `| \`${markdownCell(variable.id)}\` | ${variable.valueType} | ${markdownCell(variable.dimensions?.join(" × ") ?? "")} | ${markdownCell(variable.canonicalUnit)} | ${cardinalityLabel(variable)} | ${renderMappingCell(variable.games["fm-2023"])} | ${renderMappingCell(variable.games["f1-2025"])} | ${renderMappingCell(variable.games.acc)} | ${renderMappingCell(variable.games["ac-evo"])} | ${renderMappingCell(variable.games.iracing)} |`,
+        `| \`${markdownCell(variable.id)}\` | ${variable.valueType} | ${markdownCell(variable.dimensions?.join(" × ") ?? "")} | ${markdownCell(variable.canonicalUnit)} | ${cardinalityLabel(variable)} | ${renderMappingCell(variable.games["fm-2023"])} | ${renderMappingCell(variable.games["f1-2025"])} | ${renderMappingCell(variable.games.acc)} | ${renderMappingCell(variable.games["ac-evo"])} | ${renderMappingCell(variable.games.iracing)} | ${renderMappingCell(variable.games.lmu)} |`,
     ),
   ];
   return `${lines.join("\n")}\n`;
@@ -206,6 +206,7 @@ function recordValue(value: unknown): Record<string, unknown> | undefined {
 function compatibilityVariables(
   catalog: unknown,
   label: string,
+  allowMissingGameMappings = false,
 ): readonly CompatibilityCatalogVariable[] {
   const root = recordValue(catalog);
   if (!root || !Array.isArray(root.variables)) {
@@ -234,7 +235,9 @@ function compatibilityVariables(
     seen.add(variable.id);
     const parsedGames: Record<string, CompatibilityCatalogMapping> = {};
     for (const gameId of GAME_IDS) {
-      const mapping = recordValue(games[gameId]);
+      const rawMapping = games[gameId];
+      if (allowMissingGameMappings && rawMapping === undefined) continue;
+      const mapping = recordValue(rawMapping);
       if (
         !mapping ||
         !["direct", "normalized", "derived", "simplified", "unavailable"].includes(
@@ -268,7 +271,7 @@ export function assertDirectToSimplifiedCompatibilityReviews(
 ): void {
   const current = compatibilityVariables(currentCatalog, "Current");
   const baseline = new Map(
-    compatibilityVariables(baselineCatalog, "Baseline").map((variable) => [
+    compatibilityVariables(baselineCatalog, "Baseline", true).map((variable) => [
       variable.id,
       variable,
     ]),

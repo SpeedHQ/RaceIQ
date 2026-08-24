@@ -100,9 +100,16 @@ jobs:
             --windows-description="RaceIQ" \
             --windows-version=${VERSION} \
             --define 'process.env.NODE_ENV="production"' \
+            --external '@duckdb/node-bindings-*' \
             --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' \
             --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' \
+            --define 'process.env.RACEIQ_FEATURE_LMU_ADAPTER="true"' \
             server/bootstrap.ts --outfile dist/raceiq.exe
+
+      - name: Copy DuckDB native addon
+        shell: bash
+        run: |
+          bun scripts/build/copy-duckdb-runtime.ts
 
       - name: Patch PE version info (ProductName)
         shell: pwsh

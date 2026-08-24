@@ -61,6 +61,7 @@ test/e2e/f1-2025-recording.test.ts
 test/e2e/fm-2023-recording.test.ts
 test/e2e/iracing-recording-fixture.test.ts
 test/e2e/iracing-recording.test.ts
+test/e2e/lmu-recording-fixture.test.ts
 test/e2e/udp-recording.test.ts
 test/experiments/arms/auto-exclude.test.ts
 test/experiments/arms/compare-card-background.test.ts
@@ -100,6 +101,7 @@ test/games/iracing/iracing-sdk-decoding.test.ts
 test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
+test/games/lmu/lmu-adapter.test.ts
 test/games/shared/release-game-registration.test.ts
 test/games/shared/semantic-replay-native.test.ts
 test/lap-analysis/lap-cache.test.ts

@@ -117,6 +117,36 @@ export const trackCatalogRoutes = new Hono()
         return c.json(tracks);
       }
 
+      if (gameId === "lmu") {
+        const lapCounts = await getLapCountsByTrack("lmu");
+        const tracks = (await listDiscoveredTracks("lmu")).map((track) => {
+          const hasGenerated = sharedHasRecordedOutline(track.ordinal, "lmu");
+          return {
+            ordinal: track.ordinal,
+            name: track.name,
+            location: "",
+            country: "",
+            variant: "",
+            lengthKm: 0,
+            category: "",
+            hasOutline: hasGenerated,
+            hasMap: hasGenerated,
+            mapUrl: null,
+            outlineSource: hasGenerated ? "generated" : null,
+            commonTrackName: null,
+            createdAt: track.createdAt,
+            lapCount: lapCounts.get(track.ordinal) ?? 0,
+          };
+        });
+        tracks.sort((left, right) => {
+          if (left.hasOutline !== right.hasOutline) {
+            return left.hasOutline ? -1 : 1;
+          }
+          return left.name.localeCompare(right.name);
+        });
+        return c.json(tracks);
+      }
+
       if (gameId === "iracing") {
         const lapCounts = await getLapCountsByTrack("iracing");
         const catalogTracks = getAllIRacingTracks();

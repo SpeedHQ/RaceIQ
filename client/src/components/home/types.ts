@@ -20,7 +20,7 @@ export type PeriodStats = Record<
   }
 >;
 
-export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing", { laps: number; time: string }>;
+export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing" | "lmu", { laps: number; time: string }>;
 
 export interface HomePageViewProps {
   gameId: GameId | null;

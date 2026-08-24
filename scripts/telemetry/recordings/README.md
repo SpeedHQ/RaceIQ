@@ -10,6 +10,7 @@ Cross-game tools for inspecting, replaying, compressing, and auditing recorded t
 | `bun scripts/telemetry/recordings/check-mid-session-lap.ts` | Built-in gzip AC Evo fixture | Packet lap transitions and detector output |
 | `bun run gzip:recording <path/to/file.bin>` | Existing raw `.bin` | Adjacent `.bin.gz`; source remains unchanged |
 | `bun scripts/telemetry/recordings/inspect-bin.ts <path> [--game <id>] [--no-import]` | `.bin` or `.bin.gz` capture | Header, game detection, and optional import summary |
+| `bun scripts/telemetry/recordings/generate-lmu-seed-fixture.ts <recording.duckdb>` | Real LMU DuckDB race recording | Anonymized, downsampled `test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz` fixture |
 | `bun scripts/telemetry/recordings/probe-recording.ts <gameId> [path]` | Game ID and optional capture path | Parsed lap JSON; finds latest recording when path omitted |
 | `bun scripts/telemetry/recordings/replay-udp-debug.ts <dump> [port] [speed]` | Length/timestamp-prefixed UDP dump | Packet statistics and localhost UDP replay |
 | `bun scripts/telemetry/recordings/scan-currentlap.ts` | Built-in FM and F1 fixtures | Current-lap ranges and reset transitions |

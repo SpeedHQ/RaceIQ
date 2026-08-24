@@ -25,6 +25,7 @@ const GAME_LABELS: Record<GameId, string> = {
   acc: "ACC (acc)",
   "ac-evo": "AC Evo (ac-evo)",
   iracing: "iRacing (iracing)",
+  lmu: "Le Mans Ultimate (lmu)",
 };
 
 /** Order rows are rendered in — stable output so the committed table diffs cleanly. */

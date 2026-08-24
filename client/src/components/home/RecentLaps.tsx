@@ -74,7 +74,7 @@ export function RecentLapsTable({
               {showGame && (
                 <TD>
                   <Badge variant="game-brand" size="compact" data-game-brand={lap.gameId ?? "fm-2023"}>
-                    {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
+                    {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : lap.gameId === "lmu" ? "LMU" : "FM"}
                   </Badge>
                 </TD>
               )}

@@ -115,7 +115,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(735);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(761);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -161,6 +161,15 @@ describe("semantic telemetry catalog artifacts", () => {
         yaml: 495,
         setup: 0,
         recorded: 705,
+      },
+      lmu: {
+        total: 161,
+        packet: 126,
+        extension: 35,
+        sdk: 0,
+        yaml: 0,
+        setup: 0,
+        recorded: 161,
       },
     });
 

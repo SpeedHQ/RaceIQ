@@ -24,5 +24,6 @@ describe("live route dashboard dispatch", () => {
     expect(liveDashboardForGame("f1-2025")).toBe("f1");
     expect(liveDashboardForGame("acc")).toBe("acc");
     expect(liveDashboardForGame("ac-evo")).toBe("acc");
+    expect(liveDashboardForGame("lmu")).toBe("acc");
   });
 });

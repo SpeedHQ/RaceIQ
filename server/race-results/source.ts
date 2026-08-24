@@ -56,6 +56,16 @@ function extractPitSignals(gameId: GameId, packets: TelemetryPacket[]): PitServi
     }
     return signals;
   }
+  if (gameId === "lmu") {
+    const signals: PitServiceSignals[] = [];
+    let inPit = false;
+    for (const packet of packets) {
+      const nextInPit = packet.lmu?.inPits === true;
+      if (nextInPit && !inPit) signals.push({ lapNumber: packet.LapNumber, elapsedSeconds: packet.CurrentRaceTime, linkage: "linked", source: { channel: "lmu.inPits", value: true } });
+      inPit = nextInPit;
+    }
+    return signals;
+  }
   return undefined;
 }
 

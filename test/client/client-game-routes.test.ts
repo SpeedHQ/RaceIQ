@@ -17,10 +17,12 @@ import { releaseFeatureFlags } from "../../shared/platform/runtime/release-featu
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+  RACEIQ_FEATURE_LMU_ADAPTER: "true",
 };
 const productionEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
   RACEIQ_FEATURE_IRACING_ADAPTER: "false",
+  RACEIQ_FEATURE_LMU_ADAPTER: "true",
 };
 
 initGameAdapters(releaseFeatureFlags(developmentEnv));
@@ -32,6 +34,7 @@ describe("game route helpers", () => {
     expect(gameIdForRoutePrefix("acc")).toBe("acc");
     expect(gameIdForRoutePrefix("ac-evo")).toBe("ac-evo");
     expect(gameIdForRoutePrefix("iracing")).toBe("iracing");
+    expect(gameIdForRoutePrefix("lmu")).toBe("lmu");
     expect(routePrefixForGameId("f1-2025")).toBe("f125");
     expect(routePrefixForGameId("unknown")).toBeUndefined();
     expect(gameIdForRoutePrefix("unknown")).toBeUndefined();

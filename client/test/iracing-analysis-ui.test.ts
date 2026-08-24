@@ -11,7 +11,7 @@ import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
-initGameAdapters({ iracingAdapter: true });
+initGameAdapters({ iracingAdapter: true, lmuAdapter: true, f1Experiments: true });
 
 const units = { temp: (value: number) => value, tempLabel: "°C", thresholds: { cold: 75, warm: 115, hot: 150 }, toTempC: (value: number) => value } as ReturnType<typeof useUnits>;
 const frame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });

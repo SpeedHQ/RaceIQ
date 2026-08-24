@@ -11,6 +11,7 @@ import {
   parseAcEvoBuffers,
 } from "../games/ac-evo/parser";
 import { readIRacingFrames } from "../games/iracing/recorder";
+import { readLMUFrames } from "../games/lmu/recorder";
 import { readKunosFrames } from "../games/kunos/frame-reader";
 import { getServerGame } from "../games/registry";
 import { decompressIfGzipSync, iterateSessionFrames } from "./framing";
@@ -122,6 +123,21 @@ function readIRacingPackets(recordingPath: string): RecordedTelemetry {
   return { packets, carModel, trackName };
 }
 
+function readLMUPackets(recordingPath: string): RecordedTelemetry {
+  const game = getServerGame("lmu");
+  const packets: TelemetryPacket[] = [];
+  let carModel: string | null = null;
+  let trackName: string | null = null;
+  for (const frame of readLMUFrames(recordingPath)) {
+    const packet = game.tryParse(frame, null);
+    if (!packet) continue;
+    carModel ??= packet.lmu?.carModel || packet.lmu?.carName || null;
+    trackName ??= packet.lmu?.trackName ?? null;
+    packets.push(packet);
+  }
+  return { packets, carModel, trackName };
+}
+
 export function readRecordedTelemetry(
   gameId: GameId,
   recordingPath: string,
@@ -129,6 +145,7 @@ export function readRecordedTelemetry(
   if (gameId === "acc") return readAccPackets(recordingPath);
   if (gameId === "ac-evo") return readAcEvoPackets(recordingPath);
   if (gameId === "iracing") return readIRacingPackets(recordingPath);
+  if (gameId === "lmu") return readLMUPackets(recordingPath);
   return {
     packets: readFramedPackets(gameId, recordingPath),
     carModel: null,

@@ -29,6 +29,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     env.RACEIQ_E2E = "1";
     env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
+    env.RACEIQ_FEATURE_LMU_ADAPTER = "true";
   }
 
   return {

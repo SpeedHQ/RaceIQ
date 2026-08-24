@@ -74,6 +74,16 @@ const adapterCases: Array<{
     ers: false,
     sourceChannels: ["clutch", "pitStatus"],
   },
+  {
+    gameId: "lmu",
+    fuel: "litre",
+    tireTemperature: "celsius",
+    scalarMetrics: ["power", "torque"],
+    brakeTemperature: true,
+    tirePressure: true,
+    ers: false,
+    sourceChannels: ["clutch", "weather", "pitStatus"],
+  },
 ];
 
 describe("game telemetry models", () => {

@@ -84,7 +84,7 @@ function extensionFieldSets(
       const contextParts =
         parentParts[0] === "f1"
           ? parentParts.slice(1)
-          : parentParts[0] === "iracing"
+          : parentParts[0] === "iracing" || parentParts[0] === "lmu"
             ? parentParts.slice(1)
           : parentParts[0] === "acc" && parentParts[1] === "acEvo"
             ? parentParts.slice(2)

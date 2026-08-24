@@ -122,6 +122,13 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.sectorStarts": "timing.sector.layout.start-fractions",
   "iracing.incidents": "race.incident-flags",
   "iracing.trackWetness": "weather.track-wetness",
+  "lmu.trackLengthM": "timing.track-length",
+  "lmu.lapDistanceM": "timing.distance-traveled",
+  "lmu.lapDistancePct": "timing.lap-fraction",
+  "lmu.currentSectorIndex": "timing.sector.current-index",
+  "lmu.inPits": "race.on-pit-road",
+  "lmu.tcLevel": "electronics.traction-control-level",
+  "lmu.absLevel": "electronics.abs-level",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
@@ -372,6 +379,35 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "fraction",
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
     freshness: "session-update",
+  },
+  "lmu.trackLengthM": {
+    unit: "m",
+    description: "LMU track length retained from scoring telemetry.",
+    freshness: "session-update",
+  },
+  "lmu.lapDistanceM": {
+    unit: "m",
+    description: "LMU player distance around current lap.",
+  },
+  "lmu.lapDistancePct": {
+    unit: "fraction",
+    description: "LMU player lap distance normalized to 0-1.",
+  },
+  "lmu.currentSectorIndex": {
+    unit: "count",
+    description: "LMU current zero-based sector index.",
+  },
+  "lmu.inPits": {
+    unit: "boolean",
+    description: "LMU player vehicle is between pit entrance and pit exit.",
+  },
+  "lmu.tcLevel": {
+    unit: "count",
+    description: "LMU traction-control setting level.",
+  },
+  "lmu.absLevel": {
+    unit: "count",
+    description: "LMU anti-lock brake setting level.",
   },
 };
 
