@@ -12,7 +12,7 @@ afterAll(() => stopMaintenanceTasks());
 
 // Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
 function makeFakeDb() {
-  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean; invalidReason: string | null }> = [];
+  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean; invalidReason: string | null; phase: string; paceEligibility: string }> = [];
   return {
     inserted,
     insertSession: async () => 1,
@@ -22,6 +22,8 @@ function makeFakeDb() {
         lapTime: input.lapTime,
         valid: input.isValid,
         invalidReason: input.invalidReason,
+        phase: input.classification?.phase ?? "flying",
+        paceEligibility: input.classification?.paceEligibility ?? "eligible",
       });
       return inserted.length;
     },
@@ -131,7 +133,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(completeCount).toBe(0);
   });
 
-  test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
+  test("keeps a partial initial pit lap telemetry-valid", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -187,13 +189,17 @@ describe("LapDetectorAc — reset detection", () => {
       })
     );
 
-    // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
-    expect(db.inserted.length).toBe(2);
-    expect(db.inserted[0].lapNumber).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
-    expect(db.inserted[1].lapNumber).toBe(2);
-    expect(db.inserted[1].valid).toBe(true);
+    // Two laps: partial outlap pace plus full clean lap.
+    expect(db.inserted).toHaveLength(2);
+    expect(db.inserted[0]).toMatchObject({
+      lapNumber: 1,
+      valid: true,
+      invalidReason: null,
+    });
+    expect(db.inserted[1]).toMatchObject({
+      lapNumber: 2,
+      valid: true,
+    });
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
@@ -250,7 +256,7 @@ describe("LapDetectorAc — reset detection", () => {
     expect(saved[0].isValid).toBe(false);
   });
 
-  test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
+  test("keeps ACC outlap telemetry validity separate from pit classification", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -296,12 +302,14 @@ describe("LapDetectorAc — reset detection", () => {
       })
     );
 
-    expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      valid: true,
+      invalidReason: null,
+    });
   });
 
-  test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
+  test("keeps ACC inlap telemetry validity separate from pit classification", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorAcc({ db });
 
@@ -337,9 +345,11 @@ describe("LapDetectorAc — reset detection", () => {
       })
     );
 
-    expect(db.inserted.length).toBe(1);
-    expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("inlap");
+    expect(db.inserted).toHaveLength(1);
+    expect(db.inserted[0]).toMatchObject({
+      valid: true,
+      invalidReason: null,
+    });
   });
 });
 

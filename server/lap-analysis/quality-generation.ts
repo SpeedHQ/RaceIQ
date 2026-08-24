@@ -28,6 +28,7 @@ function generation(value: unknown): string {
     .update(JSON.stringify(stableValue(value)))
     .digest("hex")}`;
 }
+const FINALIZED_SOURCE_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 
 const RECORDING_LAP_FACT_CODES: Partial<Record<QualityFact["code"], true>> = {
@@ -142,16 +143,33 @@ export function combineQualityGenerations(generations: readonly string[]): strin
 }
 
 export function finalizeRecordingQualityGeneration(summary: RecordingQualitySummary): RecordingQualitySummary {
-  const archiveGeneration = summary.archiveVerification.sourceGeneration;
+  const verificationLayers = [
+    summary.archiveVerification,
+    summary.canonicalVerification,
+    summary.transportVerification,
+  ].filter((verification) => verification != null);
+  const finalizedSourceGeneration = verificationLayers
+    .map(({ sourceGeneration }) => sourceGeneration)
+    .find(
+      (candidate): candidate is string =>
+        typeof candidate === "string" &&
+        FINALIZED_SOURCE_GENERATION_PATTERN.test(candidate),
+    );
+  if (
+    finalizedSourceGeneration == null &&
+    verificationLayers.some(({ state }) => state === "verified")
+  ) {
+    throw new Error(
+      "recording source generation must be sha256: plus 64 lowercase hex characters",
+    );
+  }
   const sourceGeneration =
-    archiveGeneration === "legacy"
-      ? "legacy"
-      : generation({
-          archiveGeneration,
-          participant: summary.participant,
-          sourceKind: summary.sourceKind,
-          versionIdentity: summary.versionIdentity,
-        });
+    finalizedSourceGeneration ??
+    (
+      summary.provenance.sourceGeneration.startsWith("provisional:")
+        ? summary.provenance.sourceGeneration
+        : `provisional:${summary.sourceKind}:source-unavailable`
+    );
   const draftProvenance: QualityProvenance = {
     ...summary.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,
@@ -183,17 +201,21 @@ export function finalizeLapQualityGeneration(
     rawFrameCount: number | null;
   },
 ): { quality: LapQualitySummary; eligibility: EligibilityDecisionSet } {
-  const finalizedSessionSourceGeneration = sessionSourceGeneration;
-  const sourceGeneration =
-    finalizedSessionSourceGeneration === "legacy"
-      ? "legacy"
-      : generation({
-          identity,
-          participant: quality.participant,
-          sessionSourceGeneration: finalizedSessionSourceGeneration,
-          sourceKind: quality.sourceKind,
-          versionIdentity: quality.versionIdentity,
-        });
+  if (
+    typeof sessionSourceGeneration !== "string" ||
+    !FINALIZED_SOURCE_GENERATION_PATTERN.test(sessionSourceGeneration)
+  ) {
+    throw new Error(
+      "session source generation must be sha256: plus 64 lowercase hex characters",
+    );
+  }
+  const sourceGeneration = generation({
+    identity,
+    participant: quality.participant,
+    sessionSourceGeneration,
+    sourceKind: quality.sourceKind,
+    versionIdentity: quality.versionIdentity,
+  });
   const draftProvenance: QualityProvenance = {
     ...quality.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,

@@ -147,7 +147,7 @@ describe("telemetry import quality errors", () => {
       const pendingLap = capture.insertLap(lapInput(sessionId, index + 1, lapQuality));
       const pendingQuality = capture.updateSessionQuality(
         sessionId,
-        recordingQuality(`sha256:source-${sessionId}`),
+        recordingQuality(`sha256:${sessionId.toString(16).padStart(64, "0")}`),
       );
 
       expect(updatedSessions).toEqual(sessionIds.slice(0, index));

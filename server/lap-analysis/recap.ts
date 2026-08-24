@@ -1,6 +1,7 @@
 import type { GameId } from "../../shared/games/ids";
 import type { SessionRecap } from "../../shared/racing/sessions/types";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
+import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
 import { isTimedLapEligibilityUsable, type QualitySnapshotEvidence } from "../../shared/racing/quality/policies";
 import { stddevPopulation, consistencyRating } from "./stats";
@@ -81,7 +82,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
 
   const distanceM = trackLengthM !== null ? trackLengthM * lapsValid : null;
 
-  const sparkline = laps.map((lap) => ({
+  const sparkline = laps.filter((lap) => !isPitCycleLap(lap)).map((lap) => ({
     lapId: lap.id,
     lapNumber: lap.lapNumber,
     lapTimeSec: lap.lapTime,

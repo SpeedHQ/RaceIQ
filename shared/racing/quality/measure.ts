@@ -310,7 +310,9 @@ function measureTimeline(packets: readonly TelemetryPacket[]): TimelineMeasureme
   const tracker = new SourceSequenceTracker();
   for (const packet of packets) tracker.observe(packet);
   const tracked = tracker.finalize();
-  const inferredIntervalMs = tracked.inferredIntervalMs;
+  const inferredIntervalMs =
+    tracked.inferredIntervalMs ??
+    medianPositiveDelta(packets.map(({ TimestampMS }) => TimestampMS));
   const discontinuities: TimelineRangeEvidence[] = [];
   if (inferredIntervalMs != null) {
     const discontinuityThresholdMs = Math.max(5_000, inferredIntervalMs * 100);
@@ -455,6 +457,11 @@ function observeChannel(
   accumulator.summary.nativeUnit = resolved.provenance.sourceUnit ?? accumulator.summary.nativeUnit;
   const { observedAt: _observedAt, sourceObservation: _sourceObservation, ...stableProvenance } = resolved.provenance;
   accumulator.summary.provenance = stableProvenance;
+  if (!Array.isArray(resolved.limitations)) {
+    throw new TypeError(
+      `Telemetry resolver returned invalid limitations for ${resolved.semanticId}`,
+    );
+  }
   for (const limitation of resolved.limitations) {
     if (!accumulator.summary.limitations.includes(limitation)) accumulator.summary.limitations.push(limitation);
   }
@@ -504,7 +511,7 @@ function observeChannel(
 function applySourceChannelProfile(summary: ChannelQualitySummary, profile?: SourceChannelProfile): void {
   const entry = profile?.channels[summary.semanticId];
   if (!entry) return;
-  summary.mappingStatus = entry.mappingStatus;
+  summary.mappingStatus = entry.treatment === "absent" ? "unavailable" : entry.mappingStatus;
   summary.sourceProfile = {
     schemaVersion: profile.schemaVersion,
     sourceKind: profile.sourceKind,
@@ -515,7 +522,7 @@ function applySourceChannelProfile(summary: ChannelQualitySummary, profile?: Sou
   for (const limitation of entry.limitations) {
     if (!summary.limitations.includes(limitation)) summary.limitations.push(limitation);
   }
-  if (entry.mappingStatus !== "unavailable") return;
+  if (entry.treatment !== "absent" && entry.mappingStatus !== "unavailable") return;
   summary.observedCount = 0;
   summary.coverage = null;
   summary.confidenceMean = null;
@@ -740,7 +747,7 @@ export function summarizeLapQuality(input: {
   };
   const totalMissingFraction = timeline.summary.totalMissingFraction ?? 0;
   for (const gap of timeline.gaps) {
-    const minor = gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs && totalMissingFraction <= QUALITY_THRESHOLDS_V1.minorMissingFractionMax;
+    const minor = gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs;
     pushFact(minor ? "telemetry_gap_minor" : "telemetry_gap_major", {
       timeRange: gap.timeRange,
       distanceRange: gap.distanceRange,
@@ -806,17 +813,18 @@ export function summarizeLapQuality(input: {
   const peakTelemetryLapTime = input.packets.reduce((peak, packet) => (Number.isFinite(packet.CurrentLap) ? Math.max(peak, packet.CurrentLap) : peak), -Infinity);
   const peakTelemetryLapTimeMs = peakTelemetryLapTime > 0 ? peakTelemetryLapTime * 1_000 : null;
   const lapTimeMs = input.lapTime * 1_000;
+  const validLapTime = Number.isFinite(input.lapTime) && input.lapTime > 0;
   const credibleSource = input.timingSource === "simulator-last-lap" || input.timingSource === "simulator-history";
-  const timingMatches = peakTelemetryLapTimeMs == null || Math.abs(peakTelemetryLapTimeMs - lapTimeMs) <= 2_000;
+  const timingMatches = validLapTime && (peakTelemetryLapTimeMs == null || Math.abs(peakTelemetryLapTimeMs - lapTimeMs) <= 2_000);
   const timingConfirmed = credibleSource && timingMatches;
   if (input.timingSource === "telemetry-elapsed") pushFact("lap_time_fallback");
-  if (!timingConfirmed && input.timingSource !== "telemetry-elapsed") pushFact("lap_time_unconfirmed");
+  if (!validLapTime || (!timingConfirmed && input.timingSource !== "telemetry-elapsed")) pushFact("lap_time_unconfirmed");
   if (!input.complete) pushFact("partial_lap");
   if (!input.structurallyValid) {
     pushFact("structurally_invalid", { details: { invalidReason: input.invalidReason } });
   }
-  if (input.classification.paceEligibility !== "eligible") pushFact("non_pace_classification");
-  if (input.classification.conditions.length > 0) pushFact("caution_context");
+  if (input.classification.paceEligibility !== "eligible") pushFact("non_pace_classification", { eventIds: input.eventIds });
+  if (input.classification.conditions.length > 0) pushFact("caution_context", { eventIds: input.eventIds });
   if (input.sourceKind !== "native-live") pushFact("imported_source");
   if (input.sourceKind === "remote-collector" && timeline.summary.countMethod === "native-sequence") {
     for (const gap of timeline.gaps) {
@@ -995,6 +1003,34 @@ export class RecordingQualityAccumulator {
       );
     }
     const sequenceMeasurement = this.sourceSequence.finalize();
+    for (const gap of sequenceMeasurement.gaps) {
+      const minor = gap.durationMs <= QUALITY_THRESHOLDS_V1.minorGapMaxMs;
+      this.facts.push(
+        fact(
+          this.provenance,
+          this.facts.length + 1,
+          minor ? "telemetry_gap_minor" : "telemetry_gap_major",
+          {
+            timeRange: {
+              startMs: Math.min(
+                gap.previousSourceTimeMs,
+                gap.currentSourceTimeMs,
+              ),
+              endMs: Math.max(
+                gap.previousSourceTimeMs,
+                gap.currentSourceTimeMs,
+              ),
+            },
+            details: {
+              durationMs: gap.durationMs,
+              inferredMissingCount: gap.missingCount,
+              countMethod: gap.countMethod,
+              sequenceFamily: gap.sourceSequenceFamily ?? "timestamp",
+            },
+          },
+        ),
+      );
+    }
     if (sequenceMeasurement.duplicates.length > 0) {
       this.facts.push(
         fact(this.provenance, this.facts.length + 1, "duplicate_observations", {

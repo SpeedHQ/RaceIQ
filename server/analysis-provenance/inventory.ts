@@ -243,6 +243,13 @@ export async function auditPersistedSessionAnalysis(receipt: AnalysisProvenanceR
       db.select({ analysisGenerationId: sessionResults.analysisGenerationId }).from(sessionResults).where(eq(sessionResults.sessionId, receipt.sessionId)),
     ]);
     const expected = new Map(receipt.outputs.map((entry) => [entry.name, entry]));
+    const declaredNames = new Set(receipt.outputs.map((entry) => entry.name));
+    const inventoryNames = new Set(inventory.outputs.map((entry) => entry.name));
+    const outputNamesMatch =
+      declaredNames.size === receipt.outputs.length &&
+      inventoryNames.size === inventory.outputs.length &&
+      declaredNames.size === inventoryNames.size &&
+      [...declaredNames].every((name) => inventoryNames.has(name));
     const mismatches = inventory.outputs.filter((entry) => {
       const declared = expected.get(entry.name);
       return !declared || declared.count !== entry.count || declared.contentHash !== entry.contentHash || analysisCanonicalHash(declared) !== analysisCanonicalHash(entry);
@@ -258,6 +265,7 @@ export async function auditPersistedSessionAnalysis(receipt: AnalysisProvenanceR
       .filter(([, generationIds]) => generationIds.some((generationId) => generationId !== receipt.generationId))
       .map(([name]) => name);
     const details = [
+      outputNamesMatch ? null : "Receipt output names differ from persisted inventory",
       mismatches.length === 0 ? null : `Persisted outputs differ: ${mismatches.map((entry) => entry.name).join(", ")}`,
       staleGenerationStamps.length === 0 ? null : `Active generation stamp differs: ${staleGenerationStamps.join(", ")}`,
     ].filter((detail): detail is string => detail != null);

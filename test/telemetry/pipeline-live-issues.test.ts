@@ -92,7 +92,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     pipeline.setLiveIssuesEnabled(true);
     await pipeline.processPacket(pkt());
     pipeline.setLiveIssuesEnabled(false);
-    await pipeline.processPacket(pkt());
+    await pipeline.processPacket(pkt({ TimestampMS: 2_000, CurrentLap: 31, DistanceTraveled: 2_050 }));
     expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
   });
 

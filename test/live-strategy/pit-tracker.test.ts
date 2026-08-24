@@ -4,6 +4,7 @@ import { PitTracker } from "../../server/live-strategy/pit-tracker";
 import { forzaServerAdapter } from "../../server/games/fm-2023";
 import { f1ServerAdapter } from "../../server/games/f1-2025";
 import { accServerAdapter } from "../../server/games/acc";
+import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {
@@ -26,6 +27,33 @@ function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
     ...overrides,
   } as TelemetryPacket;
 }
+const ELIGIBLE_LAP = {
+  "normal-pace": {
+    status: "eligible",
+    policyId: "normal-pace",
+    policyVersion: "1",
+    confidence: { level: "high", score: 1 },
+    reasons: [],
+    evidenceIds: [],
+  },
+  "fuel-burn": {
+    status: "eligible",
+    policyId: "fuel-burn",
+    policyVersion: "1",
+    confidence: { level: "high", score: 1 },
+    reasons: [],
+    evidenceIds: [],
+  },
+  "tire-analysis": {
+    status: "eligible",
+    policyId: "tire-analysis",
+    policyVersion: "1",
+    confidence: { level: "high", score: 1 },
+    reasons: [],
+    evidenceIds: [],
+  },
+} as unknown as EligibilityDecisionSet;
+
 
 /** Simulate completing a lap: feed a mid-lap packet then a new-lap packet. */
 function completeLap(tracker: PitTracker, lapNum: number, opts: {
@@ -45,6 +73,7 @@ function completeLap(tracker: PitTracker, lapNum: number, opts: {
     TireWearRR: opts.wearRR - 0.001,
   }), 5000);
   // Lap boundary
+  tracker.acceptCompletedLap(ELIGIBLE_LAP);
   tracker.feed(pkt({
     LapNumber: lapNum + 1,
     CurrentLap: 0,

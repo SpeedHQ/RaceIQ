@@ -130,6 +130,32 @@ describe("analysis receipt persistence", () => {
     }));
   });
 
+  test("audit rejects extra and duplicate receipt output names", async () => {
+    const sessionId = await createSession();
+    const receipt = await createActiveReceipt(sessionId);
+    const firstOutput = receipt.outputs[0]!;
+    const mutations: AnalysisProvenanceReceipt[] = [
+      {
+        ...receipt,
+        outputs: [
+          ...receipt.outputs,
+          { ...firstOutput, name: "unexpected-output", artifactType: "findings" },
+        ],
+      },
+      { ...receipt, outputs: [...receipt.outputs, firstOutput] },
+    ];
+
+    for (const mutated of mutations) {
+      expect(await auditPersistedSessionAnalysis(mutated)).toContainEqual(
+        expect.objectContaining({
+          id: "storage_state",
+          status: "failed",
+          details: expect.stringContaining("output names"),
+        }),
+      );
+    }
+  });
+
   test("audit detects active generation-stamp mutation", async () => {
     const sessionId = await createSession();
     const receipt = await createActiveReceipt(sessionId);

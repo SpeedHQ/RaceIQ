@@ -66,6 +66,8 @@ const SESSION_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
   recording_incomplete: true,
   recording_unavailable: true,
   source_reconnect: true,
+  telemetry_gap_minor: true,
+  telemetry_gap_major: true,
   timeline_discontinuity: true,
   out_of_order_observations: true,
   writer_drop: true,
@@ -79,12 +81,16 @@ const SESSION_WIDE_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
 
 const DEGRADED_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
   source_reconnect: true,
+  telemetry_gap_minor: true,
+  telemetry_gap_major: true,
   timeline_discontinuity: true,
   out_of_order_observations: true,
   writer_drop: true,
 };
 
 const LAP_MEASURED_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
+  telemetry_gap_minor: true,
+  telemetry_gap_major: true,
   timeline_discontinuity: true,
   out_of_order_observations: true,
 };
@@ -143,7 +149,7 @@ export async function updateSessionQuality(
     const changedLapIds: number[] = [];
 
     for (const lap of lapRows) {
-      if (!lap.quality) continue;
+      if (!lap.quality || lap.qualityGeneration == null || lap.quality.provenance.outputGeneration === "legacy") continue;
       const sessionFacts = recordingFactsForLap(finalized, lap.quality);
       const sessionLifecycle: LapQualitySummary["lifecycleState"] | null = sessionFacts.some(({ code }) => code === "recording_corrupt")
         ? "corrupt"
@@ -491,13 +497,15 @@ export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
       recordingQuality: session.recordingQuality ?? undefined,
       qualityGeneration: session.qualityGeneration ?? undefined,
       qualityStale:
-        !session.recordingQuality ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
-        session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
-        session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-        session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
-        session.qualityGeneration !== session.recordingQuality.provenance.outputGeneration,
+        session.recordingQuality != null &&
+        (
+          !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
+          !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
+          session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+          session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+          session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+          session.qualityGeneration !== session.recordingQuality.provenance.outputGeneration
+        ),
       ownership: session.ownership === "others" ? "others" : "mine",
     });
   }

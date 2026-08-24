@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SessionRecorder } from "../../server/session-capture/recorder";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
+import { encodeMetaFrame, META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { reprocessSession } from "../../server/session-capture/reprocess";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
@@ -131,11 +131,7 @@ describe("reprocessSession", () => {
   }
 
   function emptyBin(path: string): void {
-    // A valid .bin with only an empty meta frame, no real packets
-    const buf = Buffer.alloc(8);
-    buf.writeUInt32LE(META_FRAME_MAGIC, 0);
-    buf.writeUInt32LE(0, 4);
-    writeFileSync(path, buf);
+    writeFileSync(path, encodeMetaFrame(0));
   }
 
   test("throws if session has no raw file", async () => {
@@ -203,12 +199,8 @@ describe("reprocessSession", () => {
   test("skips additional meta frames inside bin during replay", async () => {
     // Build a bin with: meta frame + another meta frame (should be skipped gracefully)
     const binPath = join(tmpDir, "session.bin");
-    const meta1 = Buffer.alloc(8);
-    meta1.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta1.writeUInt32LE(0, 4);
-    const meta2 = Buffer.alloc(8);
-    meta2.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta2.writeUInt32LE(0, 4);
+    const meta1 = encodeMetaFrame(0);
+    const meta2 = encodeMetaFrame(0);
     writeFileSync(binPath, Buffer.concat([meta1, meta2]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
@@ -217,22 +209,17 @@ describe("reprocessSession", () => {
     expect(result.lapsDetected).toBe(0);
   });
 
-  test("handles truncated frame at end of file gracefully", async () => {
+  test("rejects a truncated frame at end of file", async () => {
     const binPath = join(tmpDir, "session.bin");
-    // meta frame + a truncated packet (declares 10 bytes, only 2 present)
-    const meta = Buffer.alloc(8);
-    meta.writeUInt32LE(META_FRAME_MAGIC, 0);
-    meta.writeUInt32LE(0, 4);
+    const meta = encodeMetaFrame(1);
     const truncated = Buffer.alloc(6);
-    truncated.writeUInt32LE(10, 0); // claims 10 bytes
+    truncated.writeUInt32LE(10, 0);
     truncated.writeUInt8(0xAA, 4);
     truncated.writeUInt8(0xBB, 5);
     writeFileSync(binPath, Buffer.concat([meta, truncated]));
 
     sessionId = await insertTestSession(binPath, "0.9.0");
-    // Should not throw — truncated frame causes loop to break
-    const result = await reprocessSession(sessionId);
-    expect(result.lapsDetected).toBe(0);
+    await expect(reprocessSession(sessionId)).rejects.toThrow("Truncated");
   });
 
   test("throws with descriptive error when raw file is missing from disk", async () => {
@@ -368,7 +355,7 @@ describe("countStaleSessions", () => {
 
     const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
 
-    expect(afterCount - beforeCount).toBe(2);
+    expect(afterCount - beforeCount).toBe(3);
   });
 
   test("getStaleSessions returns only raw sessions with stale detector versions", async () => {
@@ -393,11 +380,11 @@ describe("countStaleSessions", () => {
     const allIds = await getStaleSessions(detectorId, ["fm-2023"]);
     const insertedIdsOnly = allIds.filter((id) => !baselineSet.has(id));
 
-    expect(insertedIdsOnly).toHaveLength(2);
+    expect(insertedIdsOnly).toHaveLength(3);
     expect(insertedIdsOnly).toContain(staleRawOldVersion);
     expect(insertedIdsOnly).toContain(staleRawNullVersion);
+    expect(insertedIdsOnly).toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(missingRaw);
-    expect(insertedIdsOnly).not.toContain(currentVersion);
     expect(insertedIdsOnly).not.toContain(noRaw);
     expect(insertedIdsOnly).not.toContain(unsupportedGame);
   });
