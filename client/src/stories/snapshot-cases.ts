@@ -15,6 +15,7 @@ export interface StorybookSnapshotCase {
 // Every case names a dedicated export. Shared layouts use comprehensive All Data
 // or All States stories; separate cases exist only for layout or interaction
 // contracts. Simulator capability differences belong in behavioral tests.
+// Never select a default or first export implicitly.
 export const DASHBOARD_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
   // Distinct baselines: each simulator owns a different live-dashboard layout.
   {
