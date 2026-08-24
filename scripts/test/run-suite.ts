@@ -39,6 +39,12 @@ const workers = process.env.BUN_TEST_WORKERS ?? "4";
 if ((suite === "unit" && !/^\d+$/.test(workers)) || (suite === "unit" && Number(workers) < 1)) {
   throw new Error("BUN_TEST_WORKERS must be a positive integer");
 }
+const i18nCompile = Bun.spawnSync([process.execPath, "run", "--cwd", "client", "i18n:compile"], {
+  cwd: root,
+  stdout: "inherit",
+  stderr: "inherit",
+});
+if (i18nCompile.exitCode !== 0) process.exit(i18nCompile.exitCode);
 const suiteRoot = mkdtempSync(resolve(tmpdir(), `raceiq-bun-${suite}-`));
 let status = 1;
 try {
