@@ -3,10 +3,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RACE_EVENT_SCHEMA_VERSION, RaceEventSchema, RaceEventTypeSchema, type RaceEvent } from "../../shared/racing/events/contracts";
-import { RaceEventLoadMoreFailure, RaceEventTimeline, RACE_EVENT_LABELS, flattenRaceEventPages, formatRaceEventDetails, raceEventBadges, raceEventPageWindow } from "../src/components/race-events/RaceEventTimeline";
+import {
+  RaceEventLoadMoreFailure,
+  RaceEventTimeline,
+  RACE_EVENT_LABELS,
+  flattenRaceEventPages,
+  formatRaceEventDetails,
+  raceEventBadges,
+  raceEventPageWindow,
+} from "../src/components/race-events/RaceEventTimeline";
 import { mergeAppendedRaceEvents, mergeRecoveredRaceEventPage, recoverRaceEventTail } from "../src/lib/race-event-cache";
 import { queryClient } from "../src/lib/queryClient";
-import { handleRaceEventsReplaced, mergeAppendedRaceEventsIntoCaches, recoverRaceEventTails, resetRaceEventCaches } from "../src/hooks/useWebSocket";
+import { handleLapSaved, handleRaceEventsReplaced, mergeAppendedRaceEventsIntoCaches, recoverRaceEventTails, resetRaceEventCaches } from "../src/hooks/useWebSocket";
 import { queryKeys } from "../src/hooks/query-keys";
 import { getLocale, overwriteGetLocale, type Locale } from "../src/paraglide/runtime";
 
@@ -56,13 +64,7 @@ function renderTimeline(locale: Locale, pages: Array<{ items: RaceEvent[]; nextC
   const previousLocale = getLocale();
   overwriteGetLocale(() => locale);
   try {
-    return renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client },
-        createElement(RaceEventTimeline, { sessionId: 12, gameId: "acc", enabled: true }),
-      ),
-    );
+    return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(RaceEventTimeline, { sessionId: 12, gameId: "acc", enabled: true })));
   } finally {
     overwriteGetLocale(() => previousLocale);
     client.clear();
@@ -77,7 +79,6 @@ describe("race event timeline", () => {
     expect(RACE_EVENT_LABELS.fuel_service_observed()).toBe("Fuel service observed");
     expect(RACE_EVENT_LABELS.pit_exit()).toBe("Exited pit road");
   });
-
 
   test("renders German event labels, quality states, payload labels, and assistive text", () => {
     const markup = renderTimeline("de", [
@@ -196,6 +197,14 @@ describe("race event timeline", () => {
     expect(flattenRaceEventPages(merged.pages)).toHaveLength(201);
     expect(flattenRaceEventPages(merged.pages).at(-1)?.eventId).toBe(appended.eventId);
 
+    const linkedExisting = {
+      ...oldestPage.items[0]!,
+      lapId: 42,
+    };
+    const upserted = mergeAppendedRaceEvents(initial, [linkedExisting]);
+    expect(flattenRaceEventPages(upserted.pages)).toHaveLength(200);
+    expect(flattenRaceEventPages(upserted.pages).find(({ eventId }) => eventId === linkedExisting.eventId)?.lapId).toBe(42);
+
     const matchingKey = queryKeys.sessionEvents(12, "acc");
     const unrelatedKey = queryKeys.sessionEvents(13, "acc");
     expect(matchingKey).not.toEqual(queryKeys.sessionEvents(12, "iracing"));
@@ -220,9 +229,7 @@ describe("race event timeline", () => {
     expect(flattenRaceEventPages(recovered.pages)).toHaveLength(201);
     expect(recovered.pages.at(-1)?.tailCursor).toBe("tail-201");
 
-    await expect(
-      recoverRaceEventTail(initial, async () => ({ items: [], nextCursor: "stalled", tailCursor: "tail-200" })),
-    ).rejects.toThrow("Race-event tail catch-up cursor did not advance");
+    await expect(recoverRaceEventTail(initial, async () => ({ items: [], nextCursor: "stalled", tailCursor: "tail-200" }))).rejects.toThrow("Race-event tail catch-up cursor did not advance");
   });
 
   test("keeps more than 5,000 recovered events paged", () => {
@@ -233,19 +240,16 @@ describe("race event timeline", () => {
 
     for (let pageIndex = 0; pageIndex < 51; pageIndex += 1) {
       const firstSequence = pageIndex * 100 + 2;
-      recovered = mergeRecoveredRaceEventPage(
-        recovered,
-        {
-          items: Array.from({ length: 100 }, (_, offset) =>
-            event({
-              eventId: `race-event:sha256:${(firstSequence + offset).toString(16).padStart(64, "0")}`,
-              sequence: firstSequence + offset,
-            }),
-          ),
-          nextCursor: null,
-          tailCursor: `tail-${firstSequence + 99}`,
-        },
-      );
+      recovered = mergeRecoveredRaceEventPage(recovered, {
+        items: Array.from({ length: 100 }, (_, offset) =>
+          event({
+            eventId: `race-event:sha256:${(firstSequence + offset).toString(16).padStart(64, "0")}`,
+            sequence: firstSequence + offset,
+          }),
+        ),
+        nextCursor: null,
+        tailCursor: `tail-${firstSequence + 99}`,
+      });
     }
 
     expect(recovered.pages).toHaveLength(52);
@@ -264,9 +268,10 @@ describe("race event timeline", () => {
     queryClient.setQueryData(key, initial);
     const originalFetch = globalThis.fetch;
     let resolveFetch: ((response: Response) => void) | undefined;
-    globalThis.fetch = (() => new Promise<Response>((resolve) => {
-      resolveFetch = resolve;
-    })) as typeof fetch;
+    globalThis.fetch = (() =>
+      new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      })) as typeof fetch;
 
     try {
       const recovery = recoverRaceEventTails(12);
@@ -319,6 +324,19 @@ describe("race event timeline", () => {
     queryClient.clear();
   });
 
+  test("refreshes linked timeline rows after a lap is saved", async () => {
+    const key = queryKeys.sessionEvents(12, "acc");
+    queryClient.setQueryData(key, {
+      pages: [{ items: [event({ lapId: null })], nextCursor: null, tailCursor: "tail-1" }],
+      pageParams: [undefined],
+    });
+
+    await handleLapSaved(12);
+
+    expect(queryClient.getQueryData(key)).toBeUndefined();
+    queryClient.clear();
+  });
+
   test("flattens paginated results in canonical chronological order", () => {
     const later = event({
       eventId: `race-event:sha256:${"c".repeat(64)}`,
@@ -333,13 +351,7 @@ describe("race event timeline", () => {
       { items: [later], nextCursor: "page-two", tailCursor: "later" },
       { items: [earlier], nextCursor: null, tailCursor: "earlier" },
     ];
-    expect(flattenRaceEventPages(pages).map((item) => item.eventId)).toEqual([
-      earlier.eventId,
-      later.eventId,
-    ]);
-    expect(raceEventPageWindow(pages, 2).map((item) => item.eventId)).toEqual([
-      earlier.eventId,
-      later.eventId,
-    ]);
+    expect(flattenRaceEventPages(pages).map((item) => item.eventId)).toEqual([earlier.eventId, later.eventId]);
+    expect(raceEventPageWindow(pages, 2).map((item) => item.eventId)).toEqual([earlier.eventId, later.eventId]);
   });
 });

@@ -1,24 +1,12 @@
 import { asc, eq } from "drizzle-orm";
 
-import {
-  type AnalysisOutputInventoryEntry,
-  type AnalysisProvenanceReceipt,
-  type AnalysisVerificationCheck,
-} from "../../shared/racing/provenance/contracts";
+import { type AnalysisOutputInventoryEntry, type AnalysisProvenanceReceipt, type AnalysisVerificationCheck } from "../../shared/racing/provenance/contracts";
 import { QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
 import { RACE_EVENT_SCHEMA_VERSION } from "../../shared/racing/events/contracts";
 import { SESSION_RUN_SCHEMA_VERSION } from "../../shared/racing/runs/contracts";
 import type { DbTransaction } from "../db/analysis-receipt-queries";
 import { db } from "../db/index";
-import {
-  laps,
-  raceEvents,
-  sessionResults,
-  sessionRunEvidence,
-  sessionRunLaps,
-  sessionRuns,
-  sessions,
-} from "../db/schema";
+import { laps, raceEvents, sessionResults, sessionRunEvidence, sessionRunLaps, sessionRuns, sessions } from "../db/schema";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { analysisCanonicalHash } from "./hash";
 
@@ -42,7 +30,10 @@ function participants(values: readonly (string | null)[]): string[] | null {
   return result.length === 0 ? null : result;
 }
 
-function output(input: Omit<AnalysisOutputInventoryEntry, "timeCoverageMs" | "lapCoverage" | "participantCoverage" | "trackDistanceCoverageM"> & Partial<Pick<AnalysisOutputInventoryEntry, "timeCoverageMs" | "lapCoverage" | "participantCoverage" | "trackDistanceCoverageM">>): AnalysisOutputInventoryEntry {
+function output(
+  input: Omit<AnalysisOutputInventoryEntry, "timeCoverageMs" | "lapCoverage" | "participantCoverage" | "trackDistanceCoverageM"> &
+    Partial<Pick<AnalysisOutputInventoryEntry, "timeCoverageMs" | "lapCoverage" | "participantCoverage" | "trackDistanceCoverageM">>,
+): AnalysisOutputInventoryEntry {
   return {
     ...input,
     timeCoverageMs: input.timeCoverageMs ?? null,
@@ -52,39 +43,56 @@ function output(input: Omit<AnalysisOutputInventoryEntry, "timeCoverageMs" | "la
   };
 }
 
-export async function buildPersistedSessionAnalysisInventory(
-  sessionId: number,
-  transaction?: DbTransaction,
-): Promise<SessionAnalysisInventory> {
+function normalizeAnalysisReferences(value: unknown, references: ReadonlyMap<string, string>): unknown {
+  if (typeof value === "string") return references.get(value) ?? value;
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeAnalysisReferences(entry, references));
+  }
+  if (value == null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeAnalysisReferences(entry, references)]));
+}
+
+export async function buildPersistedSessionAnalysisInventory(sessionId: number, transaction?: DbTransaction): Promise<SessionAnalysisInventory> {
   const client = transaction ?? db;
   const [session] = await client.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
   if (!session) throw new Error("Session not found");
   const [lapRows, eventRows, runRows, membershipRows, evidenceRows, resultRows] = await Promise.all([
     client.select().from(laps).where(eq(laps.sessionId, sessionId)).orderBy(asc(laps.lapNumber), asc(laps.id)),
-    client.select().from(raceEvents).where(eq(raceEvents.sessionId, sessionId)).orderBy(
-      asc(raceEvents.timelineEpoch),
-      asc(raceEvents.sequence),
-      asc(raceEvents.eventOrder),
-      asc(raceEvents.eventId),
-    ),
-    client.select().from(sessionRuns).where(eq(sessionRuns.sessionId, sessionId)).orderBy(
-      asc(sessionRuns.timelineEpoch),
-      asc(sessionRuns.openingSequence),
-      asc(sessionRuns.openingEventOrder),
-      asc(sessionRuns.runId),
-    ),
-    client.select({ membership: sessionRunLaps, runSessionId: sessionRuns.sessionId })
+    client.select().from(raceEvents).where(eq(raceEvents.sessionId, sessionId)).orderBy(asc(raceEvents.timelineEpoch), asc(raceEvents.sequence), asc(raceEvents.eventOrder), asc(raceEvents.eventId)),
+    client
+      .select()
+      .from(sessionRuns)
+      .where(eq(sessionRuns.sessionId, sessionId))
+      .orderBy(asc(sessionRuns.timelineEpoch), asc(sessionRuns.openingSequence), asc(sessionRuns.openingEventOrder), asc(sessionRuns.runId)),
+    client
+      .select({ membership: sessionRunLaps, runSessionId: sessionRuns.sessionId })
       .from(sessionRunLaps)
       .innerJoin(sessionRuns, eq(sessionRunLaps.runId, sessionRuns.runId))
       .where(eq(sessionRuns.sessionId, sessionId))
       .orderBy(asc(sessionRunLaps.runId), asc(sessionRunLaps.ordinal), asc(sessionRunLaps.lapEventId)),
-    client.select({ evidence: sessionRunEvidence, runSessionId: sessionRuns.sessionId })
+    client
+      .select({ evidence: sessionRunEvidence, runSessionId: sessionRuns.sessionId })
       .from(sessionRunEvidence)
       .innerJoin(sessionRuns, eq(sessionRunEvidence.runId, sessionRuns.runId))
       .where(eq(sessionRuns.sessionId, sessionId))
       .orderBy(asc(sessionRunEvidence.runId), asc(sessionRunEvidence.eventId), asc(sessionRunEvidence.role)),
     client.select().from(sessionResults).where(eq(sessionResults.sessionId, sessionId)).limit(1),
   ]);
+
+  const references = new Map<string, string>();
+  eventRows.forEach((event, index) => {
+    references.set(event.eventId, `event:${index}`);
+  });
+  let lifecycleIndex = 0;
+  for (const event of eventRows) {
+    if (event.lifecycleId != null && !references.has(event.lifecycleId)) {
+      references.set(event.lifecycleId, `lifecycle:${lifecycleIndex}`);
+      lifecycleIndex += 1;
+    }
+  }
+  runRows.forEach((run, index) => {
+    references.set(run.runId, `run:${index}`);
+  });
 
   const lapSemantic = lapRows.map((lap) => ({
     lapNumber: lap.lapNumber,
@@ -104,20 +112,25 @@ export async function buildPersistedSessionAnalysisInventory(
     resolverVersion: lap.resolverVersion,
     derivationVersion: lap.derivationVersion,
   }));
-  const qualitySemantic = {
-    recordingQuality: session.recordingQuality,
-    laps: lapRows.map((lap) => ({
-      lapNumber: lap.lapNumber,
-      quality: lap.quality,
-      eligibility: lap.eligibility,
-      schemaVersion: lap.qualitySchemaVersion,
-      policyVersion: lap.qualityPolicyVersion,
-      configurationVersion: lap.qualityConfigVersion,
-      generation: lap.qualityGeneration,
-    })),
-  };
+  const qualitySemantic = normalizeAnalysisReferences(
+    {
+      recordingQuality: session.recordingQuality,
+      laps: lapRows.map((lap) => ({
+        lapNumber: lap.lapNumber,
+        quality: lap.quality,
+        eligibility: lap.eligibility,
+        schemaVersion: lap.qualitySchemaVersion,
+        policyVersion: lap.qualityPolicyVersion,
+        configurationVersion: lap.qualityConfigVersion,
+        generation: lap.qualityGeneration,
+      })),
+    },
+    references,
+  );
   const eventSemantic = eventRows.map((event) => {
     const {
+      eventId: _eventId,
+      sessionId: _sessionId,
       createdAt: _createdAt,
       contentHash: _contentHash,
       analysisGenerationId: _analysisGenerationId,
@@ -127,42 +140,55 @@ export async function buildPersistedSessionAnalysisInventory(
       detectorVersion: _detectorVersion,
       ...semantic
     } = event;
-    return semantic;
+    return normalizeAnalysisReferences(semantic, references);
   });
   const runSemantic = runRows.map((run) => {
     const {
+      runId: _runId,
+      sessionId: _sessionId,
       createdAt: _createdAt,
       contentHash: _contentHash,
       analysisGenerationId: _analysisGenerationId,
       sourceGeneration: _sourceGeneration,
       algorithmVersion: _algorithmVersion,
-      runId: _runId,
       startLapId: _startLapId,
       endLapId: _endLapId,
       ...semantic
     } = run;
-    return semantic;
+    return normalizeAnalysisReferences(semantic, references);
   });
-  const membershipSemantic = membershipRows.map(({ membership }) => ({
-    runId: membership.runId,
-    lapEventId: membership.lapEventId,
-    lapNumber: membership.lapNumber,
-    ordinal: membership.ordinal,
-    entryEventId: membership.entryEventId,
-    exitEventId: membership.exitEventId,
-  }));
-  const evidenceSemantic = evidenceRows.map(({ evidence }) => evidence);
+  const membershipSemantic = membershipRows.map(({ membership }) =>
+    normalizeAnalysisReferences(
+      {
+        runId: membership.runId,
+        lapEventId: membership.lapEventId,
+        lapNumber: membership.lapNumber,
+        ordinal: membership.ordinal,
+        entryEventId: membership.entryEventId,
+        exitEventId: membership.exitEventId,
+      },
+      references,
+    ),
+  );
+  const evidenceSemantic = evidenceRows.map(({ evidence }) => normalizeAnalysisReferences(evidence, references));
   const result = resultRows[0];
   const resultSemantic = result
     ? (() => {
-        const {
-          id: _id,
-          createdAt: _createdAt,
-          updatedAt: _updatedAt,
-          analysisGenerationId: _analysisGenerationId,
-          ...semantic
-        } = result;
-        return semantic;
+        const { id: _id, sessionId: _sessionId, createdAt: _createdAt, updatedAt: _updatedAt, analysisGenerationId: _analysisGenerationId, ...semantic } = result;
+        const provenance = semantic.provenance
+          ? {
+              ...semantic.provenance,
+              rawInput: semantic.provenance.rawInput ? { ...semantic.provenance.rawInput, objectId: "session:raw-capture" } : null,
+              canonicalInput: semantic.provenance.canonicalInput ? { ...semantic.provenance.canonicalInput, sessionId: "session" } : null,
+            }
+          : semantic.provenance;
+        return normalizeAnalysisReferences(
+          {
+            ...semantic,
+            provenance,
+          },
+          references,
+        );
       })()
     : null;
 
@@ -223,7 +249,11 @@ export async function buildPersistedSessionAnalysisInventory(
     { id: "session_identity", status: "passed", details: `Session ${sessionId} owns all inventoried rows` },
     { id: "participant_identity", status: "passed", details: "Participant identities preserved as persisted" },
     { id: "ordering", status: "passed", details: "Outputs inventoried in canonical logical order" },
-    { id: "coverage", status: referenceFailures.length === 0 ? "passed" : "failed", details: referenceFailures.length === 0 ? "Artifact references resolve" : `${referenceFailures.length} artifact references do not resolve` },
+    {
+      id: "coverage",
+      status: referenceFailures.length === 0 ? "passed" : "failed",
+      details: referenceFailures.length === 0 ? "Artifact references resolve" : `${referenceFailures.length} artifact references do not resolve`,
+    },
     { id: "storage_state", status: "passed", details: "Persisted artifact rows readable" },
   ];
   return { outputs, checks };
@@ -261,9 +291,7 @@ export async function auditPersistedSessionAnalysis(receipt: AnalysisProvenanceR
       ["session_runs", runStampRows.map((row) => row.analysisGenerationId)],
       ["session_result", resultStampRows.map((row) => row.analysisGenerationId)],
     ] as const;
-    const staleGenerationStamps = stampGroups
-      .filter(([, generationIds]) => generationIds.some((generationId) => generationId !== receipt.generationId))
-      .map(([name]) => name);
+    const staleGenerationStamps = stampGroups.filter(([, generationIds]) => generationIds.some((generationId) => generationId !== receipt.generationId)).map(([name]) => name);
     const details = [
       outputNamesMatch ? null : "Receipt output names differ from persisted inventory",
       mismatches.length === 0 ? null : `Persisted outputs differ: ${mismatches.map((entry) => entry.name).join(", ")}`,
