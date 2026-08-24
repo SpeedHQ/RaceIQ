@@ -48,6 +48,8 @@ jobs:
           $ErrorActionPreference = "Stop"
           bun install --no-save --ignore-scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Use one replay benchmark definition for both revisions.
+          Copy-Item -Force ../pr/test/benchmarks/pipeline.bench.ts test/benchmarks/pipeline.bench.ts
           bun run test/benchmarks/pipeline.bench.ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Move-Item -Force bench-results.json ../base-results.json
