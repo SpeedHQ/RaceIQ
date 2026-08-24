@@ -14,7 +14,7 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
   // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
   // single tyre corner bar so it aligns in the row.
   const fuel = useMemo(() => {
-    const fuelUnit = telemetry[0]?.fuelUnit;
+    const fuelUnit = telemetry.find((sample) => sample.fuel !== undefined)?.fuelUnit;
     const values = telemetry
       .map((sample) => (sample.fuel === undefined ? undefined : sample.fuelUnit === "fraction" ? sample.fuel * 100 : sample.fuel))
       .filter((value): value is number => value !== undefined && Number.isFinite(value));
