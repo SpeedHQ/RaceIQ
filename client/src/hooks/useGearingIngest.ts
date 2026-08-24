@@ -70,25 +70,65 @@ export function viewToGearingSample(view: LiveTelemetryView): GearingSample | nu
   };
 }
 
+/** Source-clock sampling interval: ~10 Hz, matching the prior wall-clock throttle. */
+export const SOURCE_SAMPLE_INTERVAL_MS = 100;
+
+/** Mutable sampling state advanced by `sourceSampleDue` / `sourceSampleAccept`. */
+export interface SourceSampleClock {
+  streamId: string | null;
+  lastSequence: number;
+  lastObservedAtMs: number;
+}
+
 /**
- * Single throttled (~10 Hz) ingestion point for the gearing accumulators.
- * Mounted on the live-telemetry host instead of inside GearingDashboard, so
- * dyno samples, the session max speed and the auto start/stops keep working
- * no matter which dashboard mode is active. Samples missing required
- * semantics are rejected before they reach the accumulators.
+ * Whether a live frame is due for ingestion, keyed on the telemetry source's
+ * own sequence + observed timestamp rather than the browser's `performance.now()`.
+ * The ~10 Hz downsampling is therefore deterministic under delayed or bursty
+ * delivery: the accepted subset depends only on source time/order, never on
+ * when frames happen to arrive. A stream/session change resets the baseline
+ * (the server restarts sequence and observed timestamps per stream), and
+ * out-of-order frames are rejected against the last accepted sequence.
+ */
+export function sourceSampleDue(
+  clock: SourceSampleClock,
+  frame: { streamId: string; sequence: number; observedAtMs: number },
+): boolean {
+  if (frame.streamId !== clock.streamId) {
+    clock.streamId = frame.streamId;
+    clock.lastSequence = -1;
+    clock.lastObservedAtMs = 0;
+  }
+  if (frame.sequence <= clock.lastSequence) return false;
+  if (clock.lastSequence >= 0 && frame.observedAtMs - clock.lastObservedAtMs < SOURCE_SAMPLE_INTERVAL_MS) return false;
+  return true;
+}
+
+/** Advance the sampling window after a frame is actually ingested. */
+export function sourceSampleAccept(clock: SourceSampleClock, frame: { sequence: number; observedAtMs: number }): void {
+  clock.lastSequence = frame.sequence;
+  clock.lastObservedAtMs = frame.observedAtMs;
+}
+
+/**
+ * Single ~10 Hz ingestion point for the gearing accumulators, throttled on the
+ * telemetry source clock (`observedAtMs`/`sequence`) rather than the browser's
+ * `performance.now()`, so sampling is deterministic under delayed or bursty
+ * delivery. Mounted on the live-telemetry host instead of inside
+ * GearingDashboard, so dyno samples, the session max speed and the auto
+ * start/stops keep working no matter which dashboard mode is active. Samples
+ * missing required semantics are rejected before they reach the accumulators.
  */
 export function useGearingIngest(view: LiveTelemetryView | null, options: { autoStopTopSpeed?: () => number } = {}) {
   const { autoStopTopSpeed } = options;
   const units = useUnits();
-  const lastIngestAt = useRef(0);
+  const sampleClock = useRef<SourceSampleClock>({ streamId: null, lastSequence: -1, lastObservedAtMs: 0 });
 
   useEffect(() => {
     if (!view) return;
-    const now = performance.now();
-    if (now - lastIngestAt.current < 100) return;
+    if (!sourceSampleDue(sampleClock.current, view)) return;
     const packet = viewToGearingSample(view);
     if (!packet) return; // required semantics unavailable — reject, don't fabricate zeros
-    lastIngestAt.current = now;
+    sourceSampleAccept(sampleClock.current, view);
     trackGearingMaxSpeed(packet);
     trackTrackSpeedSample(packet);
 
