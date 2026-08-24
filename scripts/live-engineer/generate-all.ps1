@@ -22,7 +22,7 @@ $args = @(
     $generator,
     "--render",
     "--force",
-    "--batch-size", "8",
+    "--batch-size", "1",
     "--ref-audio", $referenceAudio,
     "--ref-text", $referenceText
 )

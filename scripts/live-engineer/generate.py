@@ -32,7 +32,7 @@ def synthesis_text(segment_id: str, spoken: str) -> str:
     return SYNTHESIS_TEXT_OVERRIDES.get(segment_id, spoken)
 TRIM_PADDING_MS = 5
 JOIN_GAP_MS = -20
-SEED = 46
+SEED = int(os.environ.get("LIVE_ENGINEER_SEED", "46"))
 
 PHRASES = {
     "phrase.fastest.class": "Fastest in class.",
@@ -110,6 +110,13 @@ def render(args) -> int:
     dtype = torch.float16 if device != "cpu" else torch.float32
     print(f"OmniVoice device={device} model=k2-fsa/OmniVoice")
     model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map=device, dtype=dtype)
+    validation_model = None
+    if args.validate:
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError as exc:
+            print(f"missing faster-whisper dependencies: {exc}", file=sys.stderr); return 2
+        validation_model = WhisperModel("base.en", device="cpu", compute_type="int8")
     OUT.mkdir(parents=True, exist_ok=True); entries = json.loads(MANIFEST.read_text()).get("clips", []) if args.segment and MANIFEST.exists() else []
     if args.segment:
         entries = [entry for entry in entries if entry.get("segmentId") != args.segment]
@@ -129,23 +136,44 @@ def render(args) -> int:
         if target.exists() and not args.force:
             entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * sf.info(target).duration), "contentHash": clip_hash}); write_manifest(); continue
         pending.append((segment_id, spoken, target, clip_hash))
-    for offset in range(0, len(pending), args.batch_size):
-        batch = pending[offset:offset + args.batch_size]
-        print(f"generating batch {offset // args.batch_size + 1}/{math.ceil(len(pending) / args.batch_size)} ({len(batch)} clips)")
-        batch_seed = SEED_OVERRIDES.get(batch[0][0], SEED) if len({segment_id for segment_id, _, _, _ in batch}) == 1 else SEED
-        torch.manual_seed(batch_seed); np.random.seed(batch_seed)
-        audios = model.generate(
-            text=[synthesis_text(segment_id, spoken) for segment_id, spoken, _, _ in batch],
-            ref_audio=[str(ref)] * len(batch),
-            ref_text=[args.ref_text] * len(batch),
-            instruct=[INSTRUCT_OVERRIDES.get(segment_id, INSTRUCT) for segment_id, _, _, _ in batch],
-            speed=[SPEED_OVERRIDES.get(segment_id, SPEED) for segment_id, _, _, _ in batch],
-        )
-        for (segment_id, spoken, target, clip_hash), audio in zip(batch, audios):
-            audio = trim_normalize(audio)
-            sf.write(str(target), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
-            entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "contentHash": clip_hash})
-            write_manifest()
+    for index, (segment_id, spoken, target, clip_hash) in enumerate(pending, start=1):
+        print(f"generating clip {index}/{len(pending)}: {segment_id}")
+        base_seed = SEED_OVERRIDES.get(segment_id, SEED)
+        attempts = 5 if validation_model is not None else 1
+        audio = None
+        for attempt in range(attempts):
+            torch.manual_seed(base_seed + attempt); np.random.seed(base_seed + attempt)
+            generated = model.generate(
+                text=[synthesis_text(segment_id, spoken)],
+                ref_audio=[str(ref)],
+                ref_text=[args.ref_text],
+                instruct=[INSTRUCT_OVERRIDES.get(segment_id, INSTRUCT)],
+                speed=[SPEED_OVERRIDES.get(segment_id, SPEED)],
+            )
+            audio = trim_normalize(generated[0])
+            candidate = target.with_name(f"{target.stem}.attempt-{attempt}{target.suffix}")
+            sf.write(str(candidate), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
+            if validation_model is None:
+                os.replace(candidate, target)
+                break
+            segments, _ = validation_model.transcribe(
+                str(candidate),
+                language="en",
+                beam_size=5,
+                condition_on_previous_text=False,
+                temperature=0,
+            )
+            transcript = " ".join(segment.text for segment in segments).strip()
+            failure = validate_transcript(segment_id, transcript, spoken)
+            if failure is None or attempt == attempts - 1:
+                os.replace(candidate, target)
+                if failure is not None:
+                    print(f"  final failed validation: {failure}; whisper={transcript!r}", file=sys.stderr)
+                break
+            candidate.unlink(missing_ok=True)
+            print(f"  retry {attempt + 1}/{attempts}: {failure}; whisper={transcript!r}", file=sys.stderr)
+        entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "contentHash": clip_hash})
+        write_manifest()
     print(f"wrote {len(entries)} clips to {OUT}")
     if args.validate:
         failures = validate_audio_catalog()
@@ -154,6 +182,22 @@ def render(args) -> int:
             print("\n".join(failures), file=sys.stderr)
             return 1
     return 0
+def _canonical_tokens(text: str) -> list[str]:
+    number_aliases = {word: str(index) for index, word in enumerate(ONES)}
+    number_aliases.update({TENS[index]: str(index * 10) for index in range(2, 10)})
+    number_aliases["hundred"] = "100"
+    return [number_aliases.get(token, token) for token in re.findall(r"[a-z']+|\d+", text.lower())]
+
+
+def validate_transcript(segment_id: str, transcript: str, expected: str) -> str | None:
+    actual_tokens = _canonical_tokens(transcript)
+    expected_tokens = _canonical_tokens(expected)
+    accepted = [expected_tokens]
+    if segment_id.startswith("number.") and len(expected_tokens) == 1:
+        accepted.extend((["a", expected_tokens[0]], ["the", expected_tokens[0]]))
+    if actual_tokens in accepted:
+        return None
+    return f"{segment_id}: transcript mismatch; expected {expected_tokens}, got {actual_tokens}"
 
 def validate_audio_catalog() -> list[str]:
     try:
@@ -164,21 +208,17 @@ def validate_audio_catalog() -> list[str]:
     failures: list[str] = []
     manifest = json.loads(MANIFEST.read_text())
     for clip in manifest.get("clips", []):
-        segments, _ = model.transcribe(str(OUT / clip["path"]), language="en")
-        spoken = " ".join(segment.text for segment in segments).lower()
-        got = [DIGIT_WORDS.get(token, token) for token in re.findall(r"[a-z']+|\d+", spoken)]
-        expected = re.findall(r"[a-z']+", clip["spokenText"].lower())
-        if not clip["segmentId"].startswith("number."):
-            continue
-        expected_word = expected[0]
-        accepted = {expected_word}
-        if expected_word in ONES:
-            accepted.add(str(ONES.index(expected_word)))
-        elif expected_word in TENS:
-            accepted.add(str(TENS.index(expected_word) * 10))
-        elif expected_word == "hundred":
-            accepted.add("100")
-        missing = [] if any(token in got for token in accepted) else [expected_word]
+        segments, _ = model.transcribe(
+            str(OUT / clip["path"]),
+            language="en",
+            beam_size=5,
+            condition_on_previous_text=False,
+            temperature=0,
+        )
+        transcript = " ".join(segment.text for segment in segments).strip()
+        failure = validate_transcript(clip["segmentId"], transcript, clip["spokenText"])
+        if failure:
+            failures.append(f"{failure}; whisper={transcript!r}")
     return failures
 
 def trim_existing_catalog() -> int:
@@ -216,7 +256,7 @@ def check() -> tuple[bool, dict]:
     return not failures, report
 
 def main() -> int:
-    parser = argparse.ArgumentParser(); parser.add_argument("--render", action="store_true"); parser.add_argument("--segment"); parser.add_argument("--batch-size", type=int, default=8); parser.add_argument("--trim-existing", action="store_true"); parser.add_argument("--validate", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--force", action="store_true"); parser.add_argument("--ref-audio", default=os.environ.get("LIVE_ENGINEER_REF_AUDIO", str(DEFAULT_REF_AUDIO))); parser.add_argument("--ref-text", default=os.environ.get("LIVE_ENGINEER_REF_TEXT", "")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--render", action="store_true"); parser.add_argument("--segment"); parser.add_argument("--batch-size", type=int, default=1); parser.add_argument("--trim-existing", action="store_true"); parser.add_argument("--validate", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--force", action="store_true"); parser.add_argument("--ref-audio", default=os.environ.get("LIVE_ENGINEER_REF_AUDIO", str(DEFAULT_REF_AUDIO))); parser.add_argument("--ref-text", default=os.environ.get("LIVE_ENGINEER_REF_TEXT", "")); args = parser.parse_args()
     if args.trim_existing: return trim_existing_catalog()
     if args.render:
         if not args.ref_audio or not args.ref_text: parser.error("--render requires --ref-audio and --ref-text (or LIVE_ENGINEER_REF_AUDIO/LIVE_ENGINEER_REF_TEXT)")

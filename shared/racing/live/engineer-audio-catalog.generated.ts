@@ -3,326 +3,326 @@ export const LIVE_ENGINEER_AUDIO_CATALOG = { catalogVersion: LIVE_ENGINEER_AUDIO
   {
     "segmentId": "phrase.fastest.class",
     "url": "/audio/live-engineer/v1/phrase__fastest__class.flac",
-    "sha256": "ef89354f7e791c0ac3391cbeff3f742eaa5b1c4152763c17a3f1b5b7bdef29cb",
-    "durationMs": 1223
+    "sha256": "3a9942f71adb2e3e35d6d2c33a06dafe1f4a0fcb356ec39edd89c3016b222e92",
+    "durationMs": 1140
   },
   {
     "segmentId": "phrase.fastest.overall",
     "url": "/audio/live-engineer/v1/phrase__fastest__overall.flac",
-    "sha256": "2526e74ec2a7e25c3ad683ba406517dd4b5d0b70cf1a3c89a177f9723120b1c8",
-    "durationMs": 1246
+    "sha256": "6b6bdc5c227747b53f5ed616d23109b428e9fb81995bf98a67ba37ae113faebe",
+    "durationMs": 1135
   },
   {
     "segmentId": "phrase.setting-race-pace",
     "url": "/audio/live-engineer/v1/phrase__setting-race-pace.flac",
-    "sha256": "866f4cdbc42832db156ccdc68a853801b99db4997830d4a27df44d0aa474a028",
-    "durationMs": 2293
+    "sha256": "3cded800603a1fc790c264972168e0bdae1903b27fe9f118fe0ec86c45d21e80",
+    "durationMs": 1645
   },
   {
     "segmentId": "phrase.within-class-pace",
     "url": "/audio/live-engineer/v1/phrase__within-class-pace.flac",
-    "sha256": "e16d23015f8f6e549373627ded4cb8ec8d7f7fb490bc25a099173af2822554b0",
-    "durationMs": 574
+    "sha256": "295741ebacf865784fedec35e80c82a729229352bcec8671b46c745de5dadead",
+    "durationMs": 544
   },
   {
     "segmentId": "phrase.off-class-pace",
     "url": "/audio/live-engineer/v1/phrase__off-class-pace.flac",
-    "sha256": "e16d23015f8f6e549373627ded4cb8ec8d7f7fb490bc25a099173af2822554b0",
-    "durationMs": 574
+    "sha256": "295741ebacf865784fedec35e80c82a729229352bcec8671b46c745de5dadead",
+    "durationMs": 544
   },
   {
     "segmentId": "phrase.outlier-lap",
     "url": "/audio/live-engineer/v1/phrase__outlier-lap.flac",
-    "sha256": "e52a9928b9beb3ffc423e6551e7e387bfff0da013914f1439073646882fe9971",
-    "durationMs": 498
+    "sha256": "02390030fa68d7c0778c1550ec43ce3315c28c3bde88dd968ab23603a2a9319b",
+    "durationMs": 982
   },
   {
     "segmentId": "phrase.scope.class",
     "url": "/audio/live-engineer/v1/phrase__scope__class.flac",
-    "sha256": "ffa826767e8303da01021dff246697f493a4086f2f6c039df0129ee911f76c3b",
-    "durationMs": 468
+    "sha256": "f06a6bce14e435bf35b636fb69fd282de49054e4f86670e2691781b1cbc1e3b1",
+    "durationMs": 917
   },
   {
     "segmentId": "phrase.scope.overall",
     "url": "/audio/live-engineer/v1/phrase__scope__overall.flac",
-    "sha256": "ebe18d1fe0a0cff166d512a119588e596814b2276ef2bba417bb32a9e3929e0a",
-    "durationMs": 488
+    "sha256": "dcdb60ec85b68154280f58aba9e0247097b602ad7cad2ffffaa2ea280ab5a724",
+    "durationMs": 744
   },
   {
     "segmentId": "phrase.from",
     "url": "/audio/live-engineer/v1/phrase__from.flac",
-    "sha256": "0ba382f9c467d988e1372d3389bc9e4d399d9693a330592671997cfb7058cd51",
-    "durationMs": 465
+    "sha256": "1c11c23e790c425b8e37992fe3f8d6882dc54d01ef6b9e2508cf7b1f5949272b",
+    "durationMs": 580
   },
   {
     "segmentId": "phrase.off",
     "url": "/audio/live-engineer/v1/phrase__off.flac",
-    "sha256": "5c6eebcf8a3fac6cb0bb567fc5e7f1c4d00d617af0945411cfaf45759b47cd08",
-    "durationMs": 451
+    "sha256": "9b41db7d8f7b3020a779141c9d9ff1d68632170b996509e2753427c955629863",
+    "durationMs": 404
   },
   {
     "segmentId": "phrase.exact.intro",
     "url": "/audio/live-engineer/v1/phrase__exact__intro.flac",
-    "sha256": "f950070906238db61562924514691314cdec17735f20da6697c87f0586bce575",
-    "durationMs": 805
+    "sha256": "d4123da6c9673a18f82c0d20f682b70efb6ac3845b2407ba01bc1c52aee11f7d",
+    "durationMs": 819
   },
   {
     "segmentId": "phrase.exact.your-lap",
     "url": "/audio/live-engineer/v1/phrase__exact__your-lap.flac",
-    "sha256": "23f6a31055bd8d4c97f31d9e53caccedbdad7bb32b6db94d2fec42a7f656ccb4",
-    "durationMs": 857
+    "sha256": "b7a5785d07af159d67b96c0f6231c9d710d7d17ca7496d7bdf8884e7cea2c57f",
+    "durationMs": 1030
   },
   {
     "segmentId": "spotter.car-left",
     "url": "/audio/live-engineer/v1/spotter__car-left.flac",
-    "sha256": "2b1deae0432054a5c5935d3b9f72c56e0932eef20c9107f23b77fb0b4d44925e",
-    "durationMs": 514
+    "sha256": "bac309190f558a086227c302f31bbdc349ccc4e7735a823999b58c5b9cd7a8df",
+    "durationMs": 795
   },
   {
     "segmentId": "spotter.car-right",
     "url": "/audio/live-engineer/v1/spotter__car-right.flac",
-    "sha256": "2f9e361355528af6756f65992d5cfb5361fbc24155272ef3a0eb5169dbe23421",
-    "durationMs": 913
+    "sha256": "7724cbd912a28682b3cb0255b55a2de2d608e49b611854beb90f8d20bb11f9c9",
+    "durationMs": 830
   },
   {
     "segmentId": "spotter.still-there",
     "url": "/audio/live-engineer/v1/spotter__still-there.flac",
-    "sha256": "d9f9d3346fe33324f278f49e9f42c869fbd84340103463ac788e2c4d589c12e5",
-    "durationMs": 382
+    "sha256": "e9232bf750c941f82121cfa97339709a0ab7c448bc075c23fb847c99875b4e1b",
+    "durationMs": 796
   },
   {
     "segmentId": "spotter.three-wide-left",
     "url": "/audio/live-engineer/v1/spotter__three-wide-left.flac",
-    "sha256": "8a1997712fabf222889eb33adbc23129f771a69bb14f451b35d9dafd9c12e624",
-    "durationMs": 517
+    "sha256": "3f6c098d81f33613519079d459ae5a13b0b15a4c59a23c50ca992dcae9d0fe48",
+    "durationMs": 1047
   },
   {
     "segmentId": "spotter.three-wide-right",
     "url": "/audio/live-engineer/v1/spotter__three-wide-right.flac",
-    "sha256": "936bf467dea3eb49e8ffdf0fdfa60c217bd32263646187b5d21cd33ed94473a5",
-    "durationMs": 977
+    "sha256": "1d15f483d7b59a94f6d57d5b92768dba717420451925de207e89ed1bce11d3c5",
+    "durationMs": 894
   },
   {
     "segmentId": "spotter.clear-left",
     "url": "/audio/live-engineer/v1/spotter__clear-left.flac",
-    "sha256": "756c6d8e208f59b65db41e7d94a0c5cfb56d9d6c91583caac941e8184a2d95b7",
-    "durationMs": 481
+    "sha256": "a0b17e82ce37a3867ee2ada2a01c235adbc4c80c0d0aa9279aa0ccb2e94d0121",
+    "durationMs": 910
   },
   {
     "segmentId": "spotter.clear-right",
     "url": "/audio/live-engineer/v1/spotter__clear-right.flac",
-    "sha256": "f52fb20ac193b6afb39c74415177d5b6799a71e7a317bd84cfc55c9308189973",
-    "durationMs": 457
+    "sha256": "7d86f11ef82e90fa3ada128c71534576903df8a6ae6c599595499ff1715ac821",
+    "durationMs": 773
   },
   {
     "segmentId": "unit.second",
     "url": "/audio/live-engineer/v1/unit__second.flac",
-    "sha256": "6fd446750060ba449f22c7a49230ba3992c87a708a524ba34e64b813cd6b7b54",
-    "durationMs": 580
+    "sha256": "37a848eb2406632571bb74680bf7fab8362b5ec867b9a1254746541950093ccb",
+    "durationMs": 698
   },
   {
     "segmentId": "unit.seconds",
     "url": "/audio/live-engineer/v1/unit__seconds.flac",
-    "sha256": "18fc8823c71f1d65a0f298bb02e5047ab652c7a50a2ef7aad4c7f082bc66d7c3",
-    "durationMs": 408
+    "sha256": "f43a8415529a3908946a3c83f7ad42b656219a00b79058879cce2fa18b88753e",
+    "durationMs": 802
   },
   {
     "segmentId": "unit.minute",
     "url": "/audio/live-engineer/v1/unit__minute.flac",
-    "sha256": "9ee906f6177663f03046ff6d0319bf90d86ae19d6b4f5a8c72407faeafa8894f",
-    "durationMs": 586
+    "sha256": "69f3cc941b393860ff4b227364bdc80f8906225a9864d5291c2bcf3ae1c420b3",
+    "durationMs": 765
   },
   {
     "segmentId": "unit.minutes",
     "url": "/audio/live-engineer/v1/unit__minutes.flac",
-    "sha256": "b28bf0fac067827aabc7abea8700b1c9cd7cf3e6a039077c16195e542ace37fe",
-    "durationMs": 475
+    "sha256": "3875b0f93709608fae559e9f3a194d5f3dfb02f9c589269a83a5da4f32097df2",
+    "durationMs": 734
   },
   {
     "segmentId": "unit.point",
     "url": "/audio/live-engineer/v1/unit__point.flac",
-    "sha256": "301b387db6da83f14cc894a9ce75e1f4cc0a683db883fad2c6fc77aa580d41bd",
-    "durationMs": 464
+    "sha256": "8b1d5948a23233774870327548cac44e1f32f98550a4bbdbd99796c463707076",
+    "durationMs": 629
   },
   {
     "segmentId": "number.zero",
     "url": "/audio/live-engineer/v1/number__zero.flac",
-    "sha256": "ffa2eee9c7e1a14aec624d3baa8ab61a3e5ba12637d83530496dad4d6e05ab2b",
-    "durationMs": 610
+    "sha256": "162d8e66b16e46fbbe2a7f088aa982525eb7dfc0f223d3c16fcae1127edc3ad7",
+    "durationMs": 724
   },
   {
     "segmentId": "number.one",
     "url": "/audio/live-engineer/v1/number__one.flac",
-    "sha256": "fd71052a6b3fd1822aea4f6f5a771bfeb210478c53a28ab21cc444db75798a11",
-    "durationMs": 458
+    "sha256": "0881e5101ebc2601c6ece34db0c697cf3781b8d510d77cb9f1c7d4e2aaaa43cb",
+    "durationMs": 452
   },
   {
     "segmentId": "number.two",
     "url": "/audio/live-engineer/v1/number__two.flac",
-    "sha256": "a1c2094e8beb5660259def4bf8df4c847e7ada9fe180de09ffb5e3b8bab06c72",
-    "durationMs": 391
+    "sha256": "abba4ffbbf9327ae95f91d21419b11b38b3c2945cca9732861d103dfc78a5397",
+    "durationMs": 617
   },
   {
     "segmentId": "number.three",
     "url": "/audio/live-engineer/v1/number__three.flac",
-    "sha256": "4ea12b4f92d91d58077a61e337d8debaaac40a303d9d98385d21e0ca8ad2532f",
-    "durationMs": 461
+    "sha256": "2ea2e12c61563b4b5c23eca872b73ebb98a896a78e4b03b178dd814773741f08",
+    "durationMs": 614
   },
   {
     "segmentId": "number.four",
     "url": "/audio/live-engineer/v1/number__four.flac",
-    "sha256": "20d0c86d7f976b83680a4bb245da8647b6fc725294033bc780b64ce14cea19ca",
-    "durationMs": 408
+    "sha256": "8dc486505f8d1f1e7ebfe47307c09a40c02a7863131fe7e3feab389f81907064",
+    "durationMs": 667
   },
   {
     "segmentId": "number.five",
     "url": "/audio/live-engineer/v1/number__five.flac",
-    "sha256": "1c41a233483bca769f712de76fd7eadf4cb3f6f87d0b6dcd64c3972523623112",
-    "durationMs": 570
+    "sha256": "66e1483f31870152ee9e288a8e9997c196770658858ee2e8bee9df8244257bb3",
+    "durationMs": 585
   },
   {
     "segmentId": "number.six",
     "url": "/audio/live-engineer/v1/number__six.flac",
-    "sha256": "f74c6f534b7a8f7137e999d4c0a907e26b5849189ce196f33ee1cc3a32dd4704",
-    "durationMs": 469
+    "sha256": "54bfe809a0de9ecf477f3e9b774816d52c4e3d3d89bfe79e5fd7891979bc9d3f",
+    "durationMs": 553
   },
   {
     "segmentId": "number.seven",
     "url": "/audio/live-engineer/v1/number__seven.flac",
-    "sha256": "decda5f2fe7025571e3aa658defcd88e549c7e52db16b6d31922a0ab4d161acb",
-    "durationMs": 394
+    "sha256": "ec151a446834693724758005d1810b7a0332bcf9010453c8309a9f7f83382e90",
+    "durationMs": 555
   },
   {
     "segmentId": "number.eight",
     "url": "/audio/live-engineer/v1/number__eight.flac",
-    "sha256": "a06ac32b5677f4211e8e532ee03275b292b63f3eba97dc8c56946dbda6c2487a",
-    "durationMs": 470
+    "sha256": "cae908d0f618b440119f736ae49958ebf3bf0720a9e5f681f068ad9c047af6b0",
+    "durationMs": 453
   },
   {
     "segmentId": "number.nine",
     "url": "/audio/live-engineer/v1/number__nine.flac",
-    "sha256": "38ec63370bddbc96801339b64878c142ac0b07aae86ef3e21609013bfa2f256f",
-    "durationMs": 405
+    "sha256": "361c74bfc809bb6e405abdc9538fcafc3e5577d9ac6576d1d539684ef3184f2e",
+    "durationMs": 354
   },
   {
     "segmentId": "number.ten",
     "url": "/audio/live-engineer/v1/number__ten.flac",
-    "sha256": "c02412c9b021a2d4db97638eadcf7a1d25ca3407751714660af08095a94e7066",
-    "durationMs": 381
+    "sha256": "af9bfb118fa9309cf3a9671f130a15721ef548bf6510f978d715dead60aa124d",
+    "durationMs": 617
   },
   {
     "segmentId": "number.eleven",
     "url": "/audio/live-engineer/v1/number__eleven.flac",
-    "sha256": "237dae7ac48e75bebaa332db17b88ba268aaffe1f77a0be66fa988f966ebd80f",
-    "durationMs": 595
+    "sha256": "e8140d6eeccebbb81ba0015a32a2014e404c7615c971a56ebd02ea2b6570f321",
+    "durationMs": 463
   },
   {
     "segmentId": "number.twelve",
     "url": "/audio/live-engineer/v1/number__twelve.flac",
-    "sha256": "7d583fe7f0e11368d3883961dabb8f767cb92f2476243fff899939879243e8c1",
-    "durationMs": 587
+    "sha256": "f5f6dc948d68d3b65d77e77f2b861e464873535cbd5098c1f33bdff79519c163",
+    "durationMs": 602
   },
   {
     "segmentId": "number.thirteen",
     "url": "/audio/live-engineer/v1/number__thirteen.flac",
-    "sha256": "912441cee8b8decb610d02e4eea29fd986039e5ddff4660e7103508c5f37e667",
-    "durationMs": 317
+    "sha256": "dad45bea24fc2df9b60859e18f814213cf3574f260299099af964bc1e7ea239e",
+    "durationMs": 896
   },
   {
     "segmentId": "number.fourteen",
     "url": "/audio/live-engineer/v1/number__fourteen.flac",
-    "sha256": "7a78e9817109bc801238f04904a9ea2fe48c6de2a69353844871546755c87e15",
-    "durationMs": 650
+    "sha256": "006c6cd5f60264bfe39a8cee89c23e127d167e954f8c2fcb7243055aadff1d1f",
+    "durationMs": 843
   },
   {
     "segmentId": "number.fifteen",
     "url": "/audio/live-engineer/v1/number__fifteen.flac",
-    "sha256": "1621f404245a534bdf59e713459489fa34dd3991a6988ef9f99fc3fcb0d9775a",
-    "durationMs": 403
+    "sha256": "b42d9b8fae0300080065fd9d51003032908a27d7653ac69cc437774fab1bb444",
+    "durationMs": 861
   },
   {
     "segmentId": "number.sixteen",
     "url": "/audio/live-engineer/v1/number__sixteen.flac",
-    "sha256": "83a18cff72a261fa18e46dbf21936ef2f17578d867baee1ac368f221b0ed3943",
-    "durationMs": 559
+    "sha256": "e790ca65bd90f2bb2d307a5855bf62418cb533e93a0d360521a270c221540ba9",
+    "durationMs": 909
   },
   {
     "segmentId": "number.seventeen",
     "url": "/audio/live-engineer/v1/number__seventeen.flac",
-    "sha256": "443677dfc2f4bf98786096fde195f3af0cdbcda6c04c5a80ddd62c82247fe3c4",
-    "durationMs": 314
+    "sha256": "0edd54e4ebdaaf042ad05494a31b1d6e3038ab36e53317c51c21443de6998302",
+    "durationMs": 865
   },
   {
     "segmentId": "number.eighteen",
     "url": "/audio/live-engineer/v1/number__eighteen.flac",
-    "sha256": "0dcb2dec66a5a13aefaffa12dcd27cd20758ad56d8310a34b32a219556c32f70",
-    "durationMs": 607
+    "sha256": "4bece6b7bffe9b0ae2deb16ab1e9274dd7bae42db29d4592cd30413dea80c21d",
+    "durationMs": 512
   },
   {
     "segmentId": "number.nineteen",
     "url": "/audio/live-engineer/v1/number__nineteen.flac",
-    "sha256": "61e0b80cb5778e1d35a94f3cf1ccce47e58f0f5f14e92860c9bd19d20f3f9311",
-    "durationMs": 423
+    "sha256": "77d00faa9ec0b7476d5297087d1e30f1b86e39bb8b37253e4c4d9bd21d96543d",
+    "durationMs": 600
   },
   {
     "segmentId": "number.twenty",
     "url": "/audio/live-engineer/v1/number__twenty.flac",
-    "sha256": "ba12ab1251b3bc8f67b64cda68796cf7da508db877d359081fc2d5935611aac8",
-    "durationMs": 588
+    "sha256": "939701e125eeee2b87aff5b77bd207c487be0bd0189712751345c68952f63be1",
+    "durationMs": 558
   },
   {
     "segmentId": "number.thirty",
     "url": "/audio/live-engineer/v1/number__thirty.flac",
-    "sha256": "5afa0b064d6edbe609b2a874971259cfa0fa6ef2b133562da22f7495f3cd3d64",
-    "durationMs": 616
+    "sha256": "07955c51c18d27fa028aa018af7580974a445f6f076eb64dacfab4437c56abbe",
+    "durationMs": 599
   },
   {
     "segmentId": "number.forty",
     "url": "/audio/live-engineer/v1/number__forty.flac",
-    "sha256": "0db8daaca5a4b65207be5f09de0b5e9cabe00967ebacd9ce123109a0d1c86681",
-    "durationMs": 466
+    "sha256": "2620a33b874d2f7f9090f514500ca1df0af1a84f80060feee500f5279d29defe",
+    "durationMs": 535
   },
   {
     "segmentId": "number.fifty",
     "url": "/audio/live-engineer/v1/number__fifty.flac",
-    "sha256": "451b7c570a29e26f3fd17e768c3c9b218f582f095d95e9d962020c8c5f7cced1",
-    "durationMs": 473
+    "sha256": "aa05f9fd37fe0032b4bac7ab6d2464a7773412a574997aa2d8c7e3437ad60f82",
+    "durationMs": 545
   },
   {
     "segmentId": "number.sixty",
     "url": "/audio/live-engineer/v1/number__sixty.flac",
-    "sha256": "fe0750671a6524e671922e7ed6b9968ccb23f09ee4d4ceb009d4d5ccce9e5fed",
-    "durationMs": 503
+    "sha256": "096a9253f7a3ef8a874a173a260a9f00e4781120b164cc6f8943826106b6e839",
+    "durationMs": 669
   },
   {
     "segmentId": "number.seventy",
     "url": "/audio/live-engineer/v1/number__seventy.flac",
-    "sha256": "78f3764e6ac67a8cb799cdf1f07366470fa420342e0c8d7b5ceba35c5f065c00",
-    "durationMs": 498
+    "sha256": "11a50d815bc8befc645365a1245613411c50be45c5257fd51ee1fa3e12786476",
+    "durationMs": 685
   },
   {
     "segmentId": "number.eighty",
     "url": "/audio/live-engineer/v1/number__eighty.flac",
-    "sha256": "5c97f6997049e8e8505d0375e249fcd522dbe18c934418181969bbb944084c59",
-    "durationMs": 520
+    "sha256": "3e3b5cf386864006c3ec0c07279a1fce2880d41eed1fc9d5c75e29efdeea00f7",
+    "durationMs": 570
   },
   {
     "segmentId": "number.ninety",
     "url": "/audio/live-engineer/v1/number__ninety.flac",
-    "sha256": "c88ae56c664eb479f4378218bf687fd2105367de7fee0274723341ba4d10ce3e",
-    "durationMs": 527
+    "sha256": "69774bc82c3234353b84b754875e33346b913a1173214d52213cb63e1a863d7e",
+    "durationMs": 608
   },
   {
     "segmentId": "number.hundred",
     "url": "/audio/live-engineer/v1/number__hundred.flac",
-    "sha256": "28cd83b42cd668e51ad671d7c2dc1bc8e2150295a5346a8405bc37b223c0eee2",
-    "durationMs": 501
+    "sha256": "53d83226eeb39c79e81741c376dc0e9580c6b191c208f338259a35a4fec2b4c3",
+    "durationMs": 560
   },
   {
     "segmentId": "number.point",
     "url": "/audio/live-engineer/v1/number__point.flac",
-    "sha256": "301b387db6da83f14cc894a9ce75e1f4cc0a683db883fad2c6fc77aa580d41bd",
-    "durationMs": 464
+    "sha256": "8b1d5948a23233774870327548cac44e1f32f98550a4bbdbd99796c463707076",
+    "durationMs": 629
   }
 ] as const };
 export type LiveEngineerAudioSegment = (typeof LIVE_ENGINEER_AUDIO_CATALOG.segments)[number];
