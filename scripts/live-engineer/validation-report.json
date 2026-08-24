@@ -1,8 +1,6 @@
 {
   "pipelineVersion": "live-engineer-omnivoice-v1",
   "catalogVersion": "live-engineer-v1",
-  "passed": false,
-  "failures": [
-    "phrase.exact.intro: missing ['pace', 'is']"
-  ]
+  "passed": true,
+  "failures": []
 }

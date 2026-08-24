@@ -48,6 +48,7 @@
     "ibt:probe": "bun scripts/iracing/probe-ibt.ts",
     "telemetry:catalog": "bun scripts/catalog/generate-telemetry-catalog.ts",
     "telemetry:catalog:check": "bun scripts/catalog/generate-telemetry-catalog.ts --check --repeat",
+    "voice:generate": "powershell -ExecutionPolicy Bypass -File scripts/live-engineer/generate-all.ps1",
     "iracing:cars:seed": "bun scripts/iracing/seed-cars.ts",
     "iracing:tracks:seed": "bun scripts/iracing/seed-tracks.ts",
     "gzip:recording": "bun scripts/telemetry/recordings/gzip-recording.ts",

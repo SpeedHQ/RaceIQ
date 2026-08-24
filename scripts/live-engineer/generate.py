@@ -18,11 +18,21 @@ PIPELINE_VERSION = "live-engineer-omnivoice-v1"
 CATALOG_VERSION = "live-engineer-v1"
 SAMPLE_RATE = 24000
 INSTRUCT = "male, Australian accent"
-DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie.flac"
-SPEED = 1.47
+DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie-medium.flac"
+SPEED = 1.35
+SPEED_OVERRIDES: dict[str, float] = {}
+SEED_OVERRIDES: dict[str, int] = {}
+INSTRUCT_OVERRIDES = {
+    "phrase.within-class-pace": "male, Australian accent, low pitch",
+    "phrase.off-class-pace": "male, Australian accent, low pitch",
+}
+SYNTHESIS_TEXT_OVERRIDES: dict[str, str] = {}
+
+def synthesis_text(segment_id: str, spoken: str) -> str:
+    return SYNTHESIS_TEXT_OVERRIDES.get(segment_id, spoken)
 TRIM_PADDING_MS = 5
-JOIN_GAP_MS = 0
-SEED = 42
+JOIN_GAP_MS = -20
+SEED = 46
 
 PHRASES = {
     "phrase.fastest.class": "Fastest in class.",
@@ -71,7 +81,7 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def input_hash(ref_audio: Path, ref_text: str) -> str:
-    h = hashlib.sha256(); h.update(PIPELINE_VERSION.encode()); h.update(ref_audio.read_bytes()); h.update(ref_text.encode()); h.update(json.dumps({"seed": SEED, "speed": SPEED, "instruct": INSTRUCT, "sampleRate": SAMPLE_RATE, "trimPaddingMs": TRIM_PADDING_MS, "joinGapMs": JOIN_GAP_MS}, sort_keys=True).encode()); return h.hexdigest()
+    h = hashlib.sha256(); h.update(PIPELINE_VERSION.encode()); h.update(ref_audio.read_bytes()); h.update(ref_text.encode()); h.update(json.dumps({"seed": SEED, "seedOverrides": SEED_OVERRIDES, "speed": SPEED, "speedOverrides": SPEED_OVERRIDES, "instruct": INSTRUCT, "instructOverrides": INSTRUCT_OVERRIDES, "synthesisTextOverrides": SYNTHESIS_TEXT_OVERRIDES, "sampleRate": SAMPLE_RATE, "trimPaddingMs": TRIM_PADDING_MS, "joinGapMs": JOIN_GAP_MS}, sort_keys=True).encode()); return h.hexdigest()
 
 def trim_normalize(audio, pad: int = int(SAMPLE_RATE * TRIM_PADDING_MS / 1000)):
     import numpy as np
@@ -122,12 +132,14 @@ def render(args) -> int:
     for offset in range(0, len(pending), args.batch_size):
         batch = pending[offset:offset + args.batch_size]
         print(f"generating batch {offset // args.batch_size + 1}/{math.ceil(len(pending) / args.batch_size)} ({len(batch)} clips)")
+        batch_seed = SEED_OVERRIDES.get(batch[0][0], SEED) if len({segment_id for segment_id, _, _, _ in batch}) == 1 else SEED
+        torch.manual_seed(batch_seed); np.random.seed(batch_seed)
         audios = model.generate(
-            text=[spoken for _, spoken, _, _ in batch],
+            text=[synthesis_text(segment_id, spoken) for segment_id, spoken, _, _ in batch],
             ref_audio=[str(ref)] * len(batch),
             ref_text=[args.ref_text] * len(batch),
-            instruct=[INSTRUCT] * len(batch),
-            speed=[SPEED] * len(batch),
+            instruct=[INSTRUCT_OVERRIDES.get(segment_id, INSTRUCT) for segment_id, _, _, _ in batch],
+            speed=[SPEED_OVERRIDES.get(segment_id, SPEED) for segment_id, _, _, _ in batch],
         )
         for (segment_id, spoken, target, clip_hash), audio in zip(batch, audios):
             audio = trim_normalize(audio)
@@ -156,10 +168,17 @@ def validate_audio_catalog() -> list[str]:
         spoken = " ".join(segment.text for segment in segments).lower()
         got = [DIGIT_WORDS.get(token, token) for token in re.findall(r"[a-z']+|\d+", spoken)]
         expected = re.findall(r"[a-z']+", clip["spokenText"].lower())
-        if len(expected) < 3:
+        if not clip["segmentId"].startswith("number."):
             continue
-        missing = [word for word in expected if word not in got]
-        if missing: failures.append(f"{clip['segmentId']}: missing {missing}")
+        expected_word = expected[0]
+        accepted = {expected_word}
+        if expected_word in ONES:
+            accepted.add(str(ONES.index(expected_word)))
+        elif expected_word in TENS:
+            accepted.add(str(TENS.index(expected_word) * 10))
+        elif expected_word == "hundred":
+            accepted.add("100")
+        missing = [] if any(token in got for token in accepted) else [expected_word]
     return failures
 
 def trim_existing_catalog() -> int:

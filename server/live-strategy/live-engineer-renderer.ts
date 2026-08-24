@@ -1,5 +1,6 @@
 import type { OpponentPaceRenderParametersV1, OpponentPaceTextKeyV1, LiveEngineerVoiceModeV1 } from "../../shared/racing/live/engineer-contracts";
 import type { SpotterStateV1 } from "../../shared/racing/live/spotter-contracts";
+import { formatLiveEngineerDeltaText, liveEngineerIntegerAtoms, liveEngineerNumberAtoms } from "../../shared/racing/live/time-text";
 
 export interface LiveEngineerRenderedSpeech {
   textKey: string;
@@ -16,27 +17,13 @@ const textKeyFor = (relation: OpponentPaceRenderParametersV1["relation"]): Oppon
   "outlier-lap": "live_engineer_opponent_outlier",
 }[relation] as OpponentPaceTextKeyV1);
 
-const formatMs = (ms: number, decimals: number): string => (ms / 1000).toFixed(decimals);
 const scopeText = (scope: OpponentPaceRenderParametersV1["scope"]): string => scope === "class" ? "class" : "overall";
+const formatMs = (ms: number, decimals: number): string => (ms / 1000).toFixed(decimals);
 const scopeTitle = (scope: OpponentPaceRenderParametersV1["scope"]): string => scope === "class" ? "Class" : "Overall";
-const absoluteDeltaText = (ms: number, decimals: number): string => {
-  const totalSeconds = ms / 1000;
-  if (totalSeconds >= 60) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = (totalSeconds % 60).toFixed(decimals);
-    return `${minutes} minute${minutes === 1 ? "" : "s"} ${seconds} seconds`;
-  }
-  const value = formatMs(ms, decimals);
-  if (value.startsWith("0.")) {
-    const digits = value.slice(2).split("").map((digit) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!);
-    return `point ${digits.join(" ")} seconds`;
-  }
-  return `${value} seconds`;
-};
 
 export function renderOpponentPaceText(parameters: OpponentPaceRenderParametersV1, voiceMode: LiveEngineerVoiceModeV1 = "automatic"): string {
   const scope = scopeText(parameters.scope);
-  const delta = absoluteDeltaText(parameters.deltaMs, voiceMode === "automatic" ? 1 : 3);
+  const delta = formatLiveEngineerDeltaText(parameters.deltaMs, voiceMode === "automatic" ? 1 : 3);
   switch (parameters.relation) {
     case "fastest-in-class": return parameters.scope === "class" ? "Fastest in class." : "Fastest overall.";
     case "setting-race-pace": return "You are setting the current race pace.";
@@ -46,26 +33,7 @@ export function renderOpponentPaceText(parameters: OpponentPaceRenderParametersV
   }
 }
 
-const integerAtoms = (value: number): string[] => {
-  if (!Number.isInteger(value) || value < 0 || value > 999) return [];
-  const ones = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
-  const tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-  if (value < 20) return [ones[value]!];
-  if (value < 100) return value % 10 ? [tens[Math.floor(value / 10)]!, ones[value % 10]!] : [tens[value / 10]!];
-  const remainder = value % 100;
-  return [ones[Math.floor(value / 100)]!, "hundred", ...(remainder ? integerAtoms(remainder) : [])];
-};
-
-export function numberAtoms(value: number, decimals = 1): string[] {
-  if (!Number.isFinite(value) || value < 0 || value > 999) return [];
-  const rounded = Number(value.toFixed(decimals));
-  const integer = Math.floor(rounded);
-  const fraction = Math.round((rounded - integer) * 10 ** decimals);
-  const atoms = integer === 0 && fraction ? [] : integerAtoms(integer);
-  if (!fraction || decimals === 0) return atoms;
-  const digits = String(fraction).padStart(decimals, "0").split("").map((digit) => digit === "0" ? "zero" : ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!);
-  return [...atoms, "point", ...digits];
-}
+export const numberAtoms = liveEngineerNumberAtoms;
 
 export function numberSegmentIds(value: number, decimals = 1): string[] {
   return numberAtoms(value, decimals).map((atom) => `number.${atom}`);
@@ -77,8 +45,8 @@ export function lapTimeAtoms(ms: number): string[] {
   const seconds = Math.floor(remainder / 1000);
   const millis = remainder % 1000;
   const result: string[] = [];
-  if (minutes) result.push(...integerAtoms(minutes), "minute");
-  result.push(...integerAtoms(seconds));
+  if (minutes) result.push(...liveEngineerIntegerAtoms(minutes), "minute");
+  result.push(...liveEngineerIntegerAtoms(seconds));
   if (millis) result.push("point", ...String(millis).padStart(3, "0").split("").map((digit) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!));
   return result;
 }
