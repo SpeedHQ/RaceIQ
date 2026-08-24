@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type SpeechClip = { segmentId: string; spokenText: string; path: string; durationMs: number; sha256: string };
+export type SpeechQwenClip = SpeechClip & { url: string };
 export type SpeechFullLine = { lineId: string; spokenText: string; path: string; url: string; durationMs: number; sha256: string };
-export type SpeechCatalog = { catalogVersion: string; pipelineVersion: string | null; validation: boolean; clipCount: number; lines: SpeechClip[]; fullLineModel: string | null; fullLineValidation: { passed: boolean; failures: string[] } | null; fullLines: SpeechFullLine[] };
+export type SpeechCatalog = { catalogVersion: string; pipelineVersion: string | null; validation: boolean; clipCount: number; lines: SpeechClip[]; qwenClips: SpeechQwenClip[]; fullLineModel: string | null; fullLineValidation: { passed: boolean; failures: string[] } | null; fullLines: SpeechFullLine[] };
 
 export function useDevSpeechAudio(spotter: boolean) {
   const [catalog, setCatalog] = useState<SpeechCatalog | null>(null);
@@ -65,5 +66,22 @@ export function useDevSpeechAudio(spotter: boolean) {
     void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
     return promise;
   };
-  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine };
+  const playQwenClip = (id: string, segmentId: string): Promise<void> => {
+    stop();
+    const clip = catalog?.qwenClips.find((item) => item.segmentId === segmentId);
+    if (!clip) {
+      setResult({ error: "Qwen audio clip unavailable", segmentId });
+      return Promise.resolve();
+    }
+    setPlaying(id);
+    const audio = new Audio(clip.url);
+    audioRef.current = [audio];
+    const { promise, resolve } = Promise.withResolvers<void>();
+    const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
+    audio.onended = finish;
+    audio.onerror = () => { setResult({ error: "Qwen audio clip failed to load", segmentId }); finish(); };
+    void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
+    return promise;
+  };
+  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine, playQwenClip };
 }

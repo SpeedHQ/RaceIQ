@@ -45,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--dtype", choices=("bfloat16", "float16"), default="bfloat16")
     parser.add_argument("--no-flash-attention", action="store_true")
+    parser.add_argument("--batch-size", type=int, default=8)
     return parser.parse_args()
 
 
@@ -66,25 +67,37 @@ def main() -> int:
     if not args.no_flash_attention:
         model_kwargs["attn_implementation"] = "flash_attention_2"
     model = Qwen3TTSModel.from_pretrained(MODEL_ID, **model_kwargs)
-    texts = [text for _, text in FULL_LINES]
-    wavs, sample_rate = model.generate_voice_clone(
-        text=texts,
-        language=["English"] * len(texts),
-        ref_audio=[str(args.reference)] * len(texts),
-        ref_text=[REFERENCE_TEXT] * len(texts),
-    )
+    source_manifest = ROOT / "client/public/audio/live-engineer/v1/manifest.json"
+    if not source_manifest.is_file():
+        raise SystemExit(f"Missing OmniVoice catalog manifest: {source_manifest}")
+    source_clips = json.loads(source_manifest.read_text()).get("clips", [])
     lines = []
-    for (line_id, spoken_text), wav in zip(FULL_LINES, wavs):
+    full_wavs, sample_rate = model.generate_voice_clone(
+        text=[text for _, text in FULL_LINES],
+        language=["English"] * len(FULL_LINES),
+        ref_audio=[str(args.reference)] * len(FULL_LINES),
+        ref_text=[REFERENCE_TEXT] * len(FULL_LINES),
+    )
+    for (line_id, spoken_text), wav in zip(FULL_LINES, full_wavs):
         path = args.output / f"full__{line_id}.wav"
         audio = np.asarray(wav).reshape(-1)
         sf.write(path, audio, sample_rate, format="WAV", subtype="PCM_16")
-        lines.append({
-            "lineId": line_id,
-            "spokenText": spoken_text,
-            "path": path.name,
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-            "durationMs": round(1000 * len(audio) / sample_rate),
-        })
+        lines.append({"lineId": line_id, "spokenText": spoken_text, "path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "durationMs": round(1000 * len(audio) / sample_rate)})
+    clips = []
+    for start in range(0, len(source_clips), args.batch_size):
+        batch = source_clips[start:start + args.batch_size]
+        print(f"Generating Qwen clips {start + 1}-{start + len(batch)} of {len(source_clips)}")
+        wavs, _ = model.generate_voice_clone(
+            text=[clip["spokenText"] for clip in batch],
+            language=["English"] * len(batch),
+            ref_audio=[str(args.reference)] * len(batch),
+            ref_text=[REFERENCE_TEXT] * len(batch),
+        )
+        for clip, wav in zip(batch, wavs):
+            path = args.output / f"clip__{clip['segmentId'].replace('.', '__')}.wav"
+            audio = np.asarray(wav).reshape(-1)
+            sf.write(path, audio, sample_rate, format="WAV", subtype="PCM_16")
+            clips.append({"segmentId": clip["segmentId"], "spokenText": clip["spokenText"], "path": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "durationMs": round(1000 * len(audio) / sample_rate)})
     manifest = {
         "catalogVersion": "live-engineer-qwen-v1",
         "model": MODEL_ID,
@@ -93,9 +106,10 @@ def main() -> int:
         "referenceAudio": str(args.reference.relative_to(ROOT)),
         "referenceText": REFERENCE_TEXT,
         "fullLines": lines,
+        "clips": clips,
     }
     (args.output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    print(json.dumps({"model": MODEL_ID, "lineCount": len(lines), "output": str(args.output)}, indent=2))
+    print(json.dumps({"model": MODEL_ID, "lineCount": len(lines), "clipCount": len(clips), "output": str(args.output)}, indent=2))
     return 0
 
 
