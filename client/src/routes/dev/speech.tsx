@@ -1,6 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { DevLiveEngineerSpeechPanel } from "../../components/dev/DevLiveEngineerSpeechPanel";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/dev/speech")({
-  component: DevLiveEngineerSpeechPanel,
+  beforeLoad: ({ location }) => {
+    if (location.pathname === "/dev/speech") {
+      throw redirect({ to: "/dev/speech/spotter", replace: true });
+    }
+  },
+  component: () => <Outlet />,
 });
