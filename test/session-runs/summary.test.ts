@@ -11,7 +11,7 @@ const runId = `session-run:sha256:${"a".repeat(64)}` as SessionRunId;
 function eligibleLap(lapNumber: number, lapTimeMs: number) {
   const finalized = finalizeLapQualityGeneration(
     summarize(qualityPackets(200)),
-    `summary-source-${lapNumber}`,
+    `sha256:${lapNumber.toString(16).padStart(64, "0")}`,
     { lapNumber, rawByteOffset: 0, rawFrameCount: 200 },
   );
   return {

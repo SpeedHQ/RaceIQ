@@ -7,6 +7,7 @@ import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
+import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { listSessionRaceEvents } from "../db/race-event-queries";
 import { sessions } from "../db/schema";
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
@@ -254,8 +255,12 @@ export async function reconcileSessionResult(
         },
       );
     }
-    await linkSessionQualityEvents(sessionId);
+    await db.transaction(async (tx) => {
+      await linkSessionQualityEvents(sessionId, tx);
+      await rebuildPersistedSessionRuns(sessionId, tx);
+    });
   }
+
 
   const status = unchanged ? "unchanged" : derived.outcomeStatus === "confirmed" ? "enriched" : "ambiguous";
   return { sessionId, status, eventCount: derived.eventIds.length, reasons: derived.reasons };

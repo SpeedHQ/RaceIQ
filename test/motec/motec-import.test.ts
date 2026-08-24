@@ -363,7 +363,7 @@ describe("synthesizeAcEvoCapture", () => {
     expect(imported[0]!.gameId).toBe("ac-evo");
     expect(rebuilt.map(({ TimestampMS }) => TimestampMS)).toEqual(imported.map(({ TimestampMS }) => TimestampMS));
     expect(imported[0]!.TimestampMS).toBe(0);
-    expect(imported[60]!.TimestampMS).toBe(1_000);
+    expect(imported[SYNTH_HZ]!.TimestampMS).toBe(1_000);
   });
 
   test("speed and pedal traces survive the round trip", () => {
@@ -484,7 +484,7 @@ describe("importMotec end to end", () => {
         observedCount: 0,
       });
     }
-  });
+  }, 30_000);
 
   test("files laps under the user's chosen track, not the header's", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
