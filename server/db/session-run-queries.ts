@@ -727,13 +727,25 @@ async function listConditions(
         ? isNull(sessionRuns.participantId)
         : eq(sessionRuns.participantId, relation.participantId),
       eq(sessionRuns.timelineEpoch, relation.timelineEpoch),
-      or(
-        gt(sessionRuns.openingSequence, relation.openingSequence),
-        and(
-          eq(sessionRuns.openingSequence, relation.openingSequence),
-          gte(sessionRuns.openingEventOrder, relation.openingEventOrder),
-        ),
-      )!,
+      sql`(
+        ${sessionRuns.closingEventId} IS NULL OR EXISTS (
+          SELECT 1
+          FROM race_events AS candidate_closing
+          WHERE candidate_closing.event_id = ${sessionRuns.closingEventId}
+            AND (
+              candidate_closing.timeline_epoch > ${relation.timelineEpoch}
+              OR (
+                candidate_closing.timeline_epoch = ${relation.timelineEpoch}
+                AND candidate_closing.sequence > ${relation.openingSequence}
+              )
+              OR (
+                candidate_closing.timeline_epoch = ${relation.timelineEpoch}
+                AND candidate_closing.sequence = ${relation.openingSequence}
+                AND candidate_closing.event_order > ${relation.openingEventOrder}
+              )
+            )
+        )
+      )`,
     );
     if (relation.closingBoundary.eventId !== null) {
       const closing = await db
