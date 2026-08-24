@@ -20,8 +20,8 @@ export interface SemanticTuneSample {
   brakeTemperatureC?: TuneWheelValues;
   tirePressurePsi?: TuneWheelValues;
   tireWearFraction?: TuneWheelValues;
-  fuelLiters?: number;
-  fuelFraction?: number;
+  fuel?: number;
+  fuelUnit: "litre" | "fraction";
 }
 
 export type TuneWheelMetric = "tireTemperatureC" | "brakeTemperatureC" | "tirePressurePsi" | "tireWearFraction";
@@ -50,8 +50,8 @@ function sampleFromValues(gameId: GameId, values: Readonly<Record<string, unknow
     brakeTemperatureC: wheelValues(values["brakes.brake-temp"]),
     tirePressurePsi: wheelValues(values["tires.tire-pressure"]),
     tireWearFraction: wheelValues(values["tires.tire-wear"]),
-    fuelLiters: fuelUnit === "litre" ? fuel : undefined,
-    fuelFraction: fuelUnit === "fraction" ? fuel : undefined,
+    fuel,
+    fuelUnit,
   };
 }
 
@@ -78,8 +78,8 @@ export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTun
     brakeTemperatureC: view.tires.brakeTemperatureC,
     tirePressurePsi: view.tires.pressurePsi,
     tireWearFraction: view.tires.wear,
-    fuelLiters: fuelUnit === "litre" ? view.fuel.amount : undefined,
-    fuelFraction: fuelUnit === "fraction" ? view.fuel.amount : undefined,
+    fuel: view.fuel.amount,
+    fuelUnit,
   };
 }
 

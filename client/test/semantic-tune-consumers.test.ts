@@ -52,13 +52,8 @@ describe("canonical tuning telemetry consumers", () => {
       expect(sample.positionM).toEqual({ x: 10, z: 5 });
       expect(sample.speedMps).toBe(21);
       expect(sample.tireTemperatureC?.fl).toBe(81);
-      if (gameId === "f1-2025") {
-        expect(sample.fuelFraction).toBe(0.5);
-        expect(sample.fuelLiters).toBeUndefined();
-      } else {
-        expect(sample.fuelLiters).toBe(50);
-        expect(sample.fuelFraction).toBeUndefined();
-      }
+      expect(sample.fuel).toBe(fuel);
+      expect(sample.fuelUnit).toBe(gameId === "f1-2025" ? "fraction" : "litre");
     }
   });
 
