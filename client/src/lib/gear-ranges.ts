@@ -5,35 +5,35 @@ export interface GearRange {
   gear: number;
   minRpm: number | null;
   maxRpm: number | null;
-  minSpeed: number | null;
-  maxSpeed: number | null;
+  minSpeedMps: number | null;
+  maxSpeedMps: number | null;
 }
 
 /**
- * Scan an array of display packets and compute observed min/max RPM and speed
- * for each positive gear. Returns sorted array by gear number.
+ * Scan an array of canonical samples and compute observed min/max RPM and
+ * speed (m/s) for each positive gear. Returns sorted array by gear number.
  *
  * Uses isSampleValid() for consistency with powerband chart accumulation.
  */
 export function computeGearRanges(packets: GearingSample[]): GearRange[] {
-  const stats = new Map<number, { minRpm: number; maxRpm: number; minSpeed: number; maxSpeed: number }>();
+  const stats = new Map<number, { minRpm: number; maxRpm: number; minSpeedMps: number; maxSpeedMps: number }>();
 
   for (const packet of packets) {
     if (!isSampleValid(packet)) continue;
     const gear = packet.Gear;
     if (gear <= 0) continue;
 
-    const rpm = packet.CurrentEngineRpm;
-    const speed = packet.DisplaySpeed;
+    const rpm = packet.rpm;
+    const speed = packet.speedMps;
 
     const existing = stats.get(gear);
     if (existing) {
       existing.minRpm = Math.min(existing.minRpm, rpm);
       existing.maxRpm = Math.max(existing.maxRpm, rpm);
-      existing.minSpeed = Math.min(existing.minSpeed, speed);
-      existing.maxSpeed = Math.max(existing.maxSpeed, speed);
+      existing.minSpeedMps = Math.min(existing.minSpeedMps, speed);
+      existing.maxSpeedMps = Math.max(existing.maxSpeedMps, speed);
     } else {
-      stats.set(gear, { minRpm: rpm, maxRpm: rpm, minSpeed: speed, maxSpeed: speed });
+      stats.set(gear, { minRpm: rpm, maxRpm: rpm, minSpeedMps: speed, maxSpeedMps: speed });
     }
   }
 
@@ -43,13 +43,13 @@ export function computeGearRanges(packets: GearingSample[]): GearRange[] {
       gear,
       minRpm: s.minRpm,
       maxRpm: s.maxRpm,
-      minSpeed: s.minSpeed,
-      maxSpeed: s.maxSpeed,
+      minSpeedMps: s.minSpeedMps,
+      maxSpeedMps: s.maxSpeedMps,
     }));
 }
 
 /**
- * Track upshift-only min/max RPM and speed from a stream of packets.
+ * Track upshift-only min/max RPM and speed (m/s) from a stream of packets.
  * Returns the current gear ranges, updating only when an upshift is detected.
  *
  * - minRpm = RPM right after upshifting INTO this gear
@@ -68,10 +68,10 @@ export function updateGearRangesOnUpshift(
   if (currentGear <= 0 || prevGear <= 0) return existing;
   if (currentGear <= prevGear) return existing; // Not an upshift
 
-  const prevRpm = prev.CurrentEngineRpm;
-  const prevSpeed = prev.DisplaySpeed;
-  const currRpm = current.CurrentEngineRpm;
-  const currSpeed = current.DisplaySpeed;
+  const prevRpm = prev.rpm;
+  const prevSpeed = prev.speedMps;
+  const currRpm = current.rpm;
+  const currSpeed = current.speedMps;
 
   const next = existing.map((r) => ({ ...r }));
 
@@ -81,15 +81,15 @@ export function updateGearRangesOnUpshift(
     next[prevIdx] = {
       ...next[prevIdx],
       maxRpm: prevRpm,
-      maxSpeed: prevSpeed,
+      maxSpeedMps: prevSpeed,
     };
   } else {
     next.push({
       gear: prevGear,
       minRpm: null,
       maxRpm: prevRpm,
-      minSpeed: null,
-      maxSpeed: prevSpeed,
+      minSpeedMps: null,
+      maxSpeedMps: prevSpeed,
     });
   }
 
@@ -99,15 +99,15 @@ export function updateGearRangesOnUpshift(
     next[currIdx] = {
       ...next[currIdx],
       minRpm: currRpm,
-      minSpeed: currSpeed,
+      minSpeedMps: currSpeed,
     };
   } else {
     next.push({
       gear: currentGear,
       minRpm: currRpm,
       maxRpm: null,
-      minSpeed: currSpeed,
-      maxSpeed: null,
+      minSpeedMps: currSpeed,
+      maxSpeedMps: null,
     });
   }
 

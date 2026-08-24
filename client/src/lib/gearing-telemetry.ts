@@ -2,10 +2,11 @@ import type { GameId } from "@shared/games/ids";
 import { isSampleValid } from "./gearing-validation";
 
 /**
- * Structural telemetry shape the gearing library reads. A live `LiveTelemetryView`
- * is adapted into this by the ingestion host (`useGearingIngest` / `GearingDashboard`),
- * and a `DisplayPacket` satisfies it structurally so the replay/test path
- * (`computeGearingState`, `GearingTestViewer`) keeps working unchanged.
+ * Canonical telemetry sample the gearing library consumes. A live
+ * `LiveTelemetryView` is adapted into this by `viewToGearingSample`
+ * (`useGearingIngest`); raw `DisplayPacket`s are NOT a valid input. Units
+ * are canonical (rpm, watts, Nm, m/s) — presentation converts to the user's
+ * unit.
  */
 export interface GearingSample {
   gameId: GameId;
@@ -15,22 +16,22 @@ export interface GearingSample {
   Accel: number;
   Brake: number;
   Gear: number;
-  IsRaceOn: number;
-  CurrentEngineRpm: number;
+  raceActive: boolean;
+  rpm: number;
   EngineMaxRpm: number;
   EngineIdleRpm: number;
-  DisplaySpeed: number;
+  speedMps: number;
   AccelerationZ: number;
-  DisplayPower: number;
-  DisplayTorque: number;
+  powerW: number;
+  torqueNm: number;
   LapNumber: number;
   DistanceTraveled: number;
 }
 
 export interface GearBucket {
   rpmMin: number;
-  hpSum: number;
-  hpCount: number;
+  powerWSum: number;
+  powerWCount: number;
   nmSum: number;
   nmCount: number;
 }
@@ -38,10 +39,10 @@ export interface GearBucket {
 const BUCKET_SIZE = 100;
 const MAX_ACCEL_HISTORY = 300;
 
-/** One point of the per-lap speed trace: metres from the lap's first sample, speed in the user's unit. */
+/** One point of the per-lap speed trace: metres from the lap's first sample, speed in m/s. */
 export interface TrackSpeedSample {
   distance: number;
-  speed: number;
+  speedMps: number;
   /** Gear the car was in (raw telemetry gear, e.g. 1-8). */
   gear: number;
 }
@@ -58,12 +59,12 @@ let buckets: Record<number, Record<number, GearBucket>> = {};
 let accelZHistory: number[] = [];
 let lastValidPacket: GearingSample | null = null;
 let sessionKey: string | null = null;
-let gearRanges: Record<number, { minRpm: number | null; maxRpm: number | null; minSpeed: number | null; maxSpeed: number | null }> = {};
+let gearRanges: Record<number, { minRpm: number | null; maxRpm: number | null; minSpeedMps: number | null; maxSpeedMps: number | null }> = {};
 /** When false, ingestGearingTelemetry ignores incoming packets (dyno recording paused). */
 let recording = false;
 /** Master switch for the automatic start/stop triggers (launch hold, pull-back, top speed). */
 let autoRecording = true;
-/** Highest DisplaySpeed seen this session (user unit). Tracked continuously by
+/** Highest speed seen this session (m/s). Tracked continuously by
  *  the ingestion host regardless of the dyno recording pause. */
 let maxSpeed = 0;
 /** Session key of the last max-speed sample — resets the max on session change. */
@@ -151,7 +152,7 @@ const PULL_MIN_RPM_RATIO = 0.6;
 export function isPullBack(packet: GearingSample): boolean {
   if (packet.Accel >= WOT_THROTTLE) {
     wotStreak++;
-    if (packet.CurrentEngineRpm > pullMaxRpm) pullMaxRpm = packet.CurrentEngineRpm;
+    if (packet.rpm > pullMaxRpm) pullMaxRpm = packet.rpm;
     return false;
   }
   const span = Math.max(1, packet.EngineMaxRpm - packet.EngineIdleRpm);
@@ -161,7 +162,7 @@ export function isPullBack(packet: GearingSample): boolean {
   return completed;
 }
 
-/** Speed (user unit) at or below which the car counts as stopped. */
+/** Speed (m/s) at or below which the car counts as stopped. */
 const STOPPED_SPEED = 0.5;
 /** Brake input (0-255) that counts as holding the brake. */
 const BRAKE_HOLD = 200;
@@ -173,7 +174,7 @@ const LAUNCH_HOLD_SAMPLES = 20;
  * brake held for ~2 s — the auto-start trigger.
  */
 export function isLaunchHold(packet: GearingSample): boolean {
-  if (packet.DisplaySpeed <= STOPPED_SPEED && packet.Brake >= BRAKE_HOLD) {
+  if (packet.speedMps <= STOPPED_SPEED && packet.Brake >= BRAKE_HOLD) {
     brakeHoldStreak++;
     if (brakeHoldStreak >= LAUNCH_HOLD_SAMPLES) {
       brakeHoldStreak = 0; // one-shot until the next hold
@@ -197,7 +198,7 @@ export function trackGearingMaxSpeed(packet: GearingSample) {
     maxSpeedKey = key;
     maxSpeed = 0;
   }
-  if (isSampleValid(packet) && packet.DisplaySpeed > maxSpeed) maxSpeed = packet.DisplaySpeed;
+  if (isSampleValid(packet) && packet.speedMps > maxSpeed) maxSpeed = packet.speedMps;
 }
 
 export function ingestGearingTelemetry(packet: GearingSample) {
@@ -220,31 +221,31 @@ export function ingestGearingTelemetry(packet: GearingSample) {
   if (!isSampleValid(packet)) return;
 
   const gear = packet.Gear;
-  const rpm = packet.CurrentEngineRpm;
-  const speed = packet.DisplaySpeed;
+  const rpm = packet.rpm;
+  const speed = packet.speedMps;
   if (speed > maxSpeed) maxSpeed = speed;
   const bucketIdx = Math.floor(rpm / BUCKET_SIZE);
-  const hp = packet.DisplayPower;
-  const nm = packet.DisplayTorque;
+  const powerW = packet.powerW;
+  const nm = packet.torqueNm;
 
   // Track upshift-only min/max RPM and speed
   if (lastValidPacket && gear > lastValidPacket.Gear) {
     const prevGear = lastValidPacket.Gear;
-    const prevRpm = lastValidPacket.CurrentEngineRpm;
-    const prevSpeed = lastValidPacket.DisplaySpeed;
+    const prevRpm = lastValidPacket.rpm;
+    const prevSpeed = lastValidPacket.speedMps;
 
     // Update previous gear's max (RPM/speed when leaving it)
     if (!gearRanges[prevGear]) {
-      gearRanges[prevGear] = { minRpm: null, maxRpm: prevRpm, minSpeed: null, maxSpeed: prevSpeed };
+      gearRanges[prevGear] = { minRpm: null, maxRpm: prevRpm, minSpeedMps: null, maxSpeedMps: prevSpeed };
     } else {
-      gearRanges[prevGear] = { ...gearRanges[prevGear], maxRpm: prevRpm, maxSpeed: prevSpeed };
+      gearRanges[prevGear] = { ...gearRanges[prevGear], maxRpm: prevRpm, maxSpeedMps: prevSpeed };
     }
 
     // Update current gear's min (RPM/speed when entering it)
     if (!gearRanges[gear]) {
-      gearRanges[gear] = { minRpm: rpm, maxRpm: null, minSpeed: speed, maxSpeed: null };
+      gearRanges[gear] = { minRpm: rpm, maxRpm: null, minSpeedMps: speed, maxSpeedMps: null };
     } else {
-      gearRanges[gear] = { ...gearRanges[gear], minRpm: rpm, minSpeed: speed };
+      gearRanges[gear] = { ...gearRanges[gear], minRpm: rpm, minSpeedMps: speed };
     }
   }
 
@@ -255,8 +256,8 @@ export function ingestGearingTelemetry(packet: GearingSample) {
   if (!buckets[gear][bucketIdx]) {
     buckets[gear][bucketIdx] = {
       rpmMin: bucketIdx * BUCKET_SIZE,
-      hpSum: 0,
-      hpCount: 0,
+      powerWSum: 0,
+      powerWCount: 0,
       nmSum: 0,
       nmCount: 0,
     };
@@ -264,9 +265,9 @@ export function ingestGearingTelemetry(packet: GearingSample) {
 
   buckets[gear][bucketIdx] = { ...buckets[gear][bucketIdx] };
   const bucket = buckets[gear][bucketIdx];
-  if (hp > 0) {
-    bucket.hpSum += hp;
-    bucket.hpCount += 1;
+  if (powerW > 0) {
+    bucket.powerWSum += powerW;
+    bucket.powerWCount += 1;
   }
   if (nm > 0) {
     bucket.nmSum += nm;
@@ -308,7 +309,7 @@ export function trackTrackSpeedSample(packet: GearingSample) {
   // Clamp at the baseline: a game that resets DistanceTraveled per lap must
   // not make the x-axis go negative.
   const distance = Math.max(0, packet.DistanceTraveled - trackLapStartDistance);
-  let samples = [...trackLaps.current!.samples, { distance, speed: packet.DisplaySpeed, gear: packet.Gear }];
+  let samples = [...trackLaps.current!.samples, { distance, speedMps: packet.speedMps, gear: packet.Gear }];
   if (samples.length > MAX_TRACK_SAMPLES) {
     samples = samples.slice(samples.length - MAX_TRACK_SAMPLES);
   }

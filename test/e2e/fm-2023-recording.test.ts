@@ -4,8 +4,8 @@ import { parseDump } from "../support/recordings/parse-dump";
 import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
 import { generateRecordingVisualizations, generatePowerbandVisualization } from "../support/laps/visualizations";
 import { getRecordingFixture } from "../support/recordings/fixtures";
-import { convertPackets } from "../../client/src/lib/convert-packet";
-import { computeGearingState } from "../../client/src/lib/session-gearing";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { computeGearingStateRaw } from "../../client/src/lib/session-gearing";
 
 describe("FM-2023 recording", () => {
   describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
@@ -214,8 +214,7 @@ describe("FM-2023 recording", () => {
       expect(rawPackets.length).toBeGreaterThan(0);
 
       // Power band logic tests
-      const displayPackets = convertPackets(rawPackets, "kmh", "C");
-      const state = computeGearingState(displayPackets);
+      const state = computeGearingStateRaw(rawPackets, "fm-2023");
 
       console.log(`Power curve: ${state.powerCurve.length} points`);
       console.log(`Torque curve: ${state.torqueCurve.length} points`);
@@ -226,10 +225,9 @@ describe("FM-2023 recording", () => {
       expect(state.torqueCurve.length).toBeGreaterThan(0);
 
       // Peak power should exist and be positive
-      const peakPower = state.powerCurve.reduce((p, c) => (c.hp > p.hp ? c : p), state.powerCurve[0]);
-      expect(peakPower.hp).toBeGreaterThan(0);
-      console.log(`Peak power: ${peakPower.hp.toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
-
+      const peakPower = state.powerCurve.reduce((p, c) => (c.powerW > p.powerW ? c : p), state.powerCurve[0]);
+      expect(peakPower.powerW).toBeGreaterThan(0);
+      console.log(`Peak power: ${(peakPower.powerW / WATTS_PER_HORSEPOWER).toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
       // Peak torque should exist and be positive
       const peakTorque = state.torqueCurve.reduce((p, c) => (c.nm > p.nm ? c : p), state.torqueCurve[0]);
       expect(peakTorque.nm).toBeGreaterThan(0);
@@ -260,8 +258,7 @@ describe("FM-2023 recording", () => {
       expect(rawPackets.length).toBeGreaterThan(0);
 
       // Power band logic tests
-      const displayPackets = convertPackets(rawPackets, "kmh", "C");
-      const state = computeGearingState(displayPackets);
+      const state = computeGearingStateRaw(rawPackets, "fm-2023");
 
       console.log(`Power curve: ${state.powerCurve.length} points`);
       console.log(`Torque curve: ${state.torqueCurve.length} points`);
@@ -272,9 +269,9 @@ describe("FM-2023 recording", () => {
       expect(state.torqueCurve.length).toBeGreaterThan(0);
 
       // Peak power should exist and be positive
-      const peakPower = state.powerCurve.reduce((p, c) => (c.hp > p.hp ? c : p), state.powerCurve[0]);
-      expect(peakPower.hp).toBeGreaterThan(0);
-      console.log(`Peak power: ${peakPower.hp.toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
+      const peakPower = state.powerCurve.reduce((p, c) => (c.powerW > p.powerW ? c : p), state.powerCurve[0]);
+      expect(peakPower.powerW).toBeGreaterThan(0);
+      console.log(`Peak power: ${(peakPower.powerW / WATTS_PER_HORSEPOWER).toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
 
       // Peak torque should exist and be positive
       const peakTorque = state.torqueCurve.reduce((p, c) => (c.nm > p.nm ? c : p), state.torqueCurve[0]);

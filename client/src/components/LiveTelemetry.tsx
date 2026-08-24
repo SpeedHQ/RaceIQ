@@ -80,13 +80,13 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
 
-  // Session max speed accumulated by the gearing recorder (user unit).
+  // Session max speed accumulated by the gearing recorder (m/s).
   const gearingMaxSpeed = mode === "gearing" ? getGearingTelemetryState().maxSpeed : 0;
   // GearingSample adapted from the view — passed to GearingDashboard whose
   // children (PowerBandChart/GearRatioCharts) read the live RPM/power/torque.
   // Rejected (null) while required semantics are unresolved; fall back to the
   // last valid sample instead of fabricated zeros.
-  const packet = viewToGearingSample(view, units.speed) ?? lastValidPacketRef.current;
+  const packet = viewToGearingSample(view) ?? lastValidPacketRef.current;
   if (packet) lastValidPacketRef.current = packet;
 
   const speed = units.speed(view.motion.speedMps ?? 0);
@@ -152,7 +152,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
         {mode === "gearing" && gearingMaxSpeed > 0 && (
           <div className="flex items-baseline gap-1.5 shrink-0">
             <span className="text-app-caption text-app-text-dim font-mono">{m.powerband_max_speed()}</span>
-            <span className="text-5xl font-mono font-black text-app-text-dim tabular-nums leading-none tracking-tighter">{gearingMaxSpeed.toFixed(0)}</span>
+            <span className="text-5xl font-mono font-black text-app-text-dim tabular-nums leading-none tracking-tighter">{units.speed(gearingMaxSpeed).toFixed(0)}</span>
           </div>
         )}
       </div>

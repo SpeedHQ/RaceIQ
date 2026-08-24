@@ -1,6 +1,6 @@
 import type { GameId } from "@shared/games/ids";
 import { getGame } from "@shared/games/registry";
-import { getDisplayPower, getDisplayTorque, isGearingSampleValid } from "@shared/games/telemetry";
+import { isGearingSampleValid } from "@shared/games/telemetry";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { type GearBucket, type GearingSample, MAX_TRACK_SAMPLES, sessionKeyFor, type TrackSpeedLap } from "./gearing-telemetry";
 import { isSampleValid } from "./gearing-validation";
@@ -9,8 +9,8 @@ const BUCKET_SIZE = 100;
 
 export interface SessionGearingState {
   buckets: Record<number, Record<number, GearBucket>>;
-  powerCurves: Record<number, { rpm: number; hp: number }[]>;
-  powerCurve: { rpm: number; hp: number }[];
+  powerCurves: Record<number, { rpm: number; powerW: number }[]>;
+  powerCurve: { rpm: number; powerW: number }[];
   torqueCurve: { rpm: number; nm: number }[];
   shiftPoints: Record<number, number>;
 }
@@ -40,7 +40,7 @@ export function computeTrackLaps(packets: GearingSample[]): { current: TrackSpee
       lapStartDistance = packet.DistanceTraveled;
     }
     const distance = Math.max(0, packet.DistanceTraveled - lapStartDistance);
-    let samples = [...laps.current!.samples, { distance, speed: packet.DisplaySpeed, gear: packet.Gear }];
+    let samples = [...laps.current!.samples, { distance, speedMps: packet.speedMps, gear: packet.Gear }];
     if (samples.length > MAX_TRACK_SAMPLES) {
       samples = samples.slice(samples.length - MAX_TRACK_SAMPLES);
     }
@@ -61,23 +61,24 @@ export function accumulateBuckets(buckets: Record<number, Record<number, GearBuc
     const gear = packet.Gear;
     const rpm = packet.CurrentEngineRpm;
     const bucketIdx = Math.floor(rpm / BUCKET_SIZE);
-    const hp = getDisplayPower(packet, telemetry.power);
-    const nm = getDisplayTorque(packet, telemetry.torque);
+    // Canonical watts/Nm straight from the raw packet — presentation converts.
+    const powerW = telemetry.power ? packet.Power : 0;
+    const nm = telemetry.torque ? packet.Torque : 0;
 
     if (!buckets[gear]) buckets[gear] = {};
     if (!buckets[gear][bucketIdx]) {
       buckets[gear][bucketIdx] = {
         rpmMin: bucketIdx * BUCKET_SIZE,
-        hpSum: 0,
-        hpCount: 0,
+        powerWSum: 0,
+        powerWCount: 0,
         nmSum: 0,
         nmCount: 0,
       };
     }
 
-    if (hp > 0) {
-      buckets[gear][bucketIdx].hpSum += hp;
-      buckets[gear][bucketIdx].hpCount += 1;
+    if (powerW > 0) {
+      buckets[gear][bucketIdx].powerWSum += powerW;
+      buckets[gear][bucketIdx].powerWCount += 1;
     }
     if (nm > 0) {
       buckets[gear][bucketIdx].nmSum += nm;
@@ -88,15 +89,15 @@ export function accumulateBuckets(buckets: Record<number, Record<number, GearBuc
 
 export function buildStateFromBuckets(buckets: Record<number, Record<number, GearBucket>>): SessionGearingState {
   // Per-gear power curves
-  const powerCurves: Record<number, { rpm: number; hp: number }[]> = {};
+  const powerCurves: Record<number, { rpm: number; powerW: number }[]> = {};
   const gears = Object.keys(buckets)
     .map(Number)
     .sort((a, b) => a - b);
   for (const g of gears) {
     powerCurves[g] = Object.values(buckets[g])
-      .filter((b) => b.hpCount > 0)
+      .filter((b) => b.powerWCount > 0)
       .sort((a, b) => a.rpmMin - b.rpmMin)
-      .map((b) => ({ rpm: b.rpmMin + BUCKET_SIZE / 2, hp: b.hpSum / b.hpCount }));
+      .map((b) => ({ rpm: b.rpmMin + BUCKET_SIZE / 2, powerW: b.powerWSum / b.powerWCount }));
   }
 
   // Optimal shift points
@@ -114,8 +115,8 @@ export function buildStateFromBuckets(buckets: Record<number, Record<number, Gea
 
     for (const cp of currentCurve) {
       const rpmInNextGear = cp.rpm * (nextCurve[0].rpm / currentCurve[0].rpm);
-      const interpolatedHp = interpolateHp(nextCurve, rpmInNextGear);
-      const diff = Math.abs(cp.hp - interpolatedHp);
+      const interpolatedPower = interpolatePowerW(nextCurve, rpmInNextGear);
+      const diff = Math.abs(cp.powerW - interpolatedPower);
       if (diff < smallestDiff) {
         smallestDiff = diff;
         bestShiftRpm = cp.rpm;
@@ -128,17 +129,17 @@ export function buildStateFromBuckets(buckets: Record<number, Record<number, Gea
   }
 
   // Aggregate overall power/torque curves
-  const hpByRpm = new Map<number, { sum: number; count: number }>();
+  const powerWByRpm = new Map<number, { sum: number; count: number }>();
   const nmByRpm = new Map<number, { sum: number; count: number }>();
 
   for (const gearBuckets of Object.values(buckets)) {
     for (const bucket of Object.values(gearBuckets)) {
       const rpm = bucket.rpmMin + 50;
-      if (bucket.hpCount > 0) {
-        const existing = hpByRpm.get(rpm) ?? { sum: 0, count: 0 };
-        existing.sum += bucket.hpSum;
-        existing.count += bucket.hpCount;
-        hpByRpm.set(rpm, existing);
+      if (bucket.powerWCount > 0) {
+        const existing = powerWByRpm.get(rpm) ?? { sum: 0, count: 0 };
+        existing.sum += bucket.powerWSum;
+        existing.count += bucket.powerWCount;
+        powerWByRpm.set(rpm, existing);
       }
       if (bucket.nmCount > 0) {
         const existing = nmByRpm.get(rpm) ?? { sum: 0, count: 0 };
@@ -149,8 +150,8 @@ export function buildStateFromBuckets(buckets: Record<number, Record<number, Gea
     }
   }
 
-  const rawPowerCurve = Array.from(hpByRpm.entries())
-    .map(([rpm, { sum, count }]) => ({ rpm, hp: sum / count }))
+  const rawPowerCurve = Array.from(powerWByRpm.entries())
+    .map(([rpm, { sum, count }]) => ({ rpm, powerW: sum / count }))
     .sort((a, b) => a.rpm - b.rpm);
 
   const rawTorqueCurve = Array.from(nmByRpm.entries())
@@ -160,7 +161,7 @@ export function buildStateFromBuckets(buckets: Record<number, Record<number, Gea
   return {
     buckets,
     powerCurves,
-    powerCurve: smoothCurve(rawPowerCurve, "hp", 5),
+    powerCurve: smoothCurve(rawPowerCurve, "powerW", 5),
     torqueCurve: smoothCurve(rawTorqueCurve, "nm", 5),
     shiftPoints,
   };
@@ -177,7 +178,7 @@ export function computeGearingStateRaw(packets: TelemetryPacket[], gameId: GameI
 }
 
 /**
- * Compute session-aggregated gearing state from an array of display packets.
+ * Compute session-aggregated gearing state from an array of canonical samples.
  * This is a pure function — it does not touch the live telemetry singleton.
  */
 export function computeGearingState(packets: GearingSample[]): SessionGearingState {
@@ -187,25 +188,25 @@ export function computeGearingState(packets: GearingSample[]): SessionGearingSta
     if (!isSampleValid(packet)) continue;
 
     const gear = packet.Gear;
-    const rpm = packet.CurrentEngineRpm;
+    const rpm = packet.rpm;
     const bucketIdx = Math.floor(rpm / BUCKET_SIZE);
-    const hp = packet.DisplayPower;
-    const nm = packet.DisplayTorque;
+    const powerW = packet.powerW;
+    const nm = packet.torqueNm;
 
     if (!buckets[gear]) buckets[gear] = {};
     if (!buckets[gear][bucketIdx]) {
       buckets[gear][bucketIdx] = {
         rpmMin: bucketIdx * BUCKET_SIZE,
-        hpSum: 0,
-        hpCount: 0,
+        powerWSum: 0,
+        powerWCount: 0,
         nmSum: 0,
         nmCount: 0,
       };
     }
 
-    if (hp > 0) {
-      buckets[gear][bucketIdx].hpSum += hp;
-      buckets[gear][bucketIdx].hpCount += 1;
+    if (powerW > 0) {
+      buckets[gear][bucketIdx].powerWSum += powerW;
+      buckets[gear][bucketIdx].powerWCount += 1;
     }
     if (nm > 0) {
       buckets[gear][bucketIdx].nmSum += nm;
@@ -213,95 +214,19 @@ export function computeGearingState(packets: GearingSample[]): SessionGearingSta
     }
   }
 
-  // Per-gear power curves
-  const powerCurves: Record<number, { rpm: number; hp: number }[]> = {};
-  const gears = Object.keys(buckets)
-    .map(Number)
-    .sort((a, b) => a - b);
-  for (const g of gears) {
-    powerCurves[g] = Object.values(buckets[g])
-      .filter((b) => b.hpCount > 0)
-      .sort((a, b) => a.rpmMin - b.rpmMin)
-      .map((b) => ({ rpm: b.rpmMin + BUCKET_SIZE / 2, hp: b.hpSum / b.hpCount }));
-  }
-
-  // Optimal shift points
-  const shiftPoints: Record<number, number> = {};
-  for (let i = 0; i < gears.length - 1; i++) {
-    const currentGear = gears[i];
-    const nextGear = gears[i + 1];
-    const currentCurve = powerCurves[currentGear];
-    const nextCurve = powerCurves[nextGear];
-
-    if (!currentCurve || currentCurve.length < 2 || !nextCurve || nextCurve.length < 2) continue;
-
-    let bestShiftRpm = 0;
-    let smallestDiff = Infinity;
-
-    for (const cp of currentCurve) {
-      const rpmInNextGear = cp.rpm * (nextCurve[0].rpm / currentCurve[0].rpm);
-      const interpolatedHp = interpolateHp(nextCurve, rpmInNextGear);
-      const diff = Math.abs(cp.hp - interpolatedHp);
-      if (diff < smallestDiff) {
-        smallestDiff = diff;
-        bestShiftRpm = cp.rpm;
-      }
-    }
-
-    if (bestShiftRpm > 0) {
-      shiftPoints[currentGear] = bestShiftRpm;
-    }
-  }
-
-  // Aggregate overall power/torque curves
-  const hpByRpm = new Map<number, { sum: number; count: number }>();
-  const nmByRpm = new Map<number, { sum: number; count: number }>();
-
-  for (const gearBuckets of Object.values(buckets)) {
-    for (const bucket of Object.values(gearBuckets)) {
-      const rpm = bucket.rpmMin + 50;
-      if (bucket.hpCount > 0) {
-        const existing = hpByRpm.get(rpm) ?? { sum: 0, count: 0 };
-        existing.sum += bucket.hpSum;
-        existing.count += bucket.hpCount;
-        hpByRpm.set(rpm, existing);
-      }
-      if (bucket.nmCount > 0) {
-        const existing = nmByRpm.get(rpm) ?? { sum: 0, count: 0 };
-        existing.sum += bucket.nmSum;
-        existing.count += bucket.nmCount;
-        nmByRpm.set(rpm, existing);
-      }
-    }
-  }
-
-  const rawPowerCurve = Array.from(hpByRpm.entries())
-    .map(([rpm, { sum, count }]) => ({ rpm, hp: sum / count }))
-    .sort((a, b) => a.rpm - b.rpm);
-
-  const rawTorqueCurve = Array.from(nmByRpm.entries())
-    .map(([rpm, { sum, count }]) => ({ rpm, nm: sum / count }))
-    .sort((a, b) => a.rpm - b.rpm);
-
-  return {
-    buckets,
-    powerCurves,
-    powerCurve: smoothCurve(rawPowerCurve, "hp", 5),
-    torqueCurve: smoothCurve(rawTorqueCurve, "nm", 5),
-    shiftPoints,
-  };
+  return buildStateFromBuckets(buckets);
 }
 
-function interpolateHp(curve: { rpm: number; hp: number }[], rpm: number): number {
+function interpolatePowerW(curve: { rpm: number; powerW: number }[], rpm: number): number {
   if (curve.length === 0) return 0;
-  if (rpm <= curve[0].rpm) return curve[0].hp;
-  if (rpm >= curve[curve.length - 1].rpm) return curve[curve.length - 1].hp;
+  if (rpm <= curve[0].rpm) return curve[0].powerW;
+  if (rpm >= curve[curve.length - 1].rpm) return curve[curve.length - 1].powerW;
   for (let i = 0; i < curve.length - 1; i++) {
     const a = curve[i];
     const b = curve[i + 1];
     if (rpm >= a.rpm && rpm <= b.rpm) {
       const t = (rpm - a.rpm) / (b.rpm - a.rpm);
-      return a.hp + t * (b.hp - a.hp);
+      return a.powerW + t * (b.powerW - a.powerW);
     }
   }
   return 0;

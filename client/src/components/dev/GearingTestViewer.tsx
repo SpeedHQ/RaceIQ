@@ -2,6 +2,7 @@ import type {
   LiveTelemetryFrameMessageV1,
   LiveTelemetrySchemaMessageV1,
 } from "@shared/telemetry/live/contracts";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { viewToGearingSample } from "../../hooks/useGearingIngest";
@@ -48,7 +49,7 @@ export function GearingTestViewer() {
 
   const samples = useMemo(
     () => views
-      .map((view) => viewToGearingSample(view, units.speed))
+      .map((view) => viewToGearingSample(view))
       // Frames missing required semantics are rejected, like live ingestion.
       .filter((sample): sample is GearingSample => sample !== null),
     [views, units],
@@ -77,7 +78,7 @@ export function GearingTestViewer() {
     const p = gearingState.powerCurve;
     const t = gearingState.torqueCurve;
     if (p.length < 2 || t.length < 2) return null;
-    return findVisualCrossing(p, t, Math.max(...p.map((x) => x.hp)) * 1.05, Math.max(...t.map((x) => x.nm)) * 1.05);
+    return findVisualCrossing(p, t, Math.max(...p.map((x) => x.powerW)) * 1.05, Math.max(...t.map((x) => x.nm)) * 1.05);
   }, [gearingState]);
 
   const trackLaps = useMemo(() => {
@@ -163,7 +164,7 @@ export function GearingTestViewer() {
                       <PowerBandChart packet={currentPacket} powerCurve={gearingState.powerCurve} torqueCurve={gearingState.torqueCurve} shiftPointRpm={findBestShiftRpm(gearingState.powerCurve)} />
                     </div>
                     <div className="lg:col-span-3">
-                      <TrackSpeedChart laps={trackLaps} toDistance={units.distance} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} />
+                      <TrackSpeedChart laps={trackLaps} toDistance={units.distance} toSpeed={units.speed} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} />
                     </div>
                     <div className="lg:col-span-3">
                       <GearRatioCharts packet={currentPacket} powerCurve={gearingState.powerCurve} targetMaxSpeed={0} speedLabel={units.speedLabel} crossRpm={crossRpm} />
@@ -189,22 +190,22 @@ export function GearingTestViewer() {
                   <input type="range" min="0" max={Math.max(0, samples.length - 1)} value={packetIndex} onChange={(e) => setPacketIndex(Number(e.target.value))} className="w-full" />
                   <div className="flex gap-4 text-xs text-app-text-muted flex-wrap">
                     <span>
-                      RPM: <span className="text-app-text">{currentPacket.CurrentEngineRpm.toFixed(0)}</span>
+                      RPM: <span className="text-app-text">{currentPacket.rpm.toFixed(0)}</span>
                     </span>
                     <span>
                       Gear: <span className="text-app-text">{currentPacket.Gear}</span>
                     </span>
                     <span>
-                      Speed: <span className="text-app-text">{currentPacket.DisplaySpeed.toFixed(1)}</span>
+                      Speed: <span className="text-app-text">{units.speed(currentPacket.speedMps).toFixed(1)}</span>
                     </span>
                     <span>
                       Throttle: <span className="text-app-text">{currentPacket.Accel}</span>
                     </span>
                     <span>
-                      Power: <span className="text-app-text">{currentPacket.DisplayPower.toFixed(0)} hp</span>
+                      Power: <span className="text-app-text">{(currentPacket.powerW / WATTS_PER_HORSEPOWER).toFixed(0)} hp</span>
                     </span>
                     <span>
-                      Torque: <span className="text-app-text">{currentPacket.DisplayTorque.toFixed(0)} Nm</span>
+                      Torque: <span className="text-app-text">{currentPacket.torqueNm.toFixed(0)} Nm</span>
                     </span>
                   </div>
                 </div>

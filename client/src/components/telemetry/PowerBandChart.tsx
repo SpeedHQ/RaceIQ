@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GearingSample } from "../../lib/gearing-telemetry";
 import { findVisualCrossing, interpolateValue } from "../../lib/gearing-ratios";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
@@ -7,7 +8,7 @@ import { Button } from "../ui/button";
 
 interface Props {
   packet: GearingSample | null;
-  powerCurve: { rpm: number; hp: number }[];
+  powerCurve: { rpm: number; powerW: number }[];
   torqueCurve: { rpm: number; nm: number }[];
   /** Best shift RPM from the power-drop heuristic; null = none/redline. */
   shiftPointRpm?: number | null;
@@ -65,6 +66,8 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       const packet = packetRef.current;
       const powerCurve = powerCurveRef.current;
       const torqueCurve = torqueCurveRef.current;
+      // Canonical watts → HP, only for the axis/peak/tooltip readouts.
+      const hpCurve = powerCurve.map((p) => ({ rpm: p.rpm, hp: p.powerW / WATTS_PER_HORSEPOWER }));
 
       const idleRpm = packet?.EngineIdleRpm ?? 0;
       const maxRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
@@ -76,17 +79,17 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       const syHp = (hp: number, maxHp: number) => pad.top + cH - (hp / maxHp) * cH;
       const syNm = (nm: number, maxNm: number) => pad.top + cH - (nm / maxNm) * cH;
 
-      const hasPower = powerCurve.length > 0;
+      const hasPower = hpCurve.length > 0;
       const hasTorque = torqueCurve.length > 0;
 
-      const globalMaxHp = Math.max(1, ...(hasPower ? powerCurve.map((p) => p.hp) : [1])) * 1.05;
+      const globalMaxHp = Math.max(1, ...(hasPower ? hpCurve.map((p) => p.hp) : [1])) * 1.05;
       const globalMaxNm = Math.max(1, ...(hasTorque ? torqueCurve.map((t) => t.nm) : [1])) * 1.05;
 
       // Find peak power and peak torque points
       let peakPower: { rpm: number; hp: number } | null = null;
       let peakTorque: { rpm: number; nm: number } | null = null;
 
-      for (const p of powerCurve) {
+      for (const p of hpCurve) {
         if (!peakPower || p.hp > peakPower.hp) peakPower = p;
       }
       for (const t of torqueCurve) {
@@ -163,8 +166,8 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       // Draw single power line (solid cyan)
       if (hasPower) {
         ctx.beginPath();
-        for (let i = 0; i < powerCurve.length; i++) {
-          const p = powerCurve[i];
+        for (let i = 0; i < hpCurve.length; i++) {
+          const p = hpCurve[i];
           if (i === 0) ctx.moveTo(sx(p.rpm), syHp(p.hp, globalMaxHp));
           else ctx.lineTo(sx(p.rpm), syHp(p.hp, globalMaxHp));
         }
@@ -193,7 +196,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       // Visual intersection of power and torque lines
       let crossLabel: { rpm: number; x: number } | null = null;
       if (hasPower && hasTorque) {
-        const crossRpm = findVisualCrossing(powerCurve, torqueCurve, globalMaxHp, globalMaxNm);
+        const crossRpm = findVisualCrossing(powerCurve, torqueCurve, globalMaxHp * WATTS_PER_HORSEPOWER, globalMaxNm);
         if (crossRpm != null) {
           const cx = sx(crossRpm);
           crossLabel = { rpm: crossRpm, x: cx };
@@ -225,7 +228,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
 
       // Live RPM needle (white triangle) — only with a resolved sample.
       if (packet) {
-        const cx = sx(packet.CurrentEngineRpm);
+        const cx = sx(packet.rpm);
         ctx.fillStyle = "var(--app-text)";
         ctx.beginPath();
         ctx.moveTo(cx, pad.top + cH + 4);
@@ -358,7 +361,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
           ctx.stroke();
           ctx.setLineDash([]);
 
-          const hoverHp = hasPower ? interpolateValue(powerCurve, hoverRpm, "hp") : 0;
+          const hoverHp = hasPower ? interpolateValue(hpCurve, hoverRpm, "hp") : 0;
           const hoverNm = hasTorque ? interpolateValue(torqueCurve, hoverRpm, "nm") : 0;
 
           // Dot on power curve
@@ -479,8 +482,8 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.powerband_title()}</h2>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono text-app-text-dim">
-            {packet && packet.DisplayPower > 0 ? `${packet.DisplayPower.toFixed(0)} hp` : ""}
-            {packet && packet.DisplayTorque > 0 ? ` / ${packet.DisplayTorque.toFixed(0)} Nm` : ""}
+            {packet && packet.powerW > 0 ? `${(packet.powerW / WATTS_PER_HORSEPOWER).toFixed(0)} hp` : ""}
+            {packet && packet.torqueNm > 0 ? ` / ${packet.torqueNm.toFixed(0)} Nm` : ""}
           </span>
           {onToggleRecording && onReset && (
             <div className="flex items-center gap-2">

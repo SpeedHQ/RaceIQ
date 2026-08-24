@@ -1,8 +1,8 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
-import { convertPackets } from "../../client/src/lib/convert-packet";
-import { computeGearingState } from "../../client/src/lib/session-gearing";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { computeGearingStateRaw } from "../../client/src/lib/session-gearing";
 
 /**
  * Generate an SVG powerband visualization from telemetry packets.
@@ -17,8 +17,9 @@ export function generatePowerbandSvg(
 ): void {
   if (packets.length === 0) return;
 
-  const displayPackets = convertPackets(packets, "kmh", "C");
-  const state = computeGearingState(displayPackets);
+  const state = computeGearingStateRaw(packets, packets[0].gameId);
+  // Canonical watts → HP for the SVG readouts.
+  const hpCurve = state.powerCurve.map((p) => ({ rpm: p.rpm, hp: p.powerW / WATTS_PER_HORSEPOWER }));
 
   const hasPower = state.powerCurve.length > 0;
   const hasTorque = state.torqueCurve.length > 0;
@@ -37,14 +38,14 @@ export function generatePowerbandSvg(
   const syHp = (hp: number, maxHp: number) => pad.top + cH - (hp / maxHp) * cH;
   const syNm = (nm: number, maxNm: number) => pad.top + cH - (nm / maxNm) * cH;
 
-  const globalMaxHp = Math.max(1, ...(hasPower ? state.powerCurve.map((p) => p.hp) : [1])) * 1.05;
+  const globalMaxHp = Math.max(1, ...(hasPower ? hpCurve.map((p) => p.hp) : [1])) * 1.05;
   const globalMaxNm = Math.max(1, ...(hasTorque ? state.torqueCurve.map((t) => t.nm) : [1])) * 1.05;
 
   // Find peak power and peak torque points
   let peakPower: { rpm: number; hp: number } | null = null;
   let peakTorque: { rpm: number; nm: number } | null = null;
 
-  for (const p of state.powerCurve) {
+  for (const p of hpCurve) {
     if (!peakPower || p.hp > peakPower.hp) peakPower = p;
   }
   for (const t of state.torqueCurve) {
@@ -128,7 +129,7 @@ export function generatePowerbandSvg(
 
   // Power line
   if (hasPower) {
-    const d = state.powerCurve.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.rpm).toFixed(1)},${syHp(p.hp, globalMaxHp).toFixed(1)}`).join(" ");
+    const d = hpCurve.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.rpm).toFixed(1)},${syHp(p.hp, globalMaxHp).toFixed(1)}`).join(" ");
     svgParts.push(`  <path class="power-line" d="${d}" />`);
   }
 
@@ -175,7 +176,7 @@ export function generatePowerbandSvg(
 
   // Visual intersection of power and torque lines
   if (hasPower && hasTorque) {
-    const crossRpm = findVisualCrossing(state.powerCurve, state.torqueCurve, globalMaxHp, globalMaxNm);
+    const crossRpm = findVisualCrossing(hpCurve, state.torqueCurve, globalMaxHp, globalMaxNm);
     if (crossRpm != null) {
       const cx = sx(crossRpm);
       svgParts.push(`  <line stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="2,2" x1="${cx.toFixed(1)}" y1="${pad.top}" x2="${cx.toFixed(1)}" y2="${pad.top + cH}" />`);
@@ -206,7 +207,7 @@ export function generatePowerbandSvg(
 
   // Stats
   const statsY = pad.top + cH + 48;
-  svgParts.push(`  <text class="axis-text" x="${pad.left}" y="${statsY}" text-anchor="start">Samples: ${displayPackets.length}</text>`);
+  svgParts.push(`  <text class="axis-text" x="${pad.left}" y="${statsY}" text-anchor="start">Samples: ${packets.length}</text>`);
   svgParts.push(`  <text class="axis-text" x="${pad.left + 160}" y="${statsY}" text-anchor="start">Power curve: ${state.powerCurve.length} pts</text>`);
   svgParts.push(`  <text class="axis-text" x="${pad.left + 340}" y="${statsY}" text-anchor="start">Torque curve: ${state.torqueCurve.length} pts</text>`);
 

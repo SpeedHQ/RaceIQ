@@ -37,20 +37,20 @@ export const SHIFT_DROP_RATIO = 0.99;
  * curve is too short, peaks at the end, or power never drops that far (in
  * which case redline is the shift point).
  */
-export function findBestShiftRpm(powerCurve: { rpm: number; hp: number }[]): number | null {
+export function findBestShiftRpm(powerCurve: { rpm: number; powerW: number }[]): number | null {
   if (powerCurve.length < 2) return null;
   let peakIdx = 0;
   for (let i = 1; i < powerCurve.length; i++) {
-    if (powerCurve[i].hp > powerCurve[peakIdx].hp) peakIdx = i;
+    if (powerCurve[i].powerW > powerCurve[peakIdx].powerW) peakIdx = i;
   }
   if (peakIdx >= powerCurve.length - 1) return null;
-  const threshold = powerCurve[peakIdx].hp * SHIFT_DROP_RATIO;
+  const threshold = powerCurve[peakIdx].powerW * SHIFT_DROP_RATIO;
   for (let i = peakIdx + 1; i < powerCurve.length; i++) {
-    if (powerCurve[i].hp <= threshold) return powerCurve[i].rpm;
+    if (powerCurve[i].powerW <= threshold) return powerCurve[i].rpm;
   }
   // No drop below the ratio yet — if power is already declining, the best-known
   // shift point is the end of the recorded range (extends as pulls lengthen).
-  return powerCurve[powerCurve.length - 1].hp < powerCurve[peakIdx].hp ? powerCurve[powerCurve.length - 1].rpm : null;
+  return powerCurve[powerCurve.length - 1].powerW < powerCurve[peakIdx].powerW ? powerCurve[powerCurve.length - 1].rpm : null;
 }
 
 /** RPM where a curve peaks, or null when the curve is empty. */
@@ -84,25 +84,25 @@ export function interpolateValue<T extends { rpm: number }>(curve: T[], rpm: num
 }
 
 /** Find the RPM where the visually-scaled power and torque lines cross. */
-export function findVisualCrossing(powerCurve: { rpm: number; hp: number }[], torqueCurve: { rpm: number; nm: number }[], maxHp: number, maxNm: number): number | null {
+export function findVisualCrossing(powerCurve: { rpm: number; powerW: number }[], torqueCurve: { rpm: number; nm: number }[], maxPowerW: number, maxNm: number): number | null {
   if (powerCurve.length < 2 || torqueCurve.length < 2) return null;
 
   for (let i = 0; i < powerCurve.length - 1; i++) {
     const rpmA = powerCurve[i].rpm;
     const rpmB = powerCurve[i + 1].rpm;
-    const hpA = powerCurve[i].hp;
-    const hpB = powerCurve[i + 1].hp;
+    const powerA = powerCurve[i].powerW;
+    const powerB = powerCurve[i + 1].powerW;
 
     const nmA = interpolateValue(torqueCurve, rpmA, "nm");
     const nmB = interpolateValue(torqueCurve, rpmB, "nm");
 
-    const yHpA = hpA / maxHp;
-    const yHpB = hpB / maxHp;
+    const yPowerA = powerA / maxPowerW;
+    const yPowerB = powerB / maxPowerW;
     const yNmA = nmA / maxNm;
     const yNmB = nmB / maxNm;
 
-    const diffA = yHpA - yNmA;
-    const diffB = yHpB - yNmB;
+    const diffA = yPowerA - yNmA;
+    const diffB = yPowerB - yNmB;
 
     if (diffA === 0) return rpmA;
     if (diffB === 0) return rpmB;

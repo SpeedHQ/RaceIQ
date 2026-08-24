@@ -46,15 +46,15 @@ describe("setupSpeedAtRpm", () => {
 describe("findPeakRpm", () => {
   test("returns the RPM of the maximum value", () => {
     const curve = [
-      { rpm: 2000, hp: 100 },
-      { rpm: 7400, hp: 400 },
-      { rpm: 8000, hp: 350 },
+      { rpm: 2000, powerW: 100 },
+      { rpm: 7400, powerW: 400 },
+      { rpm: 8000, powerW: 350 },
     ];
-    expect(findPeakRpm(curve, "hp")).toBe(7400);
+    expect(findPeakRpm(curve, "powerW")).toBe(7400);
   });
 
   test("returns null for an empty curve", () => {
-    expect(findPeakRpm([], "hp")).toBeNull();
+    expect(findPeakRpm([], "powerW")).toBeNull();
   });
 });
 
@@ -64,10 +64,10 @@ describe("findBestShiftRpm", () => {
     const thr = peak * SHIFT_DROP_RATIO;
     const gap = peak - thr; // strictly positive for any ratio < 1
     const curve = [
-      { rpm: 4000, hp: 200 },
-      { rpm: 7400, hp: peak }, // peak
-      { rpm: 8000, hp: thr + gap / 2 },
-      { rpm: 8400, hp: thr - gap / 2 }, // first point below the threshold
+      { rpm: 4000, powerW: 200 },
+      { rpm: 7400, powerW: peak }, // peak
+      { rpm: 8000, powerW: thr + gap / 2 },
+      { rpm: 8400, powerW: thr - gap / 2 }, // first point below the threshold
     ];
     expect(findBestShiftRpm(curve)).toBe(8400);
   });
@@ -77,19 +77,19 @@ describe("findBestShiftRpm", () => {
     const thr = peak * SHIFT_DROP_RATIO;
     const gap = peak - thr;
     const curve = [
-      { rpm: 4000, hp: 300 },
-      { rpm: 7400, hp: peak },
-      { rpm: 8800, hp: thr + gap / 2 }, // above the threshold, below the peak
+      { rpm: 4000, powerW: 300 },
+      { rpm: 7400, powerW: peak },
+      { rpm: 8800, powerW: thr + gap / 2 }, // above the threshold, below the peak
     ];
     expect(findBestShiftRpm(curve)).toBe(8800);
   });
 
   test("returns null when the peak is the last point or the curve is short", () => {
-    expect(findBestShiftRpm([{ rpm: 5000, hp: 300 }])).toBeNull();
+    expect(findBestShiftRpm([{ rpm: 5000, powerW: 300 }])).toBeNull();
     expect(
       findBestShiftRpm([
-        { rpm: 4000, hp: 200 },
-        { rpm: 5000, hp: 400 },
+        { rpm: 4000, powerW: 200 },
+        { rpm: 5000, powerW: 400 },
       ]),
     ).toBeNull();
   });

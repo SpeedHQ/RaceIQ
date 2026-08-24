@@ -10,7 +10,7 @@ import { SearchSelect } from "../ui/SearchSelect";
 
 interface Props {
   packet: GearingSample | null;
-  powerCurve: { rpm: number; hp: number }[];
+  powerCurve: { rpm: number; powerW: number }[];
   /** Car spec top speed in the user's unit (0 = unknown) — fallback V_top and axis bound. */
   targetMaxSpeed: number;
   speedLabel: string;
@@ -133,7 +133,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   };
 
   // ── Chart model ──────────────────────────────────────────────
-  const peakPowerRpm = useMemo(() => findPeakRpm(powerCurve, "hp"), [powerCurve]);
+  const peakPowerRpm = useMemo(() => findPeakRpm(powerCurve, "powerW"), [powerCurve]);
 
   const chartModel = useMemo(() => {
     if (!draft || draft.ratios.length === 0 || !activeTune) return null;

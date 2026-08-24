@@ -33,12 +33,11 @@ describe("dev recording routes", () => {
     const schema = body.schema!;
     expect(body.frames.every((f) => f.schemaId === schema.schemaId)).toBe(true);
 
-    const kmh = (ms: number) => ms * 3.6;
     const samples = body.frames
       .map((frame) => {
         const view = buildLiveTelemetryView(schema, frame);
         if (!view) throw new Error("frame failed to decode");
-        return viewToGearingSample(view, kmh);
+        return viewToGearingSample(view);
       })
       .filter((sample): sample is GearingSample => sample !== null);
 

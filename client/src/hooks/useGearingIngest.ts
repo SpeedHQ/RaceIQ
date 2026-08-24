@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useUnits } from "./useUnits";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
-import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+
 import {
   getGearingTelemetryState,
   ingestGearingTelemetry,
@@ -18,9 +18,9 @@ import {
 const TOP_SPEED_STOP_RATIO = 0.98;
 
 /**
- * Adapt a semantic `LiveTelemetryView` into the `GearingSample` shape the
- * gearing library consumes. `DisplaySpeed` is converted to the user's speed
- * unit (km/h or mph); `DisplayPower` is watts→HP; `IsRaceOn` is boolean→0/1.
+ * Adapt a semantic `LiveTelemetryView` into the canonical `GearingSample`
+ * shape the gearing library consumes. Units stay canonical (rpm, watts, Nm,
+ * m/s) — presentation converts to the user's unit.
  *
  * Returns null — rejecting the sample — when any required semantic (gear,
  * RPM, speed, power, torque, race state, lap, distance) is unavailable.
@@ -28,7 +28,7 @@ const TOP_SPEED_STOP_RATIO = 0.98;
  * and a `?? 0` fallback would fabricate real values that corrupt the dyno
  * accumulators and lap traces.
  */
-export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms: number) => number): GearingSample | null {
+export function viewToGearingSample(view: LiveTelemetryView): GearingSample | null {
   const gear = view.inputs.gear;
   const rpm = view.engine.rpm;
   const speedMps = view.motion.speedMps;
@@ -57,14 +57,14 @@ export function viewToGearingSample(view: LiveTelemetryView, speedUserUnit: (ms:
     Accel: view.inputs.throttle ?? 0,
     Brake: view.inputs.brake ?? 0,
     Gear: gear,
-    IsRaceOn: isRaceOn ? 1 : 0,
-    CurrentEngineRpm: rpm,
+    raceActive: isRaceOn,
+    rpm,
     EngineMaxRpm: view.engine.maxRpm ?? 0,
     EngineIdleRpm: view.engine.idleRpm ?? 0,
-    DisplaySpeed: speedUserUnit(speedMps),
+    speedMps,
     AccelerationZ: view.motion.acceleration?.z ?? 0,
-    DisplayPower: powerW / WATTS_PER_HORSEPOWER,
-    DisplayTorque: torqueNm,
+    powerW,
+    torqueNm,
     LapNumber: lapNumber,
     DistanceTraveled: distanceM,
   };
@@ -86,7 +86,7 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
     if (!view) return;
     const now = performance.now();
     if (now - lastIngestAt.current < 100) return;
-    const packet = viewToGearingSample(view, units.speed);
+    const packet = viewToGearingSample(view);
     if (!packet) return; // required semantics unavailable — reject, don't fabricate zeros
     lastIngestAt.current = now;
     trackGearingMaxSpeed(packet);
@@ -108,7 +108,7 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
     }
 
     const topSpeed = autoStopTopSpeed?.() ?? 0;
-    if (gearing.autoRecording && topSpeed > 0 && packet.DisplaySpeed >= topSpeed * TOP_SPEED_STOP_RATIO) {
+    if (gearing.autoRecording && topSpeed > 0 && units.speed(packet.speedMps) >= topSpeed * TOP_SPEED_STOP_RATIO) {
       setGearingRecording(false);
       return; // sample at/above top speed is dirty — drop it
     }

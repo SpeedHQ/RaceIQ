@@ -53,17 +53,17 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
 
   // Aggregate all gears into single overall power and torque curves
   const { powerCurve, torqueCurve } = useMemo(() => {
-    const hpByRpm = new Map<number, { sum: number; count: number }>();
+    const powerWByRpm = new Map<number, { sum: number; count: number }>();
     const nmByRpm = new Map<number, { sum: number; count: number }>();
 
     for (const gearBuckets of Object.values(buckets)) {
       for (const bucket of Object.values(gearBuckets)) {
         const rpm = bucket.rpmMin + 50;
-        if (bucket.hpCount > 0) {
-          const existing = hpByRpm.get(rpm) ?? { sum: 0, count: 0 };
-          existing.sum += bucket.hpSum;
-          existing.count += bucket.hpCount;
-          hpByRpm.set(rpm, existing);
+        if (bucket.powerWCount > 0) {
+          const existing = powerWByRpm.get(rpm) ?? { sum: 0, count: 0 };
+          existing.sum += bucket.powerWSum;
+          existing.count += bucket.powerWCount;
+          powerWByRpm.set(rpm, existing);
         }
         if (bucket.nmCount > 0) {
           const existing = nmByRpm.get(rpm) ?? { sum: 0, count: 0 };
@@ -74,15 +74,15 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
       }
     }
 
-    const rawPowerCurve = Array.from(hpByRpm.entries())
-      .map(([rpm, { sum, count }]) => ({ rpm, hp: sum / count }))
+    const rawPowerCurve = Array.from(powerWByRpm.entries())
+      .map(([rpm, { sum, count }]) => ({ rpm, powerW: sum / count }))
       .sort((a, b) => a.rpm - b.rpm);
 
     const rawTorqueCurve = Array.from(nmByRpm.entries())
       .map(([rpm, { sum, count }]) => ({ rpm, nm: sum / count }))
       .sort((a, b) => a.rpm - b.rpm);
 
-    const powerCurve = smoothCurve(rawPowerCurve, "hp", 5);
+    const powerCurve = smoothCurve(rawPowerCurve, "powerW", 5);
     const torqueCurve = smoothCurve(rawTorqueCurve, "nm", 5);
 
     return { powerCurve, torqueCurve };
@@ -95,9 +95,9 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
   // RPM where the visually-scaled power and torque curves cross.
   const crossRpm = useMemo(() => {
     if (powerCurve.length < 2 || torqueCurve.length < 2) return null;
-    const maxHp = Math.max(...powerCurve.map((p) => p.hp)) * 1.05;
+    const maxPowerW = Math.max(...powerCurve.map((p) => p.powerW)) * 1.05;
     const maxNm = Math.max(...torqueCurve.map((t) => t.nm)) * 1.05;
-    return findVisualCrossing(powerCurve, torqueCurve, maxHp, maxNm);
+    return findVisualCrossing(powerCurve, torqueCurve, maxPowerW, maxNm);
   }, [powerCurve, torqueCurve]);
 
   // Help dialog: which chart's instructions are open (null = closed).
@@ -153,7 +153,7 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
               <Info className="size-3.5" />
             </Button>
           </div>
-          <TrackSpeedChart laps={trackLaps} toDistance={units.distance} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} onReset={resetTrackLaps} />
+          <TrackSpeedChart laps={trackLaps} toDistance={units.distance} toSpeed={units.speed} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} onReset={resetTrackLaps} />
         </div>
 
         {/* User setup gear-ratio chart */}

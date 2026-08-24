@@ -10,6 +10,8 @@ interface Props {
   laps: { current: TrackSpeedLap | null; previous: TrackSpeedLap | null };
   /** Convert metres → user distance unit. */
   toDistance: (metres: number) => number;
+  /** Convert m/s → user speed unit. */
+  toSpeed: (ms: number) => number;
   /** Label for the distance unit, e.g. "km" or "mi". */
   distanceLabel: string;
   speedLabel: string;
@@ -34,7 +36,7 @@ function niceStep(domain: number, targetTicks: number): number {
  * lap trace is retained, and the header button toggles between the current
  * and the previous lap.
  */
-export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, onReset }: Props) {
+export function TrackSpeedChart({ laps, toDistance, toSpeed, distanceLabel, speedLabel, onReset }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drawRef = useRef(() => {});
@@ -48,11 +50,13 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
   const lapsRef = useRef(laps);
   const viewRef = useRef(view);
   const toDistanceRef = useRef(toDistance);
+  const toSpeedRef = useRef(toSpeed);
   const distanceLabelRef = useRef(distanceLabel);
   const speedLabelRef = useRef(speedLabel);
   lapsRef.current = laps;
   viewRef.current = view;
   toDistanceRef.current = toDistance;
+  toSpeedRef.current = toSpeed;
   distanceLabelRef.current = distanceLabel;
   speedLabelRef.current = speedLabel;
 
@@ -94,6 +98,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
 
       const data = viewRef.current === "current" ? (lapsRef.current.current?.samples ?? []) : (lapsRef.current.previous?.samples ?? []);
       const toDistance = toDistanceRef.current;
+      const toSpeed = toSpeedRef.current;
       const distanceLabel = distanceLabelRef.current;
       const speedLabel = speedLabelRef.current;
 
@@ -103,7 +108,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
 
       // Domains: distance from the lap baseline, speed from zero with headroom.
       const maxDist = Math.max(1, toDistance(data.length > 0 ? data[data.length - 1].distance : 0));
-      const maxSpeedRaw = data.reduce((acc, s) => Math.max(acc, s.speed), 0);
+      const maxSpeedRaw = data.reduce((acc, s) => Math.max(acc, toSpeed(s.speedMps)), 0);
       const maxSpeed = Math.max(10, maxSpeedRaw * 1.1);
 
       const sx = (dist: number) => pad.left + (dist / maxDist) * cW;
@@ -159,7 +164,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
         ctx.beginPath();
         for (let i = 0; i < data.length; i++) {
           const x = sx(toDistance(data[i].distance));
-          const y = sy(data[i].speed);
+          const y = sy(toSpeed(data[i].speedMps));
           if (i === 0) ctx.moveTo(x, pad.top + cH);
           ctx.lineTo(x, y);
         }
@@ -172,7 +177,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
         const gearRuns: { gear: number; xs: number[]; ys: number[] }[] = [];
         for (let i = 0; i < data.length; i++) {
           const x = sx(toDistance(data[i].distance));
-          const y = sy(data[i].speed);
+          const y = sy(toSpeed(data[i].speedMps));
           const gear = data[i].gear;
           let run = gearRuns[gearRuns.length - 1];
           if (!run || run.gear !== gear) {
@@ -203,7 +208,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
         const last = data[data.length - 1];
         ctx.fillStyle = last.gear >= 1 ? GEAR_COLORS[(last.gear - 1) % GEAR_COLORS.length] : "var(--telemetry-speed)";
         ctx.beginPath();
-        ctx.arc(sx(toDistance(last.distance)), sy(last.speed), 4, 0, Math.PI * 2);
+        ctx.arc(sx(toDistance(last.distance)), sy(toSpeed(last.speedMps)), 4, 0, Math.PI * 2);
         ctx.fill();
 
         // Hover crosshair + tooltip (distance & speed at the cursor)
@@ -223,7 +228,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
               }
             }
             const cx = sx(toDistance(nearest.distance));
-            const cy = sy(nearest.speed);
+            const cy = sy(toSpeed(nearest.speedMps));
 
             // Vertical crosshair
             ctx.save();
@@ -246,7 +251,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
             // Tooltip box
             const tooltipLines: { label: string; value: string; color: string }[] = [
               { label: m.trackspeed_distance(), value: `${toDistance(nearest.distance).toFixed(2)} ${distanceLabel}`, color: "var(--app-text)" },
-              { label: m.label_speed(), value: `${nearest.speed.toFixed(0)} ${speedLabel}`, color: "var(--telemetry-speed)" },
+              { label: m.label_speed(), value: `${toSpeed(nearest.speedMps).toFixed(0)} ${speedLabel}`, color: "var(--telemetry-speed)" },
             ];
             const tFont = "var(--text-app-label) var(--font-mono)";
             ctx.font = tFont;
@@ -350,7 +355,7 @@ export function TrackSpeedChart({ laps, toDistance, distanceLabel, speedLabel, o
         <div className="flex items-center gap-2">
           {selected && samples.length > 0 && (
             <span className="text-xs font-mono text-app-text-dim">
-              {m.label_lap()} {selected.lapNumber} · {samples[samples.length - 1].speed.toFixed(0)} {speedLabel}
+              {m.label_lap()} {selected.lapNumber} · {toSpeed(samples[samples.length - 1].speedMps).toFixed(0)} {speedLabel}
             </span>
           )}
           <Button size="app-sm" variant="app-outline" disabled={!canToggle} onClick={() => setView(view === "current" ? "previous" : "current")}>
