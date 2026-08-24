@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { createLiveEngineerVoiceLine, isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV2, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "../../../shared/racing/live/engineer-contracts";
 import { isSpotterStateV1 } from "../../../shared/racing/live/spotter-contracts";
 import { LIVE_ENGINEER_AUDIO_CATALOG, LIVE_ENGINEER_AUDIO_CATALOG_VERSION } from "../../../shared/racing/live/engineer-audio-catalog.generated";
-import { renderOpponentPace, renderSpotter } from "../../live-strategy/live-engineer-renderer";
+import { renderLapTime, renderOpponentPace, renderSpotter } from "../../live-strategy/live-engineer-renderer";
 import { wsManager } from "../../runtime/websocket-manager";
 
 const root = process.cwd();
@@ -38,6 +38,11 @@ liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
 liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
   const body = await c.req.json().catch(() => null) as Record<string, unknown> | null;
   const now = Date.now();
+  if (body?.kind === "lap-time") {
+    const rendered = renderLapTime(Number(body.lapTimeMs));
+    if (!rendered.segmentIds.length) return c.json({ error: "invalid lap time" }, 400);
+    return c.json({ type: "live-engineer-lap-time-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds } });
+  }
   if (body && isSpotterStateV1(body.state)) {
     const rendered = renderSpotter(body.state);
     const candidateId = `dev/${now}/spotter/${body.state}`;

@@ -19,16 +19,29 @@ const textKeyFor = (relation: OpponentPaceRenderParametersV1["relation"]): Oppon
 const formatMs = (ms: number, decimals: number): string => (ms / 1000).toFixed(decimals);
 const scopeText = (scope: OpponentPaceRenderParametersV1["scope"]): string => scope === "class" ? "class" : "overall";
 const scopeTitle = (scope: OpponentPaceRenderParametersV1["scope"]): string => scope === "class" ? "Class" : "Overall";
-const absoluteDeltaText = (ms: number, decimals: number): string => `${formatMs(Math.abs(ms), decimals)} seconds`;
+const absoluteDeltaText = (ms: number, decimals: number): string => {
+  const totalSeconds = ms / 1000;
+  if (totalSeconds >= 60) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = (totalSeconds % 60).toFixed(decimals);
+    return `${minutes} minute${minutes === 1 ? "" : "s"} ${seconds} seconds`;
+  }
+  const value = formatMs(ms, decimals);
+  if (value.startsWith("0.")) {
+    const digits = value.slice(2).split("").map((digit) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!);
+    return `point ${digits.join(" ")} seconds`;
+  }
+  return `${value} seconds`;
+};
 
 export function renderOpponentPaceText(parameters: OpponentPaceRenderParametersV1, voiceMode: LiveEngineerVoiceModeV1 = "automatic"): string {
   const scope = scopeText(parameters.scope);
   const delta = absoluteDeltaText(parameters.deltaMs, voiceMode === "automatic" ? 1 : 3);
   switch (parameters.relation) {
     case "fastest-in-class": return parameters.scope === "class" ? "Fastest in class." : "Fastest overall.";
-    case "setting-race-pace": return "You're setting the current race pace.";
-    case "within-class-pace": return `You're ${delta} from ${scope} pace.`;
-    case "off-class-pace": return `You're ${delta} off ${scope} pace.`;
+    case "setting-race-pace": return "You are setting the current race pace.";
+    case "within-class-pace": return `You are ${delta} from ${scope} pace.`;
+    case "off-class-pace": return `You are ${delta} off ${scope} pace.`;
     case "outlier-lap": return `That lap is ${delta} off ${scope} pace.`;
   }
 }
@@ -48,7 +61,7 @@ export function numberAtoms(value: number, decimals = 1): string[] {
   const rounded = Number(value.toFixed(decimals));
   const integer = Math.floor(rounded);
   const fraction = Math.round((rounded - integer) * 10 ** decimals);
-  const atoms = integerAtoms(integer);
+  const atoms = integer === 0 && fraction ? [] : integerAtoms(integer);
   if (!fraction || decimals === 0) return atoms;
   const digits = String(fraction).padStart(decimals, "0").split("").map((digit) => digit === "0" ? "zero" : ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!);
   return [...atoms, "point", ...digits];
@@ -68,6 +81,15 @@ export function lapTimeAtoms(ms: number): string[] {
   result.push(...integerAtoms(seconds));
   if (millis) result.push("point", ...String(millis).padStart(3, "0").split("").map((digit) => ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"][Number(digit)]!));
   return result;
+}
+export function renderLapTime(ms: number): LiveEngineerRenderedSpeech {
+  const atoms = lapTimeAtoms(ms);
+  return {
+    textKey: "live_engineer_exact_lap_time",
+    text: `Your lap was ${atoms.join(" ")}.`,
+    segmentIds: ["phrase.exact.your-lap", ...atoms.map((atom) => atom === "minute" || atom === "minutes" ? `unit.${atom}` : `number.${atom}`)],
+    voiceMode: "automatic",
+  };
 }
 
 export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1; catalogVersion?: string } = {}): LiveEngineerRenderedSpeech {

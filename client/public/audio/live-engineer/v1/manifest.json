@@ -6,439 +6,327 @@
   "joinGapMs": 0,
   "speed": 1.47,
   "trimPaddingMs": 5,
-  "sourceHash": "faaa8f0a8ad3ccacb695a88e33ad8c54e3ee0c1ecde9538da97d962721c60382",
+  "sourceHash": "afc7320326b245e77867a6e0fc8868f3de6aea5eae4017fcfae376bb827ed6b2",
   "clips": [
     {
       "segmentId": "phrase.fastest.class",
       "spokenText": "Fastest in class.",
       "path": "phrase__fastest__class.flac",
-      "sha256": "2cae9e11cd99fdad7ea3c819b948ec8c82f61ec82130415f9e23272683bf0870",
-      "durationMs": 1060,
-      "contentHash": ""
+      "sha256": "0d1923407d75774faffcf37a8914ff86b3f5f27b7f44f4bd26b78b1359b4c24f",
+      "durationMs": 927,
+      "contentHash": "d067e08fd26b5ce859cf5cfe4cd04020e433a4a5c96122ca87c54a9ca822ab86"
     },
     {
       "segmentId": "phrase.fastest.overall",
       "spokenText": "Fastest overall.",
       "path": "phrase__fastest__overall.flac",
-      "sha256": "1165e931c109179692b458e7d17e15b5c027c70c5b93d6e0287873f711723cf8",
-      "durationMs": 1005,
-      "contentHash": ""
+      "sha256": "b2a26a8c523f67dcc988c6137866ff20e4526f7d09aa18270adf9e21fd4deab7",
+      "durationMs": 803,
+      "contentHash": "23e803ba107d956daddd221b63415c1e6dc27b19d841d1ffda5914ebf236170e"
     },
     {
       "segmentId": "phrase.setting-race-pace",
-      "spokenText": "You're setting the current race pace.",
+      "spokenText": "You are setting the current race pace.",
       "path": "phrase__setting-race-pace.flac",
-      "sha256": "ef3ab4a02c90e444efb147a2631a051047eafeb419a89d3e655fb63a52d56e8a",
-      "durationMs": 1858,
-      "contentHash": ""
+      "sha256": "3dbfe9847504dfd18a6b31249083754675c9a7ec334dabb5ef478ea8e47d0c7d",
+      "durationMs": 1365,
+      "contentHash": "349e270824e9ca2f4dc65444f72b191705e7d8561bbc10c466be212374f836a3"
     },
     {
       "segmentId": "phrase.within-class-pace",
-      "spokenText": "You're",
+      "spokenText": "You are",
       "path": "phrase__within-class-pace.flac",
-      "sha256": "2cea57e70e1805972ee090cef8e95a5d76ebe866b723166ede1a9f62248c8809",
-      "durationMs": 728,
-      "contentHash": ""
+      "sha256": "3b38566dd3582da26b7e433f479fed2961c9da146b60aa229b3dad1ff51261de",
+      "durationMs": 336,
+      "contentHash": "43808a929225fdfdb3ea60ceeaa9967aad46995f1db1493b173d8a43ae98bbbb"
     },
     {
       "segmentId": "phrase.off-class-pace",
-      "spokenText": "You're",
+      "spokenText": "You are",
       "path": "phrase__off-class-pace.flac",
-      "sha256": "234cbb3c18d33abd2c6dac18c5efad4cf87ea4c6b525c2586999ddfcd444c0e1",
-      "durationMs": 644,
-      "contentHash": ""
+      "sha256": "1d00f1257e1d1680d71eb159c64e7a5fc311e7a182e6d684767b0975f1272bd7",
+      "durationMs": 373,
+      "contentHash": "d91576f3e8a22d0defdcb181ff9265f06a2d8df6c0aa3b771f06f206b3f8f33e"
     },
     {
       "segmentId": "phrase.outlier-lap",
       "spokenText": "That lap is",
       "path": "phrase__outlier-lap.flac",
-      "sha256": "278800f77082b2fd80f228c111d12585309e5123920e017db127d025f96e36aa",
-      "durationMs": 779,
-      "contentHash": ""
+      "sha256": "19d1634e657df9ebf9336d1878840f39d085987dd8f9e002ef30f187b6f3d644",
+      "durationMs": 611,
+      "contentHash": "216445d64fa35c3fd88948bcfbf979d27c0fe1f028d009e044b2fd3a6b63ff3a"
     },
     {
       "segmentId": "phrase.scope.class",
       "spokenText": "class pace.",
       "path": "phrase__scope__class.flac",
-      "sha256": "83b9fcb148ac3fa4dc6d287b00e7ff826578aadef2c3017d7dc4852c2a4eb60e",
-      "durationMs": 821,
-      "contentHash": ""
+      "sha256": "fe27cabf9c19bef5ef1ed9b11cfd7dd78d73b032f4ae0e1726d3a255e5a86b14",
+      "durationMs": 733,
+      "contentHash": "cbdd51223956966749718da2d48d0ff732beffc2532a9bac5eb04ca43f2a7701"
     },
     {
       "segmentId": "phrase.scope.overall",
       "spokenText": "overall pace.",
       "path": "phrase__scope__overall.flac",
-      "sha256": "af4596704299956890e6a94122c50493b2925eeee7f44a3c6e674d76abc5e013",
-      "durationMs": 919,
-      "contentHash": ""
+      "sha256": "8126deb7860bb3b7f9cf142f05aaa1642b5246ce48a13fe7f9e62b382b8c3ba4",
+      "durationMs": 769,
+      "contentHash": "54244f485b4e0c6a57d34b19e087fc33336e267ac2b49f26c466e42962ecbedf"
     },
     {
       "segmentId": "phrase.from",
       "spokenText": "from",
       "path": "phrase__from.flac",
-      "sha256": "7b5de81a94a3505c9b5e8d5ae7336182138dda50c119d1f90c0605a201643cee",
-      "durationMs": 572,
-      "contentHash": ""
+      "sha256": "0bd8a4dca3bc3f2540736ef8dcd5fb8e63bb6090175aa5761ab2c4dadf42741e",
+      "durationMs": 105,
+      "contentHash": "b367f48af4e785082d6e1419553f86ffc4f57bd1e19afe5d9e1a6d700d52ae4f"
     },
     {
       "segmentId": "phrase.off",
       "spokenText": "off",
       "path": "phrase__off.flac",
-      "sha256": "92a6619defdb0448e0ec01c376b16fabb73d200cc1cb887292fd90da44639846",
-      "durationMs": 533,
-      "contentHash": ""
+      "sha256": "88bc44edc67933cf10e21c0c84b6967cd81efcd3e335f4142561a4746818de07",
+      "durationMs": 235,
+      "contentHash": "c261b9c309229be768aad76b9d1b60f037a785ed0aeb7610ab866ae670dc0687"
     },
     {
       "segmentId": "phrase.exact.intro",
       "spokenText": "The pace is",
       "path": "phrase__exact__intro.flac",
-      "sha256": "be767235bc291486b72f2cb2787eac779de85d7925ca5a84316356317efb096e",
-      "durationMs": 845,
-      "contentHash": ""
+      "sha256": "ad6d0545d53216e3182e771cb443beb7e584bc73362f2c6e3f08dc3dca8916a6",
+      "durationMs": 685,
+      "contentHash": "79d4a76673dd119582f814c4899e550c28abfc7fcf1348a8f8343efb9e703a30"
     },
     {
       "segmentId": "phrase.exact.your-lap",
       "spokenText": "Your lap was",
       "path": "phrase__exact__your-lap.flac",
-      "sha256": "b027aa02d6b61349f20cc867a7929fb1d53362be33fe85ffcf03fee6d2c9aba0",
-      "durationMs": 879,
-      "contentHash": ""
+      "sha256": "77408d58216d3f26802598bfe8417994f28b08039de137c272c5646e2e34e1a5",
+      "durationMs": 676,
+      "contentHash": "3b278eac2d96de49d0c08f742c2b945ce2cb509a573df88a5ef361c01cdd7107"
     },
     {
       "segmentId": "spotter.car-left",
       "spokenText": "Car left.",
       "path": "spotter__car-left.flac",
-      "sha256": "6a4cdc4a370d7bde77c455ec0ebcadcc5c3cc333cae590c84b9a7aea354ec774",
-      "durationMs": 799,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "unit.second",
-      "spokenText": "second",
-      "path": "unit__second.flac",
-      "sha256": "d35a0c155e9a5c4c0868ad18046cadd319cbd06acb645801bda297923fd9ad17",
-      "durationMs": 663,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "unit.seconds",
-      "spokenText": "seconds",
-      "path": "unit__seconds.flac",
-      "sha256": "c64c90254641ce67056c866e1c400ad6b975146bb261f831aafddfde4717a80f",
-      "durationMs": 748,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "unit.minute",
-      "spokenText": "minute",
-      "path": "unit__minute.flac",
-      "sha256": "192894b637d78337f1728662a9b04eafc085b56b437b847dc90ae820d564e3c8",
-      "durationMs": 425,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "unit.minutes",
-      "spokenText": "minutes",
-      "path": "unit__minutes.flac",
-      "sha256": "3fe6d3aa93dc333bea1d5eca102050817081136be1b04011fb0abb80e7654624",
-      "durationMs": 544,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "unit.point",
-      "spokenText": "point",
-      "path": "unit__point.flac",
-      "sha256": "6876f8aa1c295ff7dd515438f81f9a7b83f892f7f6eaddc122820123c0883ec8",
-      "durationMs": 501,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.zero",
-      "spokenText": "zero",
-      "path": "number__zero.flac",
-      "sha256": "0d9e312b2e607607eb3372dfbe500a6d795ddf94186a2d2f050000984012cd3d",
-      "durationMs": 548,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.one",
-      "spokenText": "one",
-      "path": "number__one.flac",
-      "sha256": "0436b7951128905e0b73fc23fd94d0e99b68eb5a3f6080ec292912debb3df42f",
-      "durationMs": 500,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.two",
-      "spokenText": "two",
-      "path": "number__two.flac",
-      "sha256": "090ad8c1ebbee8462a147735c0f0af8a52ebb6f852b4e86666d38ff723b0a299",
-      "durationMs": 394,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.three",
-      "spokenText": "three",
-      "path": "number__three.flac",
-      "sha256": "2217d91a8d45bae9273eabff2881355788cc597048824c516cd75ee508fed81f",
-      "durationMs": 697,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.four",
-      "spokenText": "four",
-      "path": "number__four.flac",
-      "sha256": "f0a203812cd26258108c4d764912db5283830a4a408f3e4f94a66359b3dc22df",
-      "durationMs": 425,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.five",
-      "spokenText": "five",
-      "path": "number__five.flac",
-      "sha256": "ef19e390453bd0116c5fe8f4de061d369e3e1168181c6b5c650e6196c4deed20",
-      "durationMs": 630,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.six",
-      "spokenText": "six",
-      "path": "number__six.flac",
-      "sha256": "c362a6f50fc803998bfa397b1eab524af9ebae3dee171a94dff441cf22570fff",
-      "durationMs": 555,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.seven",
-      "spokenText": "seven",
-      "path": "number__seven.flac",
-      "sha256": "60468e4bfe024275c510514cc51d3374f68f25eb949b33ec3b9ae08c9a3a9513",
-      "durationMs": 634,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.eight",
-      "spokenText": "eight",
-      "path": "number__eight.flac",
-      "sha256": "a2bec728bb7cf81c58f282fc91f175e076fe8f0c28ad930421e9630951e7bfa8",
-      "durationMs": 417,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.nine",
-      "spokenText": "nine",
-      "path": "number__nine.flac",
-      "sha256": "675246fb95a19b22b26b1fcc6936b10927200e6dd84101af182357cfe9355f83",
-      "durationMs": 470,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.ten",
-      "spokenText": "ten",
-      "path": "number__ten.flac",
-      "sha256": "6eea790ab3398b64ca66e1b1415ec37dfcf2c250619b8bc5aed06044b8860eb6",
-      "durationMs": 388,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.eleven",
-      "spokenText": "eleven",
-      "path": "number__eleven.flac",
-      "sha256": "8ab3be55e3779a031d4dcec9e0e570f12b988a2a03ad79ada30108d02f0e6ed6",
-      "durationMs": 544,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.twelve",
-      "spokenText": "twelve",
-      "path": "number__twelve.flac",
-      "sha256": "9442cbae2a4729e171cb90be98e80d91e0c2e900febd3ce6996b0ea86e665cdf",
-      "durationMs": 618,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.thirteen",
-      "spokenText": "thirteen",
-      "path": "number__thirteen.flac",
-      "sha256": "3b26f1aa83288d6b595a8eb4ba5fd590b575e8e8ea91f04ed7b497c6be65137e",
-      "durationMs": 783,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.fourteen",
-      "spokenText": "fourteen",
-      "path": "number__fourteen.flac",
-      "sha256": "9b992610b66232a72cf79ff1ab434f6283e0a1065fbff4143feb49fad6f0f0c4",
-      "durationMs": 638,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.fifteen",
-      "spokenText": "fifteen",
-      "path": "number__fifteen.flac",
-      "sha256": "a5e7eb203c018671f73f39c93ff9a341f5dfa03e5133a55435709dbc9af5e075",
-      "durationMs": 717,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.sixteen",
-      "spokenText": "sixteen",
-      "path": "number__sixteen.flac",
-      "sha256": "be53a8fe7e5270ec3b7edb1b12bc74dec41e1ac9f55721ecc7ec312ef5b0a53f",
-      "durationMs": 712,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.seventeen",
-      "spokenText": "seventeen",
-      "path": "number__seventeen.flac",
-      "sha256": "2a06b017afbae0089fb5cdab3831e14e66078a282573d2358cc7e1df33121715",
-      "durationMs": 892,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.eighteen",
-      "spokenText": "eighteen",
-      "path": "number__eighteen.flac",
-      "sha256": "540bcd399623ed983f56f080784a0790c8d2cbb95777d1102ca81474a21bb890",
-      "durationMs": 848,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.nineteen",
-      "spokenText": "nineteen",
-      "path": "number__nineteen.flac",
-      "sha256": "123072c1a7b582965a64fc0ace01ad80f479372145b382bfcd7666e0e552a727",
-      "durationMs": 705,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.twenty",
-      "spokenText": "twenty",
-      "path": "number__twenty.flac",
-      "sha256": "322ccf517a6faf719c2503d4d012180704aab5ab2e1eaf32c841707108219d48",
-      "durationMs": 453,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.thirty",
-      "spokenText": "thirty",
-      "path": "number__thirty.flac",
-      "sha256": "99ca3fc05152659b279e9c79d9ce3c5353e945386dd8b994ce04e79f0fa3da6c",
-      "durationMs": 630,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.forty",
-      "spokenText": "forty",
-      "path": "number__forty.flac",
-      "sha256": "fa79c82b979ef18847fa1640ea0825afcc8cf0476d563134434dcd3de9fba527",
-      "durationMs": 686,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.fifty",
-      "spokenText": "fifty",
-      "path": "number__fifty.flac",
-      "sha256": "1878dbb7c9d743e73d7bc073e8943b410bbcdd4b888ac4079dd4cccdd8a033ed",
-      "durationMs": 615,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.sixty",
-      "spokenText": "sixty",
-      "path": "number__sixty.flac",
-      "sha256": "325183079075f064ddfc4c4303c9da929de40c82b3b21222a318adabec5cfbec",
-      "durationMs": 665,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.seventy",
-      "spokenText": "seventy",
-      "path": "number__seventy.flac",
-      "sha256": "0def34464b4c26e64c79dd6787397db3c0dc49bde26d1fb899ef5a8a69cf2871",
-      "durationMs": 588,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.eighty",
-      "spokenText": "eighty",
-      "path": "number__eighty.flac",
-      "sha256": "a3f3dc5e01958dde16c0dd0e9ab3c602e92715e76e1390ced077ea242d215662",
-      "durationMs": 526,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.ninety",
-      "spokenText": "ninety",
-      "path": "number__ninety.flac",
-      "sha256": "36b1dbecc0523d23f57a2eabd9be83552d3c9d5316c10c178101b8bba3c1e8cc",
-      "durationMs": 528,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.hundred",
-      "spokenText": "hundred",
-      "path": "number__hundred.flac",
-      "sha256": "3a0e3829926046c7dffe054d131fb34b95ea02b0eb7b1a394b69d2fc60a8f07c",
-      "durationMs": 547,
-      "contentHash": ""
-    },
-    {
-      "segmentId": "number.point",
-      "spokenText": "point",
-      "path": "number__point.flac",
-      "sha256": "313b18e8456c3643f29efa534236acf8e1f592b51c594c2f320d393de48f8499",
-      "durationMs": 669,
-      "contentHash": ""
+      "sha256": "091efd37b600b0f8ba34ffeb45ec64604b1601bcfe96f6e90939001fc102fe0f",
+      "durationMs": 540,
+      "contentHash": "b077e15d6a35cbd838d7c20f568eb5aa114fb761f0e36284c0a10b177081404b"
     },
     {
       "segmentId": "spotter.car-right",
       "spokenText": "Car right.",
       "path": "spotter__car-right.flac",
-      "sha256": "72eb392d682fbd5688b32c37993d1ae290e05b63de6006ba8c30d5af0ef5d922",
-      "durationMs": 786,
-      "contentHash": "db4fe71d2109042b44f79c710e8733a921d58834969afa91725ed61443fb5b00"
-    },
-    {
-      "segmentId": "spotter.three-wide-left",
-      "spokenText": "Three wide, left.",
-      "path": "spotter__three-wide-left.flac",
-      "sha256": "01ce5f2f426dc31892867ab9b6490b5f2b30ae7bcb639c7e96b9f4d671dacbb7",
-      "durationMs": 1087,
-      "contentHash": "86a0881aef371ce7473f0c46f55fde8d6f224614400df9e81a7c812957d0ca4b"
-    },
-    {
-      "segmentId": "spotter.three-wide-right",
-      "spokenText": "Three wide, right.",
-      "path": "spotter__three-wide-right.flac",
-      "sha256": "4400e5abb16e113c91c7d927bf288fa050c949978c92882325ba3151576132df",
-      "durationMs": 1107,
-      "contentHash": "f970420ff3ec5a4c0a70db9de9f4d9f45839b5d3acb7bc69f8df1542b050d371"
-    },
-    {
-      "segmentId": "spotter.clear-left",
-      "spokenText": "Clear left.",
-      "path": "spotter__clear-left.flac",
-      "sha256": "f2af181a8c6e95fbeab19241168b6007f5e5f40904ac19a5663468f762d8571f",
-      "durationMs": 757,
-      "contentHash": "c1fa1561661522a687e7006dc01a0c3c9ef7fcc174673331f3c48b214138f08f"
-    },
-    {
-      "segmentId": "spotter.clear-right",
-      "spokenText": "Clear right.",
-      "path": "spotter__clear-right.flac",
-      "sha256": "549141e71f7fcc6152d7f5f46b75adcbd4eb7685efeb4ce619de6baf1b51aee2",
-      "durationMs": 852,
-      "contentHash": "b2751bf8140f68d7341c66fae8aead2047cd8bf84d011b20e5226263c0940446"
+      "sha256": "2d047f389ea29feec2eb1922b21039ef52d2bdd221580d4ef2071be401f26abf",
+      "durationMs": 487,
+      "contentHash": "28255060a9ade76dfbe17faef8c74c5caa5112c7a09261a8b2fc1d8f14d144ec"
     },
     {
       "segmentId": "spotter.still-there",
       "spokenText": "Still there.",
       "path": "spotter__still-there.flac",
-      "sha256": "01512f3e79eef6a6f7ff69b955fd52d45fdabea804687b1ce12a5d47c298227d",
-      "durationMs": 940,
-      "contentHash": "8b7bdccb48d87c8e8c0e708ccc73554c0177028899bdcde9785d24e985ff9131"
+      "sha256": "2cca871ed96c98de70cca9759f7272779f17e68cd2b8e1c2786908cffe78f5de",
+      "durationMs": 552,
+      "contentHash": "a116f9f7fff823cb2f629141dda5f784fcee30e69fc572c06d13e14fcf3986bf"
+    },
+    {
+      "segmentId": "spotter.three-wide-left",
+      "spokenText": "Three wide, left.",
+      "path": "spotter__three-wide-left.flac",
+      "sha256": "230ca350c18fc27fe85fca509899c18a70f7eaa93e78e7a10d6856b0d93d7d54",
+      "durationMs": 747,
+      "contentHash": "8b564e4b500f3db2a94b2a94bcdb0afdc0e1db204e5d4341f653a6b2fbe19b0a"
+    },
+    {
+      "segmentId": "spotter.three-wide-right",
+      "spokenText": "Three wide, right.",
+      "path": "spotter__three-wide-right.flac",
+      "sha256": "34d8854eae05c771dec6eac284a7b53e68e090fae244b3baa755cdd6eba71366",
+      "durationMs": 888,
+      "contentHash": "205f8f9ba96781bf913d06473fff3b6f5d714dcb5650c8a61d33e164fc9d4d34"
+    },
+    {
+      "segmentId": "spotter.clear-left",
+      "spokenText": "Clear left.",
+      "path": "spotter__clear-left.flac",
+      "sha256": "f637568961c8029d1acfa5eadc76525b9d75809fadb9b89e05a2c7397967ea70",
+      "durationMs": 588,
+      "contentHash": "ecb6b84c47fe8ae102b67c3dcb908ed8027c1b6208ea84702abe7c49dc3061df"
+    },
+    {
+      "segmentId": "spotter.clear-right",
+      "spokenText": "Clear right.",
+      "path": "spotter__clear-right.flac",
+      "sha256": "74a4428402137dd45cb64f6b63c9fd217fc36f74dac33e99d57567e3d92bd678",
+      "durationMs": 512,
+      "contentHash": "aed666c8724d0939f235b6f304f2c88bf9d64313faf978df4831a0ce80929596"
+    },
+    {
+      "segmentId": "unit.second",
+      "spokenText": "second",
+      "path": "unit__second.flac",
+      "sha256": "dec16b1777dab843a0ad81a309fb8a55b5089b66d7a1f91e790f169856941d73",
+      "durationMs": 436,
+      "contentHash": "418726ad3d9d7b4b1f39a5c29c4e8d8d1e34b874d52f3a3f6dcd2c625dea9982"
+    },
+    {
+      "segmentId": "unit.seconds",
+      "spokenText": "seconds",
+      "path": "unit__seconds.flac",
+      "sha256": "e53dd28442262984e1a4940791491440e29d315b43fa2cc98a79f2215e7d120c",
+      "durationMs": 569,
+      "contentHash": "836e2e4fdf49c48dcfe5be9c18528540408aac5e597d47aed75df5d108abc821"
+    },
+    {
+      "segmentId": "unit.minute",
+      "spokenText": "minute",
+      "path": "unit__minute.flac",
+      "sha256": "e4e8c48d2ebb65ee37f3cb93534285e8742a3f867456ba24c1378af0446ed354",
+      "durationMs": 193,
+      "contentHash": "e54a9193cd36a59c85f23bfebccbcd437708ba2e4c45e63d141f45761f3dfe3a"
+    },
+    {
+      "segmentId": "unit.minutes",
+      "spokenText": "minutes",
+      "path": "unit__minutes.flac",
+      "sha256": "c809af14619443f15b018a6f0e9880dd315c7860dcf354acf7169a938fe9c1c1",
+      "durationMs": 531,
+      "contentHash": "d8fd4a7fb5706e5242691c22ee1d1a3cb4f1bf36f08cfee9076735a331d5b4aa"
+    },
+    {
+      "segmentId": "unit.point",
+      "spokenText": "point",
+      "path": "unit__point.flac",
+      "sha256": "3c13e56ac9d8c2cfe9c36da3a71ebcec0a656c74b4d13b44548449e44a89e3bf",
+      "durationMs": 351,
+      "contentHash": "6d501f2300c35341cd97c8d096d034a6f0fdfa3d7d825758dc2c7ecd875fe77a"
+    },
+    {
+      "segmentId": "number.zero",
+      "spokenText": "zero",
+      "path": "number__zero.flac",
+      "sha256": "c54bf7a2d4c0a6dbdd047125538d453ab8d34ed8086e8aa5adb9275008982938",
+      "durationMs": 456,
+      "contentHash": "db3761453320272c76766f010f9d8636e4c2b056a26d97652907ad4d41c34bde"
+    },
+    {
+      "segmentId": "number.one",
+      "spokenText": "one",
+      "path": "number__one.flac",
+      "sha256": "abcab2ae31ae66318cb32ee0375c574fefbb6d0d103c98bd8fea30f7feb08887",
+      "durationMs": 283,
+      "contentHash": "550c832a85a36cd7c5ad9ceb255d9adaeb0d63aadfbe0d0ca1556f9e254cc3f5"
+    },
+    {
+      "segmentId": "number.two",
+      "spokenText": "two",
+      "path": "number__two.flac",
+      "sha256": "992a7265f80981aab34cc03d07db2c34d12a2c75d667df06a9be706d07f4bbcc",
+      "durationMs": 259,
+      "contentHash": "3f4fecc8f38fdcfca6b1df9e240a6dac654cd85aaf81e3440f0bf32ddfc37857"
+    },
+    {
+      "segmentId": "number.three",
+      "spokenText": "three",
+      "path": "number__three.flac",
+      "sha256": "fa7530835eb7ae7754d5db8f148dd7d2f84a73d0d0e4b7d1bf12f29717b76e41",
+      "durationMs": 301,
+      "contentHash": "bc36d49aa7db113caf3857b3762cea0f6997c3eb0eac66ba138a3566ae9b675e"
+    },
+    {
+      "segmentId": "number.four",
+      "spokenText": "four",
+      "path": "number__four.flac",
+      "sha256": "3a105269e877937ea06bf71d300deac5b986efdf7773a32f055f85afb939608d",
+      "durationMs": 333,
+      "contentHash": "a8d422c85d1d1d4cda1101704898793903184ad2175c92286811d524f93abe5e"
+    },
+    {
+      "segmentId": "number.five",
+      "spokenText": "five",
+      "path": "number__five.flac",
+      "sha256": "02d56ab55ee749d90b21da8d55a294f0efe678bb69e2c07dd3ea94584f5d07df",
+      "durationMs": 367,
+      "contentHash": "cfc0dc8606cbf099990756aa1c7cf8a15d69e24fcf95ec692861281fa5cdd343"
+    },
+    {
+      "segmentId": "number.six",
+      "spokenText": "six",
+      "path": "number__six.flac",
+      "sha256": "a9f537ee899e9e5fff911145b26cbe6e78561008c7c425770b58a216f7dd51bc",
+      "durationMs": 487,
+      "contentHash": "a19b3f3d9bed234b4220494a259211345738bbcdaa961a86d3956ed1158dddd8"
+    },
+    {
+      "segmentId": "number.seven",
+      "spokenText": "seven",
+      "path": "number__seven.flac",
+      "sha256": "780fad8731cdd4801afc26061a74328f84e3b9f053e6f21efc16439cbae045c2",
+      "durationMs": 413,
+      "contentHash": "8d1a00acae93ef43cd2312b2ef60a5835678c212808124e3680097d094ad75b5"
+    },
+    {
+      "segmentId": "number.eight",
+      "spokenText": "eight",
+      "path": "number__eight.flac",
+      "sha256": "5c33d734972a448bb12c485ad0e648d7a96530cca511b044222ad2ea3aa82c31",
+      "durationMs": 617,
+      "contentHash": "63161f3681b361a169d0feac2bafd91334836a5fab4d93260ab6089a116038f1"
+    },
+    {
+      "segmentId": "number.nine",
+      "spokenText": "nine",
+      "path": "number__nine.flac",
+      "sha256": "0747a1f9f8fb1d77f0d9a0cf94c30ce0d0d34f937228075392d6f7165c72e1d9",
+      "durationMs": 377,
+      "contentHash": "4b8792c442af6c3c44c66a6e6c1a217f933274e3e84cf62352a0c58b2655d9cc"
+    },
+    {
+      "segmentId": "number.ten",
+      "spokenText": "ten",
+      "path": "number__ten.flac",
+      "sha256": "a0683adcf2b7b1972c3725c0db0d8adc53fa3cf7e46a2fa4965b75a4b5eb78fa",
+      "durationMs": 299,
+      "contentHash": "6ceb7b1f1427659400da78c6f5bfa20d0f306231f9799ddd59d495fa0c243e2d"
+    },
+    {
+      "segmentId": "number.eleven",
+      "spokenText": "eleven",
+      "path": "number__eleven.flac",
+      "sha256": "427d93828239e096760de6ca3bdc93a01fcf8e7a4dae912dacda15c5d9bfc169",
+      "durationMs": 378,
+      "contentHash": "d886211a3a3a097503dc1322bf7353952ecc179165b99f08be90b21a91f92cb8"
+    },
+    {
+      "segmentId": "number.twelve",
+      "spokenText": "twelve",
+      "path": "number__twelve.flac",
+      "sha256": "3d2ea3e9efb4fc729d08b7843f782abc75460558b5561093206b18874d614f3a",
+      "durationMs": 483,
+      "contentHash": "c8a9a6a74a7a37a29f0d2813487e12be8d6306a0a615380b1206e5471ed2ab80"
+    },
+    {
+      "segmentId": "number.thirteen",
+      "spokenText": "thirteen",
+      "path": "number__thirteen.flac",
+      "sha256": "444651dd7ab4e1c16525892a431d809ea808cc60d10a60a29546292fbf0665a8",
+      "durationMs": 502,
+      "contentHash": "c18a1e941e4cd971e1d10e457be9c740e69f69d1680534cf32d3107c79905127"
+    },
+    {
+      "segmentId": "number.fourteen",
+      "spokenText": "fourteen",
+      "path": "number__fourteen.flac",
+      "sha256": "19bcfd3b8dd4918179a106f64ba2822e7d132612207716be68af9ce99b906a4c",
+      "durationMs": 565,
+      "contentHash": "17c990c8c6558d5c154daabec02a6f7271b1f05424b3a8e344a28cf470448288"
+    },
+    {
+      "segmentId": "number.fifteen",
+      "spokenText": "fifteen",
+      "path": "number__fifteen.flac",
+      "sha256": "b2cdbf4664558dfb6ebc1503a1a5a786684f2d0d315f8cbcb3ca48d70b9f5fe0",
+      "durationMs": 548,
+      "contentHash": "a9aa839d8f82bbe6762493456726941fd93d958afe66afbf786bca4f400c7e63"
     }
   ]
 }

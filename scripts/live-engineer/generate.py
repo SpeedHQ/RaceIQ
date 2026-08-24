@@ -17,7 +17,8 @@ REPORT = Path(__file__).with_name("validation-report.json")
 PIPELINE_VERSION = "live-engineer-omnivoice-v1"
 CATALOG_VERSION = "live-engineer-v1"
 SAMPLE_RATE = 24000
-INSTRUCT = "male, elderly, british accent"
+INSTRUCT = "male, Australian accent"
+DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie.flac"
 SPEED = 1.47
 TRIM_PADDING_MS = 5
 JOIN_GAP_MS = 0
@@ -26,9 +27,9 @@ SEED = 42
 PHRASES = {
     "phrase.fastest.class": "Fastest in class.",
     "phrase.fastest.overall": "Fastest overall.",
-    "phrase.setting-race-pace": "You're setting the current race pace.",
-    "phrase.within-class-pace": "You're",
-    "phrase.off-class-pace": "You're",
+    "phrase.setting-race-pace": "You are setting the current race pace.",
+    "phrase.within-class-pace": "You are",
+    "phrase.off-class-pace": "You are",
     "phrase.outlier-lap": "That lap is",
     "phrase.scope.class": "class pace.",
     "phrase.scope.overall": "overall pace.",
@@ -100,6 +101,8 @@ def render(args) -> int:
     print(f"OmniVoice device={device} model=k2-fsa/OmniVoice")
     model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map=device, dtype=dtype)
     OUT.mkdir(parents=True, exist_ok=True); entries = json.loads(MANIFEST.read_text()).get("clips", []) if args.segment and MANIFEST.exists() else []
+    if args.segment:
+        entries = [entry for entry in entries if entry.get("segmentId") != args.segment]
     source_hash = input_hash(ref, args.ref_text)
     def write_catalog_ts() -> None:
         payload = json.dumps([{"segmentId": e["segmentId"], "url": f"/audio/live-engineer/v1/{e['path']}", "sha256": e["sha256"], "durationMs": e["durationMs"]} for e in entries], indent=2)
@@ -107,6 +110,7 @@ def render(args) -> int:
     def write_manifest() -> None:
         MANIFEST.write_text(json.dumps({"catalogVersion": CATALOG_VERSION, "pipelineVersion": PIPELINE_VERSION, "sampleRate": SAMPLE_RATE, "channels": 1, "joinGapMs": JOIN_GAP_MS, "speed": SPEED, "trimPaddingMs": TRIM_PADDING_MS, "sourceHash": source_hash, "clips": entries}, indent=2) + "\n")
         write_catalog_ts()
+    pending: list[tuple[str, str, Path, str]] = []
     for segment_id, spoken in catalog().items():
         if args.segment and segment_id != args.segment: continue
         safe = segment_id.replace(".", "__")
@@ -114,11 +118,22 @@ def render(args) -> int:
         clip_hash = hashlib.sha256(f"{source_hash}:{segment_id}:{spoken}".encode()).hexdigest()
         if target.exists() and not args.force:
             entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * sf.info(target).duration), "contentHash": clip_hash}); write_manifest(); continue
-        audio = model.generate(text=spoken, ref_audio=str(ref), ref_text=args.ref_text, instruct=INSTRUCT, speed=SPEED)
-        audio = trim_normalize(audio[0] if hasattr(audio, "__len__") else audio)
-        sf.write(str(target), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
-        entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "contentHash": clip_hash})
-        write_manifest()
+        pending.append((segment_id, spoken, target, clip_hash))
+    for offset in range(0, len(pending), args.batch_size):
+        batch = pending[offset:offset + args.batch_size]
+        print(f"generating batch {offset // args.batch_size + 1}/{math.ceil(len(pending) / args.batch_size)} ({len(batch)} clips)")
+        audios = model.generate(
+            text=[spoken for _, spoken, _, _ in batch],
+            ref_audio=[str(ref)] * len(batch),
+            ref_text=[args.ref_text] * len(batch),
+            instruct=[INSTRUCT] * len(batch),
+            speed=[SPEED] * len(batch),
+        )
+        for (segment_id, spoken, target, clip_hash), audio in zip(batch, audios):
+            audio = trim_normalize(audio)
+            sf.write(str(target), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
+            entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "contentHash": clip_hash})
+            write_manifest()
     print(f"wrote {len(entries)} clips to {OUT}")
     if args.validate:
         failures = validate_audio_catalog()
@@ -182,7 +197,7 @@ def check() -> tuple[bool, dict]:
     return not failures, report
 
 def main() -> int:
-    parser = argparse.ArgumentParser(); parser.add_argument("--render", action="store_true"); parser.add_argument("--segment"); parser.add_argument("--trim-existing", action="store_true"); parser.add_argument("--validate", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--force", action="store_true"); parser.add_argument("--ref-audio", default=os.environ.get("LIVE_ENGINEER_REF_AUDIO", "")); parser.add_argument("--ref-text", default=os.environ.get("LIVE_ENGINEER_REF_TEXT", "")); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument("--render", action="store_true"); parser.add_argument("--segment"); parser.add_argument("--batch-size", type=int, default=8); parser.add_argument("--trim-existing", action="store_true"); parser.add_argument("--validate", action="store_true"); parser.add_argument("--check", action="store_true"); parser.add_argument("--force", action="store_true"); parser.add_argument("--ref-audio", default=os.environ.get("LIVE_ENGINEER_REF_AUDIO", str(DEFAULT_REF_AUDIO))); parser.add_argument("--ref-text", default=os.environ.get("LIVE_ENGINEER_REF_TEXT", "")); args = parser.parse_args()
     if args.trim_existing: return trim_existing_catalog()
     if args.render:
         if not args.ref_audio or not args.ref_text: parser.error("--render requires --ref-audio and --ref-text (or LIVE_ENGINEER_REF_AUDIO/LIVE_ENGINEER_REF_TEXT)")
