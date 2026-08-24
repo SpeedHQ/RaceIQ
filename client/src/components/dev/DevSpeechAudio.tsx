@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type SpeechClip = { segmentId: string; spokenText: string; path: string; durationMs: number; sha256: string };
-export type SpeechCatalog = { catalogVersion: string; pipelineVersion: string | null; validation: boolean; clipCount: number; lines: SpeechClip[] };
+export type SpeechFullLine = { lineId: string; spokenText: string; path: string; url: string; durationMs: number; sha256: string };
+export type SpeechCatalog = { catalogVersion: string; pipelineVersion: string | null; validation: boolean; clipCount: number; lines: SpeechClip[]; fullLineModel: string | null; fullLineValidation: { passed: boolean; failures: string[] } | null; fullLines: SpeechFullLine[] };
 
 export function useDevSpeechAudio(spotter: boolean) {
   const [catalog, setCatalog] = useState<SpeechCatalog | null>(null);
@@ -47,5 +48,22 @@ export function useDevSpeechAudio(spotter: boolean) {
       playNext();
     });
   };
-  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments };
+  const playFullLine = (id: string, lineId: string): Promise<void> => {
+    stop();
+    const line = catalog?.fullLines.find((item) => item.lineId === lineId);
+    if (!line) {
+      setResult({ error: "Full-line audio unavailable", lineId });
+      return Promise.resolve();
+    }
+    setPlaying(id);
+    const audio = new Audio(line.url);
+    audioRef.current = [audio];
+    const { promise, resolve } = Promise.withResolvers<void>();
+    const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
+    audio.onended = finish;
+    audio.onerror = () => { setResult({ error: "Full-line audio failed to load", lineId }); finish(); };
+    void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
+    return promise;
+  };
+  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine };
 }

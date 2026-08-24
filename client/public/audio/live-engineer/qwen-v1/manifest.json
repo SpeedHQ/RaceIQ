@@ -1,0 +1,115 @@
+{
+  "catalogVersion": "live-engineer-qwen-v1",
+  "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+  "sampleRate": 24000,
+  "channels": 1,
+  "referenceAudio": "scripts\\live-engineer\\voices\\Aussie-short.flac",
+  "referenceText": "G'day mate, Tom here.",
+  "fullLines": [
+    {
+      "lineId": "fastest-class",
+      "spokenText": "Fastest in class.",
+      "path": "full__fastest-class.wav",
+      "sha256": "e43dfe9ad7351d0a89c71ecaa087f3917ae6e5da1a7c319dabe2edfc3bf81556",
+      "durationMs": 1120
+    },
+    {
+      "lineId": "fastest-overall",
+      "spokenText": "Fastest overall.",
+      "path": "full__fastest-overall.wav",
+      "sha256": "f5b4c3447951f2911cf32dbf83c2f8211692857058db40bfb7495e19ff5de9d9",
+      "durationMs": 1040
+    },
+    {
+      "lineId": "setting-race-pace",
+      "spokenText": "You are setting the current race pace.",
+      "path": "full__setting-race-pace.wav",
+      "sha256": "ef96eb4eb11dc3086691ea5cfa0a09f76f6a02c51cb7a02b75802cc1d7293188",
+      "durationMs": 1680
+    },
+    {
+      "lineId": "within-class-pace",
+      "spokenText": "You are point three seconds from class pace.",
+      "path": "full__within-class-pace.wav",
+      "sha256": "b7a4381fc1fcf56145de3f4a39415184a4ce52280c3375ec091982a486b1cb01",
+      "durationMs": 2960
+    },
+    {
+      "lineId": "within-overall-pace",
+      "spokenText": "You are point three seconds from overall pace.",
+      "path": "full__within-overall-pace.wav",
+      "sha256": "197a410306cd158b5c167959f0642f73ac67beea6c2578ceb1ebac24752d8c48",
+      "durationMs": 2480
+    },
+    {
+      "lineId": "off-class-pace",
+      "spokenText": "You are point three seconds off class pace.",
+      "path": "full__off-class-pace.wav",
+      "sha256": "d189649cfe6777f427ecb3445f51480a3a60c64a6a5b5acc6083be2d88a33054",
+      "durationMs": 2080
+    },
+    {
+      "lineId": "off-overall-pace",
+      "spokenText": "You are point three seconds off overall pace.",
+      "path": "full__off-overall-pace.wav",
+      "sha256": "9a450b8047c69f62fdfa2cb7182dc764a99bf1f600a1c856a1cf9a98bf44eeaa",
+      "durationMs": 2960
+    },
+    {
+      "lineId": "outlier-class",
+      "spokenText": "That lap is point three seconds off class pace.",
+      "path": "full__outlier-class.wav",
+      "sha256": "81485e96b8215c817ea5b5d706aae311fef28eba441f385443fc3de3a0c77c9b",
+      "durationMs": 2400
+    },
+    {
+      "lineId": "outlier-overall",
+      "spokenText": "That lap is point three seconds off overall pace.",
+      "path": "full__outlier-overall.wav",
+      "sha256": "897f948e3b43a37c06de3d37ea1940918f5f34bf3ed784e0263fee6567656469",
+      "durationMs": 2640
+    },
+    {
+      "lineId": "lap-time",
+      "spokenText": "Your lap was one minute thirty two point four one seven.",
+      "path": "full__lap-time.wav",
+      "sha256": "eb7ea4c6c1f1447c2f8a8768d1090c061ec0a947c154eddfdca6f2d9d05fb3b0",
+      "durationMs": 3520
+    },
+    {
+      "lineId": "car-left",
+      "spokenText": "Car left.",
+      "path": "full__car-left.wav",
+      "sha256": "ce8ade740b059af05b01482c89df3bc15cd279f4afae25ef2c5447cc401693a7",
+      "durationMs": 480
+    },
+    {
+      "lineId": "car-right",
+      "spokenText": "Car right.",
+      "path": "full__car-right.wav",
+      "sha256": "c8517f277df39d41d46a2669cbaae6d505ea1824804bd05efef4144dd8f40b2a",
+      "durationMs": 640
+    },
+    {
+      "lineId": "still-there",
+      "spokenText": "Still there.",
+      "path": "full__still-there.wav",
+      "sha256": "1f92ef780c49334a87e5f8cc003c6bbc7ccf96a11f21ad502742833db1d8d21d",
+      "durationMs": 640
+    },
+    {
+      "lineId": "clear-left",
+      "spokenText": "Clear left.",
+      "path": "full__clear-left.wav",
+      "sha256": "19ecbeda35c3f7b9e1625c8065759d26572c9dcc1581db88bc7dc87601623e86",
+      "durationMs": 640
+    },
+    {
+      "lineId": "clear-right",
+      "spokenText": "Clear right.",
+      "path": "full__clear-right.wav",
+      "sha256": "7a5f64d3ed46adfca6d51f88c51d1d815e50cbb794e12fb73ec425700b65f20f",
+      "durationMs": 560
+    }
+  ]
+}

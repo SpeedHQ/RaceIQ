@@ -10,15 +10,20 @@ import { wsManager } from "../../runtime/websocket-manager";
 
 const root = process.cwd();
 const manifestPath = resolve(root, "client/public/audio/live-engineer/v1/manifest.json");
+const qwenManifestPath = resolve(root, "client/public/audio/live-engineer/qwen-v1/manifest.json");
 interface CatalogSegment { segmentId: string; url: string; sha256: string; durationMs: number; }
+interface CatalogFullLine { lineId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
 const audioRoot = resolve(root, "client/public/audio/live-engineer/v1");
 export const liveEngineerRoutes = new Hono();
+const qwenAudioRoot = resolve(root, "client/public/audio/live-engineer/qwen-v1");
 
 liveEngineerRoutes.get("/api/dev/live-engineer/catalog", (c) => {
   const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : null;
+  const qwenManifest = existsSync(qwenManifestPath) ? JSON.parse(readFileSync(qwenManifestPath, "utf8")) : null;
   const reportPath = resolve(root, "scripts/live-engineer/validation-report.json");
   const report = existsSync(reportPath) ? JSON.parse(readFileSync(reportPath, "utf8")) : null;
-  return c.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, pipelineVersion: manifest?.pipelineVersion ?? null, validation: report?.passed === true, report, clipCount: manifest?.clips?.length ?? 0, lines: manifest?.clips ?? [] });
+  const fullLines = (qwenManifest?.fullLines ?? []).map((line: CatalogFullLine) => ({ ...line, url: `/audio/live-engineer/qwen-v1/${line.path}` }));
+  return c.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, pipelineVersion: manifest?.pipelineVersion ?? null, validation: report?.passed === true, report, clipCount: manifest?.clips?.length ?? 0, lines: manifest?.clips ?? [], fullLineModel: qwenManifest?.model ?? null, fullLineValidation: qwenManifest?.fullLineValidation ?? null, fullLines });
 });
 
 liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
@@ -31,6 +36,14 @@ liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
     if (!existsSync(file)) { failures.push(`missing asset: ${segment.segmentId}`); continue; }
     const hash = createHash("sha256").update(readFileSync(file)).digest("hex");
     if (hash !== segment.sha256) failures.push(`hash mismatch: ${segment.segmentId}`);
+  }
+  const qwenManifest = existsSync(qwenManifestPath) ? JSON.parse(readFileSync(qwenManifestPath, "utf8")) : null;
+  if (!qwenManifest) failures.push("missing Qwen full-line manifest");
+  for (const line of (qwenManifest?.fullLines ?? []) as CatalogFullLine[]) {
+    const file = resolve(qwenAudioRoot, line.path);
+    if (!existsSync(file)) { failures.push(`missing Qwen asset: ${line.lineId}`); continue; }
+    const hash = createHash("sha256").update(readFileSync(file)).digest("hex");
+    if (hash !== line.sha256) failures.push(`Qwen hash mismatch: ${line.lineId}`);
   }
   return c.json({ passed: failures.length === 0, failures }, failures.length ? 500 : 200);
 });
