@@ -34,6 +34,11 @@ import { Route as AccSetupsRouteImport } from './routes/acc/setups'
 import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
+import { Route as DevE2eRouteImport } from './routes/dev/e2e'
+import { Route as DevImportRouteImport } from './routes/dev/import'
+import { Route as DevSpeechRouteImport } from './routes/dev/speech'
+import { Route as DevStateRouteImport } from './routes/dev/state'
+import { Route as DevTelemetryRouteImport } from './routes/dev/telemetry'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
@@ -192,6 +197,31 @@ const DashCombo2Route = DashCombo2RouteImport.update({
   id: '/dash/combo-2',
   path: '/dash/combo-2',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DevE2eRoute = DevE2eRouteImport.update({
+  id: '/e2e',
+  path: '/e2e',
+  getParentRoute: () => DevRoute,
+} as any)
+const DevImportRoute = DevImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => DevRoute,
+} as any)
+const DevSpeechRoute = DevSpeechRouteImport.update({
+  id: '/speech',
+  path: '/speech',
+  getParentRoute: () => DevRoute,
+} as any)
+const DevStateRoute = DevStateRouteImport.update({
+  id: '/state',
+  path: '/state',
+  getParentRoute: () => DevRoute,
+} as any)
+const DevTelemetryRoute = DevTelemetryRouteImport.update({
+  id: '/telemetry',
+  path: '/telemetry',
+  getParentRoute: () => DevRoute,
 } as any)
 const F125IndexRoute = F125IndexRouteImport.update({
   id: '/',
@@ -368,7 +398,7 @@ export interface FileRoutesByFullPath {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
-  '/dev': typeof DevRoute
+  '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
@@ -386,6 +416,11 @@ export interface FileRoutesByFullPath {
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/e2e': typeof DevE2eRoute
+  '/dev/import': typeof DevImportRoute
+  '/dev/speech': typeof DevSpeechRoute
+  '/dev/state': typeof DevStateRoute
+  '/dev/telemetry': typeof DevTelemetryRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/live': typeof Fm23LiveRouteWithChildren
@@ -426,7 +461,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
-  '/dev': typeof DevRoute
+  '/dev': typeof DevRouteWithChildren
   '/$game/live': typeof GameLiveRoute
   '/$gameid/analyse': typeof GameidAnalyseRoute
   '/$gameid/cars': typeof GameidCarsRoute
@@ -437,6 +472,11 @@ export interface FileRoutesByTo {
   '/$gameid/sessions': typeof GameidSessionsRoute
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/e2e': typeof DevE2eRoute
+  '/dev/import': typeof DevImportRoute
+  '/dev/speech': typeof DevSpeechRoute
+  '/dev/state': typeof DevStateRoute
+  '/dev/telemetry': typeof DevTelemetryRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
   '/ac-evo': typeof AcEvoIndexRoute
@@ -477,7 +517,7 @@ export interface FileRoutesById {
   '/$gameid': typeof GameidRouteWithChildren
   '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
-  '/dev': typeof DevRoute
+  '/dev': typeof DevRouteWithChildren
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
@@ -495,6 +535,11 @@ export interface FileRoutesById {
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/e2e': typeof DevE2eRoute
+  '/dev/import': typeof DevImportRoute
+  '/dev/speech': typeof DevSpeechRoute
+  '/dev/state': typeof DevStateRoute
+  '/dev/telemetry': typeof DevTelemetryRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/live': typeof Fm23LiveRouteWithChildren
@@ -557,6 +602,11 @@ export interface FileRouteTypes {
     | '/acc/setups'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/e2e'
+    | '/dev/import'
+    | '/dev/speech'
+    | '/dev/state'
+    | '/dev/telemetry'
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/live'
@@ -608,6 +658,11 @@ export interface FileRouteTypes {
     | '/$gameid/sessions'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/e2e'
+    | '/dev/import'
+    | '/dev/speech'
+    | '/dev/state'
+    | '/dev/telemetry'
     | '/fm23/live'
     | '/iracing/live'
     | '/ac-evo'
@@ -665,6 +720,11 @@ export interface FileRouteTypes {
     | '/acc/setups'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/e2e'
+    | '/dev/import'
+    | '/dev/speech'
+    | '/dev/state'
+    | '/dev/telemetry'
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/live'
@@ -708,7 +768,7 @@ export interface RootRouteChildren {
   GameidRoute: typeof GameidRouteWithChildren
   AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
-  DevRoute: typeof DevRoute
+  DevRoute: typeof DevRouteWithChildren
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
   IracingRoute: typeof IracingRouteWithChildren
@@ -894,6 +954,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/dash/combo-2'
       preLoaderRoute: typeof DashCombo2RouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dev/e2e': {
+      id: '/dev/e2e'
+      path: '/e2e'
+      fullPath: '/dev/e2e'
+      preLoaderRoute: typeof DevE2eRouteImport
+      parentRoute: typeof DevRoute
+    }
+    '/dev/import': {
+      id: '/dev/import'
+      path: '/import'
+      fullPath: '/dev/import'
+      preLoaderRoute: typeof DevImportRouteImport
+      parentRoute: typeof DevRoute
+    }
+    '/dev/speech': {
+      id: '/dev/speech'
+      path: '/speech'
+      fullPath: '/dev/speech'
+      preLoaderRoute: typeof DevSpeechRouteImport
+      parentRoute: typeof DevRoute
+    }
+    '/dev/state': {
+      id: '/dev/state'
+      path: '/state'
+      fullPath: '/dev/state'
+      preLoaderRoute: typeof DevStateRouteImport
+      parentRoute: typeof DevRoute
+    }
+    '/dev/telemetry': {
+      id: '/dev/telemetry'
+      path: '/telemetry'
+      fullPath: '/dev/telemetry'
+      preLoaderRoute: typeof DevTelemetryRouteImport
+      parentRoute: typeof DevRoute
     }
     '/f125/': {
       id: '/f125/'
@@ -1248,6 +1343,24 @@ const AccRouteChildren: AccRouteChildren = {
 
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
 
+interface DevRouteChildren {
+  DevE2eRoute: typeof DevE2eRoute
+  DevImportRoute: typeof DevImportRoute
+  DevSpeechRoute: typeof DevSpeechRoute
+  DevStateRoute: typeof DevStateRoute
+  DevTelemetryRoute: typeof DevTelemetryRoute
+}
+
+const DevRouteChildren: DevRouteChildren = {
+  DevE2eRoute: DevE2eRoute,
+  DevImportRoute: DevImportRoute,
+  DevSpeechRoute: DevSpeechRoute,
+  DevStateRoute: DevStateRoute,
+  DevTelemetryRoute: DevTelemetryRoute,
+}
+
+const DevRouteWithChildren = DevRoute._addFileChildren(DevRouteChildren)
+
 interface F125SetupsRouteChildren {
   F125SetupsIndexRoute: typeof F125SetupsIndexRoute
 }
@@ -1366,7 +1479,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameidRoute: GameidRouteWithChildren,
   AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
-  DevRoute: DevRoute,
+  DevRoute: DevRouteWithChildren,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,
   IracingRoute: IracingRouteWithChildren,

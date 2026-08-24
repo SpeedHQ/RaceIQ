@@ -5,14 +5,14 @@ import {
   type IRacingSourceFrame,
   type IRacingValue,
 } from "./source-frame";
-import { parseIRacingFuelCapacity } from "./session-info";
+import { parseIRacingDrivers, type IRacingDriverSnapshot, parseIRacingFuelCapacity } from "./session-info";
+import type { IRacingCompetitor } from "../../../shared/telemetry/iracing";
 import {
   startsAtIRacingSectorOrigin,
   warnInvalidIRacingSectorLayout,
 } from "./sector-layout";
 
 const KPA_TO_PSI = 0.1450377377;
-
 export interface IRacingParserState {
   source: IRacingSourceDecoderState;
   sessionKey: string | null;
@@ -20,6 +20,8 @@ export interface IRacingParserState {
   lapStartSessionTime: number;
   fuelCapacitySessionInfo: string | null;
   fuelCapacityL: number | undefined;
+  sessionInfo: string | null;
+  drivers: readonly IRacingDriverSnapshot[];
 }
 
 export function createIRacingParserState(): IRacingParserState {
@@ -30,6 +32,8 @@ export function createIRacingParserState(): IRacingParserState {
     lapStartSessionTime: 0,
     fuelCapacitySessionInfo: null,
     fuelCapacityL: undefined,
+    sessionInfo: null,
+    drivers: [],
   };
 }
 
@@ -58,6 +62,27 @@ function booleanArray(values: Record<string, IRacingValue>, name: string): boole
 function bool(values: Record<string, IRacingValue>, name: string): boolean {
   const value = values[name];
   return value === true || (typeof value === "number" && value !== 0);
+}
+function buildCompetitors(
+  values: Record<string, IRacingValue>,
+  drivers: readonly IRacingDriverSnapshot[],
+): readonly IRacingCompetitor[] {
+  const positions = numberArray(values, "CarIdxPosition");
+  const classPositions = numberArray(values, "CarIdxClassPosition");
+  const laps = numberArray(values, "CarIdxLapCompleted");
+  const pits = booleanArray(values, "CarIdxOnPitRoad");
+  const lastLaps = numberArray(values, "CarIdxLastLapTime");
+  const bestLaps = numberArray(values, "CarIdxBestLapTime");
+  const locations = numberArray(values, "CarIdxTrackSurface");
+  if (!positions || !classPositions || !laps || !pits || !lastLaps || !bestLaps || !locations) return [];
+  const rows: IRacingCompetitor[] = [];
+  for (const driver of drivers) {
+    const i = driver.carIndex;
+    const row = { position: positions[i], classPosition: classPositions[i], lapsComplete: laps[i], onPitRoad: pits[i], lastLapTime: lastLaps[i], bestLapTime: bestLaps[i], trackLocation: locations[i] };
+    if (![row.position, row.classPosition, row.lapsComplete, row.lastLapTime, row.bestLapTime, row.trackLocation].every((value) => typeof value === "number" && Number.isFinite(value)) || row.onPitRoad === undefined) continue;
+    rows.push({ ...driver, ...row });
+  }
+  return rows.sort((a, b) => a.carIndex - b.carIndex);
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -184,6 +209,17 @@ export function normalizeIRacingFrame(
       fuelCapacityL = state.fuelCapacityL;
     }
   }
+  let drivers: readonly IRacingDriverSnapshot[] = state?.drivers ?? [];
+  if ("sessionInfo" in frame && state) {
+    if (state.sessionInfo !== frame.sessionInfo) {
+      state.sessionInfo = frame.sessionInfo;
+      state.drivers = parseIRacingDrivers(frame.sessionInfo);
+    }
+    drivers = state.drivers;
+  } else if ("sessionInfo" in frame) {
+    drivers = parseIRacingDrivers(frame.sessionInfo);
+  }
+  const competitors = buildCompetitors(values, drivers);
   let currentLapTime = sdkCurrentLapTime;
   if (state) {
     if (state.sessionKey !== sessionKey || state.rawLap === null) {
@@ -253,6 +289,7 @@ export function normalizeIRacingFrame(
       carIdxLastLapTime: numberArray(values, "CarIdxLastLapTime"),
       carIdxBestLapTime: numberArray(values, "CarIdxBestLapTime"),
       carIdxTrackSurface: numberArray(values, "CarIdxTrackSurface"),
+      competitors,
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
       pitTireTemperatureAvailable,

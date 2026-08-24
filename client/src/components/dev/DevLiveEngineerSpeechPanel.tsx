@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button";
-import { LiveEngineerAudioPlayer } from "../../lib/live-engineer-audio";
 const relations = ["fastest-in-class", "setting-race-pace", "within-class-pace", "off-class-pace", "outlier-lap"] as const;
 const spotterStates = ["clear", "car-left", "still-there", "three-wide-left", "clear-left", "car-right", "three-wide-right", "clear-right"] as const;
 type Clip = { segmentId: string; spokenText: string; path: string; durationMs: number; sha256: string };
@@ -23,14 +22,29 @@ export function DevLiveEngineerSpeechPanel() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
-  const playerRef = useRef<LiveEngineerAudioPlayer | null>(null);
+  const audioRef = useRef<HTMLAudioElement[]>([]);
   const loadCatalog = async () => setCatalog(await (await fetch("/api/dev/live-engineer/catalog")).json() as Catalog);
-  useEffect(() => { void loadCatalog(); return () => playerRef.current?.stop(); }, []);
-  const stop = () => { playerRef.current?.stop(); setPlaying(null); };
+  useEffect(() => { void loadCatalog(); return () => stop(); }, []);
+  const stop = () => { for (const audio of audioRef.current) { audio.onended = null; audio.onerror = null; audio.pause(); audio.currentTime = 0; } audioRef.current = []; setPlaying(null); };
   const playSegments = (id: string, segmentIds: string[]): Promise<void> => {
-    stop(); setPlaying(id);
-    const player = playerRef.current ?? (playerRef.current = new LiveEngineerAudioPlayer());
-    return player.play(segmentIds).catch((error) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); }).finally(() => setPlaying(null));
+    stop();
+    const clips = segmentIds.map((segmentId) => catalog?.lines.find((clip) => clip.segmentId === segmentId)).filter((clip): clip is Clip => clip !== undefined);
+    if (clips.length !== segmentIds.length) { setResult({ error: "Audio clip unavailable", segmentIds }); return Promise.resolve(); }
+    setPlaying(id);
+    const audios = clips.map((clip) => new Audio(`/audio/live-engineer/v1/${clip.path}`));
+    audioRef.current = audios;
+    return new Promise((resolve) => {
+      let index = 0;
+      const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
+      const playNext = () => {
+        const audio = audios[index];
+        if (!audio) { finish(); return; }
+        audio.onended = () => { index += 1; playNext(); };
+        audio.onerror = () => { setResult({ error: "Audio asset failed to load", clip: clips[index]?.segmentId }); finish(); };
+        void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
+      };
+      playNext();
+    });
   };
   const previewSpotter = async (state: (typeof spotterStates)[number]) => {
     const response = await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state, overlapCount: state.includes("three-wide") ? 2 : 1 }) });

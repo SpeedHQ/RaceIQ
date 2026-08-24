@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "db54fb034b4343877ec190b2d6daf2ac7a7c37935ffcc98ecd984de8a061b7e2"
+      "sourceHash": "f6b49732dbcec49be5e3a3880fd6742027a36dc5a5b64f60c23ecaba3ccc8f29"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "962fea452fcdc94e4967f4c450943f242469d8521c1a470a4148b0d89fe6ab50",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "5fe109f9fb3a834090176011288c2155f8e89cb49d1b03d3369d8ee9a95f1b37",
+      "server/games/iracing/normalizer.ts": "509a7a6a933704d9f5a3a709e30310f482ea6dabc2761da3cebb077e3b21d9c4",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "d7274fe903879eda91161c0a19779744e5554d97298c3b9805ec78d99022b37c"
+    "contentHash": "4664da004dfa2e69d10e6f2f001f4323d4257e32fa6147a8f6ebbd15aa0087d8"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -137,6 +137,7 @@
         "diagnostics.chan-latency",
         "diagnostics.chan-partner-quality",
         "diagnostics.chan-quality",
+        "diagnostics.competitors",
         "diagnostics.corner-cutting-warnings",
         "diagnostics.cpu-usage-bg",
         "diagnostics.cpu-usage-fg",
@@ -434,8 +435,6 @@
         "motion.angular-velocity-y",
         "motion.angular-velocity-z",
         "motion.front-axle-roll-angle",
-        "motion.grid-speed",
-        "motion.grid-yaw",
         "motion.lat-accel-st",
         "motion.local-velocity",
         "motion.long-accel-st",
@@ -459,6 +458,8 @@
         "motion.yaw",
         "motion.yaw-north",
         "motion.yaw-rate-st",
+        "race.competitor.speed",
+        "race.competitor.yaw",
         "motion.driver-head-position"
       ]
     },
@@ -484,25 +485,23 @@
         "race.competitor.division-id",
         "race.competitor.joker-laps-complete",
         "race.competitor.laps-driven",
+        "race.competitor.position-x",
+        "race.competitor.position-y",
+        "race.competitor.position-z",
         "race.competitor.reason-out-id",
         "race.competitor.reason-out-text",
+        "race.competitor.velocity-x",
+        "race.competitor.velocity-y",
+        "race.competitor.velocity-z",
         "race.driver-change-lap-status",
         "race.driver-incident-count",
         "race.driver-marker",
         "race.driver-status",
         "race.flag-status",
-        "race.grid-car-index",
         "race.grid-class-id",
         "race.grid-class-name",
         "race.grid-completion-source-sequence",
-        "race.grid-connected",
         "race.grid-is-player",
-        "race.grid-pos-x",
-        "race.grid-pos-y",
-        "race.grid-pos-z",
-        "race.grid-vel-x",
-        "race.grid-vel-y",
-        "race.grid-vel-z",
         "race.incident-flags",
         "race.is-online",
         "race.is-race-on",
@@ -4279,6 +4278,83 @@
       "range": {
         "min": 0,
         "max": 100
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.competitors",
+      "label": "Competitors",
+      "description": "Competitors source value reported by iracing in structured.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "structured",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "structured",
+          "sources": [
+            "iracing.competitors"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0
+      },
+      "ordering": [
+        "source-path:source-order"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "source-path",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0
+            },
+            "ordering": "source-order"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
       },
       "limitations": []
     },
@@ -18779,162 +18855,6 @@
       "limitations": []
     },
     {
-      "id": "motion.grid-speed",
-      "label": "Grid speed",
-      "description": "Grid speed source value reported by f1-2025 in m/s.",
-      "parentId": "motion",
-      "canonicalUnit": "m/s",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "m/s",
-          "sources": [
-            "f1.grid[].speed"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "length",
-        "time^-1"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "length",
-              "time^-1"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "motion.grid-yaw",
-      "label": "Grid yaw",
-      "description": "Grid yaw source value reported by f1-2025 in rad.",
-      "parentId": "motion",
-      "canonicalUnit": "rad",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "rad",
-          "sources": [
-            "f1.grid[].yaw"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "angle"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "angle"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
       "id": "motion.lat-accel-st",
       "label": "Lat Accel ST",
       "description": "Lateral acceleration (including gravity) at 360 Hz",
@@ -21352,22 +21272,43 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].carIndex"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "f1-2025:race.competitor.car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "f1.grid[].carIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "21755b91d4a7710f43f4c1243c903f97909291e6bd75a236ee7c0c4651f956f2"
+          }
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "normalized",
@@ -22552,27 +22493,36 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "f1.grid[].connected"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -24903,6 +24853,243 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.position-x",
+      "label": "Grid pos X",
+      "description": "Grid pos X source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posX"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.position-y",
+      "label": "Grid pos Y",
+      "description": "Grid pos Y source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posY"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.position-z",
+      "label": "Grid pos Z",
+      "description": "Grid pos Z source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].posZ"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.primary-sponsor",
       "label": "Competitor primary sponsor",
       "description": "Primary sponsor identifier for each competitor.",
@@ -25547,6 +25734,87 @@
       "limitations": []
     },
     {
+      "id": "race.competitor.speed",
+      "label": "Grid speed",
+      "description": "Grid speed source value reported by f1-2025 in m/s.",
+      "parentId": "motion",
+      "canonicalUnit": "m/s",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "f1.grid[].speed"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "length",
+        "time^-1"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "length",
+              "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
       "id": "race.competitor.suit-design",
       "label": "Competitor suit design",
       "description": "Source driver-suit design descriptor for each competitor.",
@@ -25882,32 +26150,33 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "irsdk_TrkLoc",
+          "nativeUnit": "count",
           "sources": [
+            "iracing.carIdxTrackSurface",
             "iRacing.CarIdxTrackSurface"
           ],
           "freshness": "continuous",
-          "normalization": "convert irsdk_TrkLoc to enum",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "description": "iracing parser exposes 1 linked field.",
+          "normalization": "convert count to enum",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -25919,10 +26188,11 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.carIdxTrackSurface",
               "iRacing.CarIdxTrackSurface"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "4c016ec9dcf2507db2c7c2366efacbe535412ebfffa975c2130ae99e9668b08f"
+            "codeHash": "61daea8c675f11ecbb88662100163276c32e7713cb547b55f3e917e54e2dbffc"
           }
         }
       },
@@ -25973,33 +26243,32 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "acc": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "ac-evo": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "description": "No equivalent source value is currently identified for this parser."
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "count",
+          "nativeUnit": "irsdk_TrkSurf",
           "sources": [
-            "iracing.carIdxTrackSurface",
             "iRacing.CarIdxTrackSurfaceMaterial"
           ],
           "freshness": "continuous",
-          "description": "iracing parser exposes 1 linked field.",
-          "normalization": "convert count to enum",
+          "normalization": "convert irsdk_TrkSurf to enum",
+          "description": "Native iRacing SDK variable linked to shared semantic value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -26011,11 +26280,10 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
-              "iracing.carIdxTrackSurface",
               "iRacing.CarIdxTrackSurfaceMaterial"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "b28f68153fc8c25fe337c39ad303b41b6bca2373547e99028e922901e1b92c2a"
+            "codeHash": "b86be232a41772a3191b48de70964b49716c8aef89aa4e70232099bda6168f4b"
           }
         }
       },
@@ -26049,6 +26317,322 @@
             "valueType": "number",
             "dimensions": [
               "unit:enum"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.velocity-x",
+      "label": "Grid vel X",
+      "description": "Grid vel X source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velX"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.velocity-y",
+      "label": "Grid vel Y",
+      "description": "Grid vel Y source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velY"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.velocity-z",
+      "label": "Grid vel Z",
+      "description": "Grid vel Z source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.grid[].velZ"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "dimensionless"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "race.competitor.yaw",
+      "label": "Grid yaw",
+      "description": "Grid yaw source value reported by f1-2025 in rad.",
+      "parentId": "motion",
+      "canonicalUnit": "rad",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "rad",
+          "sources": [
+            "f1.grid[].yaw"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "angle"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "angle"
             ]
           }
         ]
@@ -26332,83 +26916,6 @@
       "limitations": []
     },
     {
-      "id": "race.grid-car-index",
-      "label": "Grid car Index",
-      "description": "Grid car Index source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].carIndex"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
       "id": "race.grid-class-id",
       "label": "Grid class Id",
       "description": "Grid class Id source value reported by f1-2025 in text.",
@@ -26640,83 +27147,6 @@
       "limitations": []
     },
     {
-      "id": "race.grid-connected",
-      "label": "Grid connected",
-      "description": "Grid connected source value reported by f1-2025 in boolean.",
-      "parentId": "race",
-      "canonicalUnit": "boolean",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "boolean",
-          "sources": [
-            "f1.grid[].connected"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "boolean",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
       "id": "race.grid-is-player",
       "label": "Grid is Player",
       "description": "Grid is Player source value reported by f1-2025 in boolean.",
@@ -26785,468 +27215,6 @@
           {
             "id": "value",
             "valueType": "boolean",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-pos-x",
-      "label": "Grid pos X",
-      "description": "Grid pos X source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].posX"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-pos-y",
-      "label": "Grid pos Y",
-      "description": "Grid pos Y source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].posY"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-pos-z",
-      "label": "Grid pos Z",
-      "description": "Grid pos Z source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].posZ"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-vel-x",
-      "label": "Grid vel X",
-      "description": "Grid vel X source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].velX"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-vel-y",
-      "label": "Grid vel Y",
-      "description": "Grid vel Y source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].velY"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
-            "dimensions": [
-              "dimensionless"
-            ]
-          }
-        ]
-      },
-      "limitations": []
-    },
-    {
-      "id": "race.grid-vel-z",
-      "label": "Grid vel Z",
-      "description": "Grid vel Z source value reported by f1-2025 in count.",
-      "parentId": "race",
-      "canonicalUnit": "count",
-      "shape": "structured",
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "count",
-          "sources": [
-            "f1.grid[].velZ"
-          ],
-          "freshness": "continuous",
-          "description": "f1-2025 parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        },
-        "iracing": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
-        }
-      },
-      "valueType": "structured",
-      "dimensions": [
-        "dimensionless"
-      ],
-      "cardinality": {
-        "kind": "variable",
-        "min": 0
-      },
-      "ordering": [
-        "grid-index:source-order"
-      ],
-      "structuredSchema": {
-        "indices": [
-          {
-            "id": "grid-index",
-            "cardinality": {
-              "kind": "variable",
-              "min": 0
-            },
-            "ordering": "source-order"
-          }
-        ],
-        "fields": [
-          {
-            "id": "value",
-            "valueType": "number",
             "dimensions": [
               "dimensionless"
             ]
@@ -56034,7 +56002,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid car Index source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-car-index",
+        "semanticId": "race.competitor.car-index",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56106,7 +56074,7 @@
         "dataType": "boolean",
         "count": 1,
         "description": "Grid connected source value reported by f1-2025 in boolean.",
-        "semanticId": "race.grid-connected",
+        "semanticId": "race.competitor.connected",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56298,7 +56266,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid pos X source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-pos-x",
+        "semanticId": "race.competitor.position-x",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56310,7 +56278,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid pos Y source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-pos-y",
+        "semanticId": "race.competitor.position-y",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56322,7 +56290,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid pos Z source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-pos-z",
+        "semanticId": "race.competitor.position-z",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56334,7 +56302,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid speed source value reported by f1-2025 in m/s.",
-        "semanticId": "motion.grid-speed",
+        "semanticId": "race.competitor.speed",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56382,7 +56350,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid vel X source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-vel-x",
+        "semanticId": "race.competitor.velocity-x",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56394,7 +56362,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid vel Y source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-vel-y",
+        "semanticId": "race.competitor.velocity-y",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56406,7 +56374,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid vel Z source value reported by f1-2025 in count.",
-        "semanticId": "race.grid-vel-z",
+        "semanticId": "race.competitor.velocity-z",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -56418,7 +56386,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Grid yaw source value reported by f1-2025 in rad.",
-        "semanticId": "motion.grid-yaw",
+        "semanticId": "race.competitor.yaw",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65692,7 +65660,7 @@
         "unit": "count",
         "dataType": "readonly number[]",
         "description": "Car Idx Track Surface source value reported by iracing in count.",
-        "semanticId": "race.competitor.track-surface-material",
+        "semanticId": "race.competitor.track-location",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65717,6 +65685,17 @@
         "count": 1,
         "description": "Car Name source value reported by iracing in text.",
         "semanticId": "identity.car-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitors",
+        "label": "Competitors",
+        "unit": "structured",
+        "dataType": "readonly IRacingCompetitor[]",
+        "description": "Competitors source value reported by iracing in structured.",
+        "semanticId": "diagnostics.competitors",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76080,7 +76059,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 765,
+    "semanticVariables": 764,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -76119,13 +76098,13 @@
         "recorded": 219
       },
       "iracing": {
-        "total": 967,
+        "total": 968,
         "packet": 119,
-        "extension": 29,
+        "extension": 30,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 717
+        "recorded": 718
       }
     }
   }

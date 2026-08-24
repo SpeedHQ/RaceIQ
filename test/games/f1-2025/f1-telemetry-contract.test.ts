@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
+import { decodeF1SessionHistory } from "../../../server/games/f1-2025/f1-packet-decoders";
 import {
   F1_HEADER_SIZE,
   type F1Header,
@@ -76,5 +77,17 @@ describe("F1 telemetry contract", () => {
     expect(packet?.f1?.resultStatus).toBe(5);
     expect(packet?.f1?.resultReason).toBe(6);
     expect(packet?.f1?.resultSource).toBe("final-classification");
+  });
+  test("reads Session History lap validity from official byte 13", () => {
+    const data = Buffer.alloc(7 + 14);
+    data.writeUInt8(0, 0);
+    data.writeUInt8(1, 1);
+    data.writeUInt8(1, 6);
+    data.writeUInt32LE(90_000, 7);
+    data.writeUInt8(7, 7 + 12);
+    data.writeUInt8(1, 7 + 13);
+    const decoded = decodeF1SessionHistory(data);
+    expect(decoded?.history.lastLapValidBitFlags).toBe(1);
+    expect(decoded?.lapSectors[0]?.lapValidBitFlags).toBe(1);
   });
 });

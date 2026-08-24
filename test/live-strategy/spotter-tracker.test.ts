@@ -26,4 +26,22 @@ describe("CrewChief-style spotter tracker", () => {
     expect(tracker.update(frame(1, [{ id: "a", x: 2.2, z: -1 }], { cautionContext: true }))).toEqual([]);
     expect(tracker.update(frame(2, [{ id: "a", x: 2.2, z: -1 }], { pitContext: true }))).toEqual([]);
   });
+  test("maps native CarLeftRight transitions without synthetic poses", () => {
+    const tracker = new SpotterTracker();
+    const native = (time: number, carLeftRight: number) => tracker.updateNative({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, carLeftRight });
+    expect(native(0, 2).map((event) => event.state)).toEqual(["car-left"]);
+    expect(native(1, 1)).toEqual([]);
+    expect(native(499, 1)).toEqual([]);
+    expect(native(500, 1).map((event) => event.state)).toEqual(["clear-left"]);
+  });
+
+  test("maps native both and three-wide occupancy states", () => {
+    const tracker = new SpotterTracker();
+    const native = (time: number, carLeftRight: number) => tracker.updateNative({ sessionId: "s", timelineEpoch: 1, sourceSequence: time, sessionTimeMs: time, carLeftRight });
+    expect(native(0, 4).map((event) => event.state)).toEqual(["car-left", "car-right"]);
+    expect(native(1, 5)).toEqual([]);
+    expect(native(3_001, 5).map((event) => event.state)).toEqual(["three-wide-left", "clear-right"]);
+    expect(native(3_002, 6).map((event) => event.state)).toEqual(["car-right"]);
+    expect(native(3_003, 0)).toEqual([]);
+  });
 });

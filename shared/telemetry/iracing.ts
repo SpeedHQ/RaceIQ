@@ -1,3 +1,20 @@
+export interface IRacingCompetitor {
+  carIndex: number;
+  userId?: number;
+  displayName?: string;
+  carClassId?: number;
+  carClassShortName?: string;
+  isSpectator?: boolean;
+  carIsPaceCar?: boolean;
+  position?: number;
+  classPosition?: number;
+  lapsComplete?: number;
+  lastLapTime?: number;
+  bestLapTime?: number;
+  onPitRoad?: boolean;
+  trackLocation?: number;
+}
+
 export interface IRacingExtendedData {
   sessionTick: number;
   sessionNum: number;
@@ -29,6 +46,7 @@ export interface IRacingExtendedData {
   carName: string;
   carClassName: string;
   trackName: string;
+  competitors?: readonly IRacingCompetitor[];
   /** Native opponent arrays retained for conservative completed-lap inference. */
   carIdxLap?: readonly number[];
   carIdxLastLapTime?: readonly number[];

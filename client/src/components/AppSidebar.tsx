@@ -125,6 +125,13 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, feature: "setups" },
   { segment: "raw", label: m.tab_raw, icon: Binary, feature: "raw" },
 ];
+const DEV_LINKS: ReadonlyArray<{ icon: LucideIcon; label: string; segment: string }> = [
+  { segment: "state", label: "State", icon: Code2 },
+  { segment: "telemetry", label: "Native Telemetry", icon: Gauge },
+  { segment: "speech", label: "Speech", icon: MessagesSquare },
+  { segment: "e2e", label: "E2E Recordings", icon: History },
+  { segment: "import", label: "Import Dump", icon: Binary },
+];
 
 const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
   "fm-2023": "/forza-logo.svg",
@@ -149,6 +156,7 @@ export function AppSidebar({
   updateVersion,
 }: AppSidebarProps): ReactElement {
   const location = useLocation();
+  const isDevRoute = location.pathname === "/dev" || location.pathname.startsWith("/dev/");
   const navigate = useNavigate();
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -275,13 +283,19 @@ export function AppSidebar({
           </Select.Root>
         </div>
 
-        {activeGame && (
+        {isDevRoute ? (
+          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+            {DEV_LINKS.map((link) => (
+              <SidebarLink key={link.segment} collapsed={showCollapsed} icon={link.icon} label={link.label} to={`/dev/${link.segment}`} onClick={onClose} />
+            ))}
+          </div>
+        ) : activeGame ? (
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
             {visibleFeatures.map((feature) => (
               <SidebarLink key={feature.segment} collapsed={showCollapsed} icon={feature.icon} label={feature.label()} to={`/${activeGame.routePrefix}/${feature.segment}`} onClick={onClose} />
             ))}
           </div>
-        )}
+        ) : null}
 
         <div className="mt-auto border-t border-app-border p-2">
           <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_home()} to="/" onClick={onClose} />
@@ -290,7 +304,6 @@ export function AppSidebar({
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>
               <RefreshCw className="size-4 text-app-accent" />
-              <span className={showCollapsed ? "sr-only" : "truncate"}>{updateLabel}</span>
             </SidebarAction>
           )}
           <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>

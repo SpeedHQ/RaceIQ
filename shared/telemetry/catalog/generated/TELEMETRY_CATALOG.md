@@ -7,8 +7,8 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `db54fb034b4343877ec190b2d6daf2ac7a7c37935ffcc98ecd984de8a061b7e2`
-- Content SHA-256: `d7274fe903879eda91161c0a19779744e5554d97298c3b9805ec78d99022b37c`
+- Generator source SHA-256: `f6b49732dbcec49be5e3a3880fd6742027a36dc5a5b64f60c23ecaba3ccc8f29`
+- Content SHA-256: `4664da004dfa2e69d10e6f2f001f4323d4257e32fa6147a8f6ebbd15aa0087d8`
 
 ## Coverage
 
@@ -18,7 +18,7 @@
 | f1-2025 | 306 | 306 | 119 | 187 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 967 | 717 | 119 | 29 | 324 | 495 | 0 |
+| iracing | 968 | 718 | 119 | 30 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -72,6 +72,7 @@
 | `diagnostics.chan-latency` | Chan Latency | number | time | s | scalar |  |  |  |
 | `diagnostics.chan-partner-quality` | Chan Partner Quality | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.chan-quality` | Chan Quality | number | dimensionless | % | scalar |  |  |  |
+| `diagnostics.competitors` | Competitors | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:number |  |
 | `diagnostics.corner-cutting-warnings` | Corner Cutting Warnings | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.cpu-usage-bg` | Cpu Usage BG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.cpu-usage-fg` | Cpu Usage FG | number | dimensionless | % | scalar |  |  |  |
@@ -292,8 +293,6 @@
 | `motion.driver-head-position.y` | Driver head position Y | number | length | m | scalar |  |  |  |
 | `motion.driver-head-position.z` | Driver head position Z | number | length | m | scalar |  |  |  |
 | `motion.front-axle-roll-angle` | Front axle roll angle | number | angle | rad | scalar |  |  |  |
-| `motion.grid-speed` | Grid speed | structured | length × time^-1 | m/s | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `motion.grid-yaw` | Grid yaw | structured | angle | rad | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `motion.lat-accel-st` | Lat Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
 | `motion.local-velocity` | Local Velocity | number | length × time^-1 | m/s | scalar |  |  |  |
 | `motion.long-accel-st` | Long Accel ST | number | length × time^-2 | m/s² | variable:0-* | source-order |  |  |
@@ -367,6 +366,9 @@
 | `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.position-x` | Grid pos X | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.position-y` | Grid pos Y | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.position-z` | Grid pos Z | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.primary-sponsor` | Competitor primary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.push-to-pass-active` | Competitor push-to-pass active | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.push-to-pass-count` | Competitor push-to-pass count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -375,29 +377,26 @@
 | `race.competitor.reason-out-text` | Reason Out Str | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.secondary-sponsor` | Competitor secondary sponsor | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.session-flags` | Competitor session flags | structured | unit:bitfield | bitfield | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.speed` | Grid speed | structured | length × time^-1 | m/s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.suit-design` | Competitor suit design | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.team-id` | Competitor team ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.team-incident-count` | Competitor team incident count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.team-name` | Competitor team name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.track-location` | Competitor track location | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.track-surface-material` | Competitor track-surface material | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.velocity-x` | Grid vel X | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.velocity-y` | Grid vel Y | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.velocity-z` | Grid vel Z | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.yaw` | Grid yaw | structured | angle | rad | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.driver-change-lap-status` | Driver-change lap status | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3 |  |
 | `race.driver-incident-count` | Current-driver incident count | number | dimensionless | count | scalar |  |  |  |
 | `race.driver-marker` | Driver Marker | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.driver-status` | Driver Status | number | dimensionless | count | scalar |  |  |  |
 | `race.flag-status` | Flag Status | string | dimensionless | text | scalar |  |  |  |
-| `race.grid-car-index` | Grid car Index | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `race.grid-class-id` | Grid class Id | structured | dimensionless | text | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:string |  |
 | `race.grid-class-name` | Grid class Name | structured | dimensionless | text | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:string |  |
 | `race.grid-completion-source-sequence` | Grid completion Source Sequence | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-connected` | Grid connected | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
 | `race.grid-is-player` | Grid is Player | structured | dimensionless | boolean | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:boolean |  |
-| `race.grid-pos-x` | Grid pos X | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-pos-y` | Grid pos Y | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-pos-z` | Grid pos Z | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-vel-x` | Grid vel X | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-vel-y` | Grid vel Y | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
-| `race.grid-vel-z` | Grid vel Z | structured | dimensionless | count | variable:0-* | grid-index:source-order | indices: grid-index (variable:0-*, source-order); fields: value:number |  |
 | `race.incident-flags` | Player incident flags | number | dimensionless | flags | scalar |  |  |  |
 | `race.is-online` | Is Online | boolean | dimensionless | boolean | scalar |  |  |  |
 | `race.is-race-on` | Is Race On | boolean | dimensionless | boolean | scalar |  |  |  |

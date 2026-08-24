@@ -1,9 +1,29 @@
 import { useEffect, useRef } from "react";
 import { useSettings } from "../../hooks/settings";
 import { LiveEngineerAudioPlayer } from "../../lib/live-engineer-audio";
+import { LiveEngineerPlaybackSession } from "../../lib/live-engineer-playback-session";
 import { useLiveEngineerStore } from "../../stores/live-engineer";
+
 export function RadioPlaybackController() {
- const { displaySettings } = useSettings(); const playerRef = useRef<LiveEngineerAudioPlayer | null>(null); const line = useLiveEngineerStore((s) => s.voiceCurrent); const enqueue = useLiveEngineerStore((s) => s.enqueueControl); const finish = useLiveEngineerStore((s) => s.finishVoiceLine); const setPlayback = useLiveEngineerStore((s) => s.setPlayback);
- useEffect(() => { playerRef.current?.setVolume(displaySettings.radioVolume); }, [displaySettings.radioVolume]);
- useEffect(() => { if (!line) return; let cancelled = false; const enabled = line.family === "spotter" ? displaySettings.radioSpotterEnabled : displaySettings.radioRaceEngineerEnabled; if (!enabled) { enqueue({ type: "live-engineer-delivery-status", protocolVersion: 2, deliveryId: line.deliveryId, status: "muted", reason: "radio-disabled" }); finish(line.deliveryId); return; } const player = playerRef.current ?? (playerRef.current = new LiveEngineerAudioPlayer()); setPlayback("playing"); enqueue({ type: "live-engineer-delivery-status", protocolVersion: 2, deliveryId: line.deliveryId, status: "started" }); player.play(line.segmentIds, displaySettings.radioVolume).then(() => { if (!cancelled) { enqueue({ type: "live-engineer-delivery-status", protocolVersion: 2, deliveryId: line.deliveryId, status: "completed" }); finish(line.deliveryId); } }).catch((error) => { if (!cancelled) { const reason = error?.code === "audio-blocked" ? "audio-blocked" : error?.code === "asset-missing" ? "asset-missing" : error?.code === "catalog-mismatch" ? "catalog-mismatch" : "decode-failed"; enqueue({ type: "live-engineer-delivery-status", protocolVersion: 2, deliveryId: line.deliveryId, status: "failed", reason }); setPlayback("failed"); finish(line.deliveryId); } }); return () => { cancelled = true; player.stop(); }; }, [line, displaySettings.radioRaceEngineerEnabled, displaySettings.radioSpotterEnabled, displaySettings.radioVolume, enqueue, finish, setPlayback]); return null;
+  const { displaySettings } = useSettings();
+  const sessionRef = useRef<LiveEngineerPlaybackSession | null>(null);
+  const line = useLiveEngineerStore((state) => state.voiceCurrent);
+  const enqueueControl = useLiveEngineerStore((state) => state.enqueueControl);
+  const finishVoiceLine = useLiveEngineerStore((state) => state.finishVoiceLine);
+  const setPlayback = useLiveEngineerStore((state) => state.setPlayback);
+
+  useEffect(() => {
+    sessionRef.current?.setVolume(displaySettings.radioVolume);
+  }, [displaySettings.radioVolume]);
+
+  useEffect(() => {
+    if (!line) return;
+    const enabled = line.family === "spotter" ? displaySettings.radioSpotterEnabled : displaySettings.radioRaceEngineerEnabled;
+    const session = sessionRef.current ?? (sessionRef.current = new LiveEngineerPlaybackSession(new LiveEngineerAudioPlayer(), { enqueueControl, finishVoiceLine, setPlayback }));
+    session.start(line, enabled, displaySettings.radioVolume);
+    return () => session.cancel();
+  }, [line, displaySettings.radioRaceEngineerEnabled, displaySettings.radioSpotterEnabled, enqueueControl, finishVoiceLine, setPlayback]);
+
+  useEffect(() => () => sessionRef.current?.cancel(), []);
+  return null;
 }

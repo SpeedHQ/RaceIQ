@@ -9,6 +9,13 @@ export interface SpotterTrackerOptions {
   trackZoneM?: number;
   behindExtraLengthM?: number;
 }
+export interface NativeSpotterFrame {
+  sessionId: string;
+  timelineEpoch: number;
+  sourceSequence: number;
+  sessionTimeMs: number;
+  carLeftRight: number;
+}
 
 type SideState = { ids: Set<string>; lastOverlapMs: number; lastStillThereMs: number; announced: boolean };
 const emptySide = (): SideState => ({ ids: new Set(), lastOverlapMs: -Infinity, lastStillThereMs: -Infinity, announced: false });
@@ -44,6 +51,23 @@ export class SpotterTracker {
     const events: SpotterEventV1[] = [];
     for (const side of ["left", "right"] as const) { const state = this.sides[side]; if (state.ids.size) { state.ids.clear(); state.lastOverlapMs = frame.sessionTimeMs; } }
     return events;
+  }
+  updateNative(frame: NativeSpotterFrame): SpotterEventV1[] {
+    if (this.lastSession !== frame.sessionId || this.lastEpoch !== frame.timelineEpoch) {
+      this.reset();
+      this.lastSession = frame.sessionId;
+      this.lastEpoch = frame.timelineEpoch;
+    }
+    const meta = { sessionId: frame.sessionId, timelineEpoch: frame.timelineEpoch, sourceSequence: frame.sourceSequence, sessionTimeMs: frame.sessionTimeMs, player: { x: 0, z: 0, rotationRad: 0, speedMps: 20, widthM: 1.8, lengthM: 4.8 }, opponents: [] as SpotterOpponentPoseV1[] };
+    const left = new Map<string, number>();
+    const right = new Map<string, number>();
+    if (frame.carLeftRight === 2) left.set("native-left", 1);
+    else if (frame.carLeftRight === 3) right.set("native-right", 1);
+    else if (frame.carLeftRight === 4) { left.set("native-left", 1); right.set("native-right", 1); }
+    else if (frame.carLeftRight === 5) { left.set("native-left-1", 1); left.set("native-left-2", 2); }
+    else if (frame.carLeftRight === 6) { right.set("native-right-1", 1); right.set("native-right-2", 2); }
+    else if (frame.carLeftRight !== 0 && frame.carLeftRight !== 1) return this.suppress(meta);
+    return [this.transition("left", left, meta), this.transition("right", right, meta)].flat();
   }
 
   private transition(side: "left" | "right", current: Map<string, number>, frame: SpotterFrameV1): SpotterEventV1[] {

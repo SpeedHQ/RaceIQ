@@ -163,8 +163,8 @@ export function decodeF1SessionHistory(data: Buffer): F1SessionHistoryData | nul
   const lapSectors: F1SessionHistoryData["lapSectors"] = [];
   if (count > 0) {
     const last = base + (count - 1) * size;
-    if (data.length >= last + size) { const ms = data.readUInt32LE(last); lastS1 = sector(last, 4, 6); lastS2 = sector(last, 7, 9); lastS3 = sector(last, 10, 12); lastLapValidBitFlags = data.readUInt8(last + 12); if (ms > 0) bestLapTime = ms / 1000; }
-    for (let i = 0; i < count; i++) { const o = base + i * size; if (data.length < o + size) break; const sectors = { lapTime: data.readUInt32LE(o) / 1000, s1: sector(o, 4, 6), s2: sector(o, 7, 9), s3: sector(o, 10, 12), lapValidBitFlags: data.readUInt8(o + 12) }; const lapValidBitFlags = data.readUInt8(o + 12); lapSectors.push({ lapNumber: i + 1, sectors, lapValidBitFlags }); if (sectors.lapTime > 0 && (bestLapTime === 0 || sectors.lapTime < bestLapTime)) bestLapTime = sectors.lapTime; }
+    if (data.length >= last + size) { const ms = data.readUInt32LE(last); lastS1 = sector(last, 4, 6); lastS2 = sector(last, 7, 9); lastS3 = sector(last, 10, 12); lastLapValidBitFlags = data.readUInt8(last + 13); if (ms > 0) bestLapTime = ms / 1000; }
+    for (let i = 0; i < count; i++) { const o = base + i * size; if (data.length < o + size) break; const sectors = { lapTime: data.readUInt32LE(o) / 1000, s1: sector(o, 4, 6), s2: sector(o, 7, 9), s3: sector(o, 10, 12), lapValidBitFlags: data.readUInt8(o + 13) }; const lapValidBitFlags = data.readUInt8(o + 13); lapSectors.push({ lapNumber: i + 1, sectors, lapValidBitFlags }); if (sectors.lapTime > 0 && (bestLapTime === 0 || sectors.lapTime < bestLapTime)) bestLapTime = sectors.lapTime; }
   }
   return { carIndex, history: { bestS1, bestS2, bestS3, lastS1, lastS2, lastS3, bestLapTime, lastLapNumber: count, lastLapValidBitFlags }, lapSectors };
 }
