@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "lime-rock-park/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 880,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 352,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "lime-rock",
+    "track": "lime-rock",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Lime Rock Park",
+    "source": "Official circuit map corner names",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Big Bend",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "The Esses",
+        "direction": "left",
+        "group": "The Esses"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right",
+        "group": "The Esses"
+      },
+      {
+        "number": 4,
+        "name": "Uphill",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "West Bend",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "Downhill",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "No Name Straight"
+      },
+      {
+        "after": 6,
+        "name": "Sam Posey Straight",
+        "group": "Sam Posey Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3836,
+        "s2End": 0.7441,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s6",
+          "startFrac": 0,
+          "endFrac": 0.0499
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0499,
+          "endFrac": 0.221
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.221,
+          "endFrac": 0.3147
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3147,
+          "endFrac": 0.3836
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3836,
+          "endFrac": 0.4461
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4461,
+          "endFrac": 0.6011
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6011,
+          "endFrac": 0.7441
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.7441,
+          "endFrac": 0.8724
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.8724,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "crandon-international-raceway/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 383,
+      "confirmation": null
+    }
+  ]
+}

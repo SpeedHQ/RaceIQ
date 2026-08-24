@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mount-washington-hillclimb/descent",
+  "name": "Descent",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 399,
+      "confirmation": null
+    }
+  ]
+}

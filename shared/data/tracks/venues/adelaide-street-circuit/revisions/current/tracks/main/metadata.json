@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "adelaide-street-circuit/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 580,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "port-royal-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 446,
+      "confirmation": null
+    }
+  ]
+}

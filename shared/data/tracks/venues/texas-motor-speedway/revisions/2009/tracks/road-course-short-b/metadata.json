@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "texas-motor-speedway/2009/road-course-short-b",
+  "name": "Road Course Short B",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 119,
+      "confirmation": null
+    }
+  ]
+}

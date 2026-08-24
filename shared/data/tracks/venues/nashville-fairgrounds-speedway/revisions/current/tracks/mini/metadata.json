@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nashville-fairgrounds-speedway/mini",
+  "name": "Mini",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 380,
+      "confirmation": null
+    }
+  ]
+}

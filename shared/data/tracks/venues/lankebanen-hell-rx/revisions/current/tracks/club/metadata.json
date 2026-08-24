@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lankebanen-hell-rx/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 359,
+      "confirmation": null
+    }
+  ]
+}

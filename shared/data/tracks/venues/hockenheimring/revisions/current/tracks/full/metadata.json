@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "id": "hockenheimring/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 250,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 390,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "hockenheim",
+    "track": "hockenheim",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Hockenheimring",
+    "source": "Official GP circuit map (17 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Nordkurve",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": ""
+      },
+      {
+        "number": 5,
+        "name": ""
+      },
+      {
+        "number": 6,
+        "name": "Spitzkehre",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": ""
+      },
+      {
+        "number": 12,
+        "name": "Sachskurve",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "covers": [
+          16,
+          17
+        ],
+        "name": "Südkurve",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "Parabolika"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.4813,
+        "s2End": 0.8506,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0282
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0282,
+          "endFrac": 0.0773
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0773,
+          "endFrac": 0.1475
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1475,
+          "endFrac": 0.1963
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1963,
+          "endFrac": 0.2361
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2361,
+          "endFrac": 0.4237
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4237,
+          "endFrac": 0.4813
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.4813,
+          "endFrac": 0.5188
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5188,
+          "endFrac": 0.5883
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5883,
+          "endFrac": 0.6353
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6353,
+          "endFrac": 0.6776
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.6776,
+          "endFrac": 0.7134
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.7134,
+          "endFrac": 0.7938
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.7938,
+          "endFrac": 0.8506
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8506,
+          "endFrac": 0.8735
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8735,
+          "endFrac": 0.8911
+        },
+        {
+          "key": "t15-16-17",
+          "startFrac": 0.8911,
+          "endFrac": 0.9734
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9734,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

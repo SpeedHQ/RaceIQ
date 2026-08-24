@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "cadwell-park-circuit/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 528,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "motorland-aragon/motorcycle-grand-prix",
+  "name": "Motorcycle Grand Prix",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 478,
+      "confirmation": null
+    }
+  ]
+}

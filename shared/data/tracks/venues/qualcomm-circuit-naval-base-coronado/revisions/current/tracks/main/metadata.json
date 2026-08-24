@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "qualcomm-circuit-naval-base-coronado/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 589,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "sunset-peninsula/speedway",
+  "name": "Speedway",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1624,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "sunset-peninsula-oval",
+    "track": "sunset-peninsula",
+    "layout": "speedway",
+    "layoutName": "Speedway",
+    "name": "Sunset Peninsula",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "covers": [
+          2,
+          3,
+          4
+        ],
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s1",
+          "startFrac": 0,
+          "endFrac": 0.6629
+        },
+        {
+          "key": "t1-2-3-4",
+          "startFrac": 0.6629,
+          "endFrac": 0.895
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.895,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

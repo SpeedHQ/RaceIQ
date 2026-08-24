@@ -1,0 +1,94 @@
+{
+  "id": "brands-hatch",
+  "locale": "en",
+  "character": "Compact 3.9km British circuit with dramatic elevation changes, blind crests, and the iconic Paddock Hill Bend. Natural amphitheatre setting. Technical and flowing, demanding precision on bumpy surfaces.",
+  "sources": "https://driver61.com/circuit-guide/brands-hatch/ Driver61 circuit guide",
+  "corners": [
+    {
+      "key": "paddock-hill-bend",
+      "name": "Paddock Hill Bend",
+      "numbers": [
+        1
+      ],
+      "type": "fast downhill right (T1)",
+      "technique": "Brake after the 'two' board while slightly turning in. Blind apex — the corner drops away steeply. Late apex, let car drift to exit",
+      "trap": "Braking too late into the blind downhill; understeer into the gravel"
+    },
+    {
+      "key": "druids",
+      "name": "Druids",
+      "numbers": [
+        2
+      ],
+      "type": "slow uphill hairpin (T2)",
+      "technique": "Hard braking uphill, 1st or 2nd gear. Late apex, progressive throttle on exit",
+      "trap": "Locking fronts on the uphill approach; early apex kills exit speed down Graham Hill"
+    },
+    {
+      "key": "graham-hill-bend",
+      "name": "Graham Hill Bend",
+      "numbers": [
+        3
+      ],
+      "type": "medium-speed downhill left (T3)",
+      "technique": "Brake before outside kerbing starts, 2nd gear, mid-point apex. Don't cut inside kerb (causes TC/spin)",
+      "trap": "Too much inside kerb causes instability on the bumpy downhill"
+    },
+    {
+      "key": "surtees",
+      "name": "Surtees",
+      "numbers": [
+        4
+      ],
+      "type": "uphill off-camber left (T4)",
+      "technique": "Tricky off-camber corner — brake at the 'one' board, trail brake in. Good exit feeds long straight to Hawthorn",
+      "trap": "Off-camber catches out — understeer on entry is common; need good car rotation"
+    },
+    {
+      "key": "hawthorn-bend",
+      "name": "Hawthorn Bend",
+      "numbers": [
+        5
+      ],
+      "type": "fastest corner on circuit (T5)",
+      "technique": "Brake before 'one' board, 3rd-4th gear, trail brake to inside kerb. Turn in early, hug inside, get on throttle ASAP",
+      "trap": "Not committing to the speed — hesitation here costs hugely"
+    },
+    {
+      "key": "westfield-bend",
+      "name": "Westfield Bend",
+      "numbers": [
+        6
+      ],
+      "type": "medium-fast right (T6)",
+      "technique": "Brake at 'one' board, 3rd gear, trail brake in. Cut inside kerb, use all exit kerb and matting",
+      "trap": "Not using enough kerb — track limits are lenient here, exploit them"
+    },
+    {
+      "key": "sheene-curve",
+      "name": "Sheene Curve",
+      "numbers": [
+        8
+      ],
+      "type": "fast right-left (T7-T8)",
+      "technique": "Smooth direction changes at speed, carry momentum through both parts",
+      "trap": "Over-driving causes snap on direction change"
+    },
+    {
+      "key": "clark-curve",
+      "name": "Clark Curve",
+      "numbers": [
+        10
+      ],
+      "type": "fast left leading to Paddock Hill (T9)",
+      "technique": "Clean exit onto start/finish straight — exit speed is critical",
+      "trap": "Running wide loses speed all the way down the pit straight"
+    }
+  ],
+  "priorityCorners": [
+    "paddock-hill-bend",
+    "surtees",
+    "hawthorn-bend",
+    "clark-curve"
+  ]
+}

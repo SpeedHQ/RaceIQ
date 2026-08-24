@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zandvoort/2009/chicane",
+  "name": "Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 147,
+      "confirmation": null
+    }
+  ]
+}

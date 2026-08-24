@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 18,
+      "confirmation": null
+    }
+  ]
+}

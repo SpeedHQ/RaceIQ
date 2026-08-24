@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "hungaroring/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 413,
+      "confirmation": null
+    }
+  ]
+}

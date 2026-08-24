@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lime-rock-park/west-bend-chicane",
+  "name": "West Bend Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 355,
+      "confirmation": null
+    }
+  ]
+}

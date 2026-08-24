@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="RallyX_-_Start_Finish_Line" data-name="RallyX - Start/Finish Line" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <line x1="577.11381" y1="820.20801" x2="585.13114" y2="892.40465" style="fill: none; stroke: #d82520; stroke-linecap: round; stroke-miterlimit: 10; stroke-width: 10px;"/>
+  <path d="M649.76264,945.49825l-61.34377,6.33591,16.82706,30.46372-91.12324-27.81662,83.51413-45.85409-10.24535,33.2599,61.34377-6.33591c2.7471-.28374,5.2035,1.71274,5.48724,4.45985.28374,2.7471-1.71274,5.2035-4.45985,5.48724Z" style="fill: #d82520;"/>
+</svg>

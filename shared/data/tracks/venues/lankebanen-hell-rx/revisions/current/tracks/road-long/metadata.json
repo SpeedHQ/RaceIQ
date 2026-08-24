@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lankebanen-hell-rx/road-long",
+  "name": "Road Long",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 363,
+      "confirmation": null
+    }
+  ]
+}

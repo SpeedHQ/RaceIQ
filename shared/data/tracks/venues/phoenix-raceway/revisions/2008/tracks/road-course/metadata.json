@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "phoenix-raceway/2008/road-course",
+  "name": "Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 105,
+      "confirmation": null
+    }
+  ]
+}

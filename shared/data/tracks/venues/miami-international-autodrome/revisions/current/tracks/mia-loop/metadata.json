@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "miami-international-autodrome/mia-loop",
+  "name": "MIA Loop",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 534,
+      "confirmation": null
+    }
+  ]
+}

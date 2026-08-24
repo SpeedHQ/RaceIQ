@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 16,
+      "confirmation": null
+    }
+  ]
+}

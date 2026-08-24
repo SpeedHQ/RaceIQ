@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "silverstone-racing-circuit/2008/international",
+  "name": "International",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 43,
+      "confirmation": null
+    }
+  ]
+}

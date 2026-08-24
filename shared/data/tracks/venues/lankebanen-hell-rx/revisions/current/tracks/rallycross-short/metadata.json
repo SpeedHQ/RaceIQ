@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lankebanen-hell-rx/rallycross-short",
+  "name": "Rallycross Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 360,
+      "confirmation": null
+    }
+  ]
+}

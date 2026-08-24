@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "dover-motor-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 162,
+      "confirmation": null
+    }
+  ]
+}

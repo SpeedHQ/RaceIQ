@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "iowa-speedway/2017/rallycross",
+  "name": "Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 295,
+      "confirmation": null
+    }
+  ]
+}

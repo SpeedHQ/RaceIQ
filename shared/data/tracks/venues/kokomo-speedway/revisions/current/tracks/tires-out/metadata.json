@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kokomo-speedway/tires-out",
+  "name": "Tires out",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 514,
+      "confirmation": null
+    }
+  ]
+}

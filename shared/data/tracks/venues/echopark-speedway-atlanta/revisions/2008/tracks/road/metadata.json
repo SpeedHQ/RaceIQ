@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "echopark-speedway-atlanta/2008/road",
+  "name": "Road",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 51,
+      "confirmation": null
+    }
+  ]
+}

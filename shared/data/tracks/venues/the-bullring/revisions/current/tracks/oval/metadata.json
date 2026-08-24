@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "the-bullring/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 271,
+      "confirmation": null
+    }
+  ]
+}

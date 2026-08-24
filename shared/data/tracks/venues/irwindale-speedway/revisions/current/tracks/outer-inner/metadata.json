@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "irwindale-speedway/outer-inner",
+  "name": "Outer - Inner",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 30,
+      "confirmation": null
+    }
+  ]
+}

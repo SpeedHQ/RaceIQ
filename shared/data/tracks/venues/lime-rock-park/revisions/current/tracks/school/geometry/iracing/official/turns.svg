@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Lime Rock School - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .n {
+        letter-spacing: -.02em;
+      }
+
+      .o {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <text class="o" transform="translate(317.15 948.04)"><tspan x="0" y="0">1</tspan></text>
+  <text class="o" transform="translate(288.4 798.61)"><tspan x="0" y="0">2</tspan></text>
+  <text class="o" transform="translate(591.09 692.79)"><tspan x="0" y="0">3</tspan></text>
+  <text class="o" transform="translate(626.65 482.56)"><tspan x="0" y="0">4</tspan></text>
+  <g id="b" data-name="5">
+    <text class="o" transform="translate(1189.48 147.71)"><tspan x="0" y="0">5</tspan></text>
+  </g>
+  <g id="c" data-name="6">
+    <text class="o" transform="translate(1603.96 496.98)"><tspan x="0" y="0">6</tspan></text>
+  </g>
+  <g id="d" data-name="7">
+    <text class="o" transform="translate(1415.54 957)"><tspan x="0" y="0">7</tspan></text>
+  </g>
+  <g id="e" data-name="Uphill">
+    <text class="o" transform="translate(1112.72 70.79)"><tspan x="0" y="0">Uphill</tspan></text>
+  </g>
+  <g id="f" data-name="West Bend">
+    <text class="o" transform="translate(1436.57 533.13)"><tspan class="n" x="0" y="0">W</tspan><tspan x="33.33" y="0">est Bend</tspan></text>
+  </g>
+  <g id="g" data-name="Downhill">
+    <text class="o" transform="translate(1367.82 834.79)"><tspan x="0" y="0">Downhill</tspan></text>
+  </g>
+  <g id="h" data-name="Sam Posey Straight">
+    <text class="o" transform="translate(906.88 1047.13)"><tspan x="0" y="0">Sam Posey Straight</tspan></text>
+  </g>
+  <g id="i" data-name="Big">
+    <text class="o" transform="translate(142.16 846.13)"><tspan x="0" y="0">Big</tspan></text>
+  </g>
+  <g id="j" data-name="Bend">
+    <text class="o" transform="translate(127.14 885.91)"><tspan x="0" y="0">Bend</tspan></text>
+  </g>
+  <g id="k" data-name="Lefthander">
+    <text class="o" transform="translate(673.33 727.68)"><tspan x="0" y="0">Lefthander</tspan></text>
+  </g>
+  <g id="l" data-name="Righthander">
+    <text class="o" transform="translate(639.78 519.35)"><tspan x="0" y="0">Righthander</tspan></text>
+  </g>
+  <g id="m" data-name="No Name Straight">
+    <text class="o" transform="translate(674.9 178.68)"><tspan x="0" y="0">No Name Straight</tspan></text>
+  </g>
+</svg>

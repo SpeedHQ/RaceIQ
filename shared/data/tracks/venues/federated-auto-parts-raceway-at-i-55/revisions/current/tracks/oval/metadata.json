@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "federated-auto-parts-raceway-at-i-55/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 438,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "south-boston-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 14,
+      "confirmation": null
+    }
+  ]
+}

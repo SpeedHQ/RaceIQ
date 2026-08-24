@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kansas-speedway/infield-road-course",
+  "name": "Infield Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 216,
+      "confirmation": null
+    }
+  ]
+}

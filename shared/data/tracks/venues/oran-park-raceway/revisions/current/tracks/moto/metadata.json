@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oran-park-raceway/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 211,
+      "confirmation": null
+    }
+  ]
+}

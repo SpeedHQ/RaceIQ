@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "world-wide-technology-raceway-gateway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 560,
+      "confirmation": null
+    }
+  ]
+}

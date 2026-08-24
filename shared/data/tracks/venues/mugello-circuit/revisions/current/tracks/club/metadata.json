@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "id": "mugello-circuit/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 36,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "mugello-s",
+    "track": "mugello",
+    "layout": "club",
+    "layoutName": "Club",
+    "name": "Mugello Circuit",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "San Donato",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Luco",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Poggio Secco",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Materassi",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Borgo San Lorenzo",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "Casanova",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s7",
+          "startFrac": 0,
+          "endFrac": 0.206
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.206,
+          "endFrac": 0.3417
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.3417,
+          "endFrac": 0.3994
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3994,
+          "endFrac": 0.4805
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.4805,
+          "endFrac": 0.5212
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.5212,
+          "endFrac": 0.6074
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6074,
+          "endFrac": 0.699
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.699,
+          "endFrac": 0.8019
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.8019,
+          "endFrac": 0.9055
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.9055,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

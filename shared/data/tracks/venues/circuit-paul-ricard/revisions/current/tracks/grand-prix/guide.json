@@ -1,0 +1,49 @@
+{
+  "id": "paul-ricard",
+  "locale": "en",
+  "character": "Wide, modern circuit with extensive run-off (blue/red asphalt in place of gravel) and the very long Mistral Straight bisected by an optional chicane. Rewards aero efficiency and braking stability.",
+  "sources": "https://www.formula1.com/en/latest/article.circuit-guide-paul-ricard official F1/circuit character; Signes-Beausset naming well documented",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "medium-speed right-hander",
+      "technique": "Firm braking, late apex to set up the run through the following corners",
+      "trap": "Using too much of the wide run-off and carrying an unrealistic entry speed"
+    },
+    {
+      "key": "signes-beausset",
+      "name": "Signes-Beausset",
+      "numbers": [
+        7
+      ],
+      "type": "fast, high-commitment right-left combination",
+      "technique": "Minimal lift, smooth steering, trust the grip through this high-speed section",
+      "trap": "Lifting or correcting mid-corner scrubs significant speed before the Mistral straight"
+    },
+    {
+      "key": "mistral-straight-chicane",
+      "name": "Mistral Straight Chicane",
+      "type": "chicane bisecting the long straight (variant-dependent)",
+      "technique": "Hard, late braking from top speed if the chicane is in use, precise through the direction change",
+      "trap": "Misjudging braking distance from the very high straight-line speed"
+    },
+    {
+      "key": "turn-8",
+      "name": "Turn 8",
+      "numbers": [
+        8
+      ],
+      "type": "final chicane before the pit straight",
+      "technique": "Late apex, clean exit is critical — feeds the start/finish straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "signes-beausset",
+    "turn-8"
+  ]
+}

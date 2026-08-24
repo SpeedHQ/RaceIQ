@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/2000-moto",
+  "name": "2000 Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 325,
+      "confirmation": null
+    }
+  ]
+}

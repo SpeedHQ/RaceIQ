@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "rockingham-speedway/short-road-course",
+  "name": "Short Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 206,
+      "confirmation": null
+    }
+  ]
+}

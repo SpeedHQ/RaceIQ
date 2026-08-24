@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/south",
+  "name": "South",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 992,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 468,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "vir-s",
+    "track": "vir",
+    "layout": "south",
+    "layoutName": "South",
+    "name": "Virginia International Raceway",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "South Bend",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "Oak Tree",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s7",
+          "startFrac": 0,
+          "endFrac": 0.1923
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1923,
+          "endFrac": 0.3195
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.3195,
+          "endFrac": 0.3723
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.3723,
+          "endFrac": 0.4507
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.4507,
+          "endFrac": 0.4732
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4732,
+          "endFrac": 0.5441
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5441,
+          "endFrac": 0.7014
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.7014,
+          "endFrac": 0.785
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.785,
+          "endFrac": 0.8337
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.8337,
+          "endFrac": 0.9311
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.9311,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

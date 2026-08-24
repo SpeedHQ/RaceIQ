@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "id": "sochi-autodrom/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 18,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "sochi",
+    "track": "sochi",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Sochi Autodrom",
+    "corners": []
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zandvoort/nationaal",
+  "name": "Nationaal",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 487,
+      "confirmation": null
+    }
+  ]
+}

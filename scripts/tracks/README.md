@@ -8,6 +8,7 @@ Track curation, migration, and coverage commands. These scripts write committed 
 |---|---|---|
 | `bun run tracks:segments --track <slug> [--game <id>] [--write]` | Detect and align curated corner segments | `shared/data/tracks/<game>/<slug>-segments.json` and track meta when `--write` |
 | `bun run tracks:coverage [--write]` | Render curation ledger; `--verify` records human verification | `docs/contributing/track-curation.md` when `--write` |
+| `bun run tracks:registry` / `bun run tracks:registry:check` | Rebuild generated registry artifacts or verify committed artifacts without writes | `shared/data/tracks/registry.sqlite` and `registry-report.json` |
 | `bun run scripts/tracks/migrate-track-meta.ts [--track <slug>] [--write]` | Convert legacy per-game meta into facts and geometry | `shared/data/tracks/meta/*.json`, per-game `*-segments.json` |
 | `bun run scripts/tracks/migrate-track-guides.ts` | Convert inline guide data to per-track JSON | `shared/data/tracks/guides/*.json` |
 | `bun run scripts/tracks/migrate-variant-corner-names.ts [--write]` | Copy conservative parent-layout corner names to unnamed variants | Updated `shared/data/tracks/meta/*.json` with `--write` |
@@ -27,5 +28,6 @@ Track curation, migration, and coverage commands. These scripts write committed 
 
 - Run `bun run tracks:segments --track <slug>` and inspect dry-run alignment output before `--write`.
 - Run `bun run tracks:coverage` and confirm ledger tables render; use `--write` only after review.
+- Run `bun run tracks:registry:check` before committing source manifest changes; CI runs same command in Build & Test.
 - Run migration commands without `--write` first; inspect conflict and dormant-layout reports.
 - For imported boundaries, compare generated JSON point counts and closure against source CSV metadata.

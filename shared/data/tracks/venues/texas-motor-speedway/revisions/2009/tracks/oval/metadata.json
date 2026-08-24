@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "texas-motor-speedway/2009/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 121,
+      "confirmation": null
+    }
+  ]
+}

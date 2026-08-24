@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/grand-course",
+  "name": "Grand Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 466,
+      "confirmation": null
+    }
+  ]
+}

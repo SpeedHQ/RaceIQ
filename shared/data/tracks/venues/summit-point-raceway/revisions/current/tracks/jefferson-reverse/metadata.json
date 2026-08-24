@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "summit-point-raceway/jefferson-reverse",
+  "name": "Jefferson Reverse",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 142,
+      "confirmation": null
+    }
+  ]
+}

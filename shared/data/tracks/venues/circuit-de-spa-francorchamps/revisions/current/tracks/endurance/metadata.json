@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-spa-francorchamps/endurance",
+  "name": "Endurance",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 525,
+      "confirmation": null
+    }
+  ]
+}

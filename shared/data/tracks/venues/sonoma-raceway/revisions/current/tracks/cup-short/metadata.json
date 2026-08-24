@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/cup-short",
+  "name": "Cup Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 567,
+      "confirmation": null
+    }
+  ]
+}
