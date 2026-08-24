@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "id": "brands-hatch/indy",
+  "name": "Indy",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 861,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 17,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 146,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "brands-hatch-indy",
+    "track": "brands-hatch",
+    "layout": "indy",
+    "layoutName": "Indy",
+    "name": "Brands Hatch",
+    "source": "Official circuit map (Indy layout)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Paddock Hill Bend",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Druids",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "Graham Hill Bend",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Surtees",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Clearways",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "Cooper Straight"
+      },
+      {
+        "after": 5,
+        "name": "Brabham Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.369,
+        "s2End": 0.695
+      },
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.2279
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2279,
+          "endFrac": 0.3697
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3697,
+          "endFrac": 0.5015
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.5015,
+          "endFrac": 0.5411
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.5411,
+          "endFrac": 0.6605
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6605,
+          "endFrac": 0.9242
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.9242,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3333333333333333,
+        "s2End": 0.6666666666666666
+      },
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.2424
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2424,
+          "endFrac": 0.3812
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3812,
+          "endFrac": 0.521
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.521,
+          "endFrac": 0.5425
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.5425,
+          "endFrac": 0.6795
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6795,
+          "endFrac": 0.8396
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.8396,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

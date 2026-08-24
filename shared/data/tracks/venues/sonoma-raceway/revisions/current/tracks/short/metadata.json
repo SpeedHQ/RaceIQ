@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 569,
+      "confirmation": null
+    }
+  ]
+}

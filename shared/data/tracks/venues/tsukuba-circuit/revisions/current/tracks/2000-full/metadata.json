@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/2000-full",
+  "name": "2000 Full",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 324,
+      "confirmation": null
+    }
+  ]
+}

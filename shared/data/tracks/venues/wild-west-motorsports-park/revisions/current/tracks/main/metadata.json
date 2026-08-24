@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "wild-west-motorsports-park/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 332,
+      "confirmation": null
+    }
+  ]
+}

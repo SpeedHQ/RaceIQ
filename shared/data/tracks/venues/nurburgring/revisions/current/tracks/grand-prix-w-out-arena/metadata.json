@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/grand-prix-w-out-arena",
+  "name": "Grand Prix w/out Arena",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 257,
+      "confirmation": null
+    }
+  ]
+}

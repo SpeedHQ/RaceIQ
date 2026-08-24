@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "id": "weathertech-raceway-laguna-seca/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "laguna-seca-s",
+    "track": "laguna-seca",
+    "layout": "short",
+    "layoutName": "Short",
+    "name": "WeatherTech Raceway Laguna Seca",
+    "source": "Parent circuit names on shared corners; sequential numbering",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Corkscrew",
+        "direction": "left",
+        "group": "Corkscrew"
+      },
+      {
+        "number": 5,
+        "name": "Corkscrew",
+        "direction": "right",
+        "group": "Corkscrew"
+      },
+      {
+        "number": 6,
+        "name": "Rainey Curve",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s8",
+          "startFrac": 0,
+          "endFrac": 0.0973
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0973,
+          "endFrac": 0.1908
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1908,
+          "endFrac": 0.2439
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2439,
+          "endFrac": 0.3754
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3754,
+          "endFrac": 0.4614
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.4614,
+          "endFrac": 0.5508
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.5508,
+          "endFrac": 0.6139
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.6139,
+          "endFrac": 0.6659
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6659,
+          "endFrac": 0.7451
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7451,
+          "endFrac": 0.8395
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.8395,
+          "endFrac": 0.9189
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.9189,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

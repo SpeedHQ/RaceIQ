@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "canadian-tire-motorsports-park/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 144,
+      "confirmation": null
+    }
+  ]
+}

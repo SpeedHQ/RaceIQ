@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "winton-motor-raceway/national-circuit",
+  "name": "National Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 439,
+      "confirmation": null
+    }
+  ]
+}

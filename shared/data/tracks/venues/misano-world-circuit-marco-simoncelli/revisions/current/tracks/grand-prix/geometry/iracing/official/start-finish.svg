@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Start_Finish" data-name="EXAMPLE - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <polygon class="cls-1" points="1163.22 601.6 1179.39 575.65 1089.79 624.35 1191.23 613.86 1163.22 601.6"/>
+  <rect class="cls-1" x="1120.79" y="534.77" width="6.35" height="44.45" transform="translate(-115.68 365.07) rotate(-17.56)"/>
+</svg>

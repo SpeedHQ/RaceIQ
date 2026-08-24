@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-spa-francorchamps/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 17,
+      "confirmation": null
+    }
+  ]
+}

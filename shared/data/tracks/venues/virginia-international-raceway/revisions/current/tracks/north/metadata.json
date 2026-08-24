@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/north",
+  "name": "North",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 991,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 467,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "vir-n",
+    "track": "vir",
+    "layout": "north",
+    "layoutName": "North",
+    "name": "Virginia International Raceway",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Horseshoe",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "NASCAR Bend",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Left Hook",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "Roller Coaster",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 15,
+        "name": "Hog Pen",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.0601
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0601,
+          "endFrac": 0.1443
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1443,
+          "endFrac": 0.1869
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1869,
+          "endFrac": 0.2618
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2618,
+          "endFrac": 0.2979
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2979,
+          "endFrac": 0.3514
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3514,
+          "endFrac": 0.3897
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.3897,
+          "endFrac": 0.4475
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4475,
+          "endFrac": 0.5316
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5316,
+          "endFrac": 0.5682
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5682,
+          "endFrac": 0.6031
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6031,
+          "endFrac": 0.6454
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6454,
+          "endFrac": 0.6599
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.6599,
+          "endFrac": 0.6779
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6779,
+          "endFrac": 0.7107
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.7107,
+          "endFrac": 0.7587
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7587,
+          "endFrac": 0.7889
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.7889,
+          "endFrac": 0.8629
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.8629,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

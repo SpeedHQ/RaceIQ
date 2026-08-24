@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Turns" data-name="EXAMPLE - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <g id="Long">
+    <text class="cls-2" transform="translate(512.25 824)"><tspan x="0" y="0">1</tspan></text>
+    <text class="cls-2" transform="translate(288.79 689.6)"><tspan x="0" y="0">2</tspan></text>
+    <text class="cls-2" transform="translate(286.79 610.94)"><tspan x="0" y="0">3</tspan></text>
+    <text class="cls-2" transform="translate(476.12 715.6)"><tspan x="0" y="0">4</tspan></text>
+    <text class="cls-2" transform="translate(960 703.72)"><tspan x="0" y="0">5</tspan></text>
+    <text class="cls-2" transform="translate(966.79 517.51)"><tspan x="0" y="0">6</tspan></text>
+    <text class="cls-2" transform="translate(835.18 500.9)"><tspan x="0" y="0">7</tspan></text>
+    <text class="cls-2" transform="translate(659.89 363.75)"><tspan x="0" y="0">8</tspan></text>
+    <text class="cls-2" transform="translate(1291.46 124.33)"><tspan x="0" y="0">9</tspan></text>
+    <text class="cls-2" transform="translate(1239.76 236.23)"><tspan x="0" y="0">10</tspan></text>
+    <text class="cls-2" transform="translate(1120.55 343.75)"><tspan class="cls-1" x="0" y="0">1</tspan><tspan x="17.35" y="0">1</tspan></text>
+    <text class="cls-2" transform="translate(1211.89 441.42)"><tspan x="0" y="0">12</tspan></text>
+    <text class="cls-2" transform="translate(1480.44 241.47)"><tspan x="0" y="0">13</tspan></text>
+    <text class="cls-2" transform="translate(1559.23 614.33)"><tspan x="0" y="0">14</tspan></text>
+    <text class="cls-2" transform="translate(1747.23 846.08)"><tspan x="0" y="0">15</tspan></text>
+  </g>
+</svg>

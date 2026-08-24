@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "thompson-speedway-motorsports-park/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 161,
+      "confirmation": null
+    }
+  ]
+}

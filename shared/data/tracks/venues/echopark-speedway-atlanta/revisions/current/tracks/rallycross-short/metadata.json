@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "echopark-speedway-atlanta/rallycross-short",
+  "name": "Rallycross Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 322,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "chicago-street-course/prototype",
+  "name": "Prototype",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 405,
+      "confirmation": null
+    }
+  ]
+}

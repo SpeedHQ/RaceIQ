@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "hockenheimring/porsche-experience-center-outer",
+  "name": "Porsche Experience Center - Outer",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 429,
+      "confirmation": null
+    }
+  ]
+}

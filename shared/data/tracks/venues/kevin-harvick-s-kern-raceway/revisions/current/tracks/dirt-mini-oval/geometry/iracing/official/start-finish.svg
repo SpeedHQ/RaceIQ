@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Dirt_Mini_-_Start_Finish" data-name="Dirt Mini - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <g id="Start_Finish_Line" data-name="Start / Finish Line">
+    <polygon class="cls-1" points="351.11 543.53 327.11 612.89 343.62 598.35 355.63 616.79 351.11 543.53"/>
+    <rect class="cls-1" x="381.27" y="563.05" width="7.2" height="50.38" transform="translate(-243.79 902.79) rotate(-83.39)"/>
+  </g>
+</svg>

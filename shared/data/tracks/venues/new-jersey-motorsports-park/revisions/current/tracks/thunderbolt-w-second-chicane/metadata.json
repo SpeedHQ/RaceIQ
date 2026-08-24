@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "new-jersey-motorsports-park/thunderbolt-w-second-chicane",
+  "name": "Thunderbolt w/second chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 224,
+      "confirmation": null
+    }
+  ]
+}

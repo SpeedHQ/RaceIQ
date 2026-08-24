@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "motorland-aragon/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 476,
+      "confirmation": null
+    }
+  ]
+}

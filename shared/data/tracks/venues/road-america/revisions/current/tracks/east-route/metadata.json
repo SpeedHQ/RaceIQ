@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "id": "road-america/east-route",
+  "name": "East Route",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 5,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "road-america-s",
+    "track": "road-america",
+    "layout": "east",
+    "layoutName": "East Route",
+    "name": "Road America",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s4",
+          "startFrac": 0,
+          "endFrac": 0.134
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.134,
+          "endFrac": 0.2297
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.2297,
+          "endFrac": 0.276
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.276,
+          "endFrac": 0.3677
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.3677,
+          "endFrac": 0.6958
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.6958,
+          "endFrac": 0.7695
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.7695,
+          "endFrac": 0.8361
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.8361,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

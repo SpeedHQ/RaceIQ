@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/2008/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 27,
+      "confirmation": null
+    }
+  ]
+}

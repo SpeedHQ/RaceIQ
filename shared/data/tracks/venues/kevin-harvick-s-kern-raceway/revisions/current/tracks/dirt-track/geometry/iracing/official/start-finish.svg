@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Dirt_-_Start_Finish" data-name="Dirt - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <g id="Start_Finish_Line" data-name="Start / Finish Line">
+    <rect class="cls-1" x="417.83" y="537.46" width="7.2" height="50.38" transform="translate(-177.56 930.61) rotate(-84.73)"/>
+    <polygon class="cls-1" points="386.62 518.75 364.26 588.65 380.43 573.72 392.87 591.88 386.62 518.75"/>
+  </g>
+</svg>

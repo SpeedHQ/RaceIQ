@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "pocono-raceway/2009/international",
+  "name": "International",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 140,
+      "confirmation": null
+    }
+  ]
+}

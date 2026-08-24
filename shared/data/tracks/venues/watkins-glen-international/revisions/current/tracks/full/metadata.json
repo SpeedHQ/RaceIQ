@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "id": "watkins-glen-international/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 870,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 30,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 22,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 434,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "watkins-glen",
+    "track": "watkins-glen",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Watkins Glen International",
+    "source": "Official circuit map (long course with Boot, 11 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "The 90",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "The Esses",
+        "direction": "right",
+        "group": "The Esses"
+      },
+      {
+        "number": 3,
+        "covers": [
+          4
+        ],
+        "name": "",
+        "direction": "right",
+        "group": "The Esses"
+      },
+      {
+        "number": 5,
+        "name": "Inner Loop",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Outer Loop",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "The Toe",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "The Boot",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "Back Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3234,
+        "s2End": 0.7628,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0323
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0323,
+          "endFrac": 0.0929
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0929,
+          "endFrac": 0.1582
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.1582,
+          "endFrac": 0.204
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.204,
+          "endFrac": 0.3222
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3222,
+          "endFrac": 0.3971
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3971,
+          "endFrac": 0.4763
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4763,
+          "endFrac": 0.5647
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5647,
+          "endFrac": 0.7628
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7628,
+          "endFrac": 0.8355
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8355,
+          "endFrac": 0.8998
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8998,
+          "endFrac": 0.9519
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9519,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3251,
+        "s2End": 0.7702,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.028
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.028,
+          "endFrac": 0.0935
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0935,
+          "endFrac": 0.124
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.124,
+          "endFrac": 0.1573
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1573,
+          "endFrac": 0.3375
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3375,
+          "endFrac": 0.4016
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.4016,
+          "endFrac": 0.4267
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4267,
+          "endFrac": 0.4795
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4795,
+          "endFrac": 0.5644
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5644,
+          "endFrac": 0.7702
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7702,
+          "endFrac": 0.8318
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8318,
+          "endFrac": 0.9053
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.9053,
+          "endFrac": 0.9638
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9638,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3009,
+        "s2End": 0.7648,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0287
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0287,
+          "endFrac": 0.0982
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0982,
+          "endFrac": 0.1342
+        },
+        {
+          "key": "t3-4",
+          "startFrac": 0.1342,
+          "endFrac": 0.1548
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.1548,
+          "endFrac": 0.1607
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1607,
+          "endFrac": 0.2008
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2008,
+          "endFrac": 0.3721
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3721,
+          "endFrac": 0.4801
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4801,
+          "endFrac": 0.5447
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5447,
+          "endFrac": 0.5635
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5635,
+          "endFrac": 0.7648
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7648,
+          "endFrac": 0.8322
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8322,
+          "endFrac": 0.9016
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.9016,
+          "endFrac": 0.9558
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9558,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

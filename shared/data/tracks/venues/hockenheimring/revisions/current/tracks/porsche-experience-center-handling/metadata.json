@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "hockenheimring/porsche-experience-center-handling",
+  "name": "Porsche Experience Center - Handling",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 431,
+      "confirmation": null
+    }
+  ]
+}

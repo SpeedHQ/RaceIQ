@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lucas-oil-indianapolis-raceway-park/rallycross",
+  "name": "Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 304,
+      "confirmation": null
+    }
+  ]
+}

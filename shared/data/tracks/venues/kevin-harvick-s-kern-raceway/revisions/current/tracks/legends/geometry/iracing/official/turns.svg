@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Legends_-_Turns" data-name="Legends - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 40.39px;
+      }
+    </style>
+  </defs>
+  <text class="cls-1" transform="translate(1178.25 610.4)"><tspan x="0" y="0">1</tspan></text>
+  <text class="cls-1" transform="translate(935 612.62)"><tspan x="0" y="0">4</tspan></text>
+  <text class="cls-1" transform="translate(1177.08 549.84)"><tspan x="0" y="0">2</tspan></text>
+  <text class="cls-1" transform="translate(935 549.84)"><tspan x="0" y="0">3</tspan></text>
+</svg>

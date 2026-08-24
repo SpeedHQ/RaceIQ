@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "id": "indianapolis-motor-speedway/the-brickyard-speedway",
+  "name": "The Brickyard Speedway",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 231,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 453,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "indianapolis-oval",
+    "track": "indianapolis",
+    "layout": "oval",
+    "layoutName": "The Brickyard Speedway",
+    "name": "Indianapolis Motor Speedway",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s4",
+          "startFrac": 0,
+          "endFrac": 0.0431
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0431,
+          "endFrac": 0.1465
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1465,
+          "endFrac": 0.2063
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2063,
+          "endFrac": 0.3345
+        },
+        {
+          "key": "s2",
+          "startFrac": 0.3345,
+          "endFrac": 0.5527
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.5527,
+          "endFrac": 0.6507
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.6507,
+          "endFrac": 0.6912
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.6912,
+          "endFrac": 0.8362
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.8362,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zolder/alternate",
+  "name": "Alternate",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 200,
+      "confirmation": null
+    }
+  ]
+}

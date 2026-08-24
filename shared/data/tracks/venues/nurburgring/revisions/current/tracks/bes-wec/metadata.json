@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/bes-wec",
+  "name": "BES/WEC",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 255,
+      "confirmation": null
+    }
+  ]
+}

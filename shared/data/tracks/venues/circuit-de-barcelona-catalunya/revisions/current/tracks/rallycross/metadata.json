@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-barcelona-catalunya/rallycross",
+  "name": "Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 386,
+      "confirmation": null
+    }
+  ]
+}

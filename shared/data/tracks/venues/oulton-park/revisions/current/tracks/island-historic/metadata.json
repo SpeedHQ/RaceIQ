@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oulton-park/island-historic",
+  "name": "Island Historic",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 187,
+      "confirmation": null
+    }
+  ]
+}

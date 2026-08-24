@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "new-jersey-motorsports-park/thunderbolt",
+  "name": "Thunderbolt",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 220,
+      "confirmation": null
+    }
+  ]
+}

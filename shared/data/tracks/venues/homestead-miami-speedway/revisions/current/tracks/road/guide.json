@@ -1,0 +1,52 @@
+{
+  "id": "homestead",
+  "locale": "en",
+  "character": "Road course built in the infield and banking of Homestead-Miami Speedway, mixing tight infield technical corners with fast sweepers. No widely-documented corner names exist for this layout, so turns are numbered generically.",
+  "sources": "https://www.racingcircuits.info/north-america/usa/homestead-miami-speedway.html ; https://www.iracing.com/tracks/homestead-miami-speedway/ No community-established corner names were found for this road course layout — generic Turn-N labels used deliberately.",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "fast sweeper off the front straight",
+      "technique": "Commit with smooth steering, carry speed into the infield",
+      "trap": "Over-slowing and giving up momentum early in the lap"
+    },
+    {
+      "key": "turn-3",
+      "name": "Turn 3",
+      "numbers": [
+        3
+      ],
+      "type": "tight technical infield corner",
+      "technique": "Patient braking, low-speed precision",
+      "trap": "Carrying too much speed in and running out of track"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "numbers": [
+        6
+      ],
+      "type": "tight infield corner",
+      "technique": "Firm braking, late apex, prioritise a clean exit",
+      "trap": "Early apex compromises the exit and the following section"
+    },
+    {
+      "key": "turn-10",
+      "name": "Turn 10",
+      "numbers": [
+        10
+      ],
+      "type": "fast sweeper leading toward the oval banking rejoin",
+      "technique": "Commit through the corner, use the banking to carry speed",
+      "trap": "Hesitating on the merge back onto the banking costs significant time"
+    }
+  ],
+  "priorityCorners": [
+    "turn-1",
+    "turn-10"
+  ]
+}

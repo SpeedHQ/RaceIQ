@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "id": "autodromo-hermanos-rodriguez/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 19,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 572,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "mexico-city",
+    "track": "mexico-city",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Autodromo Hermanos Rodriguez",
+    "source": "Official F1 track map (17 turns); Foro Sol stadium section",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "Foro Sol",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "covers": [
+          16,
+          17
+        ],
+        "name": "Peraltada",
+        "direction": "right"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "Back Straight"
+      },
+      {
+        "after": 15,
+        "name": "Start/Finish",
+        "group": "Start/Finish"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.302,
+        "s2End": 0.69
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.2503
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.2503,
+          "endFrac": 0.2955
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2955,
+          "endFrac": 0.3111
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3111,
+          "endFrac": 0.3456
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.3456,
+          "endFrac": 0.4454
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4454,
+          "endFrac": 0.4897
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.4897,
+          "endFrac": 0.5143
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.5143,
+          "endFrac": 0.5738
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5738,
+          "endFrac": 0.6206
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6206,
+          "endFrac": 0.6436
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6436,
+          "endFrac": 0.6781
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6781,
+          "endFrac": 0.7125
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7125,
+          "endFrac": 0.7413
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.7413,
+          "endFrac": 0.817
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.817,
+          "endFrac": 0.8733
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8733,
+          "endFrac": 0.9021
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.9021,
+          "endFrac": 0.9235
+        },
+        {
+          "key": "t15-16-17",
+          "startFrac": 0.9235,
+          "endFrac": 0.9582
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9582,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "watkins-glen-international/classic",
+  "name": "Classic",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 432,
+      "confirmation": null
+    }
+  ]
+}

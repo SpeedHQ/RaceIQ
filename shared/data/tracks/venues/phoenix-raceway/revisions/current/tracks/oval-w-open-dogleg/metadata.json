@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "phoenix-raceway/oval-w-open-dogleg",
+  "name": "Oval w/open dogleg",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 419,
+      "confirmation": null
+    }
+  ]
+}

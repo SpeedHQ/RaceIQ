@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "id": "grand-oak-raceway/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 1631,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "grand-oak-s",
+    "track": "grand-oak",
+    "layout": "club",
+    "layoutName": "Club",
+    "name": "Grand Oak Raceway",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s7",
+          "startFrac": 0,
+          "endFrac": 0.0674
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0674,
+          "endFrac": 0.203
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.203,
+          "endFrac": 0.3491
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3491,
+          "endFrac": 0.4292
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4292,
+          "endFrac": 0.5211
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5211,
+          "endFrac": 0.6092
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6092,
+          "endFrac": 0.752
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.752,
+          "endFrac": 0.7954
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.7954,
+          "endFrac": 0.9134
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.9134,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

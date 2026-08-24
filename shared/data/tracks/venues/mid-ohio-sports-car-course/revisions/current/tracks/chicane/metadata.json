@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mid-ohio-sports-car-course/chicane",
+  "name": "Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 154,
+      "confirmation": null
+    }
+  ]
+}

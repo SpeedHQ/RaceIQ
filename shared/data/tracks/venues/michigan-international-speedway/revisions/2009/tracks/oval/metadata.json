@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "michigan-international-speedway/2009/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 124,
+      "confirmation": null
+    }
+  ]
+}

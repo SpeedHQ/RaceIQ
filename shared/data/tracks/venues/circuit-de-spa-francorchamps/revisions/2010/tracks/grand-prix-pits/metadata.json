@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-de-spa-francorchamps/2010/grand-prix-pits",
+  "name": "Grand Prix Pits",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 163,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Bike_Turns" data-name="Bike Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-2 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <text class="cls-2" transform="translate(334.71 274.15)"><tspan x="0" y="0">1</tspan></text>
+  <text class="cls-2" transform="translate(645.85 97.16)"><tspan x="0" y="0">2</tspan></text>
+  <text class="cls-2" transform="translate(728.2 136.13)"><tspan x="0" y="0">3</tspan></text>
+  <text class="cls-2" transform="translate(814.87 86)"><tspan x="0" y="0">4</tspan></text>
+  <g id="_5" data-name="5">
+    <text class="cls-2" transform="translate(1521.82 242.49)"><tspan x="0" y="0">5</tspan></text>
+  </g>
+  <g id="_6" data-name="6">
+    <text class="cls-2" transform="translate(1590.18 244.72)"><tspan x="0" y="0">6</tspan></text>
+  </g>
+  <g id="_7" data-name="7">
+    <text class="cls-2" transform="translate(1641.87 333.57)"><tspan x="0" y="0">7</tspan></text>
+  </g>
+  <g id="_8" data-name="8">
+    <text class="cls-2" transform="translate(1662.65 586.11)"><tspan x="0" y="0">8</tspan></text>
+  </g>
+  <g id="_9" data-name="9">
+    <text class="cls-2" transform="translate(1584.69 467.67)"><tspan x="0" y="0">9</tspan></text>
+  </g>
+  <g id="_10" data-name="10">
+    <text class="cls-2" transform="translate(1281.84 376.33)"><tspan x="0" y="0">10</tspan></text>
+  </g>
+  <g id="_11" data-name="11">
+    <text class="cls-2" transform="translate(1225.86 451.68)"><tspan class="cls-1" x="0" y="0">1</tspan><tspan x="17.35" y="0">1</tspan></text>
+  </g>
+  <g id="_12" data-name="12">
+    <text class="cls-2" transform="translate(1324.41 700.33)"><tspan x="0" y="0">12</tspan></text>
+  </g>
+  <g id="_13" data-name="13">
+    <text class="cls-2" transform="translate(1348.92 792.04)"><tspan x="0" y="0">13</tspan></text>
+  </g>
+  <g id="_14" data-name="14">
+    <text class="cls-2" transform="translate(1332.73 944.05)"><tspan x="0" y="0">14</tspan></text>
+  </g>
+  <g id="_15" data-name="15">
+    <text class="cls-2" transform="translate(1246.75 980.13)"><tspan x="0" y="0">15</tspan></text>
+  </g>
+  <g id="_16" data-name="16">
+    <text class="cls-2" transform="translate(1058.75 586.67)"><tspan x="0" y="0">16</tspan></text>
+  </g>
+  <g id="_17" data-name="17">
+    <text class="cls-2" transform="translate(952.92 467.6)"><tspan x="0" y="0">17</tspan></text>
+  </g>
+  <g id="_18" data-name="18">
+    <text class="cls-2" transform="translate(691.2 321)"><tspan x="0" y="0">18</tspan></text>
+  </g>
+  <g id="_19" data-name="19">
+    <text class="cls-2" transform="translate(594.42 321.91)"><tspan x="0" y="0">19</tspan></text>
+  </g>
+  <g id="Eau_Rouge" data-name="Eau Rouge">
+    <text class="cls-2" transform="translate(564.48 55.91)"><tspan x="0" y="0">Eau Rouge</tspan></text>
+  </g>
+  <g id="Raidillon">
+    <text class="cls-2" transform="translate(762.95 155.35)"><tspan x="0" y="0">Raidillon</tspan></text>
+  </g>
+  <g id="Kemmel_Straight" data-name="Kemmel Straight">
+    <text class="cls-2" transform="translate(1236.61 109.02)"><tspan x="0" y="0">Kemmel Straight</tspan></text>
+  </g>
+  <g id="Les_Combes" data-name="Les Combes">
+    <text class="cls-2" transform="translate(1586.39 203.57)"><tspan x="0" y="0">Les Combes</tspan></text>
+  </g>
+  <g id="Malmedy">
+    <text class="cls-2" transform="translate(1450.42 306.57)"><tspan x="0" y="0">Malmedy</tspan></text>
+  </g>
+  <g id="Rivage">
+    <text class="cls-2" transform="translate(1620.25 623.68)"><tspan x="0" y="0">Rivage</tspan></text>
+  </g>
+  <g id="Pouhon">
+    <text class="cls-2" transform="translate(1246.93 412.35)"><tspan x="0" y="0">Pouhon</tspan></text>
+  </g>
+  <g id="Fagnes">
+    <text class="cls-2" transform="translate(1205.62 740.02)"><tspan x="0" y="0">Fagnes</tspan></text>
+  </g>
+  <g id="Curve_Paul_Frere" data-name="Curve Paul Frere">
+    <text class="cls-2" transform="translate(1144.39 1062.46)"><tspan x="0" y="0">Curve Paul Frere</tspan></text>
+  </g>
+  <g id="Blanchimont">
+    <text class="cls-2" transform="translate(913.49 371.68)"><tspan x="0" y="0">Blanchimont</tspan></text>
+  </g>
+  <g id="Chicane">
+    <text class="cls-2" transform="translate(691.51 284.68)"><tspan x="0" y="0">Chicane</tspan></text>
+  </g>
+  <g id="La_Source" data-name="La Source">
+    <text class="cls-2" transform="translate(213.6 339.68)"><tspan x="0" y="0">La Source</tspan></text>
+  </g>
+</svg>

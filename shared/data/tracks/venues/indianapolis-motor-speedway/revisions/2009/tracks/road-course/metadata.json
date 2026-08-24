@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "indianapolis-motor-speedway/2009/road-course",
+  "name": "Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 134,
+      "confirmation": null
+    }
+  ]
+}

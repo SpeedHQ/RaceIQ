@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "talladega-superspeedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 116,
+      "confirmation": null
+    }
+  ]
+}

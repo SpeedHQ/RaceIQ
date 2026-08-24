@@ -1,0 +1,54 @@
+{
+  "id": "singapore",
+  "locale": "en",
+  "character": "Longest, most physically demanding street circuit on the calendar, raced at night under floodlights. Bumpy, narrow, and wall-lined — high downforce and total concentration are essential; the safety-car rate here is the highest on the calendar.",
+  "sources": "https://www.formula1.com/en/racing/2026/singapore/circuit — deliberately generic Turn-N labels; layout has changed materially between seasons (see comment above)",
+  "notes": "Corner names/numbers omitted deliberately — layout has changed materially between seasons (notably the 2023 removal of the Turn 16-19 chicane); only generic T# labels used here to avoid citing a sequence that may no longer exist. Character description sourced from widely-reported circuit characteristics (Driver61, F1 official circuit guide).",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "heavy-braking corner off the front straight",
+      "technique": "Brake hard, late apex, prioritise a clean exit for the technical section that follows",
+      "trap": "Over-braking and getting out of position for the tight sequence ahead"
+    },
+    {
+      "key": "turn-7",
+      "name": "Turn 7",
+      "numbers": [
+        7
+      ],
+      "type": "tight, technical street corner",
+      "technique": "Patient, precise inputs — mechanical grip matters more than commitment here",
+      "trap": "Clipping a wall from an over-ambitious line"
+    },
+    {
+      "key": "turn-14",
+      "name": "Turn 14",
+      "numbers": [
+        14
+      ],
+      "type": "medium-speed corner in the middle sector",
+      "technique": "Late apex, smooth throttle application on the bumpy surface",
+      "trap": "Bumps unsettling the car mid-corner and causing a wide exit"
+    },
+    {
+      "key": "turn-18",
+      "name": "Turn 18",
+      "numbers": [
+        18
+      ],
+      "type": "final-sector corner onto the run to the line",
+      "technique": "Prioritise a clean exit — feeds the final part of the lap",
+      "trap": "Compromised exit here costs time over the remainder of the lap"
+    }
+  ],
+  "priorityCorners": [
+    "turn-1",
+    "turn-7",
+    "turn-18"
+  ]
+}

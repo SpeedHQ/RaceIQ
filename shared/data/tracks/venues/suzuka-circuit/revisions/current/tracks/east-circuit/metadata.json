@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "suzuka-circuit/east-circuit",
+  "name": "East Circuit",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 38,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "okayama-international-circuit/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 167,
+      "confirmation": null
+    }
+  ]
+}

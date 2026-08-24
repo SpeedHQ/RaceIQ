@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "indianapolis-motor-speedway/2009/nascar-oval",
+  "name": "NASCAR Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 133,
+      "confirmation": null
+    }
+  ]
+}

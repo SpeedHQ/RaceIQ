@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/2000-short",
+  "name": "2000 Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 326,
+      "confirmation": null
+    }
+  ]
+}

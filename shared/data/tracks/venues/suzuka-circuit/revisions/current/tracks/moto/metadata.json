@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "suzuka-circuit/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 173,
+      "confirmation": null
+    }
+  ]
+}

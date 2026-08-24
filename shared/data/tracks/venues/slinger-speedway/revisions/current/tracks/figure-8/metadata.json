@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "slinger-speedway/figure-8",
+  "name": "Figure 8",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 506,
+      "confirmation": null
+    }
+  ]
+}

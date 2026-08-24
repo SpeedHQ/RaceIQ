@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-internacional-do-algarve/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 511,
+      "confirmation": null
+    }
+  ]
+}

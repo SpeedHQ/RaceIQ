@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/road-course",
+  "name": "Road Course",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 840,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 192,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "daytona",
+    "track": "daytona",
+    "layout": "sports-car",
+    "layoutName": "Sports Car",
+    "name": "Daytona International Speedway",
+    "source": "IMSA road course landmarks, sequential numbering of detected corners",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "International Horseshoe",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "West Horseshoe",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "NASCAR 1-2 Banking",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "Bus Stop",
+        "direction": "left",
+        "group": "Bus Stop"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right",
+        "group": "Bus Stop"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left",
+        "group": "Bus Stop"
+      },
+      {
+        "number": 11,
+        "name": "NASCAR 3-4 Banking",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 7,
+        "name": "Backstretch"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3464,
+        "s2End": 0.6953,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.026
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.026,
+          "endFrac": 0.097
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.097,
+          "endFrac": 0.1134
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1134,
+          "endFrac": 0.1415
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1415,
+          "endFrac": 0.1887
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.1887,
+          "endFrac": 0.2197
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2197,
+          "endFrac": 0.2789
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2789,
+          "endFrac": 0.3464
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3464,
+          "endFrac": 0.3949
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.3949,
+          "endFrac": 0.6386
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.6386,
+          "endFrac": 0.6751
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6751,
+          "endFrac": 0.6953
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6953,
+          "endFrac": 0.7272
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7272,
+          "endFrac": 0.8818
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.8818,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "summit-point-raceway/jefferson-circuit",
+  "name": "Jefferson Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 8,
+      "confirmation": null
+    }
+  ]
+}

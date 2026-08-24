@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lanier-national-speedway/asphalt",
+  "name": "Asphalt",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 17,
+      "confirmation": null
+    }
+  ]
+}

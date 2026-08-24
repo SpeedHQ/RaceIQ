@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "silverstone-racing-circuit/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 14,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Lime Rock School - Start/Finish Line" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .c {
+        fill: none;
+        stroke: #d82520;
+        stroke-linecap: round;
+        stroke-miterlimit: 10;
+        stroke-width: 10px;
+      }
+
+      .d {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <line class="c" x1="740.55" y1="1021.07" x2="740.55" y2="960"/>
+  <g id="b" data-name="Start/Finish Link">
+    <path class="d" d="M798.3,899.34l-61.67-.13,13.54,32.06-87.7-37.22,87.86-36.84-13.68,32,61.67.13c2.76,0,5,2.25,4.99,5.01s-2.25,5-5.01,4.99Z"/>
+  </g>
+</svg>

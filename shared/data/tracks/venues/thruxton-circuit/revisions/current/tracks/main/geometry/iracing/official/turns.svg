@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Turns" data-name="EXAMPLE - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        letter-spacing: -.07em;
+      }
+
+      .cls-2 {
+        font-size: 24px;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+      }
+
+      .cls-4 {
+        letter-spacing: -.02em;
+      }
+
+      .cls-3 {
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <text class="cls-3" transform="translate(767.03 156.04)"><tspan x="0" y="0">2</tspan></text>
+  <text class="cls-3" transform="translate(381.68 463)"><tspan x="0" y="0">1</tspan></text>
+  <text class="cls-3" transform="translate(891.57 241.02)"><tspan x="0" y="0">3</tspan></text>
+  <text class="cls-3" transform="translate(999.43 109.61)"><tspan x="0" y="0">4</tspan></text>
+  <text class="cls-3" transform="translate(1335.3 339.67)"><tspan x="0" y="0">5</tspan></text>
+  <text class="cls-3" transform="translate(1580.55 445)"><tspan x="0" y="0">6</tspan></text>
+  <text class="cls-3" transform="translate(1619 755)"><tspan x="0" y="0">7</tspan></text>
+  <text class="cls-3" transform="translate(1347 956.35)"><tspan x="0" y="0">8</tspan></text>
+  <text class="cls-2" transform="translate(361.31 488)"><tspan x="0" y="0">Allard</tspan></text>
+  <text class="cls-2" transform="translate(729.57 122.45)"><tspan x="0" y="0">Campbell</tspan></text>
+  <text class="cls-2" transform="translate(874.15 265.79)"><tspan x="0" y="0">Cobb</tspan></text>
+  <text class="cls-2" transform="translate(966.41 76.65)"><tspan x="0" y="0">Segrave</tspan></text>
+  <text class="cls-2" transform="translate(1309.55 305.54)"><tspan x="0" y="0">Noble</tspan></text>
+  <text class="cls-2" transform="translate(1452.66 445)"><tspan x="0" y="0">Goodwood</tspan></text>
+  <text class="cls-2" transform="translate(1592.01 781.33)"><tspan class="cls-4" x="0" y="0">V</tspan><tspan x="15.57" y="0">illage</tspan></text>
+  <text class="cls-2" transform="translate(1317.58 978.05)"><tspan x="0" y="0">Church</tspan></text>
+  <text class="cls-2" transform="translate(868.25 738.67)"><tspan x="0" y="0">Brooklands</tspan></text>
+  <text class="cls-2" transform="translate(540.67 738.67)"><tspan x="0" y="0">Club</tspan></text>
+  <text class="cls-3" transform="translate(912.5 771.33)"><tspan x="0" y="0">9</tspan></text>
+  <text class="cls-3" transform="translate(597.42 893.58)"><tspan x="0" y="0">10</tspan></text>
+  <text class="cls-3" transform="translate(543.26 769.82)"><tspan class="cls-1" x="0" y="0">1</tspan><tspan x="17.35" y="0">1</tspan></text>
+  <text class="cls-3" transform="translate(450.64 808.99)"><tspan x="0" y="0">12</tspan></text>
+</svg>

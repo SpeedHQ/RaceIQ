@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "shell-v-power-motorsport-park-at-the-bend/sprint-circuit",
+  "name": "Sprint Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 545,
+      "confirmation": null
+    }
+  ]
+}

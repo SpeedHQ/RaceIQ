@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lanier-national-speedway/dirt",
+  "name": "Dirt",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 288,
+      "confirmation": null
+    }
+  ]
+}

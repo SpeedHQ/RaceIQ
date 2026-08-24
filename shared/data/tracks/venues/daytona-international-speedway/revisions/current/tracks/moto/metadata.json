@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 193,
+      "confirmation": null
+    }
+  ]
+}

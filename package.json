@@ -43,6 +43,8 @@
     "extract:tracks:ac-evo": "bun scripts/games/ac-evo/extract-tracks.ts",
     "tracks:segments": "bun scripts/tracks/generate-track-segments.ts",
     "tracks:coverage": "bun scripts/tracks/track-coverage.ts",
+    "tracks:registry": "bun scripts/tracks/build-track-registry.ts",
+    "tracks:registry:check": "bun scripts/tracks/build-track-registry.ts --check",
     "extract:cars:ac-evo": "bun scripts/games/ac-evo/extract-cars.ts",
     "laps:export": "bun scripts/data/export-laps.ts",
     "laps:import": "bun scripts/data/import-laps.ts",

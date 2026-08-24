@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "myrtle-beach-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 286,
+      "confirmation": null
+    }
+  ]
+}

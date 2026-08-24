@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sonoma-raceway/indycar-2012-2018",
+  "name": "Indycar 2012-2018",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 565,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "portland-international-raceway/no-chicane",
+  "name": "No Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 537,
+      "confirmation": null
+    }
+  ]
+}
