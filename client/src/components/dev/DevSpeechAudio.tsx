@@ -83,5 +83,28 @@ export function useDevSpeechAudio(spotter: boolean) {
     void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
     return promise;
   };
-  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine, playQwenClip };
+  const playQwenSegments = (id: string, segmentIds: string[]): Promise<void> => {
+    stop();
+    const clips = segmentIds.map((segmentId) => catalog?.qwenClips.find((clip) => clip.segmentId === segmentId)).filter((clip): clip is SpeechQwenClip => clip !== undefined);
+    if (clips.length !== segmentIds.length) {
+      setResult({ error: "Qwen audio clip unavailable", segmentIds });
+      return Promise.resolve();
+    }
+    setPlaying(id);
+    const audios = clips.map((clip) => new Audio(clip.url));
+    audioRef.current = audios;
+    const { promise, resolve } = Promise.withResolvers<void>();
+    let index = 0;
+    const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
+    const playNext = () => {
+      const audio = audios[index];
+      if (!audio) { finish(); return; }
+      audio.onended = () => { index += 1; playNext(); };
+      audio.onerror = () => { setResult({ error: "Qwen audio clip failed to load", clip: clips[index]?.segmentId }); finish(); };
+      void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
+    };
+    playNext();
+    return promise;
+  };
+  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine, playQwenClip, playQwenSegments };
 }

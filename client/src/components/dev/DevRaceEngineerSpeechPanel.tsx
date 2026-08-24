@@ -58,12 +58,13 @@ export function DevRaceEngineerSpeechPanel() {
       : await renderPace(example.relation, example.scope);
     audio.setResult(rendered);
     if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
+    const segmentIds = segmentIdsFor(rendered);
+    if (!segmentIds) return;
     if (source === "qwen") {
-      await audio.playFullLine(`qwen-sentence-${example.id}`, example.id);
+      await audio.playQwenSegments(`qwen-sentence-${example.id}`, segmentIds);
       return;
     }
-    const segmentIds = segmentIdsFor(rendered);
-    if (segmentIds) await audio.playSegments(`omnivoice-sentence-${example.id}`, segmentIds);
+    await audio.playSegments(`omnivoice-sentence-${example.id}`, segmentIds);
   };
   return <div className="h-full overflow-y-auto p-6">
     <div className="mt-6 flex flex-wrap items-end gap-2"><select aria-label="Relation" value={relation} onChange={(event) => setRelation(event.target.value as (typeof relations)[number])}>{relations.map((item) => <option key={item}>{item}</option>)}</select><select aria-label="Voice mode" value={voiceMode} onChange={(event) => setVoiceMode(event.target.value as "automatic" | "exact-response") }><option value="automatic">Automatic</option><option value="exact-response">Exact pace</option></select><label className="flex flex-col gap-1 text-xs text-app-text-muted">Sample delta (ms)<input aria-label="Sample delta (ms)" type="number" min="1" step="100" value={sampleDeltaMs} onChange={(event) => setSampleDeltaMs(Math.max(1, Number(event.target.value) || 1))} className="h-9 w-32 rounded border border-app-border bg-app-surface px-2 text-sm text-app-text" /><span>{sampleDeltaText(sampleDeltaMs)}</span></label><Button onClick={() => void previewPace()}>Preview pace</Button><Button onClick={audio.stop}>Stop</Button></div>
