@@ -1170,6 +1170,7 @@ export class LiveTelemetryPipeline {
     this._stagedTimelineEvents.length = 0;
     this._stagedTimelineLapLinks.length = 0;
     this._stagedLapSavedActions.length = 0;
+    this._stagedCompletedRunLaps.clear();
     try {
       await detector.feed(packet, rawByteOffset);
     } catch (error) {
@@ -1180,6 +1181,7 @@ export class LiveTelemetryPipeline {
       this._stagedTimelineEvents.length = 0;
       this._stagedTimelineLapLinks.length = 0;
       this._stagedLapSavedActions.length = 0;
+      this._stagedCompletedRunLaps.clear();
       throw error;
     }
 
@@ -1223,7 +1225,17 @@ export class LiveTelemetryPipeline {
     const timelineSessionId =
       detector.session?.sessionId ?? this._recordingSession?.sessionId;
     if (timelineSessionId != null && this._stagedTimelineEvents.length > 0) {
-      await detector.waitForPendingLapWrites?.(timelineSessionId);
+      try {
+        await detector.waitForPendingLapWrites?.(timelineSessionId);
+      } catch (error) {
+        this._timelineEventsStaged = false;
+        this._pendingTimelinePreflight = null;
+        this._stagedTimelineEvents.length = 0;
+        this._stagedTimelineLapLinks.length = 0;
+        this._stagedLapSavedActions.length = 0;
+        this._stagedCompletedRunLaps.clear();
+        throw error;
+      }
     }
     const lapSavedActions = this._stagedLapSavedActions.splice(0);
     const afterPersist =

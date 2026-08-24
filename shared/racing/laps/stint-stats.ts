@@ -61,19 +61,42 @@ export function repeatabilityStats(values: readonly number[]): {
 }
 
 /**
- * Stint-level pace stats from policy-eligible, included laps.
- * Explicit classification avoids guessing that lowest lap number is an out lap.
+ * Stint-level pace stats. Existing callers use validity and explicit out-lap
+ * curation; canonical session runs opt into policy-backed eligibility.
  */
 export function stintStats(
   laps: LapMeta[],
-  paceSegmentOrOptions?: string | null | { dropOutLap?: boolean },
+  options: {
+    dropOutLap?: boolean;
+    paceSegmentId?: string | null;
+  } = {},
 ): StintStats {
-  const paceSegmentId =
-    typeof paceSegmentOrOptions === "string" ? paceSegmentOrOptions : null;
-  const scored = laps.flatMap((lap) => {
-    const normalPace = resolveEligibilityDecision(lap, "normal-pace");
-    return Number.isFinite(lap.lapTime) && lap.lapTime > 0 && isEligibilityUsable(normalPace) && !lap.experimentExcluded ? [{ lap, normalPace }] : [];
-  });
+  const policyBacked = options.paceSegmentId !== undefined;
+  const eligible = policyBacked
+    ? laps.flatMap((lap) => {
+        const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+        return Number.isFinite(lap.lapTime) &&
+          lap.lapTime > 0 &&
+          isEligibilityUsable(normalPace) &&
+          !lap.experimentExcluded
+          ? [{ lap, normalPace }]
+          : [];
+      })
+    : laps
+        .filter((lap) => lap.isValid && !lap.experimentExcluded)
+        .map((lap) => ({
+          lap,
+          normalPace: resolveEligibilityDecision(lap, "normal-pace"),
+        }));
+  const dropOutLap = options.dropOutLap ?? !policyBacked;
+  const firstLapNumber =
+    dropOutLap && eligible.length > 0
+      ? Math.min(...eligible.map(({ lap }) => lap.lapNumber))
+      : null;
+  const scored =
+    firstLapNumber === null
+      ? eligible
+      : eligible.filter(({ lap }) => lap.lapNumber !== firstLapNumber);
   const falloffDecision = evaluateGroupEligibility(
     "stint-falloff",
     scored.flatMap(({ lap, normalPace }) =>
@@ -88,7 +111,7 @@ export function stintStats(
           ]
         : [],
     ),
-    { paceSegmentId },
+    { paceSegmentId: options.paceSegmentId ?? null },
   );
   const repeatability = repeatabilityStats(scored.map(({ lap }) => lap.lapTime));
   const n = repeatability.n;
@@ -105,7 +128,7 @@ export function stintStats(
   const consistency = repeatability.consistency === null ? undefined : repeatability.consistency;
 
   let degSlopeSPerLap: number | undefined;
-  if (n >= 3 && isEligibilityUsable(falloffDecision)) {
+  if (n >= 3 && (!policyBacked || isEligibilityUsable(falloffDecision))) {
     const xs = scoredQualifying.map((l) => l.lapNumber);
     const xMean = xs.reduce((a, b) => a + b, 0) / n;
     const yMean = meanS;

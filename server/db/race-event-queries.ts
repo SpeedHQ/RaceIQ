@@ -32,14 +32,12 @@ import {
   type SessionRunLapMembership,
 } from "../../shared/racing/runs/contracts";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
-import {
-  appendSessionRunArtifactsInTransaction,
-  SessionRunConflictError,
-} from "./session-run-queries";
+import { appendSessionRunArtifactsInTransaction } from "./session-run-queries";
 import { db } from "./index";
 import {
   compareAnalyses,
   lapAnalyses,
+  lapMetrics,
   laps,
   raceEvents,
   sessionRuns,
@@ -111,6 +109,7 @@ export interface RaceEventLapLink {
 }
 
 export type ReplayableLapReplacement = Omit<typeof laps.$inferInsert, "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"> & {
+  id?: number;
   lapNumber: number;
   lapTime: number;
 };
@@ -583,7 +582,17 @@ function assertReplacementOrder(events: readonly RaceEvent[]): void {
 function assertReplacementLaps(lapRows: readonly ReplayableLapReplacement[] | undefined): void {
   if (lapRows == null) return;
   const lapNumbers = new Set<number>();
+  const lapIds = new Set<number>();
   for (const lap of lapRows) {
+    if (lap.id != null) {
+      if (!Number.isSafeInteger(lap.id) || lap.id <= 0) {
+        throw new Error("Replacement lap IDs must be positive safe integers");
+      }
+      if (lapIds.has(lap.id)) {
+        throw new Error(`Replacement lap ID ${lap.id} is duplicated`);
+      }
+      lapIds.add(lap.id);
+    }
     if (!Number.isSafeInteger(lap.lapNumber) || lap.lapNumber < 0) {
       throw new Error("Replacement laps require a non-negative integer lap number");
     }
@@ -767,9 +776,8 @@ async function replaceReplayableSessionArtifactsInTransaction(
   for (const run of runArtifacts.runs) {
     const previous = existingRunById.get(run.runId);
     if (!previous || previous.contentHash === run.contentHash) continue;
-    if (previous.algorithmVersion === run.algorithmVersion) {
-      throw new SessionRunConflictError(run.runId);
-    }
+    // A complete replay generation is authoritative even when semantic inputs
+    // changed without an algorithm-version bump.
     conflictCount += 1;
   }
   const eventsToInsert = events.filter((event) => !retainedById.has(event.eventId));
@@ -806,15 +814,38 @@ async function replaceReplayableSessionArtifactsInTransaction(
         .where(or(inArray(compareAnalyses.lapAId, oldLapIds), inArray(compareAnalyses.lapBId, oldLapIds)))
         .run();
       await tx.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, oldLapIds)).run();
+      await tx.delete(lapMetrics).where(inArray(lapMetrics.lapId, oldLapIds)).run();
     }
-    await tx.delete(laps).where(eq(laps.sessionId, input.sessionId)).run();
+    const preservedLapIds = input.laps.flatMap(({ id }) => id == null ? [] : [id]);
+    if (preservedLapIds.length === 0) {
+      await tx.delete(laps).where(eq(laps.sessionId, input.sessionId)).run();
+    } else {
+      await tx
+        .delete(laps)
+        .where(and(
+          eq(laps.sessionId, input.sessionId),
+          notInArray(laps.id, preservedLapIds),
+        ))
+        .run();
+    }
     for (const replacement of input.laps) {
-      const inserted = await tx
-        .insert(laps)
-        .values({ ...replacement, sessionId: input.sessionId })
-        .returning({ id: laps.id, lapNumber: laps.lapNumber })
-        .get();
-      lapIdsByNumber.set(inserted.lapNumber, inserted.id);
+      const { id, ...values } = replacement;
+      const persisted = id == null
+        ? await tx
+            .insert(laps)
+            .values({ ...values, sessionId: input.sessionId })
+            .returning({ id: laps.id, lapNumber: laps.lapNumber })
+            .get()
+        : await tx
+            .update(laps)
+            .set(values)
+            .where(and(eq(laps.id, id), eq(laps.sessionId, input.sessionId)))
+            .returning({ id: laps.id, lapNumber: laps.lapNumber })
+            .get();
+      if (!persisted) {
+        throw new Error(`Replacement lap ${id ?? values.lapNumber} does not belong to session ${input.sessionId}`);
+      }
+      lapIdsByNumber.set(persisted.lapNumber, persisted.id);
     }
     for (const [lapNumber, lapId] of lapIdsByNumber) {
       await tx

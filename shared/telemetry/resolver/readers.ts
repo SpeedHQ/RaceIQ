@@ -36,6 +36,11 @@ const WHEEL_SOURCE_KEY_ALIASES: Readonly<Record<string, string>> = {
   RL: "LR",
   RR: "RR",
 };
+const PIT_STATUS_CODES: Readonly<Record<string, number>> = {
+  out: 0,
+  pit_lane: 1,
+  in_pit: 2,
+};
 
 function sourcesForOrderingKey(keyedSources: Record<string, readonly string[]>, key: string): readonly string[] | undefined {
   return keyedSources[key] ?? keyedSources[WHEEL_SOURCE_KEY_ALIASES[key]];
@@ -66,6 +71,19 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
         const value = sourceValue(frame, source);
         if (typeof value === "number" && Number.isFinite(value)) {
           return setReading(reading, context, mapping, source, value, Math.max(0, Math.min(1, value)));
+        }
+      }
+      return undefined;
+    };
+  }
+  if (variable.id === "race.pit-status" && nativeUnit === "text") {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value !== "string") continue;
+        const normalized = PIT_STATUS_CODES[value.trim().toLowerCase()];
+        if (normalized !== undefined) {
+          return setReading(reading, context, mapping, source, value, normalized);
         }
       }
       return undefined;

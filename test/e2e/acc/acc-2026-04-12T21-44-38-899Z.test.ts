@@ -9,7 +9,7 @@ const recordingFile = "acc-2026-04-12T21-44-38-899Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
 
 describe(recordingFile, () => {
-  test("pit-only opening segment discarded, outlap is lap 0", async () => {
+  test("pit-only opening segment is discarded and outlap pace stays separate from validity", async () => {
     if (!existsSync(recording)) return;
 
     const { laps, rawPackets } = await parseDump("acc", recording);
@@ -21,9 +21,14 @@ describe(recordingFile, () => {
     // 3 laps: outlap + valid + incomplete (pit-only opening segment discarded)
     expect(laps.length).toBe(3);
 
-    // Lap 0: outlap (was lap 1 before the pit-only opening segment was discarded)
-    expect(laps[0].isValid).toBe(false);
-    expect(laps[0].invalidReason).toBe("outlap");
+    // Outlap remains telemetry-valid while pace classification excludes it.
+    expect(laps[0]).toMatchObject({
+      lapNumber: 1,
+      isValid: true,
+      invalidReason: null,
+      phase: "out",
+      paceEligibility: "excluded",
+    });
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
     assertBrandHatchSectorBounds(laps[0]);
 

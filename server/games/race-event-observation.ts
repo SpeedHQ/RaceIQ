@@ -7,10 +7,6 @@ import type {
   RaceParticipantObservation,
 } from "./types";
 
-function finite(value: number): number | null {
-  return Number.isFinite(value) ? value : null;
-}
-
 function nonNegative(value: number): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
@@ -85,7 +81,7 @@ export function baseRaceEventObservation(
       Number.isFinite(packet.LastLap) && packet.LastLap >= 0
         ? packet.LastLap * 1000
         : null,
-    trackDistanceM: finite(packet.DistanceTraveled),
+    trackDistanceM: nonNegative(packet.DistanceTraveled),
     trackDistancePct: null,
     worldPosition: normalizedWorldPosition(packet),
     sessionPhase: packet.IsRaceOn === 0 ? "inactive" : "unknown",

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
-import { queryKeys } from "@/hooks/query-keys";
+import { qualityUpdatedQueryKeys, queryKeys } from "@/hooks/query-keys";
 import { exportLapsZip } from "@/lib/lap-export";
 import { bestSectorLapIds } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
@@ -144,7 +144,11 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 const response = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await response.json();
                 console.log("[Recheck]", data);
-                await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+                await Promise.all(
+                  qualityUpdatedQueryKeys(session.id).map((queryKey) =>
+                    queryClient.invalidateQueries({ queryKey }),
+                  ),
+                );
                 setContextMenu(null);
               }}
             >

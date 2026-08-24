@@ -6,6 +6,7 @@ import {
 } from "../../shared/racing/runs/contracts";
 import {
   isComparableSessionRunQueryKey,
+  qualityUpdatedQueryKeys,
   queryKeys,
   sessionRunsUpdatedQueryKeys,
 } from "../src/hooks/query-keys";
@@ -71,5 +72,17 @@ describe("session run websocket invalidation", () => {
       isComparableSessionRunQueryKey(queryKeys.sessionRunLaps(runId)),
     ).toBe(false);
     expect(queryKeys.driverStintPages).toEqual(["driver-stints"]);
+  });
+
+  test("invalidates run summaries when lap quality changes", () => {
+    expect(qualityUpdatedQueryKeys(42, "acc")).toContainEqual(
+      queryKeys.sessionRunPages,
+    );
+    expect(qualityUpdatedQueryKeys(42, "acc")).toContainEqual(
+      queryKeys.sessionRunDetails,
+    );
+    expect(qualityUpdatedQueryKeys(42, "acc")).toContainEqual(
+      queryKeys.driverStintPages,
+    );
   });
 });
