@@ -131,6 +131,25 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     outputName: "snapshot-AnalyseDataPanelParity.png",
     viewport: { width: 1080, height: 800 },
   },
+  {
+    name: "AnalyseVizPanel3D",
+    id: "screens-analysevizpanel--three-d",
+    outputName: "snapshot-AnalyseVizPanel3D.png",
+    viewport: { width: 1080, height: 800 },
+  },
+  {
+    name: "AnalyseVizPanel3DViewMenuOpen",
+    id: "screens-analysevizpanel--three-d-view-menu-open",
+    outputName: "snapshot-AnalyseVizPanel3DViewMenuOpen.png",
+    viewport: { width: 1080, height: 800 },
+    readyRole: "menu",
+  },
+  {
+    name: "AnalyseTrackPanel",
+    id: "screens-analysevizpanel--track-display",
+    outputName: "snapshot-AnalyseTrackPanel.png",
+    viewport: { width: 1080, height: 800 },
+  },
 ];
 export const CORE_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
 export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...CORE_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];
