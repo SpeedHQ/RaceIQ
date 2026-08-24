@@ -135,10 +135,9 @@ export function deriveSessionRunSummary({
   if (normalPaceTimes.length < 2) limitations.add("repeatability_unavailable");
 
   const repeatability = repeatabilityStats(normalPaceTimes);
-  const statistics = stintStats(
-    lapMetadata,
-    runKind === "pace" ? runId : null,
-  );
+  const statistics = stintStats(lapMetadata, {
+    paceSegmentId: runKind === "pace" ? runId : null,
+  });
   const falloffLaps = laps.flatMap((lap) => {
     if (!lap.quality || lap.lapTimeMs == null || lap.lapTimeMs <= 0) return [];
     const normalPace = resolveEligibilityDecision(lap, "normal-pace");

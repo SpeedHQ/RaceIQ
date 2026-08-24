@@ -203,7 +203,7 @@ function withUnique<T>(values: readonly T[], value: T): T[] {
 function cloneState(state: BuilderState): BuilderState {
   return {
     revision: state.revision,
-    consumedEvents: state.consumedEvents,
+    consumedEvents: new Map(state.consumedEvents),
     participants: new Map(
       [...state.participants].map(([key, participant]) => [
         key,
@@ -392,6 +392,9 @@ export class SessionRunBuilder {
 
     const prepared = preprocess(unseen);
     for (const event of prepared.events) {
+      next.consumedEvents.set(event.eventId, event);
+    }
+    for (const event of prepared.events) {
       const currentEpoch = next.epochs.get(event.sessionId);
       if (currentEpoch != null && event.timelineEpoch > currentEpoch) {
         this.closeLowerEpochs(next, artifacts, event);
@@ -403,13 +406,7 @@ export class SessionRunBuilder {
       this.reduceEvent(next, artifacts, event, input, prepared);
     }
     next.revision = baseRevision + 1;
-    return this.preparedUpdate(
-      baseRevision,
-      next,
-      artifacts,
-      true,
-      prepared.events,
-    );
+    return this.preparedUpdate(baseRevision, next, artifacts, true);
   }
 
   finalize(input: SessionRunFinalization = {}): PreparedSessionRunUpdate {
@@ -429,6 +426,12 @@ export class SessionRunBuilder {
       memberships: [],
       evidence: [],
     };
+    const finalizedSessionIds = new Set<number>();
+    for (const event of next.consumedEvents.values()) {
+      if (input.sessionId == null || event.sessionId === input.sessionId) {
+        finalizedSessionIds.add(event.sessionId);
+      }
+    }
     const reason: SessionRunBoundaryReason =
       input.reason === "session-ended" ? "session_ended" : "source_ended";
     for (const [key, accumulator] of [...next.accumulators]) {
@@ -449,7 +452,11 @@ export class SessionRunBuilder {
         [],
       );
     }
+    for (const sessionId of finalizedSessionIds) {
+      this.evictSessionState(next, sessionId);
+    }
     if (
+      finalizedSessionIds.size === 0 &&
       artifacts.runs.length === 0 &&
       next.accumulators.size === this.state.accumulators.size
     ) {
@@ -476,7 +483,6 @@ export class SessionRunBuilder {
     next: BuilderState,
     artifacts: PreparedArtifacts,
     changed: boolean,
-    consumedEvents: readonly RaceEvent[] = [],
   ): PreparedSessionRunUpdate {
     let committed = false;
     const openRuns = [...next.accumulators.values()].map(({ open }) =>
@@ -494,9 +500,6 @@ export class SessionRunBuilder {
         }
         committed = true;
         if (changed) {
-          for (const event of consumedEvents) {
-            next.consumedEvents.set(event.eventId, event);
-          }
           this.state = next;
         }
       },
@@ -1118,6 +1121,31 @@ export class SessionRunBuilder {
       if (accumulator.open.sessionId !== event.sessionId) continue;
       this.closeAccumulator(state, artifacts, key, accumulator, reason, event, []);
     }
+    this.evictSessionState(state, event.sessionId);
+  }
+
+  private evictSessionState(state: BuilderState, sessionId: number): void {
+    for (const [eventId, event] of state.consumedEvents) {
+      if (event.sessionId === sessionId) state.consumedEvents.delete(eventId);
+    }
+    for (const [key, participant] of state.participants) {
+      if (participant.sessionId === sessionId) state.participants.delete(key);
+    }
+    for (const [key, accumulator] of state.accumulators) {
+      if (accumulator.open.sessionId === sessionId) {
+        state.accumulators.delete(key);
+      }
+    }
+    const keyPrefix = `[${sessionId},`;
+    for (const key of state.pendingEvidence.keys()) {
+      if (key.startsWith(keyPrefix)) state.pendingEvidence.delete(key);
+    }
+    for (const key of state.tireState.keys()) {
+      if (key.startsWith(keyPrefix)) state.tireState.delete(key);
+    }
+    state.phases.delete(sessionId);
+    state.epochs.delete(sessionId);
+    state.awaitingRedRestart.delete(sessionId);
   }
 
   private applyPhaseEvent(
@@ -1133,7 +1161,7 @@ export class SessionRunBuilder {
         : previous;
     state.phases.set(event.sessionId, current);
 
-    if (current === "checkered" || current === "finished" || current === "inactive") {
+    if (current === "finished" || current === "inactive") {
       this.closeSession(state, artifacts, event, "session_ended");
       return;
     }

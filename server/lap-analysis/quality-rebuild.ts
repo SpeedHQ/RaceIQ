@@ -4,6 +4,7 @@ import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERS
 import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
+import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { tryGetServerGame } from "../games/registry";
 import { loadRawCaptureIdentity } from "../session-capture/identity";
 
@@ -87,7 +88,11 @@ export async function rebuildSessionEligibility(sessionId: number): Promise<Qual
   if (status.action === "current") return status;
   if (status.action !== "rebuild_eligibility") return status;
   const row = await db.select({ recordingQuality: sessions.recordingQuality }).from(sessions).where(eq(sessions.id, sessionId)).get();
-  if (!row?.recordingQuality) return { ...status, action: "unavailable" };
-  await updateSessionQuality(sessionId, row.recordingQuality);
+  const recordingQuality = row?.recordingQuality;
+  if (!recordingQuality) return { ...status, action: "unavailable" };
+  await db.transaction(async (tx) => {
+    await updateSessionQuality(sessionId, recordingQuality, tx);
+    await rebuildPersistedSessionRuns(sessionId, tx);
+  });
   return getQualityRebuildStatus(sessionId);
 }
