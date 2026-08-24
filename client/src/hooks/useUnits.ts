@@ -12,14 +12,9 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
 /**
  * Centralised unit-conversion hook.
  *
- * Provides:
- * - Labels (speedLabel, tempLabel, distanceLabel)
- * - Converters for non-telemetry data (static car specs, thresholds)
- * - Syncs unit preferences to the telemetry store so live packets
- *   are auto-converted on arrival
- *
- * For telemetry data: use DisplayPacket fields (DisplaySpeed, DisplayTireTemp*)
- * instead of calling these converters manually.
+ * Provides display labels and converters at presentation boundaries.
+ * `temp` and `toTempC` handle source-unit semantic replay frames; canonical
+ * `LiveTelemetryView.temperatureC` values are already Celsius.
  */
 export function useUnits() {
   const { displaySettings } = useSettings();

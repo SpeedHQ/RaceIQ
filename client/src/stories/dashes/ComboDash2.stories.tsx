@@ -3,10 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
 import { useGameStore } from "../../stores/game";
-import { fakeAccPacket, fakeAcEvoPacket, fakeF1Packet, fakeForzaPacket, generateFakeSessionLaps } from "../fakeData";
+import { fakeAccSemanticFixture, fakeAcEvoSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, generateFakeSessionLaps } from "../fakeData";
+import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -16,11 +16,11 @@ const MAX_LAPS = 100;
 
 type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
 
-const PACKETS: Record<Game, TelemetryPacket> = {
-  "fm-2023": fakeForzaPacket,
-  "f1-2025": fakeF1Packet,
-  acc: fakeAccPacket,
-  "ac-evo": fakeAcEvoPacket,
+const VIEWS: Record<Game, LiveTelemetryView> = {
+  "fm-2023": fakeForzaSemanticFixture.view,
+  "f1-2025": fakeF1SemanticFixture.view,
+  acc: fakeAccSemanticFixture.view,
+  "ac-evo": fakeAcEvoSemanticFixture.view,
 };
 
 function withRouter(node: React.ReactNode) {
@@ -48,7 +48,7 @@ interface Args {
 
 function render({ game, lapCount }: Args) {
   const laps = generateFakeSessionLaps(lapCount);
-  const rawPacket = PACKETS[game];
+  const view = VIEWS[game];
   return (
     <QueryClientProvider client={queryClient}>
       <GameIdSync game={game} />
@@ -62,7 +62,7 @@ function render({ game, lapCount }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        {withRouter(<ComboDash2 rawPacket={rawPacket} sessionLaps={laps} />)}
+        {withRouter(<ComboDash2 view={view} sessionLaps={laps} />)}
       </div>
     </QueryClientProvider>
   );
@@ -103,7 +103,7 @@ export const ACEvo: Story = { name: "AC Evo", args: { game: "ac-evo" }, render }
 export const NoData: Story = {
   render: () => (
     <div style={{ width: "100vw", height: "100vh", background: "var(--app-bg)" }}>
-      <ComboDash2 rawPacket={null} sessionLaps={[]} />
+      <ComboDash2 view={null} sessionLaps={[]} />
     </div>
   ),
 };
