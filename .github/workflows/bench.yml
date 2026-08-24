@@ -21,7 +21,7 @@ jobs:
       - 15G
     defaults:
       run:
-        shell: bash
+        shell: powershell
     steps:
       - name: Checkout PR
         uses: actions/checkout@v7
@@ -45,44 +45,58 @@ jobs:
       - name: Run benchmarks on base
         working-directory: base
         run: |
+          $ErrorActionPreference = "Stop"
           bun install --no-save --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           bun run test/benchmarks/pipeline.bench.ts
-          mv bench-results.json ../base-results.json
-          if [ -f test/benchmarks/replay-io.bench.ts ]; then
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item -Force bench-results.json ../base-results.json
+          if (Test-Path test/benchmarks/replay-io.bench.ts) {
             bun scripts/quality/replay-io-bench.ts --output=../base-replay-io-results.json
-          fi
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Run benchmarks on PR
         working-directory: pr
         run: |
+          $ErrorActionPreference = "Stop"
           bun run test/benchmarks/pipeline.bench.ts
-          mv bench-results.json ../pr-results.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item -Force bench-results.json ../pr-results.json
           bun scripts/quality/replay-io-bench.ts --output=../pr-replay-io-results.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compare
         working-directory: pr
         run: |
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --exclude=replay/ --informational > ../microbenchmark-comparison.md
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --title="Replay CPU guardrails" --threshold=10 --p99-threshold=25 > ../replay-comparison.md
-          if [ -f ../base-replay-io-results.json ]; then
-            bun scripts/quality/bench-compare.ts ../base-replay-io-results.json ../pr-replay-io-results.json --threshold=25 --title="Replay I/O benchmark" > ../replay-io-comparison.md
-          else
-            {
-              echo "## Replay I/O benchmark"
-              echo
-              echo "Base commit has no separate replay I/O benchmark. Current report uploaded; report-only comparison starts after this benchmark lands on the base branch."
-            } > ../replay-io-comparison.md
-          fi
-          {
-            cat ../microbenchmark-comparison.md
-            echo
-            cat ../replay-comparison.md
-          } | tee ../comparison.md
-          cat ../comparison.md >> "$GITHUB_STEP_SUMMARY"
-          {
-            echo
-            cat ../replay-io-comparison.md
-          } >> "$GITHUB_STEP_SUMMARY"
+          $ErrorActionPreference = "Stop"
+          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --exclude=replay/ --informational |
+            Set-Content -Encoding utf8 ../microbenchmark-comparison.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --title="Replay CPU guardrails" --threshold=10 --p99-threshold=25 |
+            Set-Content -Encoding utf8 ../replay-comparison.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path ../base-replay-io-results.json) {
+            bun scripts/quality/bench-compare.ts ../base-replay-io-results.json ../pr-replay-io-results.json --threshold=25 --title="Replay I/O benchmark" |
+              Set-Content -Encoding utf8 ../replay-io-comparison.md
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            @(
+              "## Replay I/O benchmark"
+              ""
+              "Base commit has no separate replay I/O benchmark. Current report uploaded; report-only comparison starts after this benchmark lands on base branch."
+            ) | Set-Content -Encoding utf8 ../replay-io-comparison.md
+          }
+          $comparison = @(
+            Get-Content ../microbenchmark-comparison.md
+            ""
+            Get-Content ../replay-comparison.md
+          )
+          $comparison | Set-Content -Encoding utf8 ../comparison.md
+          $comparison
+          $comparison | Add-Content $env:GITHUB_STEP_SUMMARY
+          Add-Content $env:GITHUB_STEP_SUMMARY ""
+          Get-Content ../replay-io-comparison.md | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Post fresh benchmark comment
         working-directory: pr
@@ -91,20 +105,25 @@ jobs:
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          marker='<!-- bench-comparison -->'
-          {
-            echo "$marker"
-            cat ../comparison.md
-          } > ../benchmark-comment.md
+          $ErrorActionPreference = "Stop"
+          @(
+            '<!-- bench-comparison -->'
+            Get-Content ../comparison.md
+          ) | Set-Content -Encoding utf8 ../benchmark-comment.md
 
           # Match screenshot-comment behavior: delete stale reports, then post
           # a fresh comment so the current result appears at the bottom.
-          gh api --paginate "repos/${REPO}/issues/${PR}/comments" \
-            --jq '.[] | select((.body | contains("<!-- bench-comparison -->")) or (.body | startswith("## Bench comparison"))) | .id' |
-            while read -r comment_id; do
-              gh api --method DELETE "repos/${REPO}/issues/comments/${comment_id}"
-            done
-          gh api "repos/${REPO}/issues/${PR}/comments" -F body=@../benchmark-comment.md
+          $commentIds = @(
+            gh api --paginate "repos/$env:REPO/issues/$env:PR/comments" --jq '.[] | select((.body | contains("<!-- bench-comparison -->")) or (.body | startswith("## Bench comparison"))) | .id'
+          )
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($commentId in $commentIds) {
+            if ($commentId) {
+              gh api --method DELETE "repos/$env:REPO/issues/comments/$commentId"
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+          gh api "repos/$env:REPO/issues/$env:PR/comments" -F 'body=@../benchmark-comment.md'
 
       - name: Enforce CPU benchmark guardrails
         working-directory: pr
