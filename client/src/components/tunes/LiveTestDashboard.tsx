@@ -1,4 +1,4 @@
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
+import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
 import { useEffect, useMemo, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
@@ -93,7 +93,6 @@ export function LiveTestDashboard({
   const latestLap = useMemo(() => (sessionLaps.length ? [...sessionLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [sessionLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
-  const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
   const [mapZoom, setMapZoom] = useState(1);
 
   // Canonical live trace for the in-progress lap. Trace carries its simulator
@@ -132,7 +131,7 @@ export function LiveTestDashboard({
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
-  const boundaries = (boundariesRaw as any) ?? null;
+  const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -152,10 +151,9 @@ export function LiveTestDashboard({
               currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
-              trackOverlay={trackOverlay}
+              trackOverlays={DEFAULT_TRACK_OVERLAYS}
               mapZoom={mapZoom}
               onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-              onTrackOverlayCycle={() => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none"))}
               onMapZoomChange={setMapZoom}
               hideSteeringOverlay
               weatherBottomRight
