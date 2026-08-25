@@ -48,6 +48,34 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 5. `server/runtime/websocket-manager.ts` broadcasts live telemetry plus post-commit race-event invalidation messages.
 6. React components render live state from the store. Historical timelines and administrative data come through typed Hono RPC and TanStack Query.
 
+## Evidence and authority hierarchy
+
+RaceIQ preserves a one-way evidence and authority hierarchy:
+
+1. Raw telemetry is source evidence.
+2. Canonical telemetry is normalized evidence.
+3. Events, runs, laps, corners, and segments are durable racing facts.
+4. Findings are deterministic interpretations backed by measurements and exact evidence references.
+5. ML and AI are consumers that explain or prioritize findings. They are never authorities over findings, racing facts, canonical evidence, or raw evidence.
+
+Generated prose must not redefine or overwrite any lower layer. A questionable AI statement must remain traceable through:
+
+```text
+AI statement
+  ↓
+finding
+  ↓
+measurement
+  ↓
+corner / run / lap
+  ↓
+canonical sample range
+  ↓
+raw recording or verified source artifact
+```
+
+When retained raw evidence is unavailable, provenance must identify the verified canonical archive and source limitation used for the rebuild.
+
 ## Persistence and API
 
 `server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `server/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
