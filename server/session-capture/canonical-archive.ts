@@ -56,6 +56,7 @@ const MAX_CANONICAL_ARCHIVE_PACKETS = 500_000;
 const MAX_CANONICAL_PACKET_JSON_BYTES = 256 * 1024;
 const MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_CANONICAL_ARCHIVE_BYTES = 512 * 1024 * 1024;
+const FINALIZED_SOURCE_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 function addPacketJsonBytes(total: number, bytes: number): number {
   const next = total + bytes;
   if (next > MAX_CANONICAL_PACKET_JSON_TOTAL_BYTES) {
@@ -965,8 +966,13 @@ export async function enqueueCanonicalArchiveForSession(
 ): Promise<void> {
   const rawFile = await getSessionRawFile(sessionId, gameId);
   if (!rawFile) return;
+  const knownContentHash =
+    sourceContentHash &&
+    FINALIZED_SOURCE_GENERATION_PATTERN.test(sourceContentHash)
+      ? sourceContentHash
+      : undefined;
   const contentHash =
-    sourceContentHash ?? (await inspectRawCaptureIdentity(rawFile))?.contentHash;
+    knownContentHash ?? (await inspectRawCaptureIdentity(rawFile))?.contentHash;
   if (!contentHash) return;
   await enqueueCanonicalArchiveJob({ sessionId, sourceContentHash: contentHash });
 }

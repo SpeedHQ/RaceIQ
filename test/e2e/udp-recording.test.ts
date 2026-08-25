@@ -69,7 +69,7 @@ describe("UDP recording integration", () => {
           DATA_DIR: dataDir,
           SERVER_PORT,
           UDP_PORT,
-          NODE_ENV: "development",
+          NODE_ENV: "production",
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
