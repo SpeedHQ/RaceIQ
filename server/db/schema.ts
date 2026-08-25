@@ -466,6 +466,7 @@ export const lapAnalyses = sqliteTable(
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		qualityGeneration: text("quality_generation"),
 		qualityPolicyVersion: text("quality_policy_version"),
+		findingGenerationKey: text("finding_generation_key"),
 	},
 	(table) => [unique().on(table.lapId)],
 );
@@ -713,6 +714,7 @@ export const compareAnalyses = sqliteTable(
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		qualityGeneration: text("quality_generation"),
 		qualityPolicyVersion: text("quality_policy_version"),
+		findingGenerationKey: text("finding_generation_key"),
 	},
 	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );

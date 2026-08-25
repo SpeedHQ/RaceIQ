@@ -613,4 +613,123 @@ describe("migration regressions", () => {
     ]);
     client.close();
   });
+
+  test("seeded v59 database upgrades through v61", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 59);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      `INSERT INTO laps (id, session_id, lap_number, lap_time, is_valid, invalid_reason)
+       VALUES (1, 1, 1, 95.5, 0, 'outlap')`,
+    );
+    await client.execute(
+      "INSERT INTO session_results (id, session_id) VALUES (1, 1)",
+    );
+
+    expect(await runMigrations(client, 61)).toBe(2);
+    const upgraded = await client.execute(
+      `SELECT
+         laps.id,
+         laps.phase,
+         laps.pace_eligibility,
+         laps.is_valid,
+         laps.invalid_reason,
+         session_results.processor_version,
+         session_results.event_ids
+       FROM laps
+       JOIN session_results ON session_results.session_id = laps.session_id
+       WHERE laps.id = 1`,
+    );
+    expect(upgraded.rows[0]).toMatchObject({
+      id: 1,
+      phase: "out",
+      pace_eligibility: "excluded",
+      is_valid: 1,
+      invalid_reason: null,
+      processor_version: "race-result-v1",
+      event_ids: "[]",
+    });
+
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (2, 11, 21, 'iracing')",
+    );
+    await client.execute(
+      "INSERT INTO session_results (id, session_id) VALUES (2, 2)",
+    );
+    const currentDefault = await client.execute(
+      "SELECT processor_version FROM session_results WHERE id = 2",
+    );
+    expect(currentDefault.rows[0]?.processor_version).toBe("race-result-v2");
+    client.close();
+  });
+
+  test("seeded v62 database upgrades through v66", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 62);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      `INSERT INTO laps (id, session_id, lap_number, lap_time, is_valid)
+       VALUES (1, 1, 1, 95.5, 1), (2, 1, 2, 94.5, 1)`,
+    );
+    await client.execute(
+      "INSERT INTO lap_analyses (id, lap_id, analysis) VALUES (1, 1, 'seeded lap analysis')",
+    );
+    await client.execute(
+      `INSERT INTO compare_analyses (id, lap_a_id, lap_b_id, kind, analysis)
+       VALUES (1, 1, 2, 'inputs', 'seeded comparison analysis')`,
+    );
+
+    expect(await runMigrations(client, 66)).toBe(4);
+    const lapAnalysis = await client.execute(
+      "SELECT id, lap_id, analysis, finding_generation_key FROM lap_analyses WHERE id = 1",
+    );
+    expect(lapAnalysis.rows[0]).toMatchObject({
+      id: 1,
+      lap_id: 1,
+      analysis: "seeded lap analysis",
+      finding_generation_key: null,
+    });
+    const comparison = await client.execute(
+      `SELECT id, lap_a_id, lap_b_id, kind, analysis, finding_generation_key
+       FROM compare_analyses WHERE id = 1`,
+    );
+    expect(comparison.rows[0]).toMatchObject({
+      id: 1,
+      lap_a_id: 1,
+      lap_b_id: 2,
+      kind: "inputs",
+      analysis: "seeded comparison analysis",
+      finding_generation_key: null,
+    });
+
+    const tables = await client.execute(
+      `SELECT name
+       FROM sqlite_master
+       WHERE type = 'table'
+         AND name IN ('analysis_receipts', 'canonical_archives', 'finding_generations', 'finding_records')
+       ORDER BY name`,
+    );
+    expect(tables.rows.map((row) => String(row.name))).toEqual([
+      "analysis_receipts",
+      "canonical_archives",
+      "finding_generations",
+      "finding_records",
+    ]);
+    const comparisonColumns = await client.execute(
+      "PRAGMA table_info(compare_analyses)",
+    );
+    const comparisonColumnNames = comparisonColumns.rows.map((row) =>
+      String(row.name),
+    );
+    expect(comparisonColumnNames).toContain("finding_generation_key");
+    expect(comparisonColumnNames).not.toContain("request_lap_a_id");
+    expect(comparisonColumnNames).not.toContain("request_lap_b_id");
+    client.close();
+  });
 });

@@ -84,6 +84,32 @@ describe("migrations match schema", () => {
     db.close();
   });
 
+  test("all migration columns exist in schema", () => {
+    const db = new Database(":memory:");
+    applyMigrations(db);
+
+    const unexpected: string[] = [];
+    for (const [tableName, columns] of Object.entries(expectedTables)) {
+      const schemaColumns = new Set(
+        Object.values(columns).map((column) => column.columnName),
+      );
+      for (const columnName of getTableColumns(db, tableName).keys()) {
+        if (!schemaColumns.has(columnName)) {
+          unexpected.push(`${tableName}.${columnName}`);
+        }
+      }
+    }
+
+    if (unexpected.length > 0) {
+      throw new Error(
+        `Schema/migration drift detected! These columns are in migrations.ts but not in schema.ts:\n` +
+        unexpected.map((column) => `  - ${column}`).join("\n") +
+        `\n\nRemove obsolete migration-only columns or add them to schema.ts.`,
+      );
+    }
+    db.close();
+  });
+
   test("migrations apply cleanly in order", () => {
     const db = new Database(":memory:");
     // Should not throw
