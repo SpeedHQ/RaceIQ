@@ -89,6 +89,7 @@ function queueCompile(): void {
 
 async function main(): Promise<void> {
   await ensureCompiled();
+  if (process.argv.includes("--once")) return;
   const watchers: FSWatcher[] = [
     watch(MESSAGES_DIR, { recursive: true }, queueCompile),
     watch(SETTINGS_PATH, queueCompile),

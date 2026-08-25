@@ -1,3 +1,12 @@
+const prepare = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts", "--once"], {
+  cwd: process.cwd(),
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+});
+const prepareExitCode = await prepare.exited;
+if (prepareExitCode !== 0) process.exit(prepareExitCode);
+
 const watcher = Bun.spawn(["bun", "scripts/dev/paraglide-dev.ts"], {
   cwd: process.cwd(),
   stdin: "inherit",
