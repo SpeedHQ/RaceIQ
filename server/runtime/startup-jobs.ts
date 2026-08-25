@@ -198,7 +198,9 @@ export function startCanonicalArchiveJobs(): void {
 }
 
 export function startMaintenanceJobs(): void {
-  startSessionCompressor();
-  if (!IS_E2E) startCanonicalArchiveJobs();
+  if (!IS_E2E) {
+    startSessionCompressor();
+    startCanonicalArchiveJobs();
+  }
   startUpdateCheckSchedule();
 }
