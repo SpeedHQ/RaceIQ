@@ -2,21 +2,20 @@ import type { GameId } from "../../shared/games/ids";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { FindingRecord } from "../../shared/racing/findings/types";
 import { createFindingId } from "../../shared/racing/findings/identity";
-import type { EligibilityDecision, LapQualitySummary } from "../../shared/racing/quality/contracts";
-import { isEligibilitySnapshotCurrent, isEligibilityUsable } from "../../shared/racing/quality/policies";
+import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
+import { isEligibilitySnapshotCurrent, isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { LapQualityResult } from "../lap-analysis/quality";
 import { adaptLapInsightsToFindingBundle, type LapFindingBundle } from "./lap-adapter";
 import { adaptMetricsToFindings } from "./metrics-adapter";
 
-export type LapFindingSource = Omit<LapMeta, "gameId" | "quality"> & {
+export type LapFindingSource = Omit<LapMeta, "gameId"> & {
   gameId: GameId;
-  quality: LapQualitySummary;
   telemetry: ReadonlyArray<{ TimestampMS: number }>;
 };
 
-function restrictInsightFindings(bundle: LapFindingBundle, lap: LapFindingSource, decision: EligibilityDecision | null): LapFindingBundle {
-  if (!decision || decision.status === "eligible") return bundle;
+function restrictInsightFindings(bundle: LapFindingBundle, lap: LapFindingSource, decision: EligibilityDecision): LapFindingBundle {
+  if (decision.status === "eligible") return bundle;
   const usableWithWarning = isEligibilityUsable(decision);
   const sessionId = String(lap.sessionId);
   const lapId = String(lap.id);
@@ -88,6 +87,7 @@ export function buildDeterministicLapFindings(lap: LapFindingSource, insights: r
         }
       : undefined;
   const finalizedEligibility = isEligibilitySnapshotCurrent(lap) ? lap.eligibility : undefined;
+  const cornerTraceEligibility = resolveEligibilityDecision(lap, "corner-trace");
   const insightBundle = restrictInsightFindings(
     adaptLapInsightsToFindingBundle({
       gameId: lap.gameId,
@@ -100,7 +100,7 @@ export function buildDeterministicLapFindings(lap: LapFindingSource, insights: r
       analysisGenerationId,
     }),
     lap,
-    finalizedEligibility?.["corner-trace"] ?? null,
+    cornerTraceEligibility,
   );
 
   return {

@@ -160,6 +160,59 @@ describe("finding contract validation", () => {
     expect(bundle.narratives[0]?.findingIds).toEqual([insight.id]);
   });
 
+  test("makes stale, legacy, missing, and partial eligibility indeterminate", () => {
+    const { finalized, lap } = finalizedLap("eligible");
+    const unknownCornerTrace: EligibilityDecision = {
+      ...finalized.eligibility["corner-trace"],
+      status: "unknown",
+      confidence: { level: "unknown", score: null },
+      reasons: [],
+    };
+    const fixtures = [
+      { name: "stale", lap: { ...lap, qualityStale: true } },
+      {
+        name: "legacy",
+        lap: {
+          ...lap,
+          quality: {
+            ...lap.quality,
+            provenance: { ...lap.quality.provenance, policyVersion: "legacy" },
+          },
+        },
+      },
+      { name: "missing", lap: { ...lap, quality: undefined, eligibility: undefined } },
+      {
+        name: "partial",
+        lap: {
+          ...lap,
+          eligibility: { "corner-trace": unknownCornerTrace } as unknown as NonNullable<typeof lap.eligibility>,
+        },
+      },
+    ];
+
+    for (const fixture of fixtures) {
+      const bundle = buildDeterministicLapFindings(
+        fixture.lap,
+        [
+          {
+            id: "late-throttle",
+            category: "driving",
+            severity: "warning",
+            label: "Late throttle",
+            detail: "Throttle pickup followed rotation",
+            frameIndices: [0],
+          },
+        ],
+        { valid: true, reason: null },
+        "analysis-1",
+      );
+      const insight = bundle.findings.find((candidate) => candidate.type === "lap-insight")!;
+
+      expect([fixture.name, insight.status, insight.confidence]).toEqual([fixture.name, "indeterminate", "unknown"]);
+      expect(validateFinding(insight)).toEqual({ valid: true, errors: [] });
+    }
+  });
+
   test("preserves eligible-with-warning policy evidence and low confidence", () => {
     const { finalized, lap } = finalizedLap("eligible_with_warning");
     const bundle = buildDeterministicLapFindings(
