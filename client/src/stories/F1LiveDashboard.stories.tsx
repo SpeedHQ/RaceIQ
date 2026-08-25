@@ -56,4 +56,4 @@ const meta: Meta<typeof F1LiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof F1LiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

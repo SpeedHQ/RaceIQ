@@ -130,6 +130,23 @@ describe("ACC parser", () => {
     expect(packet!.TirePressureFrontRight).toBeCloseTo(27.6);
   });
 
+  test("marks SDK-reserved tire wear as unavailable", () => {
+    const physics = makePhysicsBuf();
+    physics.writeFloatLE(0.5, PHYSICS.tyreWearFL.offset);
+    physics.writeFloatLE(0.6, PHYSICS.tyreWearFR.offset);
+    physics.writeFloatLE(0.7, PHYSICS.tyreWearRL.offset);
+    physics.writeFloatLE(0.8, PHYSICS.tyreWearRR.offset);
+
+    const packet = parseAccBuffers(physics, makeGraphicsBuf(), makeStaticBuf());
+
+    expect([
+      packet!.TireWearFL,
+      packet!.TireWearFR,
+      packet!.TireWearRL,
+      packet!.TireWearRR,
+    ]).toEqual([-1, -1, -1, -1]);
+  });
+
   test("parseAccBuffers maps fuel correctly", () => {
     const packet = parseAccBuffers(
       makePhysicsBuf({ fuel: 25.5 }),

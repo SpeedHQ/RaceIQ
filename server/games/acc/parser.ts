@@ -144,11 +144,6 @@ export function parseAccBuffers(
     ],
   ];
 
-  // Tire wear (0..1, higher = more worn)
-  const wearFL = physicsBuf.readFloatLE(PHYSICS.tyreWearFL.offset);
-  const wearFR = physicsBuf.readFloatLE(PHYSICS.tyreWearFR.offset);
-  const wearRL = physicsBuf.readFloatLE(PHYSICS.tyreWearRL.offset);
-  const wearRR = physicsBuf.readFloatLE(PHYSICS.tyreWearRR.offset);
 
   // Brake temps (°C)
   const brTempFL = physicsBuf.readFloatLE(PHYSICS.brakeTempFL.offset);
@@ -436,11 +431,12 @@ export function parseAccBuffers(
     NormDrivingLine: 0,
     NormAIBrakeDiff: 0,
 
-    // Tire wear — ACC reports 0..1 (0 = new, 1 = gone), same convention as Forza
-    TireWearFL: wearFL,
-    TireWearFR: wearFR,
-    TireWearRL: wearRL,
-    TireWearRR: wearRR,
+    // ACC Shared Memory reserves tyreWear[4] but marks it unused.
+    // -1 is the canonical unavailable sentinel; never present source zeros as fresh tires.
+    TireWearFL: -1,
+    TireWearFR: -1,
+    TireWearRL: -1,
+    TireWearRR: -1,
 
     SurfaceRumbleFL: 0,
     SurfaceRumbleFR: 0,

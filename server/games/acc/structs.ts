@@ -48,7 +48,7 @@ export const PHYSICS = {
   wheelRotFR:     { offset: 108, type: "f32" },
   wheelRotRL:     { offset: 112, type: "f32" },
   wheelRotRR:     { offset: 116, type: "f32" },
-  // tyreWear[4]
+  // tyreWear[4] — reserved layout; official ACC SDK marks these fields unused
   tyreWearFL:     { offset: 120, type: "f32" },
   tyreWearFR:     { offset: 124, type: "f32" },
   tyreWearRL:     { offset: 128, type: "f32" },

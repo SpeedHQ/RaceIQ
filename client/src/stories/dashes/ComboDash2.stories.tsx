@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import type { GameId } from "../../../../shared/games/ids";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
 import { useGameStore } from "../../stores/game";
-import { fakeAccSemanticFixture, fakeAcEvoSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, generateFakeSessionLaps } from "../fakeData";
+import { fakeAccSemanticFixture, fakeAcEvoSemanticFixture, fakeAllDataTelemetryView, fakeF1SemanticFixture, fakeForzaSemanticFixture, generateFakeSessionLaps } from "../fakeData";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 const queryClient = new QueryClient({
@@ -15,8 +15,10 @@ const queryClient = new QueryClient({
 const MAX_LAPS = 100;
 
 type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
+type Fixture = Game | "all-data";
 
-const VIEWS: Record<Game, LiveTelemetryView> = {
+const VIEWS: Record<Fixture, LiveTelemetryView> = {
+  "all-data": fakeAllDataTelemetryView,
   "fm-2023": fakeForzaSemanticFixture.view,
   "f1-2025": fakeF1SemanticFixture.view,
   acc: fakeAccSemanticFixture.view,
@@ -42,16 +44,15 @@ function GameIdSync({ game }: { game: Game }) {
 }
 
 interface Args {
-  game: Game;
+  game: Fixture;
   lapCount: number;
 }
 
 function render({ game, lapCount }: Args) {
   const laps = generateFakeSessionLaps(lapCount);
-  const view = VIEWS[game];
   return (
     <QueryClientProvider client={queryClient}>
-      <GameIdSync game={game} />
+      {game === "all-data" ? null : <GameIdSync game={game} />}
       <div
         style={{
           position: "relative",
@@ -62,7 +63,7 @@ function render({ game, lapCount }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        {withRouter(<ComboDash2 view={view} sessionLaps={laps} />)}
+        {withRouter(<ComboDash2 view={VIEWS[game]} sessionLaps={laps} />)}
       </div>
     </QueryClientProvider>
   );
@@ -94,6 +95,12 @@ const meta: Meta<Args> = {
 
 export default meta;
 type Story = StoryObj<Args>;
+
+export const AllData: Story = {
+  name: "All Data",
+  args: { game: "all-data", lapCount: 10 },
+  render,
+};
 
 export const FM2023: Story = { name: "FM 2023", args: { game: "fm-2023" }, render };
 export const F12025: Story = { name: "F1 2025", args: { game: "f1-2025" }, render };
