@@ -4,441 +4,441 @@
   "sampleRate": 24000,
   "channels": 1,
   "joinGapMs": -20,
-  "speed": 1.0,
+  "speed": 1.35,
   "trimPaddingMs": 5,
-  "sourceHash": "9366b3b0b7fb4d9637e3308f43814d64baeef57997f20b0b8aaa506bd9b20a66",
+  "sourceHash": "d1a52293a179b8ad8d2b8f8107c84a808310ffe1fcbe3dbb642aad116037f4db",
   "clips": [
     {
       "segmentId": "phrase.fastest.class",
       "spokenText": "Fastest in class.",
       "path": "phrase__fastest__class.flac",
-      "sha256": "e47673b4eb13630266a44a63e99f8605c8abdfedd93819054bf2be8000783e62",
-      "durationMs": 1412,
-      "contentHash": "57782f25df49c4da1a9a40b16e40391546a90fb57d96ffc09c070c334c33b78e"
+      "sha256": "a08fcbb77e3f0797ce154f55129e49db48f0bb1da16e1b55d5356a5ef17fc03c",
+      "durationMs": 1139,
+      "contentHash": "710eb8002774976b6fb066145b41aa3cf5eaf46b3d32e3f7452883af8a6ce4de"
     },
     {
       "segmentId": "phrase.fastest.overall",
       "spokenText": "Fastest overall.",
       "path": "phrase__fastest__overall.flac",
-      "sha256": "2a08761aba684fdcda5f90a3550d77d9708b061e34014a2de0f51cbe3c3ce50d",
-      "durationMs": 1349,
-      "contentHash": "e7b3c793ce2c58c99c171941b08ede84b7a0fa8cfa6bfb34b31ffe391c1470b2"
+      "sha256": "d471906242f319845c4ac29b507d07e250da659d3f097c31e69f5227b27c6d8d",
+      "durationMs": 1130,
+      "contentHash": "3b0954091bc280a4c50e21c696728544bd52d5e8a91ebf1f880511c5d86aad06"
     },
     {
       "segmentId": "phrase.setting-race-pace",
       "spokenText": "You are setting the current race pace.",
       "path": "phrase__setting-race-pace.flac",
-      "sha256": "1c625c1ea31e03bdab3a86566f2df87aaf2f0a6febccafbd44817882ecf5fb17",
-      "durationMs": 1966,
-      "contentHash": "5203386b967bc3b23edd0dfea23cbdc0f56c743e169d5f1967bb26f1c71282f6"
+      "sha256": "7def7ac6d4e91a6bea1be8b4c7133d7e42b91ae93e118a7919ab948606381191",
+      "durationMs": 1624,
+      "contentHash": "759cf571b4baa1d55e64b6759b4bad61b08f52c9169d6d0e62cc52a29351aac1"
     },
     {
       "segmentId": "phrase.within-class-pace",
       "spokenText": "You are",
       "path": "phrase__within-class-pace.flac",
-      "sha256": "cc174ea7c42019b4b4f52400e1dccbcaf854f2ac92fa41ecf7bd88ae1205a5a9",
-      "durationMs": 1092,
-      "contentHash": "cab31d528ae211d70944c84524419f7922268835647dfd67eb7598a1572e397a"
+      "sha256": "72d5a60621beefe59b5607ba3e64fc122ad9da1d7e81d951e7995f004a24c73c",
+      "durationMs": 702,
+      "contentHash": "dd4c6ee5a7d7763b015456f5698a38e7b7d2dbde639e7222ddb0ffa588813462"
     },
     {
       "segmentId": "phrase.off-class-pace",
       "spokenText": "You are",
       "path": "phrase__off-class-pace.flac",
-      "sha256": "cc174ea7c42019b4b4f52400e1dccbcaf854f2ac92fa41ecf7bd88ae1205a5a9",
-      "durationMs": 1092,
-      "contentHash": "e4d70c20d0a1450063c277577bb0ebbd09b43e4f0eacb60c9053213164313a10"
+      "sha256": "72d5a60621beefe59b5607ba3e64fc122ad9da1d7e81d951e7995f004a24c73c",
+      "durationMs": 702,
+      "contentHash": "71cc51810dabe8b296291f5dea93594534952e4dd66cc23876c97037a6296b9c"
     },
     {
       "segmentId": "phrase.outlier-lap",
       "spokenText": "That lap is",
       "path": "phrase__outlier-lap.flac",
-      "sha256": "be1aa7827dc6518ed35062fb9860fa0e910a4a625075faa91cb39005c7c87b4b",
-      "durationMs": 1350,
-      "contentHash": "143a72d2f35211e91f0595082f8bdf5b9c798182eef6a5d87dd7d3a91dbc0187"
+      "sha256": "ae10343a0053269aa5b7f010a629b1867863aafa120844c8c71ae429de1bac6d",
+      "durationMs": 735,
+      "contentHash": "d638627abe99b212e5cc3e5ad9e1de41a0483063be8f350917f986425ce2be57"
     },
     {
       "segmentId": "phrase.scope.class",
       "spokenText": "class pace.",
       "path": "phrase__scope__class.flac",
-      "sha256": "5c6ebdfced79b693033b2675a6e5c113f18ecd8e840f46cff2767db42661e052",
-      "durationMs": 1176,
-      "contentHash": "13b835194c0c661c5fc54282b43a7a700a45c16378b1d275f580d13ff181d918"
+      "sha256": "eac1bbbced5e0f85bbd80e61fbf41a36ecd3911d4b3ec5dff4d10388b3258df7",
+      "durationMs": 914,
+      "contentHash": "14e371f96bc1625eb738701e5e4fab3f8c0776476c16143be56331a2eeb3c331"
     },
     {
       "segmentId": "phrase.scope.overall",
       "spokenText": "overall pace.",
       "path": "phrase__scope__overall.flac",
-      "sha256": "2102db1904b12f9d158416b00c6ae76f72b0bed118f448e2ebf037a2d6120d17",
-      "durationMs": 1287,
-      "contentHash": "788198df10be5400a07a5c4d8cdbfa3f6bdde2d4c0bff5bd277930e1682d2aa9"
+      "sha256": "357f87359284bfe9749c6826634cf808ab579673c28ffdfddad3edb1cd39627b",
+      "durationMs": 728,
+      "contentHash": "99d5473ffa9a9b8cad5efd05a2df42e8458a43ea97e74028a8e3eb50dbc71fff"
     },
     {
       "segmentId": "phrase.from",
       "spokenText": "from",
       "path": "phrase__from.flac",
-      "sha256": "369e59c609e02b9ab85b0c2b4cafe1b01e12d1f7844d1c8ca5e0f7fb0fb2b4ff",
-      "durationMs": 996,
-      "contentHash": "a47a9d2dd6932604f73c4d2d257b72018d89fe9f09bced7cddb60650e1cb2a21"
+      "sha256": "5a3803680fef17e04fd0e48fda2aef8052bb6d73d6d155faddca325e214a6bf7",
+      "durationMs": 526,
+      "contentHash": "19748665d66e323507c039ec37051a845bff567c1bbb27b59a25f1c1c94b842d"
     },
     {
       "segmentId": "phrase.off",
       "spokenText": "off",
       "path": "phrase__off.flac",
-      "sha256": "43447d50478de15bab1ea825a01bd627cf46f916ba3b43e6173efbc64baf1253",
-      "durationMs": 378,
-      "contentHash": "7a9f35b3f0fdf652e3b3e003f6490c1e4c9bec93e3c69060c6daebb31ee9defe"
+      "sha256": "25c9b746f3136bc354a547ce61d8a37f045b9e8bc9a43513e7bcd6b499e2640e",
+      "durationMs": 469,
+      "contentHash": "5a43c20111c412f9b250a6b4f7a980468313a54d00cf1de5ed91333108cbbb37"
     },
     {
       "segmentId": "phrase.exact.intro",
       "spokenText": "The pace is",
       "path": "phrase__exact__intro.flac",
-      "sha256": "30d5739b5e8d70a059c8537e191bdde37868d96a94bda6b9c505b676e60b5eba",
-      "durationMs": 1104,
-      "contentHash": "3151867a6d67888c33df1bc30ffa176cb23a2e34314424ee06c03782b1e2fe45"
+      "sha256": "ab9898d544c53bcabdcb0bfeb1fc83a5eafa27ac5983a7a5c8dc024b692fbff2",
+      "durationMs": 953,
+      "contentHash": "0dbc8b20dae798daf50b170de529b0591dd1fe550016e5d20f4435d0c5fb9f31"
     },
     {
       "segmentId": "phrase.exact.your-lap",
       "spokenText": "Your lap was",
       "path": "phrase__exact__your-lap.flac",
-      "sha256": "5297ce91330f7c7182e7fccdba4c4b5da6ebf0eeb0bfa8274590dd2081664683",
-      "durationMs": 1065,
-      "contentHash": "74de8b3f73df537c8e64a927ee03a1c87a9190ea6b6797ff4b2b4b6ef7946276"
+      "sha256": "d80b59e90ab2db9de409447b4f3a4fd84ddc0a76f72d0c1a818369f60884faa3",
+      "durationMs": 836,
+      "contentHash": "8dfbadf3ea4155abd2a23b4902603203a887eafb94ba6f7065deb620c475ca7e"
     },
     {
       "segmentId": "spotter.car-left",
       "spokenText": "Car left.",
       "path": "spotter__car-left.flac",
-      "sha256": "fb330aa2623378471c6468e8b9ed98601ae2fe2b590dbce987703f4056480255",
-      "durationMs": 1175,
-      "contentHash": "6fb8542477f3b99a1d087d0e4312f50dbe3ead0b1edf4847c141aeb620c0334d"
+      "sha256": "0e0f07964ab452e1b9826813ba65541fb426b200a39d0f4f2084926f6b426a94",
+      "durationMs": 854,
+      "contentHash": "f59e7dfc8d1b071991aebd9733ff4fe83e9bc219168a9f92f07eccac2470eb8c"
     },
     {
       "segmentId": "spotter.car-right",
       "spokenText": "Car right.",
       "path": "spotter__car-right.flac",
-      "sha256": "86d2af206e0889e649482c6bb52a567ae3d8f90baf4eb03e8bdf16dd19c64669",
-      "durationMs": 840,
-      "contentHash": "46bbea47cfc84c074c6e7d515c53694e02c6308a52f1c4174cf5cd340cefb29f"
+      "sha256": "3f841e87e7362f4886059348fd5496dd3648020e859f18ce39e714897a297375",
+      "durationMs": 723,
+      "contentHash": "21be71c23a75934634285eb6571fc3c1d46cd74860ab7d60c48bf35832c01c4d"
     },
     {
       "segmentId": "spotter.still-there",
       "spokenText": "Still there.",
       "path": "spotter__still-there.flac",
-      "sha256": "7d658fc07ed1eee93318b23fedf4f6a840061600ef9b8773a82426b6b49c2751",
-      "durationMs": 1264,
-      "contentHash": "a6151ae8d06307c3c35abbf659fb64217a12cfd3af7ea109cd06f31281e1d540"
+      "sha256": "efc503c15d3cd7ec90533a4552c5440d1891da4a5c568f78ca75501b5d7bb6c2",
+      "durationMs": 810,
+      "contentHash": "410981f06ed556a4b5877afb8816bdbe2a620f6714ea3e608b784852c3be1673"
     },
     {
       "segmentId": "spotter.three-wide-left",
       "spokenText": "Three wide, left.",
       "path": "spotter__three-wide-left.flac",
-      "sha256": "4b0efc59aa3c9aeedde3dacc977ac898ad16513d1e66f9d36fa8a2a9ce7a2bea",
-      "durationMs": 1247,
-      "contentHash": "290450e9c53987ba5f929da09d175a783e74446ee0a330ab1eb24fdf9d9b509d"
+      "sha256": "08c939980c0b4d9a0674a236ca09bab8f6ae4c6ad77583e9d69182e2adb6e1f9",
+      "durationMs": 1049,
+      "contentHash": "edba3b8187c258615ff01578c62b55343f342d87f15db344371432f1aa6e4b03"
     },
     {
       "segmentId": "spotter.three-wide-right",
       "spokenText": "Three wide, right.",
       "path": "spotter__three-wide-right.flac",
-      "sha256": "f241f816eeb49e353deb5c7b8fc85461c06f5651606858acfe8b807be1924aed",
-      "durationMs": 1371,
-      "contentHash": "17961d61f37498cb9460e619588309702837222317a94f8bf4a725f055138b95"
+      "sha256": "f9c00f0439fc579048dbc37d28594e2c5914cfac936e08ea980530494dd65ea9",
+      "durationMs": 889,
+      "contentHash": "f5fb8a36a207d268a22500e98082285a9720366b0e812b7066de461e4cb10a17"
     },
     {
       "segmentId": "spotter.clear-left",
       "spokenText": "Clear left.",
       "path": "spotter__clear-left.flac",
-      "sha256": "e0fc76a08f2956be95e2235048485c8fc8b0c76186fb945c19b8874f5f2889f3",
-      "durationMs": 1304,
-      "contentHash": "e50299193be705f0e79f4ca4281253be15cb5caed534fa5241591c83034fb3c3"
+      "sha256": "ef62016f6dfe3beaee33df23dbe2e233056b47988d3280429c5af1509e8c7c22",
+      "durationMs": 911,
+      "contentHash": "ba284cdec220e81add9b45ea8e948970e213a6461e15c12759a294cfccbe50da"
     },
     {
       "segmentId": "spotter.clear-right",
       "spokenText": "Clear right.",
       "path": "spotter__clear-right.flac",
-      "sha256": "b481953371966793251ccc8901e110266a1b4028e9209d0703d3b9b8f99fc003",
-      "durationMs": 1119,
-      "contentHash": "8cabd1a1d1eae708493d9c91d70186be5ee417f38424ea1fdbb691f5c537a5d8"
+      "sha256": "c9d1b4ef1a72886edff9cc84f1989a38cb4ab66cad7c55a7ade00f08a24fb6aa",
+      "durationMs": 764,
+      "contentHash": "ced01e2584439537bdd60d7fdaf3406f006a799dd827221d7bef020df44e1e9c"
     },
     {
       "segmentId": "unit.second",
       "spokenText": "second",
       "path": "unit__second.flac",
-      "sha256": "aacb1ad18b98b049c4a2fc6eef397540fc37d37dcf57e37e20f423a84e695193",
-      "durationMs": 1045,
-      "contentHash": "7b4e2f2e71d7a9eedf42c01cb96ebb209db173a6241e30898ee3e98406203bdd"
+      "sha256": "0f63eb60ddbc5f080394e034eec7d73cfc0c2aac1886cf6a184408e483922c75",
+      "durationMs": 701,
+      "contentHash": "2d0404bfeb8457234053b3132ee7530342234e478b18fa1cba75250dc8d3ea8e"
     },
     {
       "segmentId": "unit.seconds",
       "spokenText": "seconds",
       "path": "unit__seconds.flac",
-      "sha256": "b0103623f0e05b97c803d9daba5e9b6e7deea96b3c243059278daf6b4276938a",
-      "durationMs": 1162,
-      "contentHash": "fe7286e7550557f84b1499a914d309dc8ae5f00e7adfebee429dfae1aaeecc6b"
+      "sha256": "75a0466d1f83dc3b852c310d32c20e424a457c6872dc625cab6ffcec43b958b2",
+      "durationMs": 811,
+      "contentHash": "5b36321727585741d4e9a7686dc8ad8393cd4cecc341105f0822919ad49ef851"
     },
     {
       "segmentId": "unit.minute",
       "spokenText": "minute",
       "path": "unit__minute.flac",
-      "sha256": "4e72912f1697346d7dd74a2f520282fa7ce0178f4667ed54adf050fa1d6c7065",
-      "durationMs": 931,
-      "contentHash": "46d12d734bfe50035cabb05b3997f7fd3c01ba6f537ae46d3ee06cc3b6f79cdf"
+      "sha256": "93aea3af0edbd1ce15aaed9b7d7bb62ae018ea643b2cfcc1c3e488c646da3ebd",
+      "durationMs": 575,
+      "contentHash": "76b41dd294ce806ca9a9758a5b899e9bae3c46af58f49e8c082f137040c17d16"
     },
     {
       "segmentId": "unit.minutes",
       "spokenText": "minutes",
       "path": "unit__minutes.flac",
-      "sha256": "233adeb6885326870313e46001a18bfa80c2258178420c17cb23835d69ca02b1",
-      "durationMs": 1156,
-      "contentHash": "503951e02158d180c6bb80651759fe2b078ef71bb43d771211002db907bd27c3"
+      "sha256": "d90f4bb816c42b401cdee8b01b3a20a0d6889f6b5d3c0e8e8a827607a8523363",
+      "durationMs": 752,
+      "contentHash": "a9da9c93488dc226cd7261f875204a88c02e1a4c90d5313de9c01d1a773dff48"
     },
     {
       "segmentId": "unit.point",
       "spokenText": "point",
       "path": "unit__point.flac",
-      "sha256": "5d1d8b313125da49ea7a98101d58cca277b63ca508f6b13932b86ba5148bb7d0",
-      "durationMs": 1059,
-      "contentHash": "dfe2a2fcf308c070b271aa82342b28fc9b3009d6a534675f4c343addadfaca6f"
+      "sha256": "d95e0e80c88a7394491385e71d62ef58cf1f8a25be96aa6ee58198b55032f030",
+      "durationMs": 616,
+      "contentHash": "a9c97323037d1311bdb77cbdf62cf8d9b600a1150ffad982ee891afa190c6077"
     },
     {
       "segmentId": "number.zero",
       "spokenText": "zero",
       "path": "number__zero.flac",
-      "sha256": "c62490ba222979f0274b4be23f477fcb4b80b63dda2dc71baf48c108b770fecc",
-      "durationMs": 995,
-      "contentHash": "071d1f5c83ddc9b5da01024e6a56c23330fde8aa36a081c751c88f602127cd47"
+      "sha256": "2ba50f16b479c9a26918acf8ad3628e59db92a9b675d2e9ec473567f498a4d4c",
+      "durationMs": 720,
+      "contentHash": "dc7217720c8bed5abb55310e67a405e3adbcc9c7fb8c598d3dc4dd4848cf4b10"
     },
     {
       "segmentId": "number.one",
       "spokenText": "one",
       "path": "number__one.flac",
-      "sha256": "57a58b1cd155b29245f5aa49fd55282cc48aa820f996534d64b8b711732ba4aa",
-      "durationMs": 520,
-      "contentHash": "3727d1a77a4ff0a5c0a8fb1c278f7d3d1b5941c9b7e661eeaee2931da1957f51"
+      "sha256": "95a82b28c8a8ff0e0ad97ddb6cd683c0c76ab83f9437ce0b1fd5760eac14bbb9",
+      "durationMs": 579,
+      "contentHash": "176ea46a5ba35bf293f98dbc7503b1f20671db90a943d93311c43488f059caa3"
     },
     {
       "segmentId": "number.two",
       "spokenText": "two",
       "path": "number__two.flac",
-      "sha256": "bcd5dcb1eb4dcbb92f146fe5ce522c3351cd1d6da96353ad83e5c25a9d083d5f",
-      "durationMs": 597,
-      "contentHash": "8fa3fcc2a39c4636063e5937d61aad4402d9c4eef22623ef62a23f6989bcedff"
+      "sha256": "090de87474806ce1944f81ecbaced919f9dff9afc1fc90f8a61c459a2d9c1062",
+      "durationMs": 613,
+      "contentHash": "f3ba1aaeafa7b41b4cc39f3de69f0c8ef22ff330bb523ec1ac229018d0a92269"
     },
     {
       "segmentId": "number.three",
       "spokenText": "three",
       "path": "number__three.flac",
-      "sha256": "9c1881cbbbf3e4a8e47ec94f3d9ec849ac25e7a4188449fd121de54defaedc2f",
-      "durationMs": 703,
-      "contentHash": "e4e0b67dfa65e3f6d3910dbd13dcac5bfa760d0428dcb1f4b8d861c0f4c6c738"
+      "sha256": "f835d90c13677a5e2ad9e904f73d172d399eb1509ff133a50ae3a2805a0148b5",
+      "durationMs": 609,
+      "contentHash": "4cc8e46aa288d89e6f7133dae4967403ccc4559b1d39c95d3974e593e02e498e"
     },
     {
       "segmentId": "number.four",
       "spokenText": "four",
       "path": "number__four.flac",
-      "sha256": "7a380f926056fda24069f7075470a331bbc112ed4cc3358c8b2920be166b8738",
-      "durationMs": 799,
-      "contentHash": "2b8f0e13430a7dfc147abae181e995846caa701b3409bafdfb8f29a91aab08b8"
+      "sha256": "867f95fcffcfb311848061e558de04e5ec5f26ee48241adec73350a6a109d905",
+      "durationMs": 624,
+      "contentHash": "b64d2357838661d4c563158e0502b8e8bbf534a71ff26d2c6deb1cf551726a73"
     },
     {
       "segmentId": "number.five",
       "spokenText": "five",
       "path": "number__five.flac",
-      "sha256": "4eb0c0e3069e3d7e6c2e9a2c3031df91b7913fea5c9ecc7c428db3e49d0399e9",
-      "durationMs": 742,
-      "contentHash": "3612c606022d48b966194a48cb355b286edea9bc3dd53a23f0e4005356d072b4"
+      "sha256": "55b2ea46f9d7dd991ee8e62bd43180ad3ba29fadde8c57dc57bf0443ab02bdcf",
+      "durationMs": 575,
+      "contentHash": "649479261781e2343e368e5f7fefeec4b4573546febc818e50a9eb979839ef2f"
     },
     {
       "segmentId": "number.six",
       "spokenText": "six",
       "path": "number__six.flac",
-      "sha256": "6f0015abb4b194158a0449fb9bf05e212ff11c53e65cf86848535ba8ea5e4f10",
-      "durationMs": 785,
-      "contentHash": "dea380c873084dc665d9a9000f6f3d395a1b92830af711cc04494d975fc58ce0"
+      "sha256": "9163448af34c7fc8afa049b2087572466d10b5659c4aeac1a3f48c51a3f9da92",
+      "durationMs": 703,
+      "contentHash": "035aa9b5b62a709bd32f061195c1005895de1fd7164ed442ba3b2dae9c5f6738"
     },
     {
       "segmentId": "number.seven",
       "spokenText": "seven",
       "path": "number__seven.flac",
-      "sha256": "e3b8d3a15f5f207858b94b2a67e4eb0bdcc48dc638dac76c0c60baa1d1b79177",
-      "durationMs": 984,
-      "contentHash": "1eadd53488cf9f1b1f176d5bb49deada066a287e69989f1b2624ecba19c21792"
+      "sha256": "2fec9c0fd92bd9c7a8a4d794afeb04679774d78e3f29923d399e47aada4f603f",
+      "durationMs": 596,
+      "contentHash": "b6e265c6ec9633db1300f345aa0540a6442b7e3656b3b7f4976a97a050f58c2e"
     },
     {
       "segmentId": "number.eight",
       "spokenText": "eight",
       "path": "number__eight.flac",
-      "sha256": "2fdca45ea6ba349ab9ea2c81017d3608257904f0bebc56c763d9e892888b048c",
-      "durationMs": 789,
-      "contentHash": "b54bd4d97a8cfab7ba613d2f11fa28d3ca558642b399eb74695025dea9b2d27f"
+      "sha256": "a69e5ae01853798e78e2a176597cb495683955697f8f31ad5962a29f3d0c9ebb",
+      "durationMs": 404,
+      "contentHash": "60b98741c97d724a631969e15a826720853b83b53e113ac3a1c52347d49b05c8"
     },
     {
       "segmentId": "number.nine",
       "spokenText": "nine",
       "path": "number__nine.flac",
-      "sha256": "9717bf1caa5c775eceaae3cd03f1614973771a7e9faaaebc1757e13136167dac",
-      "durationMs": 898,
-      "contentHash": "af2ab88aeb9ffbe5954f30ca0c479b4f971396b480be91b4a932f6eedd6902b7"
+      "sha256": "cb0deaa30a0ce8445dc895c1ad9524d4520a6c0a1f2cbb919337ae84f7c34eb7",
+      "durationMs": 494,
+      "contentHash": "761e13ae786f1414dc3354aae8dfb6b62134c5680f1ea03df8cd3b9eb9af13cd"
     },
     {
       "segmentId": "number.ten",
       "spokenText": "ten",
       "path": "number__ten.flac",
-      "sha256": "79352c55fe74211822444265f68c984c8221c1b6774d8d45731bb767b19a8c0d",
-      "durationMs": 552,
-      "contentHash": "3685dec07af9056ff3a5c1393f9a2181f815dacc026161dd2ba54f1215d14000"
+      "sha256": "c4ee4a860486ef2040b8f518b953eca4c0ed0d2a7461538e9a9dea34ba375015",
+      "durationMs": 566,
+      "contentHash": "6058ba41dc429d34fe2ffb305a8523ee593cd29471110169e6b8d2f756b37675"
     },
     {
       "segmentId": "number.eleven",
       "spokenText": "eleven",
       "path": "number__eleven.flac",
-      "sha256": "bf00344c2f0b612cc86760807b00c6fd81935718c7ea2ab1c7df7bae6ced98d8",
-      "durationMs": 1152,
-      "contentHash": "303161c89d9ac0acac46ef74154c6b9bfaad4bce495fec2161bcde2861a0a9ca"
+      "sha256": "ae590e93772ed45e56c476be312a9dd8bf1abeb078acaf59d2608c129776f9fd",
+      "durationMs": 570,
+      "contentHash": "9d1694c582405f090f6aba705cf913e80b195a9eaa25c6e9dafa69a9745f22fb"
     },
     {
       "segmentId": "number.twelve",
       "spokenText": "twelve",
       "path": "number__twelve.flac",
-      "sha256": "ef41e5c486ebcce591b24c5d233638b5c40e4c3e8aac6e63332a72a9bf5934ab",
-      "durationMs": 1102,
-      "contentHash": "3c10d622a1e0cba86c1795e0eba1a1f286ef8b9870b5abec4c7111345264447c"
+      "sha256": "0037784ecb2aed7dfeb508c4da320c6c2c2d81c2bb9b80ecee99c8d86277ad29",
+      "durationMs": 689,
+      "contentHash": "a0464d06ca2a2c1a9ce0c3c3e0f9f6f0f39709a345030093215bb32a3289d656"
     },
     {
       "segmentId": "number.thirteen",
       "spokenText": "thirteen",
       "path": "number__thirteen.flac",
-      "sha256": "c76842d748d1a55ad9f2684a4b96a1992eb522666353939c937fba7b540740ec",
-      "durationMs": 1207,
-      "contentHash": "0d49732537aeeb289c7caeca008b3885d57a88a3a3b96743dc42bd8259b17b20"
+      "sha256": "7e5329f366650975fdce14ebbed410b9ccb3e37de4d135641d787ebb7ca819b2",
+      "durationMs": 838,
+      "contentHash": "ad82c21a22d7a6e10f9c7732c1fad9e38bc9bd829c2a31e6d66b7ef50ad1335f"
     },
     {
       "segmentId": "number.fourteen",
       "spokenText": "fourteen",
       "path": "number__fourteen.flac",
-      "sha256": "bc6bdfde79aa633100c626fa112f24a6f64fe2cda32cc257634d1c41f974225a",
-      "durationMs": 1186,
-      "contentHash": "28223180981caff7c2904f42a1e1161dfe22a5bf467c075fa99a90312be19f0b"
+      "sha256": "69e7387ded1bb231025e681e1215c41e71fc062a48ace98c4feeb3060da17397",
+      "durationMs": 857,
+      "contentHash": "ad00e77b3c89bc34ecc452071d57a5c0a3e16a69c4f93559ede2eb52e81f3259"
     },
     {
       "segmentId": "number.fifteen",
       "spokenText": "fifteen",
       "path": "number__fifteen.flac",
-      "sha256": "1e1af65e10ece9905898d72555fa869a80815d29b84a9f53fe075d4bb2ce78f8",
-      "durationMs": 997,
-      "contentHash": "e7c51f00796f2b53ad039f1567a4f3e643fd83cf2a01185e072089de2fc5c32a"
+      "sha256": "2c26a9e4b5f7603a6edb149f00e50971ab982f65e0c4f6c2524d1cfad7a39152",
+      "durationMs": 685,
+      "contentHash": "ef180103526bccd9396b130c44281fc7777b77750c7e8d362bcc450474c32c10"
     },
     {
       "segmentId": "number.sixteen",
       "spokenText": "sixteen",
       "path": "number__sixteen.flac",
-      "sha256": "905637c81b307cc04fec817d24093113b6c957c6bfb7620b7bcf6fe8c792c8f0",
-      "durationMs": 1190,
-      "contentHash": "a2f45a9e845cdfe8f110ce38a91e4ef2e9748a732cebf74f51166f0b67433189"
+      "sha256": "d5592480a4766e7d61e03e338a8db6d6483dd862059927119f5ac2f75111b5e2",
+      "durationMs": 856,
+      "contentHash": "5e54a109cd93bdfbe402b4156ca9465db8bc26783be884f434e9b61e082956c9"
     },
     {
       "segmentId": "number.seventeen",
       "spokenText": "seventeen",
       "path": "number__seventeen.flac",
-      "sha256": "21f77f53d94cd583dde8bd0d0accbeedbd2355021e17eaadae11bb222e9b6b6d",
-      "durationMs": 1267,
-      "contentHash": "941f614a0e333cd67094ca609dd3c3dc6a2cf9c2298ea071749d0e501bfb1819"
+      "sha256": "be0ab9a041df4685274cab9f35ee24f88efa7e83c6662f4b029692ceabf284b6",
+      "durationMs": 866,
+      "contentHash": "917f57339c281d0ec786c415c36435345ad609063db9ba3f205fd4a4efc57066"
     },
     {
       "segmentId": "number.eighteen",
       "spokenText": "eighteen",
       "path": "number__eighteen.flac",
-      "sha256": "3957bcddf1a4d3dc4fa5ed1717fcc8f645ead1a97b97fb9ae0d8dc6071596078",
-      "durationMs": 1196,
-      "contentHash": "7f39fac5a90f4146b9407a41959ff327dea38a35c8d0a64cc7964ce52c279a5a"
+      "sha256": "6d39cd7c03a0a81aad0ce72595618be3b4a617c256520edc93783012f7fedf3b",
+      "durationMs": 517,
+      "contentHash": "d01e1a8c8c32c0f7cf73518d453032a5ba9e3ed2bbf2be3a28f90e538faba931"
     },
     {
       "segmentId": "number.nineteen",
       "spokenText": "nineteen",
       "path": "number__nineteen.flac",
-      "sha256": "7bea6f1fa5d960788276802cfeeadef52b665d1ae1470246be62a25159ae61c1",
-      "durationMs": 1224,
-      "contentHash": "846b6a7b2bda7c6764aaef2373699dd5eaf70b74b649ff920f2c7479a30b66f8"
+      "sha256": "105968c1f977d527f954ce2f931eceeb0be0a7b329b51a624dc4377b6a8e024b",
+      "durationMs": 953,
+      "contentHash": "bbddece21fed529603c82305f8280c0bcd1b7a4b295d4af7d15290f264348f9f"
     },
     {
       "segmentId": "number.twenty",
       "spokenText": "twenty",
       "path": "number__twenty.flac",
-      "sha256": "a51440f59615c5cbf94f01072e67421d29e2b647a8058eec06305d39d76e2889",
-      "durationMs": 1067,
-      "contentHash": "64607cc8102e5978ee6ca1dfa0dda63d3c37e6b7a867e4a255317ff186ba43d5"
+      "sha256": "618e50f9b857a37d6bc3eb52c58b4f04d9b851836f79c5d4232ed4088249cf8e",
+      "durationMs": 662,
+      "contentHash": "5ebd50f4201b9529ecb9bfcaa5098c57c1b74a8563421cfd5e81157a156100f3"
     },
     {
       "segmentId": "number.thirty",
       "spokenText": "thirty",
       "path": "number__thirty.flac",
-      "sha256": "88e953689a32bec294abb548d5609f2c4b09d4bf9f0c70952d28d9a0d5c35c17",
-      "durationMs": 987,
-      "contentHash": "e8b13717e907e04ecb2ed60fb4400b1ffdb3e61fdd2f2dfc84567817f266f1d8"
+      "sha256": "78ea2439c22229775603d37954830e03627af6a17e91787842381f5625406d7c",
+      "durationMs": 597,
+      "contentHash": "e5183d93cd0aab3f3fa7670e1735faae40e9c7ba5844f914b6e25676ad963616"
     },
     {
       "segmentId": "number.forty",
       "spokenText": "forty",
       "path": "number__forty.flac",
-      "sha256": "08d26d5b51e99e5950658a64d2d9d23f6b681fa9a35930ac33bd1ee113fd7975",
-      "durationMs": 998,
-      "contentHash": "49541ff3d6df85f64ff99d75191972ad9d0563980627dac88e12bd5533650ded"
+      "sha256": "43f4747ddac1d0fa03c0302f27eb5e3ef82b23394c4dca6409e041119f7f35d8",
+      "durationMs": 721,
+      "contentHash": "92d94ae6f83dd1abf2c04ca91455044336783f95cbf3c0d4648af57fd2620be8"
     },
     {
       "segmentId": "number.fifty",
       "spokenText": "fifty",
       "path": "number__fifty.flac",
-      "sha256": "6c77bdddbbd1f83b37462f991d12478b861f2f618c42c920f155fa02c61bf7f9",
-      "durationMs": 1080,
-      "contentHash": "84ed25a9e99e9c9e50c9f80abd05794408a02a0deb8944a060c6590d0300385a"
+      "sha256": "3ffa85cf8d63653f0bbf3aff320493a73b460bbe318a611e5c72fd2b9617b9dd",
+      "durationMs": 576,
+      "contentHash": "14c5b9696ed626618fc5fc266ec793277ffc4565d13f82f8d43e86337f04ffa8"
     },
     {
       "segmentId": "number.sixty",
       "spokenText": "sixty",
       "path": "number__sixty.flac",
-      "sha256": "53c7208474eb3e2e4adecf5cbec909eb1bfda203cde69ef6badeb58e40412b07",
-      "durationMs": 1066,
-      "contentHash": "862216555f04f8a8016ca4416af8a1817729dbe5a9ff0a38dc45d23042f9321d"
+      "sha256": "836d855520510bc4c9e44342074883a46f7e7d281d2f0588bc6f05418181884a",
+      "durationMs": 824,
+      "contentHash": "cb4c8e6bf94d3dad48b74d724f3c90c63b9d9597175995a4326cf631633bffe5"
     },
     {
       "segmentId": "number.seventy",
       "spokenText": "seventy",
       "path": "number__seventy.flac",
-      "sha256": "ad3f990150b7521fb40fa035527dc709ba7fafe22db3656996488c65b7acc8b1",
-      "durationMs": 1122,
-      "contentHash": "cd533a95411d9f9297b5973fd5ab9f78704948795cc11d0f81341fc7904d629f"
+      "sha256": "f233fcffecb73f08a839bac9c5a7b46708669727373c8bc7f168bc3e8210071a",
+      "durationMs": 893,
+      "contentHash": "edeb99e57edac03b0e01ccd37b004edc46cc1a62c15ae66836946b36e3f682ab"
     },
     {
       "segmentId": "number.eighty",
       "spokenText": "eighty",
       "path": "number__eighty.flac",
-      "sha256": "0a9cc404031612f7d392fe785930094c3916e4a7e3aa414c8aab5af544ecc323",
-      "durationMs": 334,
-      "contentHash": "266f05e9470e077add50fbb647bc32c86399de14521fcaf782d7dad0c31e33b8"
+      "sha256": "bf7fcd02671a5f71863f7f15947b7bd65205f17c5da20c5d9ace41f0d642cc69",
+      "durationMs": 570,
+      "contentHash": "04a831a3e1962411408ba47dd42236e6bebe0ce1a7e7268f5cc8cf3e2f8d2591"
     },
     {
       "segmentId": "number.ninety",
       "spokenText": "ninety",
       "path": "number__ninety.flac",
-      "sha256": "14dd93407024b9fad108424205bc8de81b202ed178b84e1f0faf50bf280f43f7",
-      "durationMs": 1079,
-      "contentHash": "4ab89f819c066377e570030cff01f3342118ce1815c747d14dfd39e25867ca4f"
+      "sha256": "4488e6724c5dbe79dfa503613998d50b612725daf6b6836b483df73729dc1e92",
+      "durationMs": 841,
+      "contentHash": "a466de88d41b48a76b9ac6db28d8315cd0ed7935a7c1bd358b8f6e2accc84f15"
     },
     {
       "segmentId": "number.hundred",
       "spokenText": "hundred",
       "path": "number__hundred.flac",
-      "sha256": "e54c366d90d40833e16c635dfbb61c7932e8de3cfe3a0cc98c382bf9abd9739a",
-      "durationMs": 1233,
-      "contentHash": "4608d78cf05d7724d6ac2ebc7eb369a9504baa22215edf362aa920cdcdc080c1"
+      "sha256": "ace973ddc67825ac08ac15ac2fb12c6305286d4288d1136135cba1ed1216a001",
+      "durationMs": 481,
+      "contentHash": "76dea0bcffa5a9147e9200ae593aa97f985a1188d7c757237449e6afea74c2d7"
     },
     {
       "segmentId": "number.point",
       "spokenText": "point",
       "path": "number__point.flac",
-      "sha256": "5d1d8b313125da49ea7a98101d58cca277b63ca508f6b13932b86ba5148bb7d0",
-      "durationMs": 1059,
-      "contentHash": "f0b7adef98a4268d09870e7c07edfed0c620d7bac4d17b42d581e2864392829a"
+      "sha256": "d95e0e80c88a7394491385e71d62ef58cf1f8a25be96aa6ee58198b55032f030",
+      "durationMs": 616,
+      "contentHash": "f2d46afad3aa2a1e04f27724b2e45feac292e9b0eec82238fb6cf5a4c6f23bcb"
     }
   ]
 }

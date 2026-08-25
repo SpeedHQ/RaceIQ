@@ -20,8 +20,8 @@ SAMPLE_RATE = 24000
 INSTRUCT = "male, Australian accent"
 DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie-medium.flac"
 LANGUAGE = "en"
-SPEED = 1.0
-NUM_STEPS = 48
+SPEED = 1.35
+NUM_STEPS = 32
 SPEED_OVERRIDES: dict[str, float] = {}
 SEED_OVERRIDES: dict[str, int] = {}
 INSTRUCT_OVERRIDES = {
@@ -31,7 +31,12 @@ INSTRUCT_OVERRIDES = {
 SYNTHESIS_TEXT_OVERRIDES: dict[str, str] = {}
 
 def synthesis_text(segment_id: str, spoken: str) -> str:
-    return SYNTHESIS_TEXT_OVERRIDES.get(segment_id, spoken)
+    text = SYNTHESIS_TEXT_OVERRIDES.get(segment_id, spoken).strip()
+    if not text:
+        return text
+    if text[-1] not in ".!?":
+        text += "."
+    return text[0].upper() + text[1:]
 TRIM_PADDING_MS = 5
 JOIN_GAP_MS = -20
 SEED = int(os.environ.get("LIVE_ENGINEER_SEED", "46"))
@@ -166,9 +171,18 @@ def render(args) -> int:
                 beam_size=5,
                 condition_on_previous_text=False,
                 temperature=0,
+                word_timestamps=True,
             )
             transcript = " ".join(segment.text for segment in segments).strip()
             failure = validate_transcript(segment_id, transcript, spoken)
+            if failure is None:
+                first_word = next((word for segment in segments for word in (segment.words or []) if word.word.strip()), None)
+                if first_word is not None:
+                    onset_failure = validate_pre_speech_energy(audio, first_word.start)
+                    if onset_failure is not None:
+                        onset = max(0, round(first_word.start * SAMPLE_RATE))
+                        audio = trim_normalize(audio[onset:])
+                        sf.write(str(candidate), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
             if failure is None or attempt == attempts - 1:
                 os.replace(candidate, target)
                 if failure is not None:
@@ -193,6 +207,21 @@ def _canonical_tokens(text: str) -> list[str]:
     return [number_aliases.get(token, token) for token in re.findall(r"[a-z']+|\d+", text.lower())]
 
 
+def validate_pre_speech_energy(audio, first_word_start_s: float, sample_rate: int = SAMPLE_RATE) -> str | None:
+    import numpy as np
+    audio = np.asarray(audio, dtype="float32").reshape(-1)
+    prefix_end = max(0, min(len(audio), round(first_word_start_s * sample_rate)))
+    if prefix_end == 0:
+        return None
+    prefix = audio[:prefix_end]
+    peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+    threshold = max(0.003, peak * 0.025)
+    prefix_rms = math.sqrt(float(np.mean(prefix * prefix))) if prefix.size else 0.0
+    full_rms = math.sqrt(float(np.mean(audio * audio))) if audio.size else 0.0
+    if np.any(np.abs(prefix) >= threshold) and prefix_rms >= max(0.003, full_rms * 0.2):
+        return f"pre-speech voiced energy before {first_word_start_s:.3f}s"
+    return None
+
 def validate_transcript(segment_id: str, transcript: str, expected: str) -> str | None:
     actual_tokens = _canonical_tokens(transcript)
     expected_tokens = _canonical_tokens(expected)
@@ -203,21 +232,29 @@ def validate_transcript(segment_id: str, transcript: str, expected: str) -> str 
 def validate_audio_catalog() -> list[str]:
     try:
         from faster_whisper import WhisperModel
+        import soundfile as sf
     except ImportError as exc:
-        return [f"missing faster-whisper: {exc}"]
+        return [f"missing validation dependency: {exc}"]
     model = WhisperModel("base.en", device="cpu", compute_type="int8")
     failures: list[str] = []
     manifest = json.loads(MANIFEST.read_text())
     for clip in manifest.get("clips", []):
+        audio, sample_rate = sf.read(str(OUT / clip["path"]), dtype="float32")
         segments, _ = model.transcribe(
             str(OUT / clip["path"]),
             language="en",
             beam_size=5,
             condition_on_previous_text=False,
             temperature=0,
+            word_timestamps=True,
         )
+        segments = list(segments)
         transcript = " ".join(segment.text for segment in segments).strip()
         failure = validate_transcript(clip["segmentId"], transcript, clip["spokenText"])
+        if failure is None:
+            first_word = next((word for segment in segments for word in (segment.words or []) if word.word.strip()), None)
+            if first_word is not None:
+                failure = validate_pre_speech_energy(audio, first_word.start, sample_rate)
         if failure:
             failures.append(f"{failure}; whisper={transcript!r}")
     return failures
