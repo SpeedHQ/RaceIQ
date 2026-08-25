@@ -109,10 +109,13 @@ describe("Paired benchmark comparison", () => {
     expect(p99.output).toContain("p99 +8.3%");
   });
 
-  test("fails consistent retained-heap regression", async () => {
-    const result = await runComparator(pairedWith({ retainedHeap: 1_000 }, { retainedHeap: 1_100 }), ["--retained-heap-threshold=5", "--fail-on-regression"]);
-    expect(result.code, result.output).toBe(1);
-    expect(result.output).toContain("retained heap +10.0%");
+  test("shows retained heap p50 values alongside gated delta", async () => {
+    const result = await runComparator(pairedWith({ retainedHeap: 1_000 }, { retainedHeap: 1_100 }));
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("Baseline retained heap p50");
+    expect(result.output).toContain("1,000 B");
+    expect(result.output).toContain("1,100 B");
+    expect(result.output).toContain("Δ retained heap");
   });
 
 

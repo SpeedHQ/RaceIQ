@@ -97,6 +97,9 @@ function fmtTime(ns: number): string {
   if (ns < 1_000_000) return `${(ns / 1000).toFixed(2)} µs`;
   return `${(ns / 1_000_000).toFixed(2)} ms`;
 }
+function fmtBytes(bytes: number): string {
+  return `${bytes.toLocaleString("en-US")} B`;
+}
 
 
 function pct(current: number, base: number): number {
@@ -151,7 +154,7 @@ for (const key of keys) {
     baselinePending = true;
     const currentMedian = median(currentValues.map((entry) => entry.median));
     const currentP99 = median(currentValues.map((entry) => entry.p99));
-    rows.push(`| ${key} | — | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | Baseline pending | — | — |`);
+    rows.push(`| ${key} | — | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | Baseline pending | — | — | — | — |`);
     continue;
   }
 
@@ -165,8 +168,12 @@ for (const key of keys) {
   const retainedChange = retainedReady
     ? median(pairs.map((_, index) => pct(currentValues[index]!.retainedHeap!, baseValues[index]!.retainedHeap!)))
     : undefined;
+  const baseRetainedHeap = retainedReady ? median(baseValues.map((entry) => entry.retainedHeap!)) : undefined;
+  const currentRetainedHeap = retainedReady ? median(currentValues.map((entry) => entry.retainedHeap!)) : undefined;
   const retainedDisplay = retainedReady ? fmtDelta(retainedChange!) : "—";
-  rows.push(`| ${key} | ${fmtTime(baseMedian)} / ${fmtTime(baseP99)} | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | ${fmtDelta(medianChange)} | ${fmtDelta(p99Change)} | ${retainedDisplay} |`);
+  const baseRetainedDisplay = baseRetainedHeap === undefined ? "—" : fmtBytes(baseRetainedHeap);
+  const currentRetainedDisplay = currentRetainedHeap === undefined ? "—" : fmtBytes(currentRetainedHeap);
+  rows.push(`| ${key} | ${fmtTime(baseMedian)} / ${fmtTime(baseP99)} | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | ${fmtDelta(medianChange)} | ${fmtDelta(p99Change)} | ${baseRetainedDisplay} | ${currentRetainedDisplay} | ${retainedDisplay} |`);
   if (!informational) {
     if (medianChange > medianThreshold) regressions.push(`- **${key}**: median +${medianChange.toFixed(1)}%`);
     if (p99Change > p99Threshold) regressions.push(`- **${key}**: p99 +${p99Change.toFixed(1)}%`);
@@ -191,5 +198,5 @@ const footer = informational
 const diagnostics = varianceDiagnostics.length
   ? `\n\n### Diagnostics\n${varianceDiagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n")}`
   : "";
-console.log(`${header}\n\n| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Δ retained heap |\n|---|---:|---:|---:|---:|---:|\n${body}${diagnostics}${footer}`);
+console.log(`${header}\n\n| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Baseline retained heap p50 | Current retained heap p50 | Δ retained heap |\n|---|---:|---:|---:|---:|---:|---:|---:|\n${body}${diagnostics}${footer}`);
 if (regressions.length > 0 && args.includes("--fail-on-regression")) process.exit(1);
