@@ -429,13 +429,6 @@ export async function importSessionFrames(
     return rollbackImport(db, new IncompleteImportError());
   }
 
-  try {
-    for (const sessionId of db.sessionIds) {
-      await reconcileSessionResult(sessionId, gameId);
-    }
-  } catch (error) {
-    return rollbackImport(db, error);
-  }
   return {
     packetCount,
     laps: db.laps,
