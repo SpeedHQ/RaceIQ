@@ -20,9 +20,13 @@ const root = resolve(dirname(import.meta.path), "../..");
 const child = join(root, "test/benchmarks/process-bench-child.ts");
 const fixture = join(root, "test/benchmarks/replay-process-bench.ts");
 const aliases = [
+  "parse 20,000 raw lap frames",
+  "resolve 20,000 canonical envelopes",
+] as const;
+const rawKeys = aliases.map((alias) => `replay/${alias}`) as [
   "replay/parse 20,000 raw lap frames",
   "replay/resolve 20,000 canonical envelopes",
-] as const;
+];
 const percentile = (values: number[], p: number): number => {
   const sorted = [...values].sort((a, b) => a - b);
   const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
@@ -40,16 +44,18 @@ const raw: RawProcess[] = [];
 for (let index = 0; index < processes; index++) {
   const timing: Record<string, TimingChildReport> = {};
   const retainedHeap: Record<string, RetainedHeapChildReport> = {};
-  for (const alias of aliases) {
-    timing[alias] = await run("timing", alias) as TimingChildReport;
-    retainedHeap[alias] = await run("retainedHeap", alias) as RetainedHeapChildReport;
+  for (const [index, alias] of aliases.entries()) {
+    const rawKey = rawKeys[index]!;
+    timing[rawKey] = await run("timing", rawKey) as TimingChildReport;
+    retainedHeap[rawKey] = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
   }
   raw.push({ process: index + 1, timing, retainedHeap });
 }
-
-const benchmarks = aliases.map((alias) => {
-  const timingSamples = raw.flatMap((entry) => entry.timing[alias]!.samplesNs);
-  const heapSamples = raw.map((entry) => entry.retainedHeap[alias]!.retainedHeap);
+ 
+const benchmarks = aliases.map((alias, index) => {
+  const rawKey = rawKeys[index]!;
+  const timingSamples = raw.flatMap((entry) => entry.timing[rawKey]!.samplesNs);
+  const heapSamples = raw.map((entry) => entry.retainedHeap[rawKey]!.retainedHeap);
   return { alias, group: 0, runs: [{ stats: {
     p50: median(timingSamples), p99: percentile(timingSamples, 99),
     retainedHeap: { p50: median(heapSamples), min: Math.min(...heapSamples), max: Math.max(...heapSamples), samples: heapSamples },

@@ -1,19 +1,10 @@
-# Task 7 report
+# Task 7: Fix process benchmark report keys
 
-## Fix
+## Change
 
-- Narrowed `iterations` and `warmupIterations` with explicit numeric checks before integer comparisons in `test/benchmarks/process-bench-contracts.ts`.
-- Preserved existing validation requirements: positive iterations, non-negative warmups, exact sample count, finite non-negative samples, and unchanged report errors/contracts.
+`process-bench.ts` now emits comparator benchmark entries with `group: 0` and short aliases under the `replay` layout, producing exact keys `replay/parse 20,000 raw lap frames` and `replay/resolve 20,000 canonical envelopes`. Raw per-process timing and retained-heap maps keep full composite keys for diagnosis.
 
-## Validation
+## Verification
 
-- `bunx tsc --project scripts/tsconfig.json --pretty false` — passed.
-- `bun test test/tooling/process-bench.test.ts --timeout 60000` — passed: 8 pass, 0 fail, 10 expect calls.
-
-## Commit
-
-- Commit created with `--no-verify` because repository pre-commit checks include unrelated sibling changes and an unassigned test-shard check.
-
-## Concerns
-
-- None identified; `bun.lock` untouched.
+- `bun run typecheck:scripts` passed.
+- `bun test test/tooling/bench-compare.test.ts --timeout 60000` passed: 12 tests, 0 failures.
