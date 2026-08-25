@@ -1,5 +1,4 @@
 import { bench, group, do_not_optimize } from "mitata";
-import { gunzipSync } from "node:zlib";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
@@ -7,8 +6,6 @@ import { getAllServerGames } from "../../server/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { readUdpDump } from "../support/recordings/udp";
-import { parseRawLapFramesFromBuffer, type LapReplaySource } from "../../server/db/telemetry-replay-storage";
-import { resolveTelemetryReplay } from "../../server/telemetry/replay";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
@@ -81,31 +78,6 @@ const acEvoCache = createAcEvoParserCache();
 const acEvoPackets = acEvoFrames.map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
 
-// --- Preload replay/parser inputs; no file, gzip, or SQLite work is measured ---
-const REPLAY_FRAME_COUNT = 20_000;
-const REPLAY_FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
-const REPLAY_SEMANTIC_IDS = ["motion.speed", "inputs.accel", "inputs.brake", "inputs.gear", "inputs.clutch-percent", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
-const replayCapture = Buffer.from(gunzipSync(Buffer.from(await Bun.file(REPLAY_FIXTURE).arrayBuffer())));
-const replayPackets = parseRawLapFramesFromBuffer(replayCapture, 12, REPLAY_FRAME_COUNT, "ac-evo", REPLAY_FIXTURE);
-if (replayPackets.length < REPLAY_FRAME_COUNT || replayPackets.length > REPLAY_FRAME_COUNT + 1) {
-  throw new Error(`Replay/parser benchmark expected ${REPLAY_FRAME_COUNT}-${REPLAY_FRAME_COUNT + 1} packets, received ${replayPackets.length}`);
-}
-const replaySource: LapReplaySource = {
-  id: 1,
-  sessionId: 1,
-  createdAt: "2026-04-21T20:24:34.810Z",
-  gameId: "ac-evo",
-  rawFile: null,
-  rawByteOffset: 12,
-  rawFrameCount: REPLAY_FRAME_COUNT,
-};
-// Keep measured outputs reachable so inner GC cannot turn heap growth into sample noise.
-const replayResults = [resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS)];
-const replayEnvelopes = replayResults[0].envelopes;
-if (replayEnvelopes.length < REPLAY_FRAME_COUNT || replayEnvelopes.length > REPLAY_FRAME_COUNT + 1) {
-  throw new Error(`Replay/parser benchmark expected ${REPLAY_FRAME_COUNT}-${REPLAY_FRAME_COUNT + 1} envelopes, received ${replayEnvelopes.length}`);
-}
-console.log(`[bench] replay loaded — ${replayPackets.length} packets, ${replayEnvelopes.length} envelopes (${REPLAY_SEMANTIC_IDS.length} semantics) ${elapsed()}`);
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
@@ -192,17 +164,6 @@ group("ac-evo", () => {
   });
 });
 
-group("replay", () => {
-  bench("parse 20,000 raw lap frames", () => {
-    do_not_optimize(parseRawLapFramesFromBuffer(replayCapture, 12, REPLAY_FRAME_COUNT, "ac-evo", REPLAY_FIXTURE).length);
-  }).gc("inner");
-
-  bench("resolve 20,000 canonical envelopes", () => {
-    const result = resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS);
-    replayResults.push(result);
-    do_not_optimize(result.envelopes.length);
-  }).gc("inner");
-});
 
 console.log(`[bench] starting run ${elapsed()}`);
 // Silence pipeline logging (lap detector / session / sector spam) during Mitata iterations.
