@@ -18,6 +18,7 @@
 ### Fixes
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
+- Keep saved Analyse and Compare workspaces usable when cache probes find no eligible current evidence
 - Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes
 - Keep session finalization and quality status working when raw recording evidence is unavailable
 - Block lap-analysis AI when telemetry quality is missing, stale, or unsuitable, and include eligibility limitations in prompts
