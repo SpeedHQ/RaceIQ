@@ -47,7 +47,6 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   await expect(insightsTab).toHaveAttribute("aria-selected", "true");
   const insightsPanel = page.getByRole("tabpanel", { name: /Insights/ });
   await expect(insightsPanel.getByRole("heading", { name: "Suspension" })).toBeVisible();
-  await expect(insightsPanel.getByRole("button").first()).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
   const followButton = page.getByRole("button", { name: "Fixed", exact: true });

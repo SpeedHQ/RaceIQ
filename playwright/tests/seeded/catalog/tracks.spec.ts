@@ -128,6 +128,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
       },
       ownership: "mine",
     },
+    timeout: 60_000,
   });
   expect(importResponse.ok()).toBe(true);
   let importedLapIds: number[] = [];

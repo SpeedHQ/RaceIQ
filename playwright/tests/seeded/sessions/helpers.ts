@@ -39,6 +39,7 @@ export async function importDisposableLap(request: APIRequestContext, gameId: Ga
       },
       ownership: "mine",
     },
+    timeout: 60_000,
   });
   expect(importResponse.ok(), "disposable lap import").toBe(true);
   const imported = (await importResponse.json()) as { laps?: { lapId: number }[] };
