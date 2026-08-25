@@ -1,10 +1,10 @@
 import { useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS, severityColor, severityRangeColor } from "@/lib/colors";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
+import type { SemanticTuneSample } from "../semantic-tune";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
-import { buildGeometry, buildStartMarker, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
+import { buildGeometry, buildStartMarker, type Pt, type SectorTimesLite, VIEW } from "../track-map-geometry";
 import { nearestCornerLabel } from "./detect-corners";
 
 // Same threshold server-side (server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M).
@@ -35,7 +35,7 @@ function spreadAt(trace: LineSpreadTrace, f: number): number {
 }
 
 interface TrackFocusMapProps {
-  telemetry: TelemetryPacket[] | null;
+  telemetry: SemanticTuneSample[] | null;
   sectorTimes: SectorTimesLite | null;
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
@@ -81,19 +81,21 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   // distance instead (fall back to index fraction when DistanceTraveled is flat).
   const normDist = useMemo(() => {
     if (!telemetry || telemetry.length === 0) return null;
-    const n = telemetry.length;
-    const first = telemetry[0].DistanceTraveled;
-    const span = telemetry[n - 1].DistanceTraveled - first;
-    const out = new Float32Array(n);
-    if (span > 0) {
-      for (let i = 0; i < n; i++) {
-        const f = (telemetry[i].DistanceTraveled - first) / span;
-        out[i] = f < 0 ? 0 : f > 1 ? 1 : f;
+    const sampleCount = telemetry.length;
+    const distances = telemetry.map((sample) => sample.distanceM);
+    const first = distances[0];
+    const last = distances[sampleCount - 1];
+    const span = first === undefined || last === undefined ? 0 : last - first;
+    const normalized = new Float32Array(sampleCount);
+    if (span > 0 && distances.every((distance) => distance !== undefined)) {
+      for (let index = 0; index < sampleCount; index++) {
+        const fraction = ((distances[index] as number) - (first as number)) / span;
+        normalized[index] = Math.max(0, Math.min(1, fraction));
       }
     } else {
-      for (let i = 0; i < n; i++) out[i] = n > 1 ? i / (n - 1) : 0;
+      for (let index = 0; index < sampleCount; index++) normalized[index] = sampleCount > 1 ? index / (sampleCount - 1) : 0;
     }
-    return out;
+    return normalized;
   }, [telemetry]);
 
   // Nearest frame index for a distance fraction `f` (binary search on the
@@ -144,31 +146,30 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   }, [geometry]);
 
   function fracToPoint(frac: number): { x: number; y: number } | null {
-    if (!telemetry || telemetry.length === 0) return null;
-    const idx = distFracToIdx(frac);
-    const t = telemetry[idx];
-    return projectPoint({ x: t.PositionX, z: t.PositionZ }, telemetry, edges);
+    if (!geometry || geometry.pts.length === 0) return null;
+    const targetIndex = distFracToIdx(frac);
+    return geometry.pts.reduce((closest, point) => (Math.abs(point.idx - targetIndex) < Math.abs(closest.idx - targetIndex) ? point : closest));
   }
 
   // A short tick mark across the driven line at `frac`, oriented perpendicular
   // to the local track direction (from the neighbouring sample).
   function fracToTick(frac: number, half = 4): { x1: number; y1: number; x2: number; y2: number } | null {
-    if (!telemetry || telemetry.length < 2) return null;
-    const n = telemetry.length;
-    const idx = distFracToIdx(frac);
-    const p = fracToPoint(frac);
-    const aIdx = Math.max(0, idx - 1);
-    const bIdx = Math.min(n - 1, idx + 1);
-    const a = projectPoint({ x: telemetry[aIdx].PositionX, z: telemetry[aIdx].PositionZ }, telemetry, edges);
-    const b = projectPoint({ x: telemetry[bIdx].PositionX, z: telemetry[bIdx].PositionZ }, telemetry, edges);
-    if (!p || !a || !b) return null;
+    if (!geometry || geometry.pts.length < 2) return null;
+    const targetIndex = distFracToIdx(frac);
+    let pointIndex = 0;
+    for (let index = 1; index < geometry.pts.length; index++) {
+      if (Math.abs(geometry.pts[index].idx - targetIndex) < Math.abs(geometry.pts[pointIndex].idx - targetIndex)) pointIndex = index;
+    }
+    const point = geometry.pts[pointIndex];
+    const a = geometry.pts[Math.max(0, pointIndex - 1)];
+    const b = geometry.pts[Math.min(geometry.pts.length - 1, pointIndex + 1)];
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy) || 1;
     // Perpendicular unit vector.
     const nx = -dy / len;
     const ny = dx / len;
-    return { x1: p.x - nx * half, y1: p.y - ny * half, x2: p.x + nx * half, y2: p.y + ny * half };
+    return { x1: point.x - nx * half, y1: point.y - ny * half, x2: point.x + nx * half, y2: point.y + ny * half };
   }
 
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
@@ -301,7 +302,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               const topPct = (cursorPt.y / VIEW) * 100;
               const flipX = leftPct > 60;
               const flipY = topPct > 70;
-              const speed = readoutFrame ? `${(readoutFrame.Speed * 3.6).toFixed(0)} km/h` : null;
+              const speed = readoutFrame?.speedMps === undefined ? null : `${(readoutFrame.speedMps * 3.6).toFixed(0)} km/h`;
               return (
                 <div
                   className="absolute pointer-events-none text-app-caption font-mono tabular-nums bg-app-surface-alt/95 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted whitespace-nowrap shadow"

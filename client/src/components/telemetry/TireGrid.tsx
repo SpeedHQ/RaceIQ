@@ -5,8 +5,8 @@ import { m } from "@/paraglide/messages";
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
 
 export interface WheelData {
-  tempC: number; // always °C — caller normalises
-  wear: number; // 0 (new) → 1 (gone)
+  tempC?: number; // always °C when available — caller normalises
+  wear?: number; // 0 (new) → 1 (gone) when available
   brakeTemp?: number; // °C, optional
   brakePadMm?: number; // mm remaining (ACC: new = 29mm), drives pad height
   pressure?: number; // psi, optional
@@ -84,10 +84,14 @@ export function TireGrid({
       <div className="p-3">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           {wheels.map((wheel) => {
-            const health = Math.max(0, (1 - wheel.wear) * 100);
-            const healthColor = healthAvailable ? tireHealthColor(wheel.wear, healthThresholds) : "var(--status-unavailable)";
-            const temperatureColor = temperatureAvailable ? tireTempColor(wheel.tempC, normalizedTempThresholds) : "var(--status-unavailable)";
-            const temperature = units.tempUnit === "F" ? Math.round((wheel.tempC * 9) / 5 + 32) : Math.round(wheel.tempC);
+            const wear = wheel.wear;
+            const tempC = wheel.tempC;
+            const showsHealth = healthAvailable && wear !== undefined;
+            const showsTemperature = temperatureAvailable && tempC !== undefined;
+            const health = showsHealth ? Math.max(0, (1 - wear) * 100) : 0;
+            const healthColor = showsHealth ? tireHealthColor(wear, healthThresholds) : "var(--status-unavailable)";
+            const temperatureColor = showsTemperature ? tireTempColor(tempC, normalizedTempThresholds) : "var(--status-unavailable)";
+            const temperature = showsTemperature ? (units.tempUnit === "F" ? Math.round((tempC * 9) / 5 + 32) : Math.round(tempC)) : null;
             const isLeft = wheel.label.endsWith("L");
             const isRight = !isLeft;
             const isRear = wheel.label.startsWith("R");
@@ -96,7 +100,7 @@ export function TireGrid({
               <div key={wheel.label} className={`flex items-center gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
                 <div className={`flex-1 min-w-0 ${isLeft ? "text-right" : ""}`}>
                   <div className="text-xl font-mono font-bold tabular-nums leading-none" style={{ color: temperatureColor }}>
-                    {temperatureAvailable ? (
+                    {showsTemperature ? (
                       <>
                         {temperature}
                         {units.tempLabel}
@@ -107,7 +111,7 @@ export function TireGrid({
                   </div>
                   <div className="mt-1">
                     <span className="text-xs font-mono font-bold tabular-nums" style={{ color: healthColor }}>
-                      {healthAvailable ? `${health.toFixed(0)}%` : "—"}
+                      {showsHealth ? `${health.toFixed(0)}%` : "—"}
                     </span>
                   </div>
                   {hasPressure && wheel.pressure !== undefined && (
@@ -118,7 +122,7 @@ export function TireGrid({
                 </div>
 
                 <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0">
-                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: temperatureColor, height: healthAvailable ? `${health}%` : 0 }} />
+                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: temperatureColor, height: showsHealth ? `${health}%` : 0 }} />
                 </div>
 
                 {hasBrake && (
