@@ -3,7 +3,7 @@ import type { LapInsight } from "../../shared/racing/analysis/laps/insights/type
 import type { FindingRecord } from "../../shared/racing/findings/types";
 import { createFindingId } from "../../shared/racing/findings/identity";
 import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
-import { isEligibilitySnapshotCurrent, isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../shared/racing/quality/policies";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { LapQualityResult } from "../lap-analysis/quality";
 import { adaptLapInsightsToFindingBundle, type LapFindingBundle } from "./lap-adapter";
@@ -86,8 +86,9 @@ export function buildDeterministicLapFindings(lap: LapFindingSource, insights: r
           endTimestampMs: lap.telemetry[lastFrameIndex].TimestampMS,
         }
       : undefined;
-  const finalizedEligibility = isEligibilitySnapshotCurrent(lap) ? lap.eligibility : undefined;
   const cornerTraceEligibility = resolveEligibilityDecision(lap, "corner-trace");
+  const fuelBurnEligibility = resolveEligibilityDecision(lap, "fuel-burn");
+  const tireAnalysisEligibility = resolveEligibilityDecision(lap, "tire-analysis");
   const insightBundle = restrictInsightFindings(
     adaptLapInsightsToFindingBundle({
       gameId: lap.gameId,
@@ -115,8 +116,8 @@ export function buildDeterministicLapFindings(lap: LapFindingSource, insights: r
         tyreWear: lap.tyreWear,
         quality: recordingQuality,
         finalizedPolicyDecisions: {
-          "fuel-per-lap": finalizedEligibility?.["fuel-burn"],
-          "tyre-wear": finalizedEligibility?.["tire-analysis"],
+          "fuel-per-lap": fuelBurnEligibility,
+          "tyre-wear": tireAnalysisEligibility,
         },
         analysisGenerationId,
       }),
