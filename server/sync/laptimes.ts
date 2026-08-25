@@ -190,17 +190,35 @@ function totalCached(): number {
   return n;
 }
 
-let intervalHandle: ReturnType<typeof setInterval> | null = null;
+let cronJob: Bun.CronJob | null = null;
+let laptimesReady = false;
+let initialSyncPromise: Promise<void> | null = null;
+
+function startLaptimeRefreshCron(): void {
+  if (!cronJob) {
+    cronJob = Bun.cron("0 */6 * * *", async () => {
+      await syncLaptimes();
+    });
+  }
+}
 
 /**
- * Kick off a non-blocking startup sync and schedule the recurring 6h refresh.
- * Safe to call once during server bootstrap.
+ * Load laptimes on first game-scoped request, then schedule six-hour refreshes.
+ * Concurrent first requests share one sync pass.
  */
-export function startLaptimesSync(): void {
-  void syncLaptimes();
-  if (!intervalHandle) {
-    intervalHandle = setInterval(() => {
-      void syncLaptimes();
-    }, SYNC_INTERVAL_MS);
+export async function ensureLaptimesReady(): Promise<void> {
+  if (laptimesReady) return;
+  if (!initialSyncPromise) {
+    initialSyncPromise = syncLaptimes()
+      .then(() => {
+        if (cachedVersion !== null) {
+          laptimesReady = true;
+          startLaptimeRefreshCron();
+        }
+      })
+      .finally(() => {
+        initialSyncPromise = null;
+      });
   }
+  await initialSyncPromise;
 }
