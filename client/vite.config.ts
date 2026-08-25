@@ -47,18 +47,17 @@ export default defineConfig(({ command }) => {
       react(),
       tailwindcss(),
       TanStackRouterVite(),
-      paraglideVitePlugin({
-        project: "./project.inlang",
-        outdir: "./src/paraglide",
-        // Skip declaration generation during dev to keep startup fast.
-        // Production builds emit declarations before the TypeScript check.
-        emitTsDeclarations: isBuild,
-        outputStructure: isBuild ? "message-modules" : "locale-modules",
-        // Locale is driven by the server-persisted `language` setting; the client
-        // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
-        // the runtime cache; baseLocale ("en") is the fallback.
-        strategy: ["localStorage", "baseLocale"],
-      }),
+      ...(isBuild
+        ? [
+            paraglideVitePlugin({
+              project: "./project.inlang",
+              outdir: "./src/paraglide",
+              emitTsDeclarations: true,
+              outputStructure: "message-modules",
+              strategy: ["localStorage", "baseLocale"],
+            }),
+          ]
+        : []),
     ],
     customLogger: logger,
     define: {
