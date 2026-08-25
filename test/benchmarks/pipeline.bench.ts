@@ -99,7 +99,9 @@ const replaySource: LapReplaySource = {
   rawByteOffset: 12,
   rawFrameCount: REPLAY_FRAME_COUNT,
 };
-const replayEnvelopes = resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS).envelopes;
+// Keep measured outputs reachable so inner GC cannot turn heap growth into sample noise.
+const replayResults = [resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS)];
+const replayEnvelopes = replayResults[0].envelopes;
 if (replayEnvelopes.length < REPLAY_FRAME_COUNT || replayEnvelopes.length > REPLAY_FRAME_COUNT + 1) {
   throw new Error(`Replay/parser benchmark expected ${REPLAY_FRAME_COUNT}-${REPLAY_FRAME_COUNT + 1} envelopes, received ${replayEnvelopes.length}`);
 }
@@ -196,7 +198,9 @@ group("replay", () => {
   }).gc("inner");
 
   bench("resolve 20,000 canonical envelopes", () => {
-    do_not_optimize(resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS).envelopes.length);
+    const result = resolveTelemetryReplay(1, replaySource, replayPackets, REPLAY_SEMANTIC_IDS);
+    replayResults.push(result);
+    do_not_optimize(result.envelopes.length);
   }).gc("inner");
 });
 

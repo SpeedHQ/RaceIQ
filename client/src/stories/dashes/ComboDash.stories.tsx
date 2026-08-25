@@ -5,15 +5,17 @@ import type { GameId } from "../../../../shared/games/ids";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import { useGameStore } from "../../stores/game";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
-import { fakeAcEvoSemanticFixture, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit, fakeSectors } from "../fakeData";
+import { fakeAcEvoSemanticFixture, fakeAccSemanticFixture, fakeAllDataTelemetryView, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit, fakeSectors } from "../fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 
 type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
+type Fixture = Game | "all-data";
 
-const VIEWS: Record<Game, LiveTelemetryView> = {
+const VIEWS: Record<Fixture, LiveTelemetryView> = {
+  "all-data": fakeAllDataTelemetryView,
   "fm-2023": fakeForzaSemanticFixture.view,
   "f1-2025": fakeF1SemanticFixture.view,
   acc: fakeAccSemanticFixture.view,
@@ -21,7 +23,7 @@ const VIEWS: Record<Game, LiveTelemetryView> = {
 };
 
 interface Args {
-  game: Game;
+  game: Fixture;
   rpm: number;
   gear: number;
   unitSystem: "metric" | "imperial";
@@ -45,7 +47,7 @@ function render({ game, rpm, gear, unitSystem }: Args) {
   };
   return (
     <QueryClientProvider client={queryClient}>
-      <GameIdSync game={game} />
+      {game === "all-data" ? null : <GameIdSync game={game} />}
       <div
         style={{
           position: "relative",
@@ -101,6 +103,12 @@ const meta: Meta<Args> = {
 
 export default meta;
 type Story = StoryObj<Args>;
+
+export const AllData: Story = {
+  name: "All Data",
+  args: { game: "all-data", rpm: 7800, gear: 7, unitSystem: "metric" },
+  render,
+};
 
 export const FM2023: Story = {
   name: "FM 2023",
