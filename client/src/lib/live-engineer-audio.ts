@@ -13,7 +13,7 @@ export class LiveEngineerAudioPlayer {
   private stopped = false;
 
   constructor(options: LiveEngineerAudioOptions = {}) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     this.context = options.audioContext ?? new AudioContext();
     this.gainNode = this.context.createGain();
     this.gainNode.connect(this.context.destination);
