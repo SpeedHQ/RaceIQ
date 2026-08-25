@@ -190,16 +190,19 @@ function totalCached(): number {
   return n;
 }
 
-let cronJob: Bun.CronJob | null = null;
+let refreshTimer: Timer | null = null;
 let laptimesReady = false;
 let initialSyncPromise: Promise<void> | null = null;
 
-function startLaptimeRefreshCron(): void {
-  if (!cronJob) {
-    cronJob = Bun.cron("0 */6 * * *", async () => {
-      await syncLaptimes();
+function scheduleLaptimeRefresh(): void {
+  if (refreshTimer) return;
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    void syncLaptimes().finally(() => {
+      scheduleLaptimeRefresh();
     });
-  }
+  }, SYNC_INTERVAL_MS);
+  refreshTimer.unref?.();
 }
 
 /**
@@ -213,7 +216,7 @@ export async function ensureLaptimesReady(): Promise<void> {
       .then(() => {
         if (cachedVersion !== null) {
           laptimesReady = true;
-          startLaptimeRefreshCron();
+          scheduleLaptimeRefresh();
         }
       })
       .finally(() => {

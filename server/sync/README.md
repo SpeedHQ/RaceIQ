@@ -15,7 +15,7 @@ Owns synchronization of community leaderboard lap times from the configured comm
 - Each valid game payload replaces only that game's cached rows. Missing, failed, or invalid game payloads preserve that game's prior cache.
 - Invalid rows are skipped individually. Cache is memory-only and is repopulated after restart.
 - Sync does not persist leaderboard data or join it to tunes.
-- Route handlers consume cache reads and manual refresh results; the first game-scoped laptime route request owns lazy hydration and starts the six-hour Bun cron refresh. This domain does not import either domain.
+- Route handlers consume cache reads and manual refresh results; the first game-scoped laptime route request owns lazy hydration and starts the six-hour delayed refresh. This domain does not import either domain.
 
 ## Testing
 

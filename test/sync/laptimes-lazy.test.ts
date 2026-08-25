@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { tuneCatalogRoutes } from "../../server/routes/tune-catalog-routes";
 
 const realFetch = globalThis.fetch;
@@ -42,7 +42,6 @@ describe("lazy community laptimes", () => {
   });
 
   test("concurrent first game-scoped requests share one sync", async () => {
-    const cronSpy = spyOn(Bun, "cron");
     let manifestFetches = 0;
     globalThis.fetch = (async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -74,7 +73,5 @@ describe("lazy community laptimes", () => {
     expect(await first.json()).toEqual([laptime()]);
     expect(await second.json()).toEqual([laptime()]);
     expect(manifestFetches).toBe(1);
-    expect(cronSpy).toHaveBeenCalledTimes(1);
-    cronSpy.mockRestore();
   });
 });
