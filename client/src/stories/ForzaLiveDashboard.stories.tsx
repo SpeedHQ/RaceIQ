@@ -52,4 +52,4 @@ const meta: Meta<typeof ForzaLiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof ForzaLiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

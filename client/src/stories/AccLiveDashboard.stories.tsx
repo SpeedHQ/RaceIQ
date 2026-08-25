@@ -52,4 +52,4 @@ const meta: Meta<typeof AccLiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof AccLiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

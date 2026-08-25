@@ -5,6 +5,7 @@ import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
 import { useTelemetryStore } from "../stores/telemetry";
 import { fakeAccPacket, fakeSectors, fakeSessionLaps, makeSemanticFixture } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -22,7 +23,15 @@ queryClient.setQueryData(["track-boundaries", 7, "acc"], null);
 
 // Full lap trace so the live tyre bars have a real min→max range to render, not a single point.
 const liveTrace = generateFakeLapTelemetry();
-const semanticLiveTrace = liveTrace.map(makeSemanticFixture);
+const semanticLiveTrace = liveTrace.map((packet, sequence) => {
+  const fixture = makeSemanticFixture(packet);
+  return {
+    ...fixture,
+    frame: { ...fixture.frame, sequence },
+    view: { ...fixture.view, sequence },
+  };
+});
+const liveViews: LiveTelemetryView[] = semanticLiveTrace.map((fixture) => fixture.view);
 queryClient.setQueryData(["lap-telemetry", 10], { telemetry: liveTrace, sectorTimes: fakeSectorTimes });
 
 function StoryDecorator({ children, animate }: { children: React.ReactNode; animate: boolean }) {
@@ -33,6 +42,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
     const fixture = semanticLiveTrace.at(-1) ?? makeSemanticFixture(fakeAccPacket);
     useTelemetryStore.setState({
       connected: true,
+      // Last frame of the pre-seeded lap so appending it doesn't reset the trace.
       telemetrySchema: fixture.schema,
       telemetryFrame: fixture.frame,
       telemetryView: fixture.view,
@@ -85,5 +95,5 @@ type Story = StoryObj<typeof LiveTestDashboard>;
 
 export const Default: Story = {
   // @ts-expect-error — animate is a story-only arg, not a component prop
-  args: { gameId: "acc", trackOrdinal: 7, initialTrace: liveTrace, animate: false },
+  args: { gameId: "acc", trackOrdinal: 7, initialViews: liveViews, animate: false },
 };

@@ -48,6 +48,8 @@ jobs:
           $ErrorActionPreference = "Stop"
           bun install --no-save --ignore-scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Use one replay benchmark definition for both revisions.
+          Copy-Item -Force ../pr/test/benchmarks/pipeline.bench.ts test/benchmarks/pipeline.bench.ts
           bun run test/benchmarks/pipeline.bench.ts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Move-Item -Force bench-results.json ../base-results.json
@@ -98,36 +100,13 @@ jobs:
           Add-Content $env:GITHUB_STEP_SUMMARY ""
           Get-Content ../replay-io-comparison.md | Add-Content $env:GITHUB_STEP_SUMMARY
 
-      - name: Post fresh benchmark comment
-        uses: actions/github-script@v9
+      - name: Upload benchmark comment
+        uses: actions/upload-artifact@v7
         with:
-          script: |
-            const { readFileSync } = require("node:fs");
-            const { join } = require("node:path");
-            const marker = "<!-- bench-comparison -->";
-            const comparison = readFileSync(join(process.env.GITHUB_WORKSPACE, "comparison.md"), "utf8").replace(/^\uFEFF/, "");
-            const body = `${marker}\n${comparison}`;
-            const issueNumber = context.issue.number;
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              ...context.repo,
-              issue_number: issueNumber,
-              per_page: 100,
-            });
-
-            // Delete stale reports before posting so the current result appears last.
-            for (const comment of comments) {
-              if (comment.body?.includes(marker) || comment.body?.startsWith("## Bench comparison")) {
-                await github.rest.issues.deleteComment({
-                  ...context.repo,
-                  comment_id: comment.id,
-                });
-              }
-            }
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: issueNumber,
-              body,
-            });
+          name: benchmark-comment
+          path: comparison.md
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Enforce CPU benchmark guardrails
         working-directory: pr
