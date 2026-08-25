@@ -12,6 +12,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { MemoryRaceEventStore } from "../../server/race-events/store";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { LiveTelemetryPipeline, resolveLapIssueEligibility, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { sha256ContentHash } from "../../server/session-capture/identity";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -120,7 +121,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     pipeline.setLiveIssuesEnabled(true);
     await pipeline.processPacket(pkt());
     pipeline.setLiveIssuesEnabled(false);
-    await pipeline.processPacket(pkt({ TimestampMS: 1_001 }));
+    await pipeline.processPacket(pkt({ TimestampMS: 2_000, CurrentLap: 31, DistanceTraveled: 2_050 }));
     expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
   });
 
@@ -147,7 +148,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       recorder: new NullSessionRecorderAdapter(),
       sourceArchiveVerification: {
         state: "verified",
-        sourceGeneration: "sha256:original-source",
+        sourceGeneration: sha256ContentHash(Buffer.from("original-source")),
       },
     });
 
@@ -156,9 +157,13 @@ describe("LiveTelemetryPipeline live issue gating", () => {
 
     expect(db.sessionQuality.get(1)?.archiveVerification).toEqual({
       state: "verified",
-      sourceGeneration: "sha256:original-source",
+      sourceGeneration: sha256ContentHash(Buffer.from("original-source")),
     });
-    expect(db.sessionQuality.get(1)?.canonicalVerification).toBeUndefined();
+    expect(db.sessionQuality.get(1)?.canonicalVerification).toEqual({
+      state: "unavailable",
+      sourceGeneration: null,
+      details: "Recording disabled",
+    });
   });
 
   test("durably commits delayed lap completion before old-session finalization", async () => {
@@ -198,6 +203,28 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     const completed = store.list().filter(({ sessionId, eventType }) => sessionId === 1 && eventType === "lap_completed");
     expect(completed).toHaveLength(1);
     expect(completed[0]?.lapId).toBe(1);
+  });
+
+  test("persists accepted timeline events when lap storage fails", async () => {
+    const db = new CapturingDbAdapter();
+    const store = new MemoryRaceEventStore();
+    db.insertLap = async () => {
+      throw new Error("lap storage unavailable");
+    };
+    const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+      raceEventStore: store,
+    });
+
+    await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
+    await expect(
+      pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 })),
+    ).rejects.toThrow("lap storage unavailable");
+
+    expect(store.list().filter(({ eventType }) => eventType === "lap_completed")).toHaveLength(1);
   });
 
   test("keeps delayed old-session lap ownership out of current live state", async () => {

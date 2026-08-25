@@ -1,10 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { GameId } from "@shared/games/ids";
 import { RaceEventsAppendedMessageSchema, RaceEventsReplacedMessageSchema } from "@shared/racing/events/contracts";
-import {
-  SessionRunsCompletedMessageSchema,
-  SessionRunsReplacedMessageSchema,
-} from "@shared/racing/runs/contracts";
+import { SessionRunsCompletedMessageSchema, SessionRunsReplacedMessageSchema } from "@shared/racing/runs/contracts";
 import { mergeAppendedRaceEvents, mergeRecoveredRaceEventPage, recoverRaceEventTail, type RaceEventInfiniteData } from "../lib/race-event-cache";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
@@ -13,12 +10,7 @@ import { fetchSessionRaceEventPage } from "./session-queries";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useDevTelemetryStore } from "../stores/dev-telemetry";
-import {
-  isComparableSessionRunQueryKey,
-  qualityUpdatedQueryKeys,
-  queryKeys,
-  sessionRunsUpdatedQueryKeys,
-} from "./query-keys";
+import { isComparableSessionRunQueryKey, qualityUpdatedQueryKeys, queryKeys, sessionRunsUpdatedQueryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
@@ -53,9 +45,7 @@ function raceEventCacheEntries(sessionId?: number): Array<{ queryKey: readonly u
 }
 export function mergeAppendedRaceEventsIntoCaches(sessionId: number, events: RaceEventInfiniteData["pages"][number]["items"]) {
   for (const { queryKey } of raceEventCacheEntries(sessionId)) {
-    queryClient.setQueryData(queryKey, (data: unknown) =>
-      isRaceEventInfiniteData(data) ? mergeAppendedRaceEvents(data, events) : data,
-    );
+    queryClient.setQueryData(queryKey, (data: unknown) => (isRaceEventInfiniteData(data) ? mergeAppendedRaceEvents(data, events) : data));
   }
 }
 
@@ -117,14 +107,9 @@ export async function recoverRaceEventTails(sessionId?: number): Promise<void> {
           if (!isCurrentRaceEventRecovery(cachedSessionId, gameId, recovery)) return;
           recovered = mergeRecoveredRaceEventPage(recovered, firstPage);
         }
-        recovered = await recoverRaceEventTail(
-          recovered,
-          (cursor, signal) => fetchSessionRaceEventPage(cachedSessionId, gameId, cursor, 1_000, signal),
-          recovery.controller.signal,
-        );
+        recovered = await recoverRaceEventTail(recovered, (cursor, signal) => fetchSessionRaceEventPage(cachedSessionId, gameId, cursor, 1_000, signal), recovery.controller.signal);
         if (!isCurrentRaceEventRecovery(cachedSessionId, gameId, recovery)) return;
-        const recoveredPages =
-          recovered.pages.length === initialPageCount ? [recovered.pages[recovered.pages.length - 1]!] : recovered.pages.slice(initialPageCount);
+        const recoveredPages = recovered.pages.length === initialPageCount ? [recovered.pages[recovered.pages.length - 1]!] : recovered.pages.slice(initialPageCount);
         queryClient.setQueryData(queryKey, (data: unknown) => {
           if (!isRaceEventInfiniteData(data)) return data;
           return recoveredPages.reduce(mergeRecoveredRaceEventPage, data);
@@ -150,6 +135,10 @@ export async function resetRaceEventCaches(sessionId: number): Promise<void> {
 
 export function handleRaceEventsReplaced(sessionId: number): Promise<void> {
   return resetRaceEventCaches(sessionId);
+}
+
+export async function handleLapSaved(sessionId: number): Promise<void> {
+  await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.laps }), resetRaceEventCaches(sessionId)]);
 }
 
 export function useWebSocket() {
@@ -243,19 +232,10 @@ export function useWebSocket() {
               void handleRaceEventsReplaced(raceEventMessage.data.sessionId).catch((error) => console.error("Race-event replacement recovery failed", error));
             }
           } else if (data.type === "session-runs-completed" || data.type === "session-runs-replaced") {
-            const sessionRunMessage =
-              data.type === "session-runs-completed"
-                ? SessionRunsCompletedMessageSchema.safeParse(data)
-                : SessionRunsReplacedMessageSchema.safeParse(data);
+            const sessionRunMessage = data.type === "session-runs-completed" ? SessionRunsCompletedMessageSchema.safeParse(data) : SessionRunsReplacedMessageSchema.safeParse(data);
             if (sessionRunMessage.success) {
-              const runIds =
-                sessionRunMessage.data.type === "session-runs-completed"
-                  ? sessionRunMessage.data.runs.map(({ runId }) => runId)
-                  : [];
-              for (const queryKey of sessionRunsUpdatedQueryKeys(
-                sessionRunMessage.data.sessionId,
-                runIds,
-              )) {
+              const runIds = sessionRunMessage.data.type === "session-runs-completed" ? sessionRunMessage.data.runs.map(({ runId }) => runId) : [];
+              for (const queryKey of sessionRunsUpdatedQueryKeys(sessionRunMessage.data.sessionId, runIds)) {
                 void queryClient.invalidateQueries({ queryKey });
               }
               if (sessionRunMessage.data.type === "session-runs-completed") {
@@ -284,7 +264,11 @@ export function useWebSocket() {
           } else if (data.type === "dev-state") {
             useTelemetryStore.getState().setDevState(data);
           } else if (data.type === "lap-saved") {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
+            if (typeof data.sessionId === "number") {
+              void handleLapSaved(data.sessionId).catch((error) => console.error("Race-event lap-link recovery failed", error));
+            } else {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+            }
           } else if (data.type === "stale-lap-detection") {
             useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           } else if (data.type === "stale-race-results") {

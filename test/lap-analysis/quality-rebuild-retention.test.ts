@@ -130,6 +130,7 @@ describe("quality rebuild detector identity", () => {
   test("marks source verification current only when retained raw identity matches", async () => {
     const bytes = Buffer.from("unchanged-capture");
     const generation = sha256ContentHash(bytes);
+
     const sourceQuality: RecordingQualitySummary = {
       ...recordingQuality(),
       archiveVerification: {

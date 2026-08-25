@@ -119,6 +119,99 @@ describe("SessionRunBuilder", () => {
     expect(builder.openRuns()).toHaveLength(0);
   });
 
+  test("keeps the final lap after the checkered phase begins", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = participantJoined();
+    const lap1 = completedLap(1);
+    const checkered = raceEvent(
+      "checkered_flag",
+      { nativeCode: null },
+      { participantId: null, participantKind: null, eventOrder: 10 },
+    );
+    const lap2 = {
+      ...completedLap(2),
+      sequence: checkered.sequence,
+      eventOrder: 40,
+    } as RaceEvent;
+    const ended = raceEvent(
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "checkered",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null },
+    );
+
+    const prepared = builder.consume({
+      events: [joined, lap1, checkered, lap2, ended],
+      lapsByCompletionEventId: {},
+    });
+
+    expect(
+      prepared.memberships.filter(({ lapEventId }) => lapEventId === lap2.eventId),
+    ).toHaveLength(4);
+    expect(
+      prepared.runs.filter(
+        ({ startLapEventId, summary }) =>
+          startLapEventId === lap2.eventId && summary.completedLapCount === 1,
+      ),
+    ).toHaveLength(4);
+  });
+
+  test("evicts completed session state after commit", () => {
+    eventOrdinal = 0;
+    const builder = new SessionRunBuilder();
+    const joined = participantJoined();
+    const lap = completedLap(1);
+    const ended = raceEvent(
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "green",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null },
+    );
+    const prepared = builder.consume({
+      events: [joined, lap, ended],
+      lapsByCompletionEventId: {},
+    });
+    prepared.commit();
+
+    const state = Reflect.get(builder, "state");
+    if (!state || typeof state !== "object") {
+      throw new Error("Session run builder state is unavailable");
+    }
+    for (const key of [
+      "consumedEvents",
+      "participants",
+      "accumulators",
+      "pendingEvidence",
+      "phases",
+      "epochs",
+      "tireState",
+    ]) {
+      const collection = Reflect.get(state, key);
+      expect(collection).toBeInstanceOf(Map);
+      if (!(collection instanceof Map)) {
+        throw new Error(`Session run builder ${key} is not a Map`);
+      }
+      expect(collection.size).toBe(0);
+    }
+    const awaitingRedRestart = Reflect.get(state, "awaitingRedRestart");
+    expect(awaitingRedRestart).toBeInstanceOf(Set);
+    if (!(awaitingRedRestart instanceof Set)) {
+      throw new Error("Session run builder awaitingRedRestart is not a Set");
+    }
+    expect(awaitingRedRestart.size).toBe(0);
+  });
+
   test("does not advance state until commit and committed duplicate batches are no-ops", () => {
     eventOrdinal = 0;
     const builder = new SessionRunBuilder();

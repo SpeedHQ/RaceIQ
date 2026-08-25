@@ -40,6 +40,7 @@ function persistedEvidenceKind(source: EvidenceSourceKind, hasRaw: boolean): Per
 }
 
 export interface VerifiedCanonicalArchiveEvidence {
+  archiveId: string;
   receipt: AnalysisProvenanceReceipt;
   outputContentHash: string;
   byteSize: number;
@@ -60,13 +61,11 @@ export async function loadVerifiedCanonicalArchiveEvidence(
     || archive.completeness !== "complete"
     || archive.byteSize == null
     || !archive.outputContentHash
-    || receipt.evidence.contentHash !== archive.outputContentHash
-    || receipt.evidence.objectId !== archive.archiveId
     || output?.contentHash !== archive.outputContentHash
     || receipt.context.gameId !== gameId
     || archive.context.gameId !== gameId
   ) return null;
-  return { receipt, outputContentHash: archive.outputContentHash, byteSize: archive.byteSize };
+  return { receipt, archiveId: archive.archiveId, outputContentHash: archive.outputContentHash, byteSize: archive.byteSize };
 }
 
 function completeVerification(
@@ -137,11 +136,11 @@ export async function createPersistedSessionAnalysisReceipt(
         ? {
             kind: "canonical-archive" as const,
             originalSourceKind: canonical.receipt.evidence.originalSourceKind,
-            objectId: canonical.receipt.evidence.objectId,
+            objectId: canonical.archiveId,
             contentHash: canonical.outputContentHash,
             byteSize: canonical.byteSize,
             formatVersion: canonical.receipt.outputs.find((entry) => entry.artifactType === "canonical_archive")!.schemaVersion,
-            recordCounts: canonical.receipt.evidence.recordCounts,
+            recordCounts: canonical.receipt.canonicalInventory!.rowCounts,
           }
         : {
             kind: persistedEvidenceKind(source, false),
@@ -274,10 +273,9 @@ const REQUIRED_CANONICAL_CHECKS = [
 export function validateCanonicalArchiveReceipt(receiptInput: unknown): AnalysisProvenanceReceipt {
   const receipt = AnalysisProvenanceReceiptSchema.parse(receiptInput);
   if (receipt.artifactSetType !== "canonical_archive") throw new Error("Receipt is not a canonical archive receipt");
-  if (!receipt.evidence.contentHash) throw new Error("Canonical archive output hash is required");
+  if (!receipt.evidence.contentHash) throw new Error("Canonical archive source hash is required");
   const archiveOutput = receipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
   if (!archiveOutput?.contentHash || archiveOutput.count < 1) throw new Error("Canonical archive output inventory is incomplete");
-  if (receipt.evidence.contentHash !== archiveOutput.contentHash) throw new Error("Canonical archive receipt output identities differ");
   if (!receipt.canonicalInventory || receipt.canonicalInventory.semanticIds.length === 0) {
     throw new Error("Canonical archive semantic channel inventory is required");
   }

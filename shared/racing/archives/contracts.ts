@@ -57,6 +57,10 @@ const NullableFiniteSchema = z.number().finite().nullable();
 const NullableNonNegativeIntegerSchema = z.number().int().nonnegative().nullable();
 const Sha256Schema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const IsoTimestampSchema = z.string().datetime({ offset: true });
+const TelemetryVariableIdSchema = z.custom<TelemetryVariableId>(
+  (value) => typeof value === "string" && isTelemetryVariableId(value),
+  { message: "Unknown telemetry variable ID" },
+);
 
 export const CanonicalArchiveSampleSchema = z.strictObject({
   sampleOrdinal: z.number().int().nonnegative(),
@@ -132,8 +136,8 @@ export const CanonicalArchiveManifestSchema = z.strictObject({
   algorithmVersion: z.literal(CANONICAL_ARCHIVE_ALGORITHM_VERSION),
   rowCount: z.number().int().nonnegative(),
   nodeCount: z.number().int().nonnegative(),
-  semanticIds: z.array(z.string().min(1)),
-  eventIds: z.array(z.string().min(1)),
+  semanticIds: z.array(TelemetryVariableIdSchema),
+  eventIds: z.array(RaceEventIdSchema),
   completeness: z.enum(["complete", "partial", "empty", "unavailable"]),
   warnings: z.array(z.string()),
   context: CanonicalArchiveContextSchema,
@@ -163,10 +167,6 @@ export const CanonicalArchiveVerificationSchema = z.strictObject({
 });
 export type CanonicalArchiveVerification = z.infer<typeof CanonicalArchiveVerificationSchema>;
 
-const TelemetryVariableIdSchema = z.custom<TelemetryVariableId>(
-  (value) => typeof value === "string" && isTelemetryVariableId(value),
-  { message: "Unknown telemetry variable ID" },
-);
 
 export const CanonicalArchiveProvenanceSchema = z.strictObject({
   archiveIdentity: z.string().min(1),
@@ -177,8 +177,7 @@ export const CanonicalArchiveProvenanceSchema = z.strictObject({
 });
 export type CanonicalArchiveProvenance = z.infer<typeof CanonicalArchiveProvenanceSchema>;
 
-export const CanonicalArchiveAvailabilitySchema = z.strictObject({
-  state: z.enum(["available", "unavailable", "unknown"]),
+const CanonicalArchiveNonAvailableFields = {
   status: CanonicalArchiveStatusSchema.nullable(),
   completeness: z.enum(["complete", "partial", "empty", "unavailable"]).nullable(),
   archiveId: z.string().min(1).nullable(),
@@ -187,5 +186,27 @@ export const CanonicalArchiveAvailabilitySchema = z.strictObject({
   eventIds: z.array(RaceEventIdSchema),
   provenance: CanonicalArchiveProvenanceSchema.nullable(),
   details: z.string().nullable(),
-});
+} as const;
+
+export const CanonicalArchiveAvailabilitySchema = z.discriminatedUnion("state", [
+  z.strictObject({
+    state: z.literal("available"),
+    status: z.literal("verified"),
+    completeness: z.literal("complete"),
+    archiveId: z.string().min(1),
+    generationId: z.string().min(1),
+    semanticIds: z.array(TelemetryVariableIdSchema).min(1),
+    eventIds: z.array(RaceEventIdSchema),
+    provenance: CanonicalArchiveProvenanceSchema,
+    details: z.string().nullable(),
+  }),
+  z.strictObject({
+    state: z.literal("unavailable"),
+    ...CanonicalArchiveNonAvailableFields,
+  }),
+  z.strictObject({
+    state: z.literal("unknown"),
+    ...CanonicalArchiveNonAvailableFields,
+  }),
+]);
 export type CanonicalArchiveAvailability = z.infer<typeof CanonicalArchiveAvailabilitySchema>;

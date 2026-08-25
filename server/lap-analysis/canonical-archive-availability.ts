@@ -54,7 +54,6 @@ export async function getSessionCanonicalAvailability(sessionId: number): Promis
       archive.status !== "verified"
       || archive.completeness !== "complete"
       || !archive.outputContentHash
-      || receipt.evidence.contentHash !== archive.outputContentHash
       || archiveOutput.contentHash !== archive.outputContentHash
       || receipt.context.gameId !== session.gameId
       || archive.context.gameId !== session.gameId

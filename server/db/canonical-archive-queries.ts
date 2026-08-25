@@ -397,7 +397,7 @@ async function getCurrentVerifiedArchiveWithClient(
   if (!active?.receipt) return null;
 
   const archive = await client.select().from(canonicalArchives).where(and(
-    eq(canonicalArchives.archiveId, active.receipt.evidence.objectId),
+    eq(canonicalArchives.generationId, active.generationId),
     eq(canonicalArchives.sessionId, sessionId),
     inArray(canonicalArchives.status, ["verified", "partial"]),
   )).get();
@@ -422,9 +422,9 @@ async function getCurrentVerifiedArchiveWithClient(
     && archive.algorithmVersion === CANONICAL_ARCHIVE_ALGORITHM_VERSION
     && archive.generationId === active.receipt.generationId
     && archive.outputContentHash != null
-    && archive.outputContentHash === active.receipt.evidence.contentHash
     && archive.outputContentHash === output?.contentHash
     && archive.sourceContentHash === active.sourceContentHash
+    && archive.sourceContentHash === active.receipt.evidence.contentHash
     && archive.manifest.sourceContentHash === archive.sourceContentHash
     && active.contractHash === expectedContractHash
     && active.configurationHash === current.configurationHash
@@ -479,6 +479,7 @@ export async function getCanonicalArchiveLapReadPlan(input: {
     node: canonicalArchiveNodes,
   }).from(canonicalArchives)
     .innerJoin(analysisReceipts, and(
+      eq(canonicalArchives.generationId, analysisReceipts.generationId),
       eq(canonicalArchives.sessionId, analysisReceipts.sessionId),
       eq(analysisReceipts.artifactSetId, artifactSetId),
       eq(analysisReceipts.lifecycle, "active"),
@@ -496,7 +497,7 @@ export async function getCanonicalArchiveLapReadPlan(input: {
     .orderBy(asc(canonicalArchiveNodes.startRow), asc(canonicalArchiveNodes.ordinal));
   const active = snapshot[0]?.active;
   if (!active?.receipt) return null;
-  const rows = snapshot.filter((row) => row.archive.archiveId === active.receipt!.evidence.objectId);
+  const rows = snapshot;
   const first = rows[0];
   if (!first || first.archive.outputContentHash == null) return null;
 
@@ -518,9 +519,9 @@ export async function getCanonicalArchiveLapReadPlan(input: {
     first.archive.schemaVersion === CANONICAL_ARCHIVE_SCHEMA_VERSION
     && first.archive.algorithmVersion === CANONICAL_ARCHIVE_ALGORITHM_VERSION
     && first.archive.generationId === active.receipt.generationId
-    && first.archive.outputContentHash === active.receipt.evidence.contentHash
     && first.archive.outputContentHash === output?.contentHash
     && first.archive.sourceContentHash === active.sourceContentHash
+    && first.archive.sourceContentHash === active.receipt.evidence.contentHash
     && first.archive.manifest.sourceContentHash === first.archive.sourceContentHash
     && active.contractHash === expectedContractHash
     && active.configurationHash === current.configurationHash

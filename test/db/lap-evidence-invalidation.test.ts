@@ -203,7 +203,7 @@ describe("lap evidence invalidation", () => {
     });
   });
 
-  test("same-count reprocessing stales session and lap quality and deletes telemetry caches", async () => {
+  test("same-count reprocessing refreshes session and lap quality and deletes telemetry caches", async () => {
     const session = await db.insert(sessions).values({
       carOrdinal: 1,
       trackOrdinal: 1,
@@ -280,33 +280,37 @@ describe("lap evidence invalidation", () => {
 
     const storedSession = await db.select().from(sessions)
       .where(eq(sessions.id, sessionId)).get();
+    if (!storedSession?.recordingQuality) {
+      throw new Error("Reprocessed session quality was not persisted");
+    }
+    const rebuiltRecordingQuality = storedSession.recordingQuality;
+    expect(rebuiltRecordingQuality).not.toEqual(recordingQuality);
     expect(storedSession).toMatchObject({
-      recordingQuality,
-      qualitySchemaVersion: null,
-      qualityPolicyVersion: null,
-      qualityConfigVersion: null,
-      qualityGeneration: null,
+      qualitySchemaVersion: rebuiltRecordingQuality.provenance.schemaVersion,
+      qualityPolicyVersion: rebuiltRecordingQuality.provenance.policyVersion,
+      qualityConfigVersion: rebuiltRecordingQuality.provenance.configurationVersion,
+      qualityGeneration: rebuiltRecordingQuality.provenance.outputGeneration,
     });
     expect((await getSessions("fm-2023")).find(({ id }) => id === sessionId))
-      .toMatchObject({ recordingQuality, qualityStale: true });
+      .toMatchObject({ qualityStale: false });
 
     const storedLap = afterLaps.find(({ id }) => id === target.id)!;
+    expect(storedLap.quality).not.toBeNull();
     expect(storedLap).toMatchObject({
-      eligibility: null,
-      qualitySchemaVersion: null,
-      qualityPolicyVersion: null,
-      qualityConfigVersion: null,
-      qualityGeneration: null,
+      eligibility: expect.any(Object),
+      qualitySchemaVersion: storedLap.quality!.provenance.schemaVersion,
+      qualityPolicyVersion: storedLap.quality!.provenance.policyVersion,
+      qualityConfigVersion: storedLap.quality!.provenance.configurationVersion,
+      qualityGeneration: storedLap.quality!.provenance.outputGeneration,
       fuelPerLap: null,
       tyreWear: null,
     });
-    expect(storedLap.quality?.provenance.outputGeneration).toBe(
+    expect(storedLap.quality?.provenance.outputGeneration).not.toBe(
       generated.quality.provenance.outputGeneration,
     );
     expect(await getLapById(target.id)).toMatchObject({
-      qualityStale: true,
+      qualityStale: false,
     });
-    expect((await getLapById(target.id))?.quality).not.toBeNull();
     expect(await db.select().from(lapAnalyses).where(eq(lapAnalyses.lapId, target.id)).get()).toBeUndefined();
     expect(await db.select().from(compareAnalyses).where(
       or(eq(compareAnalyses.lapAId, target.id), eq(compareAnalyses.lapBId, target.id)),

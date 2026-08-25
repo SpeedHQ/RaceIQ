@@ -69,8 +69,16 @@ function currentRow(id: number = 1, decisions: EligibilityDecisionSet | null = e
   };
 }
 
-function archive(overrides: Partial<CanonicalArchiveAvailability> = {}): CanonicalArchiveAvailability {
-  return {
+type AvailableArchive = Extract<CanonicalArchiveAvailability, { state: "available" }>;
+type UnavailableArchive = Extract<CanonicalArchiveAvailability, { state: "unavailable" }>;
+type UnknownArchive = Extract<CanonicalArchiveAvailability, { state: "unknown" }>;
+type ArchiveOverrides =
+  | (Partial<AvailableArchive> & { state?: "available" })
+  | (Partial<UnavailableArchive> & { state: "unavailable" })
+  | (Partial<UnknownArchive> & { state: "unknown" });
+
+function archive(overrides: ArchiveOverrides = {}): CanonicalArchiveAvailability {
+  const available: AvailableArchive = {
     state: "available",
     status: "verified",
     completeness: "complete",
@@ -86,8 +94,10 @@ function archive(overrides: Partial<CanonicalArchiveAvailability> = {}): Canonic
       outputIdentity: "output:sha256:236",
     },
     details: "Verified canonical archive inventory",
-    ...overrides,
   };
+  if (overrides.state === "unavailable") return { ...available, ...overrides, state: "unavailable" };
+  if (overrides.state === "unknown") return { ...available, ...overrides, state: "unknown" };
+  return { ...available, ...overrides, state: "available" };
 }
 
 const cases: readonly {

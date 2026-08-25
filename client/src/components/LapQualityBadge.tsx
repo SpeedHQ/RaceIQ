@@ -9,6 +9,7 @@ import type {
   QualityReasonCode,
 } from "@shared/racing/quality/contracts";
 import type { GameId } from "@shared/games/ids";
+import type { AnalysisStatus } from "@shared/racing/provenance/contracts";
 import { resolveEligibilityDecision } from "@shared/racing/quality/policies";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
@@ -20,6 +21,7 @@ import { qualityUpdatedQueryKeys, queryKeys } from "../hooks/query-keys";
 import { useGameId } from "../stores/game";
 import { m } from "../paraglide/messages";
 import { getLocale } from "../paraglide/runtime";
+import { AnalysisProvenanceDiagnostics, AnalysisProvenanceStatusSummary } from "./AnalysisProvenanceStatus";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
@@ -222,12 +224,14 @@ function formatMilliseconds(value: number): string {
 }
 
 export interface SessionQualityStatus {
-  action: "current" | "rebuild_eligibility" | "reprocess" | "rebuild_in_progress" | "unavailable";
+  action: "current" | "rebuild_eligibility" | "reprocess" | "unavailable";
+  analysisStatus: AnalysisStatus;
+  canonicalCleanupEligible?: boolean;
 }
-export async function getSessionQualityStatus(sessionId: number, gameId: GameId) {
+export async function getSessionQualityStatus(sessionId: number, gameId: GameId): Promise<SessionQualityStatus> {
   const response = await client.api.sessions[":id"].quality.$get({ param: { id: String(sessionId) }, query: { gameId } });
   if (!response.ok) throw await errorFromResponse(response);
-  return response.json();
+  return response.json() as Promise<SessionQualityStatus>;
 }
 
 export async function rebuildSessionQuality(sessionId: number, gameId: GameId) {
@@ -243,6 +247,7 @@ export async function invalidateSessionQualityQueries(queryClient: Pick<QueryCli
 
 export interface QualityRebuildStatusProps {
   action: SessionQualityStatus["action"] | undefined;
+  analysisStatus?: AnalysisStatus | null;
   statusPending: boolean;
   statusFetching: boolean;
   statusError: boolean;
@@ -253,7 +258,8 @@ export interface QualityRebuildStatusProps {
   onRebuild: () => void;
 }
 
-export function QualityRebuildStatus({ action, statusPending, statusFetching, statusError, rebuildPending, rebuildError, rebuildSuccess, onRetry, onRebuild }: QualityRebuildStatusProps): ReactNode {
+export function QualityRebuildStatus({ action, analysisStatus, statusPending, statusFetching, statusError, rebuildPending, rebuildError, rebuildSuccess, onRetry, onRebuild }: QualityRebuildStatusProps): ReactNode {
+  const attemptInProgress = analysisStatus?.status === "rebuild_in_progress";
   let liveStatus: ReactNode = null;
   if (rebuildError) {
     liveStatus = (
@@ -288,19 +294,13 @@ export function QualityRebuildStatus({ action, statusPending, statusFetching, st
         {m.quality_status_loading()}
       </p>
     );
-  } else if (action === "rebuild_in_progress") {
-    liveStatus = (
-      <p role="status" aria-live="polite" className="text-app-caption text-app-text-muted">
-        {m.quality_rebuilding()}
-      </p>
-    );
-  } else if (action === "current") {
+  } else if (action === "current" && !analysisStatus) {
     liveStatus = (
       <p role="status" aria-live="polite" className="text-app-caption text-status-success">
         {m.quality_status_current()}
       </p>
     );
-  } else if (action === "unavailable") {
+  } else if (action === "unavailable" && !analysisStatus) {
     liveStatus = (
       <p role="alert" className="text-app-caption text-status-danger">
         {m.quality_rebuild_unavailable()}
@@ -309,12 +309,12 @@ export function QualityRebuildStatus({ action, statusPending, statusFetching, st
   }
 
   return (
-    <section aria-label={m.quality_title()} aria-busy={statusPending || statusFetching || rebuildPending || undefined} className="space-y-3">
+    <section aria-label={m.quality_title()} aria-busy={statusPending || statusFetching || rebuildPending || attemptInProgress || undefined} className="space-y-3">
       {liveStatus}
       {(action === "rebuild_eligibility" || action === "reprocess") && (
         <DialogFooter>
-          <Button variant="app-primary" onClick={onRebuild} disabled={rebuildPending}>
-            {rebuildPending ? m.quality_rebuilding() : m.quality_rebuild()}
+          <Button variant="app-primary" onClick={onRebuild} disabled={rebuildPending || attemptInProgress}>
+            {rebuildPending ? m.quality_rebuilding() : attemptInProgress ? m.analysis_status_rebuild_in_progress() : m.quality_rebuild()}
           </Button>
         </DialogFooter>
       )}
@@ -362,6 +362,9 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
     onSuccess: async () => {
       if (sessionId != null && gameId != null) await invalidateSessionQualityQueries(queryClient, sessionId, gameId);
     },
+    onError: async () => {
+      await statusQuery.refetch();
+    },
   });
 
   const persistedDecisions = lap.eligibility ? Object.values(lap.eligibility) : [];
@@ -369,6 +372,7 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
   const reasons = diagnosticReasons(lap.quality, decisions);
   const eventIds = [...new Set(lap.quality?.facts.flatMap((fact) => fact.eventIds) ?? [])].sort();
   const rebuildAction = statusQuery.data?.action;
+  const analysisStatus = statusQuery.data?.analysisStatus;
   const provenance = lap.quality?.provenance;
   const identity = lap.quality?.versionIdentity;
   const gaps = lap.quality?.gapSummary;
@@ -389,7 +393,7 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
           {presentation.label()}
         </Badge>
       </DialogTrigger>
-      <DialogContent size="md" layout="scrollable">
+      <DialogContent size="lg" layout="scrollable">
         <DialogHeader>
           <DialogTitle>{m.quality_title()}</DialogTitle>
           <DialogDescription>{presentation.summary()}</DialogDescription>
@@ -405,6 +409,7 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
             {decision ? STATUS_LABELS[decision.status]() : m.quality_status_unknown()}
           </Badge>
         </div>
+        {analysisStatus && <AnalysisProvenanceStatusSummary analysis={analysisStatus} />}
 
         <section className="space-y-2">
           <h3 className="text-app-caption font-semibold text-app-text">{m.quality_policies()}</h3>
@@ -458,6 +463,12 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
             <ChevronDown data-icon="inline-end" className={`size-3.5 transition-transform ${diagnosticsOpen ? "rotate-180" : ""}`} />
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 space-y-3 rounded-lg border border-app-border p-3 text-app-caption">
+            {analysisStatus && (
+              <AnalysisProvenanceDiagnostics
+                analysis={analysisStatus}
+                canonicalCleanupEligible={statusQuery.data?.canonicalCleanupEligible}
+              />
+            )}
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
               <dt className="text-app-text-muted">{m.quality_source()}</dt>
               <dd>{lap.quality?.sourceKind ?? lap.source ?? "unknown"}</dd>
@@ -540,6 +551,7 @@ export function LapQualityBadge({ lap, policyId = "corner-trace", size = "compac
 
         <QualityRebuildStatus
           action={rebuildAction}
+          analysisStatus={analysisStatus}
           statusPending={statusQuery.isPending}
           statusFetching={statusQuery.isFetching}
           statusError={statusQuery.isError}

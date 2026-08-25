@@ -13,6 +13,7 @@ import {
   SessionRunConflictError,
   SessionRunCursorError,
 } from "../../server/db/session-run-queries";
+import { updateLapValidity } from "../../server/db/lap-mutation-queries";
 import {
   appendRaceEvents,
   finalizeRaceEventSourceGeneration,
@@ -381,6 +382,76 @@ describe("session run persistence", () => {
     ).toBe(true);
   });
 
+  test("returns runs that begin before and span the overlap interval", async () => {
+    const joined = event(20, "participant_joined", {
+      sourceId: "car-1",
+      identityState: "stable",
+      displayName: "Driver",
+      vehicleId: "car",
+    });
+    const lap1 = event(
+      21,
+      "lap_completed",
+      {
+        lapNumber: 1,
+        lapTimeMs: 90_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      { lapNumber: 1 },
+    );
+    const tireService = event(22, "tire_service_observed", {
+      changedCorners: ["fl", "fr"],
+      previousCompound: "medium",
+      currentCompound: "soft",
+      beforeWear: null,
+      afterWear: null,
+    });
+    const lap2 = event(
+      23,
+      "lap_completed",
+      {
+        lapNumber: 2,
+        lapTimeMs: 89_000,
+        isValid: true,
+        phase: "flying",
+        conditions: [],
+      },
+      { lapNumber: 2 },
+    );
+    const ended = event(
+      24,
+      "session_ended",
+      {
+        phase: "finished",
+        previousPhase: "green",
+        reason: "complete",
+        terminalObserved: true,
+        nativeCode: null,
+      },
+      { participantId: null, participantKind: null, driverId: null },
+    );
+    const events = [joined, lap1, tireService, lap2, ended];
+    await appendRaceEvents(events);
+    const update = new SessionRunBuilder().consume({
+      events,
+      lapsByCompletionEventId: {},
+    });
+    await appendSessionRunArtifacts(update);
+
+    const tireRuns = await listSessionRuns(1, { runKind: "tire" });
+    expect(tireRuns.items).toHaveLength(2);
+    const overlappingDrivers = await listSessionRuns(1, {
+      runKind: "driver",
+      overlapsRunId: tireRuns.items[1]!.runId,
+    });
+    expect(overlappingDrivers.items).toHaveLength(1);
+    expect(overlappingDrivers.items[0]!.openingSequence).toBeLessThan(
+      tireRuns.items[1]!.openingSequence,
+    );
+  });
+
   test("rejects malformed lap membership cursors", async () => {
     await seedRuns();
     const run = (await listSessionRuns(1, { runKind: "tire" })).items[0]!;
@@ -408,6 +479,24 @@ describe("session run persistence", () => {
         ({ sourceGeneration }) =>
           sourceGeneration === `sha256:${"e".repeat(64)}`,
       ),
+    ).toBe(true);
+  });
+
+  test("refreshes persisted summaries when lap validity changes", async () => {
+    await seedRuns();
+    const lap = await db
+      .select({ id: laps.id })
+      .from(laps)
+      .where(eq(laps.sessionId, 1))
+      .get();
+    expect(lap).toBeDefined();
+
+    await updateLapValidity(lap!.id, false, "manual-recheck");
+
+    const runs = await listSessionRuns(1);
+    expect(runs.items).toHaveLength(4);
+    expect(
+      runs.items.every(({ summary }) => summary.validLapCount === 0),
     ).toBe(true);
   });
 

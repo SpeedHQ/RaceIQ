@@ -33,6 +33,7 @@ import {
 import { db } from "../db/index";
 import { laps, sessions } from "../db/schema";
 import { updateSessionQuality } from "../db/session-queries";
+import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { tryGetServerGame } from "../games/registry";
 import { getSessionCanonicalAvailability } from "./canonical-archive-availability";
 
@@ -369,6 +370,7 @@ export async function rebuildSessionEligibility(sessionId: number): Promise<Qual
   try {
     await db.transaction(async (tx) => {
       await updateSessionQuality(sessionId, session.recordingQuality!, tx);
+      await rebuildPersistedSessionRuns(sessionId, tx);
       const receipt = await createPersistedSessionAnalysisReceipt(attempt, session.gameId as GameId, tx, canonicalEvidence);
       await activateAnalysisGeneration({ generationId: attempt.generationId, receipt }, tx);
     });

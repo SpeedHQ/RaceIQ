@@ -152,6 +152,13 @@ function addExtensionVariable(
               /\[\]|Array|Record|\{/.test(field.type)
             ? "structured"
             : "scalar"),
+      ...(definition?.valueType ? { valueType: definition.valueType } : {}),
+      ...(definition?.dimensions ? { dimensions: definition.dimensions } : {}),
+      ...(definition?.cardinality ? { cardinality: definition.cardinality } : {}),
+      ...(definition?.ordering ? { ordering: definition.ordering } : {}),
+      ...(definition?.range ? { range: definition.range } : {}),
+      ...(definition?.enumDomain ? { enumDomain: definition.enumDomain } : {}),
+      ...(definition?.limitations ? { limitations: definition.limitations } : {}),
       games: unavailableGames(
         "This parser does not expose an equivalent source value.",
       ),

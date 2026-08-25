@@ -357,6 +357,16 @@ function officialTiming(quality: LapQualitySummary): EligibilityDecision {
     const reasons = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
     return decision("official-timing", quality, "ineligible", reasons.length > 0 ? reasons : [syntheticReason("partial_lap")]);
   }
+  const validLapTime = Number.isFinite(quality.timing.lapTimeMs) && quality.timing.lapTimeMs > 0;
+  const unconfirmed = factsFor(quality, ["lap_time_unconfirmed"]).map(reasonFromFact);
+  if (!validLapTime || unconfirmed.length > 0) {
+    return decision(
+      "official-timing",
+      quality,
+      "ineligible",
+      unconfirmed.length > 0 ? unconfirmed : [syntheticReason("lap_time_unconfirmed")],
+    );
+  }
   if (quality.timing.source === "estimated") {
     return decision("official-timing", quality, "ineligible", [syntheticReason("lap_time_unconfirmed")]);
   }
@@ -365,8 +375,7 @@ function officialTiming(quality: LapQualitySummary): EligibilityDecision {
     return decision("official-timing", quality, "eligible_with_warning", reasons.length > 0 ? reasons : [syntheticReason("lap_time_fallback")]);
   }
   if (!quality.timing.confirmed) {
-    const reasons = factsFor(quality, ["lap_time_unconfirmed"]).map(reasonFromFact);
-    return decision("official-timing", quality, "ineligible", reasons.length > 0 ? reasons : [syntheticReason("lap_time_unconfirmed")]);
+    return decision("official-timing", quality, "ineligible", [syntheticReason("lap_time_unconfirmed")]);
   }
   return decision("official-timing", quality, "eligible", []);
 }
@@ -398,10 +407,16 @@ function channelCoverageReasons(quality: LapQualitySummary, requiredChannels: re
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);
     const coverage = rangeCoverage(channel, range);
-    if (!channel || channel.mappingStatus === "unavailable") {
-      reasons.push(syntheticReason("channel_unavailable", [semanticId]));
+    if (!channel || channel.mappingStatus === "unavailable" || channel.sourceProfile?.treatment === "absent") {
+      const measured = factsFor(quality, ["channel_unavailable"], range)
+        .filter((fact) => fact.semanticIds.includes(semanticId))
+        .map(reasonFromFact);
+      reasons.push(...(measured.length > 0 ? measured : [syntheticReason("channel_unavailable", [semanticId])]));
     } else if (coverage == null || coverage < minimumCoverage) {
-      reasons.push(syntheticReason("channel_missing", [semanticId]));
+      const measured = factsFor(quality, ["channel_missing"], range)
+        .filter((fact) => fact.semanticIds.includes(semanticId))
+        .map(reasonFromFact);
+      reasons.push(...(measured.length > 0 ? measured : [syntheticReason("channel_missing", [semanticId])]));
     }
     const overlappingIssues = channel?.issueIntervals.filter((issue) => issueOverlapsRange(issue, range)) ?? [];
     if (overlappingIssues.some(({ state }) => state === "stale")) reasons.push(syntheticReason("channel_stale", [semanticId]));
@@ -414,6 +429,7 @@ function lapComparison(quality: LapQualitySummary, range?: QualityDistanceRange)
   const timing = officialTiming(quality);
   const reasons: EligibilityReason[] = [];
   if (!isEligibilityUsable(timing)) reasons.push(...timing.reasons);
+  reasons.push(...factsFor(quality, ["partial_track_coverage"], range).map(reasonFromFact));
   if (!quality.structurallyValid) reasons.push(syntheticReason("structurally_invalid"));
   reasons.push(...channelCoverageReasons(quality, LAP_COMPARISON_CHANNELS, QUALITY_THRESHOLDS_V1.lapComparisonCoverage, range));
   const fidelityReasons = sourceFidelityReasons(quality, LAP_COMPARISON_CHANNELS);
@@ -475,11 +491,14 @@ function transientEvent(quality: LapQualitySummary, options: EligibilityEvaluati
 function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
   const fuel = channelById(quality, "fuel.fuel");
   const reasons: EligibilityReason[] = [];
-  if (!quality.complete) {
-    const partial = factsFor(quality, ["partial_lap"]).map(reasonFromFact);
-    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("partial_lap")]));
+  if (!quality.complete || quality.lifecycleState === "incomplete") {
+    const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
+    const fallback = quality.complete ? "recording_incomplete" : "partial_lap";
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason(fallback)]));
   }
-  if (!fuel || fuel.mappingStatus === "unavailable") reasons.push(syntheticReason("channel_unavailable", ["fuel.fuel"]));
+  if (!fuel || fuel.mappingStatus === "unavailable" || fuel.sourceProfile?.treatment === "absent") {
+    reasons.push(syntheticReason("channel_unavailable", ["fuel.fuel"]));
+  }
   else {
     if (fuel.boundaryCoverage.first500Ms == null || fuel.boundaryCoverage.first500Ms < 1 || fuel.boundaryCoverage.last500Ms == null || fuel.boundaryCoverage.last500Ms < 1) {
       reasons.push(syntheticReason("channel_missing", ["fuel.fuel"]));
@@ -496,10 +515,14 @@ function tireAnalysis(quality: LapQualitySummary, tireMode: EligibilityEvaluatio
   const requiredChannels = QUALITY_POLICY_CONFIG_V1.requiredChannels["tire-analysis"];
   const reasons: EligibilityReason[] = [];
   const warnings: EligibilityReason[] = [];
+  if (quality.lifecycleState === "incomplete") {
+    const incomplete = factsFor(quality, ["recording_incomplete"]).map(reasonFromFact);
+    reasons.push(...(incomplete.length > 0 ? incomplete : [syntheticReason("recording_incomplete")]));
+  }
   const continuous = tireMode === "continuous";
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);
-    if (!channel || channel.mappingStatus === "unavailable") {
+    if (!channel || channel.mappingStatus === "unavailable" || channel.sourceProfile?.treatment === "absent") {
       reasons.push(syntheticReason("channel_unavailable", [semanticId]));
       continue;
     }
@@ -521,6 +544,10 @@ function tireAnalysis(quality: LapQualitySummary, tireMode: EligibilityEvaluatio
 function mlTraining(quality: LapQualitySummary, options: EligibilityEvaluationOptions): EligibilityDecision {
   const requiredChannels = options.requiredSemanticIds ?? ML_CHANNELS;
   const reasons: EligibilityReason[] = [];
+  if (!quality.timing.confirmed) {
+    const timing = factsFor(quality, ["lap_time_unconfirmed"]).map(reasonFromFact);
+    reasons.push(...(timing.length > 0 ? timing : [syntheticReason("lap_time_unconfirmed")]));
+  }
   if (!quality.structurallyValid) {
     const structural = factsFor(quality, ["structurally_invalid"]).map(reasonFromFact);
     reasons.push(...(structural.length > 0 ? structural : [syntheticReason("structurally_invalid")]));
@@ -597,9 +624,20 @@ function groupDecision(
   if (!quality) {
     return unresolvedDecision(policyId, reasons.length > 0 ? reasons : [syntheticReason("insufficient_sample_pool")]);
   }
-  const confidenceScores = laps.map((lap) => lap.eligibility[policyId]?.confidence.score).filter((score): score is number => score != null);
+  const confidencePolicies =
+    policyId === "setup-analysis"
+      ? (["normal-pace", "corner-trace"] as const)
+      : policyId === "driver-profile"
+        ? (["normal-pace", "lap-comparison"] as const)
+        : (["normal-pace"] as const);
+  const confidenceScores = laps.flatMap((lap) =>
+    confidencePolicies
+      .map((confidencePolicyId) => lap.eligibility[confidencePolicyId].confidence.score)
+      .filter((score): score is number => score != null),
+  );
+  const expectedConfidenceCount = laps.length * confidencePolicies.length;
   const result = decision(policyId, quality, status, reasons);
-  if (confidenceScores.length !== laps.length) result.confidence = { level: "unknown", score: null };
+  if (confidenceScores.length !== expectedConfidenceCount) result.confidence = { level: "unknown", score: null };
   else if (confidenceScores.length > 0) {
     const score = Math.min(...confidenceScores, result.confidence.score ?? 1);
     result.confidence = { score, level: score >= 0.85 ? "high" : score >= 0.65 ? "medium" : "low" };

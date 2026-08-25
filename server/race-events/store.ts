@@ -1,9 +1,5 @@
 import type { RaceEvent } from "../../shared/racing/events/contracts";
-import type {
-  SessionRun,
-  SessionRunEvidence,
-  SessionRunLapMembership,
-} from "../../shared/racing/runs/contracts";
+import type { SessionRun, SessionRunEvidence, SessionRunLapMembership } from "../../shared/racing/runs/contracts";
 import {
   appendRaceEvents,
   appendRaceEventsWithLapLinks,
@@ -15,13 +11,7 @@ import {
   type ReplaceReplayableSessionArtifactsResult,
 } from "../db/race-event-queries";
 export type { RaceEventLapLink } from "../db/race-event-queries";
-import {
-  appendRaceEventsWithSessionRunUpdate,
-  appendSessionRunArtifacts,
-  rebuildPersistedSessionRuns,
-  SessionRunConflictError,
-  type AppendedSessionRunArtifacts,
-} from "../db/session-run-queries";
+import { appendRaceEventsWithSessionRunUpdate, appendSessionRunArtifacts, rebuildPersistedSessionRuns, SessionRunConflictError, type AppendedSessionRunArtifacts } from "../db/session-run-queries";
 import type { PreparedSessionRunUpdate } from "../session-runs/builder";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { RaceEventConflictError, compareRaceEvents } from "./ordering";
@@ -29,28 +19,18 @@ export { RaceEventConflictError, compareRaceEvents } from "./ordering";
 
 export interface RaceEventStore {
   append(events: readonly RaceEvent[]): Promise<RaceEvent[]>;
-  appendWithLapLinks(
-    events: readonly RaceEvent[],
-    links: readonly RaceEventLapLink[],
-  ): Promise<RaceEvent[]>;
+  appendWithLapLinks(events: readonly RaceEvent[], links: readonly RaceEventLapLink[]): Promise<RaceEvent[]>;
   attachLap(sessionId: number, lapNumber: number, lapId: number): Promise<RaceEvent[]>;
   appendWithSessionRunUpdate(
     events: readonly RaceEvent[],
     links: readonly RaceEventLapLink[],
     update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">,
   ): Promise<AppendedSessionRunArtifacts>;
-  appendSessionRunUpdate(
-    update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">,
-  ): Promise<SessionRun[]>;
+  appendSessionRunUpdate(update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">): Promise<SessionRun[]>;
   refreshQualityLinks(sessionId: number): Promise<void>;
   refreshSessionRuns(sessionId: number): Promise<SessionRun[]>;
-  replace(
-    input: ReplaceReplayableSessionArtifactsInput,
-  ): Promise<ReplaceReplayableSessionArtifactsResult>;
-  finalizeSourceGeneration(
-    sessionId: number,
-    sourceGeneration: string,
-  ): Promise<number>;
+  replace(input: ReplaceReplayableSessionArtifactsInput): Promise<ReplaceReplayableSessionArtifactsResult>;
+  finalizeSourceGeneration(sessionId: number, sourceGeneration: string): Promise<number>;
 }
 
 /** Production persistence port. Detectors and the coordinator never import DB. */
@@ -59,10 +39,7 @@ export class DatabaseRaceEventStore implements RaceEventStore {
     return appendRaceEvents(events);
   }
 
-  appendWithLapLinks(
-    events: readonly RaceEvent[],
-    links: readonly RaceEventLapLink[],
-  ): Promise<RaceEvent[]> {
+  appendWithLapLinks(events: readonly RaceEvent[], links: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
     return appendRaceEventsWithLapLinks(events, links);
   }
 
@@ -74,9 +51,7 @@ export class DatabaseRaceEventStore implements RaceEventStore {
     return appendRaceEventsWithSessionRunUpdate(events, links, update);
   }
 
-  appendSessionRunUpdate(
-    update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">,
-  ): Promise<SessionRun[]> {
+  appendSessionRunUpdate(update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">): Promise<SessionRun[]> {
     return appendSessionRunArtifacts(update);
   }
 
@@ -92,16 +67,11 @@ export class DatabaseRaceEventStore implements RaceEventStore {
     return rebuildPersistedSessionRuns(sessionId);
   }
 
-  replace(
-    input: ReplaceReplayableSessionArtifactsInput,
-  ): Promise<ReplaceReplayableSessionArtifactsResult> {
+  replace(input: ReplaceReplayableSessionArtifactsInput): Promise<ReplaceReplayableSessionArtifactsResult> {
     return replaceReplayableSessionArtifacts(input);
   }
 
-  finalizeSourceGeneration(
-    sessionId: number,
-    sourceGeneration: string,
-  ): Promise<number> {
+  finalizeSourceGeneration(sessionId: number, sourceGeneration: string): Promise<number> {
     return finalizeRaceEventSourceGeneration(sessionId, sourceGeneration);
   }
 }
@@ -129,17 +99,12 @@ export class MemoryRaceEventStore {
     return Promise.resolve(inserted.sort(compareRaceEvents));
   }
 
-  async appendWithLapLinks(
-    events: readonly RaceEvent[],
-    links: readonly RaceEventLapLink[],
-  ): Promise<RaceEvent[]> {
+  async appendWithLapLinks(events: readonly RaceEvent[], links: readonly RaceEventLapLink[]): Promise<RaceEvent[]> {
     const inserted = await this.append(events);
     for (const link of links) {
       await this.attachLap(link.sessionId, link.lapNumber, link.lapId);
     }
-    return inserted
-      .map((event) => this.rows.get(event.eventId) ?? event)
-      .sort(compareRaceEvents);
+    return inserted.map((event) => this.rows.get(event.eventId) ?? event).sort(compareRaceEvents);
   }
 
   async appendWithSessionRunUpdate(
@@ -157,9 +122,7 @@ export class MemoryRaceEventStore {
     return { events: appendedEvents, runs: appendedRuns };
   }
 
-  appendSessionRunUpdate(
-    update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">,
-  ): Promise<SessionRun[]> {
+  appendSessionRunUpdate(update: Pick<PreparedSessionRunUpdate, "runs" | "memberships" | "evidence">): Promise<SessionRun[]> {
     for (const run of update.runs) {
       const previous = this.runRows.get(run.runId);
       if (previous && previous.contentHash !== run.contentHash) {
@@ -173,10 +136,7 @@ export class MemoryRaceEventStore {
       inserted.push(run);
     }
     for (const membership of update.memberships) {
-      this.membershipRows.set(
-        `${membership.runId}:${membership.lapEventId}`,
-        membership,
-      );
+      this.membershipRows.set(`${membership.runId}:${membership.lapEventId}`, membership);
     }
     for (const item of update.evidence) {
       this.evidenceRows.set(`${item.runId}:${item.eventId}:${item.role}`, item);
@@ -187,7 +147,9 @@ export class MemoryRaceEventStore {
   attachLap(sessionId: number, lapNumber: number, lapId: number): Promise<RaceEvent[]> {
     const updated: RaceEvent[] = [];
     for (const [eventId, event] of this.rows) {
-      if (event.sessionId !== sessionId || event.lapNumber !== lapNumber) continue;
+      if (event.sessionId !== sessionId || event.lapNumber !== lapNumber || event.lapId === lapId) {
+        continue;
+      }
       const linked = { ...event, lapId } as RaceEvent;
       this.rows.set(eventId, linked);
       updated.push(linked);
@@ -199,26 +161,14 @@ export class MemoryRaceEventStore {
     return Promise.resolve();
   }
 
-  async replace(
-    input: ReplaceReplayableSessionArtifactsInput,
-  ): Promise<ReplaceReplayableSessionArtifactsResult> {
+  async replace(input: ReplaceReplayableSessionArtifactsInput): Promise<ReplaceReplayableSessionArtifactsResult> {
     const eventSnapshot = new Map(this.rows);
     const runSnapshot = new Map(this.runRows);
     const membershipSnapshot = new Map(this.membershipRows);
     const evidenceSnapshot = new Map(this.evidenceRows);
     try {
       for (const [eventId, event] of this.rows) {
-        if (
-          event.sessionId === input.sessionId &&
-          ![
-            "source_connected",
-            "source_disconnected",
-            "source_stale",
-            "source_recovered",
-            "storage_drop",
-            "storage_failure",
-          ].includes(event.eventType)
-        ) {
+        if (event.sessionId === input.sessionId && !["source_connected", "source_disconnected", "source_stale", "source_recovered", "storage_drop", "storage_failure"].includes(event.eventType)) {
           this.rows.delete(eventId);
         }
       }
@@ -241,9 +191,7 @@ export class MemoryRaceEventStore {
       await this.append(input.events);
       const runs = await this.appendSessionRunUpdate(input);
       return {
-        events: this.list().filter(
-          (event) => event.sessionId === input.sessionId,
-        ),
+        events: this.list().filter((event) => event.sessionId === input.sessionId),
         runs,
         memberships: [...input.memberships],
         evidence: [...input.evidence],
@@ -271,20 +219,13 @@ export class MemoryRaceEventStore {
   finalizeSourceGeneration(sessionId: number, sourceGeneration: string): Promise<number> {
     let updated = 0;
     for (const [eventId, event] of this.rows) {
-      if (
-        event.sessionId === sessionId &&
-        (event.sourceGeneration == null || event.sourceGeneration.startsWith("provisional:"))
-      ) {
+      if (event.sessionId === sessionId && (event.sourceGeneration == null || event.sourceGeneration.startsWith("provisional:"))) {
         this.rows.set(eventId, { ...event, sourceGeneration } as RaceEvent);
         updated += 1;
       }
     }
     for (const [runId, run] of this.runRows) {
-      if (
-        run.sessionId === sessionId &&
-        (run.sourceGeneration == null ||
-          run.sourceGeneration.startsWith("provisional:"))
-      ) {
+      if (run.sessionId === sessionId && (run.sourceGeneration == null || run.sourceGeneration.startsWith("provisional:"))) {
         this.runRows.set(runId, { ...run, sourceGeneration });
       }
     }
@@ -292,9 +233,7 @@ export class MemoryRaceEventStore {
   }
 
   refreshSessionRuns(sessionId: number): Promise<SessionRun[]> {
-    return Promise.resolve(
-      this.listSessionRuns().filter((run) => run.sessionId === sessionId),
-    );
+    return Promise.resolve(this.listSessionRuns().filter((run) => run.sessionId === sessionId));
   }
 
   list(): RaceEvent[] {
@@ -304,28 +243,15 @@ export class MemoryRaceEventStore {
   listSessionRuns(): SessionRun[] {
     return [...this.runRows.values()].sort(
       (left, right) =>
-        left.timelineEpoch - right.timelineEpoch ||
-        left.openingSequence - right.openingSequence ||
-        left.openingEventOrder - right.openingEventOrder ||
-        left.runId.localeCompare(right.runId),
+        left.timelineEpoch - right.timelineEpoch || left.openingSequence - right.openingSequence || left.openingEventOrder - right.openingEventOrder || left.runId.localeCompare(right.runId),
     );
   }
 
   listSessionRunMemberships(): SessionRunLapMembership[] {
-    return [...this.membershipRows.values()].sort(
-      (left, right) =>
-        left.runId.localeCompare(right.runId) ||
-        left.ordinal - right.ordinal ||
-        left.lapEventId.localeCompare(right.lapEventId),
-    );
+    return [...this.membershipRows.values()].sort((left, right) => left.runId.localeCompare(right.runId) || left.ordinal - right.ordinal || left.lapEventId.localeCompare(right.lapEventId));
   }
 
   listSessionRunEvidence(): SessionRunEvidence[] {
-    return [...this.evidenceRows.values()].sort(
-      (left, right) =>
-        left.runId.localeCompare(right.runId) ||
-        left.eventId.localeCompare(right.eventId) ||
-        left.role.localeCompare(right.role),
-    );
+    return [...this.evidenceRows.values()].sort((left, right) => left.runId.localeCompare(right.runId) || left.eventId.localeCompare(right.eventId) || left.role.localeCompare(right.role));
   }
 }

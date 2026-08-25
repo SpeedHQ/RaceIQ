@@ -147,9 +147,13 @@ describe("AC Evo v0.6 recording", () => {
 
 		expect(laps.length).toBe(3);
 
-		// Lap 1: outlap — driver exits pit, not a valid timed lap
-		expect(laps[0].invalidReason).toBe("outlap");
-		expect(laps[0].isValid).toBe(false);
+		// Lap 1: outlap pace is excluded independently; track limits own validity.
+		expect(laps[0]).toMatchObject({
+			phase: "out",
+			paceEligibility: "excluded",
+			invalidReason: "track limits",
+			isValid: false,
+		});
 
 		// Lap 2: a real flying lap, invalidated on track rather than by pit contact.
 		const flying = laps[1];

@@ -146,11 +146,7 @@ async function loadCanonicalRebuildInput(sessionId: number, gameId: GameId): Pro
     throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt failed verification");
   }
   const archiveOutput = archiveReceipt.outputs.find((entry) => entry.artifactType === "canonical_archive");
-  if (
-    archiveReceipt.evidence.objectId !== archive.archiveId
-    || archiveReceipt.evidence.contentHash !== archive.outputContentHash
-    || archiveOutput?.contentHash !== archive.outputContentHash
-  ) {
+  if (archiveOutput?.contentHash !== archive.outputContentHash) {
     throw new SessionCanonicalArchiveUnavailableError(sessionId, "active archive receipt does not match durable archive");
   }
   if (archiveReceipt.context.gameId !== gameId || archive.context.gameId !== gameId) {
@@ -421,6 +417,7 @@ function replacementLaps(
     const exact = values.findIndex((candidate) => candidate.rawByteOffset === lap.rawByteOffset);
     const preserved = values.splice(exact >= 0 ? exact : 0, 1)[0];
     return {
+      ...(preserved ? { id: preserved.id } : {}),
       lapNumber: lap.lapNumber,
       lapTime: lap.lapTime,
       isValid: lap.isValid,
