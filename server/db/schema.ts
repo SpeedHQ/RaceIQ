@@ -558,10 +558,6 @@ export const compareAnalyses = sqliteTable(
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		lapAId: integer("lap_a_id").notNull(),
 		lapBId: integer("lap_b_id").notNull(),
-		// Canonical storage pair plus requested directional pair. v70 backfills
-		// existing rows so /A/B and /B/A caches remain distinct.
-		requestLapAId: integer("request_lap_a_id"),
-		requestLapBId: integer("request_lap_b_id"),
 		kind: text("kind").notNull().default("inputs"),
 		analysis: text("analysis").notNull(),
 		inputTokens: integer("input_tokens").notNull().default(0),
@@ -574,7 +570,7 @@ export const compareAnalyses = sqliteTable(
 		qualityPolicyVersion: text("quality_policy_version"),
 		findingGenerationKey: text("finding_generation_key"),
 	},
-	(table) => [unique().on(table.requestLapAId, table.requestLapBId, table.kind)],
+	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );
 
 /**
