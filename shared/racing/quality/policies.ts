@@ -200,15 +200,8 @@ function syntheticReason(code: QualityReasonCode, semanticIds: readonly Telemetr
   };
 }
 
-function channelConditionReasons(
-  quality: LapQualitySummary,
-  code: QualityReasonCode,
-  semanticId: TelemetryVariableId,
-  range?: QualityDistanceRange,
-): EligibilityReason[] {
-  const measured = quality.facts
-    .filter((fact) => fact.code === code && fact.semanticIds.includes(semanticId) && qualityFactOverlapsRange(fact, range))
-    .map(reasonFromFact);
+function channelConditionReasons(quality: LapQualitySummary, code: QualityReasonCode, semanticId: TelemetryVariableId, range?: QualityDistanceRange): EligibilityReason[] {
+  const measured = quality.facts.filter((fact) => fact.code === code && fact.semanticIds.includes(semanticId) && qualityFactOverlapsRange(fact, range)).map(reasonFromFact);
   return measured.length > 0 ? measured : [syntheticReason(code, [semanticId])];
 }
 
@@ -514,7 +507,17 @@ function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
   }
   if (!channelIsAvailable(fuel)) reasons.push(...channelConditionReasons(quality, "channel_unavailable", "fuel.fuel"));
   else {
-    if (fuel.boundaryCoverage.first500Ms == null || fuel.boundaryCoverage.first500Ms < 1 || fuel.boundaryCoverage.last500Ms == null || fuel.boundaryCoverage.last500Ms < 1) {
+    if (
+      fuel.observedCount < 2 ||
+      fuel.observedCadenceMs == null ||
+      fuel.observedCadenceMs <= 0 ||
+      quality.timeRange == null ||
+      quality.timeRange.endMs <= quality.timeRange.startMs ||
+      fuel.boundaryCoverage.first500Ms == null ||
+      fuel.boundaryCoverage.first500Ms < 1 ||
+      fuel.boundaryCoverage.last500Ms == null ||
+      fuel.boundaryCoverage.last500Ms < 1
+    ) {
       reasons.push(...channelConditionReasons(quality, "channel_missing", "fuel.fuel"));
     }
     if (fuel.freshnessCounts.stale > 0) reasons.push(...channelConditionReasons(quality, "channel_stale", "fuel.fuel"));
@@ -639,10 +642,7 @@ const GROUP_POLICY_PREREQUISITES = {
   "stint-falloff": ["normal-pace"],
   "setup-analysis": ["normal-pace", "corner-trace"],
   "driver-profile": ["normal-pace", "lap-comparison"],
-} as const satisfies Record<
-  "stint-falloff" | "setup-analysis" | "driver-profile",
-  readonly EligibilityPolicyId[]
->;
+} as const satisfies Record<"stint-falloff" | "setup-analysis" | "driver-profile", readonly EligibilityPolicyId[]>;
 
 function groupDecision(
   policyId: "stint-falloff" | "setup-analysis" | "driver-profile",

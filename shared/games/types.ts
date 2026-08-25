@@ -39,17 +39,8 @@ export interface AnalysisTelemetryModel {
   suspensionCompressionBias: AnalysisTelemetryMetric;
 }
 
-export type PacketUnit =
-  | "fraction"
-  | "litre"
-  | "celsius"
-  | "fahrenheit"
-  | "psi"
-  | "watt"
-  | "newton-metre";
-export interface ScalarTelemetrySpec<
-  Unit extends PacketUnit = PacketUnit,
-> {
+export type PacketUnit = "fraction" | "litre" | "celsius" | "fahrenheit" | "psi" | "watt" | "newton-metre";
+export interface ScalarTelemetrySpec<Unit extends PacketUnit = PacketUnit> {
   packetUnit: Unit;
   binding?: SemanticMetricBinding;
 }
@@ -60,7 +51,6 @@ export interface TelemetryChannelSpec {
   freshness: "continuous" | "pit-snapshot" | "static";
   binding?: SemanticMetricBinding;
 }
-
 
 export interface TelemetryModel {
   fuel: ScalarTelemetrySpec<"fraction" | "litre">;
@@ -107,11 +97,13 @@ export interface GameAdapter {
   nativeSectors: boolean;
 
   /** Read the source-defined sector layout from a normalized telemetry frame. */
-  getNativeSectorLayout?(packet: TelemetryPacket): {
-    starts: number[];
-    lapFraction?: number;
-    trackLengthM?: number;
-  } | undefined;
+  getNativeSectorLayout?(packet: TelemetryPacket):
+    | {
+        starts: number[];
+        lapFraction?: number;
+        trackLengthM?: number;
+      }
+    | undefined;
 
   /** Raw-lap replay should synthesize a finish sample from the following frame. */
   appendsDelayedFinishFrame: boolean;
@@ -141,7 +133,6 @@ export interface GameAdapter {
   /** Steering range: abs(max deviation from center) */
   steeringRange: number;
 
-
   /** Resolve car ordinal to human-readable name */
   getCarName(ordinal: number): string;
 
@@ -160,11 +151,11 @@ export interface GameAdapter {
   /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
   tireTempThresholds: { cold: number; warm: number; hot: number };
 
-  /** Suspension travel color thresholds — normalised 0–100 percent.
-   *  Bar colours step red → amber → green → blue as travel rises through
-   *  these values. Same shape for all games; per-car overrides can layer
-   *  on top later if needed. */
-  suspensionThresholds: { values: number[] };
+  /** Suspension travel color thresholds and millimeter rendering behavior. */
+  suspensionThresholds: {
+    values: number[];
+    millimeterMode?: "absolute" | "centered";
+  };
 
   /** Optimal tire pressure range in PSI — shown green when in range, blue
    *  below, orange above. Games that need class-aware windows (e.g. ACC's
@@ -174,7 +165,7 @@ export interface GameAdapter {
   /** Brake temp thresholds in °C — front/rear have different working ranges */
   brakeTempThresholds?: {
     front: { warm: number; hot: number };
-    rear:  { warm: number; hot: number };
+    rear: { warm: number; hot: number };
   };
 
   /** Car class names (e.g. Forza: D/C/B/A/S/R/P/X) — undefined if N/A */
@@ -183,4 +174,3 @@ export interface GameAdapter {
   /** Drivetrain names (e.g. FWD/RWD/AWD) — undefined if N/A */
   drivetrainNames?: Record<number, string>;
 }
-

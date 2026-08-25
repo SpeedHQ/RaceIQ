@@ -523,6 +523,19 @@ describe("eligibility policy registry", () => {
     expect(evaluateEligibility("fuel-burn", structurallyInvalid).status).toBe("eligible");
   });
 
+  test("requires distinct start and end fuel observations", () => {
+    const decision = evaluateEligibility("fuel-burn", summarize(qualityPackets(1)));
+
+    expect(decision.status).toBe("ineligible");
+    expect(decision.reasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "channel_missing",
+          semanticIds: ["fuel.fuel"],
+        }),
+      ]),
+    );
+  });
   test("never treats unknown group decisions as usable", () => {
     const quality = summarize(qualityPackets(100));
     const decisions = evaluateAllEligibility(quality);
@@ -536,25 +549,11 @@ describe("eligibility policy registry", () => {
     const stable = [10, 10.1, 9.9].map((lapTime) => groupLap(quality, lapTime));
     const eligible = evaluateGroupEligibility("setup-analysis", stable, {});
     expect(eligible.status).toBe("eligible");
-    expect(eligible.confidence.score).toBe(
-      Math.min(
-        ...stable.flatMap((lap) => [
-          lap.eligibility["normal-pace"].confidence.score!,
-          lap.eligibility["corner-trace"].confidence.score!,
-        ]),
-      ),
-    );
+    expect(eligible.confidence.score).toBe(Math.min(...stable.flatMap((lap) => [lap.eligibility["normal-pace"].confidence.score!, lap.eligibility["corner-trace"].confidence.score!])));
     const inconsistent = [10, 10.5, 9.5].map((lapTime) => groupLap(quality, lapTime));
     const ineligible = evaluateGroupEligibility("setup-analysis", inconsistent, {});
     expect(ineligible.status).toBe("ineligible");
-    expect(ineligible.confidence.score).toBe(
-      Math.min(
-        ...inconsistent.flatMap((lap) => [
-          lap.eligibility["normal-pace"].confidence.score!,
-          lap.eligibility["corner-trace"].confidence.score!,
-        ]),
-      ),
-    );
+    expect(ineligible.confidence.score).toBe(Math.min(...inconsistent.flatMap((lap) => [lap.eligibility["normal-pace"].confidence.score!, lap.eligibility["corner-trace"].confidence.score!])));
   });
 
   test("preserves usable per-lap warnings in setup decisions", () => {
