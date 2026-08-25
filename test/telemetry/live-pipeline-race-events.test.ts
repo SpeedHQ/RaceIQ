@@ -468,6 +468,41 @@ describe("live race-event timeline integration", () => {
     expect(ws.broadcastedNotifications.some(({ type }) => type === "quality-updated")).toBe(true);
   });
 
+  test("defers imported-session reconciliation until session finalization", async () => {
+    let reconciliationCount = 0;
+    const pipeline = new LiveTelemetryPipeline(
+      new CapturingDbAdapter(),
+      new CapturingWsAdapter(),
+      {
+        bypassPacketRateFilter: true,
+        skipHistorySeeding: true,
+        skipDevState: true,
+        reconcileAfterEachLap: false,
+        recorder: new NullSessionRecorderAdapter(),
+        sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
+        raceEventStore: new MemoryRaceEventStore(),
+        onSessionFinalized: async () => {
+          reconciliationCount += 1;
+        },
+      },
+    );
+
+    await pipeline.processPacket(packet());
+    await pipeline.processPacket(
+      packet({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
+
+    expect(reconciliationCount).toBe(0);
+    await pipeline.finalizeCurrentSession();
+    expect(reconciliationCount).toBe(1);
+  });
+
   test("starts generation before output writes and activates before reconciled notification", async () => {
     const db = new CapturingDbAdapter();
     const ws = new CapturingWsAdapter();

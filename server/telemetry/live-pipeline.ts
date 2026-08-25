@@ -131,6 +131,7 @@ export class LiveTelemetryPipeline {
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
+  private readonly _reconcileAfterEachLap: boolean;
   private readonly _sourceKind: EvidenceSourceKind;
   private readonly _participant: ParticipantEvidence;
   private readonly _versionIdentity?: TelemetryVersionIdentity;
@@ -223,6 +224,7 @@ export class LiveTelemetryPipeline {
       bypassPacketRateFilter?: boolean;
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
+      reconcileAfterEachLap?: boolean;
       recorder?: SessionRecorderAdapter;
       onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
       onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
@@ -246,6 +248,7 @@ export class LiveTelemetryPipeline {
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
+    this._reconcileAfterEachLap = options?.reconcileAfterEachLap ?? true;
     this._sourceKind = options?.sourceKind ?? "native-live";
     this._onSessionFinalized = options?.onSessionFinalized;
     this._onSessionAnalysisStarted = options?.onSessionAnalysisStarted;
@@ -981,6 +984,7 @@ export class LiveTelemetryPipeline {
           this._broadcastSessionLaps();
         };
         const reconcile = () => {
+          if (!this._reconcileAfterEachLap) return;
           void this._scheduleLapReconciliation(
             session.sessionId,
             session.gameId,
