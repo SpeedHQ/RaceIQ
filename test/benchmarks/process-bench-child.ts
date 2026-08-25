@@ -1,25 +1,23 @@
 import { gcAndSweep } from "bun:jsc";
 import { pathToFileURL } from "node:url";
-
-type BenchmarkModule = {
-  setup?: () => void | Promise<void>;
-  runIteration: () => unknown | Promise<unknown>;
-};
-
-const retainedHeapRoot = globalThis as typeof globalThis & { __raceiqRetainedHeapRoot?: unknown };
+import { measureRetainedHeap, measureTiming, type BenchmarkModule } from "./process-bench-runtime";
 
 function fail(message: string): never {
   console.error(`process-bench-child: ${message}`);
   process.exit(1);
 }
 
-const [, , mode, moduleSpecifier, warmupText, iterationsText] = process.argv;
+const [, , mode, moduleSpecifier, ...values] = process.argv;
 if (mode !== "timing" && mode !== "retainedHeap") fail("first argument must be timing or retainedHeap");
 if (!moduleSpecifier) fail("fixture module is required");
-const warmupIterations = Number(warmupText);
-if (!Number.isInteger(warmupIterations) || warmupIterations < 0) fail("warmup count must be a non-negative integer");
-const iterations = Number(iterationsText);
-if (mode === "timing" && (!Number.isInteger(iterations) || iterations <= 0)) fail("iteration count must be a positive integer");
+const numbers = values.map(Number);
+if (mode === "timing") {
+  const [warmupMs, measurementMs, minSamples, maxSamples] = numbers;
+  if (![warmupMs, measurementMs].every((value) => Number.isFinite(value) && value >= 0)) fail("warmup and measurement milliseconds must be finite and non-negative");
+  if (![minSamples, maxSamples].every((value) => Number.isInteger(value) && value > 0) || minSamples > maxSamples) fail("sample bounds must be positive integers with min <= max");
+} else if (!Number.isInteger(numbers[0]) || numbers[0]! < 0) {
+  fail("warmup count must be a non-negative integer");
+}
 
 let loaded: BenchmarkModule;
 const stdoutWrite = process.stdout.write.bind(process.stdout);
@@ -30,40 +28,25 @@ try {
     ? pathToFileURL(moduleSpecifier).href
     : moduleSpecifier;
   const imported = await import(specifier) as Partial<BenchmarkModule> & { default?: Partial<BenchmarkModule> };
-  const candidate = (imported.default as { default?: Partial<BenchmarkModule> } | undefined)?.default
-    ?? (typeof imported.default?.runIteration === "function" ? imported.default : imported);
+  const candidate = imported.default && typeof imported.default.runIteration === "function" ? imported.default : imported;
   loaded = candidate as BenchmarkModule;
 } catch (error) {
   fail(`could not load fixture: ${error instanceof Error ? error.message : String(error)}`);
 }
 if (typeof loaded.runIteration !== "function") fail("fixture must export runIteration()");
+
 try {
-  await loaded.setup?.();
-  for (let i = 0; i < warmupIterations; i++) await loaded.runIteration();
-  if (mode === "retainedHeap") {
-    retainedHeapRoot.__raceiqRetainedHeapRoot = undefined;
-    const baseline = gcAndSweep();
-    retainedHeapRoot.__raceiqRetainedHeapRoot = await loaded.runIteration();
-    const live = gcAndSweep();
-    if (retainedHeapRoot.__raceiqRetainedHeapRoot === undefined) fail("retained heap callback returned undefined");
-    const delta = live - baseline;
-    retainedHeapRoot.__raceiqRetainedHeapRoot = undefined;
-    gcAndSweep();
-    if (!Number.isFinite(delta) || delta < 0) fail(`retained heap delta must be finite and non-negative: ${delta}`);
-    process.stdout.write = stdoutWrite;
-    stdoutWrite(`${JSON.stringify({ retainedHeap: delta })}\n`);
-  } else {
-    const samplesNs: number[] = [];
-    for (let i = 0; i < iterations; i++) {
-      const start = Bun.nanoseconds();
-      await loaded.runIteration();
-      const elapsed = Bun.nanoseconds() - start;
-      if (!Number.isFinite(elapsed) || elapsed < 0) fail("timing sample must be finite and non-negative");
-      samplesNs.push(elapsed);
-    }
-    process.stdout.write = stdoutWrite;
-    stdoutWrite(`${JSON.stringify({ iterations, warmupIterations, samplesNs })}\n`);
-  }
+  const runtime = { nowNs: Bun.nanoseconds, gcAndSweep, setSink: (value: unknown) => { (globalThis as typeof globalThis & { __raceiqBenchmarkSink?: unknown }).__raceiqBenchmarkSink = value; } };
+  const report = mode === "timing"
+    ? await measureTiming(loaded, {
+        warmupNs: numbers[0]! * 1_000_000,
+        measurementNs: numbers[1]! * 1_000_000,
+        minSamples: numbers[2]!,
+        maxSamples: numbers[3]!,
+      }, runtime)
+    : await measureRetainedHeap(loaded, numbers[0]!, runtime);
+  process.stdout.write = stdoutWrite;
+  stdoutWrite(`${JSON.stringify(report)}\n`);
 } catch (error) {
   fail(`benchmark failed: ${error instanceof Error ? error.message : String(error)}`);
 }

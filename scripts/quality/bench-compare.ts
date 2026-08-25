@@ -1,202 +1,114 @@
 #!/usr/bin/env bun
-/**
- * Compare paired mitata bench-results.json files and emit a markdown diff.
- * Usage: bun scripts/quality/bench-compare.ts <base-1.json> <current-1.json> [<base-2.json> <current-2.json> ...]
- */
 import { readFileSync } from "node:fs";
-
-type Stats = { p50: number; p99: number; retainedHeap?: { p50: number } };
-type Bench = { alias: string; group: number; runs: { stats?: Stats }[] };
-type Layout = { name: string | null }[];
-type Context = { runtime: string | null; cpu: { name: string | null } };
-type RawProcess = { timing?: Record<string, { samplesNs?: number[] }> };
-type Results = { layout: Layout; context: Context; benchmarks: Bench[]; rawProcesses?: RawProcess[] };
-type Entry = { key: string; median: number; p99: number; retainedHeap?: number };
-type Pair = { base: Results; current: Results; baseEntries: Map<string, Entry>; currentEntries: Map<string, Entry> };
-
-const robustSpread = (report: Results, key: string): number | undefined => {
-  const values = report.rawProcesses?.map((raw) => {
-    const samples = raw.timing?.[key]?.samplesNs;
-    if (!samples?.length) return undefined;
-    return median(samples);
-  }).filter((value): value is number => value !== undefined);
-  if (!values?.length) return undefined;
-  const center = median(values);
-  return median(values.map((value) => Math.abs(value - center))) / (center || 1) * 100;
-};
+import { pairedHierarchicalMedianChange, type HierarchicalPair, type RelativeEstimate } from "../../test/benchmarks/benchmark-statistics";
+import type { ProcessBenchmarkConfig, ProcessBenchmarkContext, ProcessBenchmarkReport } from "../../test/benchmarks/process-bench-contracts";
 
 const args = process.argv.slice(2);
-const option = (prefix: string): string | undefined => args.find((arg) => arg.startsWith(`${prefix}=`))?.slice(prefix.length + 1);
-const usage = "Usage: bun scripts/quality/bench-compare.ts <base-1.json> <current-1.json> [<base-2.json> <current-2.json> ...] [--median-threshold=5] [--p99-threshold=5] [--retained-heap-threshold=5] [--include=<prefix>] [--exclude=<prefix>] [--informational] [--title=<heading>]";
-const threshold = (name: string): number => {
-  const raw = option(name);
-  const value = Number(raw ?? 5);
-  if (raw !== undefined && (raw.trim() === "" || !Number.isFinite(value) || value < 0)) {
-    console.error(`${name} must be a finite non-negative number\n${usage}`);
-    process.exit(1);
-  }
+const option = (name: string): string | undefined => args.find((arg) => arg.startsWith(`${name}=`))?.slice(name.length + 1);
+const numberOption = (name: string, fallback: number): number => {
+  const value = Number(option(name) ?? fallback);
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be finite and non-negative`);
   return value;
 };
-const medianThreshold = threshold("--median-threshold");
-const p99Threshold = threshold("--p99-threshold");
-const retainedHeapThreshold = threshold("--retained-heap-threshold");
-const includePrefix = option("--include");
-const excludePrefix = option("--exclude");
-const informational = args.includes("--informational");
-const title = option("--title");
+const medianThreshold = numberOption("--median-threshold", 10);
+const retainedHeapThreshold = numberOption("--retained-heap-threshold", 10);
+const maxCpuError = numberOption("--max-cpu-error", 3);
+const maxRetainedHeapError = numberOption("--max-retained-heap-error", 5);
+const bootstrapSamples = numberOption("--bootstrap-samples", 10_000);
+const title = option("--title") ?? "Replay benchmark comparison";
 const files = args.filter((arg) => !arg.startsWith("--"));
+if (files.length === 0 || files.length % 2 !== 0 || !Number.isInteger(bootstrapSamples) || bootstrapSamples <= 0) throw new Error("Expected paired report files and positive integer bootstrap samples");
 
-if (args.some((arg) => arg.startsWith("--threshold=")) || files.length === 0 || files.length % 2 !== 0) {
-  console.error(usage);
-  process.exit(1);
+function fail(message: string): never { throw new Error(message); }
+function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
+function isConfig(value: unknown): value is ProcessBenchmarkConfig {
+  if (typeof value !== "object" || value === null) return false;
+  const config = value as Record<string, unknown>;
+  return Number.isInteger(config.processes) && Number(config.processes) > 0
+    && Number.isInteger(config.retainedProcesses) && Number(config.retainedProcesses) > 0
+    && Number.isInteger(config.retainedWarmups) && Number(config.retainedWarmups) >= 0
+    && finite(config.warmupMs) && config.warmupMs >= 0 && finite(config.measurementMs) && config.measurementMs >= 0
+    && Number.isInteger(config.minSamples) && Number(config.minSamples) > 0
+    && Number.isInteger(config.maxSamples) && Number(config.maxSamples) >= Number(config.minSamples)
+    && (config.caseOrder === "forward" || config.caseOrder === "reverse");
 }
-
-function readReport(path: string): Results {
-  return JSON.parse(readFileSync(path, "utf-8")) as Results;
+function isContext(value: unknown): value is ProcessBenchmarkContext {
+  if (typeof value !== "object" || value === null) return false;
+  const context = value as Record<string, unknown>;
+  const cpu = context.cpu as Record<string, unknown> | undefined;
+  const os = context.os as Record<string, unknown> | undefined;
+  return typeof context.runtime === "string" && typeof cpu?.name === "string" && Number.isInteger(cpu.logicalCount) && Number(cpu.logicalCount) > 0
+    && typeof os?.platform === "string" && typeof os.release === "string" && typeof os.arch === "string";
 }
-
-function extract(report: Results): Map<string, Entry> {
-  const entries = new Map<string, Entry>();
-  for (const benchmark of report.benchmarks) {
-    const stats = benchmark.runs[0]?.stats;
-    if (!stats) continue;
-    const groupName = report.layout[benchmark.group]?.name ?? "root";
-    const key = `${groupName}/${benchmark.alias}`;
-    entries.set(key, {
-      key,
-      median: stats.p50,
-      p99: stats.p99,
-      retainedHeap: stats.retainedHeap?.p50,
-    });
+function readReport(path: string): ProcessBenchmarkReport {
+  let value: unknown;
+  try { value = JSON.parse(readFileSync(path, "utf8")); } catch (error) { fail(`Malformed JSON in ${path}: ${error instanceof Error ? error.message : String(error)}`); }
+  if (typeof value !== "object" || value === null) fail(`${path}: report must be object`);
+  const report = value as Record<string, unknown>;
+  if (report.schemaVersion !== 2 || report.suite !== "replay" || typeof report.revision !== "string" || !isConfig(report.config) || !isContext(report.context) || typeof report.cases !== "object" || report.cases === null) fail(`${path}: invalid schema version, suite, config, context, or cases`);
+  for (const [key, entry] of Object.entries(report.cases)) {
+    if (typeof entry !== "object" || entry === null) fail(`${path}: case ${key} is malformed`);
+    const value = entry as Record<string, unknown>;
+    if (!Array.isArray(value.timing) || !Array.isArray(value.retainedHeapDeltas) || value.timing.length !== report.config.processes || value.retainedHeapDeltas.length !== report.config.retainedProcesses) fail(`${path}: case ${key} has wrong process/sample counts`);
+    for (const child of value.timing) {
+      if (typeof child !== "object" || child === null) fail(`${path}: case ${key} has malformed timing child`);
+      const timing = child as Record<string, unknown>;
+      if (!Array.isArray(timing.samplesNs) || !timing.samplesNs.every(finite)) fail(`${path}: case ${key} has malformed timing samples`);
+      const samples = timing.samplesNs;
+      if (samples.length < report.config.minSamples || samples.length > report.config.maxSamples) fail(`${path}: case ${key} timing sample count outside config`);
+    }
+    if (!value.retainedHeapDeltas.every(finite)) fail(`${path}: case ${key} has malformed retained heap samples`);
   }
-  return entries;
+  if (Object.keys(report.cases).length === 0) fail(`${path}: cases must not be empty`);
+  return report as ProcessBenchmarkReport;
 }
+function equal(a: unknown, b: unknown): boolean { return JSON.stringify(a) === JSON.stringify(b); }
 
+type Pair = { base: ProcessBenchmarkReport; current: ProcessBenchmarkReport };
 const pairs: Pair[] = [];
 for (let index = 0; index < files.length; index += 2) {
   const base = readReport(files[index]!);
   const current = readReport(files[index + 1]!);
-  const baseRuntime = base.context.runtime ?? "?";
-  const currentRuntime = current.context.runtime ?? "?";
-  const baseCpu = base.context.cpu.name ?? "?";
-  const currentCpu = current.context.cpu.name ?? "?";
-  if (baseRuntime !== currentRuntime || baseCpu !== currentCpu) {
-    console.error(`Context mismatch in pair ${index / 2 + 1}: base ${baseRuntime}/${baseCpu}, current ${currentRuntime}/${currentCpu}`);
-    process.exit(1);
-  }
-  pairs.push({ base, current, baseEntries: extract(base), currentEntries: extract(current) });
+  if (!equal(base.context, current.context) || !equal(base.config, current.config) || base.config.caseOrder !== current.config.caseOrder) fail(`Pair ${index / 2 + 1}: base/current context, config, or case order mismatch`);
+  const baseKeys = Object.keys(base.cases).sort();
+  const currentKeys = Object.keys(current.cases).sort();
+  if (!equal(baseKeys, currentKeys)) fail(`Pair ${index / 2 + 1}: case sets mismatch`);
+  pairs.push({ base, current });
 }
 
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!;
+function fmt(value: number): string { return Number.isFinite(value) ? value.toFixed(2) : "unmeasurable"; }
+function classify(result: RelativeEstimate | null, threshold: number, errorBudget: number): "PASS" | "REGRESSION" | "INCONCLUSIVE" {
+  if (!result) return "INCONCLUSIVE";
+  if (result.ci95[0] > threshold) return "REGRESSION";
+  if (result.ci95[1] <= threshold && result.marginPct <= errorBudget) return "PASS";
+  return "INCONCLUSIVE";
 }
-function fmtTime(ns: number): string {
-  if (ns < 1000) return `${ns.toFixed(0)} ns`;
-  if (ns < 1_000_000) return `${(ns / 1000).toFixed(2)} µs`;
-  return `${(ns / 1_000_000).toFixed(2)} ms`;
-}
-function fmtBytes(bytes: number): string {
-  return `${bytes.toLocaleString("en-US")} B`;
-}
-
-
-function pct(current: number, base: number): number {
-  return base === 0 ? 0 : ((current - base) / base) * 100;
-}
-
-function sign(change: number): string {
-  if (Math.abs(change) < 0.5) return "≈";
-  return change > 0 ? "🔴" : "🟢";
-}
-
-function fmtDelta(change: number): string {
-  return `${sign(change)} ${change > 0 ? "+" : ""}${change.toFixed(1)}%`;
-}
-
-const allKeys = new Set<string>();
-for (const pair of pairs) {
-  for (const key of pair.baseEntries.keys()) allKeys.add(key);
-  for (const key of pair.currentEntries.keys()) allKeys.add(key);
-}
-const keys = [...allKeys].filter((key) => (!includePrefix || key.startsWith(includePrefix)) && (!excludePrefix || !key.startsWith(excludePrefix))).sort();
-const varianceDiagnostics: string[] = [];
-if (keys.length === 0 && includePrefix) {
-  console.error(`No benchmarks match --include=${includePrefix}`);
-  process.exit(1);
-}
-if (keys.length === 0 && excludePrefix) {
-  console.error(`No benchmarks remain after --exclude=${excludePrefix}`);
-  process.exit(1);
-}
+function median(values: readonly number[]): number { const sorted = [...values].sort((a, b) => a - b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 === 0 ? (sorted[middle - 1]! + sorted[middle]!) / 2 : sorted[middle]!; }
 
 const rows: string[] = [];
-const regressions: string[] = [];
-let baselinePending = false;
-for (const key of keys) {
-  const baseEntries = pairs.map((pair) => pair.baseEntries.get(key));
-  const currentEntries = pairs.map((pair) => pair.currentEntries.get(key));
-  if (currentEntries.some((entry) => !entry)) {
-    console.error(`Current result missing for ${key} in one or more report pairs`);
-    process.exit(1);
-  }
-  for (let pairIndex = 0; pairIndex < pairs.length; pairIndex++) {
-    const baseSpread = robustSpread(pairs[pairIndex]!.base, key);
-    const currentSpread = robustSpread(pairs[pairIndex]!.current, key);
-    if ((baseSpread !== undefined && baseSpread > 25) || (currentSpread !== undefined && currentSpread > 25)) {
-      varianceDiagnostics.push(`${key} pair ${pairIndex + 1}: high process variance (MAD ${baseSpread?.toFixed(1) ?? "—"}% base, ${currentSpread?.toFixed(1) ?? "—"}% current)`);
-    }
-  }
-  const currentValues = currentEntries as Entry[];
-  const baseValues = baseEntries.filter((entry): entry is Entry => entry !== undefined);
-  if (baseValues.length !== pairs.length) {
-    baselinePending = true;
-    const currentMedian = median(currentValues.map((entry) => entry.median));
-    const currentP99 = median(currentValues.map((entry) => entry.p99));
-    rows.push(`| ${key} | — | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | Baseline pending | — | — | — | — |`);
-    continue;
-  }
-
-  const baseMedian = median(baseValues.map((entry) => entry.median));
-  const currentMedian = median(currentValues.map((entry) => entry.median));
-  const baseP99 = median(baseValues.map((entry) => entry.p99));
-  const currentP99 = median(currentValues.map((entry) => entry.p99));
-  const medianChange = median(pairs.map((_, index) => pct(currentValues[index]!.median, baseValues[index]!.median)));
-  const p99Change = median(pairs.map((_, index) => pct(currentValues[index]!.p99, baseValues[index]!.p99)));
-  const retainedReady = pairs.every((_, index) => baseValues[index]!.retainedHeap !== undefined && currentValues[index]!.retainedHeap !== undefined);
-  const retainedChange = retainedReady
-    ? median(pairs.map((_, index) => pct(currentValues[index]!.retainedHeap!, baseValues[index]!.retainedHeap!)))
-    : undefined;
-  const baseRetainedHeap = retainedReady ? median(baseValues.map((entry) => entry.retainedHeap!)) : undefined;
-  const currentRetainedHeap = retainedReady ? median(currentValues.map((entry) => entry.retainedHeap!)) : undefined;
-  const retainedDisplay = retainedReady ? fmtDelta(retainedChange!) : "—";
-  const baseRetainedDisplay = baseRetainedHeap === undefined ? "—" : fmtBytes(baseRetainedHeap);
-  const currentRetainedDisplay = currentRetainedHeap === undefined ? "—" : fmtBytes(currentRetainedHeap);
-  rows.push(`| ${key} | ${fmtTime(baseMedian)} / ${fmtTime(baseP99)} | ${fmtTime(currentMedian)} / ${fmtTime(currentP99)} | ${fmtDelta(medianChange)} | ${fmtDelta(p99Change)} | ${baseRetainedDisplay} | ${currentRetainedDisplay} | ${retainedDisplay} |`);
-  if (!informational) {
-    if (medianChange > medianThreshold) regressions.push(`- **${key}**: median +${medianChange.toFixed(1)}%`);
-    if (p99Change > p99Threshold) regressions.push(`- **${key}**: p99 +${p99Change.toFixed(1)}%`);
-    if (retainedReady && retainedChange! > retainedHeapThreshold) regressions.push(`- **${key}**: retained heap +${retainedChange!.toFixed(1)}%`);
+let inconclusive = false;
+let regression = false;
+for (const key of Object.keys(pairs[0]!.base.cases).sort()) {
+  const cpuPairs: HierarchicalPair[] = pairs.map(({ base, current }) => ({
+    base: base.cases[key]!.timing.map((child) => child.samplesNs),
+    current: current.cases[key]!.timing.map((child) => child.samplesNs),
+  }));
+  const heapPairs: HierarchicalPair[] = pairs.map(({ base, current }) => ({
+    base: base.cases[key]!.retainedHeapDeltas.map((value) => [value]),
+    current: current.cases[key]!.retainedHeapDeltas.map((value) => [value]),
+  }));
+  for (const [metric, hierarchical, threshold, budget, baseValues, currentValues] of [
+    ["CPU", cpuPairs, medianThreshold, maxCpuError, cpuPairs[0]!.base.flat(), cpuPairs[0]!.current.flat()],
+    ["retained heap", heapPairs, retainedHeapThreshold, maxRetainedHeapError, heapPairs[0]!.base.flat(), heapPairs[0]!.current.flat()],
+  ] as const) {
+    const result = pairedHierarchicalMedianChange(hierarchical, { bootstrapSamples, seed: 0x322 });
+    const status = classify(result, threshold, budget);
+    inconclusive ||= status === "INCONCLUSIVE";
+    regression ||= status === "REGRESSION";
+    rows.push(`| ${key} (${metric}) | ${fmt(median(baseValues))} | ${fmt(median(currentValues))} | ${result ? `${result.estimatePct.toFixed(2)}% (${result.ci95[0].toFixed(2)}%, ${result.ci95[1].toFixed(2)}%)` : "unmeasurable"} | ${result ? `${result.marginPct.toFixed(2)}%` : "—"} | ${status} |`);
   }
 }
-
-const reportTitle = title ?? (informational ? "Informational microbenchmarks" : "Bench comparison");
-const reportNote = informational
-  ? `\n\n_Report-only. Small timings can vary between runs._${includePrefix ? `\nIncluded benchmarks: \`${includePrefix}*\`` : ""}`
-  : `\nThresholds: median ±${medianThreshold}%; p99 ±${p99Threshold}%; retained heap ±${retainedHeapThreshold}%${includePrefix ? `\nIncluded benchmarks: \`${includePrefix}*\`` : ""}`;
-const currentContext = pairs[0]!.current.context;
-const header = `## ${reportTitle}\n\nRuntime: \`${currentContext.runtime ?? "?"}\` on \`${currentContext.cpu.name ?? "?"}\`${reportNote}`;
-const body = rows.join("\n");
-const footer = informational
-  ? ""
-  : regressions.length
-    ? `\n\n### Regressions\n${regressions.join("\n")}`
-    : baselinePending
-      ? "\n\n_Baseline pending. Regression assessment starts after matching results exist on the base branch._"
-      : "\n\n_No regressions above configured thresholds._";
-const diagnostics = varianceDiagnostics.length
-  ? `\n\n### Diagnostics\n${varianceDiagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n")}`
-  : "";
-console.log(`${header}\n\n| Bench | Baseline median / p99 | Current median / p99 | Δ median | Δ p99 | Baseline retained heap p50 | Current retained heap p50 | Δ retained heap |\n|---|---:|---:|---:|---:|---:|---:|---:|\n${body}${diagnostics}${footer}`);
-if (regressions.length > 0 && args.includes("--fail-on-regression")) process.exit(1);
+const context = pairs[0]!.current.context;
+const config = pairs[0]!.current.config;
+console.log(`## ${title}\n\nRuntime: \`${context.runtime}\`; CPU: \`${context.cpu.name}\` (${context.cpu.logicalCount} logical); OS: \`${context.os.platform} ${context.os.release} ${context.os.arch}\`\n\nLaunches: processes=${config.processes}, retainedProcesses=${config.retainedProcesses}, retainedWarmups=${config.retainedWarmups}; warmup=${config.warmupMs}ms, measurement=${config.measurementMs}ms, samples=${config.minSamples}-${config.maxSamples}; caseOrder=${config.caseOrder}\n\n| Case | Baseline median | Current median | Estimated change (95% CI) | CI margin | Result |\n|---|---:|---:|---:|---:|---|\n${rows.join("\n")}`);
+if ((regression || inconclusive) && args.includes("--fail-on-regression")) process.exit(1);

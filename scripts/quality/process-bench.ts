@@ -1,102 +1,73 @@
 #!/usr/bin/env bun
-import { cpus } from "node:os";
+import { cpus, arch, platform, release } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { runChildBenchmark, retainedHeapAttemptLimit, type RetainedHeapChildReport, type TimingChildReport } from "../../test/benchmarks/process-bench-contracts";
+import { runChildBenchmark, type ProcessBenchmarkConfig, type ProcessBenchmarkReport, type RetainedHeapChildReport, type TimingChildReport } from "../../test/benchmarks/process-bench-contracts";
 
 const args = process.argv.slice(2);
 const option = (name: string): string | undefined => args.find((arg) => arg.startsWith(`${name}=`))?.slice(name.length + 1);
 const suite = option("--suite") ?? "replay";
 const revision = option("--revision") ?? "unknown";
-const processes = Number(option("--processes") ?? 1);
-const retainedProcesses = Number(option("--retained-processes") ?? 7);
-const warmups = Number(option("--warmups") ?? 1);
-const iterations = Number(option("--iterations") ?? 20);
+const processes = Number(option("--processes") ?? 3);
+const retainedProcesses = Number(option("--retained-processes") ?? 15);
+const retainedWarmups = Number(option("--retained-warmups") ?? 1);
+const warmupMs = Number(option("--warmup-ms") ?? 3000);
+const measurementMs = Number(option("--measurement-ms") ?? 5000);
+const minSamples = Number(option("--min-samples") ?? 20);
+const maxSamples = Number(option("--max-samples") ?? 200);
+const caseOrder = option("--case-order") ?? "forward";
 const output = option("--output");
 if (suite !== "replay") throw new Error("Only --suite=replay is supported");
 if (!Number.isInteger(processes) || processes <= 0) throw new Error("--processes must be positive integer");
 if (!Number.isInteger(retainedProcesses) || retainedProcesses <= 0) throw new Error("--retained-processes must be positive integer");
-if (!Number.isInteger(warmups) || warmups < 0) throw new Error("--warmups must be non-negative integer");
-if (!Number.isInteger(iterations) || iterations <= 0) throw new Error("--iterations must be positive integer");
+if (!Number.isInteger(retainedWarmups) || retainedWarmups < 0) throw new Error("--retained-warmups must be non-negative integer");
+if (![warmupMs, measurementMs].every((value) => Number.isFinite(value) && value >= 0)) throw new Error("warmup and measurement milliseconds must be finite and non-negative");
+if (!Number.isInteger(minSamples) || minSamples <= 0) throw new Error("--min-samples must be positive integer");
+if (!Number.isInteger(maxSamples) || maxSamples < minSamples) throw new Error("--max-samples must be integer >= min-samples");
+if (caseOrder !== "forward" && caseOrder !== "reverse") throw new Error("--case-order must be forward or reverse");
 
 const root = resolve(dirname(import.meta.path), "../..");
 const child = join(root, "test/benchmarks/process-bench-child.ts");
 const fixture = join(root, "test/benchmarks/replay-process-bench.ts");
 const aliases = [
-  "parse 20,000 raw lap frames",
-  "resolve 20,000 canonical envelopes",
-] as const;
-const rawKeys = aliases.map((alias) => `replay/${alias}`) as [
   "replay/parse 20,000 raw lap frames",
   "replay/resolve 20,000 canonical envelopes",
-];
-const percentile = (values: number[], p: number): number => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
-  return sorted[index]!;
-};
-const median = (values: number[]) => percentile(values, 50);
-const run = async (mode: "timing" | "retainedHeap", alias: string) => runChildBenchmark({
-  command: [process.execPath, "run", child, mode, fixture, String(warmups), String(iterations)],
+] as const;
+const orderedAliases = caseOrder === "forward" ? aliases : [...aliases].reverse();
+const config: ProcessBenchmarkConfig = { processes, retainedProcesses, retainedWarmups, warmupMs, measurementMs, minSamples, maxSamples, caseOrder };
+const runTiming = async (alias: string): Promise<TimingChildReport> => runChildBenchmark({
+  command: [process.execPath, "run", child, "timing", fixture, String(warmupMs), String(measurementMs), String(minSamples), String(maxSamples)],
   env: { ...process.env, REPLAY_BENCH_CASE: alias } as Record<string, string>,
-  kind: mode,
+  kind: "timing",
+  expectedSamples: { min: minSamples, max: maxSamples },
 });
-type RawProcess = {
-  process: number;
-  timing: Record<string, TimingChildReport>;
-  retainedHeap: Record<string, RetainedHeapChildReport>;
-  retainedHeapErrors: Record<string, string[]>;
-};
-const raw: RawProcess[] = [];
-const retainedSamples: Record<string, number[]> = Object.fromEntries(rawKeys.map((key) => [key, []]));
-for (let index = 0; index < processes; index++) {
-  const timing: Record<string, TimingChildReport> = {};
-  for (const [index, alias] of aliases.entries()) {
-    const rawKey = rawKeys[index]!;
-    timing[rawKey] = await run("timing", rawKey) as TimingChildReport;
-  }
-  raw.push({ process: index + 1, timing, retainedHeap: {}, retainedHeapErrors: {} });
+const runRetainedHeap = async (alias: string): Promise<RetainedHeapChildReport> => runChildBenchmark({
+  command: [process.execPath, "run", child, "retainedHeap", fixture, String(retainedWarmups)],
+  env: { ...process.env, REPLAY_BENCH_CASE: alias } as Record<string, string>,
+  kind: "retainedHeap",
+});
+
+const cases: ProcessBenchmarkReport["cases"] = Object.fromEntries(aliases.map((alias) => [alias, { timing: [], retainedHeapDeltas: [] }]));
+for (let processIndex = 0; processIndex < processes; processIndex += 1) {
+  for (const alias of orderedAliases) cases[alias]!.timing.push(await runTiming(alias));
 }
-for (const [aliasIndex] of aliases.entries()) {
-  const rawKey = rawKeys[aliasIndex]!;
-  const samples = retainedSamples[rawKey]!;
-  const maxAttempts = retainedHeapAttemptLimit(retainedProcesses);
-  for (let attempt = 0; samples.length < retainedProcesses && attempt < maxAttempts; attempt++) {
-    try {
-      const result = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
-      samples.push(result.retainedHeap);
-      raw[attempt % raw.length]!.retainedHeap[rawKey] = result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const diagnostics = raw[attempt % raw.length]!.retainedHeapErrors;
-      (diagnostics[rawKey] ??= []).push(message);
-    }
-  }
-  if (samples.length !== retainedProcesses) {
-    const errors = raw.flatMap((entry) => entry.retainedHeapErrors[rawKey] ?? []);
-    throw new Error(
-      `Unable to collect ${retainedProcesses} valid retained-heap samples for ${rawKey} after ${maxAttempts} attempts; `
-      + `collected ${samples.length}. Rejections: ${errors.join(" | ") || "none"}`,
-    );
+for (const alias of orderedAliases) {
+  for (let sampleIndex = 0; sampleIndex < retainedProcesses; sampleIndex += 1) {
+    const result = await runRetainedHeap(alias);
+    cases[alias]!.retainedHeapDeltas.push(result.deltaBytes);
   }
 }
- 
-const benchmarks = aliases.map((alias, index) => {
-  const rawKey = rawKeys[index]!;
-  const timingSummaries = raw.map((entry) => entry.timing[rawKey]!.samplesNs).map((samples) => ({
-    p50: median(samples),
-    p99: percentile(samples, 99),
-  }));
-  const heapSamples = retainedSamples[rawKey]!;
-  return { alias, group: 0, runs: [{ stats: {
-    p50: median(timingSummaries.map((summary) => summary.p50)),
-    p99: median(timingSummaries.map((summary) => summary.p99)),
-    retainedHeap: { p50: median(heapSamples), min: Math.min(...heapSamples), max: Math.max(...heapSamples), samples: heapSamples },
-  } }] };
-});
-const report = {
-  revision, suite, layout: [{ name: "replay" }],
-  context: { runtime: `Bun ${Bun.version}`, cpu: { name: cpus()[0]?.model ?? "unknown" } },
-  benchmarks, rawProcesses: raw,
+
+const report: ProcessBenchmarkReport = {
+  schemaVersion: 2,
+  revision,
+  suite: "replay",
+  config,
+  context: {
+    runtime: `Bun ${Bun.version}`,
+    cpu: { name: cpus()[0]?.model ?? "unknown", logicalCount: cpus().length },
+    os: { platform: platform(), release: release(), arch: arch() },
+  },
+  cases,
 };
 const json = JSON.stringify(report, null, 2);
 if (output) await Bun.write(output, `${json}\n`); else console.log(json);
