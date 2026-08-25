@@ -81,6 +81,20 @@ const MIGRATION_ONLY_CHECKS = [
   "race_events.evidence_kind domain",
   "race_events.confidence domain",
   "race_events.quality_state domain",
+  "session_runs.run_kind domain",
+  "session_runs.status domain",
+  "session_runs.opening_phase domain",
+  "session_runs.timeline_epoch nonnegative",
+  "session_runs.opening_sequence nonnegative",
+  "session_runs.opening_event_order nonnegative",
+  "session_runs.opening_confidence domain",
+  "session_runs.opening_evidence_kind domain",
+  "session_runs.closing_confidence domain",
+  "session_runs.closing_evidence_kind domain",
+  "session_runs.closing boundary completeness",
+  "session_runs.source time order",
+  "session_runs.start_track_distance_pct range",
+  "session_runs.end_track_distance_pct range",
 ] as const;
 
 function applyMigrations(db: Database) {
@@ -496,6 +510,7 @@ describe("migrations match schema", () => {
   test("documents migration-only CHECK constraints outside PRAGMA parity", () => {
     expect(MIGRATION_ONLY_CHECKS).toContain("driver_profile_runs.status domain");
     expect(MIGRATION_ONLY_CHECKS).toContain("race_events.evidence_kind domain");
+    expect(MIGRATION_ONLY_CHECKS).toContain("session_runs.closing boundary completeness");
   });
 
   test("migrations apply cleanly in order", () => {
