@@ -33,12 +33,22 @@ export async function updateLapValidity(
   }
   await db.transaction(async (tx) => {
     const lap = await tx
-      .select({ sessionId: laps.sessionId })
+      .select({
+        sessionId: laps.sessionId,
+        isValid: laps.isValid,
+        invalidReason: laps.invalidReason,
+      })
       .from(laps)
       .where(eq(laps.id, id))
       .get();
     if (!lap) return;
     await tx.update(laps).set(values).where(eq(laps.id, id)).run();
+    if (
+      lap.isValid === isValid &&
+      lap.invalidReason === invalidReason
+    ) {
+      return;
+    }
     await invalidateLapEvidence(
       { lapIds: [id], sessionId: lap.sessionId },
       tx,

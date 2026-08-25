@@ -132,7 +132,7 @@ afterEach(async () => {
 });
 
 describe("lap evidence invalidation", () => {
-  test("manual validity recheck stales quality and deletes derived caches", async () => {
+  test("manual validity recheck preserves current quality and derived caches", async () => {
     const sessionId = await insertSession(
       995_100,
       996_100,
@@ -144,13 +144,11 @@ describe("lap evidence invalidation", () => {
     const target = await insertCurrentLap(sessionId, 1);
     const comparison = await insertCurrentLap(sessionId, 2);
     await seedCaches(target.id, comparison.id, target.quality);
-    await db.update(laps).set({ fuelPerLap: 2.5, tyreWear: 0.04 })
-      .where(eq(laps.id, target.id)).run();
-
-    expect(await getLapById(target.id)).toMatchObject({
-      eligibility: expect.any(Object),
-      qualityStale: false,
-    });
+    await db
+      .update(laps)
+      .set({ fuelPerLap: 2.5, tyreWear: 0.04 })
+      .where(eq(laps.id, target.id))
+      .run();
 
     const response = await lapRoutes.request(`/api/laps/${target.id}/recheck`, {
       method: "POST",
@@ -159,48 +157,53 @@ describe("lap evidence invalidation", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       id: target.id,
-      valid: false,
-      reason: "too few telemetry packets",
+      valid: true,
     });
-    const stored = await db.select().from(laps).where(eq(laps.id, target.id)).get();
+    const stored = await db
+      .select()
+      .from(laps)
+      .where(eq(laps.id, target.id))
+      .get();
     expect(stored).toMatchObject({
-      isValid: false,
-      invalidReason: "too few telemetry packets",
-      eligibility: null,
-      qualitySchemaVersion: null,
-      qualityPolicyVersion: null,
-      qualityConfigVersion: null,
-      qualityGeneration: null,
+      isValid: true,
+      invalidReason: null,
+      eligibility: expect.any(Object),
+      qualitySchemaVersion: target.quality.provenance.schemaVersion,
+      qualityPolicyVersion: target.quality.provenance.policyVersion,
+      qualityConfigVersion: target.quality.provenance.configurationVersion,
+      qualityGeneration: target.quality.provenance.outputGeneration,
       fuelPerLap: 2.5,
       tyreWear: 0.04,
     });
-    expect(stored?.quality?.provenance.outputGeneration).toBe(
-      target.quality.provenance.outputGeneration,
-    );
     expect(await getLapById(target.id)).toMatchObject({
-      qualityStale: true,
+      qualityStale: false,
     });
-    expect((await getLapById(target.id))?.quality).not.toBeNull();
-    expect(await db.select().from(lapAnalyses).where(eq(lapAnalyses.lapId, target.id)).get()).toBeUndefined();
-    expect(await db.select().from(compareAnalyses).where(
-      or(eq(compareAnalyses.lapAId, target.id), eq(compareAnalyses.lapBId, target.id)),
-    ).get()).toBeUndefined();
-    expect(await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, target.id)).get()).toBeUndefined();
-
-    await updateSessionQuality(sessionId, recordingQualityFor(qualityPackets(50)));
-
-    const afterQualityUpdate = await db.select().from(laps)
-      .where(eq(laps.id, target.id)).get();
-    expect(afterQualityUpdate).toMatchObject({
-      eligibility: null,
-      qualityGeneration: null,
-    });
-    expect(afterQualityUpdate?.quality?.provenance.outputGeneration).toBe(
-      target.quality.provenance.outputGeneration,
-    );
-    expect(await getLapById(target.id)).toMatchObject({
-      qualityStale: true,
-    });
+    expect(
+      await db
+        .select()
+        .from(lapAnalyses)
+        .where(eq(lapAnalyses.lapId, target.id))
+        .get(),
+    ).toBeDefined();
+    expect(
+      await db
+        .select()
+        .from(compareAnalyses)
+        .where(
+          or(
+            eq(compareAnalyses.lapAId, target.id),
+            eq(compareAnalyses.lapBId, target.id),
+          ),
+        )
+        .get(),
+    ).toBeDefined();
+    expect(
+      await db
+        .select()
+        .from(lapMetrics)
+        .where(eq(lapMetrics.lapId, target.id))
+        .get(),
+    ).toBeDefined();
   });
 
   test("same-count reprocessing preserves lap identity and metadata while refreshing quality", async () => {

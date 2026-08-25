@@ -32,6 +32,7 @@
 - Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes
 - Preserve original ACC, AC Evo, and MoTeC capture timing during replay so telemetry quality and lap evidence remain accurate
 - Keep session finalization and quality status working when raw recording evidence is unavailable
+- Keep manual lap rechecks from invalidating unchanged quality evidence and cached analysis
 - Block lap-analysis AI when telemetry quality is missing, stale, or unsuitable, and include eligibility limitations in prompts
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
