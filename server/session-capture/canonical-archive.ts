@@ -958,12 +958,17 @@ async function existingVerifiedArchive(
   return null;
 }
 
-export async function enqueueCanonicalArchiveForSession(sessionId: number, gameId: GameId): Promise<void> {
+export async function enqueueCanonicalArchiveForSession(
+  sessionId: number,
+  gameId: GameId,
+  sourceContentHash?: string,
+): Promise<void> {
   const rawFile = await getSessionRawFile(sessionId, gameId);
   if (!rawFile) return;
-  const identity = await inspectRawCaptureIdentity(rawFile);
-  if (!identity) return;
-  await enqueueCanonicalArchiveJob({ sessionId, sourceContentHash: identity.contentHash });
+  const contentHash =
+    sourceContentHash ?? (await inspectRawCaptureIdentity(rawFile))?.contentHash;
+  if (!contentHash) return;
+  await enqueueCanonicalArchiveJob({ sessionId, sourceContentHash: contentHash });
 }
 
 export async function buildCanonicalArchive(input: {

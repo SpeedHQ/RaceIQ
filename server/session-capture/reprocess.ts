@@ -71,6 +71,7 @@ import {
 } from "./identity";
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
+import { enqueueCanonicalArchiveForSession } from "./canonical-archive";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
 import {
   createPersistedSessionAnalysisReceipt,
@@ -644,6 +645,8 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   let rebuiltLaps = 0;
   let strategy: ReprocessResult["strategy"] = "replace";
   let qualityGeneration = "";
+  let reprocessedGameId: GameId | null = null;
+  let archiveSourceContentHash: string | null = null;
   try {
     const outcome = await withSessionCaptureMaintenanceLock(async () => {
       const session = await db
@@ -863,9 +866,25 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
           : persistedReceipt;
         await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
       });
+      reprocessedGameId = gameId;
+      archiveSourceContentHash = rawContentHash;
       return attempt!;
 
     });
+    if (reprocessedGameId && archiveSourceContentHash) {
+      try {
+        await enqueueCanonicalArchiveForSession(
+          sessionId,
+          reprocessedGameId,
+          archiveSourceContentHash,
+        );
+      } catch (error) {
+        console.error(
+          `[Session Reprocess] Failed to enqueue canonical archive for session ${sessionId}:`,
+          error,
+        );
+      }
+    }
     for (const lap of existingLaps) cacheDelete(lap.id);
     wsManager.broadcastNotification(
       RaceEventsReplacedMessageSchema.parse({ type: "race-events-replaced", sessionId }),
