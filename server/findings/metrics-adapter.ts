@@ -1,6 +1,6 @@
 import type { GameId } from "../../shared/games/ids";
-import type { EligibilityDecision } from "../../shared/racing/quality/contracts";
-import { isEligibilityUsable } from "../../shared/racing/quality/policies";
+import { ELIGIBILITY_POLICY_VERSION, type EligibilityDecision } from "../../shared/racing/quality/contracts";
+import { isEligibilityUsable, replaceWithUnknownEligibilityDecision } from "../../shared/racing/quality/policies";
 
 import { INPUT_VAR_THRESHOLD, LINE_SPREAD_THRESHOLD_M, type LapConsistencyDelta, type LineSpreadTrace } from "../lap-analysis/consistency";
 import type { SegmentStat } from "../lap-analysis/metrics";
@@ -30,6 +30,16 @@ export interface MetricsFindingContext {
 
 const RULE_ID = "lap-metrics-adapter";
 const DEFAULT_GENERATION = "lap-metrics-v1";
+const UNKNOWN_METRIC_POLICY_DECISIONS = {
+  "fuel-per-lap": replaceWithUnknownEligibilityDecision(
+    { policyId: "fuel-burn", policyVersion: ELIGIBILITY_POLICY_VERSION },
+    "quality_not_rebuilt",
+  ),
+  "tyre-wear": replaceWithUnknownEligibilityDecision(
+    { policyId: "tire-analysis", policyVersion: ELIGIBILITY_POLICY_VERSION },
+    "quality_not_rebuilt",
+  ),
+} satisfies Record<"fuel-per-lap" | "tyre-wear", EligibilityDecision>;
 
 function confidenceFor(status: FindingStatus, lowTrust: boolean): FindingConfidence {
   if (status !== "available") return "unknown";
@@ -127,23 +137,23 @@ function metricRecord(
   },
 ): FindingRecord {
   const available = typeof metric.value === "number" && Number.isFinite(metric.value);
-  const policyDecision = context.finalizedPolicyDecisions?.[metric.type];
+  const policyDecision = context.finalizedPolicyDecisions?.[metric.type] ?? UNKNOWN_METRIC_POLICY_DECISIONS[metric.type];
   const legacyRejected = !context.quality.valid;
-  const policyRejected = policyDecision != null && !isEligibilityUsable(policyDecision);
-  const policyWarning = policyDecision?.status === "eligible_with_warning";
+  const policyRejected = !isEligibilityUsable(policyDecision);
+  const policyWarning = policyDecision.status === "eligible_with_warning";
   const policyQualityRef =
     policyRejected || policyWarning
       ? {
           kind: "quality-decision" as const,
-          id: `eligibility:${context.lapId}:${policyDecision!.policyId}:${policyDecision!.status}`,
+          id: `eligibility:${context.lapId}:${policyDecision.policyId}:${policyDecision.status}`,
           sessionId: context.sessionId,
-          decisionId: `eligibility:${context.lapId}:${policyDecision!.policyId}`,
-          decision: policyDecision!.status,
+          decisionId: `eligibility:${context.lapId}:${policyDecision.policyId}`,
+          decision: policyDecision.status,
         }
       : undefined;
   const qualityRefs = [...(context.legacyQualityRef ? [context.legacyQualityRef] : []), ...(policyQualityRef ? [policyQualityRef] : [])];
   const policyReasonLimitations: FindingLimitation[] =
-    policyDecision && (policyRejected || policyWarning)
+    policyRejected || policyWarning
       ? [...new Set(policyDecision.reasons.map((reason) => reason.code))]
           .sort((left, right) => left.localeCompare(right))
           .map((reasonCode) => ({
@@ -169,8 +179,8 @@ function metricRecord(
     ...(policyRejected || policyWarning
       ? [
           {
-            code: `quality-policy-${policyDecision!.policyId}-${policyDecision!.status}`,
-            detail: `finalized ${policyDecision!.policyId} policy is ${policyDecision!.status}`,
+            code: `quality-policy-${policyDecision.policyId}-${policyDecision.status}`,
+            detail: `finalized ${policyDecision.policyId} policy is ${policyDecision.status}`,
             evidenceRefs: qualityRefs,
           },
         ]
@@ -197,7 +207,7 @@ function metricRecord(
     selectedLapIds: [...context.selectedLapIds],
   };
   if (legacyRejected) inputs.qualityValid = false;
-  if (policyRejected || policyWarning) inputs.finalizedPolicyStatus = policyDecision!.status;
+  if (policyRejected || policyWarning) inputs.finalizedPolicyStatus = policyDecision.status;
   return finishRecord({
     schemaVersion: FINDING_SCHEMA_VERSION,
     type: metric.type,

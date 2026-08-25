@@ -264,6 +264,50 @@ describe("finding contract validation", () => {
     expect(fuel.limitations.map((limitation) => limitation.code)).toContain("quality-policy-fuel-burn-reason-telemetry_gap_minor");
   });
 
+  test("makes finite fuel and tyre metrics indeterminate without current policy decisions", () => {
+    const { lap } = finalizedLap("eligible");
+    const stale = buildDeterministicLapFindings(
+      { ...lap, qualityStale: true },
+      [],
+      { valid: true, reason: null },
+      "analysis-1",
+    ).findings;
+    const missing = adaptMetricsToFindings({
+      gameId: "acc",
+      sessionId: 1,
+      lapId: 1,
+      fuelPerLap: 2.5,
+      tyreWear: 1,
+      quality: { valid: true, reason: null },
+      analysisGenerationId: "analysis-1",
+    });
+    const scenarios = [
+      { name: "stale", records: stale, reasonCode: "quality_stale" },
+      { name: "missing", records: missing, reasonCode: "quality_not_rebuilt" },
+    ] as const;
+    const metrics = [
+      { type: "fuel-per-lap", policyId: "fuel-burn" },
+      { type: "tyre-wear", policyId: "tire-analysis" },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      for (const metric of metrics) {
+        const record = scenario.records.find((candidate) => candidate.type === metric.type)!;
+        const limitationCodes = record.limitations.map((limitation) => limitation.code);
+
+        expect([scenario.name, metric.type, record.status, record.confidence]).toEqual([
+          scenario.name,
+          metric.type,
+          "indeterminate",
+          "unknown",
+        ]);
+        expect(limitationCodes).toContain(`quality-policy-${metric.policyId}-unknown`);
+        expect(limitationCodes).toContain(`quality-policy-${metric.policyId}-reason-${scenario.reasonCode}`);
+        expect(validateFinding(record)).toEqual({ valid: true, errors: [] });
+      }
+    }
+  });
+
   test("suppresses segment and consistency findings when recording quality is invalid", () => {
     const stats = {
       throttleAvg: 0.5,
