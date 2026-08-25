@@ -50,6 +50,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Pop-Location
           New-Item -ItemType Directory -Force reports | Out-Null
+          # Use PR's fixed process harness against each checkout's own implementation.
+          Copy-Item -Force pr/scripts/quality/process-bench.ts base/scripts/quality/process-bench.ts
+          Copy-Item -Force pr/test/benchmarks/process-bench-contracts.ts base/test/benchmarks/process-bench-contracts.ts
+          Copy-Item -Force pr/test/benchmarks/process-bench-child.ts base/test/benchmarks/process-bench-child.ts
+          Copy-Item -Force pr/test/benchmarks/replay-process-bench.ts base/test/benchmarks/replay-process-bench.ts
 
       - name: Run four counterbalanced benchmark rounds
         run: |
