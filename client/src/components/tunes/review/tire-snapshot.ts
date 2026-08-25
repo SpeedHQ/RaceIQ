@@ -2,8 +2,8 @@ import type { SemanticTuneSample, TuneWheelMetric } from "../semantic-tune";
 import { wheelValue } from "../semantic-tune";
 
 export interface CornerSnap {
-  tempC: number;
-  wear: number;
+  tempC?: number;
+  wear?: number;
   pressure?: number;
   brakeTemp?: number;
 }
@@ -21,7 +21,6 @@ export function tireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" 
   for (let index = 0; index < corners.length; index++) {
     const tempC = average("tireTemperatureC", index);
     const wear = wheelValue(last, "tireWearFraction", index);
-    if (tempC === undefined || wear === undefined) return null;
     snapshots[corners[index]] = {
       tempC,
       wear,

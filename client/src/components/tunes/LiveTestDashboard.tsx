@@ -86,11 +86,13 @@ export function LiveTestDashboard({
   const initialGameViews = useMemo(() => (initialViews ?? []).filter((view) => view.simulator === gameId), [gameId, initialViews]);
   const liveView = telemetryView?.simulator === gameId ? telemetryView : null;
   const currentView = liveView ?? initialGameViews.at(-1) ?? null;
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const sectors = useTelemetryStore((s) => s.sectors);
+  const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
+  const sectors = useTelemetryStore((state) => state.sectors);
+  const gameLaps = useMemo(() => sessionLaps.filter((lap) => lap.gameId === gameId), [gameId, sessionLaps]);
+  const gameSectors = telemetryView?.simulator === gameId ? sectors : null;
 
   // Most-recently-completed lap's track ordinal, used as a fallback below.
-  const latestLap = useMemo(() => (sessionLaps.length ? [...sessionLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [sessionLaps]);
+  const latestLap = useMemo(() => (gameLaps.length ? [...gameLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [gameLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -161,7 +163,7 @@ export function LiveTestDashboard({
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
-          <LiveLapInfo sectors={sectors} currentLap={currentView?.timing.lapNumber ?? null} totalLaps={sessionLaps.length} />
+          <LiveLapInfo sectors={gameSectors} currentLap={currentView?.timing.lapNumber ?? null} totalLaps={gameLaps.length} />
         </div>
         <div className="h-full min-h-0">
           <LiveIssuesFeed />
@@ -173,7 +175,7 @@ export function LiveTestDashboard({
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
-          <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
+          <LiveLapCards laps={gameLaps} trackOrdinal={trackOrd ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}

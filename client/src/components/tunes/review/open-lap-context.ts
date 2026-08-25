@@ -2,7 +2,7 @@ import type { LapMeta } from "@shared/racing/sessions/types";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { ExperimentVersion } from "@/hooks/experiments";
 
-type CornerSnapshot = { tempC: number; wear: number; pressure?: number; brakeTemp?: number };
+type CornerSnapshot = { tempC?: number; wear?: number; pressure?: number; brakeTemp?: number };
 type Range = { n: number; min: number; max: number; avg: number };
 
 /** Build compact context text matching currently rendered lap review. */
@@ -54,7 +54,7 @@ export function buildOpenLapContext({
       `Tyres (end of lap): ${cornerKeys
         .map((corner) => {
           const snapshot = corners[corner];
-          return `${corner} temp ${snapshot.tempC.toFixed(0)}°C, wear ${(snapshot.wear * 100).toFixed(0)}%, pressure ${snapshot.pressure === undefined ? "—" : `${snapshot.pressure.toFixed(1)}psi`}, brake ${snapshot.brakeTemp === undefined ? "—" : `${snapshot.brakeTemp.toFixed(0)}°C`}`;
+          return `${corner} temp ${snapshot.tempC === undefined ? "—" : `${snapshot.tempC.toFixed(0)}°C`}, wear ${snapshot.wear === undefined ? "—" : `${(snapshot.wear * 100).toFixed(0)}%`}, pressure ${snapshot.pressure === undefined ? "—" : `${snapshot.pressure.toFixed(1)}psi`}, brake ${snapshot.brakeTemp === undefined ? "—" : `${snapshot.brakeTemp.toFixed(0)}°C`}`;
         })
         .join("; ")}`,
     );

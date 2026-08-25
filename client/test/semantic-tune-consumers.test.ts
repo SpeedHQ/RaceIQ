@@ -112,7 +112,10 @@ describe("canonical tuning telemetry consumers", () => {
     const missingPosition = positioned.map((sample) => ({ ...sample, positionM: undefined }));
     expect(buildGeometry(missingPosition, null, null)).toBeNull();
     expect(tireSnapshot(positioned)?.FL.wear).toBe(0);
-    expect(tireSnapshot(positioned.map((sample) => ({ ...sample, tireTemperatureC: undefined })))).toBeNull();
+    const partialSnapshot = tireSnapshot(positioned.map((sample) => ({ ...sample, tireTemperatureC: undefined })));
+    expect(partialSnapshot).not.toBeNull();
+    expect(partialSnapshot?.FL.tempC).toBeUndefined();
+    expect(partialSnapshot?.FL.wear).toBe(0);
   });
   test("passes canonical lap number rather than running lap seconds", () => {
     useTelemetryStore.setState({ telemetryView: null, sectors: null, sessionLaps: [] });
@@ -137,13 +140,43 @@ describe("canonical tuning telemetry consumers", () => {
       ...fakeF1SemanticFixture.view,
       timing: { ...fakeF1SemanticFixture.view.timing, lapNumber: 99 },
     };
-    useTelemetryStore.setState({ telemetryView: f1View, sectors: null, sessionLaps: [] });
+    const mismatchedState = {
+      telemetryView: f1View,
+      sectors: {
+        sectorCount: 3,
+        currentSector: 0,
+        currentSectorTime: 30,
+        currentTimes: [30],
+        lastTimes: [29, 30, 31],
+        bestTimes: [28, 29, 30],
+        lastLapTime: 90,
+        bestLapTime: 87,
+        estimatedLap: 90,
+        deltaToBest: 3,
+        deltaToLast: 0,
+      },
+      sessionLaps: [
+        {
+          id: 99,
+          sessionId: 99,
+          lapNumber: 99,
+          lapTime: 90,
+          isValid: true,
+          createdAt: "2026-08-25T00:00:00Z",
+          gameId: "f1-2025" as const,
+          trackOrdinal: 99,
+        },
+      ],
+    };
+    useTelemetryStore.setState(mismatchedState);
+    Object.assign(useTelemetryStore.getInitialState(), mismatchedState);
     const markup = renderToStaticMarkup(
       createElement(QueryClientProvider, { client: new QueryClient() }, createElement(LiveTestDashboard, { gameId: "acc", trackOrdinal: null, initialViews: [accView] })),
     );
     const text = markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     expect(text).toContain("Lap 4");
     expect(text).not.toContain("Lap 99");
+    expect(text).not.toContain("/ 1");
     expect(markup).toContain(">L<");
   });
 });
