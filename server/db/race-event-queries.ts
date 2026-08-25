@@ -70,7 +70,10 @@ export interface RaceEventLapLink {
   lapId: number;
 }
 
-export type ReplayableLapReplacement = Omit<typeof laps.$inferInsert, "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"> & {
+export type ReplayableLapReplacement = Omit<
+  typeof laps.$inferInsert,
+  "id" | "sessionId" | "createdAt" | "lapNumber" | "lapTime"
+> & {
   id?: number;
   lapNumber: number;
   lapTime: number;

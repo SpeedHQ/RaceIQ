@@ -203,7 +203,7 @@ describe("lap evidence invalidation", () => {
     });
   });
 
-  test("same-count reprocessing refreshes session and lap quality and deletes telemetry caches", async () => {
+  test("same-count reprocessing preserves lap identity and metadata while refreshing quality", async () => {
     const session = await db.insert(sessions).values({
       carOrdinal: 1,
       trackOrdinal: 1,
@@ -254,6 +254,13 @@ describe("lap evidence invalidation", () => {
       qualityGeneration: generated.quality.provenance.outputGeneration,
       fuelPerLap: 2.8,
       tyreWear: 0.06,
+      notes: "preserve me",
+      pi: 777,
+      carSetup: JSON.stringify({ wing: 3 }),
+      experimentId: 12345,
+      experimentVersionId: 67890,
+      experimentExcluded: 1,
+      experimentExcludedSource: "manual",
     }).where(eq(laps.id, target.id)).run();
     await seedCaches(target.id, comparison.id, generated.quality);
 
@@ -286,13 +293,18 @@ describe("lap evidence invalidation", () => {
     const rebuiltRecordingQuality = storedSession.recordingQuality;
     expect(rebuiltRecordingQuality).not.toEqual(recordingQuality);
     expect(storedSession).toMatchObject({
+      recordingQuality: expect.any(Object),
       qualitySchemaVersion: rebuiltRecordingQuality.provenance.schemaVersion,
       qualityPolicyVersion: rebuiltRecordingQuality.provenance.policyVersion,
       qualityConfigVersion: rebuiltRecordingQuality.provenance.configurationVersion,
       qualityGeneration: rebuiltRecordingQuality.provenance.outputGeneration,
     });
-    expect((await getSessions("fm-2023")).find(({ id }) => id === sessionId))
-      .toMatchObject({ qualityStale: false });
+    expect(
+      (await getSessions("fm-2023")).find(({ id }) => id === sessionId),
+    ).toMatchObject({
+      recordingQuality: expect.any(Object),
+      qualityStale: false,
+    });
 
     const storedLap = afterLaps.find(({ id }) => id === target.id)!;
     expect(storedLap.quality).not.toBeNull();
@@ -304,12 +316,21 @@ describe("lap evidence invalidation", () => {
       qualityGeneration: storedLap.quality!.provenance.outputGeneration,
       fuelPerLap: null,
       tyreWear: null,
+      notes: "preserve me",
+      pi: 777,
+      carSetup: JSON.stringify({ wing: 3 }),
+      experimentId: 12345,
+      experimentVersionId: 67890,
+      experimentExcluded: 1,
+      experimentExcludedSource: "manual",
+      createdAt: target.createdAt,
     });
     expect(storedLap.quality?.provenance.outputGeneration).not.toBe(
       generated.quality.provenance.outputGeneration,
     );
     expect(await getLapById(target.id)).toMatchObject({
       qualityStale: false,
+      eligibility: expect.any(Object),
     });
     expect(await db.select().from(lapAnalyses).where(eq(lapAnalyses.lapId, target.id)).get()).toBeUndefined();
     expect(await db.select().from(compareAnalyses).where(

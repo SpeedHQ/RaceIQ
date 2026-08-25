@@ -1,10 +1,7 @@
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { db } from "./index";
 import { lapAnalyses, compareAnalyses, laps } from "./schema";
-import {
-  ELIGIBILITY_POLICY_VERSION,
-  type LapQualitySummary,
-} from "../../shared/racing/quality/contracts";
+import { ELIGIBILITY_POLICY_VERSION, type LapQualitySummary } from "../../shared/racing/quality/contracts";
 import { combineQualityGenerations } from "../lap-analysis/quality-generation";
 
 interface AnalysisRow {
@@ -47,10 +44,7 @@ export interface AnalysisQualityIdentity extends CacheIdentity {
 
 const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
-export function analysisQualityIdentityForLap(lap: {
-  quality?: LapQualitySummary | null;
-  qualityGeneration?: string | null;
-}): AnalysisQualityIdentity {
+export function analysisQualityIdentityForLap(lap: { quality?: LapQualitySummary | null; qualityGeneration?: string | null }): AnalysisQualityIdentity {
   return {
     hasQuality: lap.quality != null,
     qualityGeneration: lap.qualityGeneration ?? null,
@@ -58,15 +52,9 @@ export function analysisQualityIdentityForLap(lap: {
   };
 }
 
-function currentPersistedLapIdentity(
-  row: PersistedLapIdentity | undefined,
-): CacheIdentity | undefined {
+function currentPersistedLapIdentity(row: PersistedLapIdentity | undefined): CacheIdentity | undefined {
   if (!row) return undefined;
-  if (!row.quality) {
-    return row.qualityGeneration == null && row.qualityPolicyVersion == null
-      ? { qualityGeneration: null, qualityPolicyVersion: null }
-      : undefined;
-  }
+  if (!row.quality) return undefined;
   if (
     row.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
     row.quality.provenance.policyVersion !== ELIGIBILITY_POLICY_VERSION ||
@@ -82,20 +70,9 @@ function currentPersistedLapIdentity(
   };
 }
 
-function currentExpectedLapIdentity(
-  identity: AnalysisQualityIdentity,
-): CacheIdentity | undefined {
-  if (!identity.hasQuality) {
-    return identity.qualityGeneration == null &&
-      identity.qualityPolicyVersion == null
-      ? { qualityGeneration: null, qualityPolicyVersion: null }
-      : undefined;
-  }
-  if (
-    identity.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-    !identity.qualityGeneration ||
-    !FINALIZED_QUALITY_GENERATION_PATTERN.test(identity.qualityGeneration)
-  ) {
+function currentExpectedLapIdentity(identity: AnalysisQualityIdentity): CacheIdentity | undefined {
+  if (!identity.hasQuality) return undefined;
+  if (identity.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION || !identity.qualityGeneration || !FINALIZED_QUALITY_GENERATION_PATTERN.test(identity.qualityGeneration)) {
     return undefined;
   }
   return {
@@ -104,45 +81,24 @@ function currentExpectedLapIdentity(
   };
 }
 
-function sameIdentity(
-  left: CacheIdentity,
-  right: CacheIdentity,
-): boolean {
-  return (
-    left.qualityGeneration === right.qualityGeneration &&
-    left.qualityPolicyVersion === right.qualityPolicyVersion
-  );
+function sameIdentity(left: CacheIdentity, right: CacheIdentity): boolean {
+  return left.qualityGeneration === right.qualityGeneration && left.qualityPolicyVersion === right.qualityPolicyVersion;
 }
 
-function compareIdentity(
-  left: CacheIdentity | undefined,
-  right: CacheIdentity | undefined,
-): CacheIdentity | undefined {
+function compareIdentity(left: CacheIdentity | undefined, right: CacheIdentity | undefined): CacheIdentity | undefined {
   if (!left || !right) return undefined;
-  if (
-    left.qualityGeneration == null ||
-    right.qualityGeneration == null
-  ) {
-    return left.qualityGeneration == null &&
-      right.qualityGeneration == null &&
-      left.qualityPolicyVersion == null &&
-      right.qualityPolicyVersion == null
+  if (left.qualityGeneration == null || right.qualityGeneration == null) {
+    return left.qualityGeneration == null && right.qualityGeneration == null && left.qualityPolicyVersion == null && right.qualityPolicyVersion == null
       ? { qualityGeneration: null, qualityPolicyVersion: null }
       : undefined;
   }
   return {
-    qualityGeneration: combineQualityGenerations([
-      left.qualityGeneration,
-      right.qualityGeneration,
-    ]),
+    qualityGeneration: combineQualityGenerations([left.qualityGeneration, right.qualityGeneration]),
     qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
   };
 }
 
-async function readLapIdentities(
-  tx: DbTransaction,
-  lapIds: readonly number[],
-): Promise<Map<number, CacheIdentity | undefined>> {
+async function readLapIdentities(tx: DbTransaction, lapIds: readonly number[]): Promise<Map<number, CacheIdentity | undefined>> {
   const rows = await tx
     .select({
       id: laps.id,
@@ -187,23 +143,13 @@ export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
   });
 }
 
-
-export async function saveAnalysis(
-  lapId: number,
-  analysis: string,
-  usage: AnalysisUsage,
-  expectedIdentity: AnalysisQualityIdentity,
-): Promise<void> {
+export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage, expectedIdentity: AnalysisQualityIdentity): Promise<void> {
   await db.transaction(async (tx) => {
     const identities = await readLapIdentities(tx, [lapId]);
     const identity = identities.get(lapId);
     const expected = currentExpectedLapIdentity(expectedIdentity);
     if (!identity || !expected || !sameIdentity(identity, expected)) return;
-    const existing = await tx
-      .select({ id: lapAnalyses.id })
-      .from(lapAnalyses)
-      .where(eq(lapAnalyses.lapId, lapId))
-      .get();
+    const existing = await tx.select({ id: lapAnalyses.id }).from(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).get();
     const values = {
       analysis,
       inputTokens: usage.inputTokens,
@@ -215,13 +161,12 @@ export async function saveAnalysis(
       ...identity,
     };
     if (existing) {
-      await tx
-        .update(lapAnalyses)
-        .set(values)
-        .where(eq(lapAnalyses.lapId, lapId))
-        .run();
+      await tx.update(lapAnalyses).set(values).where(eq(lapAnalyses.lapId, lapId)).run();
     } else {
-      await tx.insert(lapAnalyses).values({ lapId, ...values }).run();
+      await tx
+        .insert(lapAnalyses)
+        .values({ lapId, ...values })
+        .run();
     }
   });
 }
@@ -239,11 +184,7 @@ export async function deleteAnalysis(lapId: number): Promise<void> {
  * The pair key is canonical (min, max) so the order of arguments doesn't matter.
  */
 
-export async function getCompareAnalysis(
-  idA: number,
-  idB: number,
-  kind: string = "inputs",
-): Promise<AnalysisRow | null> {
+export async function getCompareAnalysis(idA: number, idB: number, kind: string = "inputs"): Promise<AnalysisRow | null> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
   return db.transaction(async (tx) => {
@@ -262,28 +203,18 @@ export async function getCompareAnalysis(
         qualityPolicyVersion: compareAnalyses.qualityPolicyVersion,
       })
       .from(compareAnalyses)
-      .where(
-        and(
-          eq(compareAnalyses.lapAId, lo),
-          eq(compareAnalyses.lapBId, hi),
-          eq(compareAnalyses.kind, kind),
-        ),
-      )
+      .where(and(eq(compareAnalyses.lapAId, lo), eq(compareAnalyses.lapBId, hi), eq(compareAnalyses.kind, kind)))
       .get();
     return row && sameIdentity(row, identity) ? row : null;
   });
 }
-
 
 export async function saveCompareAnalysis(
   idA: number,
   idB: number,
   analysis: string,
   usage: AnalysisUsage,
-  expectedIdentities: readonly [
-    AnalysisQualityIdentity,
-    AnalysisQualityIdentity,
-  ],
+  expectedIdentities: readonly [AnalysisQualityIdentity, AnalysisQualityIdentity],
   kind: string = "inputs",
 ): Promise<void> {
   const lo = Math.min(idA, idB);
@@ -291,21 +222,12 @@ export async function saveCompareAnalysis(
   await db.transaction(async (tx) => {
     const identities = await readLapIdentities(tx, [lo, hi]);
     const identity = compareIdentity(identities.get(lo), identities.get(hi));
-    const expected = compareIdentity(
-      currentExpectedLapIdentity(expectedIdentities[0]),
-      currentExpectedLapIdentity(expectedIdentities[1]),
-    );
+    const expected = compareIdentity(currentExpectedLapIdentity(expectedIdentities[0]), currentExpectedLapIdentity(expectedIdentities[1]));
     if (!identity || !expected || !sameIdentity(identity, expected)) return;
     const existing = await tx
       .select({ id: compareAnalyses.id })
       .from(compareAnalyses)
-      .where(
-        and(
-          eq(compareAnalyses.lapAId, lo),
-          eq(compareAnalyses.lapBId, hi),
-          eq(compareAnalyses.kind, kind),
-        ),
-      )
+      .where(and(eq(compareAnalyses.lapAId, lo), eq(compareAnalyses.lapBId, hi), eq(compareAnalyses.kind, kind)))
       .get();
     const values = {
       analysis,
@@ -321,13 +243,7 @@ export async function saveCompareAnalysis(
       await tx
         .update(compareAnalyses)
         .set(values)
-        .where(
-          and(
-            eq(compareAnalyses.lapAId, lo),
-            eq(compareAnalyses.lapBId, hi),
-            eq(compareAnalyses.kind, kind),
-          ),
-        )
+        .where(and(eq(compareAnalyses.lapAId, lo), eq(compareAnalyses.lapBId, hi), eq(compareAnalyses.kind, kind)))
         .run();
     } else {
       await tx
@@ -338,21 +254,11 @@ export async function saveCompareAnalysis(
   });
 }
 
-
-export async function deleteCompareAnalysis(
-  idA: number,
-  idB: number,
-  kind: string = "inputs",
-): Promise<void> {
+export async function deleteCompareAnalysis(idA: number, idB: number, kind: string = "inputs"): Promise<void> {
   const lo = Math.min(idA, idB);
   const hi = Math.max(idA, idB);
-  await db.delete(compareAnalyses)
-    .where(
-      and(
-        eq(compareAnalyses.lapAId, lo),
-        eq(compareAnalyses.lapBId, hi),
-        eq(compareAnalyses.kind, kind),
-      ),
-    )
+  await db
+    .delete(compareAnalyses)
+    .where(and(eq(compareAnalyses.lapAId, lo), eq(compareAnalyses.lapBId, hi), eq(compareAnalyses.kind, kind)))
     .run();
 }

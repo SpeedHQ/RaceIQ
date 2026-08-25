@@ -234,6 +234,13 @@ describe("synthesizeAcEvoCapture", () => {
     expect(capture.lapCount).toBe(3);
   });
 
+  test("preserves synthesized source cadence through packed replay", () => {
+    const timestamps = parseFrames(capture.bin)
+      .slice(0, 3)
+      .map(({ TimestampMS }) => TimestampMS);
+    expect(timestamps).toEqual([0, 17, 33]);
+  });
+
   test("found every channel it needs", () => {
     expect(capture.missingChannels).toEqual([]);
   });

@@ -883,7 +883,7 @@ export function synthesizeAcEvoCapture(
         physics,
         graphics,
         staticBuf,
-        Math.round((i * 1_000) / SYNTH_HZ),
+        Math.round(i * dt * 1_000),
       ),
     );
   }

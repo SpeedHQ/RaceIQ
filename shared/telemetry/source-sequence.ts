@@ -382,17 +382,15 @@ export class SourceSequenceTracker {
             });
             this.timestampProvisionalBoundary = null;
           }
-          if (sourceSequences.length === 0) {
-            this.rollbackTimestampPositiveDelta = delta;
-            this.rollbackTimestampPositiveDeltaOccurrences = this.positiveTimestampDeltaCounts.get(delta);
-            this.positiveTimestampDeltaCounts.set(delta, (this.rollbackTimestampPositiveDeltaOccurrences ?? 0) + 1);
-            this.positiveTimestampDeltaCount += 1;
-            this.timestampNormalDeltaMax =
-              this.timestampCadenceSamples === 0
-                ? delta
-                : Math.min(this.timestampNormalDeltaMax, delta);
-            this.timestampCadenceSamples += 1;
-          }
+          this.rollbackTimestampPositiveDelta = delta;
+          this.rollbackTimestampPositiveDeltaOccurrences = this.positiveTimestampDeltaCounts.get(delta);
+          this.positiveTimestampDeltaCounts.set(delta, (this.rollbackTimestampPositiveDeltaOccurrences ?? 0) + 1);
+          this.positiveTimestampDeltaCount += 1;
+          this.timestampNormalDeltaMax =
+            this.timestampCadenceSamples === 0
+              ? delta
+              : Math.min(this.timestampNormalDeltaMax, delta);
+          this.timestampCadenceSamples += 1;
           this.lastSourceTimeMs = packet.TimestampMS;
           this.lastObservationIndex = currentObservationIndex;
         } else if (sourceSequences.length === 0) {
@@ -530,11 +528,13 @@ export class SourceSequenceTracker {
     let missingCount = 0;
     let largestContiguousGapMs = 0;
     let countMethod: SourceSequenceCountMethod = "unavailable";
+    const hasNativeCadence = [...this.nativeStates.values()].some(({ positiveStepCount }) => positiveStepCount > 0);
 
-    if (this.nativeStates.size > 0) {
+    if (hasNativeCadence) {
       countMethod = "native-sequence";
       for (const [family, state] of this.nativeStates) {
         if (state.positiveStepCount === 0) continue;
+
         const expectedStep = weightedMedian(state.positiveStepCounts, state.positiveStepCount, 1);
         for (const boundary of state.gapCandidates) {
           const step = boundary.currentSequence - boundary.previousSequence;
@@ -552,7 +552,7 @@ export class SourceSequenceTracker {
           });
         }
       }
-    } else if (this.positiveTimestampDeltaCount > 0) {
+    } else if (this.nativeStates.size === 0 && this.positiveTimestampDeltaCount > 0) {
       countMethod = "timestamp-estimate";
       const expectedIntervalMs = weightedMedian(this.positiveTimestampDeltaCounts, this.positiveTimestampDeltaCount, 1);
       for (const boundary of this.timestampGapCandidates) {

@@ -54,6 +54,7 @@ export function detectSessionBoundary(
 
   if (
     !session.sessionUID &&
+    packet.LapNumber === currentLapNumber &&
     lastBufferedDistance !== null &&
     lastBufferedDistance > 1000 &&
     packet.DistanceTraveled < 500
