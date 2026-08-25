@@ -16,7 +16,7 @@ import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshot } from "./tire-snapshot";
-import { semanticSamples, type SemanticTuneSample } from "../semantic-tune";
+import { semanticSamples, type SemanticTuneSample, wheelValue } from "../semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
 
@@ -85,6 +85,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
+  const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
@@ -379,6 +380,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                     tempThresholds={{ blue: 70, orange: 100, red: 110 }}
                     pressureOptimal={pressureOptimal}
                     brakeTempThresholds={game?.brakeTempThresholds}
+                    healthAvailable={tireHealthAvailable}
                   />
                 ) : (
                   <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>

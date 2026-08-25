@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { tryGetGame } from "../../shared/games/registry";
+import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 
 export type UnitSystem = "metric" | "imperial";
 export type TemperatureUnit = "C" | "F";
@@ -130,6 +131,21 @@ export function generateExport(
 
   // Tire wear (use last packet values)
   const last = packets[packets.length - 1];
+  const tireWear = [
+    last.TireWearFL,
+    last.TireWearFR,
+    last.TireWearRL,
+    last.TireWearRR,
+  ] as const;
+  const tireWearAvailable =
+    (!adapter ||
+      resolveAnalysisTelemetry(adapter).tireHealth.source !== "unavailable") &&
+    tireWear.every(
+      (value) => Number.isFinite(value) && value >= 0 && value <= 1,
+    );
+  const tireWearText = tireWearAvailable
+    ? `FL: ${tireWear[0].toFixed(2)}  FR: ${tireWear[1].toFixed(2)}  RL: ${tireWear[2].toFixed(2)}  RR: ${tireWear[3].toFixed(2)}`
+    : "Unavailable from simulator telemetry.";
 
   // Format lap time
   const mins = Math.floor(lap.lapTime / 60);
@@ -165,7 +181,7 @@ ${gearDist}
 FL: ${avgSuspFL.toFixed(4)}m  FR: ${avgSuspFR.toFixed(4)}m  RL: ${avgSuspRL.toFixed(4)}m  RR: ${avgSuspRR.toFixed(4)}m
 
 --- Tire Wear ---
-FL: ${last.TireWearFL.toFixed(2)}  FR: ${last.TireWearFR.toFixed(2)}  RL: ${last.TireWearRL.toFixed(2)}  RR: ${last.TireWearRR.toFixed(2)}
+${tireWearText}
 
 Paste this into a Claude conversation for tuning advice.`;
 

@@ -13,8 +13,8 @@ export type ComparisonPayload = {
     brakeB: number[];
     rpmA: number[];
     rpmB: number[];
-    tireWearA: number[];
-    tireWearB: number[];
+    tireWearA?: number[];
+    tireWearB?: number[];
   };
   timeDelta: number[];
 };

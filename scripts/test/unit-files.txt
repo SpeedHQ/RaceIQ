@@ -19,6 +19,7 @@ test/lap-analysis/recap/consistency-personal-best.test.ts
 test/lap-analysis/recap/core-pace.test.ts
 test/lap-analysis/recap/edge-cases.test.ts
 test/lap-analysis/recap/sectors.test.ts
+test/lap-analysis/report.test.ts
 test/lap-analysis/segments/segment-alignment.test.ts
 test/lap-analysis/segments/segment-label.test.ts
 test/lap-analysis/steer-balance.test.ts
