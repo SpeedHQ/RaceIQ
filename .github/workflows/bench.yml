@@ -59,16 +59,16 @@ jobs:
       - name: Run four counterbalanced benchmark rounds
         run: |
           $ErrorActionPreference = "Stop"
-          function Run-Legacy($checkout, $output) {
+          function Run-Legacy($checkout, $reportName) {
             Push-Location $checkout
             bun run bench
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Move-Item -Force bench-results.json ../reports/$output
+            Move-Item -Force bench-results.json "../reports/$reportName"
             Pop-Location
           }
-          function Run-Replay($checkout, $revision, $output) {
+          function Run-Replay($checkout, $revision, $reportName) {
             Push-Location $checkout
-            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision --processes=2 --retained-processes=7 --warmups=2 --iterations=20 --output=../reports/$output
+            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision --processes=2 --retained-processes=7 --warmups=2 --iterations=20 --output="../reports/$reportName"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Pop-Location
           }
