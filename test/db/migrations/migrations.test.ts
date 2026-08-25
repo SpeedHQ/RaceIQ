@@ -74,8 +74,8 @@ const SCHEMA_ONLY_FOREIGN_KEYS = new Set([
 
 // CHECK constraints have no normalized PRAGMA surface. These checks intentionally
 // live only in migration DDL because Drizzle text refinements and numeric TS types
-// do not emit equivalent SQLite constraints. Keep this list explicit when adding
-// migration-only checks; named race_events checks declared in schema.ts are not listed.
+// do not emit equivalent SQLite constraints. Keep this list explicit; child
+// migration branches append checks introduced by their own tables.
 const MIGRATION_ONLY_CHECKS = [
   "driver_profile_runs.status domain",
   "race_events.evidence_kind domain",
