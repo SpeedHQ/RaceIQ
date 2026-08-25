@@ -383,8 +383,16 @@ export async function importSessionFrames(
     onSessionAnalysisFinalized: async (attempt, sessionGameId) => {
       await activateSessionAnalysisAttempt(attempt, sessionGameId);
     },
-    onCanonicalArchiveEnqueued: (sessionId, sessionGameId) =>
-      enqueueCanonicalArchiveForSession(sessionId, sessionGameId),
+    onCanonicalArchiveEnqueued: (
+      sessionId,
+      sessionGameId,
+      sourceContentHash,
+    ) =>
+      enqueueCanonicalArchiveForSession(
+        sessionId,
+        sessionGameId,
+        sourceContentHash,
+      ),
   });
 
   let packetCount = 0;

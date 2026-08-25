@@ -203,12 +203,20 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     });
 
     await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
-    await pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 }));
+    const lapCompletion = pipeline.processPacket(
+      pkt({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
     await lapWriteStarted;
 
     const finalization = pipeline.finalizeCurrentSession();
     releaseLapWrite();
-    await finalization;
+    await Promise.all([lapCompletion, finalization]);
 
     const completed = store.list().filter(({ sessionId, eventType }) => sessionId === 1 && eventType === "lap_completed");
     expect(completed).toHaveLength(1);
@@ -273,7 +281,15 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     });
 
     await pipeline.processPacket(pkt({ TimestampMS: 1_000, LapNumber: 1, CurrentLap: 30, DistanceTraveled: 2_000 }));
-    await pipeline.processPacket(pkt({ TimestampMS: 2_000, LapNumber: 2, CurrentLap: 0.1, LastLap: 90, DistanceTraveled: 5_000 }));
+    const delayedLap = pipeline.processPacket(
+      pkt({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
     await lapWriteStarted;
 
     let rotationSettled = false;
@@ -291,13 +307,12 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       .then(() => {
         rotationSettled = true;
       });
-    await rotation;
+    expect(rotationSettled).toBe(false);
+    releaseLapWrite();
+    await Promise.all([delayedLap, rotation]);
 
     expect(rotationSettled).toBe(true);
-    expect(qualityUpdated).toBe(false);
     expect(pipeline.lapDetector?.session).toMatchObject({ sessionId: 2, carOrdinal: 101 });
-
-    releaseLapWrite();
     await pipeline.flushStaleSession();
 
     expect(db.laps).toHaveLength(1);
@@ -305,7 +320,9 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     expect(reconciled).toContainEqual({ sessionId: 1, gameId: "fm-2023" });
     expect(qualityUpdated).toBe(true);
     expect(pipeline.sessionLaps).toEqual([]);
-    expect(ws.broadcastedNotifications.filter(({ type }) => type === "lap-saved")).toEqual([]);
+    expect(
+      ws.broadcastedNotifications.find(({ type }) => type === "lap-saved"),
+    ).toMatchObject({ type: "lap-saved", sessionId: 1, lapId: 1 });
 
     await pipeline.finalizeCurrentSession();
   });

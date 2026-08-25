@@ -403,9 +403,12 @@ describe("live race-event timeline integration", () => {
       }),
     );
 
-    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow(
-      "lap insert failed",
-    );
+    await expect(
+      pipeline.lapDetector?.waitForPendingLapWrites?.(1),
+    ).rejects.toThrow("lap insert failed");
+    await expect(
+      pipeline.lapDetector?.waitForPendingLapWrites?.(1),
+    ).resolves.toBeUndefined();
   });
 
   test("retains closed session finalization after durable failure and retries it", async () => {
