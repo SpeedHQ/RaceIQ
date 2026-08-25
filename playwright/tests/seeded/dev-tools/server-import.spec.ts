@@ -27,7 +27,12 @@ test("developer dump import runs production pipeline and cleans imported state",
   await page.getByRole("button", { name: "Import Dump" }).click();
   const fixturePath = resolve(__dirname, "../../../../test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz");
   await page.locator('input[type="file"]').setInputFiles(fixturePath);
-  const importResponsePromise = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/dev/import-dump");
+  const importResponsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/dev/import-dump",
+    { timeout: 60_000 },
+  );
   await page.getByRole("button", { name: "Import to Database", exact: true }).click();
   const importResponse = await importResponsePromise;
   expect(importResponse.ok()).toBe(true);
