@@ -40,7 +40,12 @@ const run = async (mode: "timing" | "retainedHeap", alias: string) => runChildBe
   env: { ...process.env, REPLAY_BENCH_CASE: alias } as Record<string, string>,
   kind: mode,
 });
-type RawProcess = { process: number; timing: Record<string, TimingChildReport>; retainedHeap: Record<string, RetainedHeapChildReport> };
+type RawProcess = {
+  process: number;
+  timing: Record<string, TimingChildReport>;
+  retainedHeap: Record<string, RetainedHeapChildReport>;
+  retainedHeapErrors: Record<string, string[]>;
+};
 const raw: RawProcess[] = [];
 const retainedSamples: Record<string, number[]> = Object.fromEntries(rawKeys.map((key) => [key, []]));
 for (let index = 0; index < processes; index++) {
@@ -49,14 +54,29 @@ for (let index = 0; index < processes; index++) {
     const rawKey = rawKeys[index]!;
     timing[rawKey] = await run("timing", rawKey) as TimingChildReport;
   }
-  raw.push({ process: index + 1, timing, retainedHeap: {} });
+  raw.push({ process: index + 1, timing, retainedHeap: {}, retainedHeapErrors: {} });
 }
-for (let index = 0; index < retainedProcesses; index++) {
-  for (const [aliasIndex, alias] of aliases.entries()) {
-    const rawKey = rawKeys[aliasIndex]!;
-    const result = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
-    retainedSamples[rawKey]!.push(result.retainedHeap);
-    raw[index % raw.length]!.retainedHeap[rawKey] = result;
+for (const [aliasIndex] of aliases.entries()) {
+  const rawKey = rawKeys[aliasIndex]!;
+  const samples = retainedSamples[rawKey]!;
+  const maxAttempts = retainedProcesses * 4;
+  for (let attempt = 0; samples.length < retainedProcesses && attempt < maxAttempts; attempt++) {
+    try {
+      const result = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
+      samples.push(result.retainedHeap);
+      raw[attempt % raw.length]!.retainedHeap[rawKey] = result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const diagnostics = raw[attempt % raw.length]!.retainedHeapErrors;
+      (diagnostics[rawKey] ??= []).push(message);
+    }
+  }
+  if (samples.length !== retainedProcesses) {
+    const errors = raw.flatMap((entry) => entry.retainedHeapErrors[rawKey] ?? []);
+    throw new Error(
+      `Unable to collect ${retainedProcesses} valid retained-heap samples for ${rawKey} after ${maxAttempts} attempts; `
+      + `collected ${samples.length}. Rejections: ${errors.join(" | ") || "none"}`,
+    );
   }
 }
  

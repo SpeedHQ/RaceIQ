@@ -12,3 +12,6 @@ Verification:
 - `bun test test/tooling/process-bench.test.ts --timeout 60000` — pass (8 tests).
 - `bunx tsc --project scripts/tsconfig.json --pretty false` — pass.
 - Process smoke invoked with two timing processes and seven retained processes. Harness correctly exercised independent sampling, but run encountered an invalid negative retained-heap delta (`-841`) and rejected it as designed; no false report was emitted.
+- Parent now retries retained-heap children independently per alias until exactly seven valid samples are collected, recording every rejected exit or invalid delta in `rawProcesses[*].retainedHeapErrors`.
+- Retry attempts are bounded at `retainedProcesses * 4`; quota failure raises explicit alias, quota, attempt, and rejection diagnostics without clipping values.
+- Smoke: `bun run scripts/quality/process-bench.ts --processes=2 --retained-processes=7 --warmups=1 --iterations=5` — pass; both replay aliases emitted exactly seven retained-heap samples.
