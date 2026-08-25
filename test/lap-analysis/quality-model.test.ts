@@ -710,6 +710,35 @@ describe("versioned eligibility policies", () => {
     expect(firstLap.quality.provenance.sourceGeneration).toMatch(/^sha256:[0-9a-f]{64}$/);
   });
 
+  test("finalizes unavailable recording evidence with a deterministic source identity", () => {
+    const recording = new RecordingQualityAccumulator(
+      "native-live",
+      LOCAL_PLAYER_EVIDENCE,
+      TEST_VERSION_IDENTITY,
+    );
+    for (const sample of qualityPackets(20)) recording.observe(sample);
+    const summary = recording.finalize("recording-disabled", {
+      state: "unavailable",
+      sourceGeneration: null,
+      details: "Recording disabled",
+    });
+
+    const first = finalizeRecordingQualityGeneration(summary);
+    const second = finalizeRecordingQualityGeneration(summary);
+
+    expect(second).toEqual(first);
+    expect(first.provenance.sourceGeneration).toMatch(
+      /^sha256:[0-9a-f]{64}$/,
+    );
+    expect(first.provenance.outputGeneration).toMatch(
+      /^sha256:[0-9a-f]{64}$/,
+    );
+    expect(first.lifecycleState).toBe("unavailable");
+    expect(first.facts.some(({ code }) => code === "recording_unavailable")).toBe(
+      true,
+    );
+  });
+
   test("rejects unresolved and malformed source generations", () => {
     const recording = new RecordingQualityAccumulator(
       "native-live",
