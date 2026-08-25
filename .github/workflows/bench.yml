@@ -38,91 +38,107 @@ jobs:
         with:
           bun-version: 1.3.14
 
-      - name: Install PR benchmark dependencies
-        working-directory: pr
-        run: bun install --frozen-lockfile
-
-      - name: Run benchmarks on base
-        working-directory: base
+      - name: Install benchmark dependencies
         run: |
           $ErrorActionPreference = "Stop"
+          Push-Location pr
+          bun install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Push-Location base
           bun install --no-save --ignore-scripts
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Use one replay benchmark definition for both revisions.
-          Copy-Item -Force ../pr/test/benchmarks/pipeline.bench.ts test/benchmarks/pipeline.bench.ts
-          bun run test/benchmarks/pipeline.bench.ts
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item -Force bench-results.json ../base-results.json
-          if (Test-Path test/benchmarks/replay-io.bench.ts) {
-            bun scripts/quality/replay-io-bench.ts --output=../base-replay-io-results.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          Pop-Location
+          New-Item -ItemType Directory -Force reports | Out-Null
 
-      - name: Run benchmarks on PR
+      - name: Run four counterbalanced benchmark rounds
+        run: |
+          $ErrorActionPreference = "Stop"
+          function Run-Legacy($checkout, $output) {
+            Push-Location $checkout
+            bun run bench
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Move-Item -Force bench-results.json ../reports/$output
+            Pop-Location
+          }
+          function Run-Replay($checkout, $revision, $output) {
+            Push-Location $checkout
+            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision --processes=2 --warmups=2 --iterations=20 --output=../reports/$output
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Pop-Location
+          }
+          # ABBA execution order: base→PR, PR→base, PR→base, base→PR.
+          Run-Legacy base legacy-base-1.json
+          Run-Replay base base-1.json
+          Run-Legacy pr legacy-current-1.json
+          Run-Replay pr current-1.json
+          Run-Legacy pr legacy-current-2.json
+          Run-Replay pr current-2.json
+          Run-Legacy base legacy-base-2.json
+          Run-Replay base base-2.json
+          Run-Legacy pr legacy-current-3.json
+          Run-Replay pr current-3.json
+          Run-Legacy base legacy-base-3.json
+          Run-Replay base base-3.json
+          Run-Legacy base legacy-base-4.json
+          Run-Replay base base-4.json
+          Run-Legacy pr legacy-current-4.json
+          Run-Replay pr current-4.json
+
+      - name: Compare paired benchmark reports
         working-directory: pr
         run: |
           $ErrorActionPreference = "Stop"
-          bun run test/benchmarks/pipeline.bench.ts
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item -Force bench-results.json ../pr-results.json
-          bun scripts/quality/replay-io-bench.ts --output=../pr-replay-io-results.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Compare
-        working-directory: pr
-        run: |
-          $ErrorActionPreference = "Stop"
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --exclude=replay/ --informational |
-            Set-Content -Encoding utf8 ../microbenchmark-comparison.md
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --title="Replay CPU guardrails" --threshold=10 --p99-threshold=25 |
-            Set-Content -Encoding utf8 ../replay-comparison.md
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Test-Path ../base-replay-io-results.json) {
-            bun scripts/quality/bench-compare.ts ../base-replay-io-results.json ../pr-replay-io-results.json --threshold=25 --title="Replay I/O benchmark" |
-              Set-Content -Encoding utf8 ../replay-io-comparison.md
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-            @(
-              "## Replay I/O benchmark"
-              ""
-              "Base commit has no separate replay I/O benchmark. Current report uploaded; report-only comparison starts after this benchmark lands on base branch."
-            ) | Set-Content -Encoding utf8 ../replay-io-comparison.md
-          }
-          $comparison = @(
-            Get-Content ../microbenchmark-comparison.md
-            ""
-            Get-Content ../replay-comparison.md
+          $pairs = @(
+            "../reports/legacy-base-1.json", "../reports/legacy-current-1.json",
+            "../reports/legacy-base-2.json", "../reports/legacy-current-2.json",
+            "../reports/legacy-base-3.json", "../reports/legacy-current-3.json",
+            "../reports/legacy-base-4.json", "../reports/legacy-current-4.json"
           )
-          $comparison | Set-Content -Encoding utf8 ../comparison.md
+          bun scripts/quality/bench-compare.ts @pairs --exclude=replay/ --informational --title="Informational microbenchmarks" |
+            Set-Content -Encoding utf8 ../reports/microbenchmark-comparison.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $replayPairs = @(
+            "../reports/base-1.json", "../reports/current-1.json",
+            "../reports/base-2.json", "../reports/current-2.json",
+            "../reports/base-3.json", "../reports/current-3.json",
+            "../reports/base-4.json", "../reports/current-4.json"
+          )
+          bun scripts/quality/bench-compare.ts @replayPairs --include=replay/ --title="Replay CPU and retained heap guardrails" `
+            --median-threshold=10 --p99-threshold=25 --retained-heap-threshold=10 |
+            Set-Content -Encoding utf8 ../reports/replay-comparison.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $comparison = @(
+            Get-Content ../reports/microbenchmark-comparison.md
+            ""
+            Get-Content ../reports/replay-comparison.md
+          )
+          $comparison | Set-Content -Encoding utf8 ../reports/comparison.md
           $comparison
           $comparison | Add-Content $env:GITHUB_STEP_SUMMARY
-          Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Get-Content ../replay-io-comparison.md | Add-Content $env:GITHUB_STEP_SUMMARY
 
       - name: Upload benchmark comment
         uses: actions/upload-artifact@v7
         with:
           name: benchmark-comment
-          path: comparison.md
+          path: reports/comparison.md
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce CPU benchmark guardrails
+      - name: Enforce replay CPU and retained-heap guardrails
         working-directory: pr
-        run: bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --include=replay/ --threshold=10 --p99-threshold=25 --fail-on-regression
+        run: |
+          bun scripts/quality/bench-compare.ts `
+            ../reports/base-1.json ../reports/current-1.json `
+            ../reports/base-2.json ../reports/current-2.json `
+            ../reports/base-3.json ../reports/current-3.json `
+            ../reports/base-4.json ../reports/current-4.json `
+            --include=replay/ --median-threshold=10 --p99-threshold=25 `
+            --retained-heap-threshold=10 --fail-on-regression
 
       - name: Upload benchmark reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-reports
-          path: |
-            base-results.json
-            pr-results.json
-            base-replay-io-results.json
-            pr-replay-io-results.json
-            microbenchmark-comparison.md
-            replay-comparison.md
-            replay-io-comparison.md
-            comparison.md
+          path: reports/*.json, reports/*.md
