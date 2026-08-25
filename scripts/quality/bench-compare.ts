@@ -27,9 +27,17 @@ const robustSpread = (report: Results, key: string): number | undefined => {
 
 const args = process.argv.slice(2);
 const option = (prefix: string): string | undefined => args.find((arg) => arg.startsWith(`${prefix}=`))?.slice(prefix.length + 1);
-const medianThreshold = Number(option("--median-threshold") ?? 5);
-const p99Threshold = Number(option("--p99-threshold") ?? 5);
-const retainedHeapThreshold = Number(option("--retained-heap-threshold") ?? 5);
+const threshold = (name: string): number => {
+  const value = Number(option(name) ?? 5);
+  if (!Number.isFinite(value) || value < 0) {
+    console.error(`${name} must be a finite non-negative number`);
+    process.exit(1);
+  }
+  return value;
+};
+const medianThreshold = threshold("--median-threshold");
+const p99Threshold = threshold("--p99-threshold");
+const retainedHeapThreshold = threshold("--retained-heap-threshold");
 const includePrefix = option("--include");
 const excludePrefix = option("--exclude");
 const informational = args.includes("--informational");
