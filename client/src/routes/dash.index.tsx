@@ -9,7 +9,6 @@ import { fakeF1SemanticFixture, fakePit, fakeSectors, generateFakeSessionLaps } 
 
 const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
-
 interface DashMeta {
   slug: "combo-1" | "combo-2";
   href: "/dash/combo-1" | "/dash/combo-2";
@@ -49,7 +48,7 @@ function DashCatalogue() {
     if (slug === "combo-1") {
       return <ComboDash view={fakeF1SemanticFixture.view} sectors={fakeSectors} pit={fakePit} unitSystem="metric" />;
     }
-    return <ComboDash2 rawPacket={null} sessionLaps={PREVIEW_LAPS} />;
+    return <ComboDash2 view={fakeF1SemanticFixture.view} sessionLaps={PREVIEW_LAPS} />;
   };
 
   return (

@@ -194,6 +194,8 @@
 
   /* Track-map identities. */
   --track-start: var(--color-emerald-500);
+  --track-position: var(--color-cyan-400);
+  --track-position-outline: var(--color-slate-900);
   --track-surface: var(--color-slate-700);
   --track-edge: var(--color-slate-500);
   --track-outline: var(--color-slate-700);
@@ -202,6 +204,7 @@
   --track-label-text: var(--color-slate-50);
   --track-muted: var(--color-slate-400);
   --track-centerline: var(--color-slate-400);
+  --track-racing-line: var(--color-purple-400);
   --track-boundary-left: var(--color-red-400);
   --track-boundary-right: var(--color-blue-400);
   --track-pit-lane: var(--color-cyan-400);

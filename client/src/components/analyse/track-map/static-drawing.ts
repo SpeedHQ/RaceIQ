@@ -25,12 +25,13 @@ export interface StaticTrackOptions {
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   highlights?: TrackHighlight[] | null;
   showInputs?: boolean;
+  showRaceLine?: boolean;
   showTrace: boolean;
   rotateWithCar: boolean;
   zoom: number;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitLines, boundaries, sectors, segments, highlights, showInputs, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, pitLines, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -45,6 +46,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const flippedPitLines = flip && pitLines ? pitLines.map((line) => ({ ...line, points: flipPoints(line.points) })) : pitLines;
+  const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
@@ -116,6 +118,19 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   if (outline) ctx.lineTo(sx, sy);
   ctx.stroke();
 
+  if (raceLine) {
+    ctx.beginPath();
+    ctx.moveTo(...toCanvas(raceLine[0].x, raceLine[0].z));
+    for (let i = 1; i < raceLine.length; i++) ctx.lineTo(...toCanvas(raceLine[i].x, raceLine[i].z));
+    ctx.closePath();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "var(--track-racing-line)";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  }
+
   const n = displayOutline.length;
   const cumDist = [0];
   for (let i = 1; i < n; i++) cumDist.push(cumDist[i - 1] + Math.hypot(displayOutline[i].x - displayOutline[i - 1].x, displayOutline[i].z - displayOutline[i - 1].z));
@@ -144,10 +159,11 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   };
 
-  if (sectors && displayOutline.length > 10 && !showInputs) {
+  if (sectors && displayOutline.length > 10) {
     const bounds = [...sectors.sectorStarts, 1];
     for (let si = 0; si < sectors.sectorCount; si++) drawRange(bounds[si], bounds[si + 1], SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length], 2.5);
-  } else if (segments?.length && !showInputs) {
+  }
+  if (segments?.length) {
     const labelCandidates: { text: string; x: number; y: number; priority: number }[] = [];
     const labelledNames = new Set<string>();
     for (const seg of segments) {
@@ -190,7 +206,8 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
       ctx.fillStyle = "var(--track-label-text)";
       ctx.fillText(label.text, label.x, label.y);
     }
-  } else {
+  }
+  if (!sectors && !segments?.length) {
     ctx.beginPath();
     ctx.strokeStyle = "var(--track-edge)";
     ctx.lineWidth = 2;
@@ -200,7 +217,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   }
 
-  if (mapLabels?.length && !showInputs) {
+  if (mapLabels?.length) {
     ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
     ctx.textAlign = "center";
     for (const label of mapLabels) {

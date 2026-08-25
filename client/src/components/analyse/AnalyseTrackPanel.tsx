@@ -3,10 +3,22 @@ import type { RefObject } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { PitLine } from "@/lib/canvas/draw-track";
 import { m } from "../../paraglide/messages";
+import { ChevronDownIcon } from "lucide-react";
 import { Compass } from "../Compass";
 import { Button } from "../ui/button";
+import { DropdownMenu } from "../ui/DropdownMenu";
 import { AnalyseTrackMap } from "./AnalyseTrackMap";
-import type { Point, SectorBoundaries, SemanticAnalysisFrame, TrackMapHandle, TrackMapLabel } from "./track-map/types";
+import {
+  DEFAULT_TRACK_OVERLAYS,
+  type Point,
+  type SectorBoundaries,
+  type SemanticAnalysisFrame,
+  type TrackMapBoundaries,
+  type TrackMapHandle,
+  type TrackMapLabel,
+  type TrackOverlayKey,
+  type TrackOverlays,
+} from "./track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -16,8 +28,7 @@ interface AnalyseTrackPanelProps {
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   pitLines?: PitLine[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  boundaries: any;
+  boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentFrame: SemanticAnalysisFrame | null;
@@ -26,12 +37,12 @@ interface AnalyseTrackPanelProps {
   aiHighlights?: AnalysisHighlight[] | null;
 
   rotateWithCar: boolean;
-  trackOverlay: "none" | "inputs" | "segments" | "sectors";
+  trackOverlays: TrackOverlays;
   mapZoom: number;
   /** Live view passes false to draw only track edges, not the driving line. */
   showTrace?: boolean;
   onRotateWithCarToggle: () => void;
-  onTrackOverlayCycle: () => void;
+  onTrackOverlayChange?: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
 
   trackMapRef?: RefObject<TrackMapHandle | null>;
@@ -64,18 +75,31 @@ export function AnalyseTrackPanel({
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
-  trackOverlay,
+  trackOverlays,
   mapZoom,
   showTrace,
   onRotateWithCarToggle,
-  onTrackOverlayCycle,
+  onTrackOverlayChange,
   onMapZoomChange,
   trackMapRef,
   hideSteeringOverlay,
   weatherBottomRight,
 }: AnalyseTrackPanelProps) {
+  const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
+  const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
+  const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
+    .filter((overlay) => overlay !== "racingLine" || hasRacingLine)
+    .map((overlay) => ({
+      type: "checkbox" as const,
+      key: overlay,
+      label: overlay === "inputs" ? m.overlay_inputs() : overlay === "segments" ? m.overlay_segments() : overlay === "sectors" ? m.overlay_sectors() : m.overlay_racing_line(),
+      checked: trackOverlays[overlay],
+      onCheckedChange: (checked: boolean) => onTrackOverlayChange?.(overlay, checked),
+    }));
+
   return (
     <div
+      data-testid="analyse-track-map-panel"
       className="relative h-full min-w-0 bg-app-bg p-2"
       onWheel={(e) => {
         if (!rotateWithCar) return;
@@ -89,14 +113,15 @@ export function AnalyseTrackPanel({
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
-        mapLabels={trackOverlay === "segments" ? mapLabels : null}
+        mapLabels={trackOverlays.segments ? mapLabels : null}
         pitLines={pitLines}
         boundaries={boundaries}
-        sectors={trackOverlay === "sectors" ? sectors : null}
-        segments={trackOverlay === "segments" ? segments : null}
+        sectors={trackOverlays.sectors ? sectors : null}
+        segments={trackOverlays.segments ? segments : null}
         highlights={aiPanelOpen ? aiHighlights : null}
-        showInputs={trackOverlay === "inputs"}
+        showInputs={trackOverlays.inputs}
         showTrace={showTrace}
+        showRaceLine={trackOverlays.racingLine && hasRacingLine}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
       />
@@ -113,15 +138,22 @@ export function AnalyseTrackPanel({
         >
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
         </Button>
-        {!hideSteeringOverlay && (
-          <Button
-            onClick={onTrackOverlayCycle}
-            className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-              trackOverlay !== "none" ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-            }`}
-          >
-            {trackOverlay === "none" ? m.overlay_overlay() : trackOverlay === "inputs" ? m.overlay_inputs() : trackOverlay === "segments" ? m.overlay_segments() : m.overlay_sectors()}
-          </Button>
+        {!hideSteeringOverlay && onTrackOverlayChange && (
+          <DropdownMenu
+            align="left"
+            trigger={
+              <Button
+                type="button"
+                className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
+                  anyTrackOverlay ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+                }`}
+              >
+                {m.overlay_overlay()}
+                <ChevronDownIcon data-icon="inline-end" />
+              </Button>
+            }
+            items={overlayItems}
+          />
         )}
       </div>
 

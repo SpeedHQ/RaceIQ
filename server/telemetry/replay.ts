@@ -73,38 +73,39 @@ function replayTimestamp(packet: TelemetryPacket, fallback: TelemetryTimestamp):
 }
 
 /**
- * Replay one persisted lap through the current compiled semantic resolver.
- * Returned diagnostics expose mapping state, freshness, limitations, and source
- * provenance; callers never need to inspect simulator-specific packet fields.
+ * Resolve preloaded native packets into canonical semantic envelopes.
+ * Persistence and raw-capture I/O belong to callers.
  */
-export async function queryLapTelemetryBySemanticId(lapId: number, requestedSemanticIds: readonly string[]): Promise<SemanticTelemetryReplay | null> {
+export function resolveTelemetryReplay(
+  lapId: number,
+  source: LapReplaySource,
+  packets: readonly TelemetryPacket[],
+  requestedSemanticIds: readonly string[],
+  rawCapture?: RawCaptureIdentity,
+): SemanticTelemetryReplay {
   if (requestedSemanticIds.length === 0) {
     throw new Error("At least one semantic ID is required for telemetry replay");
   }
-  const semanticIds = [...new Set(requestedSemanticIds)];
-  const [lap, source] = await Promise.all([getLapById(lapId), getLapReplaySource(lapId)]);
-  if (!lap || !source) return null;
-  if (lap.parseError) throw new Error(lap.parseError);
-  if (lap.telemetry.length === 0) {
+  if (packets.length === 0) {
     throw new Error(`Lap ${lapId} has no replayable telemetry`);
   }
 
+  const semanticIds = [...new Set(requestedSemanticIds)];
   const resolver = compileTelemetryResolver<ReplayNativeFrame>(TELEMETRY_CATALOG, {
     simulator: source.gameId,
     requested: semanticIds.map((semanticId) => ({ semanticId })),
   });
   const slots = semanticIds.map((semanticId) => resolver.slot(semanticId));
   const receivedAt = receivedTimestamp(source.createdAt);
-  const rawCapture = source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
   const rawReference = resolveRawReference(source, rawCapture);
   const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
-  const envelopes: CanonicalTelemetryEnvelope[] = new Array(lap.telemetry.length);
+  const envelopes: CanonicalTelemetryEnvelope[] = new Array(packets.length);
   const target: ResolvedValue<unknown>[] = [];
-  const nativeFrame: ReplayNativeFrame = { packet: lap.telemetry[0] };
+  const nativeFrame: ReplayNativeFrame = { packet: packets[0] };
   let view: TelemetryFrameView<ReplayNativeFrame> | undefined;
 
-  for (let sequence = 0; sequence < lap.telemetry.length; sequence++) {
-    const packet = lap.telemetry[sequence];
+  for (let sequence = 0; sequence < packets.length; sequence++) {
+    const packet = packets[sequence];
     const observedAt = replayTimestamp(packet, receivedAt);
     const observation: SourceObservation = {
       timestamp: observedAt,
@@ -141,4 +142,24 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
     requestedSemanticIds: semanticIds,
     envelopes,
   };
+}
+
+/**
+ * Replay one persisted lap through the current compiled semantic resolver.
+ * Returned diagnostics expose mapping state, freshness, limitations, and source
+ * provenance; callers never need to inspect simulator-specific packet fields.
+ */
+export async function queryLapTelemetryBySemanticId(lapId: number, requestedSemanticIds: readonly string[]): Promise<SemanticTelemetryReplay | null> {
+  if (requestedSemanticIds.length === 0) {
+    throw new Error("At least one semantic ID is required for telemetry replay");
+  }
+  const [lap, source] = await Promise.all([getLapById(lapId), getLapReplaySource(lapId)]);
+  if (!lap || !source) return null;
+  if (lap.parseError) throw new Error(lap.parseError);
+  if (lap.telemetry.length === 0) {
+    throw new Error(`Lap ${lapId} has no replayable telemetry`);
+  }
+
+  const rawCapture = source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
+  return resolveTelemetryReplay(lapId, source, lap.telemetry, requestedSemanticIds, rawCapture);
 }
