@@ -57,8 +57,15 @@ try {
   );
   const canSplitIntegration =
     suite === "integration" && process.env.DATA_DIR === undefined;
+  const serialFiles = canSplitIntegration
+    ? files.filter((file) => file === "test/db/db-seed.test.ts")
+    : [];
+  const remainingFiles =
+    serialFiles.length > 0
+      ? files.filter((file) => file !== "test/db/db-seed.test.ts")
+      : files;
   const fixtureFiles = canSplitIntegration
-    ? files.filter(
+    ? remainingFiles.filter(
         (file) =>
           (file.startsWith("test/e2e/") &&
             file !== "test/e2e/udp-recording.test.ts") ||
@@ -67,12 +74,10 @@ try {
     : [];
   const primaryFiles =
     fixtureFiles.length > 0
-      ? files.filter((file) => !fixtureFiles.includes(file))
-      : files;
-  const groups = fixtureFiles.length > 0
-    ? [primaryFiles, fixtureFiles]
-    : [primaryFiles];
-  const processes = groups.map((group, index) => {
+      ? remainingFiles.filter((file) => !fixtureFiles.includes(file))
+      : remainingFiles;
+  let dataIndex = 0;
+  const startGroup = (group: readonly string[]) => {
     const manifestFiles = group.map((file) => resolve(root, file));
     const args =
       suite === "unit"
@@ -81,7 +86,8 @@ try {
     const env = { ...process.env };
     if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
     if (suite === "integration" && env.DATA_DIR === undefined) {
-      env.DATA_DIR = resolve(suiteRoot, `data-${index + 1}`);
+      dataIndex += 1;
+      env.DATA_DIR = resolve(suiteRoot, `data-${dataIndex}`);
     }
     return Bun.spawn([process.execPath, ...args], {
       cwd: root,
@@ -89,11 +95,41 @@ try {
       stdout: "inherit",
       stderr: "inherit",
     });
-  });
-  const exitCodes = await Promise.all(
-    processes.map((process) => process.exited),
-  );
-  status = exitCodes.find((code) => code !== 0) ?? 0;
+  };
+
+  status = 0;
+  if (serialFiles.length > 0) {
+    status = await startGroup(serialFiles).exited;
+  }
+  if (status === 0 && fixtureFiles.length > 0) {
+    let nextFixtureIndex = 0;
+    const runFixtureWorker = async (): Promise<number> => {
+      while (nextFixtureIndex < fixtureFiles.length) {
+        const file = fixtureFiles[nextFixtureIndex];
+        nextFixtureIndex += 1;
+        if (!file) break;
+        const code = await startGroup([file]).exited;
+        if (code !== 0) return code;
+      }
+      return 0;
+    };
+    const primary = startGroup(primaryFiles);
+    const [primaryCode, fixtureCodes] = await Promise.all([
+      primary.exited,
+      Promise.all(
+        Array.from(
+          { length: Math.min(2, fixtureFiles.length) },
+          () => runFixtureWorker(),
+        ),
+      ),
+    ]);
+    status =
+      primaryCode !== 0
+        ? primaryCode
+        : fixtureCodes.find((code) => code !== 0) ?? 0;
+  } else if (status === 0) {
+    status = await startGroup(primaryFiles).exited;
+  }
 } finally {
   rmSync(suiteRoot, { recursive: true, force: true });
 }
