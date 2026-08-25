@@ -1,28 +1,14 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "../../server/db";
-import {
-  analysisQualityIdentityForLap,
-  getAnalysis,
-  getCompareAnalysis,
-  saveAnalysis,
-  saveCompareAnalysis,
-  type AnalysisQualityIdentity,
-} from "../../server/db/analysis-queries";
+import { analysisQualityIdentityForLap, getAnalysis, getCompareAnalysis, saveAnalysis, saveCompareAnalysis, type AnalysisQualityIdentity } from "../../server/db/analysis-queries";
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { compareAnalyses, lapAnalyses, laps } from "../../server/db/schema";
 import { deleteSession, insertSession } from "../../server/db/session-queries";
-import {
-  combineQualityGenerations,
-  finalizeLapQualityGeneration,
-} from "../../server/lap-analysis/quality-generation";
+import { combineQualityGenerations, finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import type { GameId } from "../../shared/games/ids";
 import { ELIGIBILITY_POLICY_VERSION } from "../../shared/racing/quality/contracts";
-import {
-  qualityPackets,
-  summarize,
-  TEST_VERSION_IDENTITY,
-} from "../support/lap-analysis/quality-model";
+import { qualityPackets, summarize, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 
 const sessionIds: number[] = [];
 const lapIds: number[] = [];
@@ -41,21 +27,9 @@ const noQualityIdentity: AnalysisQualityIdentity = {
 };
 
 async function createLap(lapNumber: number, withQuality: boolean) {
-  const sessionId = await insertSession(
-    995_000 + lapNumber,
-    996_000 + lapNumber,
-    testGameId,
-    "practice",
-    TEST_VERSION_IDENTITY,
-  );
+  const sessionId = await insertSession(995_000 + lapNumber, 996_000 + lapNumber, testGameId, "practice", TEST_VERSION_IDENTITY);
   sessionIds.push(sessionId);
-  const generated = withQuality
-    ? finalizeLapQualityGeneration(
-        summarize(qualityPackets(50)),
-        `sha256:${"a".repeat(64)}`,
-        { lapNumber, rawByteOffset: null, rawFrameCount: 50 },
-      )
-    : null;
+  const generated = withQuality ? finalizeLapQualityGeneration(summarize(qualityPackets(50)), `sha256:${"a".repeat(64)}`, { lapNumber, rawByteOffset: null, rawFrameCount: 50 }) : null;
   const lapId = await insertLap({
     sessionId,
     lapNumber,
@@ -86,17 +60,9 @@ afterEach(async () => {
   if (lapIds.length > 0) {
     await db
       .delete(compareAnalyses)
-      .where(
-        or(
-          inArray(compareAnalyses.lapAId, lapIds),
-          inArray(compareAnalyses.lapBId, lapIds),
-        ),
-      )
+      .where(or(inArray(compareAnalyses.lapAId, lapIds), inArray(compareAnalyses.lapBId, lapIds)))
       .run();
-    await db
-      .delete(lapAnalyses)
-      .where(inArray(lapAnalyses.lapId, lapIds))
-      .run();
+    await db.delete(lapAnalyses).where(inArray(lapAnalyses.lapId, lapIds)).run();
   }
   lapIds.splice(0);
   for (const sessionId of sessionIds.splice(0)) await deleteSession(sessionId);
@@ -120,11 +86,7 @@ test("lap analysis cache requires the exact current quality identity", async () 
     qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
   });
 
-  await db
-    .update(lapAnalyses)
-    .set({ qualityPolicyVersion: "legacy" })
-    .where(eq(lapAnalyses.lapId, current.lapId))
-    .run();
+  await db.update(lapAnalyses).set({ qualityPolicyVersion: "legacy" }).where(eq(lapAnalyses.lapId, current.lapId)).run();
   expect(await getAnalysis(current.lapId)).toBeNull();
   await db
     .update(lapAnalyses)
@@ -142,55 +104,21 @@ test("lap analysis cache requires the exact current quality identity", async () 
     qualityPolicyVersion: "legacy",
   };
   await saveAnalysis(current.lapId, "must not overwrite", usage, legacyIdentity);
-  expect(
-    await db
-      .select({ analysis: lapAnalyses.analysis })
-      .from(lapAnalyses)
-      .where(eq(lapAnalyses.lapId, current.lapId))
-      .get(),
-  ).toEqual({ analysis: "current" });
+  expect(await db.select({ analysis: lapAnalyses.analysis }).from(lapAnalyses).where(eq(lapAnalyses.lapId, current.lapId)).get()).toEqual({ analysis: "current" });
 });
 
-test("lap analysis cache preserves null identity only when lap quality is absent", async () => {
+test("lap analysis cache rejects missing quality identity", async () => {
   const withoutQuality = await createLap(2, false);
-  await saveAnalysis(
-    withoutQuality.lapId,
-    "legacy-compatible",
-    usage,
-    withoutQuality.identity,
-  );
-  expect(await getAnalysis(withoutQuality.lapId)).toMatchObject({
-    analysis: "legacy-compatible",
-  });
-  expect(
-    await db
-      .select({
-        qualityGeneration: lapAnalyses.qualityGeneration,
-        qualityPolicyVersion: lapAnalyses.qualityPolicyVersion,
-      })
-      .from(lapAnalyses)
-      .where(eq(lapAnalyses.lapId, withoutQuality.lapId))
-      .get(),
-  ).toEqual({ qualityGeneration: null, qualityPolicyVersion: null });
+  await saveAnalysis(withoutQuality.lapId, "must-not-cache", usage, withoutQuality.identity);
 
-  await db
-    .update(laps)
-    .set({ qualityGeneration: `sha256:${"b".repeat(64)}` })
-    .where(eq(laps.id, withoutQuality.lapId))
-    .run();
   expect(await getAnalysis(withoutQuality.lapId)).toBeNull();
+  expect(await db.select({ id: lapAnalyses.id }).from(lapAnalyses).where(eq(lapAnalyses.lapId, withoutQuality.lapId)).get()).toBeUndefined();
 });
 
 test("compare cache combines two current identities and rejects mixed quality", async () => {
   const left = await createLap(3, true);
   const right = await createLap(4, true);
-  await saveCompareAnalysis(
-    right.lapId,
-    left.lapId,
-    "current pair",
-    usage,
-    [right.identity, left.identity],
-  );
+  await saveCompareAnalysis(right.lapId, left.lapId, "current pair", usage, [right.identity, left.identity]);
 
   expect(await getCompareAnalysis(left.lapId, right.lapId)).toMatchObject({
     analysis: "current pair",
@@ -205,10 +133,7 @@ test("compare cache combines two current identities and rejects mixed quality", 
       .where(eq(compareAnalyses.analysis, "current pair"))
       .get(),
   ).toEqual({
-    qualityGeneration: combineQualityGenerations([
-      left.identity.qualityGeneration!,
-      right.identity.qualityGeneration!,
-    ]),
+    qualityGeneration: combineQualityGenerations([left.identity.qualityGeneration!, right.identity.qualityGeneration!]),
     qualityPolicyVersion: ELIGIBILITY_POLICY_VERSION,
   });
   await db
@@ -219,30 +144,10 @@ test("compare cache combines two current identities and rejects mixed quality", 
   expect(await getCompareAnalysis(left.lapId, right.lapId)).toBeNull();
 
   const withoutQuality = await createLap(5, false);
-  await saveCompareAnalysis(
-    left.lapId,
-    withoutQuality.lapId,
-    "mixed pair",
-    usage,
-    [left.identity, withoutQuality.identity],
-  );
-  expect(
-    await db
-      .select({ id: compareAnalyses.id })
-      .from(compareAnalyses)
-      .where(eq(compareAnalyses.analysis, "mixed pair"))
-      .get(),
-  ).toBeUndefined();
+  await saveCompareAnalysis(left.lapId, withoutQuality.lapId, "mixed pair", usage, [left.identity, withoutQuality.identity]);
+  expect(await db.select({ id: compareAnalyses.id }).from(compareAnalyses).where(eq(compareAnalyses.analysis, "mixed pair")).get()).toBeUndefined();
 
   const noQualityPeer = await createLap(6, false);
-  await saveCompareAnalysis(
-    withoutQuality.lapId,
-    noQualityPeer.lapId,
-    "null pair",
-    usage,
-    [withoutQuality.identity, noQualityPeer.identity],
-  );
-  expect(
-    await getCompareAnalysis(withoutQuality.lapId, noQualityPeer.lapId),
-  ).toMatchObject({ analysis: "null pair" });
+  await saveCompareAnalysis(withoutQuality.lapId, noQualityPeer.lapId, "null pair", usage, [withoutQuality.identity, noQualityPeer.identity]);
+  expect(await getCompareAnalysis(withoutQuality.lapId, noQualityPeer.lapId)).toBeNull();
 });

@@ -6,7 +6,12 @@ import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
-import { ELIGIBILITY_POLICY_VERSION, QUALITY_CONFIG_VERSION, QUALITY_SCHEMA_VERSION } from "../../shared/racing/quality/contracts";
+import {
+  ELIGIBILITY_POLICY_VERSION,
+  QUALITY_CONFIG_VERSION,
+  QUALITY_SCHEMA_VERSION,
+  normalizeEvidenceSourceKind,
+} from "../../shared/racing/quality/contracts";
 import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 interface LapStats {
@@ -233,7 +238,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
         r.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
         r.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
         r.qualityGeneration !== r.quality.provenance.outputGeneration,
-      source: (r.source as LapMeta["source"] | null) ?? "unknown",
+      source: normalizeEvidenceSourceKind(r.source),
       ownership: r.ownership === "others" ? "others" : "mine",
     }));
 }
@@ -383,7 +388,7 @@ function buildLapResult(row: LapResultRow, telemetry: TelemetryPacket[]): LapMet
     parserVersion: row.parserVersion ?? undefined,
     resolverVersion: row.resolverVersion ?? undefined,
     derivationVersion: row.derivationVersion ?? undefined,
-    source: (row.source as LapMeta["source"] | null) ?? "unknown",
+    source: normalizeEvidenceSourceKind(row.source),
     quality: row.quality ?? undefined,
     eligibility: row.eligibility ?? undefined,
     qualityGeneration: row.qualityGeneration ?? undefined,

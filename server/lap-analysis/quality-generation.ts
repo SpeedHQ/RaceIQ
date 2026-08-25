@@ -57,6 +57,15 @@ const LAP_MEASURED_FACT_CODES: Partial<Record<QualityFact["code"], true>> = {
   out_of_order_observations: true,
 };
 
+function requireFinalizedSourceGeneration(
+  sourceGeneration: string | null,
+  subject: "recording" | "session",
+): string {
+  if (!sourceGeneration || !FINALIZED_SOURCE_GENERATION_PATTERN.test(sourceGeneration)) {
+    throw new Error(`${subject} source generation must be sha256: plus 64 lowercase hex characters`);
+  }
+  return sourceGeneration;
+}
 
 function timeRangesOverlap(
   left: NonNullable<QualityFact["timeRange"]>,
@@ -142,34 +151,14 @@ export function combineQualityGenerations(generations: readonly string[]): strin
   return generation({ kind: "quality-cache", generations: [...generations].sort() });
 }
 
-export function finalizeRecordingQualityGeneration(summary: RecordingQualitySummary): RecordingQualitySummary {
-  const verificationLayers = [
-    summary.archiveVerification,
-    summary.canonicalVerification,
-    summary.transportVerification,
-  ].filter((verification) => verification != null);
-  const finalizedSourceGeneration = verificationLayers
-    .map(({ sourceGeneration }) => sourceGeneration)
-    .find(
-      (candidate): candidate is string =>
-        typeof candidate === "string" &&
-        FINALIZED_SOURCE_GENERATION_PATTERN.test(candidate),
-    );
-  if (
-    finalizedSourceGeneration == null &&
-    verificationLayers.some(({ state }) => state === "verified")
-  ) {
-    throw new Error(
-      "recording source generation must be sha256: plus 64 lowercase hex characters",
-    );
-  }
-  const sourceGeneration =
-    finalizedSourceGeneration ??
-    (
-      summary.provenance.sourceGeneration.startsWith("provisional:")
-        ? summary.provenance.sourceGeneration
-        : `provisional:${summary.sourceKind}:source-unavailable`
-    );
+export function finalizeRecordingQualityGeneration(
+  summary: RecordingQualitySummary,
+): RecordingQualitySummary {
+  const sourceGeneration = requireFinalizedSourceGeneration(
+    summary.canonicalVerification?.sourceGeneration ??
+      summary.archiveVerification.sourceGeneration,
+    "recording",
+  );
   const draftProvenance: QualityProvenance = {
     ...summary.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,
@@ -201,18 +190,14 @@ export function finalizeLapQualityGeneration(
     rawFrameCount: number | null;
   },
 ): { quality: LapQualitySummary; eligibility: EligibilityDecisionSet } {
-  if (
-    typeof sessionSourceGeneration !== "string" ||
-    !FINALIZED_SOURCE_GENERATION_PATTERN.test(sessionSourceGeneration)
-  ) {
-    throw new Error(
-      "session source generation must be sha256: plus 64 lowercase hex characters",
-    );
-  }
+  const finalizedSessionSourceGeneration = requireFinalizedSourceGeneration(
+    sessionSourceGeneration,
+    "session",
+  );
   const sourceGeneration = generation({
     identity,
     participant: quality.participant,
-    sessionSourceGeneration,
+    sessionSourceGeneration: finalizedSessionSourceGeneration,
     sourceKind: quality.sourceKind,
     versionIdentity: quality.versionIdentity,
   });

@@ -5,13 +5,7 @@ import { Hono } from "hono";
 import type { GameId } from "../../../shared/games/ids";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { getLapById } from "../../db/lap-read-queries";
-import {
-  analysisQualityIdentityForLap,
-  deleteCompareAnalysis,
-  getAnalysis,
-  getCompareAnalysis,
-  saveCompareAnalysis,
-} from "../../db/analysis-queries";
+import { analysisQualityIdentityForLap, deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
@@ -22,19 +16,43 @@ import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
 import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
-import {
-  CHAT_RESOURCE_ID,
-  compareChatThreadId,
-  generationThreadId,
-  getChatMemory,
-  listThreadGenerations,
-  resolveActiveThread,
-} from "../../ai/chat-agent";
+import { CHAT_RESOURCE_ID, compareChatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
-const inputsAnalysisRunKey = (idA: number, idB: number) =>
-  `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
+import type { EligibilityDecision } from "../../../shared/racing/quality/contracts";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 
+function comparisonEligibilityError(label: string, decision: EligibilityDecision): string {
+  const reasonCodes = [...new Set(decision.reasons.map(({ code }) => code))];
+  return `${label} quality is ${decision.status} for corner-trace analysis${reasonCodes.length > 0 ? `: ${reasonCodes.join(", ")}` : ""}`;
+}
+
+function comparisonEligibilityContext(lapA: EligibilityDecision, lapB: EligibilityDecision): string {
+  return JSON.stringify(
+    Object.fromEntries(
+      Object.entries({ lapA, lapB }).map(([label, decision]) => [
+        label,
+        {
+          policyId: decision.policyId,
+          policyVersion: decision.policyVersion,
+          status: decision.status,
+          confidence: decision.confidence,
+          reasons: decision.reasons.map(({ code, severity, semanticIds, timeRange, distanceRange }) => ({
+            code,
+            severity,
+            semanticIds,
+            timeRange,
+            distanceRange,
+          })),
+        },
+      ]),
+    ),
+    null,
+    2,
+  );
+}
+
+const inputsAnalysisRunKey = (idA: number, idB: number) => `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
@@ -66,10 +84,7 @@ export const comparisonRoutes = new Hono()
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;
-    const [replayA, replayB] = await Promise.all([
-      queryLapTelemetryBySemanticId(id1, semanticIds),
-      queryLapTelemetryBySemanticId(id2, semanticIds),
-    ]);
+    const [replayA, replayB] = await Promise.all([queryLapTelemetryBySemanticId(id1, semanticIds), queryLapTelemetryBySemanticId(id2, semanticIds)]);
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
@@ -127,6 +142,21 @@ export const comparisonRoutes = new Hono()
     const { regenerate, cacheOnly } = c.req.valid("query");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
+    const lapA = await getLapById(id1);
+    if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+    const lapB = await getLapById(id2);
+    if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    const lapAEligibility = resolveEligibilityDecision(lapA, "corner-trace");
+    if (!isEligibilityUsable(lapAEligibility)) {
+      return c.json({ error: comparisonEligibilityError("Lap A", lapAEligibility) }, 422);
+    }
+    const lapBEligibility = resolveEligibilityDecision(lapB, "corner-trace");
+    if (!isEligibilityUsable(lapBEligibility)) {
+      return c.json({ error: comparisonEligibilityError("Lap B", lapBEligibility) }, 422);
+    }
+
+    // A cache is usable only after both persisted quality snapshots pass.
     // Cache lookup first
     if (!regenerate) {
       const cached = await getCompareAnalysis(id1, id2, "inputs");
@@ -145,12 +175,6 @@ export const comparisonRoutes = new Hono()
       }
       if (cacheOnly) return c.json({ analysis: null, cached: false });
     }
-
-    const lapA = await getLapById(id1);
-    if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-    const lapB = await getLapById(id2);
-    if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
-    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
     const trackSegments = await resolveLapSegments(trackOrdinal, lapA.gameId);
@@ -177,7 +201,7 @@ export const comparisonRoutes = new Hono()
         direction: s.direction,
       })) ?? null;
 
-    const prompt = buildInputsComparePrompt(
+    const comparisonPrompt = buildInputsComparePrompt(
       {
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
@@ -197,9 +221,14 @@ export const comparisonRoutes = new Hono()
       comparison,
       segments,
       undefined,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) + buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
+    const prompt = `${comparisonPrompt}
+
+Telemetry evidence eligibility:
+${comparisonEligibilityContext(lapAEligibility, lapBEligibility)}
+
+Treat every listed limitation as binding. Do not infer unavailable or ineligible evidence.`;
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
     // reads settings at request time but env-based API keys must be in scope).
@@ -245,10 +274,7 @@ export const comparisonRoutes = new Hono()
         modelSettings: { maxOutputTokens: 8192, temperature: 0 },
         providerOptions: {
           openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
+          google: buildGoogleThinkingProviderOptions(settings.aiModel || "gemini-flash-latest", settings.aiThinkingBudget) as never,
         },
       });
       const durationMs = Math.round(performance.now() - start);
@@ -281,17 +307,7 @@ export const comparisonRoutes = new Hono()
         durationMs,
         model: settings.aiModel || settings.aiProvider,
       };
-      await saveCompareAnalysis(
-        id1,
-        id2,
-        analysisJson,
-        usage,
-        [
-          analysisQualityIdentityForLap(lapA),
-          analysisQualityIdentityForLap(lapB),
-        ],
-        "inputs",
-      );
+      await saveCompareAnalysis(id1, id2, analysisJson, usage, [analysisQualityIdentityForLap(lapA), analysisQualityIdentityForLap(lapB)], "inputs");
       return c.json({ analysis: analysisJson, cached: false, usage });
     } catch (err: any) {
       console.error("[InputsCompare] Failed:", err.message);
@@ -317,9 +333,7 @@ export const comparisonRoutes = new Hono()
       const memory = getChatMemory();
       const base = compareChatThreadId(id1, id2);
       const genParam = Number(c.req.query("gen"));
-      const threadId = Number.isInteger(genParam) && genParam >= 1
-        ? generationThreadId(base, genParam)
-        : await resolveActiveThread(base);
+      const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -327,9 +341,7 @@ export const comparisonRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5
-        .ui()
-        .filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
     } catch (err: any) {
@@ -348,6 +360,14 @@ export const comparisonRoutes = new Hono()
     const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    const lapAEligibility = resolveEligibilityDecision(lapA, "corner-trace");
+    if (!isEligibilityUsable(lapAEligibility)) {
+      return c.json({ error: comparisonEligibilityError("Lap A", lapAEligibility) }, 422);
+    }
+    const lapBEligibility = resolveEligibilityDecision(lapB, "corner-trace");
+    if (!isEligibilityUsable(lapBEligibility)) {
+      return c.json({ error: comparisonEligibilityError("Lap B", lapBEligibility) }, 422);
+    }
 
     const cachedA = await getAnalysis(id1);
     const cachedB = await getAnalysis(id2);
@@ -361,7 +381,7 @@ export const comparisonRoutes = new Hono()
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
     const settings = loadSettings();
-    const systemPrompt = buildCompareChatSystemPrompt(
+    const compareChatPrompt = buildCompareChatSystemPrompt(
       {
         id: id1,
         lapNumber: lapA.lapNumber,
@@ -386,9 +406,14 @@ export const comparisonRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) + buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
+    const systemPrompt = `${compareChatPrompt}
+
+Telemetry evidence eligibility:
+${comparisonEligibilityContext(lapAEligibility, lapBEligibility)}
+
+Treat every listed limitation as binding. Do not infer unavailable or ineligible evidence.`;
 
     const chatProvider = settings.chatProvider;
     if (!chatProvider) {
@@ -409,26 +434,18 @@ export const comparisonRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+    const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
-      const stream = await compareChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
+      const stream = await compareChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
+        memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
-      );
+      });
 
       return streamAgentTurnResponse({
         agentStream: stream,

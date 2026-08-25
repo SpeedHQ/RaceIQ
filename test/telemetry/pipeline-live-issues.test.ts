@@ -51,6 +51,10 @@ function makePipeline(onSessionFinalized?: (sessionId: number, gameId: Telemetry
     skipHistorySeeding: true,
     skipDevState: true,
     recorder: new NullSessionRecorderAdapter(),
+    sourceArchiveVerification: {
+      state: "verified",
+      sourceGeneration: `sha256:${"a".repeat(64)}`,
+    },
     onSessionFinalized,
   });
   return { pipeline, ws };
@@ -121,7 +125,13 @@ describe("LiveTelemetryPipeline live issue gating", () => {
     pipeline.setLiveIssuesEnabled(true);
     await pipeline.processPacket(pkt());
     pipeline.setLiveIssuesEnabled(false);
-    await pipeline.processPacket(pkt({ TimestampMS: 2_000, CurrentLap: 31, DistanceTraveled: 2_050 }));
+    await pipeline.processPacket(
+      pkt({
+        TimestampMS: 1_050,
+        CurrentLap: 30.05,
+        DistanceTraveled: 2_010,
+      }),
+    );
     expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
   });
 

@@ -1,4 +1,5 @@
 import { cacheDelete } from "./telemetry-replay-storage";
+import { invalidateLapEvidence } from "./lap-evidence-invalidation";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
@@ -11,7 +12,6 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 import { rebuildPersistedSessionRuns } from "./session-run-queries";
-import { invalidateLapEvidence } from "./lap-evidence-invalidation";
 import {
   finalizeLapQualityGeneration,
   mergeRecordingQualityIntoLapQuality,
@@ -21,7 +21,12 @@ export async function updateLapNotes(id: number, notes: string | null): Promise<
   await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
 }
 
-export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: number[] | null): Promise<void> {
+export async function updateLapValidity(
+  id: number,
+  isValid: boolean,
+  invalidReason: string | null,
+  sectors?: number[] | null,
+): Promise<void> {
   const values: Record<string, unknown> = { isValid, invalidReason };
   if (sectors !== undefined) {
     values.sectorTimes = sectors;

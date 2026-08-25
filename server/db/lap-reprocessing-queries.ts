@@ -5,8 +5,9 @@ import { compareAnalyses, laps } from "./schema";
 import type { LapClassification } from "../../shared/racing/laps/classification";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-export interface ReprocessingLapRow {
+export interface ReprocessingLap {
   id: number;
   lapNumber: number;
   lapTime: number;
@@ -25,6 +26,7 @@ export interface ReprocessingLapRow {
   experimentExcludedSource: string | null;
   fuelPerLap: number | null;
   tyreWear: number | null;
+  createdAt: string;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
   sectorTimes: number[] | null;
@@ -33,7 +35,9 @@ export interface ReprocessingLapRow {
   qualityGeneration: string | null;
 }
 
-export async function getLapsForSession(sessionId: number): Promise<ReprocessingLapRow[]> {
+export async function getLapsForSession(
+  sessionId: number,
+): Promise<ReprocessingLap[]> {
   const rows = await db
     .select({
       id: laps.id,
@@ -54,6 +58,7 @@ export async function getLapsForSession(sessionId: number): Promise<Reprocessing
       experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
+      createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
       sectorTimes: laps.sectorTimes,
@@ -81,11 +86,16 @@ export interface UpdateLapRawIndexInput {
   quality: LapQualitySummary;
   eligibility: EligibilityDecisionSet;
   versionIdentity: TelemetryVersionIdentity;
+  analysisGenerationId: string;
 }
 
-export async function updateLapRawIndex(input: UpdateLapRawIndexInput): Promise<void> {
+export async function updateLapRawIndex(
+  input: UpdateLapRawIndexInput,
+  transaction?: DbTransaction,
+): Promise<void> {
   cacheDelete(input.lapId);
-  await db
+  const executor = transaction ?? db;
+  await executor
     .update(laps)
     .set({
       rawByteOffset: input.rawByteOffset,
@@ -99,11 +109,14 @@ export async function updateLapRawIndex(input: UpdateLapRawIndexInput): Promise<
       eligibility: input.eligibility,
       qualitySchemaVersion: input.quality.provenance.schemaVersion,
       qualityPolicyVersion: input.quality.provenance.policyVersion,
-      qualityConfigVersion: input.quality.provenance.configurationVersion,
+      qualityConfigVersion:
+        input.quality.provenance.configurationVersion,
       qualityGeneration: input.quality.provenance.outputGeneration,
+      analysisGenerationId: input.analysisGenerationId,
       ...input.versionIdentity,
     })
-    .where(eq(laps.id, input.lapId));
+    .where(eq(laps.id, input.lapId))
+    .run();
 }
 
 /** Insert detected replacement while preserving matched row metadata. */

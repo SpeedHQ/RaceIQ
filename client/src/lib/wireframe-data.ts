@@ -20,6 +20,7 @@ export interface ViewToggles {
   inputs: boolean;
   track: boolean;
   grid: boolean;
+  racingLine: boolean;
   drivetrain: boolean;
   dimensions: boolean;
   wheelInfo: boolean;
@@ -31,6 +32,7 @@ export const DEFAULT_TOGGLES: ViewToggles = {
   trails: true,
   inputs: false,
   track: true,
+  racingLine: false,
   grid: true,
   drivetrain: true,
   dimensions: false,

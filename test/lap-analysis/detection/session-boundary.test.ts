@@ -67,6 +67,19 @@ describe("detectSessionBoundary", () => {
     ).toBe("distance-reset");
   });
 
+  test("distance reset at a normal lap boundary stays in the session", () => {
+    expect(
+      detectSessionBoundary(
+        SESSION,
+        2,
+        1500,
+        NOW,
+        pkt({ LapNumber: 3, DistanceTraveled: 100 }),
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
   test("distance reset ignored when session has UID (F1)", () => {
     const f1Session: SessionSnapshot = { ...SESSION, sessionUID: "abc123" };
     expect(

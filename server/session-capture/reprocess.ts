@@ -6,10 +6,12 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import {
   RaceEventsReplacedMessageSchema,
+  type RaceEvent,
 } from "../../shared/racing/events/contracts";
 import { SessionRunsReplacedMessageSchema } from "../../shared/racing/runs/contracts";
 import {
   LOCAL_PLAYER_EVIDENCE,
+  normalizeEvidenceSourceKind,
   type ArchiveVerification,
   type EvidenceSourceKind,
   type ParticipantEvidence,
@@ -27,7 +29,11 @@ import {
 import { db } from "../db";
 import { getActiveVerifiedCanonicalArchive } from "../db/canonical-archive-queries";
 import { readCanonicalArchiveSamples } from "../db/canonical-archive-reader";
-import { getLapsForSession, type ReprocessingLapRow } from "../db/lap-reprocessing-queries";
+import {
+  getLapsForSession,
+  updateLapRawIndex,
+  type ReprocessingLap,
+} from "../db/lap-reprocessing-queries";
 import { rebuildPersistedSessionRuns } from "../db/session-run-queries";
 import { cacheDelete } from "../db/telemetry-replay-storage";
 import {
@@ -35,6 +41,7 @@ import {
   type RaceEventResultProjection,
   type ReplayableLapReplacement,
 } from "../db/race-event-queries";
+import { invalidateLapEvidence } from "../db/lap-evidence-invalidation";
 import { linkSessionQualityEvents } from "../db/quality-event-queries";
 import { canonicalArchiveNodes, canonicalArchives, sessions } from "../db/schema";
 import {
@@ -65,13 +72,24 @@ import {
 import { mergeReprocessedRecordingQuality } from "./reprocess-quality";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { currentAnalysisContract } from "../analysis-provenance/current-contract";
-import { createPersistedSessionAnalysisReceipt, validateCanonicalArchiveReceipt } from "../analysis-provenance/receipt";
+import {
+  createPersistedSessionAnalysisReceipt,
+  validateCanonicalArchiveReceipt,
+} from "../analysis-provenance/receipt";
 import { RaceEventCoordinator } from "../race-events/coordinator";
 import { CanonicalPacketHasher } from "../race-results/canonical-input";
 import { RaceSourceAccumulator } from "../race-results/source";
-import { packetSequences, SourceSequenceTracker, type SourceSequenceObservation } from "../../shared/telemetry/source-sequence";
+import {
+  packetSequences,
+  SourceSequenceTracker,
+  type SourceSequenceObservation,
+} from "../../shared/telemetry/source-sequence";
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
-import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
+import {
+  CapturingDbAdapter,
+  currentTelemetryVersionIdentity,
+  type CapturedLap,
+} from "../telemetry/pipeline-ports";
 
 interface ReprocessResult {
   sessionId: number;
@@ -401,12 +419,37 @@ function retainedLifecycleEvidence(
   return evidence;
 }
 
-function replacementLaps(
-  detected: Awaited<ReturnType<typeof rebuildRaceEventTimeline>>["laps"],
-  existing: ReprocessingLapRow[],
-  analysisGenerationId: string,
-): ReplayableLapReplacement[] {
-  const candidates = new Map<number, ReprocessingLapRow[]>();
+type RebuiltLap = CapturedLap;
+type ExistingLap = ReprocessingLap;
+type FinalizedRebuiltLap = RebuiltLap & {
+  quality: NonNullable<RebuiltLap["quality"]>;
+  eligibility: NonNullable<RebuiltLap["eligibility"]>;
+  versionIdentity: NonNullable<RebuiltLap["versionIdentity"]>;
+};
+
+interface MatchedReprocessedLap {
+  detected: FinalizedRebuiltLap;
+  preserved: ExistingLap | undefined;
+}
+
+function finalizedRebuiltLaps(
+  laps: readonly RebuiltLap[],
+): FinalizedRebuiltLap[] {
+  return laps.map((lap) => {
+    if (!lap.quality || !lap.eligibility || !lap.versionIdentity) {
+      throw new Error(
+        `Rebuilt lap ${lap.lapNumber} is missing finalized quality evidence`,
+      );
+    }
+    return lap as FinalizedRebuiltLap;
+  });
+}
+
+function matchReprocessedLaps(
+  detected: readonly FinalizedRebuiltLap[],
+  existing: readonly ExistingLap[],
+): MatchedReprocessedLap[] {
+  const candidates = new Map<number, ExistingLap[]>();
   for (const lap of existing) {
     const values = candidates.get(lap.lapNumber);
     if (values) values.push(lap);
@@ -414,40 +457,13 @@ function replacementLaps(
   }
   return detected.map((lap) => {
     const values = candidates.get(lap.lapNumber) ?? [];
-    const exact = values.findIndex((candidate) => candidate.rawByteOffset === lap.rawByteOffset);
-    const preserved = values.splice(exact >= 0 ? exact : 0, 1)[0];
+    const exact = values.findIndex(
+      (candidate) =>
+        candidate.rawByteOffset === lap.rawByteOffset,
+    );
     return {
-      ...(preserved ? { id: preserved.id } : {}),
-      lapNumber: lap.lapNumber,
-      lapTime: lap.lapTime,
-      isValid: lap.isValid,
-      phase: lap.phase,
-      conditions: lap.conditions,
-      paceEligibility: lap.paceEligibility,
-      invalidReason: lap.invalidReason,
-      notes: preserved?.notes ?? null,
-      profileId: preserved ? preserved.profileId : lap.profileId,
-      pi: preserved ? preserved.pi : null,
-      carSetup: preserved?.carSetup ?? null,
-      tuneId: preserved ? preserved.tuneId : lap.tuneId,
-      experimentId: preserved ? preserved.experimentId : null,
-      experimentVersionId: preserved ? preserved.experimentVersionId : null,
-      experimentExcluded: preserved ? preserved.experimentExcluded : null,
-      experimentExcludedSource: preserved ? preserved.experimentExcludedSource : null,
-      fuelPerLap: preserved ? preserved.fuelPerLap : null,
-      tyreWear: preserved ? preserved.tyreWear : null,
-      sectorTimes: lap.sectors,
-      rawByteOffset: lap.rawByteOffset,
-      rawFrameCount: lap.rawFrameCount,
-      analysisGenerationId,
-      ...(preserved ? { replacesLapId: preserved.id } : {}),
-      ...(lap.versionIdentity ?? {}),
-      quality: lap.quality,
-      eligibility: lap.eligibility,
-      qualitySchemaVersion: lap.quality?.provenance.schemaVersion ?? null,
-      qualityPolicyVersion: lap.quality?.provenance.policyVersion ?? null,
-      qualityConfigVersion: lap.quality?.provenance.configurationVersion ?? null,
-      qualityGeneration: lap.quality?.provenance.outputGeneration ?? null,
+      detected: lap,
+      preserved: values.splice(exact >= 0 ? exact : 0, 1)[0],
     };
   });
 }
@@ -459,19 +475,30 @@ interface CanonicalArchiveLapLink {
 
 async function canonicalArchiveLapLinks(
   sessionId: number,
-  existing: readonly ReprocessingLapRow[],
+  existing: readonly ReprocessingLap[],
   tx: DbTransaction,
 ): Promise<CanonicalArchiveLapLink[]> {
   if (existing.length === 0) return [];
   return tx
-    .select({ nodeId: canonicalArchiveNodes.nodeId, lapId: canonicalArchiveNodes.lapId })
+    .select({
+      nodeId: canonicalArchiveNodes.nodeId,
+      lapId: canonicalArchiveNodes.lapId,
+    })
     .from(canonicalArchiveNodes)
-    .innerJoin(canonicalArchives, eq(canonicalArchiveNodes.archiveId, canonicalArchives.archiveId))
-    .where(and(
-      eq(canonicalArchives.sessionId, sessionId),
-      eq(canonicalArchiveNodes.level, "lap"),
-      inArray(canonicalArchiveNodes.lapId, existing.map((lap) => lap.id)),
-    ))
+    .innerJoin(
+      canonicalArchives,
+      eq(canonicalArchiveNodes.archiveId, canonicalArchives.archiveId),
+    )
+    .where(
+      and(
+        eq(canonicalArchives.sessionId, sessionId),
+        eq(canonicalArchiveNodes.level, "lap"),
+        inArray(
+          canonicalArchiveNodes.lapId,
+          existing.map((lap) => lap.id),
+        ),
+      ),
+    )
     .all();
 }
 
@@ -481,7 +508,10 @@ async function relinkCanonicalArchiveLaps(
   tx: DbTransaction,
 ): Promise<void> {
   for (const link of links) {
-    const replacementId = link.lapId == null ? undefined : replacementsByOldLapId.get(link.lapId);
+    const replacementId =
+      link.lapId == null
+        ? undefined
+        : replacementsByOldLapId.get(link.lapId);
     if (replacementId == null) continue;
     await tx
       .update(canonicalArchiveNodes)
@@ -489,6 +519,72 @@ async function relinkCanonicalArchiveLaps(
       .where(eq(canonicalArchiveNodes.nodeId, link.nodeId))
       .run();
   }
+}
+
+function replacementLaps(
+  matches: readonly MatchedReprocessedLap[],
+  analysisGenerationId: string,
+): ReplayableLapReplacement[] {
+  return matches.map(({ detected: lap, preserved }) => ({
+    lapNumber: lap.lapNumber,
+    lapTime: lap.lapTime,
+    isValid: lap.isValid,
+    phase: lap.phase,
+    conditions: lap.conditions,
+    paceEligibility: lap.paceEligibility,
+    invalidReason: lap.invalidReason,
+    notes: preserved?.notes ?? null,
+    profileId: preserved?.profileId ?? lap.profileId,
+    pi: preserved?.pi ?? null,
+    carSetup: preserved?.carSetup ?? null,
+    tuneId: preserved?.tuneId ?? lap.tuneId,
+    experimentId: preserved?.experimentId ?? null,
+    experimentVersionId:
+      preserved?.experimentVersionId ?? null,
+    experimentExcluded: preserved?.experimentExcluded ?? null,
+    experimentExcludedSource:
+      preserved?.experimentExcludedSource ?? null,
+    fuelPerLap: preserved?.fuelPerLap ?? null,
+    tyreWear: preserved?.tyreWear ?? null,
+    ...(preserved
+      ? {
+          id: preserved.id,
+          replacesLapId: preserved.id,
+          createdAt: preserved.createdAt,
+        }
+      : {}),
+    sectorTimes: lap.sectors,
+    rawByteOffset: lap.rawByteOffset,
+    rawFrameCount: lap.rawFrameCount,
+    analysisGenerationId,
+    ...lap.versionIdentity,
+    quality: lap.quality,
+    eligibility: lap.eligibility,
+    qualitySchemaVersion: lap.quality.provenance.schemaVersion,
+    qualityPolicyVersion: lap.quality.provenance.policyVersion,
+    qualityConfigVersion:
+      lap.quality.provenance.configurationVersion,
+    qualityGeneration: lap.quality.provenance.outputGeneration,
+  }));
+}
+
+function remapEventsToExistingLaps(
+  events: readonly RaceEvent[],
+  matches: readonly MatchedReprocessedLap[],
+): RaceEvent[] {
+  const lapIdByNumber = new Map(
+    matches.flatMap(({ detected, preserved }) =>
+      preserved ? [[detected.lapNumber, preserved.id] as const] : [],
+    ),
+  );
+  return events.map((event) =>
+    event.lapNumber == null
+      ? event
+      : ({
+          ...event,
+          lapId: lapIdByNumber.get(event.lapNumber) ?? null,
+        } as RaceEvent),
+  );
 }
 
 function resultProjection(
@@ -544,7 +640,7 @@ function resultProjection(
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult & { analysisGenerationId: string }> {
   let attempt: AnalysisReceiptRow | null = null;
   let result: RaceEventResultProjection | null = null;
-  let existingLaps: ReprocessingLapRow[] = [];
+  let existingLaps: ReprocessingLap[] = [];
   let rebuiltLaps = 0;
   let strategy: ReprocessResult["strategy"] = "replace";
   let qualityGeneration = "";
@@ -609,7 +705,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
             analysisGenerationId: attempt.generationId,
             gameId,
             frames,
-            sourceKind: (session.source as EvidenceSourceKind | null) ?? "unknown",
+            sourceKind: normalizeEvidenceSourceKind(session.source),
             participant,
             versionIdentity,
             ...(session.sourceChannelProfile ? { sourceChannelProfile: session.sourceChannelProfile } : {}),
@@ -659,23 +755,86 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         });
       }
       if (!attempt || !rebuilt) throw new Error("No source evidence available for analysis rebuild");
+      const detectedLaps = finalizedRebuiltLaps(rebuilt.laps);
       existingLaps = await getLapsForSession(sessionId);
-      const laps = replacementLaps(rebuilt.laps, existingLaps, attempt.generationId);
-      strategy = rebuilt.laps.length === existingLaps.length ? "in-place" : "replace";
-      const mergedQuality = mergeReprocessedRecordingQuality(session.recordingQuality, rebuilt.recordingQuality);
-      result = resultProjection(sessionId, session.sessionType, rebuilt, rawContentHash, attempt.generationId);
+      const matches = matchReprocessedLaps(detectedLaps, existingLaps);
+      const detectedLapNumbers = new Set(
+        detectedLaps.map(({ lapNumber }) => lapNumber),
+      );
+      const canUpdateInPlace =
+        detectedLaps.length === existingLaps.length &&
+        detectedLapNumbers.size === detectedLaps.length &&
+        matches.every(({ preserved }) => preserved !== undefined);
+      strategy = canUpdateInPlace ? "in-place" : "replace";
+      const activatedEvents = canUpdateInPlace
+        ? remapEventsToExistingLaps(rebuilt.events, matches)
+        : rebuilt.events;
+      const replacementRows = canUpdateInPlace
+        ? undefined
+        : replacementLaps(matches, attempt.generationId);
+      const mergedQuality = mergeReprocessedRecordingQuality(
+        session.recordingQuality,
+        rebuilt.recordingQuality,
+      );
+      result = resultProjection(
+        sessionId,
+        session.sessionType,
+        rebuilt,
+        rawContentHash,
+        attempt.generationId,
+      );
       rebuiltLaps = rebuilt.laps.length;
 
       await db.transaction(async (tx) => {
-        const archiveLapLinks = await canonicalArchiveLapLinks(sessionId, existingLaps, tx);
+        const archiveLapLinks = await canonicalArchiveLapLinks(
+          sessionId,
+          existingLaps,
+          tx,
+        );
+        if (canUpdateInPlace) {
+          const preservedLapIds = matches.map(
+            ({ preserved }) => preserved!.id,
+          );
+          await invalidateLapEvidence(
+            {
+              lapIds: preservedLapIds,
+              sessionId,
+              telemetryBoundariesChanged: true,
+            },
+            tx,
+          );
+          for (const { detected, preserved } of matches) {
+            await updateLapRawIndex(
+              {
+                lapId: preserved!.id,
+                rawByteOffset: detected.rawByteOffset,
+                rawFrameCount: detected.rawFrameCount,
+                lapTime: detected.lapTime,
+                isValid: detected.isValid,
+                invalidReason: detected.invalidReason,
+                sectors: detected.sectors,
+                classification: {
+                  phase: detected.phase,
+                  conditions: detected.conditions,
+                  paceEligibility: detected.paceEligibility,
+                },
+                quality: detected.quality,
+                eligibility: detected.eligibility,
+                versionIdentity: detected.versionIdentity,
+                analysisGenerationId: attempt!.generationId,
+              },
+              tx,
+            );
+          }
+        }
         const replacedArtifacts = await replaceReplayableSessionArtifacts(
           {
             sessionId,
-            events: rebuilt.events,
+            events: activatedEvents,
             runs: rebuilt.runs,
             memberships: rebuilt.memberships,
             evidence: rebuilt.evidence,
-            laps,
+            ...(replacementRows ? { laps: replacementRows } : {}),
             result: result!,
           },
           tx,
@@ -705,6 +864,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         await activateAnalysisGeneration({ generationId: attempt!.generationId, receipt }, tx);
       });
       return attempt!;
+
     });
     for (const lap of existingLaps) cacheDelete(lap.id);
     wsManager.broadcastNotification(

@@ -200,6 +200,15 @@ function syntheticReason(code: QualityReasonCode, semanticIds: readonly Telemetr
   };
 }
 
+function channelConditionReasons(quality: LapQualitySummary, code: QualityReasonCode, semanticId: TelemetryVariableId, range?: QualityDistanceRange): EligibilityReason[] {
+  const measured = quality.facts.filter((fact) => fact.code === code && fact.semanticIds.includes(semanticId) && qualityFactOverlapsRange(fact, range)).map(reasonFromFact);
+  return measured.length > 0 ? measured : [syntheticReason(code, [semanticId])];
+}
+
+function channelIsAvailable(channel: ChannelQualitySummary | undefined): channel is ChannelQualitySummary {
+  return channel != null && channel.mappingStatus !== "unavailable" && channel.sourceProfile?.treatment !== "absent";
+}
+
 function dedupeReasons(reasons: readonly EligibilityReason[]): EligibilityReason[] {
   const seen = new Set<string>();
   const result: EligibilityReason[] = [];
@@ -226,10 +235,13 @@ function unresolvedDecision(policyId: EligibilityPolicyId, reasons: readonly Eli
 
 const SOURCE_FIDELITY_REASON_CODES = new Set<QualityReasonCode>(["channel_simplified", "channel_derived", "pit_only_updates", "interpolated_channel", "fallback_channel"]);
 
-function sourceFidelityReason(channel: ChannelQualitySummary, code: QualityReasonCode): EligibilityReason {
-  const reason = syntheticReason(code, [channel.semanticId]);
-  if (channel.sourceProfile) reason.evidenceIds.push(channel.sourceProfile.evidenceId);
-  return reason;
+function sourceFidelityReasonsForChannel(quality: LapQualitySummary, channel: ChannelQualitySummary, code: QualityReasonCode): EligibilityReason[] {
+  const measured = channelConditionReasons(quality, code, channel.semanticId);
+  if (!channel.sourceProfile) return measured;
+  return measured.map((reason) => ({
+    ...reason,
+    evidenceIds: [...new Set([...reason.evidenceIds, channel.sourceProfile!.evidenceId])],
+  }));
 }
 
 function sourceFidelityReasons(quality: LapQualitySummary, requiredChannels: readonly TelemetryVariableId[], includeCatalogFidelity = false): EligibilityReason[] {
@@ -238,28 +250,28 @@ function sourceFidelityReasons(quality: LapQualitySummary, requiredChannels: rea
     const channel = channelById(quality, semanticId);
     if (!channel) continue;
     if (channel.sourceProfile || includeCatalogFidelity) {
-      if (channel.mappingStatus === "simplified") reasons.push(sourceFidelityReason(channel, "channel_simplified"));
-      if (channel.mappingStatus === "derived") reasons.push(sourceFidelityReason(channel, "channel_derived"));
+      if (channel.mappingStatus === "simplified") reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "channel_simplified"));
+      if (channel.mappingStatus === "derived") reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "channel_derived"));
       if (channel.limitations.some((limitation) => /pit[- ]?(only|snapshot)/i.test(limitation))) {
-        reasons.push(sourceFidelityReason(channel, "pit_only_updates"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "pit_only_updates"));
       }
       if (channel.limitations.some((limitation) => /interpolat/i.test(limitation))) {
-        reasons.push(sourceFidelityReason(channel, "interpolated_channel"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "interpolated_channel"));
       }
       if (channel.limitations.some((limitation) => /fallback/i.test(limitation))) {
-        reasons.push(sourceFidelityReason(channel, "fallback_channel"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "fallback_channel"));
       }
     }
     switch (channel.sourceProfile?.treatment) {
       case "held":
       case "assumed":
-        reasons.push(sourceFidelityReason(channel, "channel_simplified"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "channel_simplified"));
         break;
       case "resampled":
-        reasons.push(sourceFidelityReason(channel, "interpolated_channel"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "interpolated_channel"));
         break;
       case "dead-reckoned":
-        reasons.push(sourceFidelityReason(channel, "channel_derived"));
+        reasons.push(...sourceFidelityReasonsForChannel(quality, channel, "channel_derived"));
         break;
     }
   }
@@ -357,25 +369,17 @@ function officialTiming(quality: LapQualitySummary): EligibilityDecision {
     const reasons = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
     return decision("official-timing", quality, "ineligible", reasons.length > 0 ? reasons : [syntheticReason("partial_lap")]);
   }
-  const validLapTime = Number.isFinite(quality.timing.lapTimeMs) && quality.timing.lapTimeMs > 0;
   const unconfirmed = factsFor(quality, ["lap_time_unconfirmed"]).map(reasonFromFact);
-  if (!validLapTime || unconfirmed.length > 0) {
-    return decision(
-      "official-timing",
-      quality,
-      "ineligible",
-      unconfirmed.length > 0 ? unconfirmed : [syntheticReason("lap_time_unconfirmed")],
-    );
-  }
-  if (quality.timing.source === "estimated") {
-    return decision("official-timing", quality, "ineligible", [syntheticReason("lap_time_unconfirmed")]);
+  if (quality.timing.source === "estimated" || !Number.isFinite(quality.timing.lapTimeMs) || quality.timing.lapTimeMs <= 0) {
+    return decision("official-timing", quality, "ineligible", unconfirmed.length > 0 ? unconfirmed : [syntheticReason("lap_time_unconfirmed")]);
   }
   if (quality.timing.source === "telemetry-elapsed") {
-    const reasons = factsFor(quality, ["lap_time_fallback"]).map(reasonFromFact);
-    return decision("official-timing", quality, "eligible_with_warning", reasons.length > 0 ? reasons : [syntheticReason("lap_time_fallback")]);
+    if (unconfirmed.length > 0) return decision("official-timing", quality, "ineligible", unconfirmed);
+    const fallback = factsFor(quality, ["lap_time_fallback"]).map(reasonFromFact);
+    return decision("official-timing", quality, "eligible_with_warning", fallback.length > 0 ? fallback : [syntheticReason("lap_time_fallback")]);
   }
   if (!quality.timing.confirmed) {
-    return decision("official-timing", quality, "ineligible", [syntheticReason("lap_time_unconfirmed")]);
+    return decision("official-timing", quality, "ineligible", unconfirmed.length > 0 ? unconfirmed : [syntheticReason("lap_time_unconfirmed")]);
   }
   return decision("official-timing", quality, "eligible", []);
 }
@@ -407,22 +411,28 @@ function channelCoverageReasons(quality: LapQualitySummary, requiredChannels: re
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);
     const coverage = rangeCoverage(channel, range);
-    if (!channel || channel.mappingStatus === "unavailable" || channel.sourceProfile?.treatment === "absent") {
-      const measured = factsFor(quality, ["channel_unavailable"], range)
-        .filter((fact) => fact.semanticIds.includes(semanticId))
-        .map(reasonFromFact);
-      reasons.push(...(measured.length > 0 ? measured : [syntheticReason("channel_unavailable", [semanticId])]));
+    if (!channelIsAvailable(channel)) {
+      reasons.push(...channelConditionReasons(quality, "channel_unavailable", semanticId, range));
     } else if (coverage == null || coverage < minimumCoverage) {
-      const measured = factsFor(quality, ["channel_missing"], range)
-        .filter((fact) => fact.semanticIds.includes(semanticId))
-        .map(reasonFromFact);
-      reasons.push(...(measured.length > 0 ? measured : [syntheticReason("channel_missing", [semanticId])]));
+      reasons.push(...channelConditionReasons(quality, "channel_missing", semanticId, range));
     }
     const overlappingIssues = channel?.issueIntervals.filter((issue) => issueOverlapsRange(issue, range)) ?? [];
-    if (overlappingIssues.some(({ state }) => state === "stale")) reasons.push(syntheticReason("channel_stale", [semanticId]));
-    if (overlappingIssues.some(({ state }) => state === "invalid" || state === "error")) reasons.push(syntheticReason("channel_invalid", [semanticId]));
+    if (overlappingIssues.some(({ state }) => state === "stale")) reasons.push(...channelConditionReasons(quality, "channel_stale", semanticId, range));
+    if (overlappingIssues.some(({ state }) => state === "invalid" || state === "error")) reasons.push(...channelConditionReasons(quality, "channel_invalid", semanticId, range));
   }
   return reasons;
+}
+
+function partialTrackCoverageReasons(quality: LapQualitySummary, range?: QualityDistanceRange): EligibilityReason[] {
+  const measured = quality.facts.filter(({ code }) => code === "partial_track_coverage");
+  const relevant = measured.filter((fact) => qualityFactOverlapsRange(fact, range)).map(reasonFromFact);
+  if (relevant.length > 0) return relevant;
+
+  const localizedOutsideRange = range != null && measured.length > 0 && measured.every(({ distanceRange }) => distanceRange != null);
+  if (!localizedOutsideRange && (quality.trackDistanceCoverage == null || quality.trackDistanceCoverage < QUALITY_THRESHOLDS_V1.lapComparisonCoverage)) {
+    return [syntheticReason("partial_track_coverage")];
+  }
+  return [];
 }
 
 function lapComparison(quality: LapQualitySummary, range?: QualityDistanceRange): EligibilityDecision {
@@ -432,6 +442,7 @@ function lapComparison(quality: LapQualitySummary, range?: QualityDistanceRange)
   reasons.push(...factsFor(quality, ["partial_track_coverage"], range).map(reasonFromFact));
   if (!quality.structurallyValid) reasons.push(syntheticReason("structurally_invalid"));
   reasons.push(...channelCoverageReasons(quality, LAP_COMPARISON_CHANNELS, QUALITY_THRESHOLDS_V1.lapComparisonCoverage, range));
+  reasons.push(...partialTrackCoverageReasons(quality, range));
   const fidelityReasons = sourceFidelityReasons(quality, LAP_COMPARISON_CHANNELS);
   const majorGap = factsFor(quality, INTERRUPTING_TIMELINE_REASON_CODES, range)
     .filter((fact) => fact.code !== "telemetry_gap_major" || (fact.timeRange?.endMs ?? 0) - (fact.timeRange?.startMs ?? 0) > QUALITY_THRESHOLDS_V1.lapComparisonGapMaxMs)
@@ -493,18 +504,26 @@ function fuelBurn(quality: LapQualitySummary): EligibilityDecision {
   const reasons: EligibilityReason[] = [];
   if (!quality.complete || quality.lifecycleState === "incomplete") {
     const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
-    const fallback = quality.complete ? "recording_incomplete" : "partial_lap";
-    reasons.push(...(partial.length > 0 ? partial : [syntheticReason(fallback)]));
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("recording_incomplete")]));
   }
-  if (!fuel || fuel.mappingStatus === "unavailable" || fuel.sourceProfile?.treatment === "absent") {
-    reasons.push(syntheticReason("channel_unavailable", ["fuel.fuel"]));
-  }
+  if (!channelIsAvailable(fuel)) reasons.push(...channelConditionReasons(quality, "channel_unavailable", "fuel.fuel"));
   else {
-    if (fuel.boundaryCoverage.first500Ms == null || fuel.boundaryCoverage.first500Ms < 1 || fuel.boundaryCoverage.last500Ms == null || fuel.boundaryCoverage.last500Ms < 1) {
-      reasons.push(syntheticReason("channel_missing", ["fuel.fuel"]));
+    if (
+      fuel.observedCount < 2 ||
+      fuel.observedCadenceMs == null ||
+      fuel.observedCadenceMs <= 0 ||
+      quality.timeRange == null ||
+      quality.timeRange.endMs <= quality.timeRange.startMs ||
+      fuel.boundaryCoverage.first500Ms == null ||
+      fuel.boundaryCoverage.first500Ms < 1 ||
+      fuel.boundaryCoverage.last500Ms == null ||
+      fuel.boundaryCoverage.last500Ms < 1
+    ) {
+      reasons.push(...channelConditionReasons(quality, "channel_missing", "fuel.fuel"));
     }
-    if (fuel.freshnessCounts.stale > 0) reasons.push(syntheticReason("channel_stale", ["fuel.fuel"]));
-    if (fuel.resolutionCounts.invalid > 0 || fuel.resolutionCounts.error > 0) reasons.push(syntheticReason("channel_invalid", ["fuel.fuel"]));
+    if (fuel.freshnessCounts.stale > 0) reasons.push(...channelConditionReasons(quality, "channel_stale", "fuel.fuel"));
+    if (fuel.resolutionCounts.missing > 0) reasons.push(...channelConditionReasons(quality, "channel_missing", "fuel.fuel"));
+    if (fuel.resolutionCounts.invalid > 0 || fuel.resolutionCounts.error > 0) reasons.push(...channelConditionReasons(quality, "channel_invalid", "fuel.fuel"));
   }
   if (reasons.length > 0) return decision("fuel-burn", quality, "ineligible", reasons, ["fuel.fuel"]);
   const warnings = [...factsFor(quality, ["caution_context", "incident_lap"]).map(reasonFromFact), ...sourceFidelityReasons(quality, ["fuel.fuel"])];
@@ -515,26 +534,28 @@ function tireAnalysis(quality: LapQualitySummary, tireMode: EligibilityEvaluatio
   const requiredChannels = QUALITY_POLICY_CONFIG_V1.requiredChannels["tire-analysis"];
   const reasons: EligibilityReason[] = [];
   const warnings: EligibilityReason[] = [];
-  if (quality.lifecycleState === "incomplete") {
-    const incomplete = factsFor(quality, ["recording_incomplete"]).map(reasonFromFact);
-    reasons.push(...(incomplete.length > 0 ? incomplete : [syntheticReason("recording_incomplete")]));
+  if (!quality.complete || quality.lifecycleState === "incomplete") {
+    const partial = factsFor(quality, ["partial_lap", "recording_incomplete"]).map(reasonFromFact);
+    reasons.push(...(partial.length > 0 ? partial : [syntheticReason("recording_incomplete")]));
   }
   const continuous = tireMode === "continuous";
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);
-    if (!channel || channel.mappingStatus === "unavailable" || channel.sourceProfile?.treatment === "absent") {
-      reasons.push(syntheticReason("channel_unavailable", [semanticId]));
+    if (!channelIsAvailable(channel)) {
+      reasons.push(...channelConditionReasons(quality, "channel_unavailable", semanticId));
       continue;
     }
     const pitOnly = channel.limitations.some((limitation) => /pit[- ]?(only|snapshot)/i.test(limitation));
-    if (continuous && pitOnly) reasons.push(syntheticReason("pit_only_updates", [semanticId]));
-    if (!continuous && pitOnly && channel.observedCount === 0) reasons.push(syntheticReason("channel_missing", [semanticId]));
+    if (continuous && pitOnly) reasons.push(...channelConditionReasons(quality, "pit_only_updates", semanticId));
+    if (!continuous && pitOnly && channel.observedCount === 0) reasons.push(...channelConditionReasons(quality, "channel_missing", semanticId));
     if (continuous) {
-      if (channel.coverage == null || channel.coverage < QUALITY_POLICY_CONFIG_V1.tireAnalysisCoverage) reasons.push(syntheticReason("channel_missing", [semanticId]));
-      if (channel.resolutionCounts.missing > 0) reasons.push(syntheticReason("channel_missing", [semanticId]));
-      if (channel.resolutionCounts.invalid > 0 || channel.resolutionCounts.error > 0) reasons.push(syntheticReason("channel_invalid", [semanticId]));
+      if (channel.coverage == null || channel.coverage < QUALITY_POLICY_CONFIG_V1.tireAnalysisCoverage) {
+        reasons.push(...channelConditionReasons(quality, "channel_missing", semanticId));
+      }
+      if (channel.resolutionCounts.missing > 0) reasons.push(...channelConditionReasons(quality, "channel_missing", semanticId));
+      if (channel.resolutionCounts.invalid > 0 || channel.resolutionCounts.error > 0) reasons.push(...channelConditionReasons(quality, "channel_invalid", semanticId));
     }
-    if (channel.freshnessCounts.stale > 0) reasons.push(syntheticReason("channel_stale", [semanticId]));
+    if (channel.freshnessCounts.stale > 0) reasons.push(...channelConditionReasons(quality, "channel_stale", semanticId));
   }
   warnings.push(...sourceFidelityReasons(quality, requiredChannels));
   if (reasons.length > 0) return decision("tire-analysis", quality, "ineligible", reasons, requiredChannels);
@@ -551,6 +572,10 @@ function mlTraining(quality: LapQualitySummary, options: EligibilityEvaluationOp
   if (!quality.structurallyValid) {
     const structural = factsFor(quality, ["structurally_invalid"]).map(reasonFromFact);
     reasons.push(...(structural.length > 0 ? structural : [syntheticReason("structurally_invalid")]));
+  }
+  if (!quality.timing.confirmed || !Number.isFinite(quality.timing.lapTimeMs) || quality.timing.lapTimeMs <= 0) {
+    const unconfirmed = factsFor(quality, ["lap_time_unconfirmed"], options.range).map(reasonFromFact);
+    reasons.push(...(unconfirmed.length > 0 ? unconfirmed : [syntheticReason("lap_time_unconfirmed")]));
   }
   if (quality.lifecycleState !== "exact" && quality.lifecycleState !== "minor_gaps") {
     reasons.push(syntheticReason(quality.lifecycleState === "incomplete" ? "recording_incomplete" : "telemetry_gap_major"));
@@ -570,12 +595,16 @@ function mlTraining(quality: LapQualitySummary, options: EligibilityEvaluationOp
     reasons.push(syntheticReason("provenance_missing"));
   for (const semanticId of requiredChannels) {
     const channel = channelById(quality, semanticId);
-    if (!channel || channel.coverage == null || channel.coverage < 1) {
-      reasons.push(syntheticReason("channel_missing", [semanticId]));
+    if (!channelIsAvailable(channel)) {
+      reasons.push(...channelConditionReasons(quality, "channel_unavailable", semanticId, options.range));
+      continue;
+    }
+    if (channel.coverage == null || channel.coverage < 1) {
+      reasons.push(...channelConditionReasons(quality, "channel_missing", semanticId, options.range));
       continue;
     }
     if (channel.freshnessCounts.stale > 0 || channel.freshnessCounts.unknown > 0) {
-      reasons.push(syntheticReason("channel_stale", [semanticId]));
+      reasons.push(...channelConditionReasons(quality, "channel_stale", semanticId, options.range));
     }
   }
   reasons.push(...sourceFidelityReasons(quality, requiredChannels, true));
@@ -614,6 +643,12 @@ export function evaluateAllEligibility(evidence: LapQualitySummary): Eligibility
   return Object.fromEntries(POLICY_IDS.map((policyId) => [policyId, evaluateEligibility(policyId, evidence)])) as EligibilityDecisionSet;
 }
 
+const GROUP_POLICY_PREREQUISITES = {
+  "stint-falloff": ["normal-pace"],
+  "setup-analysis": ["normal-pace", "corner-trace"],
+  "driver-profile": ["normal-pace", "lap-comparison"],
+} as const satisfies Record<"stint-falloff" | "setup-analysis" | "driver-profile", readonly EligibilityPolicyId[]>;
+
 function groupDecision(
   policyId: "stint-falloff" | "setup-analysis" | "driver-profile",
   laps: readonly GroupEligibilityLap[],
@@ -624,24 +659,22 @@ function groupDecision(
   if (!quality) {
     return unresolvedDecision(policyId, reasons.length > 0 ? reasons : [syntheticReason("insufficient_sample_pool")]);
   }
-  const confidencePolicies =
-    policyId === "setup-analysis"
-      ? (["normal-pace", "corner-trace"] as const)
-      : policyId === "driver-profile"
-        ? (["normal-pace", "lap-comparison"] as const)
-        : (["normal-pace"] as const);
-  const confidenceScores = laps.flatMap((lap) =>
-    confidencePolicies
-      .map((confidencePolicyId) => lap.eligibility[confidencePolicyId].confidence.score)
-      .filter((score): score is number => score != null),
-  );
-  const expectedConfidenceCount = laps.length * confidencePolicies.length;
   const result = decision(policyId, quality, status, reasons);
-  if (confidenceScores.length !== expectedConfidenceCount) result.confidence = { level: "unknown", score: null };
-  else if (confidenceScores.length > 0) {
-    const score = Math.min(...confidenceScores, result.confidence.score ?? 1);
-    result.confidence = { score, level: score >= 0.85 ? "high" : score >= 0.65 ? "medium" : "low" };
+  let score = result.confidence.score ?? 1;
+  for (const lap of laps) {
+    for (const prerequisitePolicyId of GROUP_POLICY_PREREQUISITES[policyId]) {
+      const prerequisiteScore = lap.eligibility[prerequisitePolicyId]?.confidence.score;
+      if (prerequisiteScore == null) {
+        result.confidence = { level: "unknown", score: null };
+        return result;
+      }
+      score = Math.min(score, prerequisiteScore);
+    }
   }
+  result.confidence = {
+    score,
+    level: score >= 0.85 ? "high" : score >= 0.65 ? "medium" : "low",
+  };
   return result;
 }
 
