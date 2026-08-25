@@ -34,6 +34,15 @@ describe("race event source adapters", () => {
     });
   });
 
+  test("drops negative shared track distance before event validation", () => {
+    const observation = forzaServerAdapter.toRaceEventObservation(
+      packet("fm-2023", { DistanceTraveled: -42 }),
+      context,
+    );
+
+    expect(observation.trackDistanceM).toBeNull();
+  });
+
   test("normalizes Kunos fuel, damage, pit state, and verified flags", () => {
     const acc = accServerAdapter.toRaceEventObservation(
       packet("acc", {

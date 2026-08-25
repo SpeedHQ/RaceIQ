@@ -7,6 +7,7 @@ import type {
   RaceParticipantObservation,
 } from "./types";
 
+
 function nonNegative(value: number): number | null {
   return Number.isFinite(value) && value >= 0 ? value : null;
 }

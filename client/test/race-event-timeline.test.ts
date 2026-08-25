@@ -333,13 +333,11 @@ describe("race event timeline", () => {
       { items: [later], nextCursor: "page-two", tailCursor: "later" },
       { items: [earlier], nextCursor: null, tailCursor: "earlier" },
     ];
-    expect(flattenRaceEventPages(pages).map((item) => item.eventId)).toEqual([
-      earlier.eventId,
-      later.eventId,
-    ]);
-    expect(raceEventPageWindow(pages, 2).map((item) => item.eventId)).toEqual([
-      earlier.eventId,
-      later.eventId,
-    ]);
+    expect(
+      flattenRaceEventPages(pages).map((item) => item.eventId),
+    ).toEqual([earlier.eventId, later.eventId]);
+    expect(
+      raceEventPageWindow(pages, 2).map((item) => item.eventId),
+    ).toEqual([earlier.eventId, later.eventId]);
   });
 });

@@ -179,8 +179,19 @@ export async function rebuildRaceEventTimeline(
   );
   let lifecycleIndex = 0;
   let pendingSourceSequences: SourceSequenceObservation[] = [];
+  let sessionStarted = false;
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
+      if (
+        sessionStarted &&
+        context.reason !== "distance-reset" &&
+        context.reason !== "lap-number-reset"
+      ) {
+        throw new Error(
+          `Raw rebuild contains incompatible session boundary: ${context.reason}`,
+        );
+      }
+      sessionStarted = true;
       coordinator.bindSession(input.sessionId, {
         reason: context.reason,
         observation: adapter.toRaceEventObservation(context.packet, {
@@ -263,10 +274,12 @@ export async function rebuildRaceEventTimeline(
   if (detectedSessionId != null) {
     await detector.waitForPendingLapWrites?.(detectedSessionId);
   }
-  const rebuiltSessionId = detectedSessionId ?? db.sessions.length;
-  const rebuiltLaps = db.laps.filter(
-    (lap) => lap.sessionId === rebuiltSessionId,
-  );
+  const rebuiltLaps =
+    detectedSessionId == null
+      ? []
+      : db.laps.filter(
+          (lap) => lap.sessionId === detectedSessionId,
+        );
   coordinator.endSession({ reason: "stream-ended", terminalObserved: false });
   coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
   const runArtifacts = buildSessionRunsFromTimeline(

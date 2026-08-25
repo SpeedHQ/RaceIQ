@@ -278,7 +278,10 @@ export function flattenRaceEventPages(pages: readonly RaceEventPage[]): RaceEven
 
 const TIMELINE_RENDER_WINDOW_SIZE = 100;
 
-export function raceEventPageWindow(pages: readonly RaceEventPage[], eventCount: number): RaceEvent[] {
+export function raceEventPageWindow(
+  pages: readonly RaceEventPage[],
+  eventCount: number,
+): RaceEvent[] {
   return flattenRaceEventPages(pages).slice(0, eventCount);
 }
 
