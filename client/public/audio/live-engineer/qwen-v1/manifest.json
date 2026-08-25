@@ -3,7 +3,6 @@
   "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
   "sampleRate": 24000,
   "channels": 1,
-  "joinGapMs": -500,
   "referenceText": "G'day mate, Tom here.",
   "fullLines": [
     {

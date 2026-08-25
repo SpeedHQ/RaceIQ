@@ -83,7 +83,7 @@ export class LiveEngineerAudioPlayer {
     this.stop();
     this.stopped = false;
     let sourceStart = this.context.currentTime + 0.1;
-    const joinGap = (catalog.joinGapMs ?? -500) / 1000;
+    const joinGap = (catalog.joinGapMs ?? -30) / 1000;
     return new Promise<void>((resolve) => {
       this.completion = resolve;
       buffers.forEach((buffer, index) => {

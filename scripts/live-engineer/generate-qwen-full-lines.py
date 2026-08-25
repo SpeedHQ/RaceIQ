@@ -103,7 +103,6 @@ def main() -> int:
         "model": MODEL_ID,
         "sampleRate": sample_rate,
         "channels": 1,
-        "joinGapMs": -500,
         "referenceAudio": str(args.reference.relative_to(ROOT)),
         "referenceText": REFERENCE_TEXT,
         "fullLines": lines,
