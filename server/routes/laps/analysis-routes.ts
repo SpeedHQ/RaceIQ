@@ -39,6 +39,9 @@ export const analysisRoutes = new Hono()
       if (!regenerate || cacheOnly) {
         const cached = await generateLapAnalysis(id, { cacheOnly: true });
         if (cached.error) {
+          if (cacheOnly && cached.error !== "Lap not found") {
+            return c.json({ analysis: null, cached: false });
+          }
           const status: 404 | 400 = cached.error === "Lap not found" ? 404 : 400;
           return c.json({ error: cached.error }, status);
         }
