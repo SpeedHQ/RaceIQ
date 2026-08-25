@@ -1,5 +1,41 @@
 const QWEN_CATALOG_URL = "/audio/live-engineer/qwen-v1/manifest.json";
 const QWEN_CATALOG_VERSION = "live-engineer-qwen-v1";
+export const DEFAULT_JOIN_GAP_MS = -10;
+export const DEFAULT_RADIO_FILTER = { lowCutHz: 250, highCutHz: 3000 } as const;
+export const DEFAULT_RADIO_COMPRESSOR = { thresholdDb: -24, ratio: 6 } as const;
+export const LAP_TIME_MINUTE_PAUSE_MS = 100;
+
+export function getSegmentPauseMs(segmentId: string): number {
+  return segmentId === "unit.minute" ? LAP_TIME_MINUTE_PAUSE_MS / 1000 : 0;
+}
+
+const RADIO_DRIVE_AMOUNT = 0.4;
+
+function createRadioDriveCurve(): WaveShaperNode["curve"] {
+  const curve = new Float32Array(257);
+  const amount = RADIO_DRIVE_AMOUNT;
+  for (let index = 0; index < curve.length; index += 1) {
+    const x = (index * 2) / (curve.length - 1) - 1;
+    curve[index] = ((1 + amount) * x) / (1 + amount * Math.abs(x));
+  }
+  return curve;
+}
+
+const SPEECH_THRESHOLD = 0.01;
+
+export function speechBoundsMs(samples: Float32Array, sampleRate: number): { startMs: number; endMs: number } {
+  let start = 0;
+  while (start < samples.length && Math.abs(samples[start]!) < SPEECH_THRESHOLD) start += 1;
+  if (start === samples.length) return { startMs: 0, endMs: (samples.length / sampleRate) * 1000 };
+  let end = samples.length;
+  while (end > start && Math.abs(samples[end - 1]!) < SPEECH_THRESHOLD) end -= 1;
+  return { startMs: (start / sampleRate) * 1000, endMs: (end / sampleRate) * 1000 };
+}
+
+function getSpeechBounds(buffer: AudioBuffer): { startMs: number; endMs: number } {
+  const samples = buffer.getChannelData(0);
+  return speechBoundsMs(samples, buffer.sampleRate);
+}
 
 interface CatalogSegment {
   segmentId: string;
@@ -30,6 +66,7 @@ export class LiveEngineerAudioError extends Error {
 export interface LiveEngineerAudioOptions {
   fetchImpl?: typeof fetch;
   audioContext?: AudioContext;
+  radioEffect?: boolean;
 }
 
 export class LiveEngineerAudioPlayer {
@@ -38,6 +75,11 @@ export class LiveEngineerAudioPlayer {
   private readonly buffers = new Map<string, Promise<AudioBuffer>>();
   private readonly active = new Set<AudioBufferSourceNode>();
   private readonly gainNode: GainNode;
+  private readonly highPassNode: BiquadFilterNode;
+  private readonly lowPassNode: BiquadFilterNode;
+  private readonly compressorNode: DynamicsCompressorNode;
+  private readonly driveNode: WaveShaperNode;
+
   private catalog: Promise<QwenCatalog> | null = null;
   private completion: (() => void) | null = null;
   private stopped = false;
@@ -46,7 +88,32 @@ export class LiveEngineerAudioPlayer {
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     this.context = options.audioContext ?? new AudioContext();
     this.gainNode = this.context.createGain();
-    this.gainNode.connect(this.context.destination);
+    this.highPassNode = this.context.createBiquadFilter();
+    this.lowPassNode = this.context.createBiquadFilter();
+    this.compressorNode = this.context.createDynamicsCompressor();
+    this.driveNode = this.context.createWaveShaper();
+
+    this.highPassNode.type = "highpass";
+    this.highPassNode.frequency.value = DEFAULT_RADIO_FILTER.lowCutHz;
+    this.lowPassNode.type = "lowpass";
+    this.lowPassNode.frequency.value = DEFAULT_RADIO_FILTER.highCutHz;
+    this.compressorNode.threshold.value = DEFAULT_RADIO_COMPRESSOR.thresholdDb;
+    this.compressorNode.knee.value = 12;
+    this.compressorNode.ratio.value = DEFAULT_RADIO_COMPRESSOR.ratio;
+    this.compressorNode.attack.value = 0.003;
+    this.compressorNode.release.value = 0.12;
+    this.driveNode.curve = createRadioDriveCurve();
+    this.driveNode.oversample = "2x";
+
+    if (options.radioEffect ?? true) {
+      this.gainNode.connect(this.highPassNode);
+      this.highPassNode.connect(this.lowPassNode);
+      this.lowPassNode.connect(this.compressorNode);
+      this.compressorNode.connect(this.driveNode);
+      this.driveNode.connect(this.context.destination);
+    } else {
+      this.gainNode.connect(this.context.destination);
+    }
     this.setVolume(0.8);
   }
 
@@ -82,16 +149,22 @@ export class LiveEngineerAudioPlayer {
 
     this.stop();
     this.stopped = false;
-    let sourceStart = this.context.currentTime + 0.1;
-    const joinGap = (catalog.joinGapMs ?? -30) / 1000;
+    const startTime = this.context.currentTime + 0.1;
+    const joinGap = (catalog.joinGapMs ?? DEFAULT_JOIN_GAP_MS) / 1000;
+    const speechBounds = buffers.map(getSpeechBounds);
+    let previousSpeechEnd = startTime + speechBounds[0]!.endMs / 1000;
     return new Promise<void>((resolve) => {
       this.completion = resolve;
       buffers.forEach((buffer, index) => {
+        const bounds = speechBounds[index]!;
+        const sourceStart = index === 0
+          ? startTime
+          : previousSpeechEnd + joinGap + getSegmentPauseMs(segments[index - 1]!.segmentId) - bounds.startMs / 1000;
         const source = this.context.createBufferSource();
         source.buffer = buffer;
         source.connect(this.gainNode);
         source.start(sourceStart);
-        sourceStart += segments[index].durationMs / 1000 + joinGap;
+        previousSpeechEnd = sourceStart + bounds.endMs / 1000;
         this.active.add(source);
         source.onended = () => {
           this.active.delete(source);

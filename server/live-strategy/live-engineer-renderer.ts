@@ -63,7 +63,10 @@ export function renderLapTime(ms: number): LiveEngineerRenderedSpeech {
 export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1; catalogVersion?: string } = {}): LiveEngineerRenderedSpeech {
   const voiceMode = options.voiceMode ?? "automatic";
   if (parameters.relation === "fastest-in-class" || parameters.relation === "setting-race-pace") {
-    return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds: [`phrase.${parameters.relation}.${parameters.scope}`], voiceMode };
+    const segmentIds = parameters.relation === "fastest-in-class"
+      ? [`phrase.fastest.${parameters.scope}`]
+      : ["phrase.setting-race-pace"];
+    return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds, voiceMode };
   }
   const deltaSegments = numberSegmentIds(Math.abs(parameters.deltaMs) / 1000, voiceMode === "automatic" ? 1 : 3);
   const join = parameters.relation === "within-class-pace" ? "from" : "off";
