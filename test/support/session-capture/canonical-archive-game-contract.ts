@@ -54,16 +54,17 @@ export async function assertCanonicalArchiveGameContract(input: {
     status: "verified",
     completeness: "complete",
     sourceContentHash: source.contentHash,
-    outputContentHash: receipt.evidence.contentHash,
-    byteSize: receipt.evidence.byteSize,
     schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
   });
+  expect(archive.outputContentHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+  expect(archive.byteSize).toBeGreaterThan(0);
   expect(archive.sourceContentHash).not.toBe(archive.outputContentHash);
   expect(receipt.evidence).toMatchObject({
-    kind: "canonical-archive",
-    contentHash: archive.outputContentHash,
-    byteSize: archive.byteSize,
-    formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+    kind: "raceiq-raw",
+    objectId: `session:${input.sessionId}:raw-capture`,
+    contentHash: source.contentHash,
+    byteSize: source.byteSize,
+    formatVersion: "raceiq-session-framing-v1",
   });
   expect(receipt.outputs).toContainEqual(expect.objectContaining({
     artifactType: "canonical_archive",

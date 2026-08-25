@@ -41,7 +41,7 @@ import { activateCanonicalArchiveReceipt } from "../analysis-provenance/receipt"
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { resolveDataDir } from "../runtime/config/data-dir";
-import { inspectRawCaptureIdentity, iterateRawCaptureBytes } from "./identity";
+import { inspectRawCaptureIdentity, iterateRawCaptureBytes, rawCaptureObjectId } from "./identity";
 import { META_FRAME_MAGIC } from "./framing";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 
@@ -860,13 +860,13 @@ try {
       sessionId: input.sessionId,
       participantId: null,
       evidence: {
-        kind: "canonical-archive",
+        kind: "raceiq-raw",
         originalSourceKind: sourceKind(archiveBuild.context.sourceKind),
-        objectId: archiveBuild.archiveId,
-        contentHash: archiveBuild.outputContentHash,
-        byteSize: archiveBuild.byteSize,
-        formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
-        recordCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length },
+        objectId: rawCaptureObjectId(input.sessionId),
+        contentHash: input.sourceContentHash,
+        byteSize: identityBefore.byteSize,
+        formatVersion: "raceiq-session-framing-v1",
+        recordCounts: { packets: archiveBuild.samples.length },
       },
       telemetryVersion: contract.telemetryVersion,
       analysisComponents,
@@ -883,7 +883,7 @@ try {
       canonicalInventory: { semanticIds: archiveBuild.semanticIds, eventIds: archiveBuild.eventIds, rowCounts: { telemetry_samples: archiveBuild.samples.length, hierarchy_nodes: archiveBuild.nodes.length } },
       warnings: [],
       unsupportedFields: [],
-      rebuildCapability: { mode: "limited", sourceKind: "canonical-archive", rebuildableArtifacts: ["canonical_archive", "laps", "race_events", "session_runs", "race_result", "quality", "lap_metrics", "findings", "lap_analysis", "comparison_analysis", "report"], unavailableArtifacts: ["driver_profile"], limitations: ["Exact native-source reprocessing requires retained raw evidence"] },
+      rebuildCapability: { mode: "exact", sourceKind: "raceiq-raw", rebuildableArtifacts: ["canonical_archive"], unavailableArtifacts: [], limitations: [] },
       verification: receiptChecks(archiveBuild),
       contractHash,
       startedAt: attempt.startedAt,

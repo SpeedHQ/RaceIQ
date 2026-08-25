@@ -1112,17 +1112,12 @@ export class LiveTelemetryPipeline {
       );
     }
     const timelineSessionId = detector.session?.sessionId ?? this._recordingSession?.sessionId;
+    let lapWriteFailure: unknown = null;
     if (timelineSessionId != null && this._stagedTimelineEvents.length > 0) {
       try {
         await detector.waitForPendingLapWrites?.(timelineSessionId);
       } catch (error) {
-        this._timelineEventsStaged = false;
-        this._pendingTimelinePreflight = null;
-        this._stagedTimelineEvents.length = 0;
-        this._stagedTimelineLapLinks.length = 0;
-        this._stagedLapSavedActions.length = 0;
-        this._stagedCompletedRunLaps.clear();
-        throw error;
+        lapWriteFailure = error;
       }
     }
     const lapSavedActions = this._stagedLapSavedActions.splice(0);
@@ -1147,6 +1142,7 @@ export class LiveTelemetryPipeline {
       const result = await this._finalizeClosedSession(closed, "session-rotated");
       await result.finalization?.catch(() => {});
     }
+    if (lapWriteFailure != null) throw lapWriteFailure;
 
     const sectors = this.sectorTracker.feed(packet);
 

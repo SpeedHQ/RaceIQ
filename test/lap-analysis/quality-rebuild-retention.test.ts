@@ -132,9 +132,13 @@ describe("quality rebuild detector identity", () => {
     const generation = sha256ContentHash(bytes);
     const canonicalQuality: RecordingQualitySummary = {
       ...recordingQuality(),
-      canonicalVerification: {
+      archiveVerification: {
         state: "verified",
         sourceGeneration: generation,
+      },
+      canonicalVerification: {
+        state: "verified",
+        sourceGeneration: sha256ContentHash(Buffer.from("canonical-output")),
       },
     };
     const sourceQuality: RecordingQualitySummary = {
@@ -169,7 +173,7 @@ describe("quality rebuild detector identity", () => {
     const changed = Buffer.from("changed-capture");
     const quality: RecordingQualitySummary = {
       ...recordingQuality(),
-      canonicalVerification: {
+      archiveVerification: {
         state: "verified",
         sourceGeneration: sha256ContentHash(original),
       },

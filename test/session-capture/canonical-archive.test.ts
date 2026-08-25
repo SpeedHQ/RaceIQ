@@ -247,15 +247,16 @@ describe("canonical archive contracts", () => {
         status: "verified",
         completeness: "complete",
         sourceContentHash: source.contentHash,
-        outputContentHash: receipt.evidence.contentHash,
-        byteSize: receipt.evidence.byteSize,
         schemaVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
       });
+      expect(built.archive.outputContentHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(built.archive.byteSize).toBeGreaterThan(0);
       expect(receipt.evidence).toMatchObject({
-        kind: "canonical-archive",
-        contentHash: built.archive.outputContentHash,
-        byteSize: built.archive.byteSize,
-        formatVersion: CANONICAL_ARCHIVE_SCHEMA_VERSION,
+        kind: "raceiq-raw",
+        objectId: `session:${seeded.sessionId}:raw-capture`,
+        contentHash: source.contentHash,
+        byteSize: source.byteSize,
+        formatVersion: "raceiq-session-framing-v1",
       });
       expect(receipt.outputs).toContainEqual(expect.objectContaining({
         artifactType: "canonical_archive",

@@ -19,6 +19,7 @@
 - Keep stint and session-run summaries accurate after checkered flags, lap edits, and long recording sessions
 - Keep race-event timelines chronologically ordered during live pagination and prevent invalid, unavailable, or incomplete telemetry evidence from qualifying for analysis
 - Keep analysis provenance and live race-event state consistent through session rotations, reimports, and lap completion
+- Activate canonical telemetry archives with distinct source and output identities, and keep retained raw captures current after archive verification
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Show iRacing live fuel bars using tank capacity reported by simulator session data

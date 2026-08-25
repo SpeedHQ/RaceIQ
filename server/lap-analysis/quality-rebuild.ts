@@ -231,11 +231,8 @@ export async function getQualityRebuildStatus(sessionId: number): Promise<Qualit
   if (!session) throw new Error(`Session ${sessionId} not found`);
   const lapRows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   const source = await sourceState(session);
-  const canonicalVerification = session.recordingQuality?.canonicalVerification;
-  const expectedGeneration = canonicalVerification !== undefined
-    ? canonicalVerification.sourceGeneration
-    : (session.recordingQuality?.archiveVerification.sourceGeneration ?? null);
-  const sourceStale = session.rawFile !== null && (!source.rawAvailable || source.contentHash !== expectedGeneration);
+  const expectedSourceGeneration = session.recordingQuality?.archiveVerification.sourceGeneration ?? null;
+  const sourceStale = session.rawFile !== null && (!source.rawAvailable || source.contentHash !== expectedSourceGeneration);
   const currentDetectorId = tryGetServerGame(session.gameId)?.lapDetectorId ?? null;
   const stale = {
     detector: currentDetectorId === null || session.detectorVersion === null || session.detectorVersion !== currentDetectorId,
