@@ -19,8 +19,8 @@ function isTimingReport(value: unknown): value is TimingChildReport {
   if (typeof value !== "object" || value === null) return false;
   const report = value as Partial<TimingChildReport>;
   const { iterations, warmupIterations, samplesNs } = report;
-  return Number.isInteger(iterations) && iterations > 0
-    && Number.isInteger(warmupIterations) && warmupIterations >= 0
+  return typeof iterations === "number" && Number.isInteger(iterations) && iterations > 0
+    && typeof warmupIterations === "number" && Number.isInteger(warmupIterations) && warmupIterations >= 0
     && Array.isArray(samplesNs)
     && samplesNs.length === iterations
     && samplesNs.every((sample) => typeof sample === "number" && Number.isFinite(sample) && sample >= 0);
