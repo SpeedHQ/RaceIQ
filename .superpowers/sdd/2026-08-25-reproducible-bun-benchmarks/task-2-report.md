@@ -16,3 +16,8 @@ Timing report conforms to `TimingChildReport`: `iterations`, `warmupIterations`,
 
 ## Concerns
 Fixture module must export `runIteration()` and may export async or synchronous `setup()`. Runtime module loading is intentional because fixture selection is a child CLI argument. Timing callback performs no GC or heap reads.
+
+## Fix round
+Commit `9fa8195b` redirects fixture `process.stdout.write` to stderr during setup, warmups, and measured iterations, restoring stdout only for the single JSON report. Focused command result: `bun test test/tooling/process-bench.test.ts --timeout 60000` — 7 passed, 0 failed, 9 expectations.
+
+An attempted data-URL fixture test that logged through `console.log` was removed because Bun loaded that fixture without its expected `runIteration` export; no broken test was retained.
