@@ -356,6 +356,7 @@ export async function importSessionFrames(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     raceEventStore: new DatabaseRaceEventStore(),
     bypassPacketRateFilter: true,
+    reconcileAfterEachLap: false,
     sourceKind,
     participant: options.participant ?? LOCAL_PLAYER_EVIDENCE,
     versionIdentity: options.versionIdentity,
