@@ -29,6 +29,7 @@ function generation(value: unknown): string {
     .digest("hex")}`;
 }
 
+const FINALIZED_SOURCE_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 const RECORDING_LAP_FACT_CODES: Partial<Record<QualityFact["code"], true>> = {
   recording_corrupt: true,
@@ -56,6 +57,15 @@ const LAP_MEASURED_FACT_CODES: Partial<Record<QualityFact["code"], true>> = {
   out_of_order_observations: true,
 };
 
+function requireFinalizedSourceGeneration(
+  sourceGeneration: string | null,
+  subject: "recording" | "session",
+): string {
+  if (!sourceGeneration || !FINALIZED_SOURCE_GENERATION_PATTERN.test(sourceGeneration)) {
+    throw new Error(`${subject} source generation must be sha256: plus 64 lowercase hex characters`);
+  }
+  return sourceGeneration;
+}
 
 function timeRangesOverlap(
   left: NonNullable<QualityFact["timeRange"]>,
@@ -141,17 +151,14 @@ export function combineQualityGenerations(generations: readonly string[]): strin
   return generation({ kind: "quality-cache", generations: [...generations].sort() });
 }
 
-export function finalizeRecordingQualityGeneration(summary: RecordingQualitySummary): RecordingQualitySummary {
-  const archiveGeneration = summary.archiveVerification.sourceGeneration;
-  const sourceGeneration =
-    archiveGeneration === "legacy"
-      ? "legacy"
-      : generation({
-          archiveGeneration,
-          participant: summary.participant,
-          sourceKind: summary.sourceKind,
-          versionIdentity: summary.versionIdentity,
-        });
+export function finalizeRecordingQualityGeneration(
+  summary: RecordingQualitySummary,
+): RecordingQualitySummary {
+  const sourceGeneration = requireFinalizedSourceGeneration(
+    summary.canonicalVerification?.sourceGeneration ??
+      summary.archiveVerification.sourceGeneration,
+    "recording",
+  );
   const draftProvenance: QualityProvenance = {
     ...summary.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,
@@ -183,17 +190,17 @@ export function finalizeLapQualityGeneration(
     rawFrameCount: number | null;
   },
 ): { quality: LapQualitySummary; eligibility: EligibilityDecisionSet } {
-  const finalizedSessionSourceGeneration = sessionSourceGeneration;
-  const sourceGeneration =
-    finalizedSessionSourceGeneration === "legacy"
-      ? "legacy"
-      : generation({
-          identity,
-          participant: quality.participant,
-          sessionSourceGeneration: finalizedSessionSourceGeneration,
-          sourceKind: quality.sourceKind,
-          versionIdentity: quality.versionIdentity,
-        });
+  const finalizedSessionSourceGeneration = requireFinalizedSourceGeneration(
+    sessionSourceGeneration,
+    "session",
+  );
+  const sourceGeneration = generation({
+    identity,
+    participant: quality.participant,
+    sessionSourceGeneration: finalizedSessionSourceGeneration,
+    sourceKind: quality.sourceKind,
+    versionIdentity: quality.versionIdentity,
+  });
   const draftProvenance: QualityProvenance = {
     ...quality.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,

@@ -1,13 +1,26 @@
 import { Menu } from "@base-ui/react/menu";
+import { CheckIcon } from "lucide-react";
 import type { ReactElement, ReactNode } from "react";
 
-export interface DropdownMenuItem {
+interface DropdownMenuItemBase {
   key: string;
   label: string;
   icon?: ReactNode;
-  onClick: () => void;
   disabled?: boolean;
 }
+
+export interface DropdownMenuActionItem extends DropdownMenuItemBase {
+  type?: "action";
+  onClick: () => void;
+}
+
+export interface DropdownMenuCheckboxItem extends DropdownMenuItemBase {
+  type: "checkbox";
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+export type DropdownMenuItem = DropdownMenuActionItem | DropdownMenuCheckboxItem;
 
 interface DropdownMenuProps {
   trigger: ReactNode;
@@ -26,12 +39,29 @@ export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuPr
       <Menu.Portal>
         <Menu.Positioner align={align === "right" ? "end" : "start"} sideOffset={4} collisionPadding={8} className="z-[60] outline-none">
           <Menu.Popup className={OVERLAY_SURFACE_CLASS}>
-            {items.map((item) => (
-              <Menu.Item key={item.key} disabled={item.disabled} onClick={item.onClick} className={OVERLAY_ITEM_CLASS}>
-                {item.icon}
-                <span>{item.label}</span>
-              </Menu.Item>
-            ))}
+            <Menu.Group>
+              {items.map((item) =>
+                item.type === "checkbox" ? (
+                  <Menu.CheckboxItem
+                    key={item.key}
+                    checked={item.checked}
+                    disabled={item.disabled}
+                    onCheckedChange={item.onCheckedChange}
+                    className={`${OVERLAY_ITEM_CLASS} grid grid-cols-[0.875rem_1fr]`}
+                  >
+                    <Menu.CheckboxItemIndicator className="flex items-center justify-center [&>svg]:size-3">
+                      <CheckIcon />
+                    </Menu.CheckboxItemIndicator>
+                    <span className="col-start-2">{item.label}</span>
+                  </Menu.CheckboxItem>
+                ) : (
+                  <Menu.Item key={item.key} disabled={item.disabled} onClick={item.onClick} className={OVERLAY_ITEM_CLASS}>
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Menu.Item>
+                ),
+              )}
+            </Menu.Group>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>

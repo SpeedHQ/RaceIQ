@@ -13,10 +13,24 @@ export const acEvoAdapter: GameAdapter = {
     weather: { source: "direct", freshness: "continuous", binding: { kind: "group", required: ["weather.air-temp"] } },
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.pit-status" } },
     analysis: {
-      balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } },
+      balance: {
+        source: "derived",
+        confidence: "high",
+        binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] },
+      },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
-      gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] } },
-      traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } },
+      gripDemand: {
+        source: "derived",
+        confidence: "high",
+        display: "per-wheel",
+        binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] },
+      },
+      traction: {
+        source: "derived",
+        confidence: "exact",
+        display: "per-wheel",
+        binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] },
+      },
       tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },
@@ -27,7 +41,12 @@ export const acEvoAdapter: GameAdapter = {
       tireWearRate: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "wear-rate-v1", requires: ["tires.tire-wear"] } },
       tirePressure: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
       suspensionTravel: { source: "direct", freshness: "continuous", display: "millimeters", binding: { kind: "value", semanticId: "suspension.suspension-travel-m" } },
-      suspensionCompressionBias: { source: "derived", confidence: "exact", display: "compression-bias", binding: { kind: "derived", derivation: "compression-bias-v1", requires: ["suspension.norm-suspension-travel"] } },
+      suspensionCompressionBias: {
+        source: "derived",
+        confidence: "exact",
+        display: "compression-bias",
+        binding: { kind: "derived", derivation: "compression-bias-v1", requires: ["suspension.norm-suspension-travel"] },
+      },
     },
   },
   coordSystem: "standard-xyz",
@@ -39,12 +58,12 @@ export const acEvoAdapter: GameAdapter = {
   // convention), so the usable range is 127 — not 1. Corner detection scales
   // its steering thresholds by this; a value of 1 breaks detection entirely.
   steeringRange: 127,
-  tireHealthThresholds: { green: 0.85, yellow: 0.70 },
+  tireHealthThresholds: { green: 0.85, yellow: 0.7 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
-  suspensionThresholds: { values: [25, 65, 85] },
+  suspensionThresholds: { values: [25, 65, 85], millimeterMode: "centered" },
   brakeTempThresholds: {
     front: { warm: 650, hot: 700 },
-    rear:  { warm: 450, hot: 500 },
+    rear: { warm: 450, hot: 500 },
   },
 
   // Stubs — server adapter overrides with real CSV-backed lookups
@@ -60,6 +79,10 @@ export const acEvoAdapter: GameAdapter = {
     return undefined;
   },
 
-  carForwardOffset(yaw) { return [Math.sin(yaw), Math.cos(yaw)]; },
-  followViewRotation(yaw) { return Math.PI - yaw; },
+  carForwardOffset(yaw) {
+    return [Math.sin(yaw), Math.cos(yaw)];
+  },
+  followViewRotation(yaw) {
+    return Math.PI - yaw;
+  },
 };

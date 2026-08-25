@@ -11,10 +11,8 @@ import {
   ELIGIBILITY_POLICY_VERSION,
   QUALITY_CONFIG_VERSION,
   QUALITY_SCHEMA_VERSION,
+  normalizeEvidenceSourceKind,
   type EvidenceSourceKind,
-  type LapQualitySummary,
-  type QualityFact,
-  type QualityReasonCode,
   type RecordingQualitySummary,
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
@@ -22,14 +20,15 @@ import { isTimedLapEligibilityUsable } from "../../shared/racing/quality/policie
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
-import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration } from "../lap-analysis/quality-generation";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import { finalizeLapQualityGeneration, finalizeRecordingQualityGeneration, mergeRecordingQualityIntoLapQuality } from "../lap-analysis/quality-generation";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
+
 export async function insertSession(
   carOrdinal: number,
   trackOrdinal: number,
@@ -42,75 +41,22 @@ export async function insertSession(
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, source, sourceChannelProfile, ownership, ...versionIdentity })
+    .values({
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      ownership,
+      source,
+      sourceChannelProfile,
+      ...versionIdentity,
+    })
     .returning({ id: sessions.id })
     .get();
   return result.id;
 }
 
-const SESSION_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
-  recording_corrupt: true,
-  recording_incompatible: true,
-  recording_incomplete: true,
-  recording_unavailable: true,
-  source_reconnect: true,
-  timeline_discontinuity: true,
-  out_of_order_observations: true,
-  writer_drop: true,
-};
-
-const SESSION_WIDE_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
-  recording_corrupt: true,
-  recording_incompatible: true,
-  recording_unavailable: true,
-};
-
-const DEGRADED_LAP_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
-  source_reconnect: true,
-  timeline_discontinuity: true,
-  out_of_order_observations: true,
-  writer_drop: true,
-};
-
-const LAP_MEASURED_FACT_CODES: Partial<Record<QualityReasonCode, true>> = {
-  timeline_discontinuity: true,
-  out_of_order_observations: true,
-};
-
-function timeRangesOverlap(left: NonNullable<QualityFact["timeRange"]>, right: NonNullable<QualityFact["timeRange"]>): boolean {
-  return left.startMs <= right.endMs && right.startMs <= left.endMs;
-}
-
-function lifecycleWithoutSessionFacts(quality: LapQualitySummary, facts: readonly QualityFact[]): LapQualitySummary["lifecycleState"] {
-  if (!quality.complete) return "incomplete";
-  if (quality.gapSummary.observedCount === 0) return "unavailable";
-  if (facts.some(({ code }) => code === "telemetry_gap_major" || code === "timeline_discontinuity" || code === "out_of_order_observations" || code === "writer_drop")) {
-    return "degraded";
-  }
-  if (facts.some(({ code }) => code === "telemetry_gap_minor")) return "minor_gaps";
-  return "exact";
-}
-
-function recordingFactsForLap(recordingQuality: RecordingQualitySummary, lapQuality: LapQualitySummary): QualityFact[] {
-  const lapRange = lapQuality.timeRange;
-  return recordingQuality.facts
-    .filter((fact) => {
-      if (!SESSION_LAP_FACT_CODES[fact.code]) return false;
-      if (SESSION_WIDE_FACT_CODES[fact.code]) return true;
-      if (!fact.timeRange || !lapRange || !timeRangesOverlap(fact.timeRange, lapRange)) return !fact.timeRange || !lapRange;
-      if (LAP_MEASURED_FACT_CODES[fact.code] && lapQuality.facts.some((lapFact) => lapFact.code === fact.code && lapFact.timeRange && timeRangesOverlap(lapFact.timeRange, fact.timeRange!))) {
-        return false;
-      }
-      return true;
-    })
-    .map((fact) => ({ ...fact, id: `session:${fact.id}` }));
-}
-
-export async function updateSessionQuality(
-  sessionId: number,
-  quality: RecordingQualitySummary,
-  transaction?: DbTransaction,
-): Promise<RecordingQualitySummary> {
+export async function updateSessionQuality(sessionId: number, quality: RecordingQualitySummary, transaction?: DbTransaction): Promise<RecordingQualitySummary> {
   const finalized = finalizeRecordingQualityGeneration(quality);
   const update = async (tx: DbTransaction) => {
     const lapRows = await tx
@@ -131,31 +77,25 @@ export async function updateSessionQuality(
     const changedLapIds: number[] = [];
 
     for (const lap of lapRows) {
-      if (!lap.quality) continue;
-      const sessionFacts = recordingFactsForLap(finalized, lap.quality);
-      const sessionLifecycle: LapQualitySummary["lifecycleState"] | null = sessionFacts.some(({ code }) => code === "recording_corrupt")
-        ? "corrupt"
-        : sessionFacts.some(({ code }) => code === "recording_incompatible")
-          ? "incompatible"
-          : sessionFacts.some(({ code }) => code === "recording_unavailable")
-            ? "unavailable"
-            : sessionFacts.some(({ code }) => code === "recording_incomplete")
-              ? "incomplete"
-              : sessionFacts.some(({ code }) => DEGRADED_LAP_FACT_CODES[code])
-                ? "degraded"
-                : null;
-      const lapFacts = lap.quality.facts.filter(({ id }) => !id.startsWith("session:"));
-      const hadSessionFacts = lapFacts.length !== lap.quality.facts.length;
-      const lapLifecycle = hadSessionFacts ? lifecycleWithoutSessionFacts(lap.quality, lapFacts) : lap.quality.lifecycleState;
-      const qualityWithSessionEvidence = {
-        ...lap.quality,
-        lifecycleState: sessionLifecycle ?? lapLifecycle,
-        facts: [...lapFacts, ...sessionFacts],
-      };
+      const provenance = lap.quality?.provenance;
+      if (
+        !lap.quality ||
+        !provenance ||
+        provenance.schemaVersion !== QUALITY_SCHEMA_VERSION ||
+        provenance.policyVersion !== ELIGIBILITY_POLICY_VERSION ||
+        provenance.configurationVersion !== QUALITY_CONFIG_VERSION ||
+        lap.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+        lap.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+        lap.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+        lap.qualityGeneration !== provenance.outputGeneration
+      ) {
+        continue;
+      }
+      const qualityWithSessionEvidence = mergeRecordingQualityIntoLapQuality(finalized, lap.quality);
       const generated = finalizeLapQualityGeneration(qualityWithSessionEvidence, finalized.provenance.sourceGeneration, {
         lapNumber: lap.lapNumber,
         rawByteOffset: lap.rawByteOffset,
-        rawFrameCount: lap.rawFrameCount ?? 0,
+        rawFrameCount: lap.rawFrameCount,
       });
       if (
         generated.quality.provenance.outputGeneration === lap.qualityGeneration &&
@@ -215,15 +155,9 @@ export async function updateSessionCarTrack(sessionId: number, carOrdinal: numbe
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
 
-export async function updateSessionRawFile(
-  sessionId: number,
-  rawFile: string,
-  lapDetectorVersion: string,
-  versionIdentity?: TelemetryVersionIdentity,
-  transaction?: DbTransaction,
-): Promise<void> {
-  const client = transaction ?? db;
-  await client
+export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string, versionIdentity?: TelemetryVersionIdentity, transaction?: DbTransaction): Promise<void> {
+  const executor = transaction ?? db;
+  await executor
     .update(sessions)
     .set({ rawFile, lapDetectorVersion, ...versionIdentity })
     .where(eq(sessions.id, sessionId))
@@ -256,10 +190,17 @@ async function getMeasurementStaleSessionIds(
       ),
     )
     .all();
-  return rows.filter((row) => row.rawFile != null && existsSync(row.rawFile)).map((row) => row.id);
+  return rows
+    .filter(
+      (row): row is { id: number; rawFile: string } =>
+        row.rawFile != null && existsSync(row.rawFile),
+    )
+    .map((row) => row.id);
 }
 
-async function getEligibilityOnlyStaleSessionIds(currentIds: string[]): Promise<number[]> {
+async function getEligibilityOnlyStaleSessionIds(
+  currentIds: string[],
+): Promise<number[]> {
   const rows = await db
     .select({ id: sessions.id })
     .from(sessions)
@@ -280,11 +221,14 @@ async function getAvailableStaleSessionIds(
   currentIds: string | string[],
   reprocessableGameIds: GameId[],
 ): Promise<number[]> {
-  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
-  const [measurementStale, eligibilityOnlyStale] = await Promise.all([
-    getMeasurementStaleSessionIds(ids, reprocessableGameIds),
-    getEligibilityOnlyStaleSessionIds(ids),
-  ]);
+  const ids = Array.isArray(currentIds)
+    ? currentIds
+    : [currentIds];
+  const [measurementStale, eligibilityOnlyStale] =
+    await Promise.all([
+      getMeasurementStaleSessionIds(ids, reprocessableGameIds),
+      getEligibilityOnlyStaleSessionIds(ids),
+    ]);
   return [...new Set([...measurementStale, ...eligibilityOnlyStale])];
 }
 
@@ -292,7 +236,12 @@ export async function countStaleSessions(
   currentIds: string | string[],
   reprocessableGameIds: GameId[],
 ): Promise<number> {
-  return (await getAvailableStaleSessionIds(currentIds, reprocessableGameIds)).length;
+  return (
+    await getAvailableStaleSessionIds(
+      currentIds,
+      reprocessableGameIds,
+    )
+  ).length;
 }
 
 /**
@@ -303,7 +252,10 @@ export async function getStaleSessions(
   currentIds: string | string[],
   reprocessableGameIds: GameId[],
 ): Promise<number[]> {
-  return getAvailableStaleSessionIds(currentIds, reprocessableGameIds);
+  return getAvailableStaleSessionIds(
+    currentIds,
+    reprocessableGameIds,
+  );
 }
 
 /**
@@ -409,7 +361,7 @@ export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
     .from(sessions)
     .orderBy(desc(sessions.id));
 
-  const rows = await query.where(eq(sessions.gameId, gameId)).all();
+  const rows = gameId ? await query.where(eq(sessions.gameId, gameId)).all() : await query.all();
 
   // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
@@ -450,9 +402,18 @@ export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
       .get();
     const pitDurationRow = resultRow
       ? await db
-          .select({ duration: sql<number | null>`sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0` })
+          .select({
+            duration: sql<number | null>`
+              sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0
+            `,
+          })
           .from(raceEvents)
-          .where(and(eq(raceEvents.sessionId, session.id), eq(raceEvents.eventType, "pit_service_completed")))
+          .where(
+            and(
+              eq(raceEvents.sessionId, session.id),
+              eq(raceEvents.eventType, "pit_service_completed"),
+            ),
+          )
           .get()
       : null;
     result.push({
@@ -467,7 +428,7 @@ export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
       pitCount: resultRow?.pitCount ?? null,
       pitDurationSeconds: pitDurationRow?.duration ?? null,
       notes: session.notes ?? undefined,
-      source: (session.source as EvidenceSourceKind | null) ?? "unknown",
+      source: normalizeEvidenceSourceKind(session.source),
       sourceChannelProfile: session.sourceChannelProfile ?? undefined,
       gameId: session.gameId as GameId,
       catalogVersion: session.catalogVersion ?? undefined,
@@ -479,13 +440,13 @@ export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
       recordingQuality: session.recordingQuality ?? undefined,
       qualityGeneration: session.qualityGeneration ?? undefined,
       qualityStale:
-        !session.recordingQuality ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
-        !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
-        session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
-        session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
-        session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
-        session.qualityGeneration !== session.recordingQuality.provenance.outputGeneration,
+        session.recordingQuality != null &&
+        (!FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.sourceGeneration) ||
+          !FINALIZED_QUALITY_GENERATION_PATTERN.test(session.recordingQuality.provenance.outputGeneration) ||
+          session.qualitySchemaVersion !== QUALITY_SCHEMA_VERSION ||
+          session.qualityPolicyVersion !== ELIGIBILITY_POLICY_VERSION ||
+          session.qualityConfigVersion !== QUALITY_CONFIG_VERSION ||
+          session.qualityGeneration !== session.recordingQuality.provenance.outputGeneration),
       ownership: session.ownership === "others" ? "others" : "mine",
     });
   }
@@ -552,7 +513,7 @@ export async function getSessionRecapData(
 
   const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
   const sessionSectorCount =
-    lapRows.find((lap) => isTimedLapEligibilityUsable(lap) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
+    lapRows.find((lap) => Boolean(lap.isValid) && lap.sectorTimes != null && lap.sectorTimes.length >= 2 && lap.sectorTimes.every((time) => time > 0))?.sectorTimes?.length ?? 0;
 
   let sectorStarts: number[] | null = null;
   const gameAdapter = tryGetGame(gameId);
@@ -599,8 +560,6 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
-        analysisEligibility(laps, "normal-pace"),
-        currentQualitySnapshot(laps),
         sql`${laps.lapTime} > 0`,
         sql`${laps.sectorTimes} IS NOT NULL`,
       ),

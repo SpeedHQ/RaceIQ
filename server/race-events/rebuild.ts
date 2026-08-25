@@ -180,7 +180,15 @@ export async function rebuildRaceEventTimeline(
   let pendingSourceSequences: SourceSequenceObservation[] = [];
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
-      if (sessionStarted) throw new Error("Raw rebuild contains multiple detected session boundaries");
+      if (
+        sessionStarted &&
+        context.reason !== "distance-reset" &&
+        context.reason !== "lap-number-reset"
+      ) {
+        throw new Error(
+          `Raw rebuild contains incompatible session boundary: ${context.reason}`,
+        );
+      }
       sessionStarted = true;
       coordinator.bindSession(input.sessionId, {
         reason: context.reason,
@@ -267,6 +275,12 @@ export async function rebuildRaceEventTimeline(
   if (detectedSessionId != null) {
     await detector.waitForPendingLapWrites?.(detectedSessionId);
   }
+  const rebuiltLaps =
+    detectedSessionId == null
+      ? []
+      : db.laps.filter(
+          (lap) => lap.sessionId === detectedSessionId,
+        );
   coordinator.endSession({ reason: "stream-ended", terminalObserved: false });
   coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
   if (db.sessions.length > 1) {
@@ -280,7 +294,7 @@ export async function rebuildRaceEventTimeline(
   return {
     detectorId: detector.detectorId,
     events: coordinator.events(),
-    laps: [...db.laps],
+    laps: rebuiltLaps,
     raceSource: resultSource.finish(),
     packetCount,
     canonicalContentHash: packetCount === 0 ? null : `sha256:${canonicalHasher.digest("hex")}`,

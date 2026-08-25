@@ -118,6 +118,7 @@ test/live-strategy/pit-tracker.test.ts
 test/live-strategy/sector-tracker.test.ts
 test/motec/motec-import.test.ts
 test/motec/motec-viz.test.ts
+test/race-events/source-adapters.test.ts
 test/race-results/race-results-authority.test.ts
 test/race-results/race-results-derive.test.ts
 test/race-results/race-results-source.test.ts
@@ -197,6 +198,7 @@ test/telemetry/resolver/native-sources.test.ts
 test/telemetry/telemetry-fidelity.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
+test/tooling/bench-compare.test.ts
 test/tooling/changelog.test.ts
 test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/local-ui-diff.test.ts

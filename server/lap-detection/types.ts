@@ -5,11 +5,15 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
-import type { EvidenceSourceKind, ParticipantEvidence, SourceChannelProfile } from "../../shared/racing/quality/contracts";
+import type { SessionBoundaryReason } from "./boundaries";
+import type {
+  EvidenceSourceKind,
+  ParticipantEvidence,
+  SourceChannelProfile,
+} from "../../shared/racing/quality/contracts";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { RaceEventId } from "../../shared/racing/events/contracts";
 import type { LapTimelineClassificationContext } from "../../shared/racing/laps/classification";
-import type { SessionBoundaryReason } from "./boundaries";
 
 // Re-export all event/state types so callers only need one import point
 export type {
@@ -22,23 +26,45 @@ export type {
   LapTireWearData,
 } from "./detector";
 
-import type { SessionState, LapEventContext, LapSavedEvent, LapSavedNotification, LapCompleteEvent, LapFuelData, LapTireWearData } from "./detector";
-
-/** Optional event callbacks available to every detector implementation. */
-export interface LapDetectorCallbacks {
-  onLapSaved?: (event: LapSavedEvent | LapSavedNotification, context: LapEventContext) => unknown;
-  onSessionStart?: (session: SessionState, context: SessionStartContext) => unknown;
-  onSessionEnd?: (session: SessionState, context: SessionEndContext) => unknown;
-  onLapEvaluated?: (event: LapCompleteEvent, context: LapEventContext) => unknown;
-  onLapComplete?: (event: LapCompleteEvent, context: LapEventContext) => unknown;
-}
-
+import type {
+  SessionState,
+  LapEventContext,
+  LapSavedEvent,
+  LapSavedNotification,
+  LapCompleteEvent,
+  LapFuelData,
+  LapTireWearData,
+} from "./detector";
 export type SessionEndReason =
   | SessionBoundaryReason
   | "source-disconnected"
   | "source-stale"
   | "stream-ended"
   | "session-rotated";
+
+/** Optional event callbacks available to every detector implementation. */
+export interface LapDetectorCallbacks {
+  onLapSaved?: (
+    event: LapSavedEvent | LapSavedNotification,
+    context: LapEventContext,
+  ) => unknown;
+  onSessionStart?: (
+    session: SessionState,
+    context: SessionStartContext,
+  ) => unknown;
+  onSessionEnd?: (
+    session: SessionState,
+    context: SessionEndContext,
+  ) => unknown;
+  onLapEvaluated?: (
+    event: LapCompleteEvent,
+    context: LapEventContext,
+  ) => unknown;
+  onLapComplete?: (
+    event: LapCompleteEvent,
+    context: LapEventContext,
+  ) => unknown;
+}
 
 export interface SessionStartContext {
   reason: SessionBoundaryReason;
@@ -60,14 +86,18 @@ export interface LapTimelineContextProvider {
 
 /** Explicit empty provider for fixtures whose scenario contains no timeline facts. */
 export const EMPTY_LAP_TIMELINE_CONTEXT: LapTimelineContextProvider = {
-  classificationForLap: () => ({ pitPhase: null, conditions: [], gridStart: false }),
+  classificationForLap: () => ({
+    pitPhase: null,
+    conditions: [],
+    gridStart: false,
+  }),
   eventIdsForLap: () => [],
 };
 
 /** Unified constructor options accepted by all lap detector implementations. */
 export interface LapDetectorOptions {
   db: DbAdapter;
-  /** Authoritative source for pit/race-control lap classification. Empty for legacy callers. */
+  /** Authoritative source for pit and race-control lap classification. */
   lapTimelineContext?: LapTimelineContextProvider;
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
@@ -76,7 +106,7 @@ export interface LapDetectorOptions {
   sourceKind?: EvidenceSourceKind;
   /** Participant identity; local player is default. */
   participant?: ParticipantEvidence;
-  /** Override parser/catalog identity for imports and deterministic rebuilds. */
+  /** Override parser and catalog identity for imports and deterministic rebuilds. */
   versionIdentity?: TelemetryVersionIdentity;
   /** Session-wide fidelity overrides supplied by transcoded evidence sources. */
   sourceChannelProfile?: SourceChannelProfile;

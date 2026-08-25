@@ -27,6 +27,7 @@ import { sha256ContentHash } from "../session-capture/identity";
 import {
   LOCAL_PLAYER_EVIDENCE,
   SOURCE_CHANNEL_PROFILE_VERSION,
+  normalizeEvidenceSourceKind,
   type ArchiveVerification,
   type EvidenceSourceKind,
   type ParticipantEvidence,
@@ -438,7 +439,7 @@ export async function buildLapsZip(lapIds: number[]): Promise<{ bytes: Uint8Arra
       trackName,
       createdAt: first.createdAt,
       memberSha256: sha256ContentHash(compressedSlice),
-      sourceKind: (first.source as EvidenceSourceKind | null) ?? "unknown",
+      sourceKind: normalizeEvidenceSourceKind(first.source),
       participant: first.recordingQuality?.participant ?? LOCAL_PLAYER_EVIDENCE,
       sourceChannelProfile: first.sourceChannelProfile ?? undefined,
       sourceVerification: first.recordingQuality?.archiveVerification ?? {

@@ -19,20 +19,31 @@ import {
   type RecordingQualitySummary,
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
-import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { deleteSession } from "../db/session-queries";
+import type { PersistLapInput } from "../db/lap-mutation-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
+import {
+  NullWsAdapter,
+  RealDbAdapter,
+  type DbAdapter,
+} from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { finalizeLapQualityGeneration } from "../lap-analysis/quality-generation";
 import { DatabaseRaceEventStore } from "../race-events/store";
+
 export class TelemetryImportError extends Error {
   readonly code: string;
   readonly lifecycleState: RecordingLifecycleState;
   readonly reasons: readonly QualityReasonCode[];
 
-  constructor(message: string, code: string, lifecycleState: RecordingLifecycleState, reasons: readonly QualityReasonCode[], options?: ErrorOptions) {
+  constructor(
+    message: string,
+    code: string,
+    lifecycleState: RecordingLifecycleState,
+    reasons: readonly QualityReasonCode[],
+    options?: ErrorOptions,
+  ) {
     super(message, options);
     this.name = "TelemetryImportError";
     this.code = code;
@@ -42,15 +53,29 @@ export class TelemetryImportError extends Error {
 }
 
 export class InvalidImportDataError extends TelemetryImportError {
-  constructor(message = "Import contains unusable telemetry data", options?: ErrorOptions) {
-    super(message, "INVALID_IMPORT_DATA", "corrupt", ["recording_corrupt"], options);
+  constructor(
+    message = "Import contains unusable telemetry data",
+    options?: ErrorOptions,
+  ) {
+    super(
+      message,
+      "INVALID_IMPORT_DATA",
+      "corrupt",
+      ["recording_corrupt"],
+      options,
+    );
     this.name = "InvalidImportDataError";
   }
 }
 
 export class IncompleteImportError extends TelemetryImportError {
   constructor(message = "No complete, importable laps were found") {
-    super(message, "INCOMPLETE_IMPORT", "incomplete", ["recording_incomplete"]);
+    super(
+      message,
+      "INCOMPLETE_IMPORT",
+      "incomplete",
+      ["recording_incomplete"],
+    );
     this.name = "IncompleteImportError";
   }
 }
@@ -58,19 +83,28 @@ export class IncompleteImportError extends TelemetryImportError {
 export function importErrorPayload(error: unknown): {
   error: string;
   code: string;
-  quality: { lifecycleState: RecordingLifecycleState; reasons: readonly QualityReasonCode[] };
+  quality: {
+    lifecycleState: RecordingLifecycleState;
+    reasons: readonly QualityReasonCode[];
+  };
 } {
   if (error instanceof TelemetryImportError) {
     return {
       error: error.message,
       code: error.code,
-      quality: { lifecycleState: error.lifecycleState, reasons: error.reasons },
+      quality: {
+        lifecycleState: error.lifecycleState,
+        reasons: error.reasons,
+      },
     };
   }
   return {
     error: error instanceof Error ? error.message : String(error),
     code: "IMPORT_FAILED",
-    quality: { lifecycleState: "unavailable", reasons: ["recording_unavailable"] },
+    quality: {
+      lifecycleState: "unavailable",
+      reasons: ["recording_unavailable"],
+    },
   };
 }
 
@@ -86,9 +120,31 @@ export interface ImportedLap extends LapClassification {
   eligibility: EligibilityDecisionSet;
 }
 
+export interface ImportSessionFramesOptions {
+  /** Roll back imported session and capture when no complete lap exists. */
+  requireLaps?: boolean;
+  /** Verification and identity of original source evidence. */
+  sourceArchiveVerification?: ArchiveVerification;
+  /** Verification applied while transporting original evidence. */
+  sourceTransportVerification?: ArchiveVerification;
+  /** Opt out of background profile generation for offline imports. */
+  notifyDriverProfile?: boolean;
+  /** Original evidence source; direct RaceIQ frame imports default to raw. */
+  sourceKind?: EvidenceSourceKind;
+  /** Preserve source parser and catalog identity during deterministic replay. */
+  versionIdentity?: TelemetryVersionIdentity;
+  /** Source-authored fidelity for canonical fields occupied by transcoded data. */
+  sourceChannelProfile?: SourceChannelProfile;
+  /** Ownership classification applied to every created session. */
+  ownership?: SessionOwnership;
+  /** Participant identity carried by imported evidence. */
+  participant?: ParticipantEvidence;
+}
+
 /**
- * Delegates to RealDbAdapter but captures returned lap IDs and session
- * metadata so import callers can report inserted rows and build deep links.
+ * Delegates to RealDbAdapter but captures the returned lap IDs + session
+ * metadata so an import caller can tell the UI what got inserted and build
+ * deep links into the analyse page.
  */
 export class ImportCaptureAdapter implements DbAdapter {
   private readonly _inner: DbAdapter;
@@ -97,11 +153,27 @@ export class ImportCaptureAdapter implements DbAdapter {
   readonly rawFiles = new Set<string>();
   private readonly _pendingLapWrites = new Set<Promise<number>>();
   private _lapWriteFailure: unknown;
-  private readonly _lapIdentity = new Map<number, { lapNumber: number; rawByteOffset: number | null; rawFrameCount: number }>();
+  private readonly _lapIdentity = new Map<
+    number,
+    {
+      lapNumber: number;
+      rawByteOffset: number | null;
+      rawFrameCount: number;
+    }
+  >();
   private readonly _sessionMeta = new Map<number, { carOrdinal: number; trackOrdinal: number }>();
 
-  constructor({ notifyDriverProfile, ownership, db }: { notifyDriverProfile?: boolean; ownership?: SessionOwnership; db?: DbAdapter } = {}) {
-    this._inner = db ?? new RealDbAdapter({ notifyDriverProfile, ownership });
+  constructor({
+    notifyDriverProfile,
+    ownership,
+    db,
+  }: {
+    notifyDriverProfile?: boolean;
+    ownership?: SessionOwnership;
+    db?: DbAdapter;
+  } = {}) {
+    this._inner =
+      db ?? new RealDbAdapter({ notifyDriverProfile, ownership });
   }
 
   async insertSession(
@@ -114,7 +186,16 @@ export class ImportCaptureAdapter implements DbAdapter {
     sourceChannelProfile?: SourceChannelProfile,
     ownership?: SessionOwnership,
   ): Promise<number> {
-    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, sourceKind, sourceChannelProfile, ownership);
+    const id = await this._inner.insertSession(
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      versionIdentity,
+      sourceKind,
+      sourceChannelProfile,
+      ownership,
+    );
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
     return id;
@@ -223,27 +304,6 @@ async function rollbackImport(capture: ImportCaptureAdapter, error: unknown): Pr
 
 type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
 
-export interface ImportSessionFramesOptions {
-  /** Roll back the imported session and capture when no complete lap exists. */
-  requireLaps?: boolean;
-  /** Verification and identity of original source evidence. */
-  sourceArchiveVerification?: ArchiveVerification;
-  /** Verification applied while transporting original evidence, such as a RaceIQ ZIP member. */
-  sourceTransportVerification?: ArchiveVerification;
-  /** Opt out of background profile generation for offline imports such as seeds. */
-  notifyDriverProfile?: boolean;
-  /** Original evidence source; direct RaceIQ frame imports default to raw. */
-  sourceKind?: EvidenceSourceKind;
-  /** Preserve source parser/catalog identity during deterministic replay. */
-  versionIdentity?: TelemetryVersionIdentity;
-  /** Source-authored fidelity for canonical fields occupied by transcoded data. */
-  sourceChannelProfile?: SourceChannelProfile;
-  /** Ownership classification applied to every created session. */
-  ownership?: SessionOwnership;
-  /** Participant identity carried by imported evidence; legacy input defaults to local player. */
-  participant?: ParticipantEvidence;
-}
-
 /**
  * Feed any canonical raw-frame stream through an isolated parser + pipeline.
  * The live telemetry pipeline recorder writes the imported source back out as RaceIQ's
@@ -261,6 +321,7 @@ export async function importSessionFrames(
 }> {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
+  const sourceKind = options.sourceKind ?? "raceiq-raw";
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -268,7 +329,7 @@ export async function importSessionFrames(
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     raceEventStore: new DatabaseRaceEventStore(),
     bypassPacketRateFilter: true,
-    sourceKind: options.sourceKind ?? "raceiq-raw",
+    sourceKind,
     participant: options.participant ?? LOCAL_PLAYER_EVIDENCE,
     versionIdentity: options.versionIdentity,
     sourceChannelProfile: options.sourceChannelProfile,
@@ -278,15 +339,22 @@ export async function importSessionFrames(
 
   let packetCount = 0;
   let failure: unknown;
-  const asyncIterator = (frames as AsyncIterable<Buffer>)[Symbol.asyncIterator];
-  const iterator: AsyncIterator<Buffer> | Iterator<Buffer> = asyncIterator ? asyncIterator.call(frames) : (frames as Iterable<Buffer>)[Symbol.iterator]();
+  const asyncIterator = (frames as AsyncIterable<Buffer>)[
+    Symbol.asyncIterator
+  ];
+  const iterator: AsyncIterator<Buffer> | Iterator<Buffer> = asyncIterator
+    ? asyncIterator.call(frames)
+    : (frames as Iterable<Buffer>)[Symbol.iterator]();
   try {
     for (;;) {
       let next: IteratorResult<Buffer>;
       try {
         next = await iterator.next();
       } catch (cause) {
-        throw new InvalidImportDataError("Import frame stream is corrupt", { cause });
+        throw new InvalidImportDataError(
+          "Import frame stream is corrupt",
+          { cause },
+        );
       }
       if (next.done) break;
 
@@ -294,7 +362,10 @@ export async function importSessionFrames(
       try {
         packet = serverGame.tryParse(next.value, state);
       } catch (cause) {
-        throw new InvalidImportDataError("Import contains an invalid telemetry frame", { cause });
+        throw new InvalidImportDataError(
+          "Import contains an invalid telemetry frame",
+          { cause },
+        );
       }
       if (!packet) continue;
       await pipeline.processPacket(packet, next.value);
@@ -309,7 +380,10 @@ export async function importSessionFrames(
     try {
       await iterator.return?.();
     } catch (cause) {
-      failure ??= new InvalidImportDataError("Import frame stream could not be closed", { cause });
+      failure ??= new InvalidImportDataError(
+        "Import frame stream could not be closed",
+        { cause },
+      );
     }
     if (pipeline.isSessionActive) {
       try {
@@ -334,6 +408,7 @@ export async function importSessionFrames(
   } catch (error) {
     return rollbackImport(db, error);
   }
+
   return {
     packetCount,
     laps: db.laps,

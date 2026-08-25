@@ -36,7 +36,6 @@ test/race-events/lifecycle-links.test.ts
 test/race-events/participant-source-quality.test.ts
 test/race-events/pit-service.test.ts
 test/race-events/service-actions.test.ts
-test/race-events/source-adapters.test.ts
 test/race-events/source-lifecycle.test.ts
 test/race-events/source-sequence.test.ts
 test/session-runs/builder.test.ts
