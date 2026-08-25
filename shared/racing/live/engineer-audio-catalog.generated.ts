@@ -3,7 +3,7 @@ export const LIVE_ENGINEER_AUDIO_CATALOG = {
   "catalogVersion": "live-engineer-v1",
   "sampleRate": 24000,
   "channels": 1,
-  "joinGapMs": -50,
+  "joinGapMs": -200,
   "segments": [
     {
       "segmentId": "phrase.fastest.class",
