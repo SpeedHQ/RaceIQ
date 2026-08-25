@@ -35,6 +35,7 @@ try {
 }
 if (typeof loaded.runIteration !== "function") fail("fixture must export runIteration()");
 
+console.log = (...args: unknown[]) => console.error(...args);
 const stdoutWrite = process.stdout.write.bind(process.stdout);
 process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => process.stderr.write(chunk, ...(args as [never]))) as typeof process.stdout.write;
 try {

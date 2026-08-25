@@ -1,5 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { runChildBenchmark, type RetainedHeapChildReport, type TimingChildReport } from "../benchmarks/process-bench-contracts";
+import { join } from "node:path";
+
+const retainedHeapFixture = async (source: string) => {
+  const path = join("/tmp", `process-bench-fixture-${crypto.randomUUID()}.ts`);
+  await Bun.write(path, source);
+  return path;
+};
+
+const retainedHeapChild = async (source: string) => ({
+  command: [bun, "run", join(process.cwd(), "test/benchmarks/process-bench-child.ts"), "retainedHeap", await retainedHeapFixture(source), "1"],
+  kind: "retainedHeap" as const,
+});
 
 const bun = process.execPath;
 const child = (output: string, exit = 0) => ({
@@ -21,6 +33,16 @@ describe("fixed-iteration timing child", () => {
     expect(report.warmupIterations).toBe(1);
   });
 
+});
+describe("retained-heap fixture child", () => {
+  test("keeps fixture output off stdout and measures retained result", async () => {
+    const config = await retainedHeapChild(`
+      export function setup() { console.log("setup diagnostic"); }
+      export function runIteration() { console.log("iteration diagnostic"); return new ArrayBuffer(1024 * 1024); }
+    `);
+    const report = await runChildBenchmark(config) as RetainedHeapChildReport;
+    expect(report.retainedHeap).toBeGreaterThan(0);
+  });
 });
 
 
