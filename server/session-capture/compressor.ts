@@ -15,6 +15,7 @@ import { gzipBuffer } from "./framing";
 import {
   cleanupOrphanSessionFiles,
   listSessionCaptureFiles,
+  withSessionCaptureMaintenanceLock,
 } from "./cleanup";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -80,8 +81,8 @@ export async function runUserCompressionNow(): Promise<void> {
 }
 
 async function runCompression(userTriggered = false): Promise<void> {
-  if (isSessionActive()) return;
-
+  return withSessionCaptureMaintenanceLock(async () => {
+    if (isSessionActive()) return;
   const ageMs = userTriggered ? 0 : ONE_DAY_MS;
   const candidates = await getUncompressedSessions(ageMs);
   const dbPaths = new Set(candidates.map((c) => c.rawFile));
@@ -121,6 +122,7 @@ async function runCompression(userTriggered = false): Promise<void> {
       console.error(`[Compressor] Failed to compress orphan ${path}:`, err);
     }
   }
+  });
 }
 
 let _interval: ReturnType<typeof setInterval> | null = null;
@@ -129,7 +131,7 @@ async function runMaintenance(): Promise<void> {
   await runCompression();
   // Re-check activity inside the async orphan sweep so a session that starts
   // during file enumeration cannot have its capture removed.
-  const removed = await cleanupOrphanSessionFiles(isSessionActive);
+  const removed = await withSessionCaptureMaintenanceLock(() => cleanupOrphanSessionFiles(isSessionActive));
   console.debug(
     removed > 0
       ? `[Cleanup] Removed ${removed} orphan session file(s)`

@@ -1,4 +1,11 @@
-import { appendFileSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, test, expect, spyOn } from "bun:test";
@@ -8,6 +15,8 @@ import * as DriverProfileRunner from "../../server/driver-profile/runner";
 import type { PersistLapInput } from "../../server/db/lap-mutation-queries";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { qualityPackets } from "../support/lap-analysis/quality-model";
+import type { ArchiveVerification } from "../../shared/racing/quality/contracts";
+import { sha256ContentHash } from "../../server/session-capture/identity";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 
@@ -148,8 +157,21 @@ class TestSessionRecorder implements SessionRecorderAdapter {
 
   flush(): void {}
 
-  async stop(): Promise<void> {
+  async stop(): Promise<ArchiveVerification> {
     this.active = false;
+    if (!existsSync(this.filePath)) {
+      return {
+        state: "unavailable",
+        sourceGeneration: null,
+        details: "Recorder was not started",
+      };
+    }
+    return {
+      state: "verified",
+      sourceGeneration: sha256ContentHash(
+        readFileSync(this.filePath),
+      ),
+    };
   }
 }
 

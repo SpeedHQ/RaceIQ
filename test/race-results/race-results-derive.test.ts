@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { deriveRaceResult, normalizeSessionType } from "../../server/race-results/derive";
-import { classifyPitService, derivePitLedger } from "../../server/race-results/pit-ledger";
 import type { RaceSourceObservation } from "../../server/race-results/types";
+import type { RaceEvent, RaceEventId } from "../../shared/racing/events/contracts";
 import type { RaceResultProvenance } from "../../shared/racing/results/types";
 const provenance: RaceResultProvenance = {
   catalogVersion: "test",
@@ -30,7 +30,7 @@ const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObser
       qualifyingPosition: "unavailable",
       isPodium: "unavailable",
       isFastestLap: "unavailable",
-      pitEvents: "unavailable",
+      pitTimeline: "unavailable",
       tyreStrategy: "unavailable",
       fuelStrategy: "unavailable",
     },
@@ -86,20 +86,19 @@ describe("race result derivation", () => {
   });
 });
 
-describe("pit ledger", () => {
-  test("classifies independent tyre and fuel signals", () => {
-    expect(classifyPitService({ tyreChange: { from: "soft", to: "medium" } })).toBe("tyres");
-    expect(classifyPitService({ fuelAdded: 12 })).toBe("fuel");
-    expect(classifyPitService({ tyreChange: {}, fuelAdded: 12 })).toBe("combined");
-    expect(classifyPitService({})).toBe("unknown");
-  });
-
-  test("sorts and renumbers events without deriving missing services", () => {
-    const events = derivePitLedger([
-      { sequence: 8, lapNumber: 12, fuelAdded: 10 },
-      { sequence: 2, lapNumber: 4 },
-    ]);
-    expect(events.map((event) => event.sequence)).toEqual([1, 2]);
-    expect(events.map((event) => event.service)).toEqual(["unknown", "fuel"]);
+describe("pit timeline projection", () => {
+  test("counts visits and projects observed service evidence", () => {
+    const id = (suffix: string) => `race-event:sha256:${suffix.repeat(64).slice(0, 64)}` as RaceEventId;
+    const events = [
+      { eventId: id("a"), eventType: "pit_entry", lifecycleId: "visit:1", participantKind: "player", payload: { previousState: "out", state: "pit-lane" } },
+      { eventId: id("b"), eventType: "fuel_service_observed", lifecycleId: "visit:1", participantKind: "player", lapNumber: 4, payload: { beforeLitres: 20, afterLitres: 30, addedLitres: 10 } },
+      { eventId: id("c"), eventType: "tire_service_observed", lifecycleId: "visit:1", participantKind: "player", lapNumber: 4, payload: { changedCorners: ["fl"], previousCompound: "soft", currentCompound: "medium", beforeWear: null, afterWear: null } },
+    ] as RaceEvent[];
+    const result = deriveRaceResult(source({ sessionType: "race" }), events);
+    expect(result.pitCount).toBe(1);
+    expect(result.eventIds).toEqual(events.map(({ eventId }) => eventId));
+    expect(result.fuelStrategy).toMatchObject({ services: [{ addedLitres: 10 }] });
+    expect(result.tyreStrategy).toMatchObject({ services: [{ currentCompound: "medium" }] });
+    expect(result.evidence.fieldStatus.pitTimeline).toBe("derived");
   });
 });

@@ -1,5 +1,7 @@
-
 export interface F1GridEntry {
+  /** Stable session-scoped native vehicle index. */
+  carIndex: number;
+  isPlayer: boolean;
   position: number;
   driverId: number;
   teamId: number;
@@ -24,10 +26,14 @@ export interface F1GridEntry {
 }
 
 export interface F1ExtendedData {
-  /** Native UDP packet-family identifier for source-sequence quality. */
-  packetId?: number;
-  /** Native cross-family UDP frame identifier for source-sequence quality. */
+  /** Native cross-family frame identity from the F1 packet header. */
   overallFrameIdentifier?: number;
+  /** Native F1 packet family identifier. */
+  packetId?: number;
+  /** Player vehicle index from the native packet header. */
+  playerCarIndex: number;
+  /** Native player pit code: 0=none, 1=pitting, 2=pit area. */
+  pitStatus: number;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;
@@ -76,6 +82,8 @@ export interface F1ExtendedData {
   floorDamage: number;
   diffuserDamage: number;
   sidepodDamage: number;
+  /** True only after first native CarDamage packet for current F1 session. */
+  damageAvailable?: boolean;
   // Extended CarStatus fields
   tractionControl?: number;
   antiLockBrakes?: number;
@@ -149,18 +157,29 @@ export interface F1ExtendedData {
   setup?: F1CarSetup;
   // MotionEx — per-packet detailed physics
   motionEx?: {
-    wheelSlipAngleFL: number; wheelSlipAngleFR: number;
-    wheelSlipAngleRL: number; wheelSlipAngleRR: number;
-    wheelLatForceFL: number; wheelLatForceFR: number;
-    wheelLatForceRL: number; wheelLatForceRR: number;
-    wheelLongForceFL: number; wheelLongForceFR: number;
-    wheelLongForceRL: number; wheelLongForceRR: number;
-    wheelVertForceFL: number; wheelVertForceFR: number;
-    wheelVertForceRL: number; wheelVertForceRR: number;
+    wheelSlipAngleFL: number;
+    wheelSlipAngleFR: number;
+    wheelSlipAngleRL: number;
+    wheelSlipAngleRR: number;
+    wheelLatForceFL: number;
+    wheelLatForceFR: number;
+    wheelLatForceRL: number;
+    wheelLatForceRR: number;
+    wheelLongForceFL: number;
+    wheelLongForceFR: number;
+    wheelLongForceRL: number;
+    wheelLongForceRR: number;
+    wheelVertForceFL: number;
+    wheelVertForceFR: number;
+    wheelVertForceRL: number;
+    wheelVertForceRR: number;
     frontWheelsAngle: number;
-    frontAeroHeight: number; rearAeroHeight: number;
-    frontRollAngle: number; rearRollAngle: number;
-    chassisYaw: number; chassisPitch: number;
+    frontAeroHeight: number;
+    rearAeroHeight: number;
+    frontRollAngle: number;
+    rearRollAngle: number;
+    chassisYaw: number;
+    chassisPitch: number;
     heightOfCOGAboveGround: number;
   };
 }
@@ -168,24 +187,24 @@ export interface F1ExtendedData {
 export interface F1CarSetup {
   frontWing: number;
   rearWing: number;
-  onThrottle: number;       // differential on-throttle %
-  offThrottle: number;      // differential off-throttle %
-  frontCamber: number;      // degrees (negative)
-  rearCamber: number;       // degrees (negative)
-  frontToe: number;         // degrees
-  rearToe: number;          // degrees
-  frontSuspension: number;  // 1-11
-  rearSuspension: number;   // 1-11
+  onThrottle: number; // differential on-throttle %
+  offThrottle: number; // differential off-throttle %
+  frontCamber: number; // degrees (negative)
+  rearCamber: number; // degrees (negative)
+  frontToe: number; // degrees
+  rearToe: number; // degrees
+  frontSuspension: number; // 1-11
+  rearSuspension: number; // 1-11
   frontAntiRollBar: number; // 1-11
-  rearAntiRollBar: number;  // 1-11
-  frontRideHeight: number;  // 1-50
-  rearRideHeight: number;   // 1-50
-  brakePressure: number;    // %
-  brakeBias: number;        // %
-  engineBraking: number;    // %
-  rearLeftTyrePressure: number;   // PSI
-  rearRightTyrePressure: number;  // PSI
-  frontLeftTyrePressure: number;  // PSI
+  rearAntiRollBar: number; // 1-11
+  frontRideHeight: number; // 1-50
+  rearRideHeight: number; // 1-50
+  brakePressure: number; // %
+  brakeBias: number; // %
+  engineBraking: number; // %
+  rearLeftTyrePressure: number; // PSI
+  rearRightTyrePressure: number; // PSI
+  frontLeftTyrePressure: number; // PSI
   frontRightTyrePressure: number; // PSI
-  fuelLoad: number;         // kg
+  fuelLoad: number; // kg
 }

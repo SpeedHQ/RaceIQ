@@ -439,6 +439,7 @@ function lapComparison(quality: LapQualitySummary, range?: QualityDistanceRange)
   const timing = officialTiming(quality);
   const reasons: EligibilityReason[] = [];
   if (!isEligibilityUsable(timing)) reasons.push(...timing.reasons);
+  reasons.push(...factsFor(quality, ["partial_track_coverage"], range).map(reasonFromFact));
   if (!quality.structurallyValid) reasons.push(syntheticReason("structurally_invalid"));
   reasons.push(...channelCoverageReasons(quality, LAP_COMPARISON_CHANNELS, QUALITY_THRESHOLDS_V1.lapComparisonCoverage, range));
   reasons.push(...partialTrackCoverageReasons(quality, range));
@@ -564,6 +565,10 @@ function tireAnalysis(quality: LapQualitySummary, tireMode: EligibilityEvaluatio
 function mlTraining(quality: LapQualitySummary, options: EligibilityEvaluationOptions): EligibilityDecision {
   const requiredChannels = options.requiredSemanticIds ?? ML_CHANNELS;
   const reasons: EligibilityReason[] = [];
+  if (!quality.timing.confirmed) {
+    const timing = factsFor(quality, ["lap_time_unconfirmed"]).map(reasonFromFact);
+    reasons.push(...(timing.length > 0 ? timing : [syntheticReason("lap_time_unconfirmed")]));
+  }
   if (!quality.structurallyValid) {
     const structural = factsFor(quality, ["structurally_invalid"]).map(reasonFromFact);
     reasons.push(...(structural.length > 0 ? structural : [syntheticReason("structurally_invalid")]));

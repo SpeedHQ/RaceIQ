@@ -1,5 +1,8 @@
 import type { SourceChannelProfile } from "../../shared/racing/quality/contracts";
 
+export const MOTEC_SYNTH_SOURCE_VERSION = "motec" as const;
+export const MOTEC_SYNTH_HZ = 60;
+
 export interface MotecCarTrack {
   carOrdinal: number;
   trackOrdinal: number;

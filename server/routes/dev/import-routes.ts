@@ -1,7 +1,6 @@
-import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
@@ -15,7 +14,7 @@ import { readWString } from "../../games/acc/utils";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/parser";
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
-import { readKunosFrames } from "../../games/kunos/frame-reader";
+import { readKunosFrames, type KunosRecordingFrame } from "../../games/kunos/frame-reader";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
@@ -27,6 +26,23 @@ import { NullWsAdapter } from "../../telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
+
+import { MAX_RAW_CAPTURE_BUFFERED_BYTES, MAX_RAW_CAPTURE_EXPANDED_BYTES } from "../../session-capture/identity";
+
+class ImportUploadLimitError extends Error {}
+
+function byteLimit(limit: number): TransformStream<Uint8Array, Uint8Array> {
+  let total = 0;
+  return new TransformStream({
+    transform(chunk, controller) {
+      total += chunk.byteLength;
+      if (total > limit) {
+        throw new ImportUploadLimitError(`Import exceeds ${limit} byte processing limit`);
+      }
+      controller.enqueue(chunk);
+    },
+  });
+}
 
 export const importRoutes = new Hono();
 
@@ -49,6 +65,9 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     if (!lowerName.endsWith(".bin") && !lowerName.endsWith(".bin.gz")) {
       return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
     }
+    if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_RAW_CAPTURE_BUFFERED_BYTES) {
+      return c.json({ error: `Upload exceeds the ${MAX_RAW_CAPTURE_BUFFERED_BYTES / 1024 ** 2} MiB limit` }, 413);
+    }
 
     const gameId = detectGameIdFromFilename(uploadName);
     if (!gameId) {
@@ -64,28 +83,24 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       tmpdir(),
       `raceiq-dump-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`
     );
-    const arrayBuf = await file.arrayBuffer();
-    let bytes = Buffer.from(arrayBuf);
-    if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
-      bytes = Buffer.from(gunzipSync(bytes));
-    }
-    writeFileSync(tmpPath, bytes);
+    const header = Buffer.from(await file.slice(0, 2).arrayBuffer());
+    const source = header[0] === 0x1f && header[1] === 0x8b
+      ? file.stream().pipeThrough(new DecompressionStream("gzip")).pipeThrough(byteLimit(MAX_RAW_CAPTURE_EXPANDED_BYTES))
+      : file.stream().pipeThrough(byteLimit(MAX_RAW_CAPTURE_BUFFERED_BYTES));
+    await Bun.write(tmpPath, new Response(source));
 
     let packetCount = 0;
     let carModel: string | null = null;
     let trackName: string | null = null;
 
-    const db = new ImportCaptureAdapter({
-      ownership: ownership.data,
-      source: "raceiq-raw",
-    });
+    const db = new ImportCaptureAdapter({ ownership: ownership.data });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
     });
     const start = Date.now();
 
     if (gameId === "acc") {
-      let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+      let frames: KunosRecordingFrame[];
       try {
         frames = readKunosFrames(tmpPath);
       } catch (e) {
@@ -109,6 +124,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
           carOrdinal,
           trackOrdinal,
+          timestampMS: frame.timestampMS,
         });
         if (!packet) continue;
         const sourceFrame = packTriplet(
@@ -117,13 +133,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           packet.TrackOrdinal ?? 0,
           frame.physics,
           frame.graphics,
-          frame.staticData
+          frame.staticData,
+          packet.TimestampMS,
         );
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }
     } else if (gameId === "ac-evo") {
-      let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+      let frames: KunosRecordingFrame[];
       try {
         frames = readKunosFrames(tmpPath);
       } catch (e) {
@@ -147,7 +164,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
             if (track) cache.trackOrdinal = track.id;
           }
         }
-        const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
+        const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache, frame.timestampMS);
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
@@ -155,7 +172,8 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           packet.TrackOrdinal ?? -1,
           frame.physics,
           frame.graphics,
-          frame.staticData
+          frame.staticData,
+          packet.TimestampMS,
         );
         await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
@@ -218,6 +236,9 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       } catch {
         // Best-effort temp cleanup.
       }
+    }
+    if (e instanceof ImportUploadLimitError) {
+      return c.json({ error: e.message }, 413);
     }
     return c.json({ error: "Import failed", details: String(e) }, 500);
   }

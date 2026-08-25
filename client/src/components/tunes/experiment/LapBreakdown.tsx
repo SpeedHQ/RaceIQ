@@ -56,7 +56,7 @@ function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, Experiment
   }
 }
 
-export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps: LapMeta[]; bestT: number | null; metricsById: Map<number, ExperimentLapMetric>; experimentId?: number | null }) {
+export function LapBreakdown({ laps, bestT, metricsById, experimentId }: { laps: LapMeta[]; bestT: number | null; metricsById: Map<number, ExperimentLapMetric>; experimentId: number }) {
   const setExcluded = useSetLapExcluded();
   const selection = useMemo(() => selectEvaluationLaps(laps), [laps]);
   const showSession = useMemo(() => new Set(laps.map((l) => l.sessionId)).size > 1, [laps]);

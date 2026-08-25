@@ -7,10 +7,32 @@ import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
-import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { cancelStagedIbt, commitStagedIbt, IbtImportError, MAX_IBT_BYTES, stageIbtUpload } from "../../games/iracing/import-ibt";
+import { MAX_RAW_CAPTURE_BUFFERED_BYTES } from "../../session-capture/identity";
+import { importErrorPayload, TelemetryImportError } from "../../session-capture/import-pipeline";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
+
+const MAX_LAPS_ZIP_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_SESSION_BIN_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_MOTEC_UPLOAD_BYTES = MAX_RAW_CAPTURE_BUFFERED_BYTES;
+const MAX_MOTEC_SIDECAR_UPLOAD_BYTES = 64 * 1024 * 1024;
+
+function uploadValidationError(
+  file: File,
+  allowedExtensions: readonly string[],
+  maximumBytes: number,
+): string | null {
+  const lowerName = file.name.toLowerCase();
+  if (!allowedExtensions.some((extension) => lowerName.endsWith(extension))) {
+    return `Expected ${allowedExtensions.join(" or ")} file`;
+  }
+  if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > maximumBytes) {
+    return `Upload exceeds the ${maximumBytes / 1024 ** 2} MiB limit`;
+  }
+  return null;
+}
 
 export const transferRoutes = new Hono()
   .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
@@ -39,9 +61,14 @@ export const transferRoutes = new Hono()
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
-    if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+    if (lower.endsWith(".zip")) {
+      const error = uploadValidationError(file, [".zip"], MAX_LAPS_ZIP_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+        return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "File is not a readable ZIP archive." });
+      }
       try {
         const detection = detectLapsZip(bytes);
         return c.json({
@@ -56,7 +83,9 @@ export const transferRoutes = new Hono()
       }
     }
     if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
-      const gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      const error = uploadValidationError(file, [".bin", ".bin.gz"], MAX_SESSION_BIN_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      const gameId = detectGameIdFromBuffer(Buffer.from(await file.arrayBuffer()));
       return c.json({
         format: "bin" as const,
         supported: gameId != null,
@@ -65,8 +94,16 @@ export const transferRoutes = new Hono()
         message: gameId ? null : "Could not detect a supported game from this capture.",
       });
     }
-    if (lower.endsWith(".ibt")) return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
-    if (lower.endsWith(".ld")) return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    if (lower.endsWith(".ibt")) {
+      const error = uploadValidationError(file, [".ibt"], MAX_IBT_BYTES);
+      if (error) return c.json({ error }, 413);
+      return c.json({ format: "ibt" as const, supported: true, gameIds: ["iracing"], captureCount: 1, message: null });
+    }
+    if (lower.endsWith(".ld")) {
+      const error = uploadValidationError(file, [".ld"], MAX_MOTEC_UPLOAD_BYTES);
+      if (error) return c.json({ error }, 413);
+      return c.json({ format: "motec" as const, supported: true, gameIds: [], captureCount: 1, message: null });
+    }
     return c.json({ format: "unknown" as const, supported: false, gameIds: [], captureCount: 0, message: "Unsupported import file." });
   })
   .post("/api/laps/import-zip", async (c) => {
@@ -75,7 +112,8 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-    if (!file.name.toLowerCase().endsWith(".zip")) return c.json({ error: "Expected a .zip file" }, 400);
+    const uploadError = uploadValidationError(file, [".zip"], MAX_LAPS_ZIP_UPLOAD_BYTES);
+    if (uploadError) return c.json({ error: uploadError }, 413);
     try {
       const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()), { ownership: ownership.data });
       return c.json(result);
@@ -90,24 +128,40 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
 
     const uploadName = file.name || "upload.bin";
-    const lower = uploadName.toLowerCase();
-    if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
-      return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
-    }
+    const uploadError = uploadValidationError(file, [".bin", ".bin.gz"], MAX_SESSION_BIN_UPLOAD_BYTES);
+    if (uploadError) return c.json({ error: uploadError }, 413);
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
     const bytes = Buffer.from(await file.arrayBuffer());
-    const gameId = detectGameIdFromBuffer(bytes);
-    if (!gameId) {
-      return c.json(
-        { error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.` },
-        400
-      );
-    }
     try {
-
+      const gameId = detectGameIdFromBuffer(bytes);
+      if (!gameId) {
+        return c.json(
+          {
+            error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.`,
+            code: "INCOMPATIBLE_IMPORT",
+            quality: {
+              lifecycleState: "incompatible" as const,
+              reasons: ["recording_incompatible" as const],
+            },
+          },
+          400,
+        );
+      }
       const { packetCount, laps } = await importSessionBin(bytes, gameId, { ownership: ownership.data });
-      if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
+      if (packetCount === 0) {
+        return c.json(
+          {
+            error: "No telemetry packets found in file",
+            code: "INCOMPLETE_IMPORT",
+            quality: {
+              lifecycleState: "incomplete" as const,
+              reasons: ["recording_incomplete" as const],
+            },
+          },
+          400,
+        );
+      }
       return c.json({
         ok: true,
         gameId,
@@ -116,9 +170,10 @@ export const transferRoutes = new Hono()
         imported: laps.length,
         laps,
       });
-    } catch (err: any) {
-      console.error("[Import] Failed:", err?.message);
-      return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    } catch (error) {
+      const payload = importErrorPayload(error);
+      console.error("[Import] Failed:", payload.error);
+      return c.json(payload, error instanceof TelemetryImportError ? 400 : 500);
     }
   })
 
@@ -142,12 +197,22 @@ export const transferRoutes = new Hono()
     if (!file.name.toLowerCase().endsWith(".ld")) {
       return c.json({ error: "Expected a MoTeC .ld file" }, 400);
     }
+    if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_MOTEC_UPLOAD_BYTES) {
+      return c.json({ error: `Upload exceeds the ${MAX_MOTEC_UPLOAD_BYTES / 1024 ** 2} MiB limit` }, 413);
+    }
 
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
-    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    if (sidecar instanceof File) {
+      if (!sidecar.name.toLowerCase().endsWith(".ldx")) {
+        return c.json({ error: "Expected a MoTeC .ldx sidecar file" }, 400);
+      }
+      if (!Number.isSafeInteger(sidecar.size) || sidecar.size < 0 || sidecar.size > MAX_MOTEC_SIDECAR_UPLOAD_BYTES) {
+        return c.json({ error: `Upload exceeds the ${MAX_MOTEC_SIDECAR_UPLOAD_BYTES / 1024 ** 2} MiB limit` }, 413);
+      }
+    }
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
@@ -186,7 +251,11 @@ export const transferRoutes = new Hono()
     }
 
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+      const [bytes, ldxBytes] = await Promise.all([
+        file.arrayBuffer(),
+        sidecar instanceof File ? sidecar.arrayBuffer() : undefined,
+      ]);
+      const result = await importMotec(Buffer.from(bytes), ldxBytes ? Buffer.from(ldxBytes) : undefined, {
         gameId: target.gameId,
         carOrdinal,
         trackOrdinal,
@@ -194,10 +263,7 @@ export const transferRoutes = new Hono()
         ownership: ownership.data,
       });
       if (result.laps.length === 0) {
-        return c.json(
-          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
-          400
-        );
+        return c.json({ error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations }, 400);
       }
       return c.json({
         ...result,
@@ -213,74 +279,53 @@ export const transferRoutes = new Hono()
   })
 
   .post("/api/laps/import-ibt/preview", async (c) => {
-    const uploadName =
-      c.req.header("x-file-name") ?? "session.ibt";
+    const uploadName = c.req.header("x-file-name") ?? "session.ibt";
     if (!uploadName.toLowerCase().endsWith(".ibt")) {
       return c.json({ error: "Expected an .ibt file" }, 400);
     }
-    const declaredHeader =
-      c.req.header("x-file-size") ?? c.req.header("content-length");
-    const declaredBytes = declaredHeader
-      ? Number(declaredHeader)
-      : undefined;
+    const declaredHeader = c.req.header("x-file-size") ?? c.req.header("content-length");
+    const declaredBytes = declaredHeader ? Number(declaredHeader) : undefined;
 
     try {
-      const result = await stageIbtUpload(
-        c.req.raw.body,
-        uploadName,
-        declaredBytes,
-      );
+      const result = await stageIbtUpload(c.req.raw.body, uploadName, declaredBytes);
       return c.json(result);
     } catch (error) {
-      const status =
-        error instanceof IbtImportError ? error.status : 400;
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const status = error instanceof IbtImportError ? error.status : 400;
+      const message = error instanceof Error ? error.message : String(error);
       console.error("[IBT Import] Preview failed:", message);
+      return c.json({ error: `Failed to preview IBT: ${message}` }, status);
+    }
+  })
+
+  .post("/api/laps/import-ibt/commit", zValidator("json", IbtCommitSchema), async (c) => {
+    const { token, ownership } = c.req.valid("json");
+    try {
+      const { packetCount, laps, preview } = await commitStagedIbt(token, ownership);
+      return c.json({
+        ok: true,
+        gameId: "iracing" as const,
+        routePrefix: getGame("iracing").routePrefix,
+        packetCount,
+        imported: laps.length,
+        laps,
+        preview,
+      });
+    } catch (error) {
+      const status = error instanceof IbtImportError ? error.status : error instanceof TelemetryImportError ? 400 : 500;
+      const payload = importErrorPayload(error);
+      console.error("[IBT Import] Commit failed:", payload.error);
       return c.json(
-        { error: `Failed to preview IBT: ${message}` },
+        {
+          ...payload,
+          error: `Failed to import IBT: ${payload.error}`,
+        },
         status,
       );
     }
   })
 
-  .post(
-    "/api/laps/import-ibt/commit",
-    zValidator("json", IbtCommitSchema),
-    async (c) => {
-      const { token, ownership } = c.req.valid("json");
-      try {
-        const { packetCount, laps, preview } =
-          await commitStagedIbt(token, ownership);
-        return c.json({
-          ok: true,
-          gameId: "iracing" as const,
-          routePrefix: getGame("iracing").routePrefix,
-          packetCount,
-          imported: laps.length,
-          laps,
-          preview,
-        });
-      } catch (error) {
-        const status =
-          error instanceof IbtImportError ? error.status : 500;
-        const message =
-          error instanceof Error ? error.message : String(error);
-        console.error("[IBT Import] Commit failed:", message);
-        return c.json(
-          { error: `Failed to import IBT: ${message}` },
-          status,
-        );
-      }
-    },
-  )
-
-  .post(
-    "/api/laps/import-ibt/cancel",
-    zValidator("json", IbtImportTokenSchema),
-    (c) => {
-      const { token } = c.req.valid("json");
-      cancelStagedIbt(token);
-      return c.json({ ok: true });
-    },
-  );
+  .post("/api/laps/import-ibt/cancel", zValidator("json", IbtImportTokenSchema), (c) => {
+    const { token } = c.req.valid("json");
+    cancelStagedIbt(token);
+    return c.json({ ok: true });
+  });

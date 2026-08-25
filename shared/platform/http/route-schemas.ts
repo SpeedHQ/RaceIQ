@@ -20,6 +20,11 @@ export const GameIdQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
 });
 
+/** Common required `?gameId=` query param. */
+export const RequiredGameIdQuerySchema = z.object({
+  gameId: GameIdSchema,
+});
+
 const parseIntParam = (name: "id" | "versionId") =>
   z
     .string()

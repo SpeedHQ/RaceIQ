@@ -1,6 +1,9 @@
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type {
+  RaceEventId,
+} from "../../shared/racing/events/contracts";
+import type {
   RaceResultClaimEvidence,
   RaceResultEvidence,
   RaceResultOutcomeStatus,
@@ -10,33 +13,6 @@ import type {
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
 export type ResultClassification = RaceResultStatus;
-export type PitService = "tyres" | "fuel" | "combined" | "unknown";
-export type PitLinkage = "linked" | "unlinked" | "unknown";
-export type RaceEventType = "pit" | "position-change";
-
-export interface PitEvent {
-  eventType?: RaceEventType;
-  sequence: number;
-  lapNumber: number | null;
-  elapsedSeconds: number | null;
-  durationSeconds: number | null;
-  service: PitService;
-  tyreChange: unknown;
-  fuelAdded: number | null;
-  fuelBefore: number | null;
-  fuelAfter: number | null;
-  positionBefore?: number | null;
-  positionAfter?: number | null;
-  linkage: PitLinkage;
-  source: Record<string, unknown>;
-}
-
-export interface PositionChangeEvent extends PitEvent {
-  eventType: "position-change";
-  lapNumber: number;
-  positionBefore: number;
-  positionAfter: number;
-}
 
 export interface RaceSourceObservation {
   gameId: GameId;
@@ -48,8 +24,6 @@ export interface RaceSourceObservation {
   fastestLapSource?: string | null;
   packets: TelemetryPacket[];
   claims?: RaceResultClaimEvidence[];
-  pitEvents?: PitEvent[];
-  positionChanges?: PositionChangeEvent[];
   tyreStrategy?: unknown;
   fuelStrategy?: unknown;
   provenance: RaceResultProvenance;
@@ -65,7 +39,7 @@ export interface DerivedRaceResult {
   isPodium: boolean | null;
   isFastestLap: boolean | null;
   pitCount: number;
-  events: PitEvent[];
+  eventIds: RaceEventId[];
   tyreStrategy: unknown;
   fuelStrategy: unknown;
   provenance: RaceResultProvenance;

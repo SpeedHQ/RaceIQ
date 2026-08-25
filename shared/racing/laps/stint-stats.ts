@@ -1,5 +1,7 @@
 import { clamp } from "@shared/core/numbers";
 import type { LapMeta } from "../sessions/types";
+import type { EligibilityDecision } from "../quality/contracts";
+import { evaluateAllEligibility, evaluateGroupEligibility, isEligibilityUsable, resolveEligibilityDecision } from "../quality/policies";
 
 /**
  * Stint-level pace statistics. Lives in shared/ rather than client/ because the
@@ -20,6 +22,7 @@ export interface StintStats {
   /** OLS slope of lapTime vs lapNumber (s/lap); undefined when n < 3. */
   degSlopeSPerLap: number | undefined;
   n: number;
+  falloffEligibility: EligibilityDecision;
 }
 
 export function repeatabilityStats(values: readonly number[]): {
@@ -58,37 +61,74 @@ export function repeatabilityStats(values: readonly number[]): {
 }
 
 /**
- * Stint-level stats computed purely from LapMeta lap times — valid,
- * non-experiment-excluded laps, excluding the stint's first lap
- * (lapNumber === Math.min(...)) which is treated as an out-lap.
- *
- * Pass `dropOutLap: false` when `laps` is already a curated pool (e.g. the
- * evaluation laps from selectEvaluationLaps) — that pool has dropped the
- * out-lap itself, so dropping the lowest lap number again would silently
- * throw away one legitimate fast lap and make `n` disagree with the caller's
- * own lap count.
+ * Stint-level pace stats. Existing callers use validity and explicit out-lap
+ * curation; canonical session runs opt into policy-backed eligibility.
  */
-export function stintStats(laps: LapMeta[], opts?: { dropOutLap?: boolean }): StintStats {
-  const dropOutLap = opts?.dropOutLap ?? true;
-  const eligible = laps.filter((l) => l.isValid && !l.experimentExcluded);
-  const minLapNumber = dropOutLap && eligible.length > 0 ? Math.min(...eligible.map((l) => l.lapNumber)) : null;
-  const scored = minLapNumber === null ? eligible : eligible.filter((l) => l.lapNumber !== minLapNumber);
-  const repeatability = repeatabilityStats(scored.map((l) => l.lapTime));
+export function stintStats(
+  laps: LapMeta[],
+  options: {
+    dropOutLap?: boolean;
+    paceSegmentId?: string | null;
+  } = {},
+): StintStats {
+  const policyBacked = options.paceSegmentId !== undefined;
+  const eligible = policyBacked
+    ? laps.flatMap((lap) => {
+        const normalPace = resolveEligibilityDecision(lap, "normal-pace");
+        return Number.isFinite(lap.lapTime) &&
+          lap.lapTime > 0 &&
+          isEligibilityUsable(normalPace) &&
+          !lap.experimentExcluded
+          ? [{ lap, normalPace }]
+          : [];
+      })
+    : laps
+        .filter((lap) => lap.isValid && !lap.experimentExcluded)
+        .map((lap) => ({
+          lap,
+          normalPace: resolveEligibilityDecision(lap, "normal-pace"),
+        }));
+  const dropOutLap = options.dropOutLap ?? !policyBacked;
+  const firstLapNumber =
+    dropOutLap && eligible.length > 0
+      ? Math.min(...eligible.map(({ lap }) => lap.lapNumber))
+      : null;
+  const scored =
+    firstLapNumber === null
+      ? eligible
+      : eligible.filter(({ lap }) => lap.lapNumber !== firstLapNumber);
+  const falloffDecision = evaluateGroupEligibility(
+    "stint-falloff",
+    scored.flatMap(({ lap, normalPace }) =>
+      lap.quality
+        ? [
+            {
+              lapId: lap.id,
+              lapTime: lap.lapTime,
+              quality: lap.quality,
+              eligibility: { ...evaluateAllEligibility(lap.quality), ...lap.eligibility, "normal-pace": normalPace },
+            },
+          ]
+        : [],
+    ),
+    { paceSegmentId: options.paceSegmentId ?? null },
+  );
+  const repeatability = repeatabilityStats(scored.map(({ lap }) => lap.lapTime));
   const n = repeatability.n;
 
   if (n === 0) {
-    return { consistency: undefined, sdS: undefined, bestS: undefined, meanS: undefined, degSlopeSPerLap: undefined, n };
+    return { consistency: undefined, sdS: undefined, bestS: undefined, meanS: undefined, degSlopeSPerLap: undefined, n, falloffEligibility: falloffDecision };
   }
 
-  const scoredQualifying = scored.filter((l) => Number.isFinite(l.lapTime) && l.lapTime > 0);
-  const times = scoredQualifying.map((l) => l.lapTime);
+  const scoredQualifying = scored.map(({ lap }) => lap).filter((lap) => Number.isFinite(lap.lapTime) && lap.lapTime > 0);
+  const times = scoredQualifying.map((lap) => lap.lapTime);
   const bestS = Math.min(...times);
   const meanS = repeatability.mean!;
   const sdS = repeatability.sd === null ? undefined : repeatability.sd;
   const consistency = repeatability.consistency === null ? undefined : repeatability.consistency;
 
   let degSlopeSPerLap: number | undefined;
-  if (n >= 3) {
+  if (n >= 3 && (!policyBacked || isEligibilityUsable(falloffDecision))) {
     const xs = scoredQualifying.map((l) => l.lapNumber);
     const xMean = xs.reduce((a, b) => a + b, 0) / n;
     const yMean = meanS;
@@ -101,5 +141,5 @@ export function stintStats(laps: LapMeta[], opts?: { dropOutLap?: boolean }): St
     degSlopeSPerLap = den > 0 ? num / den : 0;
   }
 
-  return { consistency, sdS, bestS, meanS, degSlopeSPerLap, n };
+  return { consistency, sdS, bestS, meanS, degSlopeSPerLap, n, falloffEligibility: falloffDecision };
 }

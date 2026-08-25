@@ -4,7 +4,7 @@ getIRacingTrackName,
 getIRacingTrackOrdinalByName, } from "../../../shared/racing/tracks/catalogs/iracing"
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
-import { LapDetectorIRacing } from "./lap-detector";
+import { LAP_DETECTOR_IRACING_ID, LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "../types";
 import {
   createIRacingParserState,
@@ -15,6 +15,12 @@ import {
   canHandleIRacingSourceFrame,
   decodeIRacingSourceFrame,
 } from "./source-frame";
+import {
+  baseRaceEventObservation,
+  localPlayerObservation,
+  normalizedFuelLitres,
+  normalizedTireWear,
+} from "../race-event-observation";
 
 const IRACING_SYSTEM_PROMPT = `You are an expert iRacing driver coach and race engineer.
 
@@ -74,6 +80,58 @@ export const iracingServerAdapter: ServerGameAdapter = {
   createParserState(): IRacingParserState {
     return createIRacingParserState();
   },
+
+  toRaceEventObservation(packet, context) {
+    const observation = baseRaceEventObservation(packet, context);
+    observation.trackDistanceM =
+      packet.iracing &&
+      Number.isFinite(packet.iracing.lapDistanceM) &&
+      packet.iracing.lapDistanceM >= 0
+        ? packet.iracing.lapDistanceM
+        : null;
+    observation.trackDistancePct =
+      packet.iracing &&
+      Number.isFinite(packet.iracing.lapDistancePct) &&
+      packet.iracing.lapDistancePct >= 0 &&
+      packet.iracing.lapDistancePct <= 1
+        ? packet.iracing.lapDistancePct
+        : null;
+    // The live SDK does not provide stable world-space racing-line position.
+    observation.worldPosition = null;
+    const onPitRoad = packet.iracing?.onPitRoad;
+    observation.participants = [
+      localPlayerObservation(packet, {
+        pitState:
+          typeof onPitRoad === "boolean"
+            ? onPitRoad
+              ? "pit-lane"
+              : "out"
+            : "unknown",
+        nativePitCode:
+          typeof onPitRoad === "boolean" ? (onPitRoad ? 1 : 0) : null,
+        fuelLitres: normalizedFuelLitres(
+          packet,
+          iracingAdapter.telemetry.fuel.packetUnit,
+        ),
+        tireCompound: null,
+        tireWear:
+          packet.iracing?.pitTireWearAvailable === true
+            ? normalizedTireWear(packet)
+            : null,
+        damage: null,
+        penaltyValue: null,
+        incidentCount:
+          packet.iracing &&
+          Number.isInteger(packet.iracing.incidents) &&
+          packet.iracing.incidents >= 0
+            ? packet.iracing.incidents
+            : null,
+      }),
+    ];
+    return observation;
+  },
+
+  lapDetectorId: LAP_DETECTOR_IRACING_ID,
 
   createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,

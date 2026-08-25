@@ -1,10 +1,18 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
+import { createKunosReplayClock, resolveKunosReplayTimestamp } from "./replay-clock";
 
 const ACC_MAGIC = Buffer.from("ACCTEST\0", "ascii");
 const HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
 const FRAME_HEADER = 5; // type (1) + size (4)
 const SUPPORTED_VERSIONS = new Set([2, 3]);
+
+export interface KunosRecordingFrame {
+  physics: Buffer;
+  graphics: Buffer;
+  staticData: Buffer;
+  timestampMS: number;
+}
 
 /**
  * Read assembled triplets from a Kunos recording (.bin or .bin.gz).
@@ -15,7 +23,7 @@ const SUPPORTED_VERSIONS = new Set([2, 3]);
  * Parser must length-guard reads of tail-of-struct fields.
  * @param limit Maximum number of triplets to return (default: all)
  */
-export function readKunosFrames(filePath: string, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+export function readKunosFrames(filePath: string, limit?: number): KunosRecordingFrame[] {
   const raw = readFileSync(filePath);
   const data = filePath.endsWith(".gz") ? gunzipSync(raw) : raw;
 
@@ -36,16 +44,25 @@ export function readKunosFrames(filePath: string, limit?: number): { physics: Bu
   // frames are deduplicated (only written when the bytes change). A triplet is
   // therefore flushed when the NEXT poll's physics frame arrives (or at EOF),
   // carrying the last-seen static forward across polls that skipped it.
-  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+  const frames: KunosRecordingFrame[] = [];
   let pendingPhysics: Buffer | null = null;
   let pendingGraphics: Buffer | null = null;
   let lastStatic = Buffer.alloc(0);
+  const replayClock = createKunosReplayClock();
   let offset = HEADER_SIZE;
   let frameIdx = 0;
 
   const flush = (): void => {
     if (pendingPhysics && pendingGraphics && lastStatic.length > 0) {
-      frames.push({ physics: pendingPhysics, graphics: pendingGraphics, staticData: lastStatic });
+      const packetId = pendingPhysics.length >= 4
+        ? pendingPhysics.readInt32LE(0)
+        : replayClock.previousPacketId ?? 0;
+      frames.push({
+        physics: pendingPhysics,
+        graphics: pendingGraphics,
+        staticData: lastStatic,
+        timestampMS: resolveKunosReplayTimestamp(replayClock, packetId),
+      });
     }
     pendingPhysics = null;
     pendingGraphics = null;

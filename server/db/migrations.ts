@@ -1702,9 +1702,674 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
     ],
   },
-  // v60: Persist deterministic structured findings and finding-generation cache fences.
+  // v60: Replace the result-owned pit ledger with the canonical,
+  // session-owned race-event timeline. Legacy event ids are deliberately
+  // retained because lap-quality facts may already reference them.
   {
     version: 60,
+    name: "add lap classification and canonical race event timeline",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN phase TEXT NOT NULL DEFAULT 'flying'`,
+      `ALTER TABLE laps ADD COLUMN conditions TEXT NOT NULL DEFAULT '[]'`,
+      `ALTER TABLE laps ADD COLUMN pace_eligibility TEXT NOT NULL DEFAULT 'eligible'`,
+      `UPDATE laps
+       SET phase = CASE invalid_reason
+         WHEN 'outlap' THEN 'out'
+         WHEN 'inlap' THEN 'in'
+         WHEN 'pit lap' THEN 'pit'
+         ELSE phase
+       END,
+       pace_eligibility = 'excluded',
+       is_valid = 1,
+       invalid_reason = NULL
+       WHERE invalid_reason IN ('outlap', 'inlap', 'pit lap')`,
+      `ALTER TABLE session_results ADD COLUMN event_ids TEXT NOT NULL DEFAULT '[]'`,
+      `CREATE TABLE race_events (
+         event_id               TEXT PRIMARY KEY,
+         event_type             TEXT NOT NULL,
+         schema_version         TEXT NOT NULL,
+         session_id             INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         participant_id         TEXT,
+         participant_kind       TEXT,
+         driver_id              TEXT,
+         team_id                TEXT,
+         timeline_epoch         INTEGER NOT NULL CHECK (typeof(timeline_epoch) = 'integer' AND timeline_epoch >= 0 AND timeline_epoch <= 9007199254740991),
+         sequence               INTEGER NOT NULL CHECK (typeof(sequence) = 'integer' AND sequence >= 0 AND sequence <= 9007199254740991),
+         event_order            INTEGER NOT NULL CHECK (typeof(event_order) = 'integer' AND event_order >= 0 AND event_order <= 9007199254740991),
+         source_time_ms          INTEGER CHECK (source_time_ms IS NULL OR (typeof(source_time_ms) = 'integer' AND source_time_ms >= -9007199254740991 AND source_time_ms <= 9007199254740991)),
+         source_end_time_ms      INTEGER CHECK (source_end_time_ms IS NULL OR (typeof(source_end_time_ms) = 'integer' AND source_end_time_ms >= -9007199254740991 AND source_end_time_ms <= 9007199254740991)),
+         source_sequence_family TEXT,
+         source_sequence        INTEGER CHECK (source_sequence IS NULL OR (typeof(source_sequence) = 'integer' AND source_sequence >= -9007199254740991 AND source_sequence <= 9007199254740991)),
+         received_at_ms         INTEGER NOT NULL CHECK (typeof(received_at_ms) = 'integer' AND received_at_ms >= 0 AND received_at_ms <= 9007199254740991),
+         lap_number             INTEGER CHECK (lap_number IS NULL OR (typeof(lap_number) = 'integer' AND lap_number >= 0 AND lap_number <= 9007199254740991)),
+         lap_id                 INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         track_distance_m       REAL,
+         track_distance_pct     REAL,
+         world_position         TEXT,
+         evidence_kind          TEXT NOT NULL CHECK (evidence_kind IN ('observed', 'derived', 'inferred')),
+         confidence             TEXT NOT NULL CHECK (confidence IN ('high', 'medium', 'low', 'unknown')),
+         quality_state          TEXT NOT NULL CHECK (quality_state IN ('available', 'degraded', 'ambiguous', 'unavailable')),
+         source_kind            TEXT NOT NULL,
+         payload                TEXT NOT NULL,
+         lifecycle_id           TEXT,
+         linked_event_id        TEXT REFERENCES race_events(event_id) ON DELETE SET NULL,
+         detector_id            TEXT NOT NULL,
+         detector_version       TEXT NOT NULL,
+         source_generation      TEXT,
+         analysis_generation_id TEXT,
+         content_hash           TEXT,
+         created_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+         CHECK (source_time_ms IS NULL OR source_end_time_ms IS NOT NULL),
+         CHECK (source_end_time_ms IS NULL OR source_time_ms IS NOT NULL),
+         CHECK (source_time_ms IS NULL OR source_end_time_ms >= source_time_ms),
+         CHECK (track_distance_pct IS NULL OR (track_distance_pct >= 0 AND track_distance_pct <= 1))
+       )`,
+      `CREATE INDEX idx_race_events_session_order
+       ON race_events(session_id, timeline_epoch, sequence, event_order, event_id)`,
+      `CREATE INDEX idx_race_events_participant
+       ON race_events(session_id, participant_id, timeline_epoch, sequence, event_order, event_id)`,
+      `CREATE INDEX idx_race_events_lap
+       ON race_events(lap_id, timeline_epoch, sequence, event_order, event_id)`,
+      `CREATE INDEX idx_race_events_source_time
+       ON race_events(session_id, source_time_ms, source_end_time_ms)`,
+      `CREATE INDEX idx_race_events_lifecycle
+       ON race_events(session_id, lifecycle_id, timeline_epoch, sequence, event_order, event_id)`,
+      `CREATE INDEX idx_race_events_linked_event ON race_events(linked_event_id)`,
+      `CREATE TABLE migration_v60_position_guard (
+         is_valid INTEGER NOT NULL CHECK (is_valid = 1)
+       )`,
+      `INSERT INTO migration_v60_position_guard (is_valid)
+       SELECT CASE WHEN EXISTS (
+         SELECT 1
+         FROM pit_events
+         WHERE event_type = 'position-change'
+           AND (
+             position_after IS NULL
+             OR typeof(position_after) != 'integer'
+             OR position_after < 1
+             OR position_after > 9007199254740991
+           )
+       ) THEN 0 ELSE 1 END`,
+      `DROP TABLE migration_v60_position_guard`,
+      `INSERT INTO race_events (
+         event_id, event_type, schema_version, session_id,
+         participant_id, participant_kind, timeline_epoch, sequence, event_order,
+         source_time_ms, source_end_time_ms, received_at_ms,
+         lap_number, lap_id, evidence_kind, confidence, quality_state, source_kind,
+         payload, lifecycle_id, detector_id, detector_version,
+         source_generation, content_hash, created_at
+       )
+       SELECT
+         CASE WHEN pit_events.event_type = 'position-change'
+           THEN 'position-event:' || pit_events.id
+           ELSE 'pit-event:' || pit_events.id
+         END,
+         CASE WHEN pit_events.event_type = 'position-change'
+           THEN 'position_changed'
+           ELSE 'pit_entry'
+         END,
+         'race-event-v1',
+         session_results.session_id,
+         'local-player',
+         'player',
+         0,
+         pit_events.sequence,
+         CASE WHEN pit_events.event_type = 'position-change' THEN 20 ELSE 50 END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
+         pit_events.lap_number,
+         (SELECT laps.id
+          FROM laps
+          WHERE laps.session_id = session_results.session_id
+            AND laps.lap_number = pit_events.lap_number
+          ORDER BY laps.id
+          LIMIT 1),
+         'derived',
+         'unknown',
+         'ambiguous',
+         CASE WHEN sessions.source IN (
+           'native-live', 'raceiq-raw', 'raceiq-archive', 'canonical-archive',
+           'iracing-ibt', 'motec', 'remote-collector', 'external-log'
+         ) THEN sessions.source ELSE 'unknown' END,
+         CASE WHEN pit_events.event_type = 'position-change'
+           THEN json_object(
+             'previousPosition', CASE
+               WHEN typeof(pit_events.position_before) = 'integer'
+                AND pit_events.position_before >= 1
+                AND pit_events.position_before <= 9007199254740991
+               THEN pit_events.position_before
+               ELSE NULL
+             END,
+             'position', pit_events.position_after
+           )
+           ELSE json_object('previousState', 'unknown', 'state', 'pit-lane')
+         END,
+         CASE WHEN pit_events.event_type = 'position-change'
+           THEN NULL
+           ELSE 'legacy:pit-visit:' || pit_events.id
+         END,
+         'legacy-race-result',
+         'legacy-v1',
+         'legacy',
+         NULL,
+         COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', pit_events.created_at), '1970-01-01T00:00:00.000Z')
+       FROM pit_events
+       JOIN session_results ON session_results.id = pit_events.result_id
+       JOIN sessions ON sessions.id = session_results.session_id`,
+      `INSERT INTO race_events (
+         event_id, event_type, schema_version, session_id,
+         participant_id, participant_kind, timeline_epoch, sequence, event_order,
+         source_time_ms, source_end_time_ms, received_at_ms,
+         lap_number, lap_id, evidence_kind, confidence, quality_state, source_kind,
+         payload, lifecycle_id, linked_event_id, detector_id, detector_version,
+         source_generation, content_hash, created_at
+       )
+       SELECT
+         'pit-event:' || pit_events.id || ':tire-service',
+         'tire_service_observed',
+         'race-event-v1',
+         session_results.session_id,
+         'local-player',
+         'player',
+         0,
+         pit_events.sequence,
+         60,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
+         pit_events.lap_number,
+         (SELECT laps.id
+          FROM laps
+          WHERE laps.session_id = session_results.session_id
+            AND laps.lap_number = pit_events.lap_number
+          ORDER BY laps.id
+          LIMIT 1),
+         'derived',
+         'unknown',
+         'ambiguous',
+         CASE WHEN sessions.source IN (
+           'native-live', 'raceiq-raw', 'raceiq-archive', 'canonical-archive',
+           'iracing-ibt', 'motec', 'remote-collector', 'external-log'
+         ) THEN sessions.source ELSE 'unknown' END,
+         json_object(
+           'changedCorners', json_array(),
+           'previousCompound', CASE
+             WHEN json_valid(pit_events.tyre_change)
+              AND json_type(pit_events.tyre_change, '$.from') = 'text'
+             THEN json_extract(pit_events.tyre_change, '$.from')
+             ELSE NULL
+           END,
+           'currentCompound', CASE
+             WHEN json_valid(pit_events.tyre_change)
+              AND json_type(pit_events.tyre_change, '$.to') = 'text'
+             THEN json_extract(pit_events.tyre_change, '$.to')
+             ELSE NULL
+           END,
+           'beforeWear', NULL,
+           'afterWear', NULL
+         ),
+         'legacy:pit-visit:' || pit_events.id,
+         'pit-event:' || pit_events.id,
+         'legacy-race-result',
+         'legacy-v1',
+         'legacy',
+         NULL,
+         COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', pit_events.created_at), '1970-01-01T00:00:00.000Z')
+       FROM pit_events
+       JOIN session_results ON session_results.id = pit_events.result_id
+       JOIN sessions ON sessions.id = session_results.session_id
+       WHERE pit_events.event_type != 'position-change'
+         AND pit_events.tyre_change IS NOT NULL
+         AND (json_valid(pit_events.tyre_change) = 0 OR json_type(pit_events.tyre_change) != 'null')`,
+      `INSERT INTO race_events (
+         event_id, event_type, schema_version, session_id,
+         participant_id, participant_kind, timeline_epoch, sequence, event_order,
+         source_time_ms, source_end_time_ms, received_at_ms,
+         lap_number, lap_id, evidence_kind, confidence, quality_state, source_kind,
+         payload, lifecycle_id, linked_event_id, detector_id, detector_version,
+         source_generation, content_hash, created_at
+       )
+       SELECT
+         'pit-event:' || pit_events.id || ':fuel-service',
+         'fuel_service_observed',
+         'race-event-v1',
+         session_results.session_id,
+         'local-player',
+         'player',
+         0,
+         pit_events.sequence,
+         60,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         CASE WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+                    OR pit_events.elapsed_seconds < -9007199254740.991
+                    OR pit_events.elapsed_seconds > 9007199254740.991
+              THEN NULL ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER) END,
+         COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
+         pit_events.lap_number,
+         (SELECT laps.id
+          FROM laps
+          WHERE laps.session_id = session_results.session_id
+            AND laps.lap_number = pit_events.lap_number
+          ORDER BY laps.id
+          LIMIT 1),
+         'derived',
+         'unknown',
+         'ambiguous',
+         CASE WHEN sessions.source IN (
+           'native-live', 'raceiq-raw', 'raceiq-archive', 'canonical-archive',
+           'iracing-ibt', 'motec', 'remote-collector', 'external-log'
+         ) THEN sessions.source ELSE 'unknown' END,
+         json_object(
+           'beforeLitres', pit_events.fuel_before,
+           'afterLitres', pit_events.fuel_after,
+           'addedLitres', pit_events.fuel_added
+         ),
+         'legacy:pit-visit:' || pit_events.id,
+         'pit-event:' || pit_events.id,
+         'legacy-race-result',
+         'legacy-v1',
+         'legacy',
+         NULL,
+         COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', pit_events.created_at), '1970-01-01T00:00:00.000Z')
+       FROM pit_events
+       JOIN session_results ON session_results.id = pit_events.result_id
+       JOIN sessions ON sessions.id = session_results.session_id
+       WHERE pit_events.event_type != 'position-change'
+         AND pit_events.fuel_added IS NOT NULL
+         AND pit_events.fuel_before IS NOT NULL
+         AND pit_events.fuel_after IS NOT NULL
+         AND pit_events.fuel_added >= 0
+         AND pit_events.fuel_before >= 0
+         AND pit_events.fuel_after >= 0`,
+      `INSERT INTO race_events (
+         event_id, event_type, schema_version, session_id,
+         participant_id, participant_kind, timeline_epoch, sequence, event_order,
+         source_time_ms, source_end_time_ms, received_at_ms,
+         lap_number, lap_id, evidence_kind, confidence, quality_state, source_kind,
+         payload, lifecycle_id, linked_event_id, detector_id, detector_version,
+         source_generation, content_hash, created_at
+       )
+       SELECT
+         'pit-event:' || pit_events.id || ':service-completed',
+         'pit_service_completed',
+         'race-event-v1',
+         session_results.session_id,
+         'local-player',
+         'player',
+         0,
+         pit_events.sequence,
+         50,
+         CASE
+           WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+             OR pit_events.elapsed_seconds < -9007199254740.991
+             OR pit_events.elapsed_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds < -9007199254740.991
+           THEN NULL
+           ELSE CAST(ROUND(pit_events.elapsed_seconds * 1000) AS INTEGER)
+         END,
+         CASE
+           WHEN typeof(pit_events.elapsed_seconds) NOT IN ('integer', 'real')
+             OR pit_events.elapsed_seconds < -9007199254740.991
+             OR pit_events.elapsed_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds > 9007199254740.991
+             OR pit_events.elapsed_seconds + pit_events.duration_seconds < -9007199254740.991
+           THEN NULL
+           ELSE CAST(ROUND((pit_events.elapsed_seconds + pit_events.duration_seconds) * 1000) AS INTEGER)
+         END,
+         COALESCE(CAST(strftime('%s', pit_events.created_at) AS INTEGER) * 1000, 0),
+         pit_events.lap_number,
+         (SELECT laps.id
+          FROM laps
+          WHERE laps.session_id = session_results.session_id
+            AND laps.lap_number = pit_events.lap_number
+          ORDER BY laps.id
+          LIMIT 1),
+         'derived',
+         'unknown',
+         'ambiguous',
+         CASE WHEN sessions.source IN (
+           'native-live', 'raceiq-raw', 'raceiq-archive', 'canonical-archive',
+           'iracing-ibt', 'motec', 'remote-collector', 'external-log'
+         ) THEN sessions.source ELSE 'unknown' END,
+         json_object(
+           'durationMs', CAST(ROUND(pit_events.duration_seconds * 1000) AS INTEGER),
+           'observedActions', json_array(),
+           'state', 'pit-stall'
+         ),
+         'legacy:pit-visit:' || pit_events.id,
+         'pit-event:' || pit_events.id,
+         'legacy-race-result',
+         'legacy-v1',
+         'legacy',
+         NULL,
+         COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', pit_events.created_at), '1970-01-01T00:00:00.000Z')
+       FROM pit_events
+       JOIN session_results ON session_results.id = pit_events.result_id
+       JOIN sessions ON sessions.id = session_results.session_id
+       WHERE pit_events.event_type != 'position-change'
+         AND pit_events.duration_seconds IS NOT NULL
+         AND typeof(pit_events.duration_seconds) IN ('integer', 'real')
+         AND pit_events.duration_seconds >= 0
+         AND pit_events.duration_seconds <= 9007199254740.991`,
+      `UPDATE session_results
+       SET event_ids = COALESCE(
+         (SELECT json_group_array(ordered.event_id)
+          FROM (
+            SELECT event_id
+            FROM race_events
+            WHERE session_id = session_results.session_id
+            ORDER BY timeline_epoch, sequence, event_order, event_id
+          ) AS ordered),
+         '[]'
+       )`,
+      `DROP TABLE pit_events`,
+    ],
+  },
+  // v61: Align new result rows with the current processor contract without
+  // repurposing v52, whose default has already shipped.
+  {
+    version: 61,
+    name: "default new race results to processor v2",
+    sql: [
+      `CREATE TABLE session_results_v61 (
+         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+         session_id          INTEGER NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+         processor_version   TEXT NOT NULL DEFAULT 'race-result-v2',
+         session_type        TEXT NOT NULL DEFAULT 'unknown',
+         classification      TEXT NOT NULL DEFAULT 'unknown',
+         finishing_position  INTEGER,
+         qualifying_position INTEGER,
+         is_podium           INTEGER,
+         is_fastest_lap      INTEGER,
+         pit_count           INTEGER NOT NULL DEFAULT 0,
+         tyre_strategy       TEXT,
+         fuel_strategy       TEXT,
+         provenance          TEXT,
+         reasons             TEXT,
+         created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
+         outcome_status      TEXT NOT NULL DEFAULT 'unavailable',
+         evidence            TEXT,
+         event_ids           TEXT NOT NULL DEFAULT '[]'
+       )`,
+      `INSERT INTO session_results_v61 (
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at, outcome_status, evidence, event_ids
+       )
+       SELECT
+         id, session_id, processor_version, session_type, classification,
+         finishing_position, qualifying_position, is_podium, is_fastest_lap,
+         pit_count, tyre_strategy, fuel_strategy, provenance, reasons,
+         created_at, updated_at, outcome_status, evidence, event_ids
+       FROM session_results`,
+      `DROP TABLE session_results`,
+      `ALTER TABLE session_results_v61 RENAME TO session_results`,
+      `CREATE INDEX idx_session_results_session ON session_results(session_id)`,
+    ],
+  },
+  // v62: Persist canonical participant runs, independent stint dimensions,
+  // semantic lap membership, and boundary evidence.
+  {
+    version: 62,
+    name: "add canonical session runs",
+    sql: [
+      `CREATE TABLE session_runs (
+         run_id                    TEXT PRIMARY KEY,
+         schema_version            TEXT NOT NULL,
+         algorithm_version         TEXT NOT NULL,
+         session_id                INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         participant_id            TEXT,
+         participant_kind          TEXT,
+         driver_id                 TEXT,
+         team_id                   TEXT,
+         class_id                  TEXT,
+         run_kind                  TEXT NOT NULL CHECK (run_kind IN ('participant', 'tire', 'driver', 'pace')),
+         status                    TEXT NOT NULL CHECK (status IN ('complete', 'incomplete')),
+         opening_phase             TEXT NOT NULL CHECK (opening_phase IN ('unknown', 'inactive', 'formation', 'green', 'caution', 'red', 'checkered', 'finished')),
+         observed_phases           TEXT NOT NULL,
+         timeline_epoch            INTEGER NOT NULL CHECK (timeline_epoch >= 0),
+         opening_sequence          INTEGER NOT NULL CHECK (opening_sequence >= 0),
+         opening_event_order       INTEGER NOT NULL CHECK (opening_event_order >= 0),
+         opening_reason            TEXT NOT NULL,
+         opening_event_id          TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         opening_confidence        TEXT NOT NULL CHECK (opening_confidence IN ('high', 'medium', 'low', 'unknown')),
+         opening_evidence_kind     TEXT NOT NULL CHECK (opening_evidence_kind IN ('observed', 'derived', 'inferred')),
+         closing_reason            TEXT NOT NULL,
+         closing_event_id          TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         closing_confidence        TEXT NOT NULL CHECK (closing_confidence IN ('high', 'medium', 'low', 'unknown')),
+         closing_evidence_kind     TEXT NOT NULL CHECK (closing_evidence_kind IN ('observed', 'derived', 'inferred')),
+         start_lap_event_id        TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         end_lap_event_id          TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         start_lap_id              INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         end_lap_id                INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         start_source_time_ms      INTEGER,
+         end_source_time_ms        INTEGER,
+         start_track_distance_m    REAL,
+         end_track_distance_m      REAL,
+         start_track_distance_pct  REAL,
+         end_track_distance_pct    REAL,
+         tire_compound             TEXT,
+         tire_set_id               TEXT,
+         source_generation         TEXT,
+         analysis_generation_id    TEXT,
+         quality_flags             TEXT NOT NULL,
+         summary                   TEXT NOT NULL,
+         content_hash              TEXT NOT NULL,
+         created_at                TEXT NOT NULL,
+         CHECK (closing_event_id IS NOT NULL OR (status = 'incomplete' AND closing_reason = 'source_ended')),
+         CHECK (start_source_time_ms IS NULL OR end_source_time_ms IS NULL OR end_source_time_ms >= start_source_time_ms),
+         CHECK (start_track_distance_pct IS NULL OR (start_track_distance_pct >= 0 AND start_track_distance_pct <= 1)),
+         CHECK (end_track_distance_pct IS NULL OR (end_track_distance_pct >= 0 AND end_track_distance_pct <= 1))
+       )`,
+      `CREATE UNIQUE INDEX uq_session_runs_known_participant_coordinate
+       ON session_runs(session_id, participant_id, run_kind, timeline_epoch, opening_event_id)
+       WHERE participant_id IS NOT NULL`,
+      `CREATE UNIQUE INDEX uq_session_runs_unknown_participant_coordinate
+       ON session_runs(session_id, run_kind, timeline_epoch, opening_event_id)
+       WHERE participant_id IS NULL`,
+      `CREATE INDEX idx_session_runs_session_kind_order
+       ON session_runs(session_id, run_kind, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_participant_kind_order
+       ON session_runs(session_id, participant_id, run_kind, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_driver_order
+       ON session_runs(driver_id, timeline_epoch, opening_sequence, opening_event_order, run_id)`,
+      `CREATE INDEX idx_session_runs_opening_event ON session_runs(opening_event_id)`,
+      `CREATE INDEX idx_session_runs_closing_event ON session_runs(closing_event_id)`,
+      `CREATE TABLE session_run_laps (
+         run_id          TEXT NOT NULL REFERENCES session_runs(run_id) ON DELETE CASCADE,
+         lap_event_id    TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         lap_id          INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         lap_number      INTEGER NOT NULL CHECK (lap_number >= 0),
+         ordinal         INTEGER NOT NULL CHECK (ordinal >= 0),
+         entry_event_id  TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         exit_event_id   TEXT REFERENCES race_events(event_id) ON DELETE CASCADE,
+         PRIMARY KEY (run_id, lap_event_id)
+       )`,
+      `CREATE INDEX idx_session_run_laps_run_order
+       ON session_run_laps(run_id, ordinal, lap_event_id)`,
+      `CREATE INDEX idx_session_run_laps_lap_lookup
+       ON session_run_laps(lap_event_id, run_id)`,
+      `CREATE INDEX idx_session_run_laps_numeric_lap
+       ON session_run_laps(lap_id, run_id)`,
+      `CREATE TABLE session_run_evidence (
+         run_id    TEXT NOT NULL REFERENCES session_runs(run_id) ON DELETE CASCADE,
+         event_id  TEXT NOT NULL REFERENCES race_events(event_id) ON DELETE CASCADE,
+         role      TEXT NOT NULL CHECK (role IN ('opening', 'closing', 'service', 'supporting')),
+         PRIMARY KEY (run_id, event_id, role)
+       )`,
+      `CREATE INDEX idx_session_run_evidence_event
+       ON session_run_evidence(event_id, run_id, role)`,
+    ],
+  },
+  // v63: Persist immutable provenance receipts and one active generation per
+  // logical artifact set. Legacy artifacts remain intentionally unreceipted.
+  {
+    version: 63,
+    name: "add analysis provenance receipts",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN analysis_generation_id TEXT`,
+      `ALTER TABLE laps ADD COLUMN analysis_generation_id TEXT`,
+      `ALTER TABLE session_results ADD COLUMN analysis_generation_id TEXT`,
+      `CREATE TABLE analysis_receipts (
+         generation_id          TEXT PRIMARY KEY,
+         artifact_set_id        TEXT NOT NULL,
+         session_id             INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         participant_id         TEXT,
+         artifact_set_type      TEXT NOT NULL CHECK (artifact_set_type IN (
+           'canonical_archive', 'session_analysis', 'lap_analysis',
+           'comparison_analysis', 'driver_profile', 'report'
+         )),
+         generation             INTEGER NOT NULL CHECK (generation > 0),
+         receipt_schema_version TEXT NOT NULL,
+         lifecycle              TEXT NOT NULL CHECK (lifecycle IN (
+           'rebuild_in_progress', 'active', 'superseded', 'verification_failed'
+         )),
+         source_content_hash    TEXT,
+         contract_hash          TEXT NOT NULL,
+         configuration_hash     TEXT NOT NULL,
+         receipt                TEXT,
+         failure                TEXT,
+         started_at             TEXT NOT NULL,
+         completed_at           TEXT,
+         activated_at           TEXT,
+         CHECK (
+           (lifecycle = 'rebuild_in_progress' AND receipt IS NULL AND failure IS NULL AND completed_at IS NULL)
+           OR (lifecycle IN ('active', 'superseded') AND receipt IS NOT NULL AND failure IS NULL AND completed_at IS NOT NULL)
+           OR (lifecycle = 'verification_failed' AND receipt IS NULL AND failure IS NOT NULL AND completed_at IS NOT NULL)
+         )
+       )`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_artifact_generation
+       ON analysis_receipts(artifact_set_id, generation)`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_active
+       ON analysis_receipts(artifact_set_id) WHERE lifecycle = 'active'`,
+      `CREATE UNIQUE INDEX uq_analysis_receipts_in_progress
+       ON analysis_receipts(artifact_set_id) WHERE lifecycle = 'rebuild_in_progress'`,
+      `CREATE INDEX idx_analysis_receipts_session_type_lifecycle
+       ON analysis_receipts(session_id, artifact_set_type, lifecycle)`,
+      `CREATE INDEX idx_analysis_receipts_artifact_generation_desc
+       ON analysis_receipts(artifact_set_id, generation DESC)`,
+    ],
+  },
+  // v64: Durable canonical telemetry archive identity, hierarchy, and jobs.
+  {
+    version: 64,
+    name: "add canonical telemetry archives",
+    sql: [
+      `CREATE TABLE canonical_archives (
+         archive_id          TEXT PRIMARY KEY,
+         session_id          INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         generation_id       TEXT NOT NULL,
+         status              TEXT NOT NULL CHECK (status IN ('pending', 'building', 'verified', 'partial', 'failed', 'superseded')),
+         archive_path        TEXT NOT NULL,
+         schema_version      TEXT NOT NULL,
+         algorithm_version   TEXT NOT NULL,
+         source_content_hash TEXT NOT NULL,
+         output_content_hash TEXT,
+         byte_size           INTEGER,
+         sample_count        INTEGER NOT NULL DEFAULT 0 CHECK (sample_count >= 0),
+         node_count          INTEGER NOT NULL DEFAULT 0 CHECK (node_count >= 0),
+         semantic_ids        TEXT NOT NULL,
+         context             TEXT NOT NULL,
+         manifest            TEXT NOT NULL,
+         completeness        TEXT NOT NULL CHECK (completeness IN ('complete', 'partial', 'empty', 'unavailable')),
+         verification        TEXT,
+         created_at          TEXT NOT NULL,
+         verified_at         TEXT,
+         failure             TEXT
+       )`,
+      `CREATE UNIQUE INDEX uq_canonical_archives_active_identity
+       ON canonical_archives(session_id, source_content_hash)
+       WHERE status IN ('pending', 'building', 'verified', 'partial')`,
+      `CREATE INDEX idx_canonical_archives_session_status
+       ON canonical_archives(session_id, status)`,
+      `CREATE INDEX idx_canonical_archives_generation
+       ON canonical_archives(session_id, generation_id)`,
+      `CREATE TABLE canonical_archive_nodes (
+         node_id                    TEXT PRIMARY KEY,
+         archive_id                 TEXT NOT NULL REFERENCES canonical_archives(archive_id) ON DELETE CASCADE,
+         parent_node_id             TEXT,
+         level                      TEXT NOT NULL CHECK (level IN ('participant', 'stint', 'lap', 'corner', 'segment')),
+         semantic_kind              TEXT NOT NULL,
+         stable_key                 TEXT NOT NULL,
+         ordinal                    INTEGER NOT NULL CHECK (ordinal >= 0),
+         participant_id             TEXT,
+         session_run_id             TEXT,
+         lap_id                     INTEGER REFERENCES laps(id) ON DELETE SET NULL,
+         start_row                  INTEGER NOT NULL CHECK (start_row >= 0),
+         end_row                    INTEGER NOT NULL CHECK (end_row >= start_row),
+         start_source_time_ms      INTEGER,
+         end_source_time_ms        INTEGER,
+         start_track_distance_m    REAL,
+         end_track_distance_m      REAL,
+         status                     TEXT NOT NULL,
+         definition_hash            TEXT,
+         boundary_algorithm_version TEXT NOT NULL
+       )`,
+      `CREATE INDEX idx_canonical_archive_nodes_parent
+       ON canonical_archive_nodes(parent_node_id)`,
+      `CREATE INDEX idx_canonical_archive_nodes_archive_level_order
+       ON canonical_archive_nodes(archive_id, level, ordinal)`,
+      `CREATE INDEX idx_canonical_archive_nodes_participant_order
+       ON canonical_archive_nodes(archive_id, participant_id, level, ordinal)`,
+      `CREATE INDEX idx_canonical_archive_nodes_source_ids
+       ON canonical_archive_nodes(session_run_id, lap_id)`,
+      `CREATE TABLE canonical_archive_jobs (
+         job_id             TEXT PRIMARY KEY,
+         session_id         INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         source_content_hash TEXT NOT NULL,
+         status              TEXT NOT NULL CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+         attempt_count      INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+         lease_expires_at   TEXT,
+         next_attempt_at    TEXT NOT NULL,
+         generation_id      TEXT,
+         last_error         TEXT,
+         created_at         TEXT NOT NULL,
+         updated_at         TEXT NOT NULL
+       )`,
+      `CREATE UNIQUE INDEX uq_canonical_archive_jobs_source
+       ON canonical_archive_jobs(session_id, source_content_hash)`,
+      `CREATE INDEX idx_canonical_archive_jobs_claim
+       ON canonical_archive_jobs(status, next_attempt_at, lease_expires_at)`,
+    ],
+  },
+  // v65: Lease capabilities and stable raw-file identity for canonical archive
+  // scheduling. Existing captures hash once after upgrade, then reuse identity
+  // while file metadata remains unchanged.
+  {
+    version: 65,
+    name: "harden canonical archive leases and raw identities",
+    sql: [
+      `ALTER TABLE canonical_archive_jobs ADD COLUMN lease_token TEXT`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_size INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_mtime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_file_ctime_ms INTEGER`,
+      `ALTER TABLE sessions ADD COLUMN raw_capture_content_hash TEXT`,
+      `CREATE UNIQUE INDEX uq_canonical_archive_jobs_lease_token
+       ON canonical_archive_jobs(lease_token)
+       WHERE lease_token IS NOT NULL`,
+    ],
+  },
+  {
+    version: 66,
     name: "persist structured findings and cache fences",
     sql: [
       `CREATE TABLE finding_generations (

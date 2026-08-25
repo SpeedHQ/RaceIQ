@@ -523,6 +523,15 @@ const SEMANTIC_DEFINITIONS_LIVE: Record<string, SemanticDefinition> = {
     canonicalUnit: "s",
     shape: "structured",
   },
+  "race.pit-status": {
+    label: "Pit status",
+    description: "Native player pit state: 0=none, 1=pit lane, 2=pit area.",
+    parentId: "race",
+    canonicalUnit: "count",
+    shape: "scalar",
+    valueType: "number",
+    range: { min: 0, max: 2 },
+  },
   "race.competitor.position": {
     label: "Competitor position",
     description: "Overall running or classified position for each competitor.",

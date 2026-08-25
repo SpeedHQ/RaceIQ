@@ -8,6 +8,13 @@ import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
+import { getCanonicalArchiveLapReadPlan, getActiveVerifiedCanonicalArchive } from "./canonical-archive-queries";
+import {
+  readCanonicalArchiveLapRanges,
+  readCanonicalArchiveSamples,
+  type CanonicalArchiveLapRange,
+  type CanonicalArchiveSampleRow,
+} from "./canonical-archive-reader";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -166,7 +173,110 @@ async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
   return buf;
 }
 
-export async function getSessionRawFile(sessionId: number, gameId: GameId): Promise<string | null> {
+function packetsFromArchiveRows(rows: readonly CanonicalArchiveSampleRow[]): TelemetryPacket[] {
+  const packets: TelemetryPacket[] = [];
+  for (const row of rows) {
+    const value: unknown = JSON.parse(row.packetJson);
+    if (!value || typeof value !== "object" || !("gameId" in value) || typeof value.gameId !== "string") {
+      throw new Error(`Canonical archive row ${row.sampleOrdinal} does not contain a telemetry packet`);
+    }
+    packets.push(value as TelemetryPacket);
+  }
+  return packets;
+}
+
+export interface ArchiveLapReadTarget {
+  lapId: number;
+  sessionId: number;
+  lapNumber: number;
+}
+
+function archiveLapRange(
+  range: { startRow: number; endRow: number; participantId: string | null; stableKey: string },
+  lapNumber: number,
+): CanonicalArchiveLapRange | null {
+  const separator = range.stableKey.lastIndexOf(":");
+  const stableLapNumber = Number(range.stableKey.slice(separator + 1));
+  if (
+    separator < 0 ||
+    !Number.isSafeInteger(stableLapNumber) ||
+    stableLapNumber !== lapNumber
+  ) return null;
+  return {
+    startRow: range.startRow,
+    endRow: range.endRow,
+    participantId: range.participantId,
+    lapNumber: stableLapNumber,
+  };
+}
+
+/**
+ * Resolve every archive generation once, then read each archive generation
+ * through one DuckDB connection. Plans carry immutable archive paths; callers
+ * never re-resolve active archive state between plan and Parquet read.
+ */
+export async function loadLapsTelemetryFromArchive(
+  targets: readonly ArchiveLapReadTarget[],
+): Promise<Map<number, TelemetryPacket[]>> {
+  const packetsByLap = new Map<number, TelemetryPacket[]>();
+  const byArchive = new Map<string, {
+    path: string;
+    requests: { lapId: number; range: CanonicalArchiveLapRange }[];
+  }>();
+  for (const target of targets) {
+    const plan = await getCanonicalArchiveLapReadPlan({
+      sessionId: target.sessionId,
+      lapId: target.lapId,
+    });
+    if (!plan || plan.lapId !== target.lapId) continue;
+    const groupKey = `${plan.archiveId}:${plan.generationId}`;
+    let group = byArchive.get(groupKey);
+    if (!group) {
+      group = { path: plan.archivePath, requests: [] };
+      byArchive.set(groupKey, group);
+    }
+    for (const node of plan.ranges) {
+      if (node.level !== "lap") continue;
+      const range = archiveLapRange(node, target.lapNumber);
+      if (range) group.requests.push({ lapId: target.lapId, range });
+    }
+  }
+  for (const group of byArchive.values()) {
+    group.requests.sort((left, right) => left.range.startRow - right.range.startRow);
+    const rowsByRange = await readCanonicalArchiveLapRanges(
+      group.path,
+      group.requests.map((request) => request.range),
+    );
+    for (let index = 0; index < group.requests.length; index += 1) {
+      const rows = rowsByRange[index]!;
+      if (rows.length === 0) continue;
+      const packets = packetsFromArchiveRows(rows);
+      if (packets.length === 0) continue;
+      const lapId = group.requests[index]!.lapId;
+      const targetPackets = packetsByLap.get(lapId);
+      if (targetPackets) {
+        for (const packet of packets) targetPackets.push(packet);
+      } else {
+        packetsByLap.set(lapId, packets);
+      }
+    }
+  }
+  return packetsByLap;
+}
+
+export async function loadLapTelemetryFromArchive(
+  lapId: number,
+  sessionId: number,
+  lapNumber: number,
+): Promise<TelemetryPacket[] | null> {
+  return (await loadLapsTelemetryFromArchive([{ lapId, sessionId, lapNumber }])).get(lapId) ?? null;
+}
+
+
+export async function getSessionRawFile(
+  sessionId: number,
+  gameId: GameId,
+): Promise<string | null> {
   const session = await db
     .select({ rawFile: sessions.rawFile })
     .from(sessions)
@@ -196,13 +306,29 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   });
 }
 
-/**
- * Re-parse every frame from a completed session capture. Result reconciliation
- * needs the session tail because authoritative finish packets may arrive after
- * the final persisted lap range.
- */
+async function loadSessionTelemetryFromArchive(sessionId: number): Promise<TelemetryPacket[] | null> {
+  const archive = await getActiveVerifiedCanonicalArchive(sessionId);
+  if (!archive) return null;
+  const packets = packetsFromArchiveRows(
+    await readCanonicalArchiveSamples(archive.archivePath, 0, archive.sampleCount),
+  );
+  return packets.length > 0 ? packets : null;
+}
 
-export async function getSessionTelemetry(sessionId: number, gameId: GameId): Promise<TelemetryPacket[]> {
+export async function getSessionTelemetry(
+  sessionId: number,
+  gameId: GameId,
+  options: { preferArchive?: boolean } = {},
+): Promise<TelemetryPacket[]> {
+  let archivePackets: TelemetryPacket[] | null = null;
+  if (options.preferArchive !== false) {
+    try {
+      archivePackets = await loadSessionTelemetryFromArchive(sessionId);
+    } catch (error) {
+      console.warn(`[DB] Canonical archive session read failed; falling back to raw: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  if (archivePackets) return archivePackets;
   const rawFile = await getSessionRawFile(sessionId, gameId);
   if (!rawFile) return [];
 

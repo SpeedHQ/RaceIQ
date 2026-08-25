@@ -8,6 +8,11 @@
 
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
+- Review durable race-event timelines with ordered pit service, penalties, cautions, participant changes, source interruptions, and replayed session evidence
+- Build canonical participant, tire, driver, and pace runs from race-event boundaries for consistent live and replay session summaries
+- Build and verify canonical post-session telemetry archives with bounded DuckDB/Parquet output, retries, and provenance activation
+- Read archived telemetry by participant, stint, lap, corner, and segment while keeping raw captures until verified archive evidence is available
+- See analysis provenance, stale-state reasons, rebuild availability, and active generation status from lap quality details
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Track recording and lap telemetry quality across live capture, MoTeC imports, and session archives, including source fidelity, packet gaps, track coverage, and task-specific analysis eligibility
@@ -17,9 +22,15 @@
 
 ### Fixes
 - Keep deterministic coaching findings quality-qualified and rebuildable across long sessions and warning-grade telemetry
+- Keep stint and session-run summaries accurate after checkered flags, lap edits, and long recording sessions
+- Keep race-event timelines chronologically ordered during live pagination and prevent invalid, unavailable, or incomplete telemetry evidence from qualifying for analysis
+- Keep analysis provenance and live race-event state consistent through session rotations, reimports, and lap completion
+- Activate canonical telemetry archives with distinct source and output identities, and keep retained raw captures current after archive verification
+- Keep race-event timelines ordered and session imports or reprocessing reliable when recordings include pre-start distances, session resets, or failed lap saves
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes
+- Preserve original ACC, AC Evo, and MoTeC capture timing during replay so telemetry quality and lap evidence remain accurate
 - Block lap-analysis AI when telemetry quality is missing, stale, or unsuitable, and include eligibility limitations in prompts
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
@@ -96,6 +107,9 @@
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Define deterministic finding contracts, identities, aggregation, validation, rendering, and generation storage
+- Define deterministic race-event contracts, ordering, detectors, and simulator adapters for durable session timelines
+- Define canonical telemetry archive manifests, hierarchy nodes, durable jobs, leases, and verification records
+- Persist immutable analysis receipts with staged, failed, superseded, and active generation lifecycles
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
 - Consolidate game raw telemetry routes behind one dynamic route and default seeded E2E runs to two workers

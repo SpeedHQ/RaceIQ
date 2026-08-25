@@ -4,7 +4,10 @@ import type { TelemetryGroupId, TelemetryVariableId } from "@shared/telemetry/ca
 import { compileTelemetryResolver } from "@shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, FreshnessState, ResolutionState, ResolvedValue, TelemetryFrameView } from "@shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "@shared/telemetry/types";
-import { SourceSequenceTracker } from "@shared/telemetry/source-sequence";
+import {
+  SourceSequenceTracker,
+  type SourceSequenceObservation,
+} from "@shared/telemetry/source-sequence";
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
 import {
   ELIGIBILITY_POLICY_VERSION,
@@ -310,7 +313,9 @@ function measureTimeline(packets: readonly TelemetryPacket[]): TimelineMeasureme
   const tracker = new SourceSequenceTracker();
   for (const packet of packets) tracker.observe(packet);
   const tracked = tracker.finalize();
-  const inferredIntervalMs = tracked.inferredIntervalMs;
+  const inferredIntervalMs =
+    tracked.inferredIntervalMs ??
+    medianPositiveDelta(packets.map(({ TimestampMS }) => TimestampMS));
   const discontinuities: TimelineRangeEvidence[] = [];
   if (inferredIntervalMs != null) {
     const discontinuityThresholdMs = Math.max(5_000, inferredIntervalMs * 100);
@@ -455,6 +460,11 @@ function observeChannel(
   accumulator.summary.nativeUnit = resolved.provenance.sourceUnit ?? accumulator.summary.nativeUnit;
   const { observedAt: _observedAt, sourceObservation: _sourceObservation, ...stableProvenance } = resolved.provenance;
   accumulator.summary.provenance = stableProvenance;
+  if (!Array.isArray(resolved.limitations)) {
+    throw new TypeError(
+      `Telemetry resolver returned invalid limitations for ${resolved.semanticId}`,
+    );
+  }
   for (const limitation of resolved.limitations) {
     if (!accumulator.summary.limitations.includes(limitation)) accumulator.summary.limitations.push(limitation);
   }
@@ -905,15 +915,21 @@ export class RecordingQualityAccumulator {
     this.provenance = baseProvenance(sourceKind, participant, versionIdentity);
   }
 
-  observe(packet: TelemetryPacket): void {
+  observe(
+    packet: TelemetryPacket,
+    sourceSequences?: SourceSequenceObservation[],
+  ): void {
     for (const pendingFact of this.pendingFacts) {
       if (pendingFact.timeRange) {
-        pendingFact.timeRange.endMs = Math.max(pendingFact.timeRange.startMs, packet.TimestampMS);
+        pendingFact.timeRange.endMs = Math.max(
+          pendingFact.timeRange.startMs,
+          packet.TimestampMS,
+        );
       }
     }
     this.pendingFacts.length = 0;
     this.startTimestampMs ??= packet.TimestampMS;
-    this.sourceSequence.observe(packet);
+    this.sourceSequence.observe(packet, sourceSequences);
     this.lastTimestampMs = packet.TimestampMS;
     this.endTimestampMs = packet.TimestampMS;
   }

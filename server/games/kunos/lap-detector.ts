@@ -1,23 +1,53 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { DbAdapter } from "../../telemetry/pipeline-ports";
-import { assessLapRecording, measureLapQuality, type LapQualityCaptureContext } from "../../lap-analysis/quality";
+import {
+  currentTelemetryVersionIdentity,
+  type DbAdapter,
+} from "../../telemetry/pipeline-ports";
+import {
+  LOCAL_PLAYER_EVIDENCE,
+  type EvidenceSourceKind,
+  type ParticipantEvidence,
+  type SourceChannelProfile,
+} from "../../../shared/racing/quality/contracts";
+import type { TelemetryVersionIdentity } from "../../../shared/telemetry/version";
+import {
+  assessLapRecording,
+  measureLapQuality,
+  type LapQualityCaptureContext,
+} from "../../lap-analysis/quality";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../../experiments/auto-exclude";
 import { computeLapSectors } from "../../lap-analysis/sectors";
-import type { ILapDetector, LapDetectorCallbacks, LapDetectorOptions, SessionState } from "../../lap-detection/types";
+import {
+  EMPTY_LAP_TIMELINE_CONTEXT,
+  type ILapDetector,
+  type LapDetectorCallbacks,
+  type LapDetectorOptions,
+  type SessionEndReason,
+  type SessionState,
+} from "../../lap-detection/types";
 import { kunosFirstPacketIsMidLap } from "./lap-rules";
-import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
+import { classifyLap } from "../../../shared/racing/laps/classification";
+import { isEligibilityUsable } from "../../../shared/racing/quality/policies";
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
   readonly detectorId: string;
   private readonly loggerLabel: string;
 
+  private readonly lapTimelineContext: NonNullable<
+    LapDetectorOptions["lapTimelineContext"]
+  >;
   protected readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
+  private readonly onSessionEnd?: LapDetectorCallbacks["onSessionEnd"];
+  private readonly onLapEvaluated?: LapDetectorCallbacks["onLapEvaluated"];
   private readonly onLapComplete_?: LapDetectorCallbacks["onLapComplete"];
-  private readonly qualityContext?: LapQualityCaptureContext;
+  private readonly sourceKind: EvidenceSourceKind;
+  private readonly participant: ParticipantEvidence;
+  private readonly versionIdentity?: TelemetryVersionIdentity;
+  private readonly sourceChannelProfile?: SourceChannelProfile;
 
   private currentSession: SessionState | null = null;
   private lapBuffer: TelemetryPacket[] = [];
@@ -38,12 +68,24 @@ export abstract class KunosLapDetector implements ILapDetector {
   private _lapFrameCount = 0;
   private _currentRawByteOffset: number | null = null;
   private _lastActivePacketTime = 0;
-  protected constructor(opts: LapDetectorOptions, detectorId: string, loggerLabel: string) {
+  protected constructor(
+    opts: LapDetectorOptions,
+    detectorId: string,
+    loggerLabel: string,
+  ) {
     this.db = opts.db;
+    this.lapTimelineContext =
+      opts.lapTimelineContext ?? EMPTY_LAP_TIMELINE_CONTEXT;
     this.onLapSaved = opts.callbacks?.onLapSaved;
     this.onSessionStart = opts.callbacks?.onSessionStart;
+    this.onSessionEnd = opts.callbacks?.onSessionEnd;
+    this.onLapEvaluated = opts.callbacks?.onLapEvaluated;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
-    this.qualityContext = opts.qualityContext;
+    this.sourceKind = opts.sourceKind ?? "native-live";
+    this.participant =
+      opts.participant ?? LOCAL_PLAYER_EVIDENCE;
+    this.versionIdentity = opts.versionIdentity;
+    this.sourceChannelProfile = opts.sourceChannelProfile;
     this.detectorId = detectorId;
     this.loggerLabel = loggerLabel;
   }
@@ -71,7 +113,23 @@ export abstract class KunosLapDetector implements ILapDetector {
     if (!this.currentSession) {
       const carOrdinalResult = this.resolveCarOrdinal(packet);
       const resolvedCarOrdinal = typeof carOrdinalResult === "number" ? carOrdinalResult : await carOrdinalResult;
-      const sessionId = await this.db.insertSession(resolvedCarOrdinal, packet.TrackOrdinal ?? 0, packet.gameId, packet.f1?.sessionType);
+      const qualityContext: LapQualityCaptureContext = {
+        sourceKind: this.sourceKind,
+        participant: this.participant,
+        versionIdentity:
+          this.versionIdentity ??
+          currentTelemetryVersionIdentity(packet.gameId),
+        sourceChannelProfile: this.sourceChannelProfile,
+      };
+      const sessionId = await this.db.insertSession(
+        resolvedCarOrdinal,
+        packet.TrackOrdinal ?? 0,
+        packet.gameId,
+        packet.f1?.sessionType,
+        qualityContext.versionIdentity,
+        qualityContext.sourceKind,
+        qualityContext.sourceChannelProfile,
+      );
       this.currentSession = {
         sessionId,
         carOrdinal: resolvedCarOrdinal,
@@ -86,7 +144,10 @@ export abstract class KunosLapDetector implements ILapDetector {
       this.firstLapIsPartial = kunosFirstPacketIsMidLap(packet);
       this._lapByteOffset = this._currentRawByteOffset;
       this._lapFrameCount = 0;
-      await this.onSessionStart?.(this.currentSession);
+      await this.onSessionStart?.(this.currentSession, {
+        reason: "no-session",
+        packet,
+      });
     }
 
     const backfill = this.backfillSessionIdentifiers(packet);
@@ -113,7 +174,11 @@ export abstract class KunosLapDetector implements ILapDetector {
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
-        const isPitOnly = classifyPitCycleLap(this.lapBuffer) === "pit lap";
+        const isPitOnly =
+          this.lapTimelineContext.classificationForLap(
+            this.currentSession.sessionId,
+            this.currentLapNumber,
+          ).pitPhase === "pit";
         if (bufDist < 100 || isPitOnly) {
           this.lapBuffer = [];
           this.peakCurrentLap = 0;
@@ -142,18 +207,31 @@ export abstract class KunosLapDetector implements ILapDetector {
   }
 
   async flushStaleLap(): Promise<void> {
-    if (!this.currentSession || this._lastActivePacketTime === 0 || Date.now() - this._lastActivePacketTime < 10_000) return;
-    // Packets stopped arriving for 10s — end the session so next race start
-    // creates a fresh session.
-    await this.finalizeCurrentSession();
+    if (
+      !this.currentSession ||
+      this._lastActivePacketTime === 0 ||
+      Date.now() - this._lastActivePacketTime < 10_000
+    ) {
+      return;
+    }
+    // Packets stopped arriving for 10s — end session so next race start
+    // creates fresh session.
+    await this.finalizeCurrentSession("source-stale");
   }
 
-  async finalizeCurrentSession(): Promise<void> {
+  async finalizeCurrentSession(
+    reason: SessionEndReason = "source-disconnected",
+  ): Promise<void> {
     if (!this.currentSession) return;
-    const sid = this.currentSession.sessionId;
+    const session = { ...this.currentSession };
+    const sid = session.sessionId;
     if (this.lapBuffer.length >= 10) {
       await this.emitLap("incomplete", { silent: true });
     }
+    await this.onSessionEnd?.(session, {
+      reason,
+      terminalObserved: false,
+    });
     console.log(`${this.loggerLabel} Finalized session ${sid}`);
     this.currentSession = null;
     this.lapBuffer = [];
@@ -167,13 +245,22 @@ export abstract class KunosLapDetector implements ILapDetector {
     this.currentLapNumber = -1;
   }
 
-  private async emitLap(forcedInvalidReason: string | null, opts?: { silent?: boolean; trigger?: TelemetryPacket }): Promise<void> {
-    // Kunos publishes LastLap around the timer reset. Use it only when the
-    // trigger's value is fresh relative to the last buffered frame.
-    const lastBufferedLastLap = this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
+  private async emitLap(
+    forcedInvalidReason: string | null,
+    opts?: { silent?: boolean; trigger?: TelemetryPacket },
+  ): Promise<void> {
+    if (!this.currentSession) return;
+    const session = this.currentSession;
+
+    // Kunos publishes LastLap around timer reset. Use only fresh value.
+    const lastBufferedLastLap =
+      this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
     const gameLastLap = opts?.trigger?.LastLap ?? 0;
-    const gameLastLapFresh = gameLastLap > 0 && gameLastLap !== lastBufferedLastLap;
-    const lapTime = gameLastLapFresh ? gameLastLap : this.peakCurrentLap;
+    const gameLastLapFresh =
+      gameLastLap > 0 && gameLastLap !== lastBufferedLastLap;
+    const lapTime = gameLastLapFresh
+      ? gameLastLap
+      : this.peakCurrentLap;
     const lapNum = this.currentLapNumber;
 
     if (lapNum === this._lastEmittedLapNumber) return;
@@ -189,18 +276,17 @@ export abstract class KunosLapDetector implements ILapDetector {
     this._lapByteOffset = this._currentRawByteOffset;
     this._lapFrameCount = 0;
 
-    const quality = assessLapRecording(packets, lapTime);
-    let isValid = forcedInvalidReason ? false : quality.valid;
-    let invalidReason = forcedInvalidReason ?? quality.reason;
-
-    if (isValid) {
-      const pitReason = classifyPitCycleLap(packets);
-      if (pitReason) {
-        isValid = false;
-        invalidReason = pitReason;
-      }
-    }
-
+    const recordingAssessment = assessLapRecording(packets, lapTime);
+    const classification = classifyLap(
+      this.lapTimelineContext.classificationForLap(
+        session.sessionId,
+        lapNum,
+      ),
+    );
+    const complete = forcedInvalidReason === null;
+    let isValid = complete && recordingAssessment.valid;
+    let invalidReason =
+      forcedInvalidReason ?? recordingAssessment.reason;
     if (isValid) {
       const cutReason = this.classifyTrackLimits(packets);
       if (cutReason) {
@@ -209,24 +295,73 @@ export abstract class KunosLapDetector implements ILapDetector {
       }
     }
 
-    const sectors = await computeLapSectors(this.currentSession!.trackOrdinal, this.currentSession!.gameId, packets, lapTime, undefined);
+    const sectors = await computeLapSectors(
+      session.trackOrdinal,
+      session.gameId,
+      packets,
+      lapTime,
+      undefined,
+    );
+    const qualityContext: LapQualityCaptureContext = {
+      sourceKind: this.sourceKind,
+      participant: this.participant,
+      versionIdentity:
+        this.versionIdentity ??
+        currentTelemetryVersionIdentity(session.gameId),
+      sourceChannelProfile: this.sourceChannelProfile,
+    };
+    const eventIds = this.lapTimelineContext.eventIdsForLap(
+      session.sessionId,
+      lapNum,
+    );
+    const measuredQuality = measureLapQuality(qualityContext, {
+      packets,
+      lapTime,
+      timingSource: !complete
+        ? "estimated"
+        : gameLastLapFresh
+          ? "simulator-last-lap"
+          : "telemetry-elapsed",
+      complete,
+      isValid,
+      invalidReason,
+      classification,
+      eventIds,
+    });
+    const { quality, eligibility } = measuredQuality;
+    const normalPaceEligible =
+      isValid &&
+      classification.paceEligibility === "eligible" &&
+      isEligibilityUsable(eligibility["normal-pace"]);
 
-    if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-      this.currentSession!.bestLapTime = lapTime;
+    if (
+      normalPaceEligible &&
+      (session.bestLapTime === 0 || lapTime < session.bestLapTime)
+    ) {
+      session.bestLapTime = lapTime;
     }
 
-    const measuredQuality = this.qualityContext
-      ? measureLapQuality(this.qualityContext, {
-          packets,
-          lapTime,
-          timingSource: gameLastLapFresh ? "simulator-last-lap" : "telemetry-elapsed",
-          complete: forcedInvalidReason !== "incomplete",
-          isValid,
-          invalidReason,
-        })
-      : null;
+    const event = {
+      packets,
+      lapDistStart: packets[0]?.DistanceTraveled ?? 0,
+      lapTime,
+      isValid,
+      ...classification,
+      sectors,
+      quality,
+      eligibility,
+    };
+    const context = {
+      session: { ...session },
+      lapNumber: lapNum,
+      eventIds,
+    };
+    if (complete) {
+      await this.onLapEvaluated?.(event, context);
+    }
+
     const lapId = await this.db.insertLap({
-      sessionId: this.currentSession!.sessionId,
+      sessionId: session.sessionId,
       lapNumber: lapNum,
       lapTime,
       isValid,
@@ -236,32 +371,33 @@ export abstract class KunosLapDetector implements ILapDetector {
       tuneId: null,
       invalidReason,
       sectors,
-      quality: measuredQuality?.quality ?? null,
-      eligibility: measuredQuality?.eligibility ?? null,
+      classification,
+      quality,
+      eligibility,
+      versionIdentity: qualityContext.versionIdentity,
     });
-    // Precompute fuel/tyre metrics now (frames already in memory) so
-    // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
-    // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
-    // scope.
     await reconcileAutoExclusionsForLap(this.db, lapId);
+
     if (!opts?.silent) {
-      this.onLapSaved?.({
-        type: "lap-saved",
-        lapId,
-        lapNumber: lapNum,
-        lapTime,
-        isValid,
-        sectors,
-        estimatedBestLapTime: this.currentSession!.bestLapTime,
-      });
-      this.onLapComplete_?.({
-        packets,
-        lapDistStart: packets[0]?.DistanceTraveled ?? 0,
-        lapTime,
-        isValid,
-        sectors,
-      });
+      if (normalPaceEligible) {
+        await this.onLapComplete_?.(event, context);
+      }
+      await this.onLapSaved?.(
+        {
+          type: "lap-saved",
+          lapId,
+          lapNumber: lapNum,
+          lapTime,
+          isValid,
+          ...classification,
+          sectors,
+          estimatedBestLapTime: context.session.bestLapTime,
+          quality,
+          eligibility,
+        },
+        context,
+      );
     }
   }
 

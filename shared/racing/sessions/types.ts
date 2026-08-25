@@ -1,29 +1,18 @@
 import type { GameId } from "@shared/games/ids";
+import type { LapClassification } from "@shared/racing/laps/classification";
 
 import type { TelemetryVersionIdentity } from "@shared/telemetry/version";
-import type {
-  EligibilityDecisionSet,
-  EvidenceSourceKind,
-  LapQualitySummary,
-  RecordingQualitySummary,
-  SourceChannelProfile,
-} from "@shared/racing/quality/contracts";
+import type { EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary, RecordingQualitySummary, SourceChannelProfile } from "@shared/racing/quality/contracts";
 
 export type SessionOwnership = "mine" | "others";
 
-
-
-export interface LapMeta extends Partial<TelemetryVersionIdentity> {
+export interface LapMeta extends Partial<TelemetryVersionIdentity>, Partial<LapClassification> {
   id: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  quality?: LapQualitySummary;
-  eligibility?: EligibilityDecisionSet;
-  qualityGeneration?: string;
-  /** True only when persisted quality exists but no longer matches current contracts. */
-  qualityStale?: boolean;
+
   invalidReason?: string;
   notes?: string;
   createdAt: string;
@@ -32,10 +21,14 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // Joined from session
   carOrdinal?: number;
   trackOrdinal?: number;
-  // How this session's telemetry was obtained. Live capture is explicit
-  // (`native-live`); consumers must not use null/undefined truthiness to infer it.
+  // Telemetry evidence origin. Missing legacy values are normalized to
+  // "unknown"; callers must not infer native live capture from absence.
   source?: EvidenceSourceKind;
   ownership?: SessionOwnership;
+  quality?: LapQualitySummary;
+  eligibility?: EligibilityDecisionSet;
+  qualityGeneration?: string;
+  qualityStale?: boolean;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
   // Tune assignment
@@ -86,17 +79,29 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   pitCount?: number | null;
   pitDurationSeconds?: number | null;
   notes?: string;
-  /**
-   * How the session's telemetry was obtained. Live capture is explicit
-   * (`native-live`); source-specific fidelity decisions use this value.
-   */
+  /** Telemetry evidence origin. Missing legacy values normalize to "unknown". */
   source?: EvidenceSourceKind;
+  ownership?: SessionOwnership;
   sourceChannelProfile?: SourceChannelProfile;
   recordingQuality?: RecordingQualitySummary;
   qualityGeneration?: string;
   qualityStale?: boolean;
-  ownership?: SessionOwnership;
   gameId?: GameId;
+}
+
+export interface SessionLapData extends Partial<LapClassification> {
+  lapId: number;
+  lapNumber: number;
+  lapTimeSec: number;
+  isValid: boolean;
+
+  /** Persisted quality evidence and decisions used for recap selection. */
+  quality: LapQualitySummary | null;
+  eligibility: EligibilityDecisionSet | null;
+  qualityGeneration: string | null;
+  qualitySchemaVersion: string | null;
+  qualityPolicyVersion: string | null;
+  qualityConfigVersion: string | null;
 }
 
 export interface SessionRecap {
@@ -109,7 +114,7 @@ export interface SessionRecap {
   trackOrdinal: number;
   createdAt: string;
 
-  /** Laps with isValid && lapTime > 0. */
+  /** Structurally valid, pace-classified laps with positive times. */
   lapsValid: number;
   /** Every lap row, including invalid ones. Display only ("valid/total"). */
   lapsTotal: number;
@@ -121,11 +126,10 @@ export interface SessionRecap {
   timeOnTrackSec: number;
   /** trackLength * lapsValid, metres. Null when the track has no outline. */
   distanceM: number | null;
+  /** Every recorded lap in lap order, including classified non-pace laps. */
+  sparkline: SessionLapData[];
 
-  /** Pace trend, in lap order. */
-  sparkline: { lapId: number; lapNumber: number; lapTimeSec: number; isValid: boolean }[];
-
-  /** Best sectors across valid laps, possibly from different laps. */
+  /** Best sectors across pace-eligible laps, possibly from different laps. */
   theoretical: {
     bestSectorTimes: number[];
     sumSec: number;

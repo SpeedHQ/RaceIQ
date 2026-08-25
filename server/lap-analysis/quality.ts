@@ -85,6 +85,8 @@ export interface LapQualityMeasurementInput {
   complete: boolean;
   isValid: boolean;
   invalidReason: string | null;
+  classification?: LapClassification;
+  eventIds?: readonly string[];
 }
 
 export function participantEvidenceForOwnership(ownership?: SessionOwnership): ParticipantEvidence {
@@ -118,7 +120,8 @@ export function measureLapQuality(
   quality: LapQualitySummary;
   eligibility: EligibilityDecisionSet;
 } {
-  const classification = classificationForLap(input.invalidReason);
+  const classification =
+    input.classification ?? classificationForLap(input.invalidReason);
   const quality = summarizeLapQuality({
     packets: input.packets,
     lapTime: input.lapTime,
@@ -131,6 +134,7 @@ export function measureLapQuality(
     participant: context.participant,
     versionIdentity: context.versionIdentity,
     sourceChannelProfile: context.sourceChannelProfile,
+    eventIds: input.eventIds,
   });
   return {
     quality,

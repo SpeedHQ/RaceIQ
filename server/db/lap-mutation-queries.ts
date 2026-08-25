@@ -4,26 +4,22 @@ import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import {
-  ELIGIBILITY_POLICY_VERSION,
-  QUALITY_CONFIG_VERSION,
-  QUALITY_SCHEMA_VERSION,
-  type EligibilityDecisionSet,
-  type LapQualitySummary,
-} from "../../shared/racing/quality/contracts";
+  DEFAULT_LAP_CLASSIFICATION,
+  type LapClassification,
+} from "../../shared/racing/laps/classification";
+import type { EligibilityDecisionSet, LapQualitySummary } from "../../shared/racing/quality/contracts";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
+import { rebuildPersistedSessionRuns } from "./session-run-queries";
 import {
   finalizeLapQualityGeneration,
   mergeRecordingQualityIntoLapQuality,
 } from "../lap-analysis/quality-generation";
 
-const FINALIZED_QUALITY_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
-
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
   await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
 }
-
 
 export async function updateLapValidity(
   id: number,
@@ -36,8 +32,18 @@ export async function updateLapValidity(
     values.sectorTimes = sectors;
   }
   await db.transaction(async (tx) => {
+    const lap = await tx
+      .select({ sessionId: laps.sessionId })
+      .from(laps)
+      .where(eq(laps.id, id))
+      .get();
+    if (!lap) return;
     await tx.update(laps).set(values).where(eq(laps.id, id)).run();
-    await invalidateLapEvidence({ lapIds: [id] }, tx);
+    await invalidateLapEvidence(
+      { lapIds: [id], sessionId: lap.sessionId },
+      tx,
+    );
+    await rebuildPersistedSessionRuns(lap.sessionId, tx);
   });
 }
 
@@ -65,74 +71,40 @@ export interface PersistLapInput {
   tuneId: number | null;
   invalidReason: string | null;
   sectors: number[] | null;
+  classification?: LapClassification;
   quality: LapQualitySummary | null;
   eligibility: EligibilityDecisionSet | null;
+  analysisGenerationId?: string | null;
   versionIdentity?: TelemetryVersionIdentity;
 }
 
 export async function insertLap(input: PersistLapInput): Promise<number> {
-  const {
-    sessionId,
-    lapNumber,
-    lapTime,
-    isValid,
-    rawByteOffset,
-    rawFrameCount,
-    profileId,
-    tuneId,
-    invalidReason,
-    sectors,
-    quality,
-    eligibility,
-    versionIdentity,
-  } = input;
+  const { sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, classification, quality, eligibility, analysisGenerationId, versionIdentity } = input;
+  let persistedQuality = quality;
+  let persistedEligibility = eligibility;
+  if (quality && quality.provenance.outputGeneration !== "legacy") {
+    const session = await db
+      .select({ recordingQuality: sessions.recordingQuality })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+    if (session?.recordingQuality) {
+      const generated = finalizeLapQualityGeneration(
+        mergeRecordingQualityIntoLapQuality(session.recordingQuality, quality),
+        session.recordingQuality.provenance.sourceGeneration,
+        { lapNumber, rawByteOffset, rawFrameCount },
+      );
+      persistedQuality = generated.quality;
+      persistedEligibility = generated.eligibility;
+    }
+  }
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
   // reading the in-memory active id here links laps to a tuning session
   // independent of race sessionId — a tuning session can span many race
   // sessions. Cheap, unconditional on game; null when no session is active.
   const activeExperimentId = getActiveExperiment();
-  const activeExperimentVersionId =
-    activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
-  let qualityToPersist = quality;
-  let eligibilityToPersist = eligibility;
-  if (quality) {
-    const sessionQuality = await db
-      .select({
-        recordingQuality: sessions.recordingQuality,
-        qualitySchemaVersion: sessions.qualitySchemaVersion,
-        qualityPolicyVersion: sessions.qualityPolicyVersion,
-        qualityConfigVersion: sessions.qualityConfigVersion,
-        qualityGeneration: sessions.qualityGeneration,
-      })
-      .from(sessions)
-      .where(eq(sessions.id, sessionId))
-      .get();
-    const recordingQuality = sessionQuality?.recordingQuality;
-    if (
-      sessionQuality &&
-      recordingQuality &&
-      sessionQuality.qualitySchemaVersion === QUALITY_SCHEMA_VERSION &&
-      sessionQuality.qualityPolicyVersion === ELIGIBILITY_POLICY_VERSION &&
-      sessionQuality.qualityConfigVersion === QUALITY_CONFIG_VERSION &&
-      sessionQuality.qualityGeneration ===
-        recordingQuality.provenance.outputGeneration &&
-      FINALIZED_QUALITY_GENERATION_PATTERN.test(
-        recordingQuality.provenance.sourceGeneration,
-      ) &&
-      FINALIZED_QUALITY_GENERATION_PATTERN.test(
-        recordingQuality.provenance.outputGeneration,
-      )
-    ) {
-      const generated = finalizeLapQualityGeneration(
-        mergeRecordingQualityIntoLapQuality(recordingQuality, quality),
-        recordingQuality.provenance.sourceGeneration,
-        { lapNumber, rawByteOffset, rawFrameCount },
-      );
-      qualityToPersist = generated.quality;
-      eligibilityToPersist = generated.eligibility;
-    }
-  }
+  const activeExperimentVersionId = activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
   const result = await db
     .insert(laps)
     .values({
@@ -146,12 +118,14 @@ export async function insertLap(input: PersistLapInput): Promise<number> {
       profileId,
       tuneId,
       invalidReason,
-      quality: qualityToPersist,
-      eligibility: eligibilityToPersist,
-      qualitySchemaVersion: qualityToPersist?.provenance.schemaVersion ?? null,
-      qualityPolicyVersion: qualityToPersist?.provenance.policyVersion ?? null,
-      qualityConfigVersion: qualityToPersist?.provenance.configurationVersion ?? null,
-      qualityGeneration: qualityToPersist?.provenance.outputGeneration ?? null,
+      ...(classification ?? DEFAULT_LAP_CLASSIFICATION),
+      quality: persistedQuality,
+      eligibility: persistedEligibility,
+      qualitySchemaVersion: persistedQuality?.provenance.schemaVersion ?? null,
+      qualityPolicyVersion: persistedQuality?.provenance.policyVersion ?? null,
+      qualityConfigVersion: persistedQuality?.provenance.configurationVersion ?? null,
+      qualityGeneration: persistedQuality?.provenance.outputGeneration ?? null,
+      analysisGenerationId,
       experimentId: activeExperimentId,
       experimentVersionId: activeExperimentVersionId,
       ...versionIdentity,
@@ -180,20 +154,29 @@ export async function setLapMetrics(lapId: number, fuelPerLap: number | null, ty
   await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
 }
 
-
 export async function deleteLap(id: number): Promise<boolean> {
-  // Get session ID before deleting
-  const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-  const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
-  if (result.length > 0) {
-    cacheDelete(id);
-    // Clean up empty parent session
-    if (lap) {
-      const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
-      if (remaining.length === 0) {
-        await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
-      }
+  const deleted = await db.transaction(async (tx) => {
+    const lap = await tx
+      .select({ sessionId: laps.sessionId })
+      .from(laps)
+      .where(eq(laps.id, id))
+      .get();
+    if (!lap) return false;
+
+    await tx.delete(laps).where(eq(laps.id, id)).run();
+    const remaining = await tx
+      .select({ id: laps.id })
+      .from(laps)
+      .where(eq(laps.sessionId, lap.sessionId))
+      .limit(1)
+      .all();
+    if (remaining.length === 0) {
+      await tx.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+    } else {
+      await rebuildPersistedSessionRuns(lap.sessionId, tx);
     }
-  }
-  return result.length > 0;
+    return true;
+  });
+  if (deleted) cacheDelete(id);
+  return deleted;
 }

@@ -9,7 +9,6 @@ export const ELIGIBILITY_POLICY_VERSION = "1" as const;
 export const QUALITY_CONFIG_VERSION = "1" as const;
 
 export type EvidenceSourceKind = "native-live" | "raceiq-raw" | "raceiq-archive" | "canonical-archive" | "iracing-ibt" | "motec" | "remote-collector" | "external-log" | "unknown";
-
 const EVIDENCE_SOURCE_KINDS: Record<EvidenceSourceKind, true> = {
   "native-live": true,
   "raceiq-raw": true,
@@ -25,7 +24,8 @@ const EVIDENCE_SOURCE_KINDS: Record<EvidenceSourceKind, true> = {
 export function normalizeEvidenceSourceKind(
   source: string | null | undefined,
 ): EvidenceSourceKind {
-  return source != null && Object.hasOwn(EVIDENCE_SOURCE_KINDS, source)
+  return source != null &&
+    Object.hasOwn(EVIDENCE_SOURCE_KINDS, source)
     ? (source as EvidenceSourceKind)
     : "unknown";
 }

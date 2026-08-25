@@ -7,8 +7,8 @@
  * re-materialisable afterwards, because the pipeline's recorder persists the
  * frames it was given.
  *
- * Session creation records `sessions.source = 'motec'` before imported laps
- * are persisted.
+ * `sessions.source = 'motec'` and its source channel profile preserve the
+ * original log's weaker fidelity when synthesized fields occupy AC Evo slots.
  *
  * ## One transcoder per game
  *
@@ -33,12 +33,8 @@ import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
-import {
-  getDefaultMotecTarget,
-  initMotecTargets,
-  tryGetMotecTarget,
-  type MotecTarget,
-} from "./targets";
+import { getDefaultMotecTarget, initMotecTargets, tryGetMotecTarget, type MotecTarget } from "./targets";
+import { sha256SourceArtifacts } from "../session-capture/identity";
 
 export { MOTEC_SESSION_SOURCE };
 
@@ -110,29 +106,30 @@ export interface MotecImportOptions {
  * honest reading, since lap beacons live only in the `.ldx`, and AC Evo's
  * exporter writes an empty beacon group for a standalone hotlap anyway.
  */
-export async function importMotec(
-  ldBytes: Buffer,
-  ldxText?: string,
-  options?: MotecImportOptions,
-): Promise<MotecImportResult> {
+export async function importMotec(ldBytes: Buffer, ldxBytes?: Buffer, options?: MotecImportOptions): Promise<MotecImportResult> {
   const target = resolveMotecTarget(options?.gameId);
   const log = parseLd(ldBytes);
-  const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
+  const beacons = ldxBytes === undefined
+    ? []
+    : parseLdxBeacons(ldxBytes.toString("utf8"));
 
   const capture = target.synthesize(log, beacons, {
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
-  const { packetCount, laps } = await importSessionBin(
-    capture.bin,
-    target.gameId,
-    {
-      ownership: options?.ownership,
-      source: MOTEC_SESSION_SOURCE,
-      sourceChannelProfile: capture.sourceChannelProfile,
+  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId, {
+    ownership: options?.ownership,
+    notifyDriverProfile: false,
+    sourceKind: "motec",
+    sourceArchiveVerification: {
+      state: "verified",
+      sourceGeneration: sha256SourceArtifacts([
+        { name: "source.ld", bytes: ldBytes },
+        ...(ldxBytes === undefined ? [] : [{ name: "source.ldx", bytes: ldxBytes }]),
+      ]),
     },
-  );
-
+    sourceChannelProfile: capture.sourceChannelProfile,
+  });
 
   // The pipeline resolves a lap's tune from the live tune assignment, which an
   // import has no business touching, so the chosen setup is applied afterwards.

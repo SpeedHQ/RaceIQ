@@ -1,8 +1,9 @@
 import { deleteLap } from "./lap-mutation-queries";
 import { getLapById } from "./lap-read-queries";
+import { analysisEligibility, currentQualitySnapshot } from "./lap-eligibility";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, sessionResults, pitEvents, lapAnalyses, compareAnalyses } from "./schema";
+import { sessions, laps, sessionResults, raceEvents, lapAnalyses, compareAnalyses } from "./schema";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -15,6 +16,7 @@ import {
   type RecordingQualitySummary,
   type SourceChannelProfile,
 } from "../../shared/racing/quality/contracts";
+import { isTimedLapEligibilityUsable } from "../../shared/racing/quality/policies";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
@@ -54,7 +56,23 @@ export async function insertSession(
   return result.id;
 }
 
-export async function updateSessionQuality(sessionId: number, quality: RecordingQualitySummary, transaction?: DbTransaction): Promise<RecordingQualitySummary> {
+/** Stamp outputs while their receipt attempt is in progress. */
+export async function setSessionAnalysisGeneration(
+  sessionId: number,
+  analysisGenerationId: string,
+): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ analysisGenerationId })
+    .where(eq(sessions.id, sessionId))
+    .run();
+}
+
+export async function updateSessionQuality(
+  sessionId: number,
+  quality: RecordingQualitySummary,
+  transaction?: DbTransaction,
+): Promise<RecordingQualitySummary> {
   const finalized = finalizeRecordingQualityGeneration(quality);
   const update = async (tx: DbTransaction) => {
     const lapRows = await tx
@@ -168,25 +186,92 @@ export async function updateSessionRawFile(sessionId: number, rawFile: string, l
  * cards and per-game pages now both report the full picture.
  */
 
-async function getAvailableStaleSessionRows(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<{ id: number; rawFile: string }[]> {
-  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
+async function getMeasurementStaleSessionIds(
+  currentIds: string[],
+  reprocessableGameIds: GameId[],
+): Promise<number[]> {
   const rows = await db
     .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
-    .where(and(sql`${sessions.rawFile} IS NOT NULL`, inArray(sessions.gameId, reprocessableGameIds), or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))))
+    .where(
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        inArray(sessions.gameId, reprocessableGameIds),
+        or(
+          isNull(sessions.lapDetectorVersion),
+          notInArray(sessions.lapDetectorVersion, currentIds),
+          sql`${sessions.qualitySchemaVersion} IS NULL OR ${sessions.qualitySchemaVersion} <> ${QUALITY_SCHEMA_VERSION}`,
+          sql`${sessions.qualityConfigVersion} IS NULL OR ${sessions.qualityConfigVersion} <> ${QUALITY_CONFIG_VERSION}`,
+        ),
+      ),
+    )
     .all();
-  return rows.filter((row): row is { id: number; rawFile: string } => row.rawFile != null && existsSync(row.rawFile));
+  return rows
+    .filter(
+      (row): row is { id: number; rawFile: string } =>
+        row.rawFile != null && existsSync(row.rawFile),
+    )
+    .map((row) => row.id);
 }
 
-export async function countStaleSessions(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<number> {
-  return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).length;
+async function getEligibilityOnlyStaleSessionIds(
+  currentIds: string[],
+): Promise<number[]> {
+  const rows = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.recordingQuality} IS NOT NULL`,
+        sql`${sessions.qualityPolicyVersion} IS NULL OR ${sessions.qualityPolicyVersion} <> ${ELIGIBILITY_POLICY_VERSION}`,
+        inArray(sessions.lapDetectorVersion, currentIds),
+        eq(sessions.qualitySchemaVersion, QUALITY_SCHEMA_VERSION),
+        eq(sessions.qualityConfigVersion, QUALITY_CONFIG_VERSION),
+      ),
+    )
+    .all();
+  return rows.map((row) => row.id);
+}
+
+async function getAvailableStaleSessionIds(
+  currentIds: string | string[],
+  reprocessableGameIds: GameId[],
+): Promise<number[]> {
+  const ids = Array.isArray(currentIds)
+    ? currentIds
+    : [currentIds];
+  const [measurementStale, eligibilityOnlyStale] =
+    await Promise.all([
+      getMeasurementStaleSessionIds(ids, reprocessableGameIds),
+      getEligibilityOnlyStaleSessionIds(ids),
+    ]);
+  return [...new Set([...measurementStale, ...eligibilityOnlyStale])];
+}
+
+export async function countStaleSessions(
+  currentIds: string | string[],
+  reprocessableGameIds: GameId[],
+): Promise<number> {
+  return (
+    await getAvailableStaleSessionIds(
+      currentIds,
+      reprocessableGameIds,
+    )
+  ).length;
 }
 
 /**
- * Get IDs of sessions with stale lap detector versions and available raw files.
+ * Get session IDs whose measurement evidence can be rebuilt from raw capture,
+ * plus policy-only stale sessions rebuildable from persisted quality.
  */
-export async function getStaleSessions(currentIds: string | string[], reprocessableGameIds: GameId[]): Promise<number[]> {
-  return (await getAvailableStaleSessionRows(currentIds, reprocessableGameIds)).map((row) => row.id);
+export async function getStaleSessions(
+  currentIds: string | string[],
+  reprocessableGameIds: GameId[],
+): Promise<number[]> {
+  return getAvailableStaleSessionIds(
+    currentIds,
+    reprocessableGameIds,
+  );
 }
 
 /**
@@ -264,7 +349,7 @@ export async function deleteEmptySessions(activeSessionId?: number): Promise<num
  * Get all sessions with lap counts, newest first.
  */
 
-export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
+export async function getSessions(gameId: GameId): Promise<SessionMeta[]> {
   const query = db
     .select({
       id: sessions.id,
@@ -301,13 +386,18 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .select({
         id: laps.id,
         lapTime: laps.lapTime,
-        isValid: laps.isValid,
+        quality: laps.quality,
+        eligibility: laps.eligibility,
+        qualitySchemaVersion: laps.qualitySchemaVersion,
+        qualityPolicyVersion: laps.qualityPolicyVersion,
+        qualityConfigVersion: laps.qualityConfigVersion,
+        qualityGeneration: laps.qualityGeneration,
       })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
 
-    const validLaps = lapRows.filter((lap) => lap.isValid && lap.lapTime > 0);
+    const validLaps = lapRows.filter((lap) => isTimedLapEligibilityUsable(lap));
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     const normalizedSession = {
       ...session,
@@ -328,9 +418,18 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .get();
     const pitDurationRow = resultRow
       ? await db
-          .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
-          .from(pitEvents)
-          .where(eq(pitEvents.resultId, resultRow.id))
+          .select({
+            duration: sql<number | null>`
+              sum(json_extract(${raceEvents.payload}, '$.durationMs')) / 1000.0
+            `,
+          })
+          .from(raceEvents)
+          .where(
+            and(
+              eq(raceEvents.sessionId, session.id),
+              eq(raceEvents.eventType, "pit_service_completed"),
+            ),
+          )
           .get()
       : null;
     result.push({
@@ -411,6 +510,15 @@ export async function getSessionRecapData(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      phase: laps.phase,
+      conditions: laps.conditions,
+      paceEligibility: laps.paceEligibility,
+      eligibility: laps.eligibility,
+      quality: laps.quality,
+      qualitySchemaVersion: laps.qualitySchemaVersion,
+      qualityPolicyVersion: laps.qualityPolicyVersion,
+      qualityConfigVersion: laps.qualityConfigVersion,
+      qualityGeneration: laps.qualityGeneration,
       sectorTimes: laps.sectorTimes,
       invalidReason: laps.invalidReason,
     })
@@ -448,6 +556,8 @@ export async function getSessionRecapData(
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
+        analysisEligibility(laps, "normal-pace"),
+        currentQualitySnapshot(laps),
         sql`${laps.lapTime} > 0`,
       ),
     )

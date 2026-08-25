@@ -28,8 +28,8 @@ function generation(value: unknown): string {
     .update(JSON.stringify(stableValue(value)))
     .digest("hex")}`;
 }
-
 const FINALIZED_SOURCE_GENERATION_PATTERN = /^sha256:[0-9a-f]{64}$/;
+
 
 const RECORDING_LAP_FACT_CODES: Partial<Record<QualityFact["code"], true>> = {
   recording_corrupt: true,
@@ -151,9 +151,12 @@ export function combineQualityGenerations(generations: readonly string[]): strin
   return generation({ kind: "quality-cache", generations: [...generations].sort() });
 }
 
-export function finalizeRecordingQualityGeneration(summary: RecordingQualitySummary): RecordingQualitySummary {
+export function finalizeRecordingQualityGeneration(
+  summary: RecordingQualitySummary,
+): RecordingQualitySummary {
   const sourceGeneration = requireFinalizedSourceGeneration(
-    summary.archiveVerification.sourceGeneration,
+    summary.canonicalVerification?.sourceGeneration ??
+      summary.archiveVerification.sourceGeneration,
     "recording",
   );
   const draftProvenance: QualityProvenance = {

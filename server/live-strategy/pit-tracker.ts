@@ -1,18 +1,13 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
-import type { LapMeta } from "../../shared/racing/sessions/types";
-import { getLaps, getLapById } from "../db/lap-read-queries";
+import type { EligibilityDecisionSet } from "../../shared/racing/quality/contracts";
+import { isEligibilityUsable, isTimedLapEligibilityUsable } from "../../shared/racing/quality/policies";
+import { getLapMetaForPitHistory, getLapById } from "../db/lap-read-queries";
 import type { ServerGameRuntimePolicy } from "../games/types";
-import {
-  appendWithCap,
-  interpolateGrid,
-  lapsUntilThreshold,
-  linearInterpolate,
-  rollingAverage,
-} from "./tracker-math";
+import { appendWithCap, interpolateGrid, lapsUntilThreshold, linearInterpolate, rollingAverage } from "./tracker-math";
 
-const CRITICAL_HEALTH_THRESHOLD = 0.20;
+const CRITICAL_HEALTH_THRESHOLD = 0.2;
 
 /**
  * Server-side pit strategy tracker.
@@ -54,9 +49,10 @@ export class PitTracker {
   private lapTimeHistory: number[] = [];
   private lastCurrentLap = 0;
   private sessionLapCount = 0;
+  private completedLapEligibility: EligibilityDecisionSet | null = null;
 
   // Health thresholds supplied by the active adapter.
-  private badHealthThreshold = 0.40;
+  private badHealthThreshold = 0.4;
 
   reset(): void {
     this.fuelHistory = [];
@@ -70,6 +66,7 @@ export class PitTracker {
     this.lapTimeHistory = [];
     this.lastCurrentLap = 0;
     this.sessionLapCount = 0;
+    this.completedLapEligibility = null;
   }
 
   setTireThresholds(yellow: number): void {
@@ -80,27 +77,22 @@ export class PitTracker {
    * Seed enabled fuel and tire histories from previous sessions.
    * The active adapter decides which historical signals are comparable.
    */
-  async seedFromHistory(
-    trackOrdinal: number,
-    carOrdinal: number,
-    pi: number,
-    gameId: GameId,
-    policy: ServerGameRuntimePolicy["pit"],
-  ): Promise<void> {
+  async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId, policy: ServerGameRuntimePolicy["pit"]): Promise<void> {
     const seedFuel = policy.seedFuelFromHistory;
     const seedTires = policy.seedTireWearFromHistory;
     try {
-      const allLaps = await getLaps(gameId, 200);
-      const matching = allLaps
-        .filter((l: LapMeta) => l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal && l.pi === pi && l.isValid && l.lapTime > 10)
-        .sort((a: LapMeta, b: LapMeta) => b.id - a.id) // newest first
-        .slice(0, 5);
+      const matching = await getLapMetaForPitHistory(trackOrdinal, carOrdinal, pi, gameId, 200);
 
       const fuelRates: number[] = [];
       const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
 
       for (const lapMeta of matching) {
-        if ((!seedFuel || fuelRates.length >= 2) && (!seedTires || wearRates.length >= 1)) break;
+        const needsFuel = seedFuel && fuelRates.length < 2;
+        const needsTires = seedTires && wearRates.length < 1;
+        if (!needsFuel && !needsTires) break;
+        const fuelEligible = needsFuel && isTimedLapEligibilityUsable(lapMeta, "fuel-burn");
+        const tireEligible = needsTires && isTimedLapEligibilityUsable(lapMeta, "tire-analysis");
+        if (!fuelEligible && !tireEligible) continue;
         const lap = await getLapById(lapMeta.id);
         if (!lap?.telemetry || lap.telemetry.length < 50) continue;
 
@@ -109,12 +101,12 @@ export class PitTracker {
 
         // Fuel
         const fuelUsed = first.Fuel - last.Fuel;
-        if (fuelUsed > 0 && fuelRates.length < 2) {
+        if (fuelEligible && fuelUsed > 0 && fuelRates.length < 2) {
           fuelRates.push(fuelUsed);
         }
 
         // Tire wear is only read when the adapter marks history comparable.
-        if (seedTires && wearRates.length < 1) {
+        if (tireEligible && wearRates.length < 1) {
           const worn = {
             fl: Math.max(0, last.TireWearFL - first.TireWearFL),
             fr: Math.max(0, last.TireWearFR - first.TireWearFR),
@@ -137,38 +129,44 @@ export class PitTracker {
       console.warn("[Pit] Failed to seed from history:", err);
     }
   }
+  acceptCompletedLap(eligibility: EligibilityDecisionSet): void {
+    this.completedLapEligibility = eligibility;
+  }
 
-  /** Check if a lap's data should be excluded (formation lap, pit lap, etc.) */
-  private isOutlier(fuelUsed: number, lapTime: number): boolean {
-    // Fuel increased (refueled during pit stop)
-    if (fuelUsed <= 0) return true;
-    // Abnormally long lap (>2x rolling average = formation/safety car/pit lap)
+  private isLapTimeOutlier(lapTime: number): boolean {
     if (this.lapTimeHistory.length >= 2) {
       const avg = rollingAverage(this.lapTimeHistory, 5);
-      // Abnormally long = formation/safety car/pit lap; abnormally short =
-      // cut-track or rewind artifact.
       if (lapTime > avg * 2 || lapTime < avg * 0.3) return true;
     }
     return false;
   }
 
+  private isFuelOutlier(fuelUsed: number, lapTime: number): boolean {
+    return fuelUsed <= 0 || this.isLapTimeOutlier(lapTime);
+  }
+
   feed(packet: TelemetryPacket, trackLength: number, lapDistStart: number = 0): LivePitData {
     // Detect lap boundary
     if (this.lastLap >= 0 && packet.LapNumber > this.lastLap) {
+      const fuelUsable = isEligibilityUsable(this.completedLapEligibility?.["fuel-burn"]);
+      const tireUsable = isEligibilityUsable(this.completedLapEligibility?.["tire-analysis"]);
+      const normalPaceUsable = isEligibilityUsable(this.completedLapEligibility?.["normal-pace"]);
+      this.completedLapEligibility = null;
       const lapTime = this.lastCurrentLap; // CurrentLap at end of previous lap
 
       // Fuel
       const fuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
-      const outlier = this.isOutlier(fuelUsed, lapTime);
+      const lapTimeOutlier = this.isLapTimeOutlier(lapTime);
+      const fuelOutlier = this.isFuelOutlier(fuelUsed, lapTime);
 
-      if (!outlier && fuelUsed > 0) {
+      if (fuelUsable && fuelUsed > 0 && !fuelOutlier) {
         appendWithCap(this.fuelHistory, fuelUsed, 50);
         this.sessionLapCount++;
       }
       this.fuelAtLapStart = packet.Fuel;
 
       // Per-tire wear
-      if (!outlier && this.wearAtLapStart.fl >= 0) {
+      if (tireUsable && !lapTimeOutlier && this.wearAtLapStart.fl >= 0) {
         const worn = {
           fl: packet.TireWearFL - this.wearAtLapStart.fl,
           fr: packet.TireWearFR - this.wearAtLapStart.fr,
@@ -181,14 +179,16 @@ export class PitTracker {
         }
       }
       this.wearAtLapStart = {
-        fl: packet.TireWearFL, fr: packet.TireWearFR,
-        rl: packet.TireWearRL, rr: packet.TireWearRR,
+        fl: packet.TireWearFL,
+        fr: packet.TireWearFR,
+        rl: packet.TireWearRL,
+        rr: packet.TireWearRR,
       };
       // Snapshot for live curve-based delta
       this.liveWearAtLapStart = { ...this.wearAtLapStart };
 
       // Track lap times for outlier detection
-      if (lapTime > 10) {
+      if (normalPaceUsable && lapTime > 10) {
         appendWithCap(this.lapTimeHistory, lapTime, 20);
       }
     }
@@ -197,8 +197,10 @@ export class PitTracker {
       if (this.fuelAtLapStart < 0) this.fuelAtLapStart = packet.Fuel;
       if (this.wearAtLapStart.fl < 0) {
         this.wearAtLapStart = {
-          fl: packet.TireWearFL, fr: packet.TireWearFR,
-          rl: packet.TireWearRL, rr: packet.TireWearRR,
+          fl: packet.TireWearFL,
+          fr: packet.TireWearFR,
+          rl: packet.TireWearRL,
+          rr: packet.TireWearRR,
         };
         this.liveWearAtLapStart = { ...this.wearAtLapStart };
       }
@@ -227,7 +229,7 @@ export class PitTracker {
         const refWear = interpolateGrid(this.refWearCurve.wears[i], lapDist);
         if (refWear >= 0) {
           const actualWearDelta = wears[i] - liveStartArr[i]; // actual wear so far this lap
-          const wearDeviation = actualWearDelta - refWear;     // ahead/behind reference
+          const wearDeviation = actualWearDelta - refWear; // ahead/behind reference
           projectedWearPerLap[i] = Math.max(0, this.refWearCurve.totalWear[i] + wearDeviation);
         }
       }
@@ -257,31 +259,15 @@ export class PitTracker {
     // Per-tire estimates
     for (let i = 0; i < 4; i++) {
       const health = 1 - wears[i];
-      toCliff[i] = lapsUntilThreshold(
-        health,
-        this.badHealthThreshold,
-        projectedWearPerLap[i],
-      );
-      toDead[i] = lapsUntilThreshold(
-        health,
-        CRITICAL_HEALTH_THRESHOLD,
-        projectedWearPerLap[i],
-      );
+      toCliff[i] = lapsUntilThreshold(health, this.badHealthThreshold, projectedWearPerLap[i]);
+      toDead[i] = lapsUntilThreshold(health, CRITICAL_HEALTH_THRESHOLD, projectedWearPerLap[i]);
     }
 
     // Worst-tire summary
     const worstWear = Math.max(...wears);
     const health = 1 - worstWear;
-    const tireLapsToBad = lapsUntilThreshold(
-      health,
-      this.badHealthThreshold,
-      worstWearPerLap,
-    );
-    const tireLapsToCritical = lapsUntilThreshold(
-      health,
-      CRITICAL_HEALTH_THRESHOLD,
-      worstWearPerLap,
-    );
+    const tireLapsToBad = lapsUntilThreshold(health, this.badHealthThreshold, worstWearPerLap);
+    const tireLapsToCritical = lapsUntilThreshold(health, CRITICAL_HEALTH_THRESHOLD, worstWearPerLap);
 
     const tireLapsRemaining = tireLapsToBad;
 
@@ -301,9 +287,7 @@ export class PitTracker {
     }
 
     const hasEstimates = fuelPerLap > 0 || worstWearPerLap > 0;
-    const estimateSource: "history" | "session" | null = !hasEstimates
-      ? null
-      : this.sessionLapCount > 0 ? "session" : "history";
+    const estimateSource: "history" | "session" | null = !hasEstimates ? null : this.sessionLapCount > 0 ? "session" : "history";
 
     return {
       fuelPerLap,
@@ -347,10 +331,7 @@ export class PitTracker {
     const startWear = [packets[0].TireWearFL, packets[0].TireWearFR, packets[0].TireWearRL, packets[0].TireWearRR];
 
     // Resample onto 1-meter grid via linear interpolation
-    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [
-      new Float64Array(trackLen), new Float64Array(trackLen),
-      new Float64Array(trackLen), new Float64Array(trackLen),
-    ];
+    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [new Float64Array(trackLen), new Float64Array(trackLen), new Float64Array(trackLen), new Float64Array(trackLen)];
 
     let pi = 0; // packet index cursor
     for (let m = 0; m < trackLen; m++) {
@@ -373,10 +354,7 @@ export class PitTracker {
       }
     }
 
-    const totalWear: [number, number, number, number] = [
-      wears[0][trackLen - 1], wears[1][trackLen - 1],
-      wears[2][trackLen - 1], wears[3][trackLen - 1],
-    ];
+    const totalWear: [number, number, number, number] = [wears[0][trackLen - 1], wears[1][trackLen - 1], wears[2][trackLen - 1], wears[3][trackLen - 1]];
 
     const curve: ResampledWearCurve = { wears, totalWear, length: trackLen };
     appendWithCap(this.recentWearCurves, curve, 3);
@@ -389,13 +367,10 @@ export class PitTracker {
   private averageWearCurves(): ResampledWearCurve | null {
     const curves = this.recentWearCurves;
     if (curves.length === 0) return null;
-    const len = Math.min(...curves.map(c => c.length));
+    const len = Math.min(...curves.map((c) => c.length));
     if (len < 100) return null;
 
-    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [
-      new Float64Array(len), new Float64Array(len),
-      new Float64Array(len), new Float64Array(len),
-    ];
+    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [new Float64Array(len), new Float64Array(len), new Float64Array(len), new Float64Array(len)];
     const totalWear: [number, number, number, number] = [0, 0, 0, 0];
     const n = curves.length;
 
@@ -427,7 +402,7 @@ export class PitTracker {
       tireWearHistoryLength: this.tireWearHistory.length,
       wearAtLapStart: this.wearAtLapStart,
       recentWearCurvesLength: this.recentWearCurves.length,
-      refWearCurveLength: this.refWearCurve ? this.refWearCurve.wears[0]?.length ?? 0 : 0,
+      refWearCurveLength: this.refWearCurve ? (this.refWearCurve.wears[0]?.length ?? 0) : 0,
       liveWearAtLapStart: this.liveWearAtLapStart,
       lapTimeHistoryLength: this.lapTimeHistory.length,
       lastCurrentLap: this.lastCurrentLap,
