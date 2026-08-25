@@ -63,7 +63,7 @@ describe("committed iRacing recorder fixture", () => {
         ownership: undefined,
         sessionType: undefined,
         sourceChannelProfile: undefined,
-        versionIdentity: undefined,
+        versionIdentity: currentTelemetryVersionIdentity("iracing"),
       },
     ]);
     expect(roadAmericaRecording.carModel).toBe("GT3 Test Car");
@@ -136,7 +136,7 @@ describe("committed iRacing seed fixture", () => {
         ownership: undefined,
         sessionType: undefined,
         sourceChannelProfile: undefined,
-        versionIdentity: undefined,
+        versionIdentity: currentTelemetryVersionIdentity("iracing"),
       },
     ]);
     expect(recording.carModel).toBe("Aston Martin Vantage GT3 EVO");
