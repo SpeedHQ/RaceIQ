@@ -79,6 +79,7 @@ const acEvoPackets = acEvoFrames.map((f) => parseAcEvoBuffers(f.physics, f.graph
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
 
 
+
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
 const fmPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
@@ -163,6 +164,7 @@ group("ac-evo", () => {
     await acEvoPipeline.processPacket(packet);
   });
 });
+
 
 
 console.log(`[bench] starting run ${elapsed()}`);
