@@ -53,15 +53,17 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   const followButton = page.getByRole("button", { name: "Fixed", exact: true });
   await followButton.click();
   await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
-  for (const [currentOverlay, nextOverlay] of [
-    ["Overlay", "Inputs"],
-    ["Inputs", "Segments"],
-    ["Segments", "Sectors"],
-    ["Sectors", "Overlay"],
-  ] as const) {
-    await page.getByRole("button", { name: currentOverlay, exact: true }).click();
-    await expect(page.getByRole("button", { name: nextOverlay, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Overlays", exact: true }).click();
+  const overlayItems = ["Inputs", "Segments", "Sectors"].map((label) => page.getByRole("menuitemcheckbox", { name: label, exact: true }));
+  for (const item of overlayItems) {
+    await item.click();
+    await expect(item).toHaveAttribute("aria-checked", "true");
   }
+  for (const item of overlayItems) {
+    await item.click();
+    await expect(item).toHaveAttribute("aria-checked", "false");
+  }
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Zoom in map" }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1.25");
   await page.getByRole("button", { name: "Zoom out map" }).click();
