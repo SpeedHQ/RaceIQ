@@ -47,5 +47,6 @@ test/findings/contract.test.ts
 test/findings/identity.test.ts
 test/findings/render.test.ts
 test/analysis-provenance/contracts.test.ts
+test/runtime/canonical-archive-scheduler.test.ts
 test/shared/canonical-archive-contracts.test.ts
 test/tooling/test-shards.test.ts
