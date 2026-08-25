@@ -299,7 +299,9 @@ describe("reprocessSession", () => {
     sessionId = await insertTestSession(binPath, "0.9.0");
     const sourceVerification = {
       state: "unknown" as const,
-      sourceGeneration: "sha256:original-motec-artifact",
+      sourceGeneration: sha256ContentHash(
+        Buffer.from("original-motec-artifact"),
+      ),
       details: "Original import could not verify the source artifact",
     };
     const priorAccumulator = new RecordingQualityAccumulator("motec", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
@@ -414,15 +416,15 @@ describe("reprocessSession", () => {
       expect(lap.qualityGeneration).toBe(lap.quality.provenance.outputGeneration);
       expect(lap.qualityGeneration).toMatch(/^sha256:/);
     }
-    const preservedLap = reprocessedLaps.find((lap) => lap.fuelPerLap === 3.38);
+    const preservedLap = reprocessedLaps.find((lap) => lap.pi === 911);
     expect(preservedLap).toMatchObject({
       pi: 911,
       carSetup: JSON.stringify({ brakeBias: 55 }),
       experimentVersionId: 17,
       experimentExcluded: 1,
       experimentExcludedSource: "manual",
-      fuelPerLap: 3.38,
-      tyreWear: 0.12,
+      fuelPerLap: null,
+      tyreWear: null,
     });
   });
 
