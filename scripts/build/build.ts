@@ -98,6 +98,8 @@ async function main() {
     "--compile",
     "--define",
     'process.env.NODE_ENV="production"',
+    "--external",
+    "@duckdb/node-bindings-*",
   ];
   compileArgs.push(
     "--define",
@@ -123,6 +125,7 @@ async function main() {
   await run(compileArgs, { env: { NODE_ENV: "production" } });
 
   copyLibsqlAddon();
+  await run(["bun", "scripts/build/copy-duckdb-runtime.ts"]);
 }
 
 main().catch((err) => {
