@@ -55,15 +55,45 @@ try {
     configPath,
     suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 30000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 1\n`,
   );
-  const manifestFiles = files.map((file) => resolve(root, file));
-  const args = suite === "unit" ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
-  const env = { ...process.env };
-  if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
-  if (suite === "integration" && env.DATA_DIR === undefined) {
-    env.DATA_DIR = resolve(suiteRoot, "data");
-  }
-  const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
-  status = await proc.exited;
+  const canSplitIntegration =
+    suite === "integration" && process.env.DATA_DIR === undefined;
+  const fixtureFiles = canSplitIntegration
+    ? files.filter(
+        (file) =>
+          (file.startsWith("test/e2e/") &&
+            file !== "test/e2e/udp-recording.test.ts") ||
+          file.startsWith("test/motec/"),
+      )
+    : [];
+  const primaryFiles =
+    fixtureFiles.length > 0
+      ? files.filter((file) => !fixtureFiles.includes(file))
+      : files;
+  const groups = fixtureFiles.length > 0
+    ? [primaryFiles, fixtureFiles]
+    : [primaryFiles];
+  const processes = groups.map((group, index) => {
+    const manifestFiles = group.map((file) => resolve(root, file));
+    const args =
+      suite === "unit"
+        ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles]
+        : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
+    const env = { ...process.env };
+    if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
+    if (suite === "integration" && env.DATA_DIR === undefined) {
+      env.DATA_DIR = resolve(suiteRoot, `data-${index + 1}`);
+    }
+    return Bun.spawn([process.execPath, ...args], {
+      cwd: root,
+      env,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+  });
+  const exitCodes = await Promise.all(
+    processes.map((process) => process.exited),
+  );
+  status = exitCodes.find((code) => code !== 0) ?? 0;
 } finally {
   rmSync(suiteRoot, { recursive: true, force: true });
 }
