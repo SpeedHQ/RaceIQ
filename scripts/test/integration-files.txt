@@ -57,6 +57,7 @@ test/e2e/acc/acc-2026-04-10T02-59-28-972Z.test.ts
 test/e2e/acc/acc-2026-04-12T20-41-21-436Z.test.ts
 test/e2e/acc/acc-2026-04-12T21-16-07-841Z.test.ts
 test/e2e/acc/acc-2026-04-12T21-44-38-899Z.test.ts
+test/e2e/e2e-telemetry-route.test.ts
 test/e2e/f1-2025-recording.test.ts
 test/e2e/fm-2023-recording.test.ts
 test/e2e/iracing-recording-fixture.test.ts
@@ -102,6 +103,9 @@ test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
 test/games/shared/release-game-registration.test.ts
 test/games/shared/semantic-replay-native.test.ts
+test/gear-ranges.test.ts
+test/gearing-ratios.test.ts
+test/gearing-recording.test.ts
 test/lap-analysis/lap-cache.test.ts
 test/lap-analysis/lap-consistency.test.ts
 test/lap-analysis/lap-export-import-roundtrip.test.ts

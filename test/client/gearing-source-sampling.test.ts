@@ -4,7 +4,7 @@ import {
   sourceSampleAccept,
   sourceSampleDue,
   type SourceSampleClock,
-} from "../src/hooks/useGearingIngest";
+} from "../../client/src/hooks/useGearingIngest";
 
 const newClock = (): SourceSampleClock => ({ streamId: null, lastSequence: -1, lastObservedAtMs: 0 });
 const frame = (sequence: number, observedAtMs: number, streamId = "s") => ({ streamId, sequence, observedAtMs });
