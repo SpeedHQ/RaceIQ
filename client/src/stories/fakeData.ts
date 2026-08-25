@@ -369,9 +369,11 @@ const semanticFixtureIds = [
   "motion.roll",
   "motion.pitch",
   "motion.yaw",
-  "inputs.accel",
+  "inputs.throttle",
   "inputs.brake",
-  "inputs.steer",
+  "inputs.clutch",
+  "inputs.handbrake",
+  "inputs.steering",
   "inputs.gear",
   "engine.current-engine-rpm",
   "engine.engine-max-rpm",
@@ -379,8 +381,10 @@ const semanticFixtureIds = [
   "engine.power",
   "engine.torque",
   "engine.boost",
-  "fuel.fuel",
-  "fuel.fuel-capacity",
+  "fuel.capacity",
+  "fuel.remaining-fraction",
+  "fuel.remaining-percent",
+  "fuel.remaining-volume",
   "timing.best-lap",
   "timing.last-lap",
   "timing.current-lap",
@@ -391,6 +395,12 @@ const semanticFixtureIds = [
   "tires.tire-wear",
   "tires.tire-pressure",
   "brakes.brake-temp",
+  "damage.front-left-wing-damage",
+  "damage.front-right-wing-damage",
+  "damage.rear-wing-damage",
+  "damage.floor-damage",
+  "damage.diffuser-damage",
+  "damage.sidepod-damage",
   "aero.drs-active",
   "aero.drs-available",
   "aero.drs-zone-approaching",
@@ -405,6 +415,18 @@ const semanticFixtureIds = [
 ];
 
 export function makeSemanticFixture(raw: TelemetryPacket) {
+  const fuelUsesFraction = raw.gameId === "fm-2023" || raw.gameId === "f1-2025";
+  const capacityL = raw.FuelCapacity;
+  const remainingVolumeL = fuelUsesFraction
+    ? capacityL === undefined
+      ? undefined
+      : raw.Fuel * capacityL
+    : raw.Fuel;
+  const remainingFraction = fuelUsesFraction
+    ? raw.Fuel
+    : capacityL === undefined || capacityL <= 0
+      ? undefined
+      : raw.Fuel / capacityL;
   const values: unknown[] = semanticFixtureIds.map((id) => {
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
@@ -421,9 +443,11 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
       "motion.roll": raw.Roll,
       "motion.pitch": raw.Pitch,
       "motion.yaw": raw.Yaw,
-      "inputs.accel": raw.Accel,
-      "inputs.brake": raw.Brake,
-      "inputs.steer": raw.Steer,
+      "inputs.throttle": raw.Accel / 255,
+      "inputs.brake": raw.Brake / 255,
+      "inputs.clutch": raw.Clutch / 255,
+      "inputs.handbrake": raw.HandBrake / 255,
+      "inputs.steering": Math.max(-1, Math.min(1, raw.Steer >= 0 ? raw.Steer / 127 : raw.Steer / 128)),
       "inputs.gear": raw.Gear,
       "engine.current-engine-rpm": raw.CurrentEngineRpm,
       "engine.engine-max-rpm": raw.EngineMaxRpm,
@@ -431,8 +455,10 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
       "engine.power": raw.Power,
       "engine.torque": raw.Torque,
       "engine.boost": raw.Boost,
-      "fuel.fuel": raw.Fuel,
-      "fuel.fuel-capacity": raw.FuelCapacity,
+      "fuel.capacity": capacityL,
+      "fuel.remaining-fraction": remainingFraction,
+      "fuel.remaining-percent": remainingFraction === undefined ? undefined : remainingFraction * 100,
+      "fuel.remaining-volume": remainingVolumeL,
       "timing.best-lap": raw.BestLap,
       "timing.last-lap": raw.LastLap,
       "timing.current-lap": raw.CurrentLap,
@@ -443,6 +469,12 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
       "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
       "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
       "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
+      "damage.front-left-wing-damage": f1?.frontLeftWingDamage,
+      "damage.front-right-wing-damage": f1?.frontRightWingDamage,
+      "damage.rear-wing-damage": f1?.rearWingDamage,
+      "damage.floor-damage": f1?.floorDamage,
+      "damage.diffuser-damage": f1?.diffuserDamage,
+      "damage.sidepod-damage": f1?.sidepodDamage,
       "weather.weather-type": f1?.weather,
       "weather.track-temp": f1?.trackTemperature,
       "weather.air-temp": f1?.airTemperature,
@@ -643,9 +675,9 @@ export const fakeAllDataTelemetryView: LiveTelemetryView = {
     attitude: { roll: 0.01, pitch: -0.02, yaw: 0.15 },
     distanceM: 3240,
   },
-  inputs: { throttle: 0.78, brake: 0, steer: 0.03, gear: 7 },
+  inputs: { throttle: 0.78, brake: 0, clutch: 0, handbrake: 0, steering: 0.03, gear: 7 },
   engine: { rpm: 7800, idleRpm: 1200, maxRpm: 9000, powerW: 430000, torqueNm: 580, boost: 0.6 },
-  fuel: { amount: 42.5, capacity: 110 },
+  fuel: { remainingVolumeL: 42.5, remainingFraction: 42.5 / 110, remainingPercent: (42.5 / 110) * 100, capacityL: 110 },
   timing: {
     lapNumber: 8,
     currentLapS: 61.645,

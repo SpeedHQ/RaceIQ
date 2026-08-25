@@ -30,7 +30,7 @@ export const acEvoAdapter: GameAdapter = {
         confidence: "exact",
         display: "per-wheel",
         binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steering", "tires.wheel-rotation-speed"] },
-      }
+      },
       tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },

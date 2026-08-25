@@ -51,7 +51,7 @@ export function semanticReplayIds(): readonly string[] {
     "brakes.brake-bias",
     "fuel.ers-deployed",
     "fuel.ers-harvested",
-    "fuel.fuel-capacity",
+    "fuel.capacity",
     "identity.car-ordinal",
     "identity.player-track-surface",
     "tires.tire-radius",

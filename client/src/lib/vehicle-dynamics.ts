@@ -5,9 +5,9 @@
 import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/racing/analysis/laps/physics/vehicle";
 import { operatingColor, severityColor, severityRangeColor } from "./colors";
 
-/** Convert RaceIQ's canonical 0–255 pedal input to a clamped display percentage. */
+/** Convert RaceIQ's canonical 0–1 pedal ratio to a clamped display percentage. */
 export function controlInputPercent(value: number | undefined): number {
-  return Math.min(100, Math.max(0, ((value ?? 0) / 255) * 100));
+  return Math.min(100, Math.max(0, (value ?? 0) * 100));
 }
 
 // ── Semantic Color Palette ────────────────────────────────────────

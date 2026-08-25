@@ -84,7 +84,7 @@ console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed(
 // --- Preload replay/parser inputs; no file, gzip, or SQLite work is measured ---
 const REPLAY_FRAME_COUNT = 20_000;
 const REPLAY_FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
-const REPLAY_SEMANTIC_IDS = ["motion.speed", "inputs.accel", "inputs.brake", "inputs.gear", "inputs.clutch-percent", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
+const REPLAY_SEMANTIC_IDS = ["motion.speed", "inputs.throttle", "inputs.brake", "inputs.gear", "inputs.clutch-percent", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
 const replayCapture = Buffer.from(gunzipSync(Buffer.from(await Bun.file(REPLAY_FIXTURE).arrayBuffer())));
 const replayPackets = parseRawLapFramesFromBuffer(replayCapture, 12, REPLAY_FRAME_COUNT, "ac-evo", REPLAY_FIXTURE);
 if (replayPackets.length < REPLAY_FRAME_COUNT || replayPackets.length > REPLAY_FRAME_COUNT + 1) {

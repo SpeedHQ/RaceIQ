@@ -34,7 +34,7 @@ export function GripHistory({ view }: { view: LiveTelemetryView }) {
     const slipAngle = view.tires.slipAngleRad;
     const values = {
       "motion.speed": view.motion.speedMps,
-      "inputs.steer": view.inputs.steer,
+      "inputs.steering": view.inputs.steering,
       "tires.tire-combined-slip": combinedSlip && [combinedSlip.fl, combinedSlip.fr, combinedSlip.rl, combinedSlip.rr],
       "tires.tire-slip-ratio": slipRatio && [slipRatio.fl, slipRatio.fr, slipRatio.rl, slipRatio.rr],
       "tires.tire-slip-angle": slipAngle && [slipAngle.fl, slipAngle.fr, slipAngle.rl, slipAngle.rr],

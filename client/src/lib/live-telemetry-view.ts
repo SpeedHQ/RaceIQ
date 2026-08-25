@@ -34,9 +34,22 @@ export interface LiveTelemetryView {
     attitude?: { roll: number; pitch: number; yaw: number };
     distanceM?: number;
   };
-  inputs: { throttle?: number; brake?: number; steer?: number; gear?: number };
+  /** Pedals and handbrake are 0–1 ratios; steering is a signed -1–1 ratio. */
+  inputs: {
+    throttle?: number;
+    brake?: number;
+    clutch?: number;
+    handbrake?: number;
+    steering?: number;
+    gear?: number;
+  };
   engine: { rpm?: number; idleRpm?: number; maxRpm?: number; powerW?: number; torqueNm?: number; boost?: number };
-  fuel: { amount?: number; capacity?: number };
+  fuel: {
+    remainingVolumeL?: number;
+    remainingFraction?: number;
+    remainingPercent?: number;
+    capacityL?: number;
+  };
   timing: {
     lapNumber?: number;
     currentLapS?: number;
@@ -198,9 +211,11 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       attitude,
     },
     inputs: {
-      throttle: number("inputs.accel"),
+      throttle: number("inputs.throttle"),
       brake: number("inputs.brake"),
-      steer: number("inputs.steer"),
+      clutch: number("inputs.clutch"),
+      handbrake: number("inputs.handbrake"),
+      steering: number("inputs.steering"),
       gear: number("inputs.gear"),
     },
     engine: {
@@ -212,8 +227,10 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       boost: number("engine.boost"),
     },
     fuel: {
-      amount: number("fuel.fuel"),
-      capacity: number("fuel.fuel-capacity"),
+      remainingVolumeL: number("fuel.remaining-volume"),
+      remainingFraction: number("fuel.remaining-fraction"),
+      remainingPercent: number("fuel.remaining-percent"),
+      capacityL: number("fuel.capacity"),
     },
     timing: {
       lapNumber: number("timing.lap-number"),

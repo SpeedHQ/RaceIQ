@@ -48,7 +48,7 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
     const semanticFrame: SemanticMetricFrame = {
       values: {
         "motion.speed": view.motion.speedMps,
-        "inputs.steer": view.inputs.steer,
+        "inputs.steering": view.inputs.steering,
         "tires.tire-combined-slip": asArray(view.tires.combinedSlip),
         "tire.temperature.average": asArray(view.tires.temperatureC),
         "tires.tire-wear": asArray(view.tires.wear),

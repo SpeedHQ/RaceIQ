@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import { getFuelAmount, getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
@@ -54,8 +54,8 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
  * Fraction sources reject impossible values; litre sources retain native amounts.
  */
 export function FuelGauge({ view }: { view: LiveTelemetryView }) {
-  const fuelSpec = getGame(view.simulator).telemetry.fuel;
-  const fuelAmount = view.fuel.amount;
+  const fuelUsesVolume = view.fuel.remainingVolumeL !== undefined;
+  const fuelAmount = view.fuel.remainingVolumeL ?? view.fuel.remainingFraction;
   const lapNumber = view.timing.lapNumber;
   const fuelRef = useRef<{
     lapStart: number | null;
@@ -89,7 +89,7 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
     }
     if (fuel.lastLap !== null && lapNumber > fuel.lastLap && fuel.lapStart !== null) {
       const used = fuel.lapStart - fuelAmount;
-      if (used > 0 && (fuelSpec.packetUnit !== "fraction" || used < 1)) {
+      if (used > 0 && (fuelUsesVolume || used < 1)) {
         fuel.history.push(used);
         if (fuel.history.length > 50) fuel.history.shift();
         const recent = fuel.history.slice(-5);
@@ -102,7 +102,7 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
       setFuelStats({ avgPerLap: fuel.avgPerLap, lapStart: fuelAmount });
     }
     fuel.lastLap = lapNumber;
-  }, [fuelAmount, fuelSpec.packetUnit, lapNumber, view.streamId]);
+  }, [fuelAmount, fuelUsesVolume, lapNumber, view.streamId]);
 
   if (fuelAmount === undefined) {
     return (
@@ -115,15 +115,16 @@ export function FuelGauge({ view }: { view: LiveTelemetryView }) {
     );
   }
 
-  const fuel = getFuelDisplaySemantic(fuelAmount, view.fuel.capacity, fuelSpec);
+  const fuel = getFuelDisplaySemantic(view.fuel);
   const fillPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
   const isCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
   const isWarning = !isCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
   const fuelColor = severityColor(isCritical ? 3 : isWarning ? 1 : 0);
   const average = fuelStats.avgPerLap;
   const lapsRemaining = average !== null && average > 0 ? Math.floor(fuelAmount / average) : null;
-  const averageDisplay = average === null ? null : getFuelAmount(average, fuelSpec);
-  const currentLapUsed = fuelStats.lapStart === null ? null : getFuelAmount(fuelStats.lapStart - fuelAmount, fuelSpec);
+  const displayDelta = (amount: number) => ({ amount: fuelUsesVolume ? amount : amount * 100, unit: fuelUsesVolume ? ("L" as const) : ("%" as const) });
+  const averageDisplay = average === null ? null : displayDelta(average);
+  const currentLapUsed = fuelStats.lapStart === null ? null : displayDelta(fuelStats.lapStart - fuelAmount);
 
   return (
     <div className="flex-1">

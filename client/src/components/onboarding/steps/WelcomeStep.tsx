@@ -17,7 +17,9 @@ function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
     "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
     "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
     "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.gear": packet.Gear, "inputs.steering": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
+    "inputs.gear": packet.Gear,
+    "inputs.steering": Math.max(-1, Math.min(1, packet.Steer >= 0 ? packet.Steer / 127 : packet.Steer / 128)),
+    "timing.distance-traveled": packet.DistanceTraveled,
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
   };
   return { values, states: {}, freshness: {} };
