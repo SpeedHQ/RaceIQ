@@ -13,7 +13,7 @@ describe("CrewChief callout coverage", () => {
 
   test("never reports blanket mapped coverage", () => {
     expect(Object.values(CREWCHIEF_COVERAGE["fm-2023"]).some((state) => state.kind === "mapped")).toBe(false);
-    expect(CREWCHIEF_COVERAGE.acc["timing.competitor.last-lap-time"]?.kind).toBe("source-unavailable");
+    expect(CREWCHIEF_COVERAGE.acc["timing.competitor.last-lap-time"]?.kind).toBe("mapped");
     expect(CREWCHIEF_COVERAGE["ac-evo"]["race.competitor.driver-name"]?.kind).toBe("source-unavailable");
     expect(CREWCHIEF_COVERAGE.iracing["timing.competitor.last-lap-valid"]?.kind).toBe("source-unavailable");
     expect(CREWCHIEF_COVERAGE["f1-2025"]["timing.lap-number"]?.kind).toBe("mapped");

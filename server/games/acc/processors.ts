@@ -4,6 +4,7 @@ import { processPacket } from "../../telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
+import { accBroadcastState } from "./broadcast-state";
 import { AC_STATUS, GRAPHICS, STATIC } from "./structs";
 import { readWString } from "./utils";
 
@@ -62,6 +63,30 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: "acc",
       });
       if (packet) {
+        if (triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4) {
+          accBroadcastState.setPlayerCarIndex(triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset));
+        }
+        const broadcast = accBroadcastState.snapshot();
+        if (broadcast && packet.acc) Object.assign(packet.acc, {
+          broadcastSessionIndex: broadcast.sessionIndex,
+          broadcastSessionType: broadcast.sessionType,
+          broadcastPlayerCarIndex: broadcast.playerCarIndex,
+          broadcastCarIndex: broadcast.carIndex,
+          broadcastDriverId: broadcast.driverId,
+          broadcastDriverName: broadcast.driverName,
+          broadcastCarClassId: broadcast.carClassId,
+          broadcastCarClassName: broadcast.carClassName,
+          broadcastLapsComplete: broadcast.lapsComplete,
+          broadcastPitStatus: broadcast.pitStatus,
+          broadcastTrackLocation: broadcast.trackLocation,
+          broadcastPositionX: broadcast.positionX,
+          broadcastPositionY: broadcast.positionY,
+          broadcastPositionZ: broadcast.positionZ,
+          broadcastSpeed: broadcast.speed,
+          broadcastYaw: broadcast.yaw,
+          broadcastLastLapTime: broadcast.lastLapTime,
+          broadcastLastLapValid: broadcast.lastLapValid,
+        });
         const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame);
       }

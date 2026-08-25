@@ -27,7 +27,7 @@ export const LIVE_ENGINEER_PACE_SEMANTIC_IDS = [
 
 const LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS: Record<GameId, readonly string[]> = {
   "fm-2023": [],
-  acc: [],
+  acc: ["identity.player-car-index", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "race.competitor.position-x", "race.competitor.position-z", "race.competitor.speed", "race.competitor.pit-status"],
   "ac-evo": [],
   iracing: ["identity.car-left-right"],
   "f1-2025": ["motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags", "race.competitor.car-index", "race.competitor.connected", "race.competitor.position-x", "race.competitor.position-z", "race.competitor.speed"],

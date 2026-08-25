@@ -21,7 +21,7 @@ Computes live sector timing and pit-strategy estimates from normalized telemetry
 
 `server/telemetry/live-projector.ts` resolves semantic frames; `live-engineer-semantic-input.ts` owns availability and alignment; voice and spotter trackers consume semantic values only. Browser clients own Radio switches, queueing, preemption, playback, and volume.
 
-Opponent pace is source-backed for F1 25 UDP Session History validity and iRacing SDK/YAML completed-lap facts. iRacing Spotter uses native `CarLeftRight`. ACC, AC Evo, and FM opponent pace/spotter remain unavailable when required real competitor feeds or stable upstream identity are absent.
+Opponent pace is source-backed for F1 25 UDP Session History validity, iRacing SDK/YAML completed-lap facts, and ACC Broadcasting Protocol realtime car updates. iRacing Spotter uses native `CarLeftRight`; ACC Spotter uses registered Broadcasting Protocol positions. AC Evo and FM opponent pace/spotter remain unavailable when required real competitor feeds or stable upstream identity are absent.
 
 ## Testing
 

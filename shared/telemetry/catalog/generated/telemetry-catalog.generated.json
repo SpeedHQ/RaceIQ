@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "f6b49732dbcec49be5e3a3880fd6742027a36dc5a5b64f60c23ecaba3ccc8f29"
+      "sourceHash": "bc5bc42c64c29cd46bb8bf1d7792b466cd517a6da8a58816783b25d91e0ac7a8"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "962fea452fcdc94e4967f4c450943f242469d8521c1a470a4148b0d89fe6ab50",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "509a7a6a933704d9f5a3a709e30310f482ea6dabc2761da3cebb077e3b21d9c4",
+      "server/games/iracing/normalizer.ts": "b4a5ec4aaaee99a20e51b803e9728771af5bbefd352d717bc33b4960cff070c0",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "4664da004dfa2e69d10e6f2f001f4323d4257e32fa6147a8f6ebbd15aa0087d8"
+    "contentHash": "de75932763b70e82e8df453d19ac832b1741f67aa1f1e234059cb34e2e1d8c89"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -434,6 +434,7 @@
         "motion.angular-velocity-x",
         "motion.angular-velocity-y",
         "motion.angular-velocity-z",
+        "motion.competitor.yaw",
         "motion.front-axle-roll-angle",
         "motion.lat-accel-st",
         "motion.local-velocity",
@@ -674,6 +675,7 @@
       "label": "Session",
       "description": "Session identity, state, and elapsed-time values.",
       "children": [
+        "session.broadcast-session-index",
         "session.car-class-count",
         "session.car-type-count",
         "session.category",
@@ -13860,14 +13862,56 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastPlayerCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:identity.player-car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPlayerCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e52724c9c52cb3c9e5e0e12be97f8b10502fcf3c2708819e19f87443bcb138ad"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastPlayerCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:identity.player-car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPlayerCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "fe0476b91119c5135987d0619d1b51aac7799c3dfdae88ad7b9578ca285b0b0a"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -18159,27 +18203,45 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionX"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionX"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -18229,27 +18291,45 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionY"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionY"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -18299,27 +18379,45 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionZ"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m",
+          "sources": [
+            "acc.broadcastPositionZ"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -18369,27 +18467,45 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "acc.broadcastSpeed"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "m/s",
+          "sources": [
+            "acc.broadcastSpeed"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -18640,6 +18756,94 @@
             "dimensions": [
               "length",
               "time^-1"
+            ]
+          }
+        ]
+      },
+      "limitations": []
+    },
+    {
+      "id": "motion.competitor.yaw",
+      "label": "Broadcast Yaw",
+      "description": "Broadcast Yaw source value reported by acc in rad.",
+      "parentId": "motion",
+      "canonicalUnit": "rad",
+      "shape": "structured",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "rad",
+          "sources": [
+            "acc.broadcastYaw"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "rad",
+          "sources": [
+            "acc.broadcastYaw"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "structured",
+      "dimensions": [
+        "angle"
+      ],
+      "cardinality": {
+        "kind": "variable",
+        "min": 0,
+        "max": 64
+      },
+      "ordering": [
+        "competitor-index:numeric-ascending"
+      ],
+      "structuredSchema": {
+        "indices": [
+          {
+            "id": "competitor-index",
+            "cardinality": {
+              "kind": "variable",
+              "min": 0,
+              "max": 64
+            },
+            "ordering": "numeric-ascending"
+          }
+        ],
+        "fields": [
+          {
+            "id": "value",
+            "valueType": "number",
+            "dimensions": [
+              "angle"
             ]
           }
         ]
@@ -20797,22 +21001,64 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastCarClassId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert text to id",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastCarClassId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3a337fc5a5e7273df3a048215a5b8557d7aef7b5f9b5d79ff40fbcc173a2dabe"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastCarClassId"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert text to id",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastCarClassId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "51573e0d8fe78ba92a3a723ac4ea36fdfe6929b07fb9bd13a9bcb9613431da34"
+          }
         },
         "iracing": {
           "kind": "direct",
@@ -20857,7 +21103,7 @@
         "fields": [
           {
             "id": "value",
-            "valueType": "number",
+            "valueType": "string",
             "dimensions": [
               "dimensionless"
             ]
@@ -20956,22 +21202,40 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastCarClassName"
+          ],
+          "freshness": "static",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastCarClassName"
+          ],
+          "freshness": "static",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -21301,14 +21565,56 @@
           }
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "1451a65bd745ca0c37e2d466faec52d9fba930e927e2e55ca6c759ffc2b8d645"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastCarIndex"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert count to index",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.car-index:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastCarIndex"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "9ed12983f288dd2e5694ae7df854223ffd2fd7f8b7e1b24d748898995f5a3bae"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -22826,14 +23132,56 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastDriverId"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert text to id",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.driver-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastDriverId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3f267bbc5152bc70e9d520bd2ebb7074c792391b5d561078bea12905b29aa0d4"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastDriverId"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert text to id",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.driver-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastDriverId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "7630c47235cfb02c31c5185c89b581d0e086a6d0c38203af87ff6c0595f9c38e"
+          }
         },
         "iracing": {
           "kind": "direct",
@@ -22877,7 +23225,7 @@
         "fields": [
           {
             "id": "value",
-            "valueType": "number",
+            "valueType": "string",
             "dimensions": [
               "dimensionless"
             ]
@@ -23072,14 +23420,32 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastDriverName"
+          ],
+          "freshness": "static",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastDriverName"
+          ],
+          "freshness": "static",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -23704,14 +24070,32 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastLapsComplete"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastLapsComplete"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -24608,14 +24992,56 @@
           }
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastPitStatus"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert text to enum",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.pit-status:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPitStatus"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3a795135baed9220ba309ccf934e09144a5833e26af64b9b200dc17fd41aa583"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastPitStatus"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert text to enum",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.pit-status:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPitStatus"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "c6b6f413687d16b24ce729418a261ef646c1f829c4b6d24d4f6fcd3693d22856"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -26158,14 +26584,56 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastTrackLocation"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "normalization": "convert text to enum",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.track-location:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastTrackLocation"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "52029ab9f86202024c94c0c788ec783a2aa6eccd75ac76d3c6be0818b54d8a7e"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastTrackLocation"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "normalization": "convert text to enum",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.track-location:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastTrackLocation"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d6a0730b5e2a269ca4fbfa40aacfa26b77875aa0fb7e76d93b52138e64f4b98f"
+          }
         },
         "iracing": {
           "kind": "normalized",
@@ -26223,7 +26691,7 @@
         "fields": [
           {
             "id": "value",
-            "valueType": "number",
+            "valueType": "string",
             "dimensions": [
               "unit:enum"
             ]
@@ -29483,6 +29951,67 @@
             "artifact": "server/games/iracing/normalizer.ts"
           },
           "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "session.broadcast-session-index",
+      "label": "Broadcast Session Index",
+      "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+      "parentId": "session",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastSessionIndex"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "acc.broadcastSessionIndex"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -32843,14 +33372,24 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "acc.broadcastSessionType"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
           "kind": "direct",
           "nativeUnit": "text",
           "sources": [
+            "acc.broadcastSessionType",
             "acc.acEvo.sessionType"
           ],
           "freshness": "continuous",
@@ -41848,14 +42387,32 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "acc.broadcastLastLapTime"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "s",
+          "sources": [
+            "acc.broadcastLastLapTime"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "direct",
@@ -41920,27 +42477,45 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "acc.broadcastLastLapValid"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "acc.broadcastLastLapValid"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No source mapping is currently exposed by RaceIQ."
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "structured",
@@ -59190,6 +59765,207 @@
         "retention": "exact"
       },
       {
+        "path": "acc.broadcastCarClassId",
+        "label": "Broadcast Car Class Id",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Car Class Id source value reported by acc in text.",
+        "semanticId": "race.competitor.car-class-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastCarClassName",
+        "label": "Broadcast Car Class Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Car Class Name source value reported by acc in text.",
+        "semanticId": "race.competitor.car-class-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastCarIndex",
+        "label": "Broadcast Car Index",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Car Index source value reported by acc in count.",
+        "semanticId": "race.competitor.car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastDriverId",
+        "label": "Broadcast Driver Id",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Driver Id source value reported by acc in text.",
+        "semanticId": "race.competitor.driver-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastDriverName",
+        "label": "Broadcast Driver Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Driver Name source value reported by acc in text.",
+        "semanticId": "race.competitor.driver-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLapsComplete",
+        "label": "Broadcast Laps Complete",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Laps Complete source value reported by acc in count.",
+        "semanticId": "race.competitor.laps-complete",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLastLapTime",
+        "label": "Broadcast Last Lap Time",
+        "unit": "s",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Last Lap Time source value reported by acc in s.",
+        "semanticId": "timing.competitor.last-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLastLapValid",
+        "label": "Broadcast Last Lap Valid",
+        "unit": "boolean",
+        "dataType": "readonly boolean[]",
+        "description": "Broadcast Last Lap Valid source value reported by acc in boolean.",
+        "semanticId": "timing.competitor.last-lap-valid",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPitStatus",
+        "label": "Broadcast Pit Status",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Pit Status source value reported by acc in text.",
+        "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPlayerCarIndex",
+        "label": "Broadcast Player Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Broadcast Player Car Index source value reported by acc in count.",
+        "semanticId": "identity.player-car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionX",
+        "label": "Broadcast Position X",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position X source value reported by acc in m.",
+        "semanticId": "motion.competitor.position-x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionY",
+        "label": "Broadcast Position Y",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position Y source value reported by acc in m.",
+        "semanticId": "motion.competitor.position-y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionZ",
+        "label": "Broadcast Position Z",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position Z source value reported by acc in m.",
+        "semanticId": "motion.competitor.position-z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSessionIndex",
+        "label": "Broadcast Session Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "semanticId": "session.broadcast-session-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSessionType",
+        "label": "Broadcast Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Broadcast Session Type source value reported by acc in text.",
+        "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSpeed",
+        "label": "Broadcast Speed",
+        "unit": "m/s",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Speed source value reported by acc in m/s.",
+        "semanticId": "motion.competitor.speed",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastTrackLocation",
+        "label": "Broadcast Track Location",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Track Location source value reported by acc in text.",
+        "semanticId": "race.competitor.track-location",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastYaw",
+        "label": "Broadcast Yaw",
+        "unit": "rad",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Yaw source value reported by acc in rad.",
+        "semanticId": "motion.competitor.yaw",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.carDamage.centre",
         "label": "Centre",
         "unit": "%",
@@ -62211,6 +62987,207 @@
         "count": 1,
         "description": "Brake pad wear in millimetres, FL/FR/RL/RR.",
         "semanticId": "damage.brake-pad-wear",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastCarClassId",
+        "label": "Broadcast Car Class Id",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Car Class Id source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.car-class-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastCarClassName",
+        "label": "Broadcast Car Class Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Car Class Name source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.car-class-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastCarIndex",
+        "label": "Broadcast Car Index",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Car Index source value reported by ac-evo in count.",
+        "semanticId": "race.competitor.car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastDriverId",
+        "label": "Broadcast Driver Id",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Driver Id source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.driver-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastDriverName",
+        "label": "Broadcast Driver Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Driver Name source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.driver-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLapsComplete",
+        "label": "Broadcast Laps Complete",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Laps Complete source value reported by ac-evo in count.",
+        "semanticId": "race.competitor.laps-complete",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLastLapTime",
+        "label": "Broadcast Last Lap Time",
+        "unit": "s",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Last Lap Time source value reported by ac-evo in s.",
+        "semanticId": "timing.competitor.last-lap-time",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastLastLapValid",
+        "label": "Broadcast Last Lap Valid",
+        "unit": "boolean",
+        "dataType": "readonly boolean[]",
+        "description": "Broadcast Last Lap Valid source value reported by ac-evo in boolean.",
+        "semanticId": "timing.competitor.last-lap-valid",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPitStatus",
+        "label": "Broadcast Pit Status",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Pit Status source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPlayerCarIndex",
+        "label": "Broadcast Player Car Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Broadcast Player Car Index source value reported by ac-evo in count.",
+        "semanticId": "identity.player-car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionX",
+        "label": "Broadcast Position X",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position X source value reported by ac-evo in m.",
+        "semanticId": "motion.competitor.position-x",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionY",
+        "label": "Broadcast Position Y",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position Y source value reported by ac-evo in m.",
+        "semanticId": "motion.competitor.position-y",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPositionZ",
+        "label": "Broadcast Position Z",
+        "unit": "m",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Position Z source value reported by ac-evo in m.",
+        "semanticId": "motion.competitor.position-z",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSessionIndex",
+        "label": "Broadcast Session Index",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "semanticId": "session.broadcast-session-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSessionType",
+        "label": "Broadcast Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Broadcast Session Type source value reported by ac-evo in text.",
+        "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSpeed",
+        "label": "Broadcast Speed",
+        "unit": "m/s",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Speed source value reported by ac-evo in m/s.",
+        "semanticId": "motion.competitor.speed",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastTrackLocation",
+        "label": "Broadcast Track Location",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "Broadcast Track Location source value reported by ac-evo in text.",
+        "semanticId": "race.competitor.track-location",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastYaw",
+        "label": "Broadcast Yaw",
+        "unit": "rad",
+        "dataType": "readonly number[]",
+        "description": "Broadcast Yaw source value reported by ac-evo in rad.",
+        "semanticId": "motion.competitor.yaw",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -76059,7 +77036,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 764,
+    "semanticVariables": 766,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -76080,22 +77057,22 @@
         "recorded": 306
       },
       "acc": {
-        "total": 200,
+        "total": 218,
         "packet": 124,
-        "extension": 43,
+        "extension": 61,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 167
+        "recorded": 185
       },
       "ac-evo": {
-        "total": 255,
+        "total": 273,
         "packet": 124,
-        "extension": 95,
+        "extension": 113,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 219
+        "recorded": 237
       },
       "iracing": {
         "total": 968,

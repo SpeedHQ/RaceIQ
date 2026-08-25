@@ -92,6 +92,9 @@ test/games/acc/acc-parser.test.ts
 test/games/acc/acc-recorder.test.ts
 test/games/acc/acc-session-lifecycle.test.ts
 test/games/acc/acc-shared-memory.test.ts
+test/games/acc/acc-broadcast-client.test.ts
+test/games/acc/acc-broadcast-protocol.test.ts
+test/games/acc/acc-broadcast-state.test.ts
 test/games/f1-2025/f1-telemetry-contract.test.ts
 test/games/f1-2025/f1-opponent-laps.test.ts
 test/games/iracing/iracing-ibt-import.test.ts

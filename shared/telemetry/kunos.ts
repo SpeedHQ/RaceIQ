@@ -105,6 +105,25 @@ export interface KunosExtendedData {
    * AC Evo sessions surfaces these without a re-record.
    */
   acEvo?: AcEvoExtendedData;
+  /** Runtime-only ACC Broadcasting Protocol competitor snapshot fields. */
+  broadcastSessionIndex?: number;
+  broadcastSessionType?: string;
+  broadcastPlayerCarIndex?: number;
+  broadcastCarIndex?: readonly number[];
+  broadcastDriverId?: readonly string[];
+  broadcastDriverName?: readonly string[];
+  broadcastCarClassId?: readonly string[];
+  broadcastCarClassName?: readonly string[];
+  broadcastLapsComplete?: readonly number[];
+  broadcastPitStatus?: readonly string[];
+  broadcastTrackLocation?: readonly string[];
+  broadcastPositionX?: readonly number[];
+  broadcastPositionY?: readonly number[];
+  broadcastPositionZ?: readonly number[];
+  broadcastSpeed?: readonly number[];
+  broadcastYaw?: readonly number[];
+  broadcastLastLapTime?: readonly number[];
+  broadcastLastLapValid?: readonly boolean[];
 }
 
 export interface AcEvoExtendedData {

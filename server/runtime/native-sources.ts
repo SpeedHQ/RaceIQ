@@ -1,3 +1,4 @@
+import { accBroadcastClient } from "../games/acc/broadcast-client";
 import { AccSharedMemoryReader } from "../games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "../games/iracing/source";
@@ -28,6 +29,7 @@ export function startNativeSourceSupervisor(
   }
 
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
+  void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
   const pollTimer = setInterval(() => {
     superviseSource(
       isGameRunning("acc"),
@@ -62,7 +64,7 @@ export function startNativeSourceSupervisor(
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
-      const stopTasks: Promise<void>[] = [];
+      const stopTasks: Promise<void>[] = [accBroadcastClient.stop()];
       for (const reader of readers) {
         if (reader) stopTasks.push(reader.stop());
       }

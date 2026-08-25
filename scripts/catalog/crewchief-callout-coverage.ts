@@ -61,9 +61,14 @@ const ids = (...groups: readonly (keyof typeof CREWCHIEF_SEMANTIC_GROUPS)[]) =>
   [...new Set(groups.flatMap((group) => CREWCHIEF_SEMANTIC_GROUPS[group]))] as TelemetryVariableId[];
 const opponentIds = new Set(ids("OPPONENT"));
 const spatialOpponentIds = new Set(ids("SPATIAL_SPOTTER").filter((id) => id.startsWith("motion.competitor.") || id === "race.competitor.connected" || id === "race.competitor.pit-status"));
+const accBroadcastMapped = new Set([
+  "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name", "race.competitor.car-class-id", "race.competitor.car-class-name",
+  "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.track-location", "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid",
+  "motion.competitor.position-x", "motion.competitor.position-y", "motion.competitor.position-z", "motion.competitor.speed",
+]);
 const iracingUnavailable = new Set(["timing.competitor.last-lap-valid", ...spatialOpponentIds]);
 const f1Unavailable = new Set(ids("DRIVER_TEAM_RATINGS"));
-const accUnavailable = new Set([...opponentIds, ...spatialOpponentIds]);
+const accUnavailable = new Set([...opponentIds, ...spatialOpponentIds].filter((id) => !accBroadcastMapped.has(id)));
 const acEvoUnavailable = new Set([...opponentIds, ...spatialOpponentIds].filter((id) => !id.startsWith("motion.competitor.position-")));
 const exception = (reasonCode: string, reason: string, event: string): CrewChiefCoverageState => ({
   kind: "source-unavailable",
