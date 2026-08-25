@@ -47,44 +47,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Pop-Location
           New-Item -ItemType Directory -Force reports | Out-Null
-          Copy-Item -Force pr/scripts/quality/process-bench.ts base/scripts/quality/process-bench.ts
-          Copy-Item -Force pr/test/benchmarks/process-bench-contracts.ts base/test/benchmarks/process-bench-contracts.ts
-          Copy-Item -Force pr/test/benchmarks/process-bench-runtime.ts base/test/benchmarks/process-bench-runtime.ts
-          Copy-Item -Force pr/test/benchmarks/process-bench-child.ts base/test/benchmarks/process-bench-child.ts
-          Copy-Item -Force pr/test/benchmarks/replay-process-bench.ts base/test/benchmarks/replay-process-bench.ts
-      - name: Run four counterbalanced benchmark rounds
-        run: |
-          $ErrorActionPreference = "Stop"
-          $common = @("--processes=3", "--retained-processes=15", "--retained-warmups=1", "--warmup-ms=3000", "--measurement-ms=5000", "--min-samples=20", "--max-samples=200")
-          function Run-Replay {
-            param([string]$checkout, [string]$revision, [string]$reportName, [string]$caseOrder)
-            Push-Location $checkout
-            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision @common --case-order=$caseOrder --output="../reports/$reportName"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Pop-Location
-          }
-          Run-Replay "base" "base-1" "base-1.json" "forward"
-          Run-Replay "pr" "current-1" "current-1.json" "forward"
-          Run-Replay "pr" "current-2" "current-2.json" "reverse"
-          Run-Replay "base" "base-2" "base-2.json" "reverse"
-          Run-Replay "pr" "current-3" "current-3.json" "reverse"
-          Run-Replay "base" "base-3" "base-3.json" "reverse"
-          Run-Replay "base" "base-4" "base-4.json" "forward"
-          Run-Replay "pr" "current-4" "current-4.json" "forward"
-      - name: Compare paired benchmark reports
+      - name: Run counterbalanced benchmark rounds
         working-directory: pr
         run: |
           $ErrorActionPreference = "Stop"
-          $pairs = @(
-            "../reports/base-1.json", "../reports/current-1.json",
-            "../reports/base-2.json", "../reports/current-2.json",
-            "../reports/base-3.json", "../reports/current-3.json",
-            "../reports/base-4.json", "../reports/current-4.json"
-          )
-          $comparison = bun scripts/quality/bench-compare.ts @pairs --median-threshold=10 --retained-heap-threshold=10 --max-cpu-error=3 --max-retained-heap-error=5 --bootstrap-samples=10000 --fail-on-regression
-          $comparison | Set-Content -Encoding utf8 ../reports/comparison.md
-          $comparison | Add-Content $env:GITHUB_STEP_SUMMARY
-          $comparison
+          bun run scripts/quality/run-bench-ci.ts --base=../base --current=. --reports=../reports
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload benchmark comment
         uses: actions/upload-artifact@v7
         with:
