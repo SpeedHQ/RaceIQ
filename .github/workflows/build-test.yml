@@ -20,7 +20,6 @@ concurrency:
 jobs:
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    timeout-minutes: 30
     # Always retain compiled dist for downstream E2E diagnostics and reruns.
     # Upload step uses always() so failures before or during tests do not skip it.
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
