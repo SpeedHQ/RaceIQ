@@ -67,6 +67,30 @@ function requireFinalizedSourceGeneration(
   return sourceGeneration;
 }
 
+function recordingSourceGeneration(
+  summary: RecordingQualitySummary,
+): string {
+  const supplied = summary.archiveVerification.sourceGeneration;
+  if (supplied != null) {
+    return requireFinalizedSourceGeneration(supplied, "recording");
+  }
+  if (summary.archiveVerification.state === "verified") {
+    return requireFinalizedSourceGeneration(null, "recording");
+  }
+  return generation({
+    kind: "recording-source-unavailable",
+    sourceKind: summary.sourceKind,
+    participant: summary.participant,
+    startTimestampMs: summary.startTimestampMs,
+    endTimestampMs: summary.endTimestampMs,
+    endReason: summary.endReason,
+    gapSummary: summary.gapSummary,
+    archiveState: summary.archiveVerification.state,
+    transportState: summary.transportVerification?.state ?? null,
+    canonicalState: summary.canonicalVerification?.state ?? null,
+  });
+}
+
 function timeRangesOverlap(
   left: NonNullable<QualityFact["timeRange"]>,
   right: NonNullable<QualityFact["timeRange"]>,
@@ -152,10 +176,7 @@ export function combineQualityGenerations(generations: readonly string[]): strin
 }
 
 export function finalizeRecordingQualityGeneration(summary: RecordingQualitySummary): RecordingQualitySummary {
-  const sourceGeneration = requireFinalizedSourceGeneration(
-    summary.archiveVerification.sourceGeneration,
-    "recording",
-  );
+  const sourceGeneration = recordingSourceGeneration(summary);
   const draftProvenance: QualityProvenance = {
     ...summary.provenance,
     schemaVersion: QUALITY_SCHEMA_VERSION,
