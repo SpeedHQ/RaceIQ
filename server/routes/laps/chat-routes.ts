@@ -13,17 +13,11 @@ import { buildChatSystemPrompt } from "../../ai/chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
-import {
-  CHAT_RESOURCE_ID,
-  chatThreadId,
-  generationThreadId,
-  getChatMemory,
-  listThreadGenerations,
-  resolveActiveThread,
-} from "../../ai/chat-agent";
+import { CHAT_RESOURCE_ID, chatThreadId, generationThreadId, getChatMemory, listThreadGenerations, resolveActiveThread } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
+import { isEligibilityUsable, resolveEligibilityDecision } from "../../../shared/racing/quality/policies";
 
 export const chatRoutes = new Hono()
   .get("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
@@ -32,9 +26,7 @@ export const chatRoutes = new Hono()
       const memory = getChatMemory();
       const base = chatThreadId(id);
       const genParam = Number(c.req.query("gen"));
-      const threadId = Number.isInteger(genParam) && genParam >= 1
-        ? generationThreadId(base, genParam)
-        : await resolveActiveThread(base);
+      const threadId = Number.isInteger(genParam) && genParam >= 1 ? generationThreadId(base, genParam) : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -42,9 +34,7 @@ export const chatRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5
-        .ui()
-        .filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = list.get.all.aiV5.ui().filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
     } catch (err: any) {
@@ -60,6 +50,16 @@ export const chatRoutes = new Hono()
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
+    const eligibility = resolveEligibilityDecision(lap, "corner-trace");
+    if (!isEligibilityUsable(eligibility)) {
+      const reasonCodes = [...new Set(eligibility.reasons.map(({ code }) => code))];
+      return c.json(
+        {
+          error: `Lap quality is ${eligibility.status} for corner-trace analysis${reasonCodes.length > 0 ? `: ${reasonCodes.join(", ")}` : ""}`,
+        },
+        422,
+      );
+    }
 
     const settings = loadSettings();
     const trackOrdinal = lap.trackOrdinal ?? 0;
@@ -80,8 +80,24 @@ export const chatRoutes = new Hono()
     const cached = await getAnalysis(id);
     const analysisJson = cached?.analysis;
 
-    // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+    // Build chat prompt with binding quality limitations.
+    const chatPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+    const systemPrompt = `${chatPrompt}
+
+Telemetry evidence eligibility:
+${JSON.stringify(
+  {
+    policyId: eligibility.policyId,
+    policyVersion: eligibility.policyVersion,
+    status: eligibility.status,
+    confidence: eligibility.confidence,
+    reasons: eligibility.reasons,
+  },
+  null,
+  2,
+)}
+
+Treat every listed limitation as binding. Do not infer unavailable or ineligible evidence.`;
 
     // Provider/key/model plumbing — inlined from the old startChatStream
     // helper (removed, was the NDJSON transport's shared provider setup)
@@ -106,26 +122,18 @@ export const chatRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+    const chatModelLabel = settings.chatModel || (chatProvider === "openai" ? "gpt-4o-mini" : chatProvider === "local" ? "local-model" : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
-      const stream = await lapChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
+      const stream = await lapChatAgent.stream([{ role: "system", content: systemPrompt }, ...messages], {
+        memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
-      );
+      });
 
       return streamAgentTurnResponse({
         agentStream: stream,

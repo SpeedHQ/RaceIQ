@@ -84,7 +84,9 @@ export const iracingServerAdapter: ServerGameAdapter = {
   toRaceEventObservation(packet, context) {
     const observation = baseRaceEventObservation(packet, context);
     observation.trackDistanceM =
-      packet.iracing && Number.isFinite(packet.iracing.lapDistanceM)
+      packet.iracing &&
+      Number.isFinite(packet.iracing.lapDistanceM) &&
+      packet.iracing.lapDistanceM >= 0
         ? packet.iracing.lapDistanceM
         : null;
     observation.trackDistancePct =

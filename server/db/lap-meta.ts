@@ -3,7 +3,11 @@ import { laps, sessions, tunes } from "./schema";
 import type { GameId } from "../../shared/games/ids";
 import type { LapCondition, LapPhase, PaceEligibility } from "../../shared/racing/laps/classification";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { EligibilityDecisionSet, EvidenceSourceKind, LapQualitySummary } from "../../shared/racing/quality/contracts";
+import {
+  normalizeEvidenceSourceKind,
+  type EligibilityDecisionSet,
+  type LapQualitySummary,
+} from "../../shared/racing/quality/contracts";
 import { isEligibilitySnapshotCurrent } from "../../shared/racing/quality/policies";
 
 export const lapMetaProjection = {
@@ -145,7 +149,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     tuneName: tuneName ?? undefined,
     gameId: gameId as GameId,
     sectorTimes: sectorTimes ?? undefined,
-    source: (source as EvidenceSourceKind | null) ?? "unknown",
+    source: normalizeEvidenceSourceKind(source),
     ownership: ownership === "others" ? "others" : "mine",
     experimentId: experimentId ?? null,
     experimentVersionId: experimentVersionId ?? null,

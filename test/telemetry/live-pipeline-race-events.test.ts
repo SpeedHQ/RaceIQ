@@ -1,7 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { RaceEventsAppendedMessageSchema, type RaceEvent } from "../../shared/racing/events/contracts";
 import { initGameAdapters } from "../../shared/games/init";
-import type { RecordingQualitySummary } from "../../shared/racing/quality/contracts";
+import type {
+  ArchiveVerification,
+  RecordingQualitySummary,
+} from "../../shared/racing/quality/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { initServerGameAdapters } from "../../server/games/init";
 import { compareRaceEvents, MemoryRaceEventStore } from "../../server/race-events/store";
@@ -13,6 +16,11 @@ initGameAdapters();
 initServerGameAdapters();
 
 afterAll(() => stopMaintenanceTasks());
+
+const TEST_SOURCE_VERIFICATION: ArchiveVerification = {
+  state: "verified",
+  sourceGeneration: `sha256:${"a".repeat(64)}`,
+};
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -80,6 +88,12 @@ class FailOnceQualityDbAdapter extends CapturingDbAdapter {
   }
 }
 
+class FailingLapDbAdapter extends CapturingDbAdapter {
+  override insertLap(): Promise<number> {
+    return Promise.reject(new Error("lap insert failed"));
+  }
+}
+
 describe("live race-event timeline integration", () => {
   test("commits ordered events before publishing their typed append message", async () => {
     const ws = new CapturingWsAdapter();
@@ -89,6 +103,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
 
@@ -110,6 +125,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
     const samePacket = packet();
@@ -131,6 +147,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
 
@@ -154,6 +171,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
     await pipeline.processPacket(packet());
@@ -187,6 +205,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
     await pipeline.processPacket(packet());
@@ -214,6 +233,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
 
@@ -240,6 +260,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: cleanStore,
     });
     const failingStore = new MemoryRaceEventStore();
@@ -248,6 +269,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: failingStore,
     });
     const first = packet({ LapNumber: 2, TimestampMS: 1_000, CurrentLap: 60, DistanceTraveled: 5_000 });
@@ -287,6 +309,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
 
@@ -307,6 +330,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: store,
     });
 
@@ -330,6 +354,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: new MemoryRaceEventStore(),
       onSessionFinalized: async () => {
         throw new Error("result reconciliation failed");
@@ -353,6 +378,36 @@ describe("live race-event timeline integration", () => {
     expect(ws.broadcastedNotifications.some(({ type }) => type === "lap-issues")).toBe(true);
   });
 
+  test("releases reserved timeline batches when lap persistence fails", async () => {
+    const pipeline = new LiveTelemetryPipeline(
+      new FailingLapDbAdapter(),
+      new CapturingWsAdapter(),
+      {
+        bypassPacketRateFilter: true,
+        skipHistorySeeding: true,
+        skipDevState: true,
+        recorder: new NullSessionRecorderAdapter(),
+        sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
+        raceEventStore: new MemoryRaceEventStore(),
+      },
+    );
+
+    await pipeline.processPacket(packet());
+    await pipeline.processPacket(
+      packet({
+        TimestampMS: 2_000,
+        LapNumber: 2,
+        CurrentLap: 0.1,
+        LastLap: 90,
+        DistanceTraveled: 5_000,
+      }),
+    );
+
+    await expect(pipeline.finalizeCurrentSession()).rejects.toThrow(
+      "lap insert failed",
+    );
+  });
+
   test("retains closed session finalization after durable failure and retries it", async () => {
     const db = new FailOnceQualityDbAdapter();
     const ws = new CapturingWsAdapter();
@@ -361,6 +416,7 @@ describe("live race-event timeline integration", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
+      sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
       raceEventStore: new MemoryRaceEventStore(),
     });
 

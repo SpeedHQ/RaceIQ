@@ -3,7 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -18,8 +18,6 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
     telemetrySchema: schema,
     telemetryFrame: frame,
     telemetryView: view,
-    rawPacket: fakeForzaPacket,
-    packet: fakeForzaDisplayPacket,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,

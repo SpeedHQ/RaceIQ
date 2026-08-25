@@ -395,7 +395,13 @@ export class LiveTelemetryPipeline {
     if (previous && previous.LapNumber > 1 && packet.LapNumber === 1) {
       return { sessionBoundaryReason: "lap-number-reset", lapReset: true };
     }
-    if (previous && !session.sessionUID && previous.DistanceTraveled > 1_000 && packet.DistanceTraveled < 500) {
+    if (
+      previous &&
+      !session.sessionUID &&
+      packet.LapNumber === previous.LapNumber &&
+      previous.DistanceTraveled > 1_000 &&
+      packet.DistanceTraveled < 500
+    ) {
       return { sessionBoundaryReason: "distance-reset", lapReset: true };
     }
     return {};
@@ -685,9 +691,18 @@ export class LiveTelemetryPipeline {
             detector: this._lapDetector!,
             analysisAttempt,
           };
-          this._recordingQuality = new RecordingQualityAccumulator(this._sourceKind, this._participant, this._versionIdentity ?? currentTelemetryVersionIdentity(session.gameId));
+          this._recordingQuality = new RecordingQualityAccumulator(
+            this._sourceKind,
+            this._participant,
+            this._versionIdentity ??
+              currentTelemetryVersionIdentity(session.gameId),
+          );
           if (this.recorder.path) {
-            await this.db.updateSessionRawFile(session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
+            await this.db.updateSessionRawFile(
+              session.sessionId,
+              this.recorder.path,
+              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+            );
           }
           return closed;
         });
@@ -888,13 +903,18 @@ export class LiveTelemetryPipeline {
         const previousSessionId = previousDetector.session?.sessionId;
         let detectorFailure: unknown;
         try {
-          await previousDetector.finalizeCurrentSession?.("session-rotated");
+          await previousDetector.finalizeCurrentSession?.(
+            "session-rotated",
+          );
         } catch (error) {
           detectorFailure = error;
         }
         if (previousSession) {
-          const result = await this._finishRecordedSessionCore(previousSession, "session-rotated");
-          void result.finalization?.catch(() => {});
+          const result = await this._finishRecordedSessionCore(
+            previousSession,
+            "session-rotated",
+          );
+          await result.finalization;
         } else if (previousSessionId != null) {
           await previousDetector.waitForPendingLapWrites?.(previousSessionId);
         }
