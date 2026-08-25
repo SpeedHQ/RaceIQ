@@ -146,13 +146,18 @@ export const comparisonRoutes = new Hono()
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
-    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
+      if (cacheOnly) return c.json({ analysis: null, cached: false });
+      return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    }
     const lapAEligibility = resolveEligibilityDecision(lapA, "corner-trace");
     if (!isEligibilityUsable(lapAEligibility)) {
+      if (cacheOnly) return c.json({ analysis: null, cached: false });
       return c.json({ error: comparisonEligibilityError("Lap A", lapAEligibility) }, 422);
     }
     const lapBEligibility = resolveEligibilityDecision(lapB, "corner-trace");
     if (!isEligibilityUsable(lapBEligibility)) {
+      if (cacheOnly) return c.json({ analysis: null, cached: false });
       return c.json({ error: comparisonEligibilityError("Lap B", lapBEligibility) }, 422);
     }
 
