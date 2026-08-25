@@ -75,22 +75,22 @@ jobs:
             Pop-Location
           }
           # ABBA execution order: base→PR, PR→base, PR→base, base→PR.
-          Run-Legacy base legacy-base-1.json
-          Run-Replay base base-1.json
-          Run-Legacy pr legacy-current-1.json
-          Run-Replay pr current-1.json
-          Run-Legacy pr legacy-current-2.json
-          Run-Replay pr current-2.json
-          Run-Legacy base legacy-base-2.json
-          Run-Replay base base-2.json
-          Run-Legacy pr legacy-current-3.json
-          Run-Replay pr current-3.json
-          Run-Legacy base legacy-base-3.json
-          Run-Replay base base-3.json
-          Run-Legacy base legacy-base-4.json
-          Run-Replay base base-4.json
-          Run-Legacy pr legacy-current-4.json
-          Run-Replay pr current-4.json
+          Run-Legacy "base" "legacy-base-1.json"
+          Run-Replay "base" "base-1.json" "base-1.json"
+          Run-Legacy "pr" "legacy-current-1.json"
+          Run-Replay "pr" "current-1.json" "current-1.json"
+          Run-Legacy "pr" "legacy-current-2.json"
+          Run-Replay "pr" "current-2.json" "current-2.json"
+          Run-Legacy "base" "legacy-base-2.json"
+          Run-Replay "base" "base-2.json" "base-2.json"
+          Run-Legacy "pr" "legacy-current-3.json"
+          Run-Replay "pr" "current-3.json" "current-3.json"
+          Run-Legacy "base" "legacy-base-3.json"
+          Run-Replay "base" "base-3.json" "base-3.json"
+          Run-Legacy "base" "legacy-base-4.json"
+          Run-Replay "base" "base-4.json" "base-4.json"
+          Run-Legacy "pr" "legacy-current-4.json"
+          Run-Replay "pr" "current-4.json" "current-4.json"
 
       - name: Compare paired benchmark reports
         working-directory: pr
