@@ -13,6 +13,7 @@ import { getAllServerGames } from "../games/registry";
 import { wsManager } from "./websocket-manager";
 import { startSessionCompressor } from "../session-capture/compressor";
 import { startUpdateCheckSchedule } from "./update/check";
+import { scheduleCanonicalArchiveJobs } from "./canonical-archive-scheduler";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { completeCanonicalArchiveJob, claimCanonicalArchiveJob, enqueueCanonicalArchiveJob, failCanonicalArchiveJob, getActiveVerifiedCanonicalArchive, heartbeatCanonicalArchiveJob, recoverExpiredCanonicalArchiveJobs, recoverInterruptedCanonicalArchives } from "../db/canonical-archive-queries";
@@ -26,7 +27,6 @@ const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_AC_EVO_ID,
   LAP_DETECTOR_IRACING_ID,
 ];
-const CANONICAL_ARCHIVE_INTERVAL_MS = 15_000;
 let canonicalArchiveRecoveryComplete = false;
 
 export interface StartupJobDependencies {
@@ -37,6 +37,7 @@ export interface StartupJobDependencies {
   countStaleSessions?: typeof countStaleSessions;
   countStaleRaceResults?: typeof countStaleRaceResults;
 }
+
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
@@ -184,23 +185,15 @@ async function recoverInterruptedCanonicalArchiveState(): Promise<void> {
   canonicalArchiveRecoveryComplete = true;
 }
 export function startCanonicalArchiveJobs(): void {
-  let processing = false;
-  const tick = async () => {
-    if (processing) return;
-    processing = true;
-    try {
-      await recoverInterruptedCanonicalArchiveState();
-      await enqueueStableCaptureJobs();
-      await runCanonicalArchiveJobOnce();
-    } catch (error) {
+  void scheduleCanonicalArchiveJobs({
+    recoverInterruptedState: recoverInterruptedCanonicalArchiveState,
+    enqueueStableCaptureJobs,
+    runCanonicalArchiveJobOnce,
+    setInterval: (callback, intervalMs) => setInterval(callback, intervalMs),
+    onError: (error) => {
       console.error("[Server] Canonical archive scheduler failed:", error);
-    } finally {
-      processing = false;
-    }
-  };
-  void tick();
-  const timer = setInterval(() => void tick(), CANONICAL_ARCHIVE_INTERVAL_MS);
-  timer.unref?.();
+    },
+  });
 }
 
 export function startMaintenanceJobs(): void {

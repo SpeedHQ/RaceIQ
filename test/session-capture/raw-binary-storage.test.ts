@@ -26,6 +26,7 @@ import {
 } from "../../shared/racing/quality/contracts";
 import { sessionRoutes } from "../../server/routes/session-routes";
 import { finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
+import { listCanonicalArchiveJobs } from "../../server/db/canonical-archive-queries";
 
 import { RecordingQualityAccumulator } from "../../shared/racing/quality/measure";
 import { qualityPackets, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
@@ -250,6 +251,15 @@ describe("reprocessSession", () => {
     expect(result.lapsDetected).toBe(0);
     expect(result.lapsUpdated).toBe(0);
     expect(result.sessionId).toBe(sessionId);
+    expect(await listCanonicalArchiveJobs(sessionId)).toMatchObject([
+      {
+        sessionId,
+        sourceContentHash: sha256ContentHash(
+          Buffer.from(await Bun.file(binPath).arrayBuffer()),
+        ),
+        status: "pending",
+      },
+    ]);
   });
 
   test("retains non-replayable lifecycle facts without carrying packet-derived facts forward", async () => {
