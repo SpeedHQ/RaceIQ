@@ -8,11 +8,14 @@ const tempDirs: string[] = [];
 interface ReportOptions {
   readonly median?: number;
   readonly p99?: number;
-  readonly heap?: number;
-  readonly legacyMedian?: number;
+  readonly retainedHeap?: number;
   readonly includeReplay?: boolean;
+  readonly runtime?: string;
+  readonly cpu?: string;
+  readonly omitCurrent?: boolean;
+  readonly rawProcesses?: boolean;
+  readonly highVariance?: boolean;
 }
-
 function makeTempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "raceiq-bench-compare-"));
   tempDirs.push(dir);
@@ -24,58 +27,48 @@ function makeReport(options: ReportOptions = {}): string {
     {
       alias: "pipeline",
       group: 1,
-      runs: [
-        {
-          stats: {
-            p50: options.legacyMedian ?? 100,
-            p99: 120,
-            heap: { avg: 1_024 },
-          },
-        },
-      ],
+      runs: [{ stats: { p50: 100, p99: 120 } }],
     },
   ];
-  if (options.includeReplay !== false) {
+  if (options.includeReplay !== false && !options.omitCurrent) {
     benchmarks.push({
       alias: "resolve 20,000 canonical envelopes",
       group: 0,
-      runs: [
-        {
-          stats: {
-            p50: options.median ?? 100,
-            p99: options.p99 ?? 120,
-            heap: { avg: options.heap ?? 1_024 },
-          },
-        },
-      ],
+      runs: [{ stats: {
+        p50: options.median ?? 100,
+        p99: options.p99 ?? 120,
+        ...(options.retainedHeap === undefined ? {} : { retainedHeap: { p50: options.retainedHeap } }),
+      } }],
     });
   }
   return JSON.stringify({
     layout: [{ name: "replay" }, { name: "legacy" }],
-    context: { runtime: "bun", cpu: { name: "Test CPU" } },
+    context: { runtime: options.runtime ?? "bun", cpu: { name: options.cpu ?? "Test CPU" } },
     benchmarks,
+    ...(options.rawProcesses ? {
+      rawProcesses: options.highVariance
+        ? [
+            { timing: { "replay/resolve 20,000 canonical envelopes": { samplesNs: [100] } } },
+            { timing: { "replay/resolve 20,000 canonical envelopes": { samplesNs: [10000] } } },
+          ]
+        : [{
+            timing: {
+              "replay/resolve 20,000 canonical envelopes": { samplesNs: [100, 101, 99, 100] },
+            },
+          }],
+    } : {}),
   });
 }
 
-async function runComparator(
-  baseline: string,
-  current: string,
-  failOnRegression = false,
-  p99Threshold?: number,
-  includePrefix?: string,
-  extraArgs: string[] = [],
-): Promise<{ code: number; output: string }> {
+async function runComparator(reports: string[], extraArgs: string[] = []): Promise<{ code: number; output: string }> {
   const dir = makeTempDir();
-  const baselinePath = join(dir, "baseline.json");
-  const currentPath = join(dir, "current.json");
-  await Promise.all([Bun.write(baselinePath, baseline), Bun.write(currentPath, current)]);
-
-  const args = [process.execPath, "scripts/quality/bench-compare.ts", baselinePath, currentPath];
-  if (failOnRegression) args.push("--fail-on-regression");
-  if (p99Threshold !== undefined) args.push(`--p99-threshold=${p99Threshold}`);
-  if (includePrefix !== undefined) args.push(`--include=${includePrefix}`);
-  args.push(...extraArgs);
-  const proc = Bun.spawn(args, {
+  const paths: string[] = [];
+  for (let index = 0; index < reports.length; index += 1) {
+    const path = join(dir, `report-${index}.json`);
+    await Bun.write(path, reports[index]!);
+    paths.push(path);
+  }
+  const proc = Bun.spawn([process.execPath, "scripts/quality/bench-compare.ts", ...paths, ...extraArgs], {
     cwd: process.cwd(),
     stdout: "pipe",
     stderr: "pipe",
@@ -84,91 +77,112 @@ async function runComparator(
   return { code, output: `${stdout}\n${stderr}` };
 }
 
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
+function pairedWith(baseOptions: ReportOptions, currentOptions: ReportOptions, count = 4): string[] {
+  return Array.from({ length: count }, () => [makeReport(baseOptions), makeReport(currentOptions)]).flat();
+}
+function paired(base: number[], current: number[], options: ReportOptions = {}): string[] {
+  return base.flatMap((baseMedian, index) => [
+    makeReport({ ...options, median: baseMedian }),
+    makeReport({ ...options, median: current[index] }),
+  ]);
+}
 
-describe("Mitata benchmark comparison", () => {
-  test("accepts identical sampled reports", async () => {
-    const report = makeReport();
-    const result = await runComparator(report, report, true);
-
+describe("Paired benchmark comparison", () => {
+  test("accepts identical four-pair reports", async () => {
+    const result = await runComparator(paired([100, 100, 100, 100], [100, 100, 100, 100]), ["--fail-on-regression"]);
     expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("Baseline median / p99");
     expect(result.output).toContain("No regressions above configured thresholds");
   });
 
-  test("enforces median and p99 regressions beyond tolerance", async () => {
-    const result = await runComparator(makeReport(), makeReport({ median: 106, p99: 127.2 }), true);
+  test("uses paired median so one noisy process does not fail", async () => {
+    const result = await runComparator(paired([100, 100, 100, 100], [110, 90, 100, 100]), ["--fail-on-regression"]);
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("≈ 0.0%");
+  });
 
+  test("fails consistent median and p99 regressions", async () => {
+    const result = await runComparator(paired([100, 100, 100, 100], [106, 106, 106, 106]), ["--p99-threshold=5", "--fail-on-regression"]);
     expect(result.code, result.output).toBe(1);
     expect(result.output).toContain("median +6.0%");
-    expect(result.output).toContain("p99 +6.0%");
+    const p99 = await runComparator(pairedWith({ p99: 120 }, { p99: 130 }), ["--p99-threshold=5", "--fail-on-regression"]);
+    expect(p99.code, p99.output).toBe(1);
+    expect(p99.output).toContain("p99 +8.3%");
   });
 
-  test("allows noisier p99 within its dedicated tolerance", async () => {
-    const result = await runComparator(makeReport(), makeReport({ p99: 140 }), true, 25);
-
-    expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("p99 ±25%");
-    expect(result.output).toContain("No regressions above configured thresholds");
+  test("fails consistent retained-heap regression", async () => {
+    const result = await runComparator(pairedWith({ retainedHeap: 1_000 }, { retainedHeap: 1_100 }), ["--retained-heap-threshold=5", "--fail-on-regression"]);
+    expect(result.code, result.output).toBe(1);
+    expect(result.output).toContain("retained heap +10.0%");
   });
 
-  test("limits enforcement to selected benchmark prefix", async () => {
-    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 200 }), true, 25, "replay/");
 
+  test("shows retained heap pending for legacy base reports", async () => {
+    const result = await runComparator(paired([100, 100], [100, 100], { retainedHeap: 1_100 }));
     expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("Δ retained heap");
+    expect(result.output).toContain("| — |");
+    expect(result.output).not.toContain("alloc");
+  });
+
+  test("fails runtime and CPU mismatches", async () => {
+    const runtime = await runComparator([makeReport(), makeReport({ runtime: "node" })]);
+    expect(runtime.code).toBe(1);
+    expect(runtime.output).toContain("Context mismatch in pair 1");
+    const cpu = await runComparator([makeReport(), makeReport({ cpu: "Other CPU" })]);
+    expect(cpu.code).toBe(1);
+    expect(cpu.output).toContain("Other CPU");
+  });
+
+  test("fails missing current results", async () => {
+    const result = await runComparator([makeReport(), makeReport({ omitCurrent: true })]);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("Current result missing");
+  });
+
+  test("preserves include, informational, and title behavior", async () => {
+    const result = await runComparator(paired([100, 100], [200, 50]), ["--include=replay/", "--informational", "--title=Replay guardrails"]);
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("## Replay guardrails");
     expect(result.output).toContain("Included benchmarks: `replay/*`");
     expect(result.output).not.toContain("legacy/pipeline");
+    expect(result.output).toContain("Report-only");
   });
-
-  test("renders report-only microbenchmarks with colored deltas", async () => {
-    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 200 }), false, undefined, undefined, ["--exclude=replay/", "--informational"]);
-
+  test("reports high variance from preserved raw process samples", async () => {
+    const result = await runComparator([
+      makeReport({ rawProcesses: true, highVariance: true }),
+      makeReport({ rawProcesses: true, highVariance: true }),
+    ]);
     expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("## Informational microbenchmarks");
-    expect(result.output).toContain("Report-only. Small timings can vary between runs.");
-    expect(result.output).toContain("legacy/pipeline");
-    expect(result.output).toContain("Δ median | Δ p99 | Δ alloc");
-    expect(result.output).toContain("🔴 +100.0%");
-    expect(result.output).not.toContain("replay/resolve");
-    expect(result.output).not.toContain("Regressions");
+    expect(result.output).toContain("high process variance");
+    expect(result.output).toContain("MAD");
   });
 
-  test("renders green improvement deltas without enforcement", async () => {
-    const result = await runComparator(makeReport(), makeReport({ legacyMedian: 50 }), false, undefined, undefined, ["--exclude=replay/", "--informational"]);
-
-    expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("🟢 -50.0%");
+  test("rejects invalid threshold values", async () => {
+    for (const flag of ["--median-threshold", "--p99-threshold", "--retained-heap-threshold"]) {
+      for (const value of ["NaN", "Infinity", "-1", "not-a-number", ""]) {
+        const result = await runComparator([makeReport(), makeReport()], [`${flag}=${value}`]);
+        expect(result.code, `${flag}=${value}`).toBe(1);
+        expect(result.output).toContain("finite non-negative number");
+        expect(result.output).toContain("Usage:");
+      }
+    }
   });
 
-  test("keeps all three deltas in titled replay guardrails", async () => {
-    const result = await runComparator(makeReport(), makeReport(), false, undefined, "replay/", ["--title=Replay CPU guardrails"]);
-
-    expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("## Replay CPU guardrails");
-    expect(result.output).toContain("Δ median | Δ p99 | Δ alloc");
+  test("uses new thresholds and metric labels in usage and output", async () => {
+    const usage = await runComparator([makeReport()]);
+    expect(usage.code).toBe(1);
+    expect(usage.output).toContain("--median-threshold");
+    expect(usage.output).toContain("--retained-heap-threshold");
+    const result = await runComparator(paired([100, 100], [100, 100]));
+    expect(result.output).toContain("retained heap");
+    expect(result.output).not.toContain("alloc");
   });
 
-  test("reports regressions without failing unless requested", async () => {
-    const result = await runComparator(makeReport(), makeReport({ median: 110 }));
-
-    expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("median +10.0%");
-  });
-
-  test("enforces Mitata allocation regressions", async () => {
-    const result = await runComparator(makeReport(), makeReport({ heap: 1_100 }), true);
-
-    expect(result.code, result.output).toBe(1);
-    expect(result.output).toContain("alloc +7.4%");
-  });
-
-  test("allows initial landing when baseline lacks new benchmark", async () => {
-    const result = await runComparator(makeReport({ includeReplay: false }), makeReport(), true);
-
+  test("allows new benchmark to remain baseline pending", async () => {
+    const base = makeReport({ includeReplay: false });
+    const current = makeReport();
+    const result = await runComparator([base, current, base, current]);
     expect(result.code, result.output).toBe(0);
     expect(result.output).toContain("Baseline pending");
-    expect(result.output).toContain("Regression assessment starts after matching results exist on the base branch");
   });
 });

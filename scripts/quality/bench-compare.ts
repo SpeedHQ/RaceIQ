@@ -27,10 +27,12 @@ const robustSpread = (report: Results, key: string): number | undefined => {
 
 const args = process.argv.slice(2);
 const option = (prefix: string): string | undefined => args.find((arg) => arg.startsWith(`${prefix}=`))?.slice(prefix.length + 1);
+const usage = "Usage: bun scripts/quality/bench-compare.ts <base-1.json> <current-1.json> [<base-2.json> <current-2.json> ...] [--median-threshold=5] [--p99-threshold=5] [--retained-heap-threshold=5] [--include=<prefix>] [--exclude=<prefix>] [--informational] [--title=<heading>]";
 const threshold = (name: string): number => {
-  const value = Number(option(name) ?? 5);
-  if (!Number.isFinite(value) || value < 0) {
-    console.error(`${name} must be a finite non-negative number`);
+  const raw = option(name);
+  const value = Number(raw ?? 5);
+  if (raw !== undefined && (raw.trim() === "" || !Number.isFinite(value) || value < 0)) {
+    console.error(`${name} must be a finite non-negative number\n${usage}`);
     process.exit(1);
   }
   return value;
@@ -43,7 +45,6 @@ const excludePrefix = option("--exclude");
 const informational = args.includes("--informational");
 const title = option("--title");
 const files = args.filter((arg) => !arg.startsWith("--"));
-const usage = "Usage: bun scripts/quality/bench-compare.ts <base-1.json> <current-1.json> [<base-2.json> <current-2.json> ...] [--median-threshold=5] [--p99-threshold=5] [--retained-heap-threshold=5] [--include=<prefix>] [--exclude=<prefix>] [--informational] [--title=<heading>]";
 
 if (args.some((arg) => arg.startsWith("--threshold=")) || files.length === 0 || files.length % 2 !== 0) {
   console.error(usage);
