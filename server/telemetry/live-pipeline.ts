@@ -144,7 +144,11 @@ export class LiveTelemetryPipeline {
   private _onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
   private _onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
   private _onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
-  private _onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
+  private _onCanonicalArchiveEnqueued?: (
+    sessionId: number,
+    gameId: GameId,
+    sourceContentHash?: string,
+  ) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
@@ -218,7 +222,11 @@ export class LiveTelemetryPipeline {
       onSessionFinalized?: (sessionId: number, gameId: GameId, analysisGenerationId?: string) => Promise<void>;
       onSessionAnalysisStarted?: (sessionId: number, gameId: GameId) => Promise<AnalysisReceiptRow>;
       onSessionAnalysisFinalized?: (attempt: AnalysisReceiptRow, gameId: GameId) => Promise<void>;
-      onCanonicalArchiveEnqueued?: (sessionId: number, gameId: GameId) => Promise<void>;
+      onCanonicalArchiveEnqueued?: (
+        sessionId: number,
+        gameId: GameId,
+        sourceContentHash?: string,
+      ) => Promise<void>;
       sourceKind?: EvidenceSourceKind;
       participant?: ParticipantEvidence;
       sourceArchiveVerification?: ArchiveVerification;
@@ -628,8 +636,14 @@ export class LiveTelemetryPipeline {
     closed.finalizedSessionRuns ??= await this._finalizeSessionRuns(sessionId);
     const analysisFinalization = this._trackSessionFinalization(closed, endReason);
     const enqueue = this._onCanonicalArchiveEnqueued;
+    const sourceContentHash =
+      closed.canonicalVerification?.sourceGeneration ??
+      closed.sourceVerification.sourceGeneration ??
+      undefined;
     const finalization = enqueue
-      ? analysisFinalization.then(() => enqueue(sessionId, closed.session.gameId))
+      ? analysisFinalization.then(() =>
+          enqueue(sessionId, closed.session.gameId, sourceContentHash),
+        )
       : analysisFinalization;
     void finalization
       .then(() => {
@@ -1249,9 +1263,13 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   onSessionAnalysisFinalized: async (attempt, gameId) => {
     await activateSessionAnalysisAttempt(attempt, gameId);
   },
-  onCanonicalArchiveEnqueued: async (sessionId, gameId) => {
+  onCanonicalArchiveEnqueued: async (sessionId, gameId, sourceContentHash) => {
     try {
-      await enqueueCanonicalArchiveForSession(sessionId, gameId);
+      await enqueueCanonicalArchiveForSession(
+        sessionId,
+        gameId,
+        sourceContentHash,
+      );
     } catch (error) {
       console.error(`[Live Telemetry] Failed to enqueue canonical archive for session ${sessionId}:`, error);
     }
