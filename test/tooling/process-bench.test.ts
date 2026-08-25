@@ -38,7 +38,7 @@ describe("retained-heap fixture child", () => {
   test("keeps fixture output off stdout and measures retained result", async () => {
     const config = await retainedHeapChild(`
       export function setup() { console.log("setup diagnostic"); }
-      export function runIteration() { console.log("iteration diagnostic"); return new ArrayBuffer(1024 * 1024); }
+      export function runIteration() { console.log("iteration diagnostic"); return Array.from({ length: 100_000 }, (_, index) => \`retained-\${index}\`); }
     `);
     const report = await runChildBenchmark(config) as RetainedHeapChildReport;
     expect(report.retainedHeap).toBeGreaterThan(0);
