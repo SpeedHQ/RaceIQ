@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { LiveEngineerAudioPlayer } from "../../lib/live-engineer-audio";
 
 export type SpeechClip = { segmentId: string; spokenText: string; path: string; durationMs: number; sha256: string };
 export type SpeechQwenClip = SpeechClip & { url: string };
@@ -10,6 +11,7 @@ export function useDevSpeechAudio(spotter: boolean) {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement[]>([]);
+  const playerRef = useRef<LiveEngineerAudioPlayer | null>(null);
   const stop = () => {
     for (const audio of audioRef.current) {
       audio.onended = null;
@@ -18,6 +20,7 @@ export function useDevSpeechAudio(spotter: boolean) {
       audio.currentTime = 0;
     }
     audioRef.current = [];
+    playerRef.current?.stop();
     setPlaying(null);
   };
   const loadCatalog = async () => setCatalog(await (await fetch("/api/dev/live-engineer/catalog")).json() as SpeechCatalog);
@@ -34,19 +37,12 @@ export function useDevSpeechAudio(spotter: boolean) {
       return Promise.resolve();
     }
     setPlaying(id);
-    const audios = clips.map((clip) => new Audio(`/audio/live-engineer/v1/${clip.path}`));
-    audioRef.current = audios;
-    return new Promise((resolve) => {
-      let index = 0;
-      const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
-      const playNext = () => {
-        const audio = audios[index];
-        if (!audio) { finish(); return; }
-        audio.onended = () => { index += 1; playNext(); };
-        audio.onerror = () => { setResult({ error: "Audio asset failed to load", clip: clips[index]?.segmentId }); finish(); };
-        void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
-      };
-      playNext();
+    const player = playerRef.current ?? (playerRef.current = new LiveEngineerAudioPlayer());
+    return player.play(segmentIds).then(() => {
+      setPlaying((current) => current === id ? null : current);
+    }).catch((error: unknown) => {
+      setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" });
+      setPlaying((current) => current === id ? null : current);
     });
   };
   const playFullLine = (id: string, lineId: string): Promise<void> => {
