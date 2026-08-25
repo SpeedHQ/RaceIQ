@@ -67,6 +67,7 @@ import {
   addSectorDerivedVariables,
   assertCatalogSemanticQuality,
   contentHash,
+  compareCatalogStrings,
   enrichCatalogContracts,
   telemetryCatalogSourceHash,
 } from "./contract-enrichment";
@@ -628,7 +629,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     group.children.sort();
   }
   for (const gameId of GAME_IDS) {
-    inventories[gameId].sort((a, b) => a.path.localeCompare(b.path));
+    inventories[gameId].sort((a, b) => compareCatalogStrings(a.path, b.path));
   }
 
   const sourceCounts = Object.fromEntries(
@@ -706,8 +707,8 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
       ...iracingSessionInfoCaptureArtifacts,
     ],
-    groups: [...groups.values()].sort((a, b) => a.id.localeCompare(b.id)),
-    variables: [...variables.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    groups: [...groups.values()].sort((a, b) => compareCatalogStrings(a.id, b.id)),
+    variables: [...variables.values()].sort((a, b) => compareCatalogStrings(a.id, b.id)),
     sources: inventories,
     coverage: {
       normalizedPacketFields: packetFieldNames.length,

@@ -8,6 +8,7 @@ import {
 import {
   cardinalityFor,
   contentHash,
+  compareCatalogStrings,
   dimensionForUnit,
   ENUM_DOMAINS,
   rangeForUnit,
@@ -209,7 +210,7 @@ export function assertCatalogSemanticQuality(
   variables: ReadonlyMap<string, CatalogVariable>,
 ): void {
   const ordered = [...variables.values()].sort((left, right) =>
-    left.id.localeCompare(right.id),
+    compareCatalogStrings(left.id, right.id),
   );
   const concepts = new Map<string, CatalogVariable>();
   const wheelFamilies = new Map<string, Set<string>>();
@@ -286,7 +287,7 @@ export function assertCatalogSemanticQuality(
   }
 
   for (const [stem, corners] of [...wheelFamilies].sort(([left], [right]) =>
-    left.localeCompare(right),
+    compareCatalogStrings(left, right),
   )) {
     if (corners.size >= 3) {
       throw new Error(

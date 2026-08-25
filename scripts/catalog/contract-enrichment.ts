@@ -6,6 +6,7 @@ export {
 } from "./derived-projections";
 export {
   canonicalize,
+  compareCatalogStrings,
   contentHash,
   telemetryCatalogSourceHash,
   ENUM_DOMAINS,

@@ -12,6 +12,20 @@ import type {
   ValueType,
 } from "./model";
 
+// Catalog identifiers are ASCII; avoid runtime-specific Intl/ICU collation.
+export function compareCatalogStrings(left: string, right: string): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    let leftCode = left.charCodeAt(index);
+    let rightCode = right.charCodeAt(index);
+    if (leftCode >= 65 && leftCode <= 90) leftCode += 32;
+    if (rightCode >= 65 && rightCode <= 90) rightCode += 32;
+    if (leftCode !== rightCode) return leftCode < rightCode ? -1 : 1;
+  }
+  if (left.length !== right.length) return left.length < right.length ? -1 : 1;
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -19,7 +33,7 @@ function canonicalize(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, entry]) => entry !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareCatalogStrings(left, right))
       .map(([key, entry]) => [key, canonicalize(entry)]),
   );
 }
