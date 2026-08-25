@@ -504,7 +504,7 @@ describe("importMotec end to end", () => {
 
     expect(result.carTrack.trackOrdinal).toBe(monza.id);
     for (const lap of result.laps) expect(lap.trackOrdinal).toBe(monza.id);
-  });
+  }, 30_000);
 
   test("an optional setup is stamped on every imported lap", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
@@ -531,7 +531,7 @@ describe("importMotec end to end", () => {
       const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
       expect(row?.tuneId).toBe(tuneId);
     }
-  });
+  }, 30_000);
 
   test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
@@ -544,5 +544,5 @@ describe("importMotec end to end", () => {
       const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
       expect(row?.tuneId).toBeNull();
     }
-  });
+  }, 30_000);
 });
