@@ -9,7 +9,7 @@ const MESSAGES_DIR = resolve(CLIENT, "messages");
 const SETTINGS_PATH = resolve(CLIENT, "project.inlang/settings.json");
 const CACHE_PATH = resolve(CLIENT, "project.inlang/.cache/raceiq-paraglide-dev.json");
 const OUTDIR = resolve(CLIENT, "src/paraglide");
-const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js"];
+const OUTPUT_MARKERS = ["messages.js", "runtime.js", "server.js", "messages/en.js", "messages/de.js"];
 const COMPILER_FINGERPRINT = "paraglide-dev-v1|locale-modules|localStorage,baseLocale|no-declarations";
 
 let compilePromise: Promise<void> | null = null;
