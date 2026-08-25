@@ -235,6 +235,7 @@ test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
 test/db/analysis-receipt-queries.test.ts
+test/db/canonical-archive-queries.test.ts
 test/lap-analysis/canonical-archive-availability.test.ts
 test/lap-analysis/quality-rebuild-retention.test.ts
 test/race-results/reconcile-generation.test.ts
