@@ -19,3 +19,8 @@
 ## Concerns
 
 - CI runner must provide Bun 1.3.14 and support PowerShell native argument-array expansion (`@pairs`), consistent with existing Windows workflow shell.
+
+## Follow-up fix
+
+- Changed upload-artifact `path` to newline-separated JSON and Markdown globs, matching action input semantics.
+- Ruby YAML parse passed after fix.
