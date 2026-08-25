@@ -23,6 +23,7 @@
 - Keep race-event timelines chronologically ordered during live pagination and prevent invalid, unavailable, or incomplete telemetry evidence from qualifying for analysis
 - Keep analysis provenance and live race-event state consistent through session rotations, reimports, and lap completion
 - Keep race-event timelines ordered and session imports or reprocessing reliable when recordings include pre-start distances, session resets, or failed lap saves
+- Keep high-speed session imports from reconciling incomplete results while later laps are still being stored
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Persist finalized telemetry quality for new live and imported laps so task eligibility is available after capture closes
