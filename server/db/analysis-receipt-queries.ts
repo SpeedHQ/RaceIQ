@@ -221,7 +221,6 @@ async function activateWithClient(
       })
       .from(canonicalArchives)
       .where(and(
-        eq(canonicalArchives.archiveId, receipt.evidence.objectId),
         eq(canonicalArchives.sessionId, pending.sessionId),
         eq(canonicalArchives.generationId, pending.generationId),
       ))
@@ -229,8 +228,8 @@ async function activateWithClient(
     if (
       !archive
       || archive.sourceContentHash !== pending.sourceContentHash
+      || receipt.evidence.contentHash !== archive.sourceContentHash
       || archive.outputContentHash == null
-      || receipt.evidence.contentHash !== archive.outputContentHash
       || archiveOutput?.contentHash !== archive.outputContentHash
     ) throw new Error("Canonical archive identities do not match generation attempt");
   } else if (pending.sourceContentHash !== receipt.evidence.contentHash) {

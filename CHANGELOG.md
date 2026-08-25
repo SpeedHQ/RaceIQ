@@ -9,12 +9,16 @@
 - Review durable race-event timelines with ordered pit service, penalties, cautions, participant changes, source interruptions, and replayed session evidence
 - Build canonical participant, tire, driver, and pace runs from race-event boundaries for consistent live and replay session summaries
 - Build and verify canonical post-session telemetry archives with bounded DuckDB/Parquet output, retries, and provenance activation
+- See analysis provenance, stale-state reasons, rebuild availability, and active generation status from lap quality details
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Track recording and lap telemetry quality across live capture, MoTeC imports, and session archives, including source fidelity, packet gaps, track coverage, and task-specific analysis eligibility
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Keep stint and session-run summaries accurate after checkered flags, lap edits, and long recording sessions
+- Keep race-event timelines chronologically ordered during live pagination and prevent invalid, unavailable, or incomplete telemetry evidence from qualifying for analysis
+- Keep analysis provenance and live race-event state consistent through session rotations, reimports, and lap completion
 - Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Keep AI lap analyses, comparisons, lap metrics, eligibility, fuel, and tyre data current when recording quality, validity checks, or session reprocessing changes
 - Show iRacing live fuel bars using tank capacity reported by simulator session data

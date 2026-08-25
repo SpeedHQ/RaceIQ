@@ -264,7 +264,7 @@ describe("reprocessSession", () => {
     priorAccumulator.noteSourceLifecycle({ kind: "timeout", timestampMs: 1_000, eventId: "lifecycle:timeout:1" });
     priorAccumulator.noteSourceLifecycle({ kind: "reconnect", timestampMs: 2_000, eventId: "lifecycle:reconnect:1" });
     priorAccumulator.noteWriterFailure(new Error("disk full"));
-    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior" }));
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: sha256ContentHash("prior") }));
     await db.update(sessions).set({ source: "native-live", recordingQuality: previous }).where(eq(sessions.id, sessionId)).run();
 
     await reprocessSession(sessionId);
@@ -319,12 +319,12 @@ describe("reprocessSession", () => {
         "imported",
         {
           state: "verified",
-          sourceGeneration: "sha256:original-source",
+          sourceGeneration: sha256ContentHash("original-source"),
         },
         {
           canonicalVerification: {
             state: "verified",
-            sourceGeneration: "sha256:old-canonical",
+            sourceGeneration: sha256ContentHash("old-canonical"),
           },
         },
       ),
@@ -392,7 +392,7 @@ describe("reprocessSession", () => {
     expect(reprocessedSession?.recordingQuality?.participant).toEqual(OPPONENT_PARTICIPANT);
     expect(reprocessedSession?.recordingQuality?.archiveVerification).toEqual({
       state: "verified",
-      sourceGeneration: "sha256:original-source",
+      sourceGeneration: sha256ContentHash("original-source"),
     });
     expect(reprocessedSession?.recordingQuality?.canonicalVerification).toBeUndefined();
     expect(reprocessedSession?.qualityGeneration).toBe(reprocessedSession?.recordingQuality?.provenance.outputGeneration);
@@ -423,7 +423,7 @@ describe("reprocessSession", () => {
 
     const priorAccumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
     priorAccumulator.noteSourceLifecycle({ kind: "reconnect", timestampMs: 2_000, eventId: "lifecycle:reconnect:1" });
-    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: "sha256:prior-reconnect-only" }));
+    const previous = finalizeRecordingQualityGeneration(priorAccumulator.finalize("session-ended", { state: "verified", sourceGeneration: sha256ContentHash("prior-reconnect-only") }));
     await db.update(sessions).set({ source: "native-live", recordingQuality: previous }).where(eq(sessions.id, sessionId)).run();
 
     await reprocessSession(sessionId);
@@ -501,6 +501,7 @@ describe("reprocessSession", () => {
     const result = await reprocessSession(sessionId);
     expect(result.lapsDetected).toBe(0);
   });
+
   test("rejects a declared telemetry count mismatch without changing stored rows", async () => {
     const binPath = join(tmpDir, "session.bin");
     writeFileSync(binPath, Buffer.concat([encodeMetaFrame(2), encodeRecord(Buffer.from([0]))]));
@@ -673,6 +674,7 @@ describe("countStaleSessions", () => {
     );
 
     const afterCount = await countStaleSessions(detectorId, ["fm-2023"]);
+
     expect(afterCount - beforeCount).toBe(3);
   });
 
@@ -719,7 +721,7 @@ describe("countStaleSessions", () => {
     const baselineIds = new Set(await getStaleSessions(detectorId, ["fm-2023"]));
     const accumulator = new RecordingQualityAccumulator("native-live", LOCAL_PLAYER_EVIDENCE, TEST_VERSION_IDENTITY);
     for (const sample of qualityPackets(60)) accumulator.observe(sample);
-    const recordingQuality = finalizeRecordingQualityGeneration(accumulator.finalize("complete", { state: "verified", sourceGeneration: "sha256:stale-discovery-source" }));
+    const recordingQuality = finalizeRecordingQualityGeneration(accumulator.finalize("complete", { state: "verified", sourceGeneration: sha256ContentHash("stale-discovery-source") }));
 
     const policyOnlyNoRaw = await insertSession(null, detectorId, QUALITY_SCHEMA_VERSION, QUALITY_CONFIG_VERSION, "stale-policy", recordingQuality);
     const detectorNoRaw = await insertSession(null, "stale-detector");

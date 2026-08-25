@@ -74,6 +74,9 @@ export function useDeleteLap() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
+      qc.invalidateQueries({ queryKey: queryKeys.sessionRunPages });
+      qc.invalidateQueries({ queryKey: queryKeys.sessionRunDetails });
+      qc.invalidateQueries({ queryKey: queryKeys.driverStintPages });
     },
   });
 }
@@ -87,6 +90,9 @@ export function useBulkDeleteLaps() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
       qc.invalidateQueries({ queryKey: queryKeys.sessions });
+      qc.invalidateQueries({ queryKey: queryKeys.sessionRunPages });
+      qc.invalidateQueries({ queryKey: queryKeys.sessionRunDetails });
+      qc.invalidateQueries({ queryKey: queryKeys.driverStintPages });
       qc.invalidateQueries({ queryKey: queryKeys.tracks });
     },
   });

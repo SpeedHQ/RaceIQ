@@ -421,6 +421,7 @@ function replacementLaps(
     const exact = values.findIndex((candidate) => candidate.rawByteOffset === lap.rawByteOffset);
     const preserved = values.splice(exact >= 0 ? exact : 0, 1)[0];
     return {
+      ...(preserved ? { id: preserved.id } : {}),
       lapNumber: lap.lapNumber,
       lapTime: lap.lapTime,
       isValid: lap.isValid,

@@ -132,6 +132,34 @@ describe("live session run integration", () => {
     expect(live.value.openSessionRuns).toHaveLength(4);
   });
 
+  test("clears staged lap metadata when detector feed fails", async () => {
+    const live = pipeline(new MemoryRaceEventStore());
+    const internals = live.value as unknown as {
+      _lapDetector: {
+        session: null;
+        feed(): Promise<void>;
+      };
+      _lapDetectorGameId: TelemetryPacket["gameId"];
+      _stagedCompletedRunLaps: Map<string, unknown>;
+      _timelineEventsStaged: boolean;
+      _pendingTimelinePreflight: unknown;
+    };
+    internals._lapDetector = {
+      session: null,
+      feed: () => Promise.reject(new Error("detector-feed-failed")),
+    };
+    internals._lapDetectorGameId = "fm-2023";
+    internals._stagedCompletedRunLaps.set("stale", {});
+
+    await expect(live.value.processPacket(packet())).rejects.toThrow(
+      "detector-feed-failed",
+    );
+
+    expect(internals._stagedCompletedRunLaps.size).toBe(0);
+    expect(internals._timelineEventsStaged).toBe(false);
+    expect(internals._pendingTimelinePreflight).toBeNull();
+  });
+
   test("publisher failure cannot block durable session finalization", async () => {
     const store = new MemoryRaceEventStore();
     const ws = new CapturingWsAdapter();

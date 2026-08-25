@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
-import { CanonicalArchiveAvailabilitySchema } from "../../shared/racing/archives/contracts";
+import {
+  CanonicalArchiveAvailabilitySchema,
+  CanonicalArchiveManifestSchema,
+} from "../../shared/racing/archives/contracts";
 
 const HASH_A = `sha256:${"a".repeat(64)}`;
 const HASH_B = `sha256:${"b".repeat(64)}`;
@@ -88,10 +91,72 @@ describe("canonical archive availability contract", () => {
     }).success).toBe(false);
   });
 
+  test("rejects available state without verified complete identity and provenance", () => {
+    expect(CanonicalArchiveAvailabilitySchema.safeParse({
+      ...fixtures.available,
+      status: null,
+      completeness: null,
+      archiveId: null,
+      generationId: null,
+      semanticIds: [],
+      provenance: null,
+    }).success).toBe(false);
+  });
+
   test("requires nullable metadata and provenance keys in every state", () => {
     const { status: _status, ...missingStatus } = fixtures.unavailable;
     const { provenance: _provenance, ...missingProvenance } = fixtures.unavailable;
     expect(CanonicalArchiveAvailabilitySchema.safeParse(missingStatus).success).toBe(false);
     expect(CanonicalArchiveAvailabilitySchema.safeParse(missingProvenance).success).toBe(false);
+  });
+});
+
+describe("canonical archive manifest contract", () => {
+  const manifest = {
+    archiveId: "canonical-archive:42",
+    sessionId: 42,
+    generationId: "analysis-generation:42",
+    gameId: "iracing",
+    trackId: null,
+    layoutId: null,
+    sourceContentHash: HASH_A,
+    telemetryVersion: {
+      catalogVersion: "catalog",
+      catalogHash: HASH_B,
+      catalogSchemaVersion: "1",
+      parserVersion: "parser",
+      resolverVersion: "resolver",
+      derivationVersion: "derivation",
+    },
+    schemaVersion: "canonical-archive-v1",
+    algorithmVersion: "canonical-archive-builder-v1",
+    rowCount: 1,
+    nodeCount: 1,
+    semanticIds: ["motion.speed"],
+    eventIds: [EVENT_ID],
+    completeness: "complete",
+    warnings: [],
+    context: {
+      gameId: "iracing",
+      trackId: null,
+      layoutId: null,
+      trackDefinitionHash: null,
+      cornerDefinitionHash: null,
+      sourceKind: "raceiq-raw",
+      sourcePath: "session.bin",
+    },
+    createdAt: "2026-08-24T00:00:00.000Z",
+  } as const;
+
+  test("rejects unknown semantic and race-event identifiers", () => {
+    expect(CanonicalArchiveManifestSchema.safeParse(manifest).success).toBe(true);
+    expect(CanonicalArchiveManifestSchema.safeParse({
+      ...manifest,
+      semanticIds: ["unknown.semantic-id"],
+    }).success).toBe(false);
+    expect(CanonicalArchiveManifestSchema.safeParse({
+      ...manifest,
+      eventIds: ["event-without-canonical-identity"],
+    }).success).toBe(false);
   });
 });

@@ -876,7 +876,15 @@ export function synthesizeAcEvoCapture(
     graphics.writeFloatLE(lapLengthM / 1000, sessBase + SESSION_STATE.lap_length_km);
 
     records.push(
-      packTriplet(ACEVO_PACKED_MAGIC, carTrack.carOrdinal, carTrack.trackOrdinal, physics, graphics, staticBuf),
+      packTriplet(
+        ACEVO_PACKED_MAGIC,
+        carTrack.carOrdinal,
+        carTrack.trackOrdinal,
+        physics,
+        graphics,
+        staticBuf,
+        Math.round((i * 1_000) / SYNTH_HZ),
+      ),
     );
   }
 

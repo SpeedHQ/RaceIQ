@@ -367,6 +367,22 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     const confidence = completeness === 0 ? 0 : freshnessConfidence === null ? null : fidelity * freshnessConfidence * completeness;
     const source = this.sourceChannels[slot] ?? (plan.mapping.kind === "unavailable" ? undefined : sources(plan.mapping)[0]);
     const sourceObservation = this.observationDomains[slot] === "mixed" ? undefined : this.observations[slot];
+    const rawLimitations =
+      plan.mapping.kind === "unavailable"
+        ? [plan.mapping.description]
+        : plan.mapping.limitations;
+    const limitations = (
+      Array.isArray(rawLimitations)
+        ? rawLimitations
+        : Object.values(rawLimitations as unknown as Readonly<Record<string, unknown>>)
+    ).flatMap((limitation) =>
+      typeof limitation === "string"
+        ? [limitation]
+        : Array.isArray(limitation)
+          ? limitation.filter((value): value is string => typeof value === "string")
+          : [],
+    );
+    if (plan.executorError) limitations.push(plan.executorError);
     return {
       semanticId: plan.semanticId,
       value,
@@ -406,7 +422,7 @@ export class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
         ...(sourceObservation ? { sourceObservation } : {}),
       },
       schemaVersion: this.resolver.schemaVersion,
-      limitations: plan.mapping.kind === "unavailable" ? [plan.mapping.description] : plan.executorError ? [...plan.mapping.limitations, plan.executorError] : plan.mapping.limitations,
+      limitations,
     };
   }
 }

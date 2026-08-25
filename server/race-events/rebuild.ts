@@ -178,12 +178,9 @@ export async function rebuildRaceEventTimeline(
     (left, right) => left.timestampMs - right.timestampMs || (left.eventId ?? "").localeCompare(right.eventId ?? ""),
   );
   let lifecycleIndex = 0;
-  let sessionStarted = false;
   let pendingSourceSequences: SourceSequenceObservation[] = [];
   const callbacks: LapDetectorCallbacks = {
     onSessionStart: async (_session, context) => {
-      if (sessionStarted) throw new Error("Raw rebuild contains multiple detected session boundaries");
-      sessionStarted = true;
       coordinator.bindSession(input.sessionId, {
         reason: context.reason,
         observation: adapter.toRaceEventObservation(context.packet, {
@@ -266,20 +263,21 @@ export async function rebuildRaceEventTimeline(
   if (detectedSessionId != null) {
     await detector.waitForPendingLapWrites?.(detectedSessionId);
   }
+  const rebuiltSessionId = detectedSessionId ?? db.sessions.length;
+  const rebuiltLaps = db.laps.filter(
+    (lap) => lap.sessionId === rebuiltSessionId,
+  );
   coordinator.endSession({ reason: "stream-ended", terminalObserved: false });
   coordinator.noteSourceSequenceFinalized(sourceSequence.finalize());
-  if (db.sessions.length > 1) {
-    throw new Error("Raw rebuild contains multiple detected session boundaries");
-  }
   const runArtifacts = buildSessionRunsFromTimeline(
     coordinator.events(),
-    db.laps,
+    rebuiltLaps,
     { reason: "source-ended" },
   );
   return {
     detectorId: detector.detectorId,
     events: coordinator.events(),
-    laps: [...db.laps],
+    laps: rebuiltLaps,
     raceSource: resultSource.finish(),
     packetCount: canonicalHasher.packetCount,
     canonicalContentHash: canonicalHasher.digest(),

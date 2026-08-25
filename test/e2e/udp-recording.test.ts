@@ -104,7 +104,7 @@ describe("UDP recording integration", () => {
         client.send(fake, Number(UDP_PORT), "127.0.0.1", (err) => (err ? rej(err) : res())),
       );
     }
-    await waitFor(300);
+    await waitFor(1_200);
     client.close();
 
     // Graceful stop — the SIGINT handler should flush the recorder

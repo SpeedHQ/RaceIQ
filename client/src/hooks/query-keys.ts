@@ -68,6 +68,9 @@ export function qualityUpdatedQueryKeys(sessionId: number, gameId?: GameId) {
   return [
     queryKeys.laps,
     queryKeys.sessions,
+    queryKeys.sessionRunPages,
+    queryKeys.sessionRunDetails,
+    queryKeys.driverStintPages,
     queryKeys.lapSemanticTelemetry,
     queryKeys.stintTraces,
     queryKeys.lapIssues,
