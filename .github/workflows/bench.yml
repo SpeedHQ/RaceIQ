@@ -70,7 +70,7 @@ jobs:
           function Run-Replay {
             param([string]$checkout, [string]$revision, [string]$reportName)
             Push-Location $checkout
-            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision --processes=2 --retained-processes=7 --warmups=2 --iterations=20 --output="../reports/$reportName"
+            bun run scripts/quality/process-bench.ts --suite=replay --revision=$revision --processes=2 --retained-processes=1000 --warmups=2 --iterations=20 --output="../reports/$reportName"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Pop-Location
           }
