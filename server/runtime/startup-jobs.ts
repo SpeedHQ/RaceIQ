@@ -14,6 +14,7 @@ import { wsManager } from "./websocket-manager";
 import { startSessionCompressor } from "../session-capture/compressor";
 import { startUpdateCheckSchedule } from "./update/check";
 import { scheduleCanonicalArchiveJobs } from "./canonical-archive-scheduler";
+import { IS_E2E } from "./config/env";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { completeCanonicalArchiveJob, claimCanonicalArchiveJob, enqueueCanonicalArchiveJob, failCanonicalArchiveJob, getActiveVerifiedCanonicalArchive, heartbeatCanonicalArchiveJob, recoverExpiredCanonicalArchiveJobs, recoverInterruptedCanonicalArchives } from "../db/canonical-archive-queries";
@@ -198,6 +199,6 @@ export function startCanonicalArchiveJobs(): void {
 
 export function startMaintenanceJobs(): void {
   startSessionCompressor();
-  startCanonicalArchiveJobs();
+  if (!IS_E2E) startCanonicalArchiveJobs();
   startUpdateCheckSchedule();
 }
