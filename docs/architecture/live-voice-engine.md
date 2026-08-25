@@ -21,8 +21,10 @@ flowchart TD
 
   engine --> spotter{"Spotter source available?"}
   spotter -->|F1 25 geometry| geometry["SpotterTracker.update"]
+  spotter -->|ACC UDP realtime cars| accUdp["ACC Broadcast UDP snapshot"]
   spotter -->|iRacing CarLeftRight| native["SpotterTracker.updateNative"]
   geometry --> spotterEvent["Spotter state transition"]
+  accUdp --> spotterEvent
   native --> spotterEvent
 
   engine --> facts["Collect valid opponent lap facts"]
@@ -109,6 +111,7 @@ The geometric spotter qualifies opponents only when they are inside the lateral/
 Source-specific spotter paths:
 
 - **F1 25**: computes relative opponent position from player/opponent world X/Z, player yaw, speed, connectivity, and pit status.
+- **ACC**: consumes competitor positions, yaw, speed, and pit/location from the ACC Broadcasting Network Protocol UDP snapshot; shared memory supplies player position, yaw, and speed.
 - **iRacing**: consumes native `identity.car-left-right`; values map to left, right, both sides, and three-wide occupancy before the same hysteresis state machine runs.
 
 Spotter lines are high priority and expire after 2 seconds. They bypass the opponent-pace runtime queue, are emitted directly, and therefore can preempt an in-progress lower-priority pace line in the browser.
