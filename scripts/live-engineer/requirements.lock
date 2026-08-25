@@ -1,4 +1,3 @@
-omnivoice
 soundfile==0.14.0
 numpy
 # torch is platform-specific; install matching PyTorch build separately when uv resolves it.

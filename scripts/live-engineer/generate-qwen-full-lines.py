@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate complete Live Engineer lines with Qwen3-TTS.
 
-This is intentionally isolated from generate.py and the existing OmniVoice
-catalog. Install qwen-tts in a separate environment before running:
+This generates Qwen full-line and atomic clip catalogs. Install qwen-tts
+in a separate environment before running:
   python -m pip install -U qwen-tts
 """
 from __future__ import annotations
@@ -67,9 +67,9 @@ def main() -> int:
     if not args.no_flash_attention:
         model_kwargs["attn_implementation"] = "flash_attention_2"
     model = Qwen3TTSModel.from_pretrained(MODEL_ID, **model_kwargs)
-    source_manifest = ROOT / "client/public/audio/live-engineer/v1/manifest.json"
+    source_manifest = args.output / "manifest.json"
     if not source_manifest.is_file():
-        raise SystemExit(f"Missing OmniVoice catalog manifest: {source_manifest}")
+        raise SystemExit(f"Missing existing Qwen catalog: {source_manifest}")
     source_clips = json.loads(source_manifest.read_text()).get("clips", [])
     lines = []
     full_wavs, sample_rate = model.generate_voice_clone(
@@ -103,6 +103,7 @@ def main() -> int:
         "model": MODEL_ID,
         "sampleRate": sample_rate,
         "channels": 1,
+        "joinGapMs": -500,
         "referenceAudio": str(args.reference.relative_to(ROOT)),
         "referenceText": REFERENCE_TEXT,
         "fullLines": lines,
