@@ -31,6 +31,8 @@ try {
 if (typeof loaded.runIteration !== "function") fail("fixture must export runIteration()");
 
 try {
+  const stdoutWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => process.stderr.write(chunk, ...(args as [ never ]))) as typeof process.stdout.write;
   await loaded.setup?.();
   for (let i = 0; i < warmupIterations; i++) await loaded.runIteration();
   const samplesNs: number[] = [];
@@ -41,7 +43,8 @@ try {
     if (!Number.isFinite(elapsed) || elapsed < 0) fail("timing sample must be finite and non-negative");
     samplesNs.push(elapsed);
   }
-  process.stdout.write(`${JSON.stringify({ iterations, warmupIterations, samplesNs })}\n`);
+  process.stdout.write = stdoutWrite;
+  stdoutWrite(`${JSON.stringify({ iterations, warmupIterations, samplesNs })}\n`);
 } catch (error) {
   fail(`benchmark failed: ${error instanceof Error ? error.message : String(error)}`);
 }

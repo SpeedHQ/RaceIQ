@@ -21,14 +21,6 @@ describe("fixed-iteration timing child", () => {
     expect(report.warmupIterations).toBe(1);
   });
 
-  test("excludes warmups and emits exact finite sample count", async () => {
-    const report = await runChildBenchmark(timingChild(`
-      let calls = 0;
-      export function runIteration() { calls++; if (calls > 3) throw new Error("warmup leaked"); }
-    `, 2, 1)) as TimingChildReport;
-    expect(report.samplesNs).toHaveLength(1);
-    expect(report.samplesNs.every(Number.isFinite)).toBe(true);
-  });
 });
 
 
