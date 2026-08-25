@@ -18,11 +18,15 @@ export function Vitals2D({ frame, view, gameId }: { frame?: SemanticAnalysisFram
           {speed == null ? "—" : units.speed(speed).toFixed(0)} <span className="text-app-caption text-app-text-muted">{units.speedLabel}</span>
         </span>
       </div>
-      <div className="flex items-center gap-2"><GForceCircle frame={frame} view={view} /></div>
-      <TireDiagram frame={frame} view={view} gameId={gameId} />
+      <div className="flex items-center gap-2">
+        <GForceCircle frame={frame} view={view} />
+      </div>
+      {view ? <TireDiagram view={view} /> : frame && gameId ? <TireDiagram frame={frame} gameId={gameId} /> : null}
     </div>
   );
 }
 
-function number(frame: SemanticAnalysisFrame | undefined, id: keyof SemanticAnalysisFrame["values"]): number | null { const value = frame?.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
+function number(frame: SemanticAnalysisFrame | undefined, id: keyof SemanticAnalysisFrame["values"]): number | null {
+  const value = frame?.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}

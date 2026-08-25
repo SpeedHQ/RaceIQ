@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
-import { gameStore, useGameStore } from "../stores/game";
-import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { gameStore } from "../stores/game";
+import { telemetryStore } from "../stores/telemetry";
+import { fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -13,13 +13,11 @@ queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeForzaSemanticFixture;
-  telemetryStore.setState((prev) => ({ ...prev,
+  telemetryStore.setState({
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
     telemetryView: view,
-    rawPacket: fakeForzaPacket,
-    packet: fakeForzaDisplayPacket,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,
@@ -35,7 +33,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       detectedGame: { id: "fm-2023", name: "Forza Motorsport" },
       currentSession: { id: 2, carOrdinal: 1742, trackOrdinal: 7 },
     },
-  }));
+  });
 
   gameStore.setState((prev) => ({ ...prev, gameId: "fm-2023" }));
 

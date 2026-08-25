@@ -3,8 +3,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
+import type { GameId } from "../../shared/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { ComboDash } from "../src/components/dashes/ComboDash";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
 import { AnalyseDataPanel, buildAnalyseClipboardText } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
@@ -20,7 +22,8 @@ import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
-import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/stories/fakeData";
+import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
+import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
 
@@ -43,6 +46,31 @@ const parityUnits = {
   speedLabel: "mph",
   temperatureUnit: "C",
 } as never;
+function liveView(simulator: GameId, overrides: Partial<LiveTelemetryView> = {}): LiveTelemetryView {
+  return {
+    simulator,
+    streamId: `test-${simulator}`,
+    sessionId: 1,
+    sequence: 1,
+    observedAtMs: 1,
+    identity: {},
+    motion: {},
+    inputs: {},
+    engine: {},
+    fuel: {},
+    timing: {},
+    tires: {},
+    weather: {},
+    aero: {},
+    ers: {},
+    damage: {},
+    session: {},
+    race: {},
+    competitors: [],
+    statusBySemanticId: {},
+    ...overrides,
+  };
+}
 
 const f1ParityFrame = semanticFrame({
   "motion.speed": 30,
@@ -150,14 +178,26 @@ function renderTireAnalysis(value: TelemetryPacket): string {
 
 function renderTireDiagram(value: TelemetryPacket): string {
   const queryClient = new QueryClient();
-  return renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(TireDiagram, { packet: value })));
+  const frame = semanticFrame({
+    "inputs.steer": value.Steer,
+    "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+    "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
+    "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
+    "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
+    "tires.wheel-rotation-speed": [value.WheelRotationSpeedFL, value.WheelRotationSpeedFR, value.WheelRotationSpeedRL, value.WheelRotationSpeedRR],
+    "suspension.norm-suspension-travel": [value.NormSuspensionTravelFL, value.NormSuspensionTravelFR, value.NormSuspensionTravelRL, value.NormSuspensionTravelRR],
+    "brakes.brake-temp": [value.BrakeTempFrontLeft, value.BrakeTempFrontRight, value.BrakeTempRearLeft, value.BrakeTempRearRight],
+  });
+  return renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(TireDiagram, { frame, gameId: value.gameId })));
 }
 
 describe("telemetry capability UI", () => {
   test("renders complete adapter-gated F1 DRS/ERS panel", () => {
-    const markup = renderToStaticMarkup(createElement(AnalyseF1ErsPanel, {
-      frame: semanticFrame({ "aero.drs-active": true, "fuel.ers-store-energy": 2_000_000, "fuel.ers-deployed": 400_000, "fuel.ers-harvested": 200_000, "fuel.ers-deploy-mode": "4" }),
-    }));
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseF1ErsPanel, {
+        frame: semanticFrame({ "aero.drs-active": true, "fuel.ers-store-energy": 2_000_000, "fuel.ers-deployed": 400_000, "fuel.ers-harvested": 200_000, "fuel.ers-deploy-mode": "4" }),
+      }),
+    );
     expect(markup).toContain("DRS / ERS");
     expect(markup).toContain("OPEN");
     expect(markup).toContain("50.0%");
@@ -166,20 +206,20 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("Overtake");
   });
 
-  test("renders supported power and torque even when their values are zero", () => {
+  test("renders adapter-supported zero power and torque from canonical views", () => {
     const forzaMarkup = renderToStaticMarkup(
       createElement(PowerTorque, {
-        packet: { ...fakeForzaPacket, Power: 0, Torque: 0 },
+        view: { ...fakeForzaSemanticFixture.view, engine: { ...fakeForzaSemanticFixture.view.engine, powerW: 0, torqueNm: 0 } },
       }),
     );
     const f1Markup = renderToStaticMarkup(
       createElement(PowerTorque, {
-        packet: { ...fakeF1Packet, Power: 0, Torque: 0 },
+        view: { ...fakeF1SemanticFixture.view, engine: { ...fakeF1SemanticFixture.view.engine, powerW: 0, torqueNm: 0 } },
       }),
     );
     const accMarkup = renderToStaticMarkup(
       createElement(PowerTorque, {
-        packet: { ...fakeAccPacket, Power: 0, Torque: 0 },
+        view: { ...fakeAccSemanticFixture.view, engine: { ...fakeAccSemanticFixture.view.engine, powerW: 0, torqueNm: 0 } },
       }),
     );
 
@@ -190,14 +230,50 @@ describe("telemetry capability UI", () => {
     expect(accMarkup).toContain("flex justify-center gap-2");
   });
 
-  test("shows litre fuel without inventing a percentage when capacity is unavailable", () => {
+  test("renders canonical tire temperatures in the selected display unit", () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, temperatureUnit: "F" });
+    const view = liveView("acc", {
+      motion: { speedMps: 10 },
+      inputs: { steer: 0 },
+      tires: {
+        temperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+        wear: { fl: 0, fr: 0, rl: 0, rr: 0 },
+        rotationRadS: { fl: 30, fr: 30, rl: 30, rr: 30 },
+        brakeTemperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+      },
+    });
+    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(TireDiagram, { view })));
+
+    expect(markup).toContain("212°F");
+    expect(markup).toContain("BRK 212°");
+    expect(markup).toContain("GRIP");
+    expect(markup).not.toContain("38°F");
+  });
+
+  test("keeps unavailable combo tire channels visibly unavailable", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(ComboDash, {
+          view: liveView("acc"),
+          sectors: null,
+          pit: null,
+          unitSystem: "metric",
+        }),
+      ),
+    );
+
+    expect(markup).not.toContain("0.0psi");
+    expect(markup).not.toContain("B:0");
+    expect(markup).toContain("—");
+  });
+
+  test("shows canonical litre fuel without inventing unavailable capacity", () => {
     const markup = renderToStaticMarkup(
       createElement(FuelGauge, {
-        packet: {
-          gameId: "iracing",
-          Fuel: 40,
-          FuelCapacity: undefined,
-        },
+        view: liveView("iracing", { fuel: { amount: 40 } }),
       }),
     );
 
@@ -206,14 +282,10 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("width:40%");
   });
 
-  test("uses a source-provided litre capacity for the fuel fill bar", () => {
+  test("uses canonical litre capacity for fuel fill", () => {
     const markup = renderToStaticMarkup(
       createElement(FuelGauge, {
-        packet: {
-          ...fakeAccPacket,
-          Fuel: 40,
-          FuelCapacity: 100,
-        },
+        view: liveView("acc", { fuel: { amount: 40, capacity: 100 } }),
       }),
     );
 
@@ -221,21 +293,33 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("width:40%");
   });
 
+  test("keeps unavailable fuel distinct from legitimate zero", () => {
+    const unavailable = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: liveView("acc", { fuel: {} }),
+      }),
+    );
+    const empty = renderToStaticMarkup(
+      createElement(FuelGauge, {
+        view: liveView("acc", { fuel: { amount: 0, capacity: 100 } }),
+      }),
+    );
+
+    expect(unavailable).toContain("Fuel —");
+    expect(unavailable).toContain("Fuel unavailable");
+    expect(empty).toContain("Fuel 0.0L");
+    expect(empty).toContain("width:0%");
+  });
+
   test("renders changing semantic iRacing fuel as a visible fill bar", () => {
     const full = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: {
-          simulator: "iracing",
-          fuel: { amount: 100, capacity: 100 },
-        } as LiveTelemetryView,
+        view: liveView("iracing", { fuel: { amount: 100, capacity: 100 } }),
       }),
     );
     const used = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: {
-          simulator: "iracing",
-          fuel: { amount: 60, capacity: 100 },
-        } as LiveTelemetryView,
+        view: liveView("iracing", { fuel: { amount: 60, capacity: 100 } }),
       }),
     );
 
@@ -253,26 +337,7 @@ describe("telemetry capability UI", () => {
         { client: new QueryClient() },
         createElement(LiveTelemetry, {
           mode: "pitcrew",
-          view: {
-            simulator: "iracing",
-            streamId: "test",
-            sessionId: 1,
-            sequence: 1,
-            observedAtMs: 1,
-            identity: {},
-            motion: {},
-            inputs: { throttle: 64, brake: 32, gear: 3 },
-            engine: {},
-            fuel: {},
-            timing: {},
-            tires: {},
-            weather: {},
-            aero: {},
-            ers: {},
-            damage: {},
-            competitors: [],
-            stateBySemanticId: {},
-          },
+          view: liveView("iracing", { inputs: { throttle: 64, brake: 32, gear: 3 } }),
         }),
       ),
     );
@@ -283,73 +348,65 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("width:3200%");
   });
 
-  test("renders the ACC live dashboard fuel fill from fixture capacity", () => {
-    const markup = renderToStaticMarkup(
+  test("renders ACC and F1 pit fuel through simulator metadata", () => {
+    const accMarkup = renderToStaticMarkup(
       createElement(PitEstimate, {
-        packet: fakeAccPacket,
+        view: fakeAccSemanticFixture.view,
+        pit: fakePit,
+      }),
+    );
+    const f1Markup = renderToStaticMarkup(
+      createElement(PitEstimate, {
+        view: fakeF1SemanticFixture.view,
         pit: fakePit,
       }),
     );
 
-    expect(fakeAccPacket.FuelCapacity).toBe(120);
-    expect(markup).not.toContain("Fuel capacity unavailable");
-    expect(markup).toContain(`width:${(fakeAccPacket.Fuel / fakeAccPacket.FuelCapacity) * 100}%`);
+    expect(fakeAccSemanticFixture.view.fuel.capacity).toBe(120);
+    expect(accMarkup).not.toContain("Fuel capacity unavailable");
+    expect(accMarkup).toContain(`width:${(fakeAccPacket.Fuel / fakeAccPacket.FuelCapacity) * 100}%`);
+    expect(fakeF1SemanticFixture.view.fuel.amount).toBeGreaterThan(0);
+    expect(fakeF1SemanticFixture.view.fuel.amount).toBeLessThanOrEqual(1);
+    expect(f1Markup).toContain("39%");
+    expect(f1Markup).not.toContain("4250%");
   });
 
-  test("keeps F1 dashboard fixture fuel normalized to a tank fraction", () => {
-    const markup = renderToStaticMarkup(
-      createElement(PitEstimate, {
-        packet: fakeF1Packet,
-        pit: fakePit,
-      }),
-    );
-
-    expect(fakeF1Packet.Fuel).toBeGreaterThan(0);
-    expect(fakeF1Packet.Fuel).toBeLessThanOrEqual(1);
-    expect(markup).toContain("39%");
-    expect(markup).not.toContain("4250%");
-  });
-  test("omits ACC weather and renders explicit surface availability", () => {
-    const value = packet("acc", {
-      WeatherType: 0,
-      TrackTemp: 0,
-      AirTemp: 0,
-      WheelOnRumbleStripFL: 1,
-      WheelInPuddleDepthFR: 0.4,
+  test("renders canonical surface values and preserves supported zero", () => {
+    const accView = liveView("acc", {
+      tires: {
+        onRumbleStrip: { fl: 1, fr: 0, rl: 0, rr: 0 },
+        puddleDepth: { fl: 0, fr: 0.4, rl: 0, rr: 0 },
+      },
+    });
+    const fmView = liveView("fm-2023", {
+      tires: {
+        onRumbleStrip: { fl: 0, fr: 0, rl: 0, rr: 0 },
+        puddleDepth: { fl: 0, fr: 0, rl: 0, rr: 0 },
+      },
+      competitors: [{ pitStatus: "in_pit" }],
     });
 
-    const tireMarkup = renderTireDiagram(value);
-    expect(renderToStaticMarkup(createElement(LiveTrackConditions, { view: null }))).toBe("");
-    const surfaceMarkup = renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }));
-    expect(surfaceMarkup).toContain("Surface");
-    expect(surfaceMarkup).toContain("CURB");
-    expect(surfaceMarkup).toContain("WET");
-    expect(tireMarkup).not.toContain("CURB");
-    expect(tireMarkup).not.toContain("WET");
-  });
-
-  test("omits packet weather because live conditions require semantic view", () => {
-    const markup = renderToStaticMarkup(createElement(LiveTrackConditions, { view: null }));
-    expect(markup).toBe("");
-  });
-
-  test("keeps supported FM surface zero distinct from unsupported pit and brake fields", () => {
-    const value = packet("fm-2023", {
-      BrakeTempFrontLeft: 500,
-      BrakeTempFrontRight: 500,
-      BrakeTempRearLeft: 400,
-      BrakeTempRearRight: 400,
-      acc: { pitStatus: "in_pit" } as never,
-    });
-    const surfaceMarkup = renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }));
-    const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { packet: value, pit: null }));
-
-    expect(surfaceMarkup).toContain("Surface");
-    expect(renderTireAnalysis(value)).toContain("Brake");
+    const accMarkup = renderToStaticMarkup(createElement(SurfaceConditions, { view: accView }));
+    const fmMarkup = renderToStaticMarkup(createElement(SurfaceConditions, { view: fmView }));
+    const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { view: fmView, pit: null }));
+    expect(accMarkup).toContain("Surface");
+    expect(accMarkup).toContain("CURB");
+    expect(accMarkup).toContain("WET");
+    expect(fmMarkup).toContain("Surface");
+    expect(fmMarkup).toContain("—");
     expect(pitMarkup).not.toContain("IN PIT");
   });
 
-  test("keeps unsupported F1 brake row absent and leaves surface diagram unchanged", () => {
+  test("omits surface widget when canonical values are unavailable", () => {
+    const markup = renderToStaticMarkup(
+      createElement(SurfaceConditions, {
+        view: liveView("f1-2025", { tires: {} }),
+      }),
+    );
+    expect(markup).toBe("");
+  });
+
+  test("keeps semantic tire diagram independent from raw surface fields", () => {
     const value = packet("f1-2025", {
       BrakeTempFrontLeft: 0,
       BrakeTempFrontRight: 0,
@@ -364,7 +421,6 @@ describe("telemetry capability UI", () => {
     expect(tireMarkup).toContain("BRK 0°");
     expect(tireMarkup).not.toContain("CURB");
     expect(tireMarkup).not.toContain("WET");
-    expect(renderToStaticMarkup(createElement(SurfaceConditions, { packet: value }))).toContain("Surface");
   });
 
   test("matches main front-channel gates for brake and pressure rows", () => {
@@ -392,10 +448,12 @@ describe("telemetry capability UI", () => {
   });
 
   test("does not fabricate suspension compression from unavailable normalized channels", () => {
-    const markup = renderToStaticMarkup(createElement(AnalyseSuspensionPanel, {
-      frame: f1ParityFrame,
-      gameId: "f1-2025",
-    }));
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseSuspensionPanel, {
+        frame: f1ParityFrame,
+        gameId: "f1-2025",
+      }),
+    );
     expect(markup).toContain("20mm");
     expect(markup).toContain(">—</span>");
   });
@@ -419,32 +477,37 @@ describe("telemetry capability UI", () => {
       "tires.tire-slip-ratio": [0, 0, 0, 0],
       "tires.normalized-tire-slip-angle": [0, 0, 0, 0],
     });
-    const wheelMarkup = renderToStaticMarkup(createElement(
-      QueryClientProvider,
-      { client: new QueryClient() },
-      createElement(AnalyseTireWheelsPanel, {
+    const wheelMarkup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(AnalyseTireWheelsPanel, {
+          frame,
+          gameId: "fm-2023",
+          units: fmUnits,
+          wearRate: null,
+        }),
+      ),
+    );
+    const dynamicsMarkup = renderToStaticMarkup(
+      createElement(AnalyseDynamicsPanel, {
         frame,
         gameId: "fm-2023",
         units: fmUnits,
-        wearRate: null,
       }),
-    ));
-    const dynamicsMarkup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, {
-      frame,
-      gameId: "fm-2023",
-      units: fmUnits,
-    }));
+    );
     expect(wheelMarkup).toContain("100°C");
     expect(wheelMarkup).not.toContain("212°C");
     expect(dynamicsMarkup).toContain(">OPT</span>");
     expect(dynamicsMarkup).not.toContain(">OVER</span>");
   });
 
-  test("omits iRacing engine placeholders and live-only tire charts", () => {
-    const value = packet("iracing", {
-      iracing: {
-        onPitRoad: true,
-      } as never,
+  test("omits unavailable iRacing engine and continuous tire charts", () => {
+    const iracingView = liveView("iracing", {
+      tires: {
+        suspensionTravelM: { fl: 0.04, fr: 0.04, rl: 0.04, rr: 0.04 },
+      },
+      race: { pitStatus: "pit_lane" },
     });
     const pit: LivePitData = {
       fuelPerLap: 2,
@@ -466,14 +529,12 @@ describe("telemetry capability UI", () => {
       deadPct: 20,
       tireLapsRemaining: 5,
     };
-    const chartsMarkup = renderToStaticMarkup(createElement(TelemetryCharts, { packet: value as never }));
-    const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { packet: value, pit }));
-    const tireMarkup = renderTireDiagram(value);
-    const weatherMarkup = renderToStaticMarkup(
-      createElement(LiveTrackConditions, { view: null }),
-    );
+    const chartsMarkup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(TelemetryCharts, { view: iracingView })));
+    const pitMarkup = renderToStaticMarkup(createElement(PitEstimate, { view: iracingView, pit }));
+    const tireMarkup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(TireDiagram, { view: iracingView })));
+    const weatherMarkup = renderToStaticMarkup(createElement(LiveTrackConditions, { view: null }));
 
-    expect(renderToStaticMarkup(createElement(PowerTorque, { packet: value }))).toContain("flex justify-center gap-2");
+    expect(renderToStaticMarkup(createElement(PowerTorque, { view: iracingView }))).toContain("flex justify-center gap-2");
     expect(weatherMarkup).toBe("");
     expect(chartsMarkup).toContain("Speed");
     expect(tireMarkup).not.toContain("Last pit temp 0");
@@ -496,17 +557,23 @@ describe("telemetry capability UI", () => {
     expect(pitMarkup).not.toContain("9.9%");
   });
   test("keeps Analyse Data panel main row and section parity", () => {
-    const markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(AnalyseDataPanel, {
-      sidebarTab: "live",
-      onSidebarTabChange: () => {},
-      currentFrame: f1ParityFrame,
-      startFuel: 0.8,
-      gameId: "f1-2025",
-      units: parityUnits,
-      wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
-      lapInsights: [],
-      onJumpToFrame: () => {},
-    })));
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(AnalyseDataPanel, {
+          sidebarTab: "live",
+          onSidebarTabChange: () => {},
+          currentFrame: f1ParityFrame,
+          startFuel: 0.8,
+          gameId: "f1-2025",
+          units: parityUnits,
+          wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
+          lapInsights: [],
+          onJumpToFrame: () => {},
+        }),
+      ),
+    );
     expect(markup.indexOf("Brake")).toBeLessThan(markup.indexOf("Steer"));
     expect(markup.indexOf("Slip")).toBeLessThan(markup.indexOf("Wheels"));
     expect(markup.indexOf("Wheels")).toBeLessThan(markup.indexOf("Suspension"));
@@ -559,32 +626,34 @@ describe("telemetry capability UI", () => {
 
   test("builds byte-for-byte main clipboard output", () => {
     const text = buildAnalyseClipboardText({ frame: f1ParityFrame, gameId: "f1-2025", units: parityUnits });
-    expect(text).toBe([
-      "Speed: 67 mph",
-      "RPM: 12000",
-      "Gear: 7",
-      "Throttle: 80%",
-      "Brake: 20%",
-      "Steer: -113°",
-      "Power: 1000 hp",
-      "Fuel: 42.0%",
-      "",
-      "--- Dynamics ---",
-      "G-Force Lat: -0.50g",
-      "G-Force Lon: -1.00g",
-      "",
-      "--- Tire Temps ---",
-      "FL: 90  FR: 91",
-      "RL: 92  RR: 93",
-      "",
-      "--- Tire Health ---",
-      "FL: 90.0%  FR: 80.0%",
-      "RL: 70.0%  RR: 60.0%",
-      "",
-      "--- Suspension Travel ---",
-      "FL: 20mm  FR: 40mm",
-      "RL: 60mm  RR: 80mm",
-    ].join("\n"));
+    expect(text).toBe(
+      [
+        "Speed: 67 mph",
+        "RPM: 12000",
+        "Gear: 7",
+        "Throttle: 80%",
+        "Brake: 20%",
+        "Steer: -113°",
+        "Power: 1000 hp",
+        "Fuel: 42.0%",
+        "",
+        "--- Dynamics ---",
+        "G-Force Lat: -0.50g",
+        "G-Force Lon: -1.00g",
+        "",
+        "--- Tire Temps ---",
+        "FL: 90  FR: 91",
+        "RL: 92  RR: 93",
+        "",
+        "--- Tire Health ---",
+        "FL: 90.0%  FR: 80.0%",
+        "RL: 70.0%  RR: 60.0%",
+        "",
+        "--- Suspension Travel ---",
+        "FL: 20mm  FR: 40mm",
+        "RL: 60mm  RR: 80mm",
+      ].join("\n"),
+    );
   });
 
   test("keeps clipboard tire temperatures in the recorded main packet unit", () => {
@@ -601,11 +670,22 @@ describe("telemetry capability UI", () => {
   });
 
   test("renders catalog-backed wheel and vehicle surface rows", () => {
-    const fm = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, {
-      frame: semanticFrame({ "motion.speed": 30, "inputs.steer": 0, "tires.wheel-rotation-speed": [100, 101, 102, 103], "tires.tire-combined-slip": [0, 0, 0, 0], "tires.tire-slip-ratio": [0, 0, 0, 0], "tires.normalized-tire-slip-angle": [0, 0, 0, 0], "tires.wheel-on-rumble-strip": [true, false, false, false], "tires.wheel-in-puddle-depth": [0, 0.4, 0, 0] }),
-      gameId: "fm-2023",
-      units: parityUnits,
-    }));
+    const fm = renderToStaticMarkup(
+      createElement(AnalyseDynamicsPanel, {
+        frame: semanticFrame({
+          "motion.speed": 30,
+          "inputs.steer": 0,
+          "tires.wheel-rotation-speed": [100, 101, 102, 103],
+          "tires.tire-combined-slip": [0, 0, 0, 0],
+          "tires.tire-slip-ratio": [0, 0, 0, 0],
+          "tires.normalized-tire-slip-angle": [0, 0, 0, 0],
+          "tires.wheel-on-rumble-strip": [true, false, false, false],
+          "tires.wheel-in-puddle-depth": [0, 0.4, 0, 0],
+        }),
+        gameId: "fm-2023",
+        units: parityUnits,
+      }),
+    );
     expect(fm.indexOf("CURB")).toBeLessThan(fm.indexOf("Slip"));
     expect(fm).toContain("GRIP");
     const iracing = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: semanticFrame({ "identity.player-track-surface": 1 }), gameId: "iracing", units: parityUnits }));

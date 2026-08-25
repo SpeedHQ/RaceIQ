@@ -1,58 +1,53 @@
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import type { LiveSectorData } from "../../../../shared/racing/live/types";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
 interface LapTimesProps {
-  view?: LiveTelemetryView;
-  packet?: TelemetryPacket;
+  view: LiveTelemetryView;
   sectors?: LiveSectorData | null;
 }
 
 /**
- * LapTimes — Reusable lap timing display showing current, last, best, and delta.
- * Works with any game - uses packet telemetry data.
+ * LapTimes — Reusable canonical lap timing display showing current, last, best, and delta.
  */
-export function LapTimes({ view, packet, sectors }: LapTimesProps) {
-  // Use semantic timing when available; historical packet fallback remains supported.
-  const timing = view?.timing;
-  let deltaToBest = sectors?.deltaToBest ?? 0;
-  const lastLap = timing?.lastLapS ?? packet?.LastLap ?? 0;
-  const bestLap = timing?.bestLapS ?? packet?.BestLap ?? 0;
-  const currentLap = timing?.currentLapS ?? packet?.CurrentLap ?? 0;
-  if (lastLap > 0 && bestLap > 0 && deltaToBest === 0) {
+export function LapTimes({ view, sectors }: LapTimesProps) {
+  const { timing } = view;
+  const lastLap = timing.lastLapS;
+  const bestLap = timing.bestLapS;
+  const currentLap = timing.currentLapS;
+  let deltaToBest = sectors?.deltaToBest;
+  if (deltaToBest === undefined && lastLap !== undefined && bestLap !== undefined) {
     deltaToBest = lastLap - bestLap;
   }
-
-  const deltaColor = deltaToBest <= 0 ? "text-(--delta-gain)" : deltaToBest < 1 ? "text-(--delta-focus)" : "text-(--delta-loss)";
+  const deltaColor = deltaToBest === undefined || deltaToBest <= 0 ? "text-(--delta-gain)" : deltaToBest < 1 ? "text-(--delta-focus)" : "text-(--delta-loss)";
 
   return (
     <div className="space-y-1">
       <div className="flex gap-3">
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_current()}</div>
-          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(currentLap)}</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{currentLap === undefined ? "--:--.---" : formatLapTime(currentLap)}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
-          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors?.estimatedLap ?? 0)}</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{sectors?.estimatedLap === undefined ? "--:--.---" : formatLapTime(sectors.estimatedLap)}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_delta()}</div>
-          <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${deltaToBest === 0 ? "text-app-text-dim" : deltaColor}`}>
-            {deltaToBest === 0 ? "--:--.---" : `${deltaToBest <= 0 ? "" : "+"}${deltaToBest.toFixed(3)}`}
+          <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${deltaToBest === undefined ? "text-app-text-dim" : deltaColor}`}>
+            {deltaToBest === undefined ? "--:--.---" : `${deltaToBest <= 0 ? "" : "+"}${deltaToBest.toFixed(3)}`}
           </div>
         </div>
       </div>
       <div className="flex gap-3">
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_last()}</div>
-          <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(lastLap)}</div>
+          <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{lastLap === undefined ? "--:--.---" : formatLapTime(lastLap)}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
-          <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(bestLap)}</div>
+          <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{bestLap === undefined ? "--:--.---" : formatLapTime(bestLap)}</div>
         </div>
       </div>
     </div>

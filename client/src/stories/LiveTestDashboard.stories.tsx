@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
-import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
-import { fakeAccDisplayPacket, fakeAccPacket, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { useTelemetryStore } from "../stores/telemetry";
+import { fakeAccPacket, fakeSectors, fakeSessionLaps, makeSemanticFixture } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
 const queryClient = new QueryClient({
@@ -22,6 +22,7 @@ queryClient.setQueryData(["track-boundaries", 7, "acc"], null);
 
 // Full lap trace so the live tyre bars have a real min→max range to render, not a single point.
 const liveTrace = generateFakeLapTelemetry();
+const semanticLiveTrace = liveTrace.map(makeSemanticFixture);
 queryClient.setQueryData(["lap-telemetry", 10], { telemetry: liveTrace, sectorTimes: fakeSectorTimes });
 
 function StoryDecorator({ children, animate }: { children: React.ReactNode; animate: boolean }) {
@@ -29,16 +30,17 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
   // fresh object refs every render, which re-triggers subscribers → infinite
   // "Maximum update depth exceeded" loop (and a UI that never stops updating).
   useEffect(() => {
-    telemetryStore.setState((prev) => ({ ...prev,
+    const fixture = semanticLiveTrace.at(-1) ?? makeSemanticFixture(fakeAccPacket);
+    useTelemetryStore.setState({
       connected: true,
-      // Last frame of the pre-seeded lap so appending it doesn't reset the trace.
-      rawPacket: liveTrace[liveTrace.length - 1] ?? fakeAccPacket,
-      packet: fakeAccDisplayPacket,
+      telemetrySchema: fixture.schema,
+      telemetryFrame: fixture.frame,
+      telemetryView: fixture.view,
       sectors: fakeSectors,
       sessionLaps: fakeSessionLaps,
       isRaceOn: true,
       lapIssuesFeed: [{ lapId: 10, lapNumber: 4, issues: fakeTuneIssues }],
-    }));
+    });
   }, []);
 
   // `animate` Storybook control replays the lap continuously (off by default).
@@ -46,8 +48,9 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
     if (!animate) return;
     let i = 0;
     const id = setInterval(() => {
-      i = (i + 1) % liveTrace.length;
-      telemetryStore.setState((prev) => ({ ...prev, rawPacket: liveTrace[i] }));
+      i = (i + 1) % semanticLiveTrace.length;
+      const fixture = semanticLiveTrace[i];
+      useTelemetryStore.setState({ telemetryFrame: fixture.frame, telemetryView: fixture.view });
     }, 50);
     return () => clearInterval(id);
   }, [animate]);
