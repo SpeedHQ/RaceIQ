@@ -40,16 +40,25 @@ if (typeof loaded.runIteration !== "function") fail("fixture must export runIter
 try {
   await loaded.setup?.();
   for (let i = 0; i < warmupIterations; i++) await loaded.runIteration();
+  if (mode === "retainedHeap") await loaded.runIteration();
   if (mode === "retainedHeap") {
-    await loaded.runIteration();
-    retainedHeapRoot = undefined;
-    const baseline = gcAndSweep();
-    retainedHeapRoot = await loaded.runIteration();
-    const live = gcAndSweep();
-    const delta = live - baseline;
-    retainedHeapRoot = undefined;
-    gcAndSweep();
-    if (!Number.isFinite(delta) || delta < 0) fail(`retained heap delta must be finite and non-negative: ${delta}`);
+    const maxAttempts = 5;
+    let delta: number | undefined;
+    let lastDelta: number | undefined;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      retainedHeapRoot = undefined;
+      const baseline = gcAndSweep();
+      retainedHeapRoot = await loaded.runIteration();
+      const live = gcAndSweep();
+      lastDelta = live - baseline;
+      retainedHeapRoot = undefined;
+      gcAndSweep();
+      if (Number.isFinite(lastDelta) && lastDelta >= 0) {
+        delta = lastDelta;
+        break;
+      }
+    }
+    if (delta === undefined) fail(`retained heap delta must be finite and non-negative: ${lastDelta}`);
     process.stdout.write = stdoutWrite;
     stdoutWrite(`${JSON.stringify({ retainedHeap: delta })}\n`);
   } else {

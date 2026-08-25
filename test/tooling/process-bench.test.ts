@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { runChildBenchmark, type RetainedHeapChildReport, type TimingChildReport } from "../benchmarks/process-bench-contracts";
+import { runChildBenchmark, retainedHeapAttemptLimit, type RetainedHeapChildReport, type TimingChildReport } from "../benchmarks/process-bench-contracts";
 import { join } from "node:path";
 
 const retainedHeapFixture = async (source: string) => {
@@ -84,5 +84,12 @@ describe("child benchmark contracts", () => {
       kind: "retainedHeap",
     }) as RetainedHeapChildReport;
     expect(report.retainedHeap).toBe(42);
+  });
+});
+
+describe("retained-heap retry budget", () => {
+  test("allows enough retries for intermittent GC sweep undercounting", () => {
+    expect(retainedHeapAttemptLimit(7)).toBe(100);
+    expect(retainedHeapAttemptLimit(30)).toBe(120);
   });
 });

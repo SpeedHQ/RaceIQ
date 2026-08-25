@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { cpus } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { runChildBenchmark, type RetainedHeapChildReport, type TimingChildReport } from "../../test/benchmarks/process-bench-contracts";
+import { runChildBenchmark, retainedHeapAttemptLimit, type RetainedHeapChildReport, type TimingChildReport } from "../../test/benchmarks/process-bench-contracts";
 
 const args = process.argv.slice(2);
 const option = (name: string): string | undefined => args.find((arg) => arg.startsWith(`${name}=`))?.slice(name.length + 1);
@@ -59,7 +59,7 @@ for (let index = 0; index < processes; index++) {
 for (const [aliasIndex] of aliases.entries()) {
   const rawKey = rawKeys[aliasIndex]!;
   const samples = retainedSamples[rawKey]!;
-  const maxAttempts = retainedProcesses * 4;
+  const maxAttempts = retainedHeapAttemptLimit(retainedProcesses);
   for (let attempt = 0; samples.length < retainedProcesses && attempt < maxAttempts; attempt++) {
     try {
       const result = await run("retainedHeap", rawKey) as RetainedHeapChildReport;

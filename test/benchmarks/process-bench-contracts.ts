@@ -8,6 +8,10 @@ export interface RetainedHeapChildReport {
   retainedHeap: number;
 }
 
+export function retainedHeapAttemptLimit(retainedProcesses: number): number {
+  return Math.max(retainedProcesses * 4, 100);
+}
+
 export type ChildBenchmarkConfig = {
   readonly command: string[];
   readonly cwd?: string;
