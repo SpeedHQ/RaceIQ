@@ -16,7 +16,6 @@ import { createAcEvoParserCache, parseAcEvoBuffers } from "../../games/ac-evo/pa
 import { GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
 import { readKunosFrames, type KunosRecordingFrame } from "../../games/kunos/frame-reader";
-import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
   ACEVO_PACKED_MAGIC,
@@ -24,8 +23,14 @@ import {
 } from "../../games/kunos/pack-triplet";
 import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
 import { NullWsAdapter } from "../../telemetry/pipeline-ports";
-import { detectGameIdFromFilename } from "../../session-capture/import-capture";
-import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
+import {
+  detectGameIdFromFilename,
+  importSessionBin,
+} from "../../session-capture/import-capture";
+import {
+  ImportCaptureAdapter,
+  type ImportedLap,
+} from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
 
 export const importRoutes = new Hono();
@@ -80,6 +85,8 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       bypassPacketRateFilter: true,
     });
     const start = Date.now();
+    let importedLaps: readonly ImportedLap[] = db.laps;
+    let usedProductionImport = false;
 
     if (gameId === "acc") {
       let frames: KunosRecordingFrame[];
@@ -161,33 +168,27 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         packetCount++;
       }
     } else {
-      const serverAdapter = getAllServerGames().find((a) => a.id === gameId);
-      if (!serverAdapter) {
-        return c.json({ error: `No server adapter for gameId ${gameId}` }, 400);
-      }
-      const parserState = serverAdapter.createParserState?.() ?? null;
-      const buffer = readFileSync(tmpPath);
-      let offset = 0;
-      while (offset + 4 <= buffer.length) {
-        const len = buffer.readUInt32LE(offset);
-        offset += 4;
-        if (offset + len > buffer.length) break;
-        const sourceFrame = buffer.slice(offset, offset + len);
-        const packet = serverAdapter.tryParse(sourceFrame, parserState);
-        if (packet) {
-          await pipeline.processPacket(packet, sourceFrame);
-          packetCount++;
-        }
-        offset += len;
-      }
+      const result = await importSessionBin(
+        readFileSync(tmpPath),
+        gameId,
+        {
+          notifyDriverProfile: false,
+          ownership: ownership.data,
+        },
+      );
+      packetCount = result.packetCount;
+      importedLaps = result.laps;
+      usedProductionImport = true;
     }
 
     if (packetCount === 0) {
       return c.json({ error: "No packets found in dump" }, 400);
     }
 
-    await pipeline.flushIncompleteLap();
-    await new Promise<void>((r) => setTimeout(r, 100));
+    if (!usedProductionImport) {
+      await pipeline.flushIncompleteLap();
+      await new Promise<void>((r) => setTimeout(r, 100));
+    }
     const elapsedMs = Date.now() - start;
 
     try {
@@ -208,7 +209,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       carModel,
       trackName,
       elapsedMs,
-      laps: db.laps,
+      laps: importedLaps,
     });
   } catch (e) {
     console.error("[dev] import-dump failed:", e);
