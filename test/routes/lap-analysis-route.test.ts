@@ -32,6 +32,22 @@ test("semantic replay requests every Analyse display dependency", () => {
   }
 });
 
+describe("POST /api/laps/:id/experiment-excluded", () => {
+  test("accepts required experiment identity before querying the lap", async () => {
+    const response = await lapRoutes.request(
+      "/api/laps/999999/experiment-excluded",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ experimentId: 123, excluded: true }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Lap not found" });
+  });
+});
+
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {
     const response = await lapRoutes.request(

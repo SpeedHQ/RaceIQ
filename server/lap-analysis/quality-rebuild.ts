@@ -128,7 +128,7 @@ async function evaluateAnalysisStatus(
     unavailableArtifacts: ["laps", "race_events", "session_runs", "race_result", "quality"] as const,
     limitations: [sourceExecutorAvailable ? "Source evidence unavailable" : "No compatible source executor registered"],
   };
-  const capability = rawAvailable
+  const capability = rawAvailable && sourceExecutorAvailable
     ? { ...exactCapability, rebuildableArtifacts: [...exactCapability.rebuildableArtifacts], unavailableArtifacts: [] }
     : canonicalAvailable && sourceExecutorAvailable
       ? { ...canonicalCapability, rebuildableArtifacts: [...canonicalCapability.rebuildableArtifacts], unavailableArtifacts: [] }

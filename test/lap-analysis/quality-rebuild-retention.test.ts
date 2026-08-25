@@ -12,7 +12,7 @@ import { laps, sessions } from "../../server/db/schema";
 import { initServerGameAdapters } from "../../server/games/init";
 import { LAP_DETECTOR_ID } from "../../server/lap-detection/detector";
 import { finalizeRecordingQualityGeneration } from "../../server/lap-analysis/quality-generation";
-import { getQualityRebuildStatus, rebuildSessionEligibility } from "../../server/lap-analysis/quality-rebuild";
+import { getAnalysisRebuildPreview, getQualityRebuildStatus, rebuildSessionEligibility } from "../../server/lap-analysis/quality-rebuild";
 import { sha256ContentHash } from "../../server/session-capture/identity";
 import { initGameAdapters } from "../../shared/games/init";
 import { qualityPackets, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
@@ -249,6 +249,11 @@ describe("quality rebuild detector identity", () => {
     expect(status.rawAvailable).toBe(true);
     expect(status.currentDetectorId).toBeNull();
     expect(status.stale.detector).toBe(true);
+    expect(status.analysisStatus.capability.mode).toBe("unavailable");
+    expect(status.analysisStatus.capability.limitations).toContain("No compatible source executor registered");
+    const preview = await getAnalysisRebuildPreview(id);
+    expect(preview.sourceAvailable).toBe(false);
+    expect(preview.capability.mode).toBe("unavailable");
   });
 
   test("does not hide detector staleness behind a policy-only rebuild", async () => {
