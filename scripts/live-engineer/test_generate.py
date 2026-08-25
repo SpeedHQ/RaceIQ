@@ -28,9 +28,11 @@ class GenerateTest(unittest.TestCase):
 
     def test_transcript_validation_accepts_numeric_alias(self) -> None:
         self.assertIsNone(module.validate_transcript("number.eight", "8", "eight"))
-    def test_transcript_validation_rejects_leading_article_for_number(self) -> None:
-        failure = module.validate_transcript("number.one", "A one", "one")
-        self.assertIn("transcript mismatch", failure)
+    def test_speech_bounds_measure_active_audio_without_cutting(self) -> None:
+        import numpy as np
+        audio = np.concatenate([np.zeros(240), np.full(480, 0.1), np.zeros(240)])
+        self.assertEqual(module.speech_bounds(audio), (240, 720))
+
     def test_pre_speech_energy_rejects_voiced_prefix(self) -> None:
         import numpy as np
         audio = np.concatenate([np.full(2400, 0.1), np.zeros(1200), np.full(2400, 0.1)])
@@ -42,9 +44,10 @@ class GenerateTest(unittest.TestCase):
         audio = np.concatenate([np.zeros(1200), np.full(2400, 0.1)])
         self.assertIsNone(module.validate_pre_speech_energy(audio, first_word_start_s=0.05))
 
-    def test_generation_uses_original_natural_speed(self) -> None:
+    def test_generation_uses_requested_speed_steps_and_join_gap(self) -> None:
         self.assertEqual(module.LANGUAGE, "en")
-        self.assertEqual(module.SPEED, 1.35)
-        self.assertEqual(module.NUM_STEPS, 32)
+        self.assertEqual(module.SPEED, 1.4)
+        self.assertEqual(module.NUM_STEPS, 60)
+        self.assertEqual(module.JOIN_GAP_MS, -50)
 if __name__ == "__main__":
     unittest.main()

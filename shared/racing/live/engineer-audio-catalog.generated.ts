@@ -1,328 +1,442 @@
 export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = 'live-engineer-v1' as const;
-export const LIVE_ENGINEER_AUDIO_CATALOG = { catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, sampleRate: 24000, channels: 1, joinGapMs: -20, segments: [
-  {
-    "segmentId": "phrase.fastest.class",
-    "url": "/audio/live-engineer/v1/phrase__fastest__class.flac",
-    "sha256": "a08fcbb77e3f0797ce154f55129e49db48f0bb1da16e1b55d5356a5ef17fc03c",
-    "durationMs": 1139
-  },
-  {
-    "segmentId": "phrase.fastest.overall",
-    "url": "/audio/live-engineer/v1/phrase__fastest__overall.flac",
-    "sha256": "d471906242f319845c4ac29b507d07e250da659d3f097c31e69f5227b27c6d8d",
-    "durationMs": 1130
-  },
-  {
-    "segmentId": "phrase.setting-race-pace",
-    "url": "/audio/live-engineer/v1/phrase__setting-race-pace.flac",
-    "sha256": "7def7ac6d4e91a6bea1be8b4c7133d7e42b91ae93e118a7919ab948606381191",
-    "durationMs": 1624
-  },
-  {
-    "segmentId": "phrase.within-class-pace",
-    "url": "/audio/live-engineer/v1/phrase__within-class-pace.flac",
-    "sha256": "72d5a60621beefe59b5607ba3e64fc122ad9da1d7e81d951e7995f004a24c73c",
-    "durationMs": 702
-  },
-  {
-    "segmentId": "phrase.off-class-pace",
-    "url": "/audio/live-engineer/v1/phrase__off-class-pace.flac",
-    "sha256": "72d5a60621beefe59b5607ba3e64fc122ad9da1d7e81d951e7995f004a24c73c",
-    "durationMs": 702
-  },
-  {
-    "segmentId": "phrase.outlier-lap",
-    "url": "/audio/live-engineer/v1/phrase__outlier-lap.flac",
-    "sha256": "ae10343a0053269aa5b7f010a629b1867863aafa120844c8c71ae429de1bac6d",
-    "durationMs": 735
-  },
-  {
-    "segmentId": "phrase.scope.class",
-    "url": "/audio/live-engineer/v1/phrase__scope__class.flac",
-    "sha256": "eac1bbbced5e0f85bbd80e61fbf41a36ecd3911d4b3ec5dff4d10388b3258df7",
-    "durationMs": 914
-  },
-  {
-    "segmentId": "phrase.scope.overall",
-    "url": "/audio/live-engineer/v1/phrase__scope__overall.flac",
-    "sha256": "357f87359284bfe9749c6826634cf808ab579673c28ffdfddad3edb1cd39627b",
-    "durationMs": 728
-  },
-  {
-    "segmentId": "phrase.from",
-    "url": "/audio/live-engineer/v1/phrase__from.flac",
-    "sha256": "5a3803680fef17e04fd0e48fda2aef8052bb6d73d6d155faddca325e214a6bf7",
-    "durationMs": 526
-  },
-  {
-    "segmentId": "phrase.off",
-    "url": "/audio/live-engineer/v1/phrase__off.flac",
-    "sha256": "25c9b746f3136bc354a547ce61d8a37f045b9e8bc9a43513e7bcd6b499e2640e",
-    "durationMs": 469
-  },
-  {
-    "segmentId": "phrase.exact.intro",
-    "url": "/audio/live-engineer/v1/phrase__exact__intro.flac",
-    "sha256": "ab9898d544c53bcabdcb0bfeb1fc83a5eafa27ac5983a7a5c8dc024b692fbff2",
-    "durationMs": 953
-  },
-  {
-    "segmentId": "phrase.exact.your-lap",
-    "url": "/audio/live-engineer/v1/phrase__exact__your-lap.flac",
-    "sha256": "d80b59e90ab2db9de409447b4f3a4fd84ddc0a76f72d0c1a818369f60884faa3",
-    "durationMs": 836
-  },
-  {
-    "segmentId": "spotter.car-left",
-    "url": "/audio/live-engineer/v1/spotter__car-left.flac",
-    "sha256": "0e0f07964ab452e1b9826813ba65541fb426b200a39d0f4f2084926f6b426a94",
-    "durationMs": 854
-  },
-  {
-    "segmentId": "spotter.car-right",
-    "url": "/audio/live-engineer/v1/spotter__car-right.flac",
-    "sha256": "3f841e87e7362f4886059348fd5496dd3648020e859f18ce39e714897a297375",
-    "durationMs": 723
-  },
-  {
-    "segmentId": "spotter.still-there",
-    "url": "/audio/live-engineer/v1/spotter__still-there.flac",
-    "sha256": "efc503c15d3cd7ec90533a4552c5440d1891da4a5c568f78ca75501b5d7bb6c2",
-    "durationMs": 810
-  },
-  {
-    "segmentId": "spotter.three-wide-left",
-    "url": "/audio/live-engineer/v1/spotter__three-wide-left.flac",
-    "sha256": "08c939980c0b4d9a0674a236ca09bab8f6ae4c6ad77583e9d69182e2adb6e1f9",
-    "durationMs": 1049
-  },
-  {
-    "segmentId": "spotter.three-wide-right",
-    "url": "/audio/live-engineer/v1/spotter__three-wide-right.flac",
-    "sha256": "f9c00f0439fc579048dbc37d28594e2c5914cfac936e08ea980530494dd65ea9",
-    "durationMs": 889
-  },
-  {
-    "segmentId": "spotter.clear-left",
-    "url": "/audio/live-engineer/v1/spotter__clear-left.flac",
-    "sha256": "ef62016f6dfe3beaee33df23dbe2e233056b47988d3280429c5af1509e8c7c22",
-    "durationMs": 911
-  },
-  {
-    "segmentId": "spotter.clear-right",
-    "url": "/audio/live-engineer/v1/spotter__clear-right.flac",
-    "sha256": "c9d1b4ef1a72886edff9cc84f1989a38cb4ab66cad7c55a7ade00f08a24fb6aa",
-    "durationMs": 764
-  },
-  {
-    "segmentId": "unit.second",
-    "url": "/audio/live-engineer/v1/unit__second.flac",
-    "sha256": "0f63eb60ddbc5f080394e034eec7d73cfc0c2aac1886cf6a184408e483922c75",
-    "durationMs": 701
-  },
-  {
-    "segmentId": "unit.seconds",
-    "url": "/audio/live-engineer/v1/unit__seconds.flac",
-    "sha256": "75a0466d1f83dc3b852c310d32c20e424a457c6872dc625cab6ffcec43b958b2",
-    "durationMs": 811
-  },
-  {
-    "segmentId": "unit.minute",
-    "url": "/audio/live-engineer/v1/unit__minute.flac",
-    "sha256": "93aea3af0edbd1ce15aaed9b7d7bb62ae018ea643b2cfcc1c3e488c646da3ebd",
-    "durationMs": 575
-  },
-  {
-    "segmentId": "unit.minutes",
-    "url": "/audio/live-engineer/v1/unit__minutes.flac",
-    "sha256": "d90f4bb816c42b401cdee8b01b3a20a0d6889f6b5d3c0e8e8a827607a8523363",
-    "durationMs": 752
-  },
-  {
-    "segmentId": "unit.point",
-    "url": "/audio/live-engineer/v1/unit__point.flac",
-    "sha256": "d95e0e80c88a7394491385e71d62ef58cf1f8a25be96aa6ee58198b55032f030",
-    "durationMs": 616
-  },
-  {
-    "segmentId": "number.zero",
-    "url": "/audio/live-engineer/v1/number__zero.flac",
-    "sha256": "2ba50f16b479c9a26918acf8ad3628e59db92a9b675d2e9ec473567f498a4d4c",
-    "durationMs": 720
-  },
-  {
-    "segmentId": "number.one",
-    "url": "/audio/live-engineer/v1/number__one.flac",
-    "sha256": "95a82b28c8a8ff0e0ad97ddb6cd683c0c76ab83f9437ce0b1fd5760eac14bbb9",
-    "durationMs": 579
-  },
-  {
-    "segmentId": "number.two",
-    "url": "/audio/live-engineer/v1/number__two.flac",
-    "sha256": "090de87474806ce1944f81ecbaced919f9dff9afc1fc90f8a61c459a2d9c1062",
-    "durationMs": 613
-  },
-  {
-    "segmentId": "number.three",
-    "url": "/audio/live-engineer/v1/number__three.flac",
-    "sha256": "f835d90c13677a5e2ad9e904f73d172d399eb1509ff133a50ae3a2805a0148b5",
-    "durationMs": 609
-  },
-  {
-    "segmentId": "number.four",
-    "url": "/audio/live-engineer/v1/number__four.flac",
-    "sha256": "867f95fcffcfb311848061e558de04e5ec5f26ee48241adec73350a6a109d905",
-    "durationMs": 624
-  },
-  {
-    "segmentId": "number.five",
-    "url": "/audio/live-engineer/v1/number__five.flac",
-    "sha256": "55b2ea46f9d7dd991ee8e62bd43180ad3ba29fadde8c57dc57bf0443ab02bdcf",
-    "durationMs": 575
-  },
-  {
-    "segmentId": "number.six",
-    "url": "/audio/live-engineer/v1/number__six.flac",
-    "sha256": "9163448af34c7fc8afa049b2087572466d10b5659c4aeac1a3f48c51a3f9da92",
-    "durationMs": 703
-  },
-  {
-    "segmentId": "number.seven",
-    "url": "/audio/live-engineer/v1/number__seven.flac",
-    "sha256": "2fec9c0fd92bd9c7a8a4d794afeb04679774d78e3f29923d399e47aada4f603f",
-    "durationMs": 596
-  },
-  {
-    "segmentId": "number.eight",
-    "url": "/audio/live-engineer/v1/number__eight.flac",
-    "sha256": "a69e5ae01853798e78e2a176597cb495683955697f8f31ad5962a29f3d0c9ebb",
-    "durationMs": 404
-  },
-  {
-    "segmentId": "number.nine",
-    "url": "/audio/live-engineer/v1/number__nine.flac",
-    "sha256": "cb0deaa30a0ce8445dc895c1ad9524d4520a6c0a1f2cbb919337ae84f7c34eb7",
-    "durationMs": 494
-  },
-  {
-    "segmentId": "number.ten",
-    "url": "/audio/live-engineer/v1/number__ten.flac",
-    "sha256": "c4ee4a860486ef2040b8f518b953eca4c0ed0d2a7461538e9a9dea34ba375015",
-    "durationMs": 566
-  },
-  {
-    "segmentId": "number.eleven",
-    "url": "/audio/live-engineer/v1/number__eleven.flac",
-    "sha256": "ae590e93772ed45e56c476be312a9dd8bf1abeb078acaf59d2608c129776f9fd",
-    "durationMs": 570
-  },
-  {
-    "segmentId": "number.twelve",
-    "url": "/audio/live-engineer/v1/number__twelve.flac",
-    "sha256": "0037784ecb2aed7dfeb508c4da320c6c2c2d81c2bb9b80ecee99c8d86277ad29",
-    "durationMs": 689
-  },
-  {
-    "segmentId": "number.thirteen",
-    "url": "/audio/live-engineer/v1/number__thirteen.flac",
-    "sha256": "7e5329f366650975fdce14ebbed410b9ccb3e37de4d135641d787ebb7ca819b2",
-    "durationMs": 838
-  },
-  {
-    "segmentId": "number.fourteen",
-    "url": "/audio/live-engineer/v1/number__fourteen.flac",
-    "sha256": "69e7387ded1bb231025e681e1215c41e71fc062a48ace98c4feeb3060da17397",
-    "durationMs": 857
-  },
-  {
-    "segmentId": "number.fifteen",
-    "url": "/audio/live-engineer/v1/number__fifteen.flac",
-    "sha256": "2c26a9e4b5f7603a6edb149f00e50971ab982f65e0c4f6c2524d1cfad7a39152",
-    "durationMs": 685
-  },
-  {
-    "segmentId": "number.sixteen",
-    "url": "/audio/live-engineer/v1/number__sixteen.flac",
-    "sha256": "d5592480a4766e7d61e03e338a8db6d6483dd862059927119f5ac2f75111b5e2",
-    "durationMs": 856
-  },
-  {
-    "segmentId": "number.seventeen",
-    "url": "/audio/live-engineer/v1/number__seventeen.flac",
-    "sha256": "be0ab9a041df4685274cab9f35ee24f88efa7e83c6662f4b029692ceabf284b6",
-    "durationMs": 866
-  },
-  {
-    "segmentId": "number.eighteen",
-    "url": "/audio/live-engineer/v1/number__eighteen.flac",
-    "sha256": "6d39cd7c03a0a81aad0ce72595618be3b4a617c256520edc93783012f7fedf3b",
-    "durationMs": 517
-  },
-  {
-    "segmentId": "number.nineteen",
-    "url": "/audio/live-engineer/v1/number__nineteen.flac",
-    "sha256": "105968c1f977d527f954ce2f931eceeb0be0a7b329b51a624dc4377b6a8e024b",
-    "durationMs": 953
-  },
-  {
-    "segmentId": "number.twenty",
-    "url": "/audio/live-engineer/v1/number__twenty.flac",
-    "sha256": "618e50f9b857a37d6bc3eb52c58b4f04d9b851836f79c5d4232ed4088249cf8e",
-    "durationMs": 662
-  },
-  {
-    "segmentId": "number.thirty",
-    "url": "/audio/live-engineer/v1/number__thirty.flac",
-    "sha256": "78ea2439c22229775603d37954830e03627af6a17e91787842381f5625406d7c",
-    "durationMs": 597
-  },
-  {
-    "segmentId": "number.forty",
-    "url": "/audio/live-engineer/v1/number__forty.flac",
-    "sha256": "43f4747ddac1d0fa03c0302f27eb5e3ef82b23394c4dca6409e041119f7f35d8",
-    "durationMs": 721
-  },
-  {
-    "segmentId": "number.fifty",
-    "url": "/audio/live-engineer/v1/number__fifty.flac",
-    "sha256": "3ffa85cf8d63653f0bbf3aff320493a73b460bbe318a611e5c72fd2b9617b9dd",
-    "durationMs": 576
-  },
-  {
-    "segmentId": "number.sixty",
-    "url": "/audio/live-engineer/v1/number__sixty.flac",
-    "sha256": "836d855520510bc4c9e44342074883a46f7e7d281d2f0588bc6f05418181884a",
-    "durationMs": 824
-  },
-  {
-    "segmentId": "number.seventy",
-    "url": "/audio/live-engineer/v1/number__seventy.flac",
-    "sha256": "f233fcffecb73f08a839bac9c5a7b46708669727373c8bc7f168bc3e8210071a",
-    "durationMs": 893
-  },
-  {
-    "segmentId": "number.eighty",
-    "url": "/audio/live-engineer/v1/number__eighty.flac",
-    "sha256": "bf7fcd02671a5f71863f7f15947b7bd65205f17c5da20c5d9ace41f0d642cc69",
-    "durationMs": 570
-  },
-  {
-    "segmentId": "number.ninety",
-    "url": "/audio/live-engineer/v1/number__ninety.flac",
-    "sha256": "4488e6724c5dbe79dfa503613998d50b612725daf6b6836b483df73729dc1e92",
-    "durationMs": 841
-  },
-  {
-    "segmentId": "number.hundred",
-    "url": "/audio/live-engineer/v1/number__hundred.flac",
-    "sha256": "ace973ddc67825ac08ac15ac2fb12c6305286d4288d1136135cba1ed1216a001",
-    "durationMs": 481
-  },
-  {
-    "segmentId": "number.point",
-    "url": "/audio/live-engineer/v1/number__point.flac",
-    "sha256": "d95e0e80c88a7394491385e71d62ef58cf1f8a25be96aa6ee58198b55032f030",
-    "durationMs": 616
-  }
-] as const };
+export const LIVE_ENGINEER_AUDIO_CATALOG = {
+  "catalogVersion": "live-engineer-v1",
+  "sampleRate": 24000,
+  "channels": 1,
+  "joinGapMs": -50,
+  "segments": [
+    {
+      "segmentId": "phrase.fastest.class",
+      "url": "/audio/live-engineer/v1/phrase__fastest__class.flac",
+      "sha256": "64163f512bd7657d785241d951160089c19eab668fd3d72188a0cd7e977dfc3a",
+      "durationMs": 1088,
+      "speechStartMs": 5,
+      "speechEndMs": 1085
+    },
+    {
+      "segmentId": "phrase.fastest.overall",
+      "url": "/audio/live-engineer/v1/phrase__fastest__overall.flac",
+      "sha256": "26de9554eb83991e98aaf9053804761976932770e7bbbb5fecc0a5c2716604a9",
+      "durationMs": 1086,
+      "speechStartMs": 5,
+      "speechEndMs": 1085
+    },
+    {
+      "segmentId": "phrase.setting-race-pace",
+      "url": "/audio/live-engineer/v1/phrase__setting-race-pace.flac",
+      "sha256": "98c42933861c7ad435bff6060d6929f8bdd3bf7862ed125ad8a43fccb8bae622",
+      "durationMs": 1458,
+      "speechStartMs": 3,
+      "speechEndMs": 1453
+    },
+    {
+      "segmentId": "phrase.within-class-pace",
+      "url": "/audio/live-engineer/v1/phrase__within-class-pace.flac",
+      "sha256": "018439830dd19e8a183a4c1008415607dac73ec72806de4dc538a4de02dffb7d",
+      "durationMs": 720,
+      "speechStartMs": 5,
+      "speechEndMs": 715
+    },
+    {
+      "segmentId": "phrase.off-class-pace",
+      "url": "/audio/live-engineer/v1/phrase__off-class-pace.flac",
+      "sha256": "018439830dd19e8a183a4c1008415607dac73ec72806de4dc538a4de02dffb7d",
+      "durationMs": 720,
+      "speechStartMs": 5,
+      "speechEndMs": 715
+    },
+    {
+      "segmentId": "phrase.outlier-lap",
+      "url": "/audio/live-engineer/v1/phrase__outlier-lap.flac",
+      "sha256": "408f32dbda6bf30434246988f877e669d26438f3af9442f19c741f749f231c96",
+      "durationMs": 912,
+      "speechStartMs": 5,
+      "speechEndMs": 908
+    },
+    {
+      "segmentId": "phrase.scope.class",
+      "url": "/audio/live-engineer/v1/phrase__scope__class.flac",
+      "sha256": "3db6fe23e25caffa0ac0649077536c08b1fa2759433c4ece412099e7b616e5c2",
+      "durationMs": 836,
+      "speechStartMs": 5,
+      "speechEndMs": 831
+    },
+    {
+      "segmentId": "phrase.scope.overall",
+      "url": "/audio/live-engineer/v1/phrase__scope__overall.flac",
+      "sha256": "cb4666299da88226e0801b57e295d21766d51e448cb7b29f3c57b95cabf4762a",
+      "durationMs": 739,
+      "speechStartMs": 5,
+      "speechEndMs": 734
+    },
+    {
+      "segmentId": "phrase.from",
+      "url": "/audio/live-engineer/v1/phrase__from.flac",
+      "sha256": "5410f5ff4218861fc1d2f20879d9430bc685efdf8b9ab60d9101cbd6889f1af9",
+      "durationMs": 540,
+      "speechStartMs": 5,
+      "speechEndMs": 531
+    },
+    {
+      "segmentId": "phrase.off",
+      "url": "/audio/live-engineer/v1/phrase__off.flac",
+      "sha256": "22838258d969e598e624eebea79e56ea388a8880b5c39624e6ecd52db350d64b",
+      "durationMs": 373,
+      "speechStartMs": 5,
+      "speechEndMs": 372
+    },
+    {
+      "segmentId": "phrase.exact.intro",
+      "url": "/audio/live-engineer/v1/phrase__exact__intro.flac",
+      "sha256": "2dd847494b5d5846348f2465cf81ad147240a6aa710fe94fbbb11782153cf548",
+      "durationMs": 966,
+      "speechStartMs": 4,
+      "speechEndMs": 961
+    },
+    {
+      "segmentId": "phrase.exact.your-lap",
+      "url": "/audio/live-engineer/v1/phrase__exact__your-lap.flac",
+      "sha256": "1e6576d0aab25f0237b1cc7daf46c142422c6ef6397f7b643ec037841b132b64",
+      "durationMs": 801,
+      "speechStartMs": 5,
+      "speechEndMs": 796
+    },
+    {
+      "segmentId": "spotter.car-left",
+      "url": "/audio/live-engineer/v1/spotter__car-left.flac",
+      "sha256": "dd301ad8332dd385d903db15198072af44e934074210d5183b259c717d26d1fe",
+      "durationMs": 849,
+      "speechStartMs": 5,
+      "speechEndMs": 847
+    },
+    {
+      "segmentId": "spotter.car-right",
+      "url": "/audio/live-engineer/v1/spotter__car-right.flac",
+      "sha256": "2db8b2446d04f60e303295e8d0df846f4e98cb0c4f6f3c9b3fc1d14535cc0c79",
+      "durationMs": 715,
+      "speechStartMs": 5,
+      "speechEndMs": 710
+    },
+    {
+      "segmentId": "spotter.still-there",
+      "url": "/audio/live-engineer/v1/spotter__still-there.flac",
+      "sha256": "46147c2c9a11acd09747880ad6d96b17fa7c3964a52d3463e2f57bac112329ef",
+      "durationMs": 782,
+      "speechStartMs": 5,
+      "speechEndMs": 777
+    },
+    {
+      "segmentId": "spotter.three-wide-left",
+      "url": "/audio/live-engineer/v1/spotter__three-wide-left.flac",
+      "sha256": "4780a2f3af06f96737c6c9c4b08c2bb6167ee53fd6770fc1dad6f186f981e6c4",
+      "durationMs": 1040,
+      "speechStartMs": 5,
+      "speechEndMs": 1035
+    },
+    {
+      "segmentId": "spotter.three-wide-right",
+      "url": "/audio/live-engineer/v1/spotter__three-wide-right.flac",
+      "sha256": "8fc01471c288d8348dd8a8d88a2f17e4488fdf60d58d5cd643fe852149149777",
+      "durationMs": 866,
+      "speechStartMs": 5,
+      "speechEndMs": 861
+    },
+    {
+      "segmentId": "spotter.clear-left",
+      "url": "/audio/live-engineer/v1/spotter__clear-left.flac",
+      "sha256": "9cb26b4b049d79e7a5727fd238ce2d64fb44c7a760a0beb678faa2576387ed2c",
+      "durationMs": 890,
+      "speechStartMs": 5,
+      "speechEndMs": 885
+    },
+    {
+      "segmentId": "spotter.clear-right",
+      "url": "/audio/live-engineer/v1/spotter__clear-right.flac",
+      "sha256": "b0ed826e280adf43c2c197ddc915ce686b561429de3b2575dea70e3d16db61fd",
+      "durationMs": 752,
+      "speechStartMs": 5,
+      "speechEndMs": 747
+    },
+    {
+      "segmentId": "unit.second",
+      "url": "/audio/live-engineer/v1/unit__second.flac",
+      "sha256": "83e2e0b930c9e6d9cffe479a62a6ba541996df7587e480f589fecb7acede5b8f",
+      "durationMs": 713,
+      "speechStartMs": 5,
+      "speechEndMs": 711
+    },
+    {
+      "segmentId": "unit.seconds",
+      "url": "/audio/live-engineer/v1/unit__seconds.flac",
+      "sha256": "8f48c2c399e1d5876b19bd42400e88043f4812e55517b3155ff8e2c66dacbc0a",
+      "durationMs": 732,
+      "speechStartMs": 5,
+      "speechEndMs": 727
+    },
+    {
+      "segmentId": "unit.minute",
+      "url": "/audio/live-engineer/v1/unit__minute.flac",
+      "sha256": "d53ddef9bda37f34a7a6bd799d65e19f2ef418a56a90b2eca4a41632c145007e",
+      "durationMs": 556,
+      "speechStartMs": 5,
+      "speechEndMs": 553
+    },
+    {
+      "segmentId": "unit.minutes",
+      "url": "/audio/live-engineer/v1/unit__minutes.flac",
+      "sha256": "d7970b822bc29d0628ae16a7104c271e468235203fed8da30783ad0936adb6b6",
+      "durationMs": 757,
+      "speechStartMs": 5,
+      "speechEndMs": 752
+    },
+    {
+      "segmentId": "unit.point",
+      "url": "/audio/live-engineer/v1/unit__point.flac",
+      "sha256": "829dc0b26b4834819dfd8b5a458da0407caf90411daf80ec288a54bed0d6b7f2",
+      "durationMs": 649,
+      "speechStartMs": 0,
+      "speechEndMs": 644
+    },
+    {
+      "segmentId": "number.zero",
+      "url": "/audio/live-engineer/v1/number__zero.flac",
+      "sha256": "6be1022951e7e3259ce507c2abf0a7c424c9e1b1dbb0275f88aae28f35608e93",
+      "durationMs": 730,
+      "speechStartMs": 5,
+      "speechEndMs": 722
+    },
+    {
+      "segmentId": "number.one",
+      "url": "/audio/live-engineer/v1/number__one.flac",
+      "sha256": "44138d72c844a1332e68ffa20d4cce3de504aff79e0726fc8313d12c671cbdfa",
+      "durationMs": 667,
+      "speechStartMs": 5,
+      "speechEndMs": 666
+    },
+    {
+      "segmentId": "number.two",
+      "url": "/audio/live-engineer/v1/number__two.flac",
+      "sha256": "01cd2d5da3e44429a32f0ab33f0cda7058281bd9d4982a2ae99187433dda815d",
+      "durationMs": 654,
+      "speechStartMs": 5,
+      "speechEndMs": 646
+    },
+    {
+      "segmentId": "number.three",
+      "url": "/audio/live-engineer/v1/number__three.flac",
+      "sha256": "77f9c67043da5caaa164fd2d32b1abf6c9d05f8d78babbf73e552c5ed8b5011e",
+      "durationMs": 603,
+      "speechStartMs": 5,
+      "speechEndMs": 598
+    },
+    {
+      "segmentId": "number.four",
+      "url": "/audio/live-engineer/v1/number__four.flac",
+      "sha256": "f0b5546929849eec459731c6db9a2a61ffa58fb58997b43a7c983e0614185362",
+      "durationMs": 630,
+      "speechStartMs": 0,
+      "speechEndMs": 625
+    },
+    {
+      "segmentId": "number.five",
+      "url": "/audio/live-engineer/v1/number__five.flac",
+      "sha256": "fce34d319b78803edaacda6be26510ff785324ee6a3dcb65d94691cebd4fadc5",
+      "durationMs": 594,
+      "speechStartMs": 5,
+      "speechEndMs": 589
+    },
+    {
+      "segmentId": "number.six",
+      "url": "/audio/live-engineer/v1/number__six.flac",
+      "sha256": "ccbed669ca944afd421d0e5eecc3b69e4b3b2101328f1cb32d3b806fd32cbdba",
+      "durationMs": 544,
+      "speechStartMs": 5,
+      "speechEndMs": 539
+    },
+    {
+      "segmentId": "number.seven",
+      "url": "/audio/live-engineer/v1/number__seven.flac",
+      "sha256": "f90eeafc02c43dc7f697c0e42b97d0744018cf1fa8a0b0f9c81e994c11f84d3f",
+      "durationMs": 650,
+      "speechStartMs": 3,
+      "speechEndMs": 645
+    },
+    {
+      "segmentId": "number.eight",
+      "url": "/audio/live-engineer/v1/number__eight.flac",
+      "sha256": "e5d589f33fa752c95d28c57b78c5bad160c13cd625eddd9ef340705f563ea0c9",
+      "durationMs": 448,
+      "speechStartMs": 5,
+      "speechEndMs": 447
+    },
+    {
+      "segmentId": "number.nine",
+      "url": "/audio/live-engineer/v1/number__nine.flac",
+      "sha256": "79ea5df546ddd5f868fd782cfbd1bf0f9c72ac9cfe30eb3223496a1f450c1e1f",
+      "durationMs": 652,
+      "speechStartMs": 5,
+      "speechEndMs": 646
+    },
+    {
+      "segmentId": "number.ten",
+      "url": "/audio/live-engineer/v1/number__ten.flac",
+      "sha256": "cdbd3277f9aa86593b5e9ee3261b3c8cb22929d4b4bf177da2e503a679bb44d8",
+      "durationMs": 538,
+      "speechStartMs": 5,
+      "speechEndMs": 533
+    },
+    {
+      "segmentId": "number.eleven",
+      "url": "/audio/live-engineer/v1/number__eleven.flac",
+      "sha256": "37989794e3f65fcf82a591793257e21f69b3e4ad15b3aea36ac6d35bfe24a657",
+      "durationMs": 462,
+      "speechStartMs": 5,
+      "speechEndMs": 456
+    },
+    {
+      "segmentId": "number.twelve",
+      "url": "/audio/live-engineer/v1/number__twelve.flac",
+      "sha256": "eeec7f55020533238142237365a4f9b59e56b404fa10087bd376ce678dba613f",
+      "durationMs": 650,
+      "speechStartMs": 5,
+      "speechEndMs": 648
+    },
+    {
+      "segmentId": "number.thirteen",
+      "url": "/audio/live-engineer/v1/number__thirteen.flac",
+      "sha256": "bc00049ea10ee8f8b8ba97f0a9258d5fc3911596a3b526cab2c6beae3090bbff",
+      "durationMs": 746,
+      "speechStartMs": 5,
+      "speechEndMs": 737
+    },
+    {
+      "segmentId": "number.fourteen",
+      "url": "/audio/live-engineer/v1/number__fourteen.flac",
+      "sha256": "9ff68d611941fb2f01a2ee5e7e92b1535fea852313ecd8122ebbc273f4d32bda",
+      "durationMs": 839,
+      "speechStartMs": 5,
+      "speechEndMs": 835
+    },
+    {
+      "segmentId": "number.fifteen",
+      "url": "/audio/live-engineer/v1/number__fifteen.flac",
+      "sha256": "8d1f6e44143816e4b071a5374bd91a1decca709af294634a682e58fdcd3bd248",
+      "durationMs": 720,
+      "speechStartMs": 5,
+      "speechEndMs": 715
+    },
+    {
+      "segmentId": "number.sixteen",
+      "url": "/audio/live-engineer/v1/number__sixteen.flac",
+      "sha256": "9289999c4388d5e5aeba628f95607cd50504110e17c35e539341f0f40ac2b831",
+      "durationMs": 719,
+      "speechStartMs": 5,
+      "speechEndMs": 714
+    },
+    {
+      "segmentId": "number.seventeen",
+      "url": "/audio/live-engineer/v1/number__seventeen.flac",
+      "sha256": "55022cdafe58e0d901857e24a60ef79ff2e6279dfa57a4db1ae8c83a25117f3a",
+      "durationMs": 710,
+      "speechStartMs": 5,
+      "speechEndMs": 704
+    },
+    {
+      "segmentId": "number.eighteen",
+      "url": "/audio/live-engineer/v1/number__eighteen.flac",
+      "sha256": "5bf10c2199e3baeffd18d061a829025623721b06d78ce24d1188b25de26ba07b",
+      "durationMs": 532,
+      "speechStartMs": 5,
+      "speechEndMs": 527
+    },
+    {
+      "segmentId": "number.nineteen",
+      "url": "/audio/live-engineer/v1/number__nineteen.flac",
+      "sha256": "439e5be1976e6721ef13b1b9b1082b0094ad2ac39748b8f9d38289de3a9f4ad3",
+      "durationMs": 722,
+      "speechStartMs": 5,
+      "speechEndMs": 712
+    },
+    {
+      "segmentId": "number.twenty",
+      "url": "/audio/live-engineer/v1/number__twenty.flac",
+      "sha256": "67852035b7cce493afe851e21a2e53ace76d3251445b547fa37c207d5df36b02",
+      "durationMs": 551,
+      "speechStartMs": 5,
+      "speechEndMs": 542
+    },
+    {
+      "segmentId": "number.thirty",
+      "url": "/audio/live-engineer/v1/number__thirty.flac",
+      "sha256": "1ad9f2cd96dea12c26663cc005224c91d4e96edd1e691f7fa47da2b4b93f3db9",
+      "durationMs": 653,
+      "speechStartMs": 5,
+      "speechEndMs": 648
+    },
+    {
+      "segmentId": "number.forty",
+      "url": "/audio/live-engineer/v1/number__forty.flac",
+      "sha256": "2f8cda824eee3689c60b2442e6f3186f36061096de54525e8f4761a948a40cee",
+      "durationMs": 566,
+      "speechStartMs": 5,
+      "speechEndMs": 556
+    },
+    {
+      "segmentId": "number.fifty",
+      "url": "/audio/live-engineer/v1/number__fifty.flac",
+      "sha256": "ad3d08ef87653178b481f401863f62511746d4f87225b0db4ae1e829eb6f24bd",
+      "durationMs": 589,
+      "speechStartMs": 5,
+      "speechEndMs": 588
+    },
+    {
+      "segmentId": "number.sixty",
+      "url": "/audio/live-engineer/v1/number__sixty.flac",
+      "sha256": "50b2128c31688474f2776eee30ac15d1ecee8403abd62d013ffe177daf197a0a",
+      "durationMs": 614,
+      "speechStartMs": 5,
+      "speechEndMs": 609
+    },
+    {
+      "segmentId": "number.seventy",
+      "url": "/audio/live-engineer/v1/number__seventy.flac",
+      "sha256": "515f2bb406460f3f9ca1112961f442d8dbbfbd41dd4a5b3fad42eea42d7688c1",
+      "durationMs": 667,
+      "speechStartMs": 5,
+      "speechEndMs": 663
+    },
+    {
+      "segmentId": "number.eighty",
+      "url": "/audio/live-engineer/v1/number__eighty.flac",
+      "sha256": "e412e29ad5e453890b242a503efb7697a5ce41104953109d79aa504ecee8e489",
+      "durationMs": 576,
+      "speechStartMs": 1,
+      "speechEndMs": 575
+    },
+    {
+      "segmentId": "number.ninety",
+      "url": "/audio/live-engineer/v1/number__ninety.flac",
+      "sha256": "8faf975da8c334ce3414f6a2f6b0415ad923dcf5a95fb2291cdf61bb37fe358b",
+      "durationMs": 585,
+      "speechStartMs": 5,
+      "speechEndMs": 579
+    },
+    {
+      "segmentId": "number.hundred",
+      "url": "/audio/live-engineer/v1/number__hundred.flac",
+      "sha256": "5c4d9e3dea89870b8b9daf9e541ff215d94422985c6c9d49bee2bef1316c7fb2",
+      "durationMs": 365,
+      "speechStartMs": 5,
+      "speechEndMs": 359
+    },
+    {
+      "segmentId": "number.point",
+      "url": "/audio/live-engineer/v1/number__point.flac",
+      "sha256": "829dc0b26b4834819dfd8b5a458da0407caf90411daf80ec288a54bed0d6b7f2",
+      "durationMs": 649,
+      "speechStartMs": 0,
+      "speechEndMs": 644
+    }
+  ]
+} as const;
 export type LiveEngineerAudioSegment = (typeof LIVE_ENGINEER_AUDIO_CATALOG.segments)[number];

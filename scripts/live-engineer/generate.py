@@ -20,8 +20,8 @@ SAMPLE_RATE = 24000
 INSTRUCT = "male, Australian accent"
 DEFAULT_REF_AUDIO = Path(__file__).with_name("voices") / "Aussie-medium.flac"
 LANGUAGE = "en"
-SPEED = 1.35
-NUM_STEPS = 32
+SPEED = 1.4
+NUM_STEPS = 60
 SPEED_OVERRIDES: dict[str, float] = {}
 SEED_OVERRIDES: dict[str, int] = {}
 INSTRUCT_OVERRIDES = {
@@ -38,7 +38,7 @@ def synthesis_text(segment_id: str, spoken: str) -> str:
         text += "."
     return text[0].upper() + text[1:]
 TRIM_PADDING_MS = 5
-JOIN_GAP_MS = -20
+JOIN_GAP_MS = -50
 SEED = int(os.environ.get("LIVE_ENGINEER_SEED", "46"))
 
 PHRASES = {
@@ -104,6 +104,14 @@ def trim_normalize(audio, pad: int = int(SAMPLE_RATE * TRIM_PADDING_MS / 1000)):
     if peak > 10 ** (-1 / 20): audio *= (10 ** (-1 / 20)) / peak
     return audio.astype("float32")
 
+def speech_bounds(audio, threshold: float = 0.015) -> tuple[int, int]:
+    import numpy as np
+    audio = np.asarray(audio, dtype="float32").reshape(-1)
+    active = np.flatnonzero(np.abs(audio) > threshold)
+    if active.size == 0:
+        return 0, len(audio)
+    return int(active[0]), int(active[-1] + 1)
+
 def render(args) -> int:
     try:
         import numpy as np, soundfile as sf, torch
@@ -129,7 +137,7 @@ def render(args) -> int:
         entries = [entry for entry in entries if entry.get("segmentId") != args.segment]
     source_hash = input_hash(ref, args.ref_text)
     def write_catalog_ts() -> None:
-        payload = json.dumps([{"segmentId": e["segmentId"], "url": f"/audio/live-engineer/v1/{e['path']}", "sha256": e["sha256"], "durationMs": e["durationMs"]} for e in entries], indent=2)
+        payload = json.dumps([{"segmentId": e["segmentId"], "url": f"/audio/live-engineer/v1/{e['path']}", "sha256": e["sha256"], "durationMs": e["durationMs"], "speechStartMs": e["speechStartMs"], "speechEndMs": e["speechEndMs"]} for e in entries], indent=2)
         CATALOG_TS.write_text(f"export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = {CATALOG_VERSION!r} as const;\nexport const LIVE_ENGINEER_AUDIO_CATALOG = {{ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, sampleRate: 24000, channels: 1, joinGapMs: {JOIN_GAP_MS}, segments: {payload} as const }};\nexport type LiveEngineerAudioSegment = (typeof LIVE_ENGINEER_AUDIO_CATALOG.segments)[number];\n")
     def write_manifest() -> None:
         MANIFEST.write_text(json.dumps({"catalogVersion": CATALOG_VERSION, "pipelineVersion": PIPELINE_VERSION, "sampleRate": SAMPLE_RATE, "channels": 1, "joinGapMs": JOIN_GAP_MS, "speed": SPEED, "trimPaddingMs": TRIM_PADDING_MS, "sourceHash": source_hash, "clips": entries}, indent=2) + "\n")
@@ -141,7 +149,9 @@ def render(args) -> int:
         target = OUT / f"{safe}.flac"
         clip_hash = hashlib.sha256(f"{source_hash}:{segment_id}:{spoken}".encode()).hexdigest()
         if target.exists() and not args.force:
-            entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * sf.info(target).duration), "contentHash": clip_hash}); write_manifest(); continue
+            audio, sample_rate = sf.read(str(target), dtype="float32")
+            speech_start, speech_end = speech_bounds(audio)
+            entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / sample_rate), "speechStartMs": round(1000 * speech_start / sample_rate), "speechEndMs": round(1000 * speech_end / sample_rate), "contentHash": clip_hash}); write_manifest(); continue
         pending.append((segment_id, spoken, target, clip_hash))
     for index, (segment_id, spoken, target, clip_hash) in enumerate(pending, start=1):
         print(f"generating clip {index}/{len(pending)}: {segment_id}")
@@ -190,7 +200,8 @@ def render(args) -> int:
                 break
             candidate.unlink(missing_ok=True)
             print(f"  retry {attempt + 1}/{attempts}: {failure}; whisper={transcript!r}", file=sys.stderr)
-        entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "contentHash": clip_hash})
+        speech_start, speech_end = speech_bounds(audio)
+        entries.append({"segmentId": segment_id, "spokenText": spoken, "path": target.name, "sha256": sha256_file(target), "durationMs": round(1000 * len(audio) / SAMPLE_RATE), "speechStartMs": round(1000 * speech_start / SAMPLE_RATE), "speechEndMs": round(1000 * speech_end / SAMPLE_RATE), "contentHash": clip_hash})
         write_manifest()
     print(f"wrote {len(entries)} clips to {OUT}")
     if args.validate:
@@ -267,12 +278,12 @@ def trim_existing_catalog() -> int:
         path = OUT / clip["path"]
         audio, sample_rate = sf.read(str(path), dtype="float32")
         if sample_rate != SAMPLE_RATE: raise ValueError(f"{path}: unexpected sample rate {sample_rate}")
-        audio = trim_normalize(audio)
-        sf.write(str(path), audio, SAMPLE_RATE, format="FLAC", subtype="PCM_16")
         clip["sha256"] = sha256_file(path); clip["durationMs"] = round(1000 * len(audio) / SAMPLE_RATE)
+        speech_start, speech_end = speech_bounds(audio)
+        clip["speechStartMs"] = round(1000 * speech_start / SAMPLE_RATE); clip["speechEndMs"] = round(1000 * speech_end / SAMPLE_RATE)
     manifest.update({"pipelineVersion": PIPELINE_VERSION, "joinGapMs": JOIN_GAP_MS, "speed": SPEED, "trimPaddingMs": TRIM_PADDING_MS})
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
-    segments = [{"segmentId": c["segmentId"], "url": f"/audio/live-engineer/v1/{c['path']}", "sha256": c["sha256"], "durationMs": c["durationMs"]} for c in manifest["clips"]]
+    segments = [{"segmentId": c["segmentId"], "url": f"/audio/live-engineer/v1/{c['path']}", "sha256": c["sha256"], "durationMs": c["durationMs"], "speechStartMs": c["speechStartMs"], "speechEndMs": c["speechEndMs"]} for c in manifest["clips"]]
     CATALOG_TS.write_text("export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = 'live-engineer-v1' as const;\nexport const LIVE_ENGINEER_AUDIO_CATALOG = " + json.dumps({"catalogVersion": CATALOG_VERSION, "sampleRate": SAMPLE_RATE, "channels": 1, "joinGapMs": JOIN_GAP_MS, "segments": segments}, indent=2) + " as const;\nexport type LiveEngineerAudioSegment = (typeof LIVE_ENGINEER_AUDIO_CATALOG.segments)[number];\n")
     return 0
 def check() -> tuple[bool, dict]:
