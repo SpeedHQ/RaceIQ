@@ -8,11 +8,13 @@ const option = (name: string): string | undefined => args.find((arg) => arg.star
 const suite = option("--suite") ?? "replay";
 const revision = option("--revision") ?? "unknown";
 const processes = Number(option("--processes") ?? 1);
+const retainedProcesses = Number(option("--retained-processes") ?? 7);
 const warmups = Number(option("--warmups") ?? 1);
 const iterations = Number(option("--iterations") ?? 20);
 const output = option("--output");
 if (suite !== "replay") throw new Error("Only --suite=replay is supported");
 if (!Number.isInteger(processes) || processes <= 0) throw new Error("--processes must be positive integer");
+if (!Number.isInteger(retainedProcesses) || retainedProcesses <= 0) throw new Error("--retained-processes must be positive integer");
 if (!Number.isInteger(warmups) || warmups < 0) throw new Error("--warmups must be non-negative integer");
 if (!Number.isInteger(iterations) || iterations <= 0) throw new Error("--iterations must be positive integer");
 
@@ -38,26 +40,36 @@ const run = async (mode: "timing" | "retainedHeap", alias: string) => runChildBe
   env: { ...process.env, REPLAY_BENCH_CASE: alias } as Record<string, string>,
   kind: mode,
 });
-
 type RawProcess = { process: number; timing: Record<string, TimingChildReport>; retainedHeap: Record<string, RetainedHeapChildReport> };
 const raw: RawProcess[] = [];
+const retainedSamples: Record<string, number[]> = Object.fromEntries(rawKeys.map((key) => [key, []]));
 for (let index = 0; index < processes; index++) {
   const timing: Record<string, TimingChildReport> = {};
-  const retainedHeap: Record<string, RetainedHeapChildReport> = {};
   for (const [index, alias] of aliases.entries()) {
     const rawKey = rawKeys[index]!;
     timing[rawKey] = await run("timing", rawKey) as TimingChildReport;
-    retainedHeap[rawKey] = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
   }
-  raw.push({ process: index + 1, timing, retainedHeap });
+  raw.push({ process: index + 1, timing, retainedHeap: {} });
+}
+for (let index = 0; index < retainedProcesses; index++) {
+  for (const [aliasIndex, alias] of aliases.entries()) {
+    const rawKey = rawKeys[aliasIndex]!;
+    const result = await run("retainedHeap", rawKey) as RetainedHeapChildReport;
+    retainedSamples[rawKey]!.push(result.retainedHeap);
+    raw[index % raw.length]!.retainedHeap[rawKey] = result;
+  }
 }
  
 const benchmarks = aliases.map((alias, index) => {
   const rawKey = rawKeys[index]!;
-  const timingSamples = raw.flatMap((entry) => entry.timing[rawKey]!.samplesNs);
-  const heapSamples = raw.map((entry) => entry.retainedHeap[rawKey]!.retainedHeap);
+  const timingSummaries = raw.map((entry) => entry.timing[rawKey]!.samplesNs).map((samples) => ({
+    p50: median(samples),
+    p99: percentile(samples, 99),
+  }));
+  const heapSamples = retainedSamples[rawKey]!;
   return { alias, group: 0, runs: [{ stats: {
-    p50: median(timingSamples), p99: percentile(timingSamples, 99),
+    p50: median(timingSummaries.map((summary) => summary.p50)),
+    p99: median(timingSummaries.map((summary) => summary.p99)),
     retainedHeap: { p50: median(heapSamples), min: Math.min(...heapSamples), max: Math.max(...heapSamples), samples: heapSamples },
   } }] };
 });

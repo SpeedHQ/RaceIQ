@@ -22,6 +22,9 @@ const iterations = Number(iterationsText);
 if (mode === "timing" && (!Number.isInteger(iterations) || iterations <= 0)) fail("iteration count must be a positive integer");
 
 let loaded: BenchmarkModule;
+const stdoutWrite = process.stdout.write.bind(process.stdout);
+console.log = (...args: unknown[]) => console.error(...args);
+process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => process.stderr.write(chunk, ...(args as [never]))) as typeof process.stdout.write;
 try {
   const specifier = moduleSpecifier.startsWith(".") || moduleSpecifier.startsWith("/")
     ? pathToFileURL(moduleSpecifier).href
@@ -34,10 +37,6 @@ try {
   fail(`could not load fixture: ${error instanceof Error ? error.message : String(error)}`);
 }
 if (typeof loaded.runIteration !== "function") fail("fixture must export runIteration()");
-
-console.log = (...args: unknown[]) => console.error(...args);
-const stdoutWrite = process.stdout.write.bind(process.stdout);
-process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => process.stderr.write(chunk, ...(args as [never]))) as typeof process.stdout.write;
 try {
   await loaded.setup?.();
   for (let i = 0; i < warmupIterations; i++) await loaded.runIteration();
