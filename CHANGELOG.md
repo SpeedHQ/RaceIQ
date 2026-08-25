@@ -90,6 +90,7 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+- Fence AI prose caches to current deterministic finding generations independently from telemetry-quality generations
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases

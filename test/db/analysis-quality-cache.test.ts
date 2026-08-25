@@ -1,12 +1,30 @@
 import { afterEach, expect, test } from "bun:test";
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "../../server/db";
-import { analysisQualityIdentityForLap, getAnalysis, getCompareAnalysis, saveAnalysis, saveCompareAnalysis, type AnalysisQualityIdentity } from "../../server/db/analysis-queries";
+import {
+  analysisQualityIdentityForLap,
+  getAnalysis,
+  getCompareAnalysis,
+  saveAnalysis,
+  saveCompareAnalysis,
+  type AnalysisQualityIdentity,
+  type FindingGenerationExpectation,
+} from "../../server/db/analysis-queries";
 import { insertLap } from "../../server/db/lap-mutation-queries";
-import { compareAnalyses, lapAnalyses, laps } from "../../server/db/schema";
+import {
+  compareAnalyses,
+  findingGenerations,
+  lapAnalyses,
+  laps,
+} from "../../server/db/schema";
 import { deleteSession, insertSession } from "../../server/db/session-queries";
 import { combineQualityGenerations, finalizeLapQualityGeneration } from "../../server/lap-analysis/quality-generation";
 import type { GameId } from "../../shared/games/ids";
+import { canonicalJson } from "../../shared/racing/findings/identity";
+import {
+  FINDING_SCHEMA_VERSION,
+  type FindingScope,
+} from "../../shared/racing/findings/types";
 import { ELIGIBILITY_POLICY_VERSION } from "../../shared/racing/quality/contracts";
 import { qualityPackets, summarize, TEST_VERSION_IDENTITY } from "../support/lap-analysis/quality-model";
 
@@ -46,6 +64,7 @@ async function createLap(lapNumber: number, withQuality: boolean) {
   });
   lapIds.push(lapId);
   return {
+    sessionId,
     lapId,
     identity: generated
       ? analysisQualityIdentityForLap({
@@ -54,6 +73,42 @@ async function createLap(lapNumber: number, withQuality: boolean) {
         })
       : noQualityIdentity,
   };
+}
+
+async function createFindingExpectation(
+  lap: { sessionId: number; lapId: number },
+  hashDigit: string,
+): Promise<FindingGenerationExpectation> {
+  const scope: FindingScope = {
+    kind: "lap",
+    gameId: testGameId,
+    sessionId: String(lap.sessionId),
+    lapId: String(lap.lapId),
+  };
+  const expectation = {
+    scope,
+    generationId: `finding-cache-${crypto.randomUUID()}`,
+    contentHash: `sha256:${hashDigit.repeat(64)}`,
+  } satisfies FindingGenerationExpectation;
+  await db.insert(findingGenerations).values({
+    id: expectation.generationId,
+    lapId: lap.lapId,
+    scopeKey: canonicalJson(scope),
+    scope: canonicalJson(scope),
+    sourceId: `source:${lap.lapId}`,
+    rule: canonicalJson({ id: "cache-test", version: "1" }),
+    config: canonicalJson({}),
+    schemaVersion: FINDING_SCHEMA_VERSION,
+    status: "current",
+    findingCount: 0,
+    availableCount: 0,
+    unavailableCount: 0,
+    indeterminateCount: 0,
+    contentHash: expectation.contentHash,
+    verifiedAt: new Date().toISOString(),
+    activatedAt: new Date().toISOString(),
+  });
+  return expectation;
 }
 
 afterEach(async () => {
@@ -150,4 +205,94 @@ test("compare cache combines two current identities and rejects mixed quality", 
   const noQualityPeer = await createLap(6, false);
   await saveCompareAnalysis(withoutQuality.lapId, noQualityPeer.lapId, "null pair", usage, [withoutQuality.identity, noQualityPeer.identity]);
   expect(await getCompareAnalysis(withoutQuality.lapId, noQualityPeer.lapId)).toBeNull();
+});
+
+test("lap analysis cache rejects stale finding generations independently of quality", async () => {
+  const current = await createLap(7, true);
+  const findings = await createFindingExpectation(current, "b");
+
+  await saveAnalysis(
+    current.lapId,
+    "finding-grounded",
+    usage,
+    current.identity,
+    findings,
+  );
+
+  expect(await getAnalysis(current.lapId, findings)).toMatchObject({
+    analysis: "finding-grounded",
+  });
+  expect(await getAnalysis(current.lapId)).toBeNull();
+  expect(
+    await db
+      .select({ findingGenerationKey: lapAnalyses.findingGenerationKey })
+      .from(lapAnalyses)
+      .where(eq(lapAnalyses.lapId, current.lapId))
+      .get(),
+  ).toMatchObject({ findingGenerationKey: expect.stringMatching(/^sha256:[0-9a-f]{64}$/) });
+
+  await db
+    .update(findingGenerations)
+    .set({ status: "stale-rebuild-available" })
+    .where(eq(findingGenerations.id, findings.generationId))
+    .run();
+
+  expect(await getAnalysis(current.lapId, findings)).toBeNull();
+});
+
+test("comparison cache uses canonical lap ids and current finding generations", async () => {
+  const left = await createLap(8, true);
+  const right = await createLap(9, true);
+  const leftFindings = await createFindingExpectation(left, "c");
+  const rightFindings = await createFindingExpectation(right, "d");
+
+  await saveCompareAnalysis(
+    right.lapId,
+    left.lapId,
+    "finding-grounded pair",
+    usage,
+    [right.identity, left.identity],
+    "inputs",
+    [rightFindings, leftFindings],
+  );
+
+  expect(
+    await getCompareAnalysis(
+      left.lapId,
+      right.lapId,
+      "inputs",
+      [leftFindings, rightFindings],
+    ),
+  ).toMatchObject({ analysis: "finding-grounded pair" });
+  expect(await getCompareAnalysis(left.lapId, right.lapId)).toBeNull();
+  expect(
+    await db
+      .select({
+        lapAId: compareAnalyses.lapAId,
+        lapBId: compareAnalyses.lapBId,
+        findingGenerationKey: compareAnalyses.findingGenerationKey,
+      })
+      .from(compareAnalyses)
+      .where(eq(compareAnalyses.analysis, "finding-grounded pair"))
+      .get(),
+  ).toEqual({
+    lapAId: left.lapId,
+    lapBId: right.lapId,
+    findingGenerationKey: expect.stringMatching(/^sha256:[0-9a-f]{64}$/),
+  });
+
+  await db
+    .update(findingGenerations)
+    .set({ status: "stale-rebuild-available" })
+    .where(eq(findingGenerations.id, rightFindings.generationId))
+    .run();
+
+  expect(
+    await getCompareAnalysis(
+      left.lapId,
+      right.lapId,
+      "inputs",
+      [leftFindings, rightFindings],
+    ),
+  ).toBeNull();
 });
