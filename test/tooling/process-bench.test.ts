@@ -5,6 +5,32 @@ const bun = process.execPath;
 const child = (output: string, exit = 0) => ({
   command: [bun, "-e", `process.stdout.write(${JSON.stringify(output)}); process.exit(${exit})`],
 });
+const timingChild = (fixture: string, warmups = 0, iterations = 3) => ({
+  command: [bun, "run", "test/benchmarks/process-bench-child.ts", "timing", `data:text/javascript,${encodeURIComponent(fixture)}`, String(warmups), String(iterations)],
+  kind: "timing" as const,
+});
+
+describe("fixed-iteration timing child", () => {
+  test("runs setup before warmup and measured timing", async () => {
+    const report = await runChildBenchmark(timingChild(`
+      let phase = "loaded";
+      export function setup() { if (phase !== "loaded") throw new Error("setup ordering"); phase = "setup"; }
+      export function runIteration() { if (phase !== "setup") throw new Error("run before setup"); }
+    `, 1, 2)) as TimingChildReport;
+    expect(report.iterations).toBe(2);
+    expect(report.warmupIterations).toBe(1);
+  });
+
+  test("excludes warmups and emits exact finite sample count", async () => {
+    const report = await runChildBenchmark(timingChild(`
+      let calls = 0;
+      export function runIteration() { calls++; if (calls > 3) throw new Error("warmup leaked"); }
+    `, 2, 1)) as TimingChildReport;
+    expect(report.samplesNs).toHaveLength(1);
+    expect(report.samplesNs.every(Number.isFinite)).toBe(true);
+  });
+});
+
 
 describe("child benchmark contracts", () => {
   test("parses timing report with fixed iteration counts", async () => {
