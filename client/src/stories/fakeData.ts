@@ -8,6 +8,7 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
+import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
 // ── Shared base packet fields ────────────────────────────────────────────────
 
@@ -614,6 +615,75 @@ export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
 export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);
+
+// Canonical visual-contract fixture. `simulator` satisfies telemetry-view
+// identity only; snapshot stories never derive field availability from it.
+export const fakeAllDataTelemetryView: LiveTelemetryView = {
+  simulator: "f1-2025",
+  streamId: "storybook-all-data",
+  sessionId: 1,
+  sequence: 1,
+  observedAtMs: basePacket.TimestampMS,
+  identity: {
+    carOrdinal: 42,
+    trackOrdinal: 7,
+    carClass: 6,
+    performanceIndex: 900,
+    drivetrainType: 1,
+  },
+  motion: {
+    speedMps: 66.7,
+    acceleration: { x: 0.12, z: 0.05 },
+    position: { x: 120.5, z: 340.2 },
+    attitude: { roll: 0.01, pitch: -0.02, yaw: 0.15 },
+    distanceM: 3240,
+  },
+  inputs: { throttle: 0.78, brake: 0, steer: 0.03, gear: 7 },
+  engine: { rpm: 7800, idleRpm: 1200, maxRpm: 9000, powerW: 430000, torqueNm: 580, boost: 0.6 },
+  fuel: { amount: 42.5, capacity: 110 },
+  timing: {
+    lapNumber: 8,
+    currentLapS: 61.645,
+    lastLapS: 92.341,
+    bestLapS: 91.98,
+    totalLaps: 24,
+    lapFraction: 0.6,
+    racePosition: 3,
+  },
+  tires: {
+    temperatureC: { fl: 96, fr: 98, rl: 101, rr: 99 },
+    wear: { fl: 0.18, fr: 0.19, rl: 0.22, rr: 0.21 },
+    pressurePsi: { fl: 23.1, fr: 23, rl: 21.5, rr: 21.4 },
+    slipAngleRad: { fl: 0.5, fr: 0.5, rl: 0.8, rr: 0.8 },
+    slipRatio: { fl: 0.02, fr: 0.02, rl: 0.04, rr: 0.04 },
+    combinedSlip: { fl: 0.6, fr: 0.6, rl: 0.9, rr: 0.9 },
+    rotationRadS: { fl: 180.5, fr: 181.2, rl: 183.4, rr: 182.8 },
+    suspensionNormalized: { fl: 0.42, fr: 0.44, rl: 0.48, rr: 0.46 },
+    suspensionTravelM: { fl: 0.025, fr: 0.026, rl: 0.028, rr: 0.027 },
+    brakeTemperatureC: { fl: 580, fr: 575, rl: 420, rr: 418 },
+    brakePadRemainingMm: { fl: 28.4, fr: 28.2, rl: 28.6, rr: 28.5 },
+    radiusM: { fl: 0.33, fr: 0.33, rl: 0.33, rr: 0.33 },
+    surfaceRumble: { fl: 0, fr: 0, rl: 0, rr: 0 },
+    puddleDepth: { fl: 0, fr: 0, rl: 0, rr: 0 },
+    onRumbleStrip: { fl: 0, fr: 0, rl: 0, rr: 0 },
+    compound: "soft",
+  },
+  weather: { kind: 0, airTemperatureC: 28, trackTemperatureC: 42, rainPercent: 15 },
+  aero: { drsActive: false, drsAvailable: true },
+  ers: { storeJ: 2800000, deployMode: 1, deployedThisLapJ: 800000, harvestedThisLapJ: 400000 },
+  damage: {
+    frontLeftWingPct: 0,
+    frontRightWingPct: 0,
+    rearWingPct: 0,
+    floorPct: 2,
+    diffuserPct: 0,
+    sidepodPct: 0,
+  },
+  session: { type: "Race" },
+  race: { pitStatus: 0 },
+  competitors: [],
+  statusBySemanticId: {},
+};
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
