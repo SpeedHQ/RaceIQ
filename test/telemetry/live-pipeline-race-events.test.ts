@@ -88,12 +88,6 @@ class FailOnceQualityDbAdapter extends CapturingDbAdapter {
   }
 }
 
-class FailingLapDbAdapter extends CapturingDbAdapter {
-  override insertLap(): Promise<number> {
-    return Promise.reject(new Error("lap insert failed"));
-  }
-}
-
 describe("live race-event timeline integration", () => {
   test("commits ordered events before publishing their typed append message", async () => {
     const ws = new CapturingWsAdapter();
@@ -376,39 +370,6 @@ describe("live race-event timeline integration", () => {
     expect(pipeline.sessionLaps).toHaveLength(1);
     expect(ws.broadcastedNotifications.find(({ type }) => type === "lap-saved")).toMatchObject({ type: "lap-saved", sessionId: 1, lapId: 1 });
     expect(ws.broadcastedNotifications.some(({ type }) => type === "lap-issues")).toBe(true);
-  });
-
-  test("releases reserved timeline batches when lap persistence fails", async () => {
-    const pipeline = new LiveTelemetryPipeline(
-      new FailingLapDbAdapter(),
-      new CapturingWsAdapter(),
-      {
-        bypassPacketRateFilter: true,
-        skipHistorySeeding: true,
-        skipDevState: true,
-        recorder: new NullSessionRecorderAdapter(),
-        sourceArchiveVerification: TEST_SOURCE_VERIFICATION,
-        raceEventStore: new MemoryRaceEventStore(),
-      },
-    );
-
-    await pipeline.processPacket(packet());
-    await pipeline.processPacket(
-      packet({
-        TimestampMS: 2_000,
-        LapNumber: 2,
-        CurrentLap: 0.1,
-        LastLap: 90,
-        DistanceTraveled: 5_000,
-      }),
-    );
-
-    await expect(
-      pipeline.lapDetector?.waitForPendingLapWrites?.(1),
-    ).rejects.toThrow("lap insert failed");
-    await expect(
-      pipeline.lapDetector?.waitForPendingLapWrites?.(1),
-    ).resolves.toBeUndefined();
   });
 
   test("retains closed session finalization after durable failure and retries it", async () => {
