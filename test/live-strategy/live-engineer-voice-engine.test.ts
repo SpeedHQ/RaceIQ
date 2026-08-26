@@ -9,13 +9,13 @@ const ok = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({
 });
 const missing = (semanticId: string): ResolvedValue<unknown> => ({ ...ok(semanticId, null), state: "missing", confidence: null });
 const familyOf = (message: unknown): string | undefined => typeof message === "object" && message !== null && "family" in message && typeof message.family === "string" ? message.family : undefined;
-const frame = (sequence: number, lap: number, overrides: Record<string, ResolvedValue<unknown>> = {}, simulator: "f1-2025" | "iracing" = "f1-2025") => {
+const frame = (sequence: number, lap: number, overrides: Record<string, ResolvedValue<unknown>> = {}, simulator: "acc" | "f1-2025" | "iracing" = "acc") => {
   const values: Record<string, unknown> = {
-    "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": "track",
-    "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "on-track",
-    "race.session-type": "practice", "session.session-type": "practice", "race.competitor.car-index": [1], "race.competitor.driver-id": ["opp"],
+    "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": 3,
+    "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out", "race.on-pit-road": false,
+    "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [1], "race.competitor.connected": [true], "race.competitor.driver-id": ["opp"],
     "race.competitor.driver-name": ["Opponent"], "race.competitor.car-class-id": ["gt3"], "race.competitor.car-class-name": ["GT3"],
-    "race.competitor.laps-complete": [lap], "race.competitor.pit-status": ["on-track"], "race.competitor.track-location": ["track"],
+    "race.competitor.laps-complete": [lap], "race.competitor.pit-status": ["out"], "race.competitor.track-location": ["track"],
     "timing.competitor.last-lap-time": [88], "timing.competitor.last-lap-valid": [true],
     "race.safety-car-status": false, "race.flag-status": "green", "session.session-flags": 0,
   };
@@ -53,6 +53,7 @@ test("does not benchmark player car against itself", () => {
   const first = {
     "race.competitor.car-index": ok("race.competitor.car-index", [0, 7]),
     "race.competitor.driver-id": ok("race.competitor.driver-id", ["player", "opponent"]),
+    "race.competitor.connected": ok("race.competitor.connected", [true, true]),
     "race.competitor.driver-name": ok("race.competitor.driver-name", ["Player", "Opponent"]),
     "race.competitor.car-class-id": ok("race.competitor.car-class-id", ["gt3", "gt3"]),
     "race.competitor.car-class-name": ok("race.competitor.car-class-name", ["GT3", "GT3"]),
@@ -76,11 +77,11 @@ test("unavailable required pace field suppresses only opponent pace", () => {
   engine.consume(frame(1, 2, { "timing.competitor.last-lap-valid": missing("timing.competitor.last-lap-valid") }));
   expect(emitted).toHaveLength(0);
 });
-test("F1 positional Spotter emits when pace semantics are unavailable", () => {
+test("F1 Live Engineer stays disabled even with usable pace and spotter data", () => {
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
   engine.consume(frame(0, 1, {
-    "timing.competitor.last-lap-valid": missing("timing.competitor.last-lap-valid"),
+    "race.competitor.last-lap-valid": missing("race.competitor.last-lap-valid"),
     "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
     "race.competitor.connected": ok("race.competitor.connected", [true, true]),
     "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
@@ -91,15 +92,28 @@ test("F1 positional Spotter emits when pace semantics are unavailable", () => {
     "motion.position-z": ok("motion.position-z", 0),
     "motion.speed": ok("motion.speed", 20),
     "motion.yaw": ok("motion.yaw", 0),
-  }));
-  expect(emitted.some((message) => (message as { family?: string }).family === "spotter")).toBe(true);
+  }, "f1-2025"));
+  engine.consume(frame(1, 2, {
+    "race.competitor.last-lap-valid": missing("race.competitor.last-lap-valid"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.connected": ok("race.competitor.connected", [true, true]),
+    "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["on-track", "on-track"]),
+    "race.competitor.position-z": ok("race.competitor.position-z", [0, -1]),
+    "race.competitor.speed": ok("race.competitor.speed", [20, 20]),
+    "motion.position-x": ok("motion.position-x", 0),
+    "motion.position-z": ok("motion.position-z", 0),
+    "motion.speed": ok("motion.speed", 20),
+    "motion.yaw": ok("motion.yaw", 0),
+  }, "f1-2025"));
+  expect(emitted).toHaveLength(0);
 });
 test("iRacing conservative lap validity accepts track and rejects pit road", () => {
   const overrides = (laps: number[], pit: boolean) => ({
     "timing.competitor.last-lap-valid": missing("timing.competitor.last-lap-valid"),
     "race.competitor.laps-complete": ok("race.competitor.laps-complete", laps),
-    "race.competitor.track-location": ok("race.competitor.track-location", [2]),
-    "race.competitor.pit-status": ok("race.competitor.pit-status", [pit]),
+    "race.competitor.track-location": ok("race.competitor.track-location", ["track"]),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", [pit ? "in_pit" : "out"]),
   });
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
@@ -118,14 +132,14 @@ test("ACC broadcast semantics emit pace and spotter callouts", () => {
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
   const make = (sequence: number, lap: number) => {
     const values: Record<string, unknown> = {
-      "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": "track",
+      "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": 3,
       "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out",
-      "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.driver-id": ["p", "o"],
+      "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.connected": [true, true], "race.competitor.driver-id": ["p", "o"],
       "race.competitor.driver-name": ["Player", "Opponent"], "race.competitor.car-class-id": ["gt3", "gt3"], "race.competitor.car-class-name": ["GT3", "GT3"],
       "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"], "race.competitor.track-location": ["track", "track"],
       "timing.competitor.last-lap-time": [90, 88], "timing.competitor.last-lap-valid": [true, true],
       "motion.position-x": 0, "motion.position-z": 0, "motion.speed": 20, "motion.yaw": 0,
-      "race.competitor.position-x": [0, 2.2], "race.competitor.position-z": [0, -1], "race.competitor.speed": [20, 20],
+      "motion.competitor.position-x": [0, 2.2], "motion.competitor.position-z": [0, -1], "motion.competitor.speed": [20, 20],
     };
     const ids = Object.keys(values);
     return { simulator: "acc" as const, sessionId: 1, streamId: "acc", sequence, observedAt: { domain: "session" as const, milliseconds: sequence * 1000 }, ids, values: ids.map((id) => ok(id, values[id])) };
@@ -134,4 +148,21 @@ test("ACC broadcast semantics emit pace and spotter callouts", () => {
   engine.consume(make(1, 2));
   expect(emitted.some((message) => familyOf(message) === "spotter")).toBe(true);
   expect(emitted.some((message) => familyOf(message) === "opponent-pace")).toBe(true);
+});
+test("invalidity remains latched when pace disappears during lap", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 1, { "timing.current-lap-valid": ok("timing.current-lap-valid", false), "race.competitor.connected": missing("race.competitor.connected") }));
+  engine.consume(frame(2, 2));
+  expect(emitted.filter((message) => familyOf(message) === "opponent-pace")).toHaveLength(0);
+});
+
+test("lap boundary without pace data is consumed once", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 2, { "race.competitor.connected": missing("race.competitor.connected") }));
+  engine.consume(frame(2, 3));
+  expect(emitted.filter((message) => familyOf(message) === "opponent-pace")).toHaveLength(0);
 });

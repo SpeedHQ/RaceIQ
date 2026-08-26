@@ -63,7 +63,9 @@ export type AccBroadcastMessage =
 export interface AccBroadcastExtension {
   sessionIndex: number;
   sessionType: string;
+  phase: number;
   playerCarIndex: number;
+  playerCarClassId?: string;
   carIndex: readonly number[];
   driverId: readonly string[];
   driverName: readonly string[];
@@ -79,4 +81,5 @@ export interface AccBroadcastExtension {
   yaw: readonly number[];
   lastLapTime: readonly number[];
   lastLapValid: readonly boolean[];
+  connected: readonly boolean[];
 }

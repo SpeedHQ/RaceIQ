@@ -70,7 +70,9 @@ export class ParsingProcessor implements TripletProcessor {
         if (broadcast && packet.acc) Object.assign(packet.acc, {
           broadcastSessionIndex: broadcast.sessionIndex,
           broadcastSessionType: broadcast.sessionType,
+          broadcastPhase: broadcast.phase,
           broadcastPlayerCarIndex: broadcast.playerCarIndex,
+          broadcastPlayerCarClassId: broadcast.playerCarClassId,
           broadcastCarIndex: broadcast.carIndex,
           broadcastDriverId: broadcast.driverId,
           broadcastDriverName: broadcast.driverName,
@@ -86,6 +88,7 @@ export class ParsingProcessor implements TripletProcessor {
           broadcastYaw: broadcast.yaw,
           broadcastLastLapTime: broadcast.lastLapTime,
           broadcastLastLapValid: broadcast.lastLapValid,
+          broadcastConnected: broadcast.connected,
         });
         const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame);

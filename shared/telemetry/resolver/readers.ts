@@ -71,6 +71,21 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
       return undefined;
     };
   }
+  const canonicalPassThrough = new Set([
+    "identity.player-car-index", "identity.player-car-class-id", "session.session-type",
+    "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.car-class-id",
+    "race.competitor.pit-status", "race.competitor.track-location", "race.competitor.connected",
+  ]);
+  if (canonicalPassThrough.has(variable.id)) {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        const valid = variable.shape === "scalar" ? !Array.isArray(value) : Array.isArray(value);
+        if (valid) return setReading(reading, context, mapping, source, value);
+      }
+      return undefined;
+    };
+  }
   if (variable.id !== "timing.track-length") return undefined;
 
   const multiplier = nativeUnit === "km" ? 1_000 : nativeUnit === "m" ? 1 : undefined;

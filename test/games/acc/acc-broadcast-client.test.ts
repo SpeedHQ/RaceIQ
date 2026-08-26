@@ -15,6 +15,8 @@ test("registers ACC broadcast client and applies inbound messages", async () => 
   const state = new AccBroadcastState();
   const client = new AccBroadcastClient({ state, socketFactory: () => socket });
   await client.start();
+  await client.start();
+  expect(sent).toHaveLength(2);
   expect(sent[0]?.[0]).toBe(1);
   onMessage?.(Buffer.from([255]));
   await client.stop();

@@ -1,30 +1,42 @@
 import type { AccBroadcastCar, AccBroadcastEntry, AccBroadcastExtension, AccBroadcastMessage } from "../../../shared/telemetry/acc-broadcast";
 
-const sessionType = (value: number): string => ({ 0: "practice", 1: "qualifying", 2: "race", 3: "race", 4: "hotlap", 5: "hotstint" } as Record<number, string>)[value] ?? "unknown";
+const sessionType = (value: number): string => ({ 0: "practice", 4: "qualifying", 9: "superpole", 10: "race", 11: "hotlap", 12: "hotstint", 13: "hotlap_superpole", 14: "replay" } as Record<number, string>)[value] ?? "unknown";
 const location = (value: number): string => ({ 1: "track", 2: "pit_lane", 3: "pit_entry", 4: "pit_exit" } as Record<number, string>)[value] ?? "unknown";
 
 export class AccBroadcastState {
   private sessionIndex = -1;
   private sessionTypeValue = "unknown";
+  private phaseValue = 0;
   private playerCarIndex = -1;
   private readonly entries = new Map<number, AccBroadcastEntry>();
   private readonly cars = new Map<number, AccBroadcastCar>();
+  private readonly carUpdatedAt = new Map<number, number>();
+  private readonly now: () => number;
+  private readonly competitorStaleMs: number;
 
+  constructor(options: { now?: () => number; competitorStaleMs?: number } = {}) {
+    this.now = options.now ?? Date.now;
+    this.competitorStaleMs = options.competitorStaleMs ?? 1_000;
+  }
   apply(message: AccBroadcastMessage): void {
     if (message.type === "realtime-update") {
       if (this.sessionIndex !== -1 && message.sessionIndex !== this.sessionIndex) {
         this.entries.clear();
         this.cars.clear();
+        this.carUpdatedAt.clear();
       }
       this.sessionIndex = message.sessionIndex;
       this.sessionTypeValue = sessionType(message.sessionType);
+      this.phaseValue = message.phase;
       if (message.focusedCarIndex >= 0) this.playerCarIndex = message.focusedCarIndex;
       return;
     }
     if (message.type === "entry-list") {
       const allowed = new Set(message.carIndexes);
-      for (const carIndex of this.entries.keys()) if (!allowed.has(carIndex)) this.entries.delete(carIndex);
-      for (const carIndex of this.cars.keys()) if (!allowed.has(carIndex)) this.cars.delete(carIndex);
+      for (const carIndex of this.cars.keys()) if (!allowed.has(carIndex)) {
+        this.cars.delete(carIndex);
+        this.carUpdatedAt.delete(carIndex);
+      }
       return;
     }
     if (message.type === "entry-list-car") {
@@ -34,6 +46,7 @@ export class AccBroadcastState {
 
     if (message.type === "realtime-car-update") {
       this.cars.set(message.carIndex, message);
+      this.carUpdatedAt.set(message.carIndex, this.now());
     }
   }
   setPlayerCarIndex(carIndex: number): void {
@@ -43,9 +56,11 @@ export class AccBroadcastState {
   reset(): void {
     this.sessionIndex = -1;
     this.sessionTypeValue = "unknown";
+    this.phaseValue = 0;
     this.playerCarIndex = -1;
     this.entries.clear();
     this.cars.clear();
+    this.carUpdatedAt.clear();
   }
 
   snapshot(): AccBroadcastExtension | undefined {
@@ -58,7 +73,9 @@ export class AccBroadcastState {
     return {
       sessionIndex: this.sessionIndex,
       sessionType: this.sessionTypeValue,
+      phase: this.phaseValue,
       playerCarIndex: this.playerCarIndex,
+      playerCarClassId: rows.find(({ car }) => car.carIndex === this.playerCarIndex)?.entry.cupCategory.toString(),
       carIndex: rows.map(({ car }) => car.carIndex),
       driverId: rows.map(({ car }) => `${car.carIndex}:${car.driverIndex}`),
       driverName: rows.map(({ entry, car }) => {
@@ -75,6 +92,7 @@ export class AccBroadcastState {
       yaw: rows.map(({ car }) => car.yaw),
       lastLapTime: rows.map(({ car }) => car.lastLapTimeMs === null ? 0 : car.lastLapTimeMs / 1000),
       lastLapValid: rows.map(({ car }) => car.lastLapValid),
+      connected: rows.map(({ car }) => this.now() - (this.carUpdatedAt.get(car.carIndex) ?? 0) <= this.competitorStaleMs),
       positionY: rows.map(() => 0),
       positionZ: rows.map(({ car }) => car.worldPosY),
     };

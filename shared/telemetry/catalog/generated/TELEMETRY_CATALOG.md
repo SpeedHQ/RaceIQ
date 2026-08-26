@@ -7,8 +7,8 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `bc5bc42c64c29cd46bb8bf1d7792b466cd517a6da8a58816783b25d91e0ac7a8`
-- Content SHA-256: `de75932763b70e82e8df453d19ac832b1741f67aa1f1e234059cb34e2e1d8c89`
+- Generator source SHA-256: `19410acb2e07848ab7791eacab420961ed52385bc81379966237b2288684e5d4`
+- Content SHA-256: `28d829606cb2cd03d42ffd8618ef92a83654173aaea13165bd6728e8a8051100`
 
 ## Coverage
 
@@ -16,9 +16,9 @@
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
 | f1-2025 | 306 | 306 | 119 | 187 | 0 | 0 | 0 |
-| acc | 218 | 185 | 124 | 61 | 0 | 0 | 33 |
-| ac-evo | 273 | 237 | 124 | 113 | 0 | 0 | 36 |
-| iracing | 968 | 718 | 119 | 30 | 324 | 495 | 0 |
+| acc | 221 | 188 | 124 | 64 | 0 | 0 | 33 |
+| ac-evo | 276 | 240 | 124 | 116 | 0 | 0 | 36 |
+| iracing | 976 | 726 | 119 | 38 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -218,7 +218,7 @@
 | `identity.drivetrain-type` | Drivetrain Type | number | dimensionless | id | scalar |  |  |  |
 | `identity.is-in-garage` | Is In Garage | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.is-on-track-car` | Is On Track Car | boolean | dimensionless | boolean | scalar |  |  |  |
-| `identity.player-car-class-id` | Player car-class ID | number | dimensionless | id | scalar |  |  |  |
+| `identity.player-car-class-id` | Player car-class ID | string | dimensionless | id | scalar |  |  |  |
 | `identity.player-car-electric` | Driver Car Is Electric | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.player-car-index` | Player car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.player-car-version` | Player car version | string | dimensionless | text | scalar |  |  |  |
@@ -364,7 +364,7 @@
 | `race.competitor.pace-line` | Competitor pace line | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.pace-row` | Competitor pace row | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.penalties` | Competitor penalties | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
-| `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
+| `race.competitor.pit-status` | Competitor pit status | structured | unit:enum | enum | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.pit-stops` | Competitor pit-stop count | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.position` | Competitor position | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.position-x` | Grid pos X | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -494,7 +494,7 @@
 | `session.session-joker-laps-remain` | Session Joker Laps Remain | number | dimensionless | count | scalar |  |  |  |
 | `session.session-km` | Session Km | number | dimensionless | count | scalar |  |  |  |
 | `session.session-num` | Session Num | number | dimensionless | count | scalar |  |  |  |
-| `session.session-state` | Session State | number | dimensionless | count | scalar |  |  |  |
+| `session.session-state` | Broadcast Phase | number | unit:state | state | scalar |  |  |  |
 | `session.session-tick` | Session Tick | number | dimensionless | count | scalar |  |  |  |
 | `session.session-type` | Session Type | string | dimensionless | text | scalar |  |  |  |
 | `session.session-uid` | Session UID | string | dimensionless | text | scalar |  |  |  |

@@ -15,6 +15,19 @@ declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
 const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
+export function flushLiveEngineerOutbound(socket: Pick<WebSocket, "readyState" | "send">): void {
+  while (socket.readyState === WebSocket.OPEN) {
+    const message = useLiveEngineerStore.getState().outbound[0];
+    if (!message) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      return;
+    }
+    if (socket.readyState !== WebSocket.OPEN) return;
+    useLiveEngineerStore.getState().takeOutbound();
+  }
+}
 
 function fetchVersionInfo(signal: AbortSignal) {
   return client.api.version
@@ -65,12 +78,6 @@ export function useWebSocket() {
     function connect() {
       abortVersionRequest();
       // Close any existing connection before opening a new one
-      if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect loop
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
       const devTarget = import.meta.env.DEV ? __RACEIQ_DEV_WS_TARGET__ : undefined;
       const ws = new WebSocket(buildWebSocketUrl(window.location, devTarget));
       wsRef.current = ws;
@@ -81,6 +88,7 @@ export function useWebSocket() {
       ws.onopen = () => {
         store.setConnected(true);
         startVersionRequest();
+        flushLiveEngineerOutbound(ws);
         if (useDevTelemetryStore.getState().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
@@ -173,11 +181,9 @@ export function useWebSocket() {
       }
     });
     const unsubscribeLiveEngineer = useLiveEngineerStore.subscribe((state, previous) => {
-      if (state.outbound.length === previous.outbound.length) return;
+      if (state.outbound === previous.outbound) return;
       const ws = wsRef.current;
-      const message = state.outbound[state.outbound.length - 1];
-      if (ws?.readyState === WebSocket.OPEN && message) ws.send(JSON.stringify(message));
-      if (message) useLiveEngineerStore.getState().takeOutbound();
+      if (ws) flushLiveEngineerOutbound(ws);
     });
 
 

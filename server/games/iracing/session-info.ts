@@ -162,6 +162,22 @@ export function parseIRacingDrivers(yaml: string): IRacingDriverSnapshot[] {
     })
     .filter((entry): entry is IRacingDriverSnapshot => entry !== null);
 }
+export function parseIRacingSessionType(yaml: string, sessionNum: number): string {
+  const lines = yaml.replace(/\r\n/g, "\n").split("\n");
+  let matching = false;
+  for (const line of lines) {
+    const session = line.match(/^\s*-\s*SessionNum:\s*(-?\d+)/);
+    if (session) {
+      matching = Number(session[1]) === sessionNum;
+      continue;
+    }
+    if (matching) {
+      const type = line.match(/^\s*SessionType:\s*(?:"([^"]*)"|'([^']*)'|(.+?))\s*$/);
+      if (type) return (type[1] ?? type[2] ?? type[3] ?? "unknown").trim().toLowerCase().replace(/\s+/g, "_");
+    }
+  }
+  return "unknown";
+}
 
 export function parseIRacingSessionInfo(
   yaml: string,

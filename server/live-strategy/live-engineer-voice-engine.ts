@@ -1,4 +1,5 @@
 import type { GameId } from "../../shared/games/ids";
+import { isLiveEngineerGameId } from "../../shared/telemetry/live/semantics";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
 import { extractLiveEngineerSemanticInput } from "./live-engineer-semantic-input";
@@ -24,14 +25,6 @@ export interface LiveEngineerVoiceEngineOptions {
   emit: (message: LiveEngineerCalloutMessageV2 | LiveEngineerVoiceLineMessageV2) => void;
 }
 
-const PACE_REQUIRED = [
-  "identity.player-car-index", "identity.player-car-class-id",
-  "timing.lap-number", "timing.last-lap", "race.pit-status", "session.session-type",
-  "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name",
-  "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.laps-complete",
-  "race.competitor.pit-status", "race.competitor.track-location",
-  "timing.competitor.last-lap-time",
-] as const;
 
 const OPTIONAL_CONTEXT = ["race.safety-car-status", "race.flag-status", "session.session-flags"] as const;
 
@@ -70,6 +63,7 @@ export class LiveEngineerVoiceEngine {
   private armed = false;
   private previousPlayerLap = 0;
   private playerLapInvalid = false;
+  private previousLapPaceAvailable = false;
   private readonly previousCompetitorLaps = new Map<string, number>();
 
   constructor(options: LiveEngineerVoiceEngineOptions) {
@@ -85,6 +79,7 @@ export class LiveEngineerVoiceEngine {
       this.tracker.reset(this.timelineEpoch);
       this.runtime.reset(String(frame.sessionId ?? ""), this.timelineEpoch);
     }
+    if (!isLiveEngineerGameId(frame.simulator)) return;
     const semanticInput = extractLiveEngineerSemanticInput(frame);
     const values = new Map(semanticInput.values);
     if (!this.slots.size) this.slots = new Map(frame.ids.map((id, index) => [id, index]));
@@ -95,52 +90,40 @@ export class LiveEngineerVoiceEngine {
       const native = nativeIndex === undefined ? undefined : frame.values[nativeIndex];
       if (native?.state === "ok" && finite(native.value)) this.emitSpotterEvents(this.spotter.updateNative({ sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: frame.sequence, sessionTimeMs: this.runtimeClockMs, carLeftRight: Math.trunc(native.value) }), frame);
     }
-    if (frame.simulator === "f1-2025") this.processF1Spotter(frame);
     if (frame.simulator === "acc") this.processACCSpotter(frame);
-    for (const id of PACE_REQUIRED) {
-      const index = this.slots.get(id);
-      const resolved = index === undefined ? undefined : frame.values[index];
-      if (!resolved || resolved.state !== "ok") return;
-      values.set(id, resolved);
-    }
-    for (const id of ["timing.competitor.last-lap-valid"] as const) {
-      const index = this.slots.get(id);
-      const resolved = index === undefined ? undefined : frame.values[index];
-      if (resolved?.state === "ok") values.set(id, resolved);
-    }
-    const playerLap = values.get("timing.lap-number")!.value;
-    const playerLastLap = values.get("timing.last-lap")!.value;
-    const playerClass = values.get("identity.player-car-class-id")!.value;
-    const sessionType = values.get("session.session-type")!.value;
-    const playerIndex = values.get("identity.player-car-index")!.value;
-    if (!finitePositive(playerLap) || !finitePositive(playerLastLap) || typeof playerClass !== "string" || typeof sessionType !== "string" || !finite(playerIndex)) return;
-    const playerPit = isPitStatus(values.get("race.pit-status")!.value);
-    const playerValid = this.resolvedBool(values.get("timing.current-lap-valid"));
-    const trackSurface = values.get("identity.player-track-surface")!.value;
-    const conservativeValid = typeof trackSurface === "string" ? !["off-track", "pit-lane", "pit"].includes(trackSurface.toLowerCase()) : undefined;
-    const valid = playerValid ?? conservativeValid;
     const caution = OPTIONAL_CONTEXT.some((id) => {
-      const index = this.slots.get(id);
-      const resolved = index === undefined ? undefined : frame.values[index];
+      const resolved = values.get(id);
       return resolved?.state === "ok" && isCautionStatus(id, resolved.value);
     });
-    if (valid === undefined) return;
-    this.addOpponentFacts(values, frame, playerIndex);
+    if (semanticInput.pace) this.addOpponentFacts(values, frame, semanticInput.pace.playerCarIndex);
+    const lapState = semanticInput.lapState;
+    if (!lapState) return;
     if (!this.armed) {
       this.armed = true;
-      this.previousPlayerLap = playerLap;
+      this.previousPlayerLap = lapState.lapNumber;
+      this.playerLapInvalid = !lapState.currentLapValid;
+      this.previousLapPaceAvailable = semanticInput.pace !== null;
       return;
     }
-    if (playerLap <= this.previousPlayerLap) return;
-    const eligible = !this.playerLapInvalid && valid && !playerPit && !caution;
-    this.previousPlayerLap = playerLap;
-    this.playerLapInvalid = false;
-    if (!eligible) return;
-    const player: PlayerLapForPaceV1 = { sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, lapNumber: playerLap, lapTimeMs: Math.round(playerLastLap * 1000), classId: playerClass, sessionType, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, inPit: false, caution: false };
+    if (lapState.lapNumber === this.previousPlayerLap) {
+      this.playerLapInvalid ||= !lapState.currentLapValid;
+      this.previousLapPaceAvailable &&= semanticInput.pace !== null;
+      return;
+    }
+    if (lapState.lapNumber < this.previousPlayerLap) return;
+    const completedLap = this.previousPlayerLap;
+    const paceAvailableForCompletedLap = this.previousLapPaceAvailable;
+    const eligible = !this.playerLapInvalid && !lapState.inPit && !caution;
+    this.previousPlayerLap = lapState.lapNumber;
+    this.playerLapInvalid = !lapState.currentLapValid;
+    this.previousLapPaceAvailable = semanticInput.pace !== null;
+    if (!eligible || !paceAvailableForCompletedLap || !semanticInput.pace) return;
+    const { pace } = semanticInput;
+    const player: PlayerLapForPaceV1 = { sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, lapNumber: completedLap, lapTimeMs: Math.round(lapState.lastLapTimeSeconds * 1000), classId: pace.playerCarClassId, sessionType: pace.sessionType, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, inPit: false, caution: false };
     const candidate = this.tracker.createCandidate(player);
     if (!candidate) return;
     const runtimeCandidate: LiveEngineerRuntimeCandidate = {
-      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
+      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
     };
     this.runtime.submit(runtimeCandidate);
     const selected = this.runtime.selectNext(observedMs(frame.observedAt));
@@ -174,6 +157,7 @@ export class LiveEngineerVoiceEngine {
     this.armed = false;
     this.previousPlayerLap = 0;
     this.playerLapInvalid = false;
+    this.previousLapPaceAvailable = false;
     this.previousCompetitorLaps.clear();
   }
   private addOpponentFacts(values: Map<string, ResolvedValue<unknown>>, frame: LiveResolvedSemanticFrame, playerIndex: number): void {
@@ -186,19 +170,20 @@ export class LiveEngineerVoiceEngine {
     const pits = arrayOf<unknown>(values.get("race.competitor.pit-status")!.value);
     const times = arrayOf<number>(values.get("timing.competitor.last-lap-time")!.value);
     const valids = arrayOf<unknown>(values.get("timing.competitor.last-lap-valid")?.value);
+    const connected = arrayOf<unknown>(values.get("race.competitor.connected")?.value);
     const surfaces = arrayOf<unknown>(values.get("race.competitor.track-location")?.value);
-    const all = [indexes, ids, names, classes, classNames, laps, pits, times];
+    const all = [indexes, ids, names, classes, classNames, laps, pits, times, ...(frame.simulator === "acc" ? [connected] : [surfaces])];
     if (all.some((list) => !list || list.length !== indexes?.length || list.length > 64)) return;
     for (let i = 0; i < indexes!.length; i += 1) {
       const index = indexes![i];
       const lap = laps![i];
       const time = times![i];
       const inPit = isPitStatus(pits![i]);
-      const nativeValid = valids ? boolish(valids[i]) === true : false;
+      const nativeValid = frame.simulator === "acc" && valids ? boolish(valids[i]) === true : false;
       const surface = surfaces?.[i];
-      const conservativeValid = frame.simulator === "iracing" && typeof surface === "number" && surface >= 0 && surface <= 3 && !inPit;
+      const conservativeValid = frame.simulator === "iracing" && surface === "track" && !inPit;
       const valid = nativeValid || conservativeValid;
-      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || typeof classes![i] !== "string") continue;
+      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || (frame.simulator === "acc" && connected![i] !== true) || typeof classes![i] !== "string") continue;
       const participantId = String(ids![i] ?? index);
       const fact: OpponentLapFactV1 = { factId: `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}/${index}/${lap}`, gameId: frame.simulator as GameId, sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, participantId, participantName: String(names![i] ?? participantId), classId: String(classes![i]), className: String(classNames![i] ?? classes![i]), lapNumber: lap, lapTimeMs: Math.round(time * 1000), valid: true, inPit: false, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, sourceQuality: nativeValid ? "native-validity" : "conservative-inference" };
       const previous = this.previousCompetitorLaps.get(participantId);
@@ -216,6 +201,10 @@ export class LiveEngineerVoiceEngine {
       const value = read(id);
       return value?.state === "ok" && finite(value.value) ? value.value : undefined;
     };
+    const stringScalar = (id: string): string | undefined => {
+      const value = read(id);
+      return value?.state === "ok" && typeof value.value === "string" ? value.value : undefined;
+    };
     const array = (id: string): readonly unknown[] | undefined => {
       const value = read(id);
       return value?.state === "ok" && Array.isArray(value.value) ? value.value : undefined;
@@ -225,55 +214,39 @@ export class LiveEngineerVoiceEngine {
     const playerSpeed = scalar("motion.speed");
     const yaw = scalar("motion.yaw");
     const playerIndex = scalar("identity.player-car-index");
+    const playerPit = stringScalar("race.pit-status");
+    const phase = scalar("session.session-state");
     const indexes = array("race.competitor.car-index");
-    const positionsX = array("race.competitor.position-x");
-    const positionsZ = array("race.competitor.position-z");
-    const speeds = array("race.competitor.speed");
+    const connected = array("race.competitor.connected");
+    const positionsX = array("motion.competitor.position-x");
+    const positionsZ = array("motion.competitor.position-z");
+    const speeds = array("motion.competitor.speed");
     const pits = array("race.competitor.pit-status");
-    if ([playerX, playerZ, playerSpeed, yaw, playerIndex].some((value) => value === undefined) || !indexes || !positionsX || !positionsZ || !speeds || !pits) return;
-    if (new Set([indexes.length, positionsX.length, positionsZ.length, speeds.length, pits.length]).size !== 1) return;
-    const opponents = [];
-    for (let i = 0; i < indexes.length; i += 1) {
-      if (indexes[i] === playerIndex || isPitStatus(pits[i]) || !finite(positionsX[i]) || !finite(positionsZ[i]) || !finite(speeds[i])) continue;
-      opponents.push({ id: String(indexes[i]), x: positionsX[i] as number, z: positionsZ[i] as number, speedMps: speeds[i] as number });
+    if ([playerX, playerZ, playerSpeed, yaw, playerIndex, phase].some((value) => value === undefined) || !playerPit || !indexes || !connected || !positionsX || !positionsZ || !speeds || !pits) {
+      this.spotter.reset();
+      return;
     }
-    this.emitSpotterEvents(this.spotter.update({ sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: frame.sequence, sessionTimeMs: this.runtimeClockMs, player: { x: playerX as number, z: playerZ as number, rotationRad: yaw as number, speedMps: playerSpeed as number, widthM: 1.8, lengthM: 4.8 }, opponents }), frame);
-  }
-
-
-  private processF1Spotter(frame: LiveResolvedSemanticFrame): void {
-    const read = (id: string): ResolvedValue<unknown> | undefined => {
-      const index = this.slots.get(id);
-      return index === undefined ? undefined : frame.values[index];
-    };
-    const scalarValue = (id: string): number | undefined => {
+    if (new Set([indexes.length, connected.length, positionsX.length, positionsZ.length, speeds.length, pits.length]).size !== 1) {
+      this.spotter.reset();
+      return;
+    }
+    const pitContext = isPitStatus(playerPit);
+    const formationLap = phase === 2 || phase === 3 || phase === 4;
+    const cautionContext = OPTIONAL_CONTEXT.some((id) => {
       const value = read(id);
-      return value?.state === "ok" && finite(value.value) ? value.value : undefined;
-    };
-    const arrayValue = (id: string): readonly unknown[] | undefined => {
-      const value = read(id);
-      return value?.state === "ok" && Array.isArray(value.value) ? value.value : undefined;
-    };
-    const playerX = scalarValue("motion.position-x");
-    const playerZ = scalarValue("motion.position-z");
-    const playerSpeed = scalarValue("motion.speed");
-    const yaw = scalarValue("motion.yaw");
-    const playerIndex = scalarValue("identity.player-car-index");
-    const indexes = arrayValue("race.competitor.car-index");
-    const connected = arrayValue("race.competitor.connected");
-    const positionsX = arrayValue("race.competitor.position-x");
-    const positionsZ = arrayValue("race.competitor.position-z");
-    const speeds = arrayValue("race.competitor.speed");
-    const pits = arrayValue("race.competitor.pit-status");
-    const playerPit = read("race.pit-status")?.state === "ok" && isPitStatus(read("race.pit-status")?.value);
-    if ([playerX, playerZ, playerSpeed, yaw, playerIndex].some((value) => value === undefined) || playerPit || !indexes || !connected || !positionsX || !positionsZ || !speeds || !pits || new Set([indexes.length, connected.length, positionsX.length, positionsZ.length, speeds.length, pits.length]).size !== 1) return;
+      return value?.state === "ok" && isCautionStatus(id, value.value);
+    });
     const opponents = [];
     for (let i = 0; i < indexes.length; i += 1) {
       if (indexes[i] === playerIndex || connected[i] !== true || isPitStatus(pits[i]) || !finite(positionsX[i]) || !finite(positionsZ[i]) || !finite(speeds[i])) continue;
       opponents.push({ id: String(indexes[i]), x: positionsX[i] as number, z: positionsZ[i] as number, speedMps: speeds[i] as number });
     }
-    this.emitSpotterEvents(this.spotter.update({ sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: frame.sequence, sessionTimeMs: this.runtimeClockMs, player: { x: playerX as number, z: playerZ as number, rotationRad: yaw as number, speedMps: playerSpeed as number, widthM: 1.8, lengthM: 4.8 }, opponents }), frame);
+    const events = this.spotter.update({ sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: frame.sequence, sessionTimeMs: this.runtimeClockMs, player: { x: playerX as number, z: playerZ as number, rotationRad: yaw as number, speedMps: playerSpeed as number, widthM: 1.8, lengthM: 4.8 }, opponents, pitContext, formationLap: formationLap || phase !== 5, cautionContext });
+    if (phase !== 5) return;
+    this.emitSpotterEvents(events, frame);
   }
+
+
 
   private emitSpotterEvents(events: readonly { state: Exclude<import("../../shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
     for (const event of events) {
@@ -297,16 +270,13 @@ export class LiveEngineerVoiceEngine {
   private currentContextEligible(): boolean {
     if (!this.latest) return false;
     const values = this.latest.values;
-    for (const id of ["race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags"]) {
+    const ids = this.latest.simulator === "iracing" ? ["race.on-pit-road", "race.safety-car-status", "race.flag-status", "session.session-flags"] : ["race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags"];
+    for (const id of ids) {
       const index = this.slots.get(id);
       const value = index === undefined ? undefined : values[index];
-      if (value?.state === "ok" && (id === "race.pit-status" ? isPitStatus(value.value) : isCautionStatus(id, value.value))) return false;
+      if (value?.state === "ok" && (id === "race.pit-status" || id === "race.on-pit-road" ? isPitStatus(value.value) : isCautionStatus(id, value.value))) return false;
     }
     return true;
   }
 
-  private resolvedBool(value: ResolvedValue<unknown> | undefined): boolean | undefined {
-    if (!value || value.state !== "ok") return undefined;
-    return typeof value.value === "boolean" ? value.value : typeof value.value === "number" ? value.value !== 0 : undefined;
-  }
 }

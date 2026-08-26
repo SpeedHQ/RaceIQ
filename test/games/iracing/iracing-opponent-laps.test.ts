@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { normalizeIRacingFrame, createIRacingParserState } from "../../../server/games/iracing/normalizer";
-import { parseIRacingDrivers } from "../../../server/games/iracing/session-info";
+import { parseIRacingDrivers, parseIRacingSessionType } from "../../../server/games/iracing/session-info";
 import { sampleFrameV3 } from "../../support/games/iracing-sdk";
 
 test("parses and aligns source-backed iRacing competitor snapshots", () => {
@@ -19,7 +19,13 @@ test("parses and aligns source-backed iRacing competitor snapshots", () => {
   frame.values.CarIdxTrackSurface = [3, 0, 0, 0, 0, 0, 0, 2];
   const packet = normalizeIRacingFrame(frame, createIRacingParserState());
   expect(packet.iracing?.competitors).toEqual([
-    expect.objectContaining({ carIndex: 0, displayName: "Player", position: 1, lapsComplete: 4, lastLapTime: 90, trackLocation: 3 }),
-    expect.objectContaining({ carIndex: 7, displayName: "Opponent", position: 2, lapsComplete: 4, lastLapTime: 88, trackLocation: 2 }),
+    expect.objectContaining({ carIndex: 0, driverId: "11", driverName: "Player", carClassIdString: "1", carClassName: "GT3", pitStatus: "out", trackLocationName: "track", position: 1, lapsComplete: 4, lastLapTime: 90, trackLocation: 3 }),
+    expect.objectContaining({ carIndex: 7, driverId: "22", driverName: "Opponent", carClassIdString: "1", carClassName: "GT3", pitStatus: "out", trackLocationName: "pit-stall", position: 2, lapsComplete: 4, lastLapTime: 88, trackLocation: 2 }),
   ]);
+});
+
+test("selects matching iRacing session type by session number", () => {
+  const yaml = "SessionInfo:\n  Sessions:\n  - SessionNum: 0\n    SessionType: Practice\n  - SessionNum: 2\n    SessionType: Lone Qualify\n";
+  expect(parseIRacingSessionType(yaml, 2)).toBe("lone_qualify");
+  expect(parseIRacingSessionType(yaml, 9)).toBe("unknown");
 });

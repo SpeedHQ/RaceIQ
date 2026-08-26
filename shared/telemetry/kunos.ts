@@ -108,7 +108,9 @@ export interface KunosExtendedData {
   /** Runtime-only ACC Broadcasting Protocol competitor snapshot fields. */
   broadcastSessionIndex?: number;
   broadcastSessionType?: string;
+  broadcastPhase?: number;
   broadcastPlayerCarIndex?: number;
+  broadcastPlayerCarClassId?: string;
   broadcastCarIndex?: readonly number[];
   broadcastDriverId?: readonly string[];
   broadcastDriverName?: readonly string[];
@@ -124,8 +126,8 @@ export interface KunosExtendedData {
   broadcastYaw?: readonly number[];
   broadcastLastLapTime?: readonly number[];
   broadcastLastLapValid?: readonly boolean[];
+  broadcastConnected?: readonly boolean[];
 }
-
 export interface AcEvoExtendedData {
   // Frame identity / staleness — packet IDs increment each shm write.
   physicsPacketId: number;

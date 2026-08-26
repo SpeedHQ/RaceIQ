@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "bc5bc42c64c29cd46bb8bf1d7792b466cd517a6da8a58816783b25d91e0ac7a8"
+      "sourceHash": "19410acb2e07848ab7791eacab420961ed52385bc81379966237b2288684e5d4"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -14,11 +14,11 @@
       "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
       "server/games/f1-2025/f1-state.ts": "962fea452fcdc94e4967f4c450943f242469d8521c1a470a4148b0d89fe6ab50",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "b4a5ec4aaaee99a20e51b803e9728771af5bbefd352d717bc33b4960cff070c0",
+      "server/games/iracing/normalizer.ts": "c89783d6bc24671d60d0a8837a89ba8ee15801d54943e69a1c1372de36c312ea",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "de75932763b70e82e8df453d19ac832b1741f67aa1f1e234059cb34e2e1d8c89"
+    "contentHash": "28d829606cb2cd03d42ffd8618ef92a83654173aaea13165bd6728e8a8051100"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -182,6 +182,7 @@
         "diagnostics.vehicle-fia-flags",
         "diagnostics.vid-cap-active",
         "diagnostics.vid-cap-enabled",
+        "session.session-state",
         "diagnostics.camera",
         "diagnostics.radio"
       ]
@@ -734,7 +735,6 @@
         "session.session-joker-laps-remain",
         "session.session-km",
         "session.session-num",
-        "session.session-state",
         "session.session-tick",
         "session.session-type",
         "session.session-uid",
@@ -13750,39 +13750,95 @@
         "fm-2023": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "f1-2025": {
           "kind": "unavailable",
           "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
+          "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
-        },
-        "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "No equivalent source value is currently identified for this parser."
-        },
-        "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "id",
           "sources": [
+            "acc.broadcastPlayerCarClassId"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical class ID",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:identity.player-car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPlayerCarClassId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "ce36759f0cd2f150d062cdbfc8ab9f24ab7486d40c1d9a17b105ba553da20cd4"
+          }
+        },
+        "ac-evo": {
+          "kind": "normalized",
+          "nativeUnit": "id",
+          "sources": [
+            "acc.broadcastPlayerCarClassId"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical class ID",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:identity.player-car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPlayerCarClassId"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "3677c7d806639c9efa3382491ca9e18b3aea5fd44d743c84cfd9f8fef0601820"
+          }
+        },
+        "iracing": {
+          "kind": "normalized",
+          "nativeUnit": "id",
+          "sources": [
+            "iracing.playerCarClassId",
             "iRacing.PlayerCarClass"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "normalization": "pass through canonical class ID",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:identity.player-car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.playerCarClassId",
+              "iRacing.PlayerCarClass"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "d6fe1eb04f7f74478cbc6fa4a628d4c363d6740a80446e7d3d8cbad629f294db"
+          }
         }
       },
-      "valueType": "number",
+      "valueType": "string",
       "dimensions": [
         "dimensionless"
       ],
@@ -21061,19 +21117,34 @@
           }
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "id",
           "sources": [
+            "iracing.competitorCarClassIdString",
             "iRacing.CarIdxClass",
             "iRacing.SessionInfo.DriverInfo.Drivers[].CarClassID"
           ],
           "freshness": "continuous",
-          "description": "Native iRacing SDK variable linked to shared semantic value.",
+          "normalization": "pass through canonical class IDs",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:race.competitor.car-class-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorCarClassIdString",
+              "iRacing.CarIdxClass",
+              "iRacing.SessionInfo.DriverInfo.Drivers[].CarClassID"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "39b00a04d5a073849d3d370fc69dc366de3656c925eb2fdaacd36258d77a0afb"
+          }
         }
       },
       "valueType": "structured",
@@ -21238,18 +21309,32 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
+            "iracing.competitorCarClassName",
             "iRacing.SessionInfo.DriverInfo.Drivers[].CarClassShortName"
           ],
-          "freshness": "session-update",
-          "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+          "freshness": "static",
+          "normalization": "pass through canonical class names",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:race.competitor.car-class-name:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorCarClassName",
+              "iRacing.SessionInfo.DriverInfo.Drivers[].CarClassShortName"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "280667c2784f552edea296479a38cc1760d2d4a22138a45076aacfb2f3bcd2c7"
+          }
         }
       },
       "valueType": "structured",
@@ -22816,14 +22901,56 @@
           "limitations": []
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "boolean",
+          "sources": [
+            "acc.broadcastConnected"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical connectivity",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:race.competitor.connected:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastConnected"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "99b5341a33103403e1413d1893ff9522bb80b6a683c7729b7d8be6937da238ac"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "boolean",
+          "sources": [
+            "acc.broadcastConnected"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical connectivity",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:race.competitor.connected:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastConnected"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "11830fe49a15771852a803fee69fee42ab8b9b130f24a83d5deeace507bd3724"
+          }
         },
         "iracing": {
           "kind": "unavailable",
@@ -23184,18 +23311,32 @@
           }
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "id",
           "sources": [
+            "iracing.competitorDriverId",
             "iRacing.SessionInfo.DriverInfo.Drivers[].UserID"
           ],
-          "freshness": "session-update",
-          "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+          "freshness": "continuous",
+          "normalization": "pass through canonical driver IDs",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:race.competitor.driver-id:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorDriverId",
+              "iRacing.SessionInfo.DriverInfo.Drivers[].UserID"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "4771693f77ca236a7ccfadf93408b219d47e7a7e57b09feb47a2db5cd8ab1a7e"
+          }
         }
       },
       "valueType": "structured",
@@ -23448,18 +23589,32 @@
           "limitations": []
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
+            "iracing.competitorDriverName",
             "iRacing.SessionInfo.DriverInfo.Drivers[].UserName"
           ],
-          "freshness": "session-update",
-          "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+          "freshness": "static",
+          "normalization": "pass through canonical driver names",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:race.competitor.driver-name:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorDriverName",
+              "iRacing.SessionInfo.DriverInfo.Drivers[].UserName"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "478181a88f6f2c17206d20b2def07fb016a2ccebd2da28572b26baf1afea406c"
+          }
         }
       },
       "valueType": "structured",
@@ -25048,6 +25203,7 @@
           "nativeUnit": "boolean",
           "sources": [
             "iracing.carIdxOnPitRoad",
+            "iracing.competitorPitStatus",
             "iRacing.CarIdxOnPitRoad"
           ],
           "freshness": "continuous",
@@ -25065,10 +25221,11 @@
             "deterministic": true,
             "declaredInputs": [
               "iracing.carIdxOnPitRoad",
+              "iracing.competitorPitStatus",
               "iRacing.CarIdxOnPitRoad"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "f4a9ad937ea2d7cf847e5b2e6287e2529a740f26b5f338888d1b4484b592eb60"
+            "codeHash": "a8bd36a85f762f8dba1c6636af66290ebded7864af252c2be1070f69deb3ba4a"
           }
         }
       },
@@ -25099,7 +25256,7 @@
         "fields": [
           {
             "id": "value",
-            "valueType": "boolean",
+            "valueType": "string",
             "dimensions": [
               "unit:enum"
             ]
@@ -26637,14 +26794,15 @@
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "count",
+          "nativeUnit": "enum",
           "sources": [
+            "iracing.competitorTrackLocationName",
             "iracing.carIdxTrackSurface",
             "iRacing.CarIdxTrackSurface"
           ],
-          "freshness": "continuous",
+          "freshness": "static",
+          "normalization": "pass through canonical track locations",
           "description": "iracing parser exposes 1 linked field.",
-          "normalization": "convert count to enum",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -26656,11 +26814,12 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.competitorTrackLocationName",
               "iracing.carIdxTrackSurface",
               "iRacing.CarIdxTrackSurface"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "61daea8c675f11ecbb88662100163276c32e7713cb547b55f3e917e54e2dbffc"
+            "codeHash": "80052d735a0b503950f1347611354d17da99de04b1fbef115a06be1914178379"
           }
         }
       },
@@ -33240,10 +33399,10 @@
     },
     {
       "id": "session.session-state",
-      "label": "Session State",
-      "description": "Session State source value reported by iracing in count.",
-      "parentId": "session",
-      "canonicalUnit": "count",
+      "label": "Broadcast Phase",
+      "description": "ACC broadcast lifecycle phase.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "state",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -33257,17 +33416,59 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "state",
+          "sources": [
+            "acc.broadcastPhase"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical phase",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "acc:session.session-state:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPhase"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "c7f96a5bce109db8dc31291d7c4a1cfb669aa926ca810783ad2e18aec085b60f"
+          }
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "state",
+          "sources": [
+            "acc.broadcastPhase"
+          ],
+          "freshness": "continuous",
+          "normalization": "pass through canonical phase",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "ac-evo:session.session-state:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "acc.broadcastPhase"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "17c9676a5077b1654df2d4dafd13151c6f9bf48dc77d941536e748700b1b222f"
+          }
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "count",
           "sources": [
             "iracing.sessionState",
@@ -33275,16 +33476,29 @@
           ],
           "freshness": "continuous",
           "description": "iracing parser exposes 1 linked field.",
+          "normalization": "convert count to state",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:session.session-state:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.sessionState",
+              "iRacing.SessionState"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "0070a2bd8eafab6ef7c86981ec632e246689fe0fc03cd09247552ed6eb18e4e0"
+          }
         }
       },
       "valueType": "number",
       "dimensions": [
-        "dimensionless"
+        "unit:state"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -33404,11 +33618,12 @@
           "kind": "normalized",
           "nativeUnit": "text",
           "sources": [
+            "iracing.sessionType",
             "iRacing.SessionInfo.SessionInfo.Sessions[].SessionType"
           ],
-          "freshness": "session-update",
-          "normalization": "select YAML entry matching current session number",
-          "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+          "freshness": "continuous",
+          "normalization": "pass through canonical session type; select YAML entry matching current session number",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
@@ -33420,10 +33635,11 @@
             "version": "0.13.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.sessionType",
               "iRacing.SessionInfo.SessionInfo.Sessions[].SessionType"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "03a79ff4012d27b86457952ffe5727bb0bab67f7311175f4f88d3b1b416c284c"
+            "codeHash": "3e2c5d9d447464b19941fd0ab251f678b0d84d69a8f1eaa2abfbb28e540d9fb2"
           }
         }
       },
@@ -41458,7 +41674,7 @@
     {
       "id": "timing.car-idx-lap",
       "label": "Car Idx Lap",
-      "description": "Native opponent arrays retained for conservative completed-lap inference.",
+      "description": "Car Idx Lap source value reported by iracing in count.",
       "parentId": "timing",
       "canonicalUnit": "count",
       "shape": "structured",
@@ -49881,7 +50097,7 @@
     {
       "id": "tires.pit-tire-temperature-available",
       "label": "Pit Tire Temperature Available",
-      "description": "Pit-only tire channels have produced a complete four-corner snapshot.",
+      "description": "Pit Tire Temperature Available source value reported by iracing in boolean.",
       "parentId": "tires",
       "canonicalUnit": "boolean",
       "shape": "scalar",
@@ -54372,7 +54588,7 @@
     {
       "id": "weather.track-wetness",
       "label": "Track Wetness",
-      "description": "Native irsdk_TrackWetness category (0 unknown through 7 extremely wet).",
+      "description": "Track Wetness source value reported by iracing in count.",
       "parentId": "identity",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -59798,6 +60014,17 @@
         "retention": "exact"
       },
       {
+        "path": "acc.broadcastConnected",
+        "label": "Broadcast Connected",
+        "unit": "boolean",
+        "dataType": "readonly boolean[]",
+        "description": "ACC broadcast competitor connectivity.",
+        "semanticId": "race.competitor.connected",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.broadcastDriverId",
         "label": "Broadcast Driver Id",
         "unit": "text",
@@ -59853,12 +60080,36 @@
         "retention": "exact"
       },
       {
+        "path": "acc.broadcastPhase",
+        "label": "Broadcast Phase",
+        "unit": "state",
+        "dataType": "number",
+        "count": 1,
+        "description": "ACC broadcast lifecycle phase.",
+        "semanticId": "session.session-state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.broadcastPitStatus",
         "label": "Broadcast Pit Status",
         "unit": "text",
         "dataType": "readonly string[]",
         "description": "Broadcast Pit Status source value reported by acc in text.",
         "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPlayerCarClassId",
+        "label": "Broadcast Player Car Class Id",
+        "unit": "id",
+        "dataType": "string",
+        "count": 1,
+        "description": "ACC broadcast player car class identifier.",
+        "semanticId": "identity.player-car-class-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63025,6 +63276,17 @@
         "retention": "exact"
       },
       {
+        "path": "acc.broadcastConnected",
+        "label": "Broadcast Connected",
+        "unit": "boolean",
+        "dataType": "readonly boolean[]",
+        "description": "ACC broadcast competitor connectivity.",
+        "semanticId": "race.competitor.connected",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.broadcastDriverId",
         "label": "Broadcast Driver Id",
         "unit": "text",
@@ -63080,12 +63342,36 @@
         "retention": "exact"
       },
       {
+        "path": "acc.broadcastPhase",
+        "label": "Broadcast Phase",
+        "unit": "state",
+        "dataType": "number",
+        "count": 1,
+        "description": "ACC broadcast lifecycle phase.",
+        "semanticId": "session.session-state",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "acc.broadcastPitStatus",
         "label": "Broadcast Pit Status",
         "unit": "text",
         "dataType": "readonly string[]",
         "description": "Broadcast Pit Status source value reported by ac-evo in text.",
         "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastPlayerCarClassId",
+        "label": "Broadcast Player Car Class Id",
+        "unit": "id",
+        "dataType": "string",
+        "count": 1,
+        "description": "ACC broadcast player car class identifier.",
+        "semanticId": "identity.player-car-class-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66581,7 +66867,7 @@
         "label": "Car Idx Lap",
         "unit": "count",
         "dataType": "readonly number[]",
-        "description": "Native opponent arrays retained for conservative completed-lap inference.",
+        "description": "Car Idx Lap source value reported by iracing in count.",
         "semanticId": "timing.car-idx-lap",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -66667,12 +66953,78 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.competitorCarClassIdString",
+        "label": "Competitor Car Class Id String",
+        "unit": "id",
+        "dataType": "readonly string[]",
+        "description": "iRacing canonical competitor class IDs.",
+        "semanticId": "race.competitor.car-class-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorCarClassName",
+        "label": "Competitor Car Class Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "iRacing canonical competitor class names.",
+        "semanticId": "race.competitor.car-class-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorDriverId",
+        "label": "Competitor Driver Id",
+        "unit": "id",
+        "dataType": "readonly string[]",
+        "description": "iRacing canonical competitor driver IDs.",
+        "semanticId": "race.competitor.driver-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorDriverName",
+        "label": "Competitor Driver Name",
+        "unit": "text",
+        "dataType": "readonly string[]",
+        "description": "iRacing canonical competitor driver names.",
+        "semanticId": "race.competitor.driver-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorPitStatus",
+        "label": "Competitor Pit Status",
+        "unit": "enum",
+        "dataType": "readonly (\"in_pit\" | \"out\")[]",
+        "description": "iRacing canonical competitor pit statuses.",
+        "semanticId": "race.competitor.pit-status",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.competitors",
         "label": "Competitors",
         "unit": "structured",
         "dataType": "readonly IRacingCompetitor[]",
         "description": "Competitors source value reported by iracing in structured.",
         "semanticId": "diagnostics.competitors",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorTrackLocationName",
+        "label": "Competitor Track Location Name",
+        "unit": "enum",
+        "dataType": "readonly IRacingCompetitor[\"trackLocationName\"][]",
+        "description": "iRacing canonical competitor track locations.",
+        "semanticId": "race.competitor.track-location",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66743,7 +67095,7 @@
         "unit": "boolean",
         "dataType": "boolean",
         "count": 1,
-        "description": "Pit-only tire channels have produced a complete four-corner snapshot.",
+        "description": "Pit Tire Temperature Available source value reported by iracing in boolean.",
         "semanticId": "tires.pit-tire-temperature-available",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -66757,6 +67109,18 @@
         "count": 1,
         "description": "Pit Tire Wear Available source value reported by iracing in boolean.",
         "semanticId": "tires.pit-tire-wear-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.playerCarClassId",
+        "label": "Player Car Class Id",
+        "unit": "id",
+        "dataType": "string",
+        "count": 1,
+        "description": "iRacing normalized player car class identifier.",
+        "semanticId": "identity.player-car-class-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66857,6 +67221,18 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.sessionType",
+        "label": "Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "iRacing normalized session type.",
+        "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.trackLengthM",
         "label": "Track Length M",
         "unit": "m",
@@ -66886,7 +67262,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Native irsdk_TrackWetness category (0 unknown through 7 extremely wet).",
+        "description": "Track Wetness source value reported by iracing in count.",
         "semanticId": "weather.track-wetness",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -77057,31 +77433,31 @@
         "recorded": 306
       },
       "acc": {
-        "total": 218,
+        "total": 221,
         "packet": 124,
-        "extension": 61,
+        "extension": 64,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 185
+        "recorded": 188
       },
       "ac-evo": {
-        "total": 273,
+        "total": 276,
         "packet": 124,
-        "extension": 113,
+        "extension": 116,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 237
+        "recorded": 240
       },
       "iracing": {
-        "total": 968,
+        "total": 976,
         "packet": 119,
-        "extension": 30,
+        "extension": 38,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 718
+        "recorded": 726
       }
     }
   }

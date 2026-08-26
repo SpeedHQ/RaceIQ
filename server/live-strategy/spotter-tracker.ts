@@ -30,10 +30,19 @@ export class SpotterTracker {
     this.options = { overlapDelayMs: 0, clearDelayMs: 500, stillThereMs: 3_000, staleStateMs: 5_000, maxClosingSpeedMps: 20, trackZoneM: 20, behindExtraLengthM: 0.4, ...options };
   }
 
-  reset(): void { this.sides.left.ids.clear(); this.sides.right.ids.clear(); this.sides.left.announced = false; this.sides.right.announced = false; }
+  reset(): void {
+    this.resetSides();
+    this.lastSession = undefined;
+    this.lastEpoch = -1;
+  }
+
+  private resetSides(): void {
+    this.sides.left = emptySide();
+    this.sides.right = emptySide();
+  }
 
   update(frame: SpotterFrameV1): SpotterEventV1[] {
-    if (this.lastSession !== frame.sessionId || this.lastEpoch !== frame.timelineEpoch) { this.reset(); this.lastSession = frame.sessionId; this.lastEpoch = frame.timelineEpoch; }
+    if (this.lastSession !== frame.sessionId || this.lastEpoch !== frame.timelineEpoch) { this.resetSides(); this.lastSession = frame.sessionId; this.lastEpoch = frame.timelineEpoch; }
     if (frame.formationLap || frame.pitContext || frame.cautionContext || !Number.isFinite(frame.player.speedMps) || frame.player.speedMps < 2.78) return this.suppress(frame);
     const current = { left: new Map<string, number>(), right: new Map<string, number>() };
     for (const opponent of frame.opponents) {
@@ -54,7 +63,7 @@ export class SpotterTracker {
   }
   updateNative(frame: NativeSpotterFrame): SpotterEventV1[] {
     if (this.lastSession !== frame.sessionId || this.lastEpoch !== frame.timelineEpoch) {
-      this.reset();
+      this.resetSides();
       this.lastSession = frame.sessionId;
       this.lastEpoch = frame.timelineEpoch;
     }

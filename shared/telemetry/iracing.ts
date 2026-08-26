@@ -1,5 +1,11 @@
 export interface IRacingCompetitor {
   carIndex: number;
+  driverId: string;
+  driverName: string;
+  carClassIdString: string;
+  carClassName: string;
+  pitStatus: "in_pit" | "out";
+  trackLocationName: "not-in-world" | "off-track" | "pit-stall" | "approaching-pits" | "track";
   userId?: number;
   displayName?: string;
   carClassId?: number;
@@ -18,7 +24,9 @@ export interface IRacingCompetitor {
 export interface IRacingExtendedData {
   sessionTick: number;
   sessionNum: number;
+  sessionType: string;
   driverCarIdx: number;
+  playerCarClassId?: string;
   trackLengthM: number;
   lapDistanceM: number;
   lapDistancePct: number;
@@ -38,16 +46,19 @@ export interface IRacingExtendedData {
   carIdxLapCompleted?: readonly number[];
   carIdxOnPitRoad?: readonly boolean[];
   incidents: number;
-  /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
   trackWetness: number;
-  /** Pit-only tire channels have produced a complete four-corner snapshot. */
   pitTireTemperatureAvailable?: boolean;
   pitTireWearAvailable?: boolean;
   carName: string;
   carClassName: string;
   trackName: string;
   competitors?: readonly IRacingCompetitor[];
-  /** Native opponent arrays retained for conservative completed-lap inference. */
+  competitorDriverId?: readonly string[];
+  competitorDriverName?: readonly string[];
+  competitorCarClassIdString?: readonly string[];
+  competitorCarClassName?: readonly string[];
+  competitorPitStatus?: readonly ("in_pit" | "out")[];
+  competitorTrackLocationName?: readonly IRacingCompetitor["trackLocationName"][];
   carIdxLap?: readonly number[];
   carIdxLastLapTime?: readonly number[];
   carIdxBestLapTime?: readonly number[];

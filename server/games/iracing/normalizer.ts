@@ -5,13 +5,12 @@ import {
   type IRacingSourceFrame,
   type IRacingValue,
 } from "./source-frame";
-import { parseIRacingDrivers, type IRacingDriverSnapshot, parseIRacingFuelCapacity } from "./session-info";
+import { parseIRacingDrivers, type IRacingDriverSnapshot, parseIRacingFuelCapacity, parseIRacingSessionType } from "./session-info";
 import type { IRacingCompetitor } from "../../../shared/telemetry/iracing";
 import {
   startsAtIRacingSectorOrigin,
   warnInvalidIRacingSectorLayout,
 } from "./sector-layout";
-
 const KPA_TO_PSI = 0.1450377377;
 export interface IRacingParserState {
   source: IRacingSourceDecoderState;
@@ -21,6 +20,9 @@ export interface IRacingParserState {
   fuelCapacitySessionInfo: string | null;
   fuelCapacityL: number | undefined;
   sessionInfo: string | null;
+  sessionTypeSessionInfo: string | null;
+  sessionTypeSessionNum: number | null;
+  sessionType: string;
   drivers: readonly IRacingDriverSnapshot[];
 }
 
@@ -33,6 +35,9 @@ export function createIRacingParserState(): IRacingParserState {
     fuelCapacitySessionInfo: null,
     fuelCapacityL: undefined,
     sessionInfo: null,
+    sessionTypeSessionInfo: null,
+    sessionTypeSessionNum: null,
+    sessionType: "unknown",
     drivers: [],
   };
 }
@@ -75,12 +80,23 @@ function buildCompetitors(
   const bestLaps = numberArray(values, "CarIdxBestLapTime");
   const locations = numberArray(values, "CarIdxTrackSurface");
   if (!positions || !classPositions || !laps || !pits || !lastLaps || !bestLaps || !locations) return [];
+  const locationName = (value: number): IRacingCompetitor["trackLocationName"] => ({ 0: "not-in-world", 1: "off-track", 2: "pit-stall", 3: "track", 4: "approaching-pits" } as Record<number, IRacingCompetitor["trackLocationName"]>)[value] ?? "off-track";
   const rows: IRacingCompetitor[] = [];
   for (const driver of drivers) {
+    if (driver.carClassId === undefined) continue;
     const i = driver.carIndex;
     const row = { position: positions[i], classPosition: classPositions[i], lapsComplete: laps[i], onPitRoad: pits[i], lastLapTime: lastLaps[i], bestLapTime: bestLaps[i], trackLocation: locations[i] };
     if (![row.position, row.classPosition, row.lapsComplete, row.lastLapTime, row.bestLapTime, row.trackLocation].every((value) => typeof value === "number" && Number.isFinite(value)) || row.onPitRoad === undefined) continue;
-    rows.push({ ...driver, ...row });
+    rows.push({
+      ...driver,
+      ...row,
+      driverId: String(driver.userId ?? driver.carIndex),
+      driverName: driver.displayName ?? String(driver.carIndex),
+      carClassIdString: String(driver.carClassId),
+      carClassName: driver.carClassShortName ?? String(driver.carClassId),
+      pitStatus: row.onPitRoad ? "in_pit" : "out",
+      trackLocationName: locationName(row.trackLocation),
+    });
   }
   return rows.sort((a, b) => a.carIndex - b.carIndex);
 }
@@ -209,6 +225,21 @@ export function normalizeIRacingFrame(
       fuelCapacityL = state.fuelCapacityL;
     }
   }
+  let sessionType = "unknown";
+  if ("sessionInfo" in frame) {
+    if (!state) {
+      sessionType = parseIRacingSessionType(frame.sessionInfo, session.sessionNum);
+    } else {
+      if (state.sessionTypeSessionInfo !== frame.sessionInfo || state.sessionTypeSessionNum !== session.sessionNum) {
+        state.sessionTypeSessionInfo = frame.sessionInfo;
+        state.sessionTypeSessionNum = session.sessionNum;
+        state.sessionType = parseIRacingSessionType(frame.sessionInfo, session.sessionNum);
+      }
+      sessionType = state.sessionType;
+    }
+  } else if (state) {
+    sessionType = state.sessionType;
+  }
   let drivers: readonly IRacingDriverSnapshot[] = state?.drivers ?? [];
   if ("sessionInfo" in frame && state) {
     if (state.sessionInfo !== frame.sessionInfo) {
@@ -269,7 +300,9 @@ export function normalizeIRacingFrame(
     iracing: {
       sessionTick: Math.trunc(scalar(values, "SessionTick", 0)),
       sessionNum: session.sessionNum,
+      sessionType,
       driverCarIdx: session.driverCarIdx,
+      playerCarClassId: session.carClassId >= 0 ? String(session.carClassId) : undefined,
       trackLengthM,
       lapDistanceM,
       lapDistancePct,
@@ -280,7 +313,13 @@ export function normalizeIRacingFrame(
       carIdxPosition: numberArray(values, "CarIdxPosition"),
       carIdxClassPosition: numberArray(values, "CarIdxClassPosition"),
       carIdxLapCompleted: numberArray(values, "CarIdxLapCompleted"),
-      carIdxOnPitRoad: booleanArray(values, "CarIdxOnPitRoad"),
+      competitors,
+      competitorDriverId: competitors.map((competitor) => competitor.driverId),
+      competitorDriverName: competitors.map((competitor) => competitor.driverName),
+      competitorCarClassIdString: competitors.map((competitor) => competitor.carClassIdString),
+      competitorCarClassName: competitors.map((competitor) => competitor.carClassName),
+      competitorPitStatus: competitors.map((competitor) => competitor.pitStatus),
+      competitorTrackLocationName: competitors.map((competitor) => competitor.trackLocationName),
       sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
@@ -289,7 +328,6 @@ export function normalizeIRacingFrame(
       carIdxLastLapTime: numberArray(values, "CarIdxLastLapTime"),
       carIdxBestLapTime: numberArray(values, "CarIdxBestLapTime"),
       carIdxTrackSurface: numberArray(values, "CarIdxTrackSurface"),
-      competitors,
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
       pitTireTemperatureAvailable,

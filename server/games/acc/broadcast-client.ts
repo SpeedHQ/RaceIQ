@@ -23,6 +23,9 @@ export interface AccBroadcastClientOptions {
 export class AccBroadcastClient {
   private readonly options: Required<Omit<AccBroadcastClientOptions, "state" | "socketFactory">> & Pick<AccBroadcastClientOptions, "state" | "socketFactory">;
   private socket: DatagramSocket | null = null;
+  private connectPromise: Promise<void> | null = null;
+  private registered = false;
+  private generation = 0;
   private stopped = false;
 
   constructor(options: AccBroadcastClientOptions = {}) {
@@ -39,29 +42,62 @@ export class AccBroadcastClient {
   }
 
   async start(): Promise<void> {
-    if (this.socket) return;
     this.stopped = false;
+    if (this.connectPromise) {
+      await this.connectPromise;
+      if (this.socket && !this.registered) this.sendRegistration(this.socket);
+      return;
+    }
+    if (this.socket) {
+      if (!this.registered) this.sendRegistration(this.socket);
+      return;
+    }
+    const generation = ++this.generation;
     const socket = this.options.socketFactory?.() ?? dgram.createSocket("udp4");
     this.socket = socket;
     const state = this.options.state ?? accBroadcastState;
     socket.on("message", (payload) => {
       const message = parseAccBroadcastMessage(payload);
-      if (message) state.apply(message);
+      if (!message) return;
+      if (message.type === "registration-result") {
+        if (message.success && this.socket === socket && this.generation === generation) this.registered = true;
+        return;
+      }
+      state.apply(message);
     });
     socket.on("error", () => {
       if (!this.stopped) this.stop().catch(() => {});
     });
     socket.on("close", () => {
-      if (!this.stopped) this.socket = null;
+      if (this.socket !== socket) return;
+      this.socket = null;
+      this.registered = false;
+      if (!this.stopped) this.generation += 1;
     });
-    await new Promise<void>((resolve) => socket.connect(this.options.port, this.options.host, resolve));
+    const connect = new Promise<void>((resolve) => socket.connect(this.options.port, this.options.host, resolve));
+    const pending = connect.then(() => {
+      if (this.stopped || this.socket !== socket || this.generation !== generation) {
+        socket.close();
+        return;
+      }
+      this.sendRegistration(socket);
+    }).finally(() => {
+      if (this.connectPromise) this.connectPromise = null;
+    });
+    this.connectPromise = pending;
+    return pending;
+  }
+
+  private sendRegistration(socket: DatagramSocket): void {
     socket.send(encodeAccBroadcastRegistration(this.options.displayName, this.options.connectionPassword, this.options.realtimeIntervalMs, this.options.commandPassword));
   }
 
   async stop(): Promise<void> {
     this.stopped = true;
+    this.generation += 1;
     const socket = this.socket;
     this.socket = null;
+    this.registered = false;
     (this.options.state ?? accBroadcastState).reset();
     if (!socket) return;
     await new Promise<void>((resolve) => socket.close(resolve));
