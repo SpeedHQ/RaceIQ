@@ -173,3 +173,13 @@ test("setup manager panel header separates title and sort control", async ({ pag
   const panelHeader = page.getByRole("heading", { name: "Google Drive" }).locator("..");
   await expect(panelHeader).toHaveCSS("justify-content", "space-between");
 });
+test("setup manager visual baseline stays stable", async ({ page }) => {
+  await mockSetupManagerApis(page);
+  await page.goto("/acc/setup-manager", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Google Drive" })).toBeVisible();
+
+  await expect(page).toHaveScreenshot("setup-manager-default.png", {
+    animations: "disabled",
+    fullPage: true,
+  });
+});
