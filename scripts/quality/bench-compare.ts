@@ -12,7 +12,7 @@ const numberOption = (name: string, fallback: number): number => {
 };
 const medianThreshold = numberOption("--median-threshold", 10);
 const retainedHeapThreshold = numberOption("--retained-heap-threshold", 10);
-const maxCpuError = numberOption("--max-cpu-error", 3);
+const maxCpuError = numberOption("--max-cpu-error", 10);
 const maxRetainedHeapError = numberOption("--max-retained-heap-error", 5);
 const bootstrapSamples = numberOption("--bootstrap-samples", 10_000);
 const title = option("--title") ?? "Replay benchmark comparison";

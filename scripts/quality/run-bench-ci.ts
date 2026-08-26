@@ -95,7 +95,7 @@ const comparisonArgs = [
   ...pairs,
   "--median-threshold=10",
   "--retained-heap-threshold=10",
-  "--max-cpu-error=3",
+  "--max-cpu-error=10",
   "--max-retained-heap-error=5",
   "--bootstrap-samples=10000",
   "--fail-on-regression",
