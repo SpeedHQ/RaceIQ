@@ -60,6 +60,10 @@ async function assertPaginationAndFilters(page: Page, firstAuthor?: string) {
 }
 
 async function mockSetupManagerApis(page: Page) {
+  await page.route("**/api/**", (route) => route.fulfill({ json: {} }));
+  await page.route("**/api/settings", (route) => route.fulfill({
+    json: { onboardingComplete: true, gameId: "acc" },
+  }));
   await page.route("**/api/tunes/setup-files*", (route) => route.fulfill({
     json: {
       baseDir: "C:\\Setups",

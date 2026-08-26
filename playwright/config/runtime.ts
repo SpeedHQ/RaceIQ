@@ -8,7 +8,7 @@ export interface E2ERuntime {
   serverSet: E2EServerSet;
   devServer: boolean;
   screenshotOnly: boolean;
-  seededScreenshots: boolean;
+  uiScreenshots: boolean;
   parallelScreenshotRun: boolean;
   screenshotWorkers: number;
   testWorkers: number;
@@ -59,7 +59,7 @@ function dataDir(value: string | undefined, fallback: string): string {
 const serverMode = readServerMode();
 const serverSet = readServerSet();
 const screenshotOnly = process.env.PW_SCREENSHOT_ONLY === "1";
-const seededScreenshots = process.env.PW_SEED_SCREENSHOTS === "1";
+const uiScreenshots = process.env.PW_UI_SCREENSHOTS === "1";
 
 // Stateful E2E flows share one server-side telemetry/replay stream.
 const defaultTestWorkers = 1;
@@ -71,7 +71,7 @@ export const runtime: E2ERuntime = {
   serverSet,
   devServer: serverMode === "dev",
   screenshotOnly,
-  seededScreenshots,
+  uiScreenshots,
   parallelScreenshotRun: screenshotOnly && seededScreenshots,
   screenshotWorkers: readPositiveWorkers(),
   testWorkers,
