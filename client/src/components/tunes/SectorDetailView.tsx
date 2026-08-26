@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricDef, tuneMetricValue } from "./SectorRangeBreakdown";
+import type { SemanticTuneSample } from "./semantic-tune";
 
 interface SectorTimes {
   times: number[];
@@ -12,7 +12,7 @@ interface SectorTimes {
 }
 
 interface SectorDetailViewProps {
-  telemetry: TelemetryPacket[];
+  telemetry: SemanticTuneSample[];
   sectorTimes: SectorTimes | null;
   sectorIndex: number;
   trackOrdinal?: number;
@@ -36,21 +36,24 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
   const [markFrac, setMarkFrac] = useState<number | null>(null);
   const cursorFrame = hoverIdx != null ? telemetry[hoverIdx] : null;
 
-  const readout = (frame: TelemetryPacket) =>
-    CORNERS.map((c) => {
-      const v = METRICS[0].sel[c](frame);
-      const ok = v != null && Number.isFinite(v);
-      return { label: c, value: ok ? `${v!.toFixed(1)} °C` : "—", color: ok ? bandColor(v!) : undefined };
+  const readout = (frame: SemanticTuneSample) =>
+    CORNERS.map((corner, index) => {
+      const value = tuneMetricValue(frame, METRICS[0], index);
+      return {
+        label: corner,
+        value: value === undefined ? "—" : `${value.toFixed(1)} °C`,
+        color: value === undefined ? undefined : bandColor(value),
+      };
     });
 
-  const cursorFor = (sel: Record<CornerKey, (p: TelemetryPacket) => number | undefined>): Partial<Record<CornerKey, number>> | undefined => {
+  const cursorFor = (metric: MetricDef): Partial<Record<CornerKey, number>> | undefined => {
     if (!cursorFrame) return undefined;
-    const out: Partial<Record<CornerKey, number>> = {};
-    for (const c of CORNERS) {
-      const v = sel[c](cursorFrame);
-      if (v != null && Number.isFinite(v)) out[c] = v;
+    const values: Partial<Record<CornerKey, number>> = {};
+    for (let index = 0; index < CORNERS.length; index++) {
+      const value = tuneMetricValue(cursorFrame, metric, index);
+      if (value !== undefined) values[CORNERS[index]] = value;
     }
-    return out;
+    return values;
   };
 
   const sectorTime = sectorTimes && sectorTimes.times[sectorIndex] > 0 ? sectorTimes.times[sectorIndex].toFixed(3) : "—";
@@ -124,7 +127,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
                   {Math.round(model.domain[0])}–{Math.round(model.domain[1])} {m.unit}
                 </span>
               </div>
-              <CornerBars ranges={model.sectors[sectorIndex]} domain={model.domain} metric={m} cursor={cursorFor(m.sel)} />
+              <CornerBars ranges={model.sectors[sectorIndex]} domain={model.domain} metric={m} cursor={cursorFor(m)} />
             </div>
           );
         })}

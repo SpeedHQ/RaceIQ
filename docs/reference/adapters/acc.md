@@ -71,6 +71,7 @@ The packed bytes enter the common session recorder. Replay and import call the s
 - Shared memory is Windows-local; ACC Broadcasting Protocol uses a separate localhost UDP registration.
 - Graphics and physics pages update independently. A packed triplet is a snapshot of the latest page values, not an atomic simulator transaction.
 - ACC reports `completedLaps` late. Lap detection uses the current-lap timer reset instead of treating that counter as the boundary. See [Lap detection](../../architecture/lap-detection.md).
+- ACC SDK reserves physics `tyreWear[4]` fields but marks them unused. RaceIQ reports tire wear and degradation unavailable instead of treating zero placeholders as fresh tyres.
 - Extended ACC layouts may grow. Keep minimum-size checks and optional reads aligned with `server/games/acc/structs.ts`.
 
 ## Implementation map
