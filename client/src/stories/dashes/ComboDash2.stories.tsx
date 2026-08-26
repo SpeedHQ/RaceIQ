@@ -4,7 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { useEffect } from "react";
 import type { GameId } from "../../../../shared/games/ids";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
-import { useGameStore } from "../../stores/game";
+import { gameStore } from "../../stores/game";
 import { fakeAccSemanticFixture, fakeAcEvoSemanticFixture, fakeAllDataTelemetryView, fakeF1SemanticFixture, fakeForzaSemanticFixture, generateFakeSessionLaps } from "../fakeData";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 
@@ -35,7 +35,7 @@ function withRouter(node: React.ReactNode) {
 }
 
 function GameIdSync({ game }: { game: Game }) {
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   useEffect(() => {
     setGameId(game as GameId);
     return () => setGameId(null);

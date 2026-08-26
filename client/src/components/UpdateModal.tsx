@@ -4,7 +4,7 @@ import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
@@ -45,7 +45,7 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
 
   const handleInstall = async () => {
     setError(null);
-    useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
+    telemetryStore.actions.setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
@@ -54,7 +54,7 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : m.update_failed());
-      useTelemetryStore.getState().setUpdateProgress(null);
+      telemetryStore.actions.setUpdateProgress(null);
     }
   };
 

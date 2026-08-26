@@ -4,7 +4,7 @@ import { getTireTemperatureSourceUnit } from "../../../shared/games/telemetry";
 import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
 import { convertTemp } from "../lib/temperature";
 import { useGameId } from "../stores/game";
-import { useTelemetryStore } from "../stores/telemetry";
+import { telemetryStore, } from "../stores/telemetry";
 import { useSettings } from "./settings";
 
 const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
@@ -18,7 +18,7 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  */
 export function useUnits() {
   const { displaySettings } = useSettings();
-  const setDisplayUnits = useTelemetryStore((s) => s.setDisplayUnits);
+  const setDisplayUnits = telemetryStore.actions.setDisplayUnits;
   const gameId = useGameId();
 
   const unit = displaySettings.unit;
