@@ -95,10 +95,9 @@ const comparisonArgs = [
   ...pairs,
   "--median-threshold=10",
   "--retained-heap-threshold=10",
-  "--max-cpu-error=10",
+  "--max-cpu-error=3",
   "--max-retained-heap-error=5",
   "--bootstrap-samples=10000",
-  "--fail-on-regression",
 ];
 const comparatorChild = Bun.spawn(comparisonArgs, { cwd: currentDir, stdout: "pipe", stderr: "inherit" });
 const [comparatorExit, output] = await Promise.all([

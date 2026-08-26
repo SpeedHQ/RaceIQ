@@ -111,4 +111,4 @@ for (const key of Object.keys(pairs[0]!.base.cases).sort()) {
 const context = pairs[0]!.current.context;
 const config = pairs[0]!.current.config;
 console.log(`## ${title}\n\nRuntime: \`${context.runtime}\`; CPU: \`${context.cpu.name}\` (${context.cpu.logicalCount} logical); OS: \`${context.os.platform} ${context.os.release} ${context.os.arch}\`\n\nLaunches: processes=${config.processes}, retainedProcesses=${config.retainedProcesses}, retainedWarmups=${config.retainedWarmups}; warmup=${config.warmupMs}ms, measurement=${config.measurementMs}ms, samples=${config.minSamples}-${config.maxSamples}; caseOrder=${config.caseOrder}\n\n| Case | Baseline median | Current median | Estimated change (95% CI) | CI margin | Result |\n|---|---:|---:|---:|---:|---|\n${rows.join("\n")}`);
-if (regression && args.includes("--fail-on-regression")) process.exit(1);
+if ((regression || inconclusive) && args.includes("--fail-on-regression")) process.exit(1);
