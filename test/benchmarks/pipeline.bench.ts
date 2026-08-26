@@ -1,49 +1,19 @@
-import { run, bench, group, do_not_optimize, measure } from "mitata";
-import { B } from "mitata/src/main.mjs";
+import { bench, group, do_not_optimize } from "mitata";
 
-// Mitata's `run(opts)` does NOT forward sampling options to measurement. Its default
-// `min_cpu_time` is 642ms per bench — async benches end up doing millions of iters and
-// 30+ seconds each. Patch B.prototype.run to call measure() directly with our caps.
-const BENCH_OPTS = { min_samples: 10, max_samples: 30, batch_samples: 10, min_cpu_time: 50_000_000 };
-type BInternal = {
-  _args: Record<string, unknown[]>; _name: string; _group: number; _gc: string | boolean;
-  _highlight: unknown; flags: number; f: unknown;
-};
-(B.prototype as unknown as { run: (thrw?: boolean) => Promise<unknown> }).run = async function (this: BInternal, thrw = false) {
-  const isStatic = Object.keys(this._args).length === 0;
-  const tune: Record<string, unknown> = {
-    inner_gc: this._gc === "inner",
-    gc: !this._gc ? false : undefined,
-    heap: globalThis.Bun
-      ? await (async () => { const { memoryUsage } = await import("bun:jsc"); return () => memoryUsage().current; })()
-      : undefined,
-    ...BENCH_OPTS,
-  };
-  const baseline = !!(this.flags & 0x1);
-  const style = { highlight: this._highlight, compact: !!(this.flags & 0x2) };
-  if (isStatic) {
-    let stats: Awaited<ReturnType<typeof measure>> | undefined;
-    let error: unknown;
-    try { stats = await measure(this.f as Parameters<typeof measure>[0], tune as unknown as Parameters<typeof measure>[1]); }
-    catch (err) { error = err; if (thrw) throw err; }
-    return { kind: "static", args: this._args, alias: this._name, group: this._group, baseline,
-      runs: [{ stats, error, args: {}, name: this._name }], style };
-  }
-  throw new Error("parametric benches not supported in patched run()");
-};
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
+import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
 import { readUdpDump } from "../support/recordings/udp";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
 import { readKunosFrames } from "../../server/games/kunos/frame-reader";
-import { getAccCarByModel } from "../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc"
+import { getAccCarByModel } from "../../shared/racing/cars/acc";
+import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
+import { runMitataBenchmarks } from "./mitata-harness";
 
 const t0 = performance.now();
 const elapsed = () => `+${((performance.now() - t0) / 1000).toFixed(2)}s`;
@@ -62,7 +32,10 @@ const fmPackets: ReturnType<typeof fmAdapter.tryParse>[] = [];
 const fmBuffers: Buffer[] = [];
 for (const buf of readUdpDump(FM_DUMP)) {
   const p = fmAdapter.tryParse(buf, null);
-  if (p) { fmPackets.push(p); fmBuffers.push(buf); }
+  if (p) {
+    fmPackets.push(p);
+    fmBuffers.push(buf);
+  }
   if (fmPackets.length >= N_FRAMES) break;
 }
 console.log(`[bench] fm loaded  — ${fmPackets.length} packets (${fmBuffers.length} bufs) ${elapsed()}`);
@@ -94,9 +67,7 @@ const accOpts = {
   carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
   trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
 };
-const accPackets = accFrames
-  .map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts))
-  .filter((p): p is NonNullable<typeof p> => p !== null);
+const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
 // --- Load and extract AC Evo data (same recorder format as ACC) ---
@@ -104,10 +75,10 @@ const ACEVO_DUMP = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.
 const acEvoFrames = readKunosFrames(ACEVO_DUMP, N_FRAMES);
 if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
 const acEvoCache = createAcEvoParserCache();
-const acEvoPackets = acEvoFrames
-  .map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache))
-  .filter((p): p is NonNullable<typeof p> => p !== null);
+const acEvoPackets = acEvoFrames.map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
+
+
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
@@ -131,12 +102,14 @@ stopMaintenanceTasks();
 group("fm", () => {
   let i = 0;
   bench("parse", () => {
-    const buf = fmBuffers[i]; i = (i + 1) % fmBuffers.length;
+    const buf = fmBuffers[i];
+    i = (i + 1) % fmBuffers.length;
     do_not_optimize(fmAdapter.tryParse(buf, null));
   });
   let pi = 0;
   bench("pipeline", async () => {
-    const packet = fmPackets[pi]!; pi = (pi + 1) % fmPackets.length;
+    const packet = fmPackets[pi]!;
+    pi = (pi + 1) % fmPackets.length;
     await fmPipeline.processPacket(packet);
   });
 });
@@ -147,12 +120,16 @@ group("f1", () => {
   bench("parse", () => {
     const buf = f1Buffers[i];
     i++;
-    if (i >= f1Buffers.length) { i = 0; state = f1Adapter.createParserState?.() ?? null; }
+    if (i >= f1Buffers.length) {
+      i = 0;
+      state = f1Adapter.createParserState?.() ?? null;
+    }
     do_not_optimize(f1Adapter.tryParse(buf, state));
   });
   let pi = 0;
   bench("pipeline", async () => {
-    const packet = f1Packets[pi]!; pi = (pi + 1) % f1Packets.length;
+    const packet = f1Packets[pi]!;
+    pi = (pi + 1) % f1Packets.length;
     await f1Pipeline.processPacket(packet);
   });
 });
@@ -160,12 +137,14 @@ group("f1", () => {
 group("acc", () => {
   let i = 0;
   bench("parse", () => {
-    const f = accFrames[i]; i = (i + 1) % accFrames.length;
+    const f = accFrames[i];
+    i = (i + 1) % accFrames.length;
     do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts));
   });
   let pi = 0;
   bench("pipeline", async () => {
-    const packet = accPackets[pi]!; pi = (pi + 1) % accPackets.length;
+    const packet = accPackets[pi]!;
+    pi = (pi + 1) % accPackets.length;
     await accPipeline.processPacket(packet);
   });
 });
@@ -174,30 +153,29 @@ group("ac-evo", () => {
   let i = 0;
   const parseCache = createAcEvoParserCache();
   bench("parse", () => {
-    const f = acEvoFrames[i]; i = (i + 1) % acEvoFrames.length;
+    const f = acEvoFrames[i];
+    i = (i + 1) % acEvoFrames.length;
     do_not_optimize(parseAcEvoBuffers(f.physics, f.graphics, f.staticData, parseCache));
   });
   let pi = 0;
   bench("pipeline", async () => {
-    const packet = acEvoPackets[pi]!; pi = (pi + 1) % acEvoPackets.length;
+    const packet = acEvoPackets[pi]!;
+    pi = (pi + 1) % acEvoPackets.length;
     await acEvoPipeline.processPacket(packet);
   });
 });
 
+
+
 console.log(`[bench] starting run ${elapsed()}`);
-// Silence pipeline logging (lap detector / session / sector spam) during mitata iterations.
+// Silence pipeline logging (lap detector / session / sector spam) during Mitata iterations.
 const _origLog = console.log;
 const _origWarn = console.warn;
 console.log = () => {};
 console.warn = () => {};
-// Iteration cap is applied via the B.prototype.run patch above; no options passed to run().
-const results = await run();
+await runMitataBenchmarks("bench-results.json");
 console.log = _origLog;
 console.warn = _origWarn;
-
-// Strip raw sample arrays (can be millions of entries → 30+MB files)
-const slim = JSON.parse(JSON.stringify(results), (k, v) => (k === "samples" || k === "ticks" ? undefined : v));
-await Bun.write("bench-results.json", JSON.stringify(slim, null, 2));
 console.log(`[bench] results written to bench-results.json ${elapsed()}`);
 
 process.exit(0);

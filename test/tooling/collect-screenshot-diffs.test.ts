@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import { collectScreenshotDiffs } from "../../scripts/ui/collect-screenshot-diffs";
 
 const tempDirs: string[] = [];
 
@@ -36,6 +37,10 @@ async function writeRawPng(path: string, pixels: Buffer, width: number, height: 
   await sharp(pixels, { raw: { width, height, channels: 4 } }).png().toFile(path);
 }
 
+function collect(baseDir: string, currentDir: string, outDir: string) {
+  return collectScreenshotDiffs({ baseDir, currentDir, outDir, prefix: "responsive" });
+}
+
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -55,25 +60,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(base, "desktop", "removed-page.png"), { r: 255, g: 0, b: 255 });
     await writePng(join(current, "results", "transient.png"), { r: 0, g: 255, b: 255 });
 
-    const proc = Bun.spawn(
-      [
-        "bun",
-        "scripts/ui/collect-screenshot-diffs.ts",
-        "--base",
-        base,
-        "--current",
-        current,
-        "--out",
-        out,
-        "--prefix",
-        "responsive",
-      ],
-      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-    );
-    const exitCode = await proc.exited;
-    const stderr = await new Response(proc.stderr).text();
-
-    expect(exitCode, stderr).toBe(0);
+    await collect(base, current, out);
     expect(readdirSync(out).sort()).toEqual([
       "added--responsive--tablet--new-page-after.png",
       "added--responsive--tablet--new-page-before.png",
@@ -143,12 +130,7 @@ describe("collect-screenshot-diffs", () => {
       .png()
       .toFile(join(current, "desktop", "antialias.png"));
 
-    const proc = Bun.spawn(
-      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
-      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-    );
-
-    expect(await proc.exited).toBe(0);
+    await collect(base, current, out);
     expect(readdirSync(out)).toEqual([]);
   });
 
@@ -170,12 +152,7 @@ describe("collect-screenshot-diffs", () => {
     await writeRawPng(join(base, "desktop", "isolated.png"), pixels, width, height);
     await writeRawPng(join(current, "desktop", "isolated.png"), currentPixels, width, height);
 
-    const proc = Bun.spawn(
-      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
-      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-    );
-
-    expect(await proc.exited).toBe(0);
+    await collect(base, current, out);
     expect(readdirSync(out)).toEqual([]);
   });
 
@@ -208,12 +185,7 @@ describe("collect-screenshot-diffs", () => {
     await writeRawPng(join(base, "desktop", "changed.png"), pixels, width, height);
     await writeRawPng(join(current, "desktop", "changed.png"), currentPixels, width, height);
 
-    const proc = Bun.spawn(
-      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
-      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-    );
-
-    expect(await proc.exited).toBe(0);
+    await collect(base, current, out);
     expect(existsSync(join(out, "changed--responsive--desktop--changed-diff.png"))).toBe(true);
   });
 
@@ -226,12 +198,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(base, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 100, 100);
     await writePng(join(current, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 101, 100);
 
-    const proc = Bun.spawn(
-      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
-      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-    );
-
-    expect(await proc.exited).toBe(0);
+    await collect(base, current, out);
     expect(existsSync(join(out, "changed--responsive--desktop--resized-diff.png"))).toBe(true);
   });
 });

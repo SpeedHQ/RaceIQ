@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { F1LiveDashboard } from "../components/f1/F1LiveDashboard";
-import { useGameStore } from "../stores/game";
-import { useTelemetryStore } from "../stores/telemetry";
+import { gameStore, useGameStore } from "../stores/game";
+import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { fakeF1SemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
@@ -17,7 +17,7 @@ queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   // Inject fake state into stores before render
   const { schema, frame, view } = fakeF1SemanticFixture;
-  useTelemetryStore.setState({
+  telemetryStore.setState((prev) => ({ ...prev,
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
@@ -37,9 +37,9 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       detectedGame: { id: "f1-2025", name: "F1 25" },
       currentSession: { id: 1, carOrdinal: 42, trackOrdinal: 7 },
     },
-  });
+  }));
 
-  useGameStore.setState({ gameId: "f1-2025" });
+  gameStore.setState((prev) => ({ ...prev, gameId: "f1-2025" }));
 
   return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
@@ -56,4 +56,4 @@ const meta: Meta<typeof F1LiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof F1LiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

@@ -37,7 +37,7 @@ describe("dev recording routes", () => {
       .map((frame) => {
         const view = buildLiveTelemetryView(schema, frame);
         if (!view) throw new Error("frame failed to decode");
-        return viewToGearingSample(view);
+        return viewToGearingSample(view, true);
       })
       .filter((sample): sample is GearingSample => sample !== null);
 

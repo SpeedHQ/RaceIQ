@@ -1,11 +1,11 @@
 {
   "name": "raceiq",
   "version": "0.13.0",
-  "type": "module",
   "workspaces": [
     "client",
     "playwright"
   ],
+  "type": "module",
   "scripts": {
     "dev": "bun scripts/dev/dev.ts",
     "dev:server": "bun --env-file=.env.development --watch run server/index.ts",
@@ -21,6 +21,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:seed": "bun scripts/data/seed-db.ts",
+    "test:shards": "bun scripts/test/check-shards.ts",
     "test:unit": "bun scripts/test/run-suite.ts unit",
     "test:integration": "bun scripts/test/run-suite.ts integration",
     "test": "bun run test:unit && bun run test:integration",
@@ -33,6 +34,7 @@
     "test:ai": "bun test test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/quality/ai-baseline.ts",
     "bench": "bun test/benchmarks/pipeline.bench.ts",
+    "bench:replay-io": "bun scripts/quality/replay-io-bench.ts",
     "extract:tracks": "bun scripts/games/fm-2023/extract-tracks.ts && bun scripts/games/f1-2025/extract-tracks.ts",
     "extract:tracks:forza": "bun scripts/games/fm-2023/extract-tracks.ts",
     "extract:tracks:f1": "bun scripts/games/f1-2025/extract-tracks.ts",

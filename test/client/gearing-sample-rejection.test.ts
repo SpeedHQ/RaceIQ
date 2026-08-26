@@ -24,14 +24,15 @@ const baseView = (): LiveTelemetryView => ({
   aero: {},
   ers: {},
   damage: {},
-  race: { isRaceOn: true },
+  race: {},
+  session: {},
   competitors: [],
-  stateBySemanticId: {},
+  statusBySemanticId: {},
 });
 
 describe("viewToGearingSample", () => {
   it("adapts a fully resolved view into a canonical gearing sample", () => {
-    const sample = viewToGearingSample(baseView());
+    const sample = viewToGearingSample(baseView(), true);
     expect(sample).not.toBeNull();
     expect(sample?.gameId).toBe("fm-2023");
     expect(sample?.CarOrdinal).toBe(7);
@@ -53,17 +54,15 @@ describe("viewToGearingSample", () => {
     // Presentation converts to the user's unit; the sample itself stays
     // canonical: rpm, watts, Nm, m/s. 10 m/s must not become 36 km/h and
     // 200 kW must not become horsepower.
-    const sample = viewToGearingSample(baseView());
+    const sample = viewToGearingSample(baseView(), true);
     expect(sample?.speedMps).toBe(10);
     expect(sample?.powerW).toBe(200_000);
     expect(sample?.torqueNm).toBe(300);
     expect(sample?.rpm).toBe(5000);
   });
 
-  it("maps isRaceOn=false to raceActive=false instead of rejecting", () => {
-    const view = baseView();
-    view.race = { isRaceOn: false };
-    const sample = viewToGearingSample(view);
+  it("maps raceActive=false onto raceActive=false instead of rejecting", () => {
+    const sample = viewToGearingSample(baseView(), false);
     expect(sample).not.toBeNull();
     expect(sample?.raceActive).toBe(false);
   });
@@ -75,14 +74,13 @@ describe("viewToGearingSample", () => {
       { name: "speed", mutate: (v) => { v.motion.speedMps = undefined; } },
       { name: "power", mutate: (v) => { v.engine.powerW = undefined; } },
       { name: "torque", mutate: (v) => { v.engine.torqueNm = undefined; } },
-      { name: "race state", mutate: (v) => { v.race.isRaceOn = undefined; } },
       { name: "lap", mutate: (v) => { v.timing.lapNumber = undefined; } },
       { name: "distance", mutate: (v) => { v.motion.distanceM = undefined; } },
     ];
     for (const { name, mutate } of missing) {
       const view = baseView();
       mutate(view);
-      expect(viewToGearingSample(view), `${name} missing must reject`).toBeNull();
+      expect(viewToGearingSample(view, true), `${name} missing must reject`).toBeNull();
     }
   });
 
@@ -94,7 +92,7 @@ describe("viewToGearingSample", () => {
     view.engine.idleRpm = undefined;
     view.motion.acceleration = undefined;
     view.identity.carOrdinal = undefined;
-    const sample = viewToGearingSample(view);
+    const sample = viewToGearingSample(view, true);
     expect(sample).not.toBeNull();
     expect(sample?.Accel).toBe(0);
     expect(sample?.Brake).toBe(0);
@@ -143,7 +141,7 @@ describe("resolver projection to gearing sample", () => {
   it("projects resolver values through the view into a canonical sample", () => {
     const view = buildLiveTelemetryView(schema, frame());
     expect(view).toBeDefined();
-    const sample = viewToGearingSample(view!);
+    const sample = viewToGearingSample(view!, true);
     expect(sample).not.toBeNull();
     expect(sample?.Gear).toBe(3);
     expect(sample?.rpm).toBe(5000);
@@ -157,13 +155,13 @@ describe("resolver projection to gearing sample", () => {
     // Stale gear (index 4) -> inputs.gear undefined in the view -> reject.
     const view = buildLiveTelemetryView(schema, frame({ freshness: { 4: "stale" } }));
     expect(view?.inputs.gear).toBeUndefined();
-    expect(viewToGearingSample(view!)).toBeNull();
+    expect(viewToGearingSample(view!, true)).toBeNull();
   });
 
   it("rejects the sample when a required semantic failed to resolve", () => {
     // Missing power (index 8) -> engine.powerW undefined -> reject.
     const view = buildLiveTelemetryView(schema, frame({ states: { 8: "missing" } }));
     expect(view?.engine.powerW).toBeUndefined();
-    expect(viewToGearingSample(view!)).toBeNull();
+    expect(viewToGearingSample(view!, true)).toBeNull();
   });
 });

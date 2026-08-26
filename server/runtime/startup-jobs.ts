@@ -1,5 +1,4 @@
 import { startCommunityTunesSync } from "../tunes/community-sync";
-import { startLaptimesSync } from "../sync/laptimes";
 import { countStaleSessions } from "../db/session-queries";
 import { countStaleRaceResults } from "../db/session-result-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
@@ -7,6 +6,7 @@ import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
 import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
 import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { getAllServerGames } from "../games/registry";
 import { wsManager } from "./websocket-manager";
 import { startSessionCompressor } from "../session-capture/compressor";
 import { startUpdateCheckSchedule } from "./update/check";
@@ -20,7 +20,6 @@ const ALL_DETECTOR_IDS = [
 
 export interface StartupJobDependencies {
   startCommunityTunesSync?: () => void;
-  startLaptimesSync?: () => void;
   startSessionCompressor?: () => void;
   startUpdateCheckSchedule?: () => void;
   countStaleSessions?: typeof countStaleSessions;
@@ -29,9 +28,11 @@ export interface StartupJobDependencies {
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
-  (dependencies.startLaptimesSync ?? startLaptimesSync)();
 
-  (dependencies.countStaleSessions ?? countStaleSessions)(ALL_DETECTOR_IDS).then((count) => {
+  (dependencies.countStaleSessions ?? countStaleSessions)(
+    ALL_DETECTOR_IDS,
+    getAllServerGames().map((adapter) => adapter.id),
+  ).then((count) => {
     if (count > 0) {
       console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
       wsManager.setStaleSessionsNotification({

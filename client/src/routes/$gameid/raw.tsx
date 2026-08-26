@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { RawTelemetry } from "../../components/RawTelemetry";
 import { gameIdForRoutePrefix } from "../../lib/game-routes";
-import { useDevTelemetryStore } from "../../stores/dev-telemetry";
+import { devTelemetryStore, useDevTelemetryStore } from "../../stores/dev-telemetry";
 
 type PageKey = "physics" | "graphics" | "staticData";
 
@@ -106,8 +106,8 @@ function GenericRawPage() {
   const subscribed = useDevTelemetryStore((s) => s.subscribed);
   const packet = useDevTelemetryStore((s) => s.packet);
   useEffect(() => {
-    useDevTelemetryStore.getState().setSubscriptionWanted(true);
-    return () => useDevTelemetryStore.getState().setSubscriptionWanted(false);
+    devTelemetryStore.actions.setSubscriptionWanted(true);
+    return () => devTelemetryStore.actions.setSubscriptionWanted(false);
   }, []);
   return (
     <div className="flex-1 overflow-hidden" data-testid="raw-telemetry-page" data-subscribed={subscribed ? "true" : "false"}>
@@ -125,8 +125,8 @@ function AcEvoRawPage() {
   const packet = useDevTelemetryStore((s) => s.packet);
   const subscribed = useDevTelemetryStore((s) => s.subscribed);
   useEffect(() => {
-    useDevTelemetryStore.getState().setSubscriptionWanted(true);
-    return () => useDevTelemetryStore.getState().setSubscriptionWanted(false);
+    devTelemetryStore.actions.setSubscriptionWanted(true);
+    return () => devTelemetryStore.actions.setSubscriptionWanted(false);
   }, []);
   const [view, setView] = useState<"parsed" | "hex" | "fields" | "verify">("parsed");
   const [page, setPage] = useState<PageKey>("graphics");

@@ -10,7 +10,7 @@ import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
-import { useUiStore } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 import { HomePageView } from "./HomePageView";
 import type { GameStats, PeriodKey, PeriodStats } from "./types";
 
@@ -21,7 +21,7 @@ export function HomePageContainer() {
   const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
-  const { openSettings } = useUiStore();
+  const { openSettings } = uiStore.actions;
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
   const latestSession = useMemo(() => {

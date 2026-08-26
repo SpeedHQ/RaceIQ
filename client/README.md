@@ -1,6 +1,6 @@
 # Client
 
-`client/` contains RaceIQ browser UI: React views, TanStack Router route definitions, TanStack Query server state, Zustand client state, shared UI primitives, and Storybook fixtures. Keep browser presentation here; server telemetry computation and authoritative session state stay outside this package.
+`client/` contains RaceIQ browser UI: React views, TanStack Router route definitions, TanStack Query server state, TanStack Store client state, shared UI primitives, and Storybook fixtures. Keep browser presentation here; server telemetry computation and authoritative session state stay outside this package.
 
 ## Boundaries
 

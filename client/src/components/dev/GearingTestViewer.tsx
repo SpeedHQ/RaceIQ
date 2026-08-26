@@ -49,7 +49,7 @@ export function GearingTestViewer() {
 
   const samples = useMemo(
     () => views
-      .map((view) => viewToGearingSample(view))
+      .map((view) => viewToGearingSample(view, true))
       // Frames missing required semantics are rejected, like live ingestion.
       .filter((sample): sample is GearingSample => sample !== null),
     [views, units],

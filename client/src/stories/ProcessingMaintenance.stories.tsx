@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect } from "react";
 import { ProcessingMaintenance } from "../components/ProcessingMaintenance";
 import { initialReprocessState, type ReprocessState } from "../lib/reprocess-state";
-import { useTelemetryStore } from "../stores/telemetry";
+import { telemetryStore } from "../stores/telemetry";
 
 type StoryState = {
   lapStale: number | null;
@@ -14,18 +14,18 @@ type StoryState = {
 
 function MaintenanceStory({ state }: { state: StoryState }) {
   useEffect(() => {
-    const store = useTelemetryStore.getState();
-    store.setStaleLapDetection(state.lapStale == null ? null : { sessionCount: state.lapStale, currentVersion: "lapdetector-v3" });
-    useTelemetryStore.setState({ reprocessState: state.lapReprocess });
-    store.setStaleRaceResults(state.raceStale == null ? null : { sessionCount: state.raceStale, currentVersion: "race-result-v2" });
-    store.setRaceResultReprocessProgress(state.raceProgress);
-    store.setRaceResultReprocessError(state.raceError);
+    const store = telemetryStore.get();
+    telemetryStore.actions.setStaleLapDetection(state.lapStale == null ? null : { sessionCount: state.lapStale, currentVersion: "lapdetector-v3" });
+    telemetryStore.setState((prev) => ({ ...prev, reprocessState: state.lapReprocess }));
+    telemetryStore.actions.setStaleRaceResults(state.raceStale == null ? null : { sessionCount: state.raceStale, currentVersion: "race-result-v2" });
+    telemetryStore.actions.setRaceResultReprocessProgress(state.raceProgress);
+    telemetryStore.actions.setRaceResultReprocessError(state.raceError);
     return () => {
-      store.setStaleLapDetection(null);
-      useTelemetryStore.setState({ reprocessState: initialReprocessState });
-      store.setStaleRaceResults(null);
-      store.setRaceResultReprocessProgress(null);
-      store.setRaceResultReprocessError(null);
+      telemetryStore.actions.setStaleLapDetection(null);
+      telemetryStore.setState((prev) => ({ ...prev, reprocessState: initialReprocessState }));
+      telemetryStore.actions.setStaleRaceResults(null);
+      telemetryStore.actions.setRaceResultReprocessProgress(null);
+      telemetryStore.actions.setRaceResultReprocessError(null);
     };
   }, [state]);
 

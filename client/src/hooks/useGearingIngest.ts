@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTelemetryStore } from "../stores/telemetry";
 import { useUnits } from "./useUnits";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
@@ -28,13 +29,12 @@ const TOP_SPEED_STOP_RATIO = 0.98;
  * and a `?? 0` fallback would fabricate real values that corrupt the dyno
  * accumulators and lap traces.
  */
-export function viewToGearingSample(view: LiveTelemetryView): GearingSample | null {
+export function viewToGearingSample(view: LiveTelemetryView, raceActive: boolean): GearingSample | null {
   const gear = view.inputs.gear;
   const rpm = view.engine.rpm;
   const speedMps = view.motion.speedMps;
   const powerW = view.engine.powerW;
   const torqueNm = view.engine.torqueNm;
-  const isRaceOn = view.race?.isRaceOn;
   const lapNumber = view.timing.lapNumber;
   const distanceM = view.motion.distanceM;
   if (
@@ -43,7 +43,6 @@ export function viewToGearingSample(view: LiveTelemetryView): GearingSample | nu
     speedMps === undefined ||
     powerW === undefined ||
     torqueNm === undefined ||
-    isRaceOn === undefined ||
     lapNumber === undefined ||
     distanceM === undefined
   ) {
@@ -57,7 +56,7 @@ export function viewToGearingSample(view: LiveTelemetryView): GearingSample | nu
     Accel: view.inputs.throttle ?? 0,
     Brake: view.inputs.brake ?? 0,
     Gear: gear,
-    raceActive: isRaceOn,
+    raceActive,
     rpm,
     EngineMaxRpm: view.engine.maxRpm ?? 0,
     EngineIdleRpm: view.engine.idleRpm ?? 0,
@@ -119,6 +118,7 @@ export function sourceSampleAccept(clock: SourceSampleClock, frame: { sequence: 
  * missing required semantics are rejected before they reach the accumulators.
  */
 export function useGearingIngest(view: LiveTelemetryView | null, options: { autoStopTopSpeed?: () => number } = {}) {
+  const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const { autoStopTopSpeed } = options;
   const units = useUnits();
   const sampleClock = useRef<SourceSampleClock>({ streamId: null, lastSequence: -1, lastObservedAtMs: 0 });
@@ -126,7 +126,7 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
   useEffect(() => {
     if (!view) return;
     if (!sourceSampleDue(sampleClock.current, view)) return;
-    const packet = viewToGearingSample(view);
+    const packet = viewToGearingSample(view, isRaceOn);
     if (!packet) return; // required semantics unavailable — reject, don't fabricate zeros
     sourceSampleAccept(sampleClock.current, view);
     trackGearingMaxSpeed(packet);
@@ -153,5 +153,5 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
       return; // sample at/above top speed is dirty — drop it
     }
     ingestGearingTelemetry(packet);
-  }, [view, autoStopTopSpeed, units]);
+  }, [view, autoStopTopSpeed, units, isRaceOn]);
 }

@@ -41,7 +41,13 @@ export class LapDetectorIRacing implements ILapDetector {
   private lastActivePacketTime = 0;
 
   constructor(options: LapDetectorOptions) {
-    this.detector = new LapDetector(options);
+    // Live iRacing frames are already gated by IsOnTrack. Its SDK source may
+    // drain a short queued burst after lap persistence, so wall-clock packet
+    // rate is not a valid activity signal and must not drop the lap boundary.
+    this.detector = new LapDetector({
+      ...options,
+      bypassPacketRateFilter: true,
+    });
   }
 
   get session(): SessionState | null {

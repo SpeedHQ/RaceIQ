@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
-import { useGameStore } from "../stores/game";
-import { useTelemetryStore } from "../stores/telemetry";
-import { fakeForzaDisplayPacket, fakeForzaPacket, fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { gameStore } from "../stores/game";
+import { telemetryStore } from "../stores/telemetry";
+import { fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -13,13 +13,11 @@ queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeForzaSemanticFixture;
-  useTelemetryStore.setState({
+  telemetryStore.setState({
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
     telemetryView: view,
-    rawPacket: fakeForzaPacket,
-    packet: fakeForzaDisplayPacket,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,
@@ -37,7 +35,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
     },
   });
 
-  useGameStore.setState({ gameId: "fm-2023" });
+  gameStore.setState((prev) => ({ ...prev, gameId: "fm-2023" }));
 
   return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
@@ -54,4 +52,4 @@ const meta: Meta<typeof ForzaLiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof ForzaLiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

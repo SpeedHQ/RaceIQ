@@ -3,8 +3,6 @@ import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
-import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
@@ -12,6 +10,7 @@ import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from ".
 import { useLapIssues } from "../../../hooks/tunes";
 import { useLapSemanticTelemetry } from "../../../hooks/laps";
 import { useStintTraces } from "../../../hooks/useStintTraces";
+import { semanticSamples, type SemanticTuneSample } from "../semantic-tune";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -117,7 +116,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])), states: {}, freshness: {} })) ?? null}
+      focusTelemetry={semanticSamples(gameId, focusTel?.envelopes)}
       focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
       edges={edges}
       corners={corners ?? []}
@@ -139,7 +138,7 @@ export interface TrackFocusViewInnerProps {
   bestLapId: number | null;
   focusLapId: number | null;
   onFocusLap: (lapId: number) => void;
-  focusTelemetry: SemanticAnalysisFrame[] | null;
+  focusTelemetry: SemanticTuneSample[] | null;
   focusSectorTimes: SectorTimesLite | null;
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
@@ -272,8 +271,8 @@ export function TrackFocusViewInner({
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
               <TrackFocusMap
-                telemetry={focusTelemetry as unknown as TelemetryPacket[]}
-                sectorTimes={focusSectorTimes as unknown as SectorTimesLite}
+                telemetry={focusTelemetry}
+                sectorTimes={focusSectorTimes}
                 edges={edges}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}

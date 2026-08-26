@@ -15,61 +15,56 @@ concurrency:
 
 jobs:
   bench:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - whitesmith-windows-x64
+      - 4VCPU
+      - 15G
+    defaults:
+      run:
+        shell: powershell
     steps:
       - name: Checkout PR
         uses: actions/checkout@v7
         with:
           path: pr
-
       - name: Checkout base (main)
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
-
       - uses: oven-sh/setup-bun@v2
-
-      - name: Run bench on base
-        working-directory: base
+        with:
+          bun-version: 1.3.14
+      - name: Install benchmark dependencies
         run: |
+          $ErrorActionPreference = "Stop"
+          Push-Location pr
           bun install --frozen-lockfile
-          bun run test/benchmarks/pipeline.bench.ts
-          mv bench-results.json ../base-results.json
-
-      - name: Run bench on PR
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Push-Location base
+          bun install --no-save --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          New-Item -ItemType Directory -Force reports | Out-Null
+      - name: Run counterbalanced benchmark rounds
         working-directory: pr
         run: |
-          bun install --frozen-lockfile
-          bun run test/benchmarks/pipeline.bench.ts
-          mv bench-results.json ../pr-results.json
-
-      - name: Compare
-        id: compare
-        working-directory: pr
-        run: |
-          bun scripts/quality/bench-compare.ts ../base-results.json ../pr-results.json --threshold=5 > ../comparison.md
-          cat ../comparison.md
-          cat ../comparison.md >> "$GITHUB_STEP_SUMMARY"
-          {
-            echo 'body<<EOF'
-            cat ../comparison.md
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Find existing comment
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        id: find
-        uses: peter-evans/find-comment@v4
+          $ErrorActionPreference = "Stop"
+          bun run scripts/quality/run-bench-ci.ts --base=../base --current=. --reports=../reports
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload benchmark comment
+        uses: actions/upload-artifact@v7
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: "## Bench comparison"
-
-      - name: Comment on PR (create or update)
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: peter-evans/create-or-update-comment@v5
+          name: benchmark-comment
+          path: reports/comparison.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-id: ${{ steps.find.outputs.comment-id }}
-          body: ${{ steps.compare.outputs.body }}
-          edit-mode: replace
+          name: benchmark-reports
+          path: |
+            reports/*.json
+            reports/*.md

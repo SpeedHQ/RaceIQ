@@ -1,22 +1,31 @@
 ## Unreleased
 
 ### Breaking
+
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
 
 ### Features
+
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
+- Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 - Show FM23 live gearing with power and torque curves, shift points, and mph/kmh gear-ratio charts
 ### Fixes
+- Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
+- Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
+- Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
+- Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
 - Raise Windows timer resolution during ACC, AC Evo, and iRacing capture so native polling no longer collapses onto the default timer tick
 - Make stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
+- Skip recordings from games unavailable in the current RaceIQ build during stale-session checks and bulk reprocessing
 - Skip unavailable raw captures during stale-session reprocessing instead of failing the entire maintenance run
 - Keep newly started session captures from being removed by concurrent storage cleanup
 - Open RaceIQ faster by skipping unnecessary historical race-result work during startup
@@ -28,8 +37,11 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
+- Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
+- Show iRacing lateral G-force on the correct side during turns
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
+- Restore the moving car pointer on iRacing Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
@@ -37,6 +49,7 @@
 - Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
 - Align game metric contracts with catalog-backed semantic bindings; show Forza source-native Grip Ask and normalized lateral slip while hiding unsupported physical metrics.
 - Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
+- Keep semantic live dashboards accurate across temperature units, unavailable tire channels, pit state, tire compounds, grip history, and traction indicators
 - Resolve car and track names on the global home page in each lap's game context
 - Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
@@ -59,6 +72,8 @@
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
+- Keep overlapping Compare lap markers on one shared map position instead of visually separating red and blue dots
+- Render Compare overview hover as one white dot while retaining separate lap dots in the zoomed map
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
@@ -70,13 +85,20 @@
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
+- Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 - Show FM23 unit-aware top speed and gear ratios in tune forms and stamp cloned community tunes as imperial
+- Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+- Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
+- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
+- Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
+- Replace first-party Zustand stores with TanStack Store and add development-only unified TanStack Devtools panels
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
+- Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
 - Keep benchmark comparison checks green for fork pull requests when comment permissions are read-only
 - Speed Storybook visual snapshot CI with a test-optimized static build and concurrent workers
 - Replace Biome with Oxc for repository linting and formatting
@@ -85,6 +107,8 @@
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
+- Cache prepared Compare course-distance alignment indexes per lap pair and reuse them across base and range requests to reduce repeated spatial work
+- Cover Compare cursor and map-marker alignment with focused unit and seeded browser regressions
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog
@@ -107,6 +131,7 @@
 ## v0.14.0 - 2026-08-05
 
 ### Features
+
 - Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
 - Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
 - Import MoTeC logs as normal sessions for analysis, comparison, and experiments
@@ -121,6 +146,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+
 - Keep unfinished game integrations and experiments out of production releases
 - Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
 - Show actionable guidance when AI provider, credentials, or model configuration is incomplete
@@ -133,6 +159,7 @@
 - Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
 
 ### Internal
+
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
 - Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
@@ -153,6 +180,7 @@
 ## v0.13.0 - 2026-07-16
 
 ### Features
+
 - New lap insight detectors and server-side computation
 - Static corner names and sector data from track geometry
 - Session recap card with sector-coloured track map
@@ -160,9 +188,11 @@
 - AC Evo car and track extraction updates
 
 ### Fixes
+
 - Separate Power and Torque rows in analysis
 - Correct ACC centreline for corner detection
 - Correct AC Evo track and car resolution
 
 ### Internal
+
 - Backfilled from the pre-changelog GitHub release body
