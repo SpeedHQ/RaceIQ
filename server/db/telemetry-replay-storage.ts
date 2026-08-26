@@ -188,7 +188,7 @@ export const _telemetryCacheForTest = {
   resetMaxBytes: () => {
     cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
   },
-  keys: () => Array.from(telemetryCache.keys()),
+  keys: () => Array.from(telemetryCache.keys()).filter((key) => key.startsWith("lap:")).map((key) => Number(key.slice(4))),
   comparisonKeys: () => Array.from(telemetryCache.keys()).filter((key) => key.startsWith("comparison:")),
   estimateBytes,
 };
