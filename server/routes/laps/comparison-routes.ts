@@ -80,12 +80,6 @@ export const comparisonRoutes = new Hono()
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
-    const toSamples = (replay: typeof replayA) =>
-      replay.envelopes.map((envelope) => ({
-        sequence: envelope.sequence.toString(),
-        observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
-        values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
-      }));
     const hasTireWearA = replayA.envelopes.some((envelope) =>
       envelope.values.some(
         (entry) =>
@@ -142,8 +136,6 @@ export const comparisonRoutes = new Hono()
       },
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
-      telemetryA: toSamples(replayA),
-      telemetryB: toSamples(replayB),
       gameId: lapA.gameId,
     });
     comparisonCacheSet(id1, id2, body);
