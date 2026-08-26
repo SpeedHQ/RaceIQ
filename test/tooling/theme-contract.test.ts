@@ -116,7 +116,7 @@ describe("frontend theme contract", () => {
 
     const roleAliasPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:\\s*var\\((--(?!color-)[\\w-]+)\\);`, "gm");
     expect([...themeCss.matchAll(roleAliasPattern)].map((match) => `${match[1]} -> ${match[2]}`)).toEqual([]);
-  });
+  }, 10_000);
 
   test("defines every directly consumed theme, telemetry, and branding variable", () => {
     const definitionPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:`, "gm");

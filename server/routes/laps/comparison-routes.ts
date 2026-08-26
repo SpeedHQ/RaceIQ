@@ -73,6 +73,18 @@ export const comparisonRoutes = new Hono()
         observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
         values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
       }));
+    const hasTireWearA = replayA.envelopes.some((envelope) =>
+      envelope.values.some(
+        (entry) =>
+          entry.semanticId === "tires.tire-wear" && entry.state === "ok",
+      ),
+    );
+    const hasTireWearB = replayB.envelopes.some((envelope) =>
+      envelope.values.some(
+        (entry) =>
+          entry.semanticId === "tires.tire-wear" && entry.state === "ok",
+      ),
+    );
 
     return c.json({
       lapA: {
@@ -101,8 +113,8 @@ export const comparisonRoutes = new Hono()
         brakeB: result.lapB.brake,
         rpmA: result.lapA.rpm,
         rpmB: result.lapB.rpm,
-        tireWearA: result.lapA.tireWear,
-        tireWearB: result.lapB.tireWear,
+        ...(hasTireWearA ? { tireWearA: result.lapA.tireWear } : {}),
+        ...(hasTireWearB ? { tireWearB: result.lapB.tireWear } : {}),
       },
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,

@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "0e3f52d36667cc4e7fb900dee96a415a5bebb2c2c66661d7e2884a79ec2156f5"
+      "sourceHash": "bed145a1e45d1288f41246dedf04a09dd1278319bccc578e4c393556ae63b5c4"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "a7009306bdfe3d7106541c899a277d0a30469143111cff8d62af6031e1108443",
       "server/games/ac-evo/parser.ts": "f7a301ded1157140cdf546adf82ab91819e2b4fe0839e8b89a3fc5c555fbc4b7",
-      "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
+      "server/games/acc/parser.ts": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0",
       "server/games/f1-2025/f1-state.ts": "68a478884cc4befb7a11e96ce489b1a2e4df0cf20694ba03d5e57c389a50161e",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "3b1d6395b84ea1917db2dd68d2a4949e87fc14baec73c83892870c868bbda4ba"
+    "contentHash": "a74269fbb27db0a7b30514eb08d41b07e10af908ae25c71aff49b542f849b63b"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -49023,29 +49023,9 @@
           "limitations": []
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "fraction",
-          "sources": {
-            "FL": [
-              "TelemetryPacket.TireWearFL"
-            ],
-            "FR": [
-              "TelemetryPacket.TireWearFR"
-            ],
-            "RL": [
-              "TelemetryPacket.TireWearRL"
-            ],
-            "RR": [
-              "TelemetryPacket.TireWearRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc reads 4 stored packet channels. Parser provenance: ACC.Physics.tyreWearFL, ACC.Physics.tyreWearFR, ACC.Physics.tyreWearRL, ACC.Physics.tyreWearRR.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC Shared Memory v1.8.12 reserves tyreWear[4] but explicitly marks it unused; live pages report zero."
         },
         "ac-evo": {
           "kind": "direct",

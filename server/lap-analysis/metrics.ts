@@ -406,9 +406,9 @@ export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined
 /**
  * Worst-tyre wear at lap end, as a percentage worn (0 = new, 100 = fully worn).
  *
- * `TireWearFL/FR/RL/RR` are a 0..1 fraction worn (higher = more worn) on ACC and
- * AC-Evo, and on F1 (which divides its raw 0..100 channel by 100). F1 also sets
- * them to -1 when the channel is unavailable, so negatives are skipped. Reads the
+ * `TireWearFL/FR/RL/RR` are a 0..1 fraction worn (higher = more worn) on
+ * AC Evo and F1 (which divides its raw 0..100 channel by 100). ACC and missing
+ * F1 damage packets use -1 for unavailable wear, so negatives are skipped. Reads the
  * last frame whose four tyres are all finite and ≥ 0 (most worn, and complete at
  * lap end), then reports the single worst tyre × 100.
  *
