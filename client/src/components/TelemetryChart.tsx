@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import { clampVisibleRange, type ChartRange } from "../lib/chart-range";
 import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
 
 interface Props {
@@ -15,7 +16,11 @@ interface Props {
   title?: string;
   fillColors?: (string | null)[];
   onCursorMove?: (distance: number | null) => void;
+  onRangeSelect?: (start: number, end: number) => void;
+  visibleRange?: ChartRange | null;
+  onZoomOut?: () => void;
 }
+
 
 interface DragSel {
   startPx: number;
@@ -33,7 +38,21 @@ function getSync(key: string): uPlot.SyncPubSub {
   return SYNC_INSTANCES.get(key)!;
 }
 
-export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove }: Props) {
+
+export function pixelAlignedCursorBBox(x: number, y: number, size: number): uPlot.BBox {
+  const roundedX = Math.round(x);
+  const roundedY = Math.round(y);
+  return {
+    left: roundedX - size / 2,
+    top: roundedY - size / 2,
+    width: size,
+    height: size,
+  };
+}
+
+const CURSOR_POINT_SIZE = 6;
+
+export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove, onRangeSelect, visibleRange, onZoomOut }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const outerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
@@ -41,7 +60,6 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
   const [dragSel, setDragSel] = useState<DragSel | null>(null);
-
   const buildOpts = useCallback(
     (width: number): uPlot.Options => {
       const series: uPlot.Series[] = [
@@ -74,7 +92,32 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
                 setSeries: true,
               }
             : undefined,
-          drag: { x: true, y: false },
+          points: {
+            size: CURSOR_POINT_SIZE,
+            bbox: (upl: uPlot, seriesIdx: number) => {
+              const index = upl.cursor.idxs?.[seriesIdx];
+              const xValue = index == null ? undefined : upl.data[0]?.[index];
+              const yValue = index == null ? undefined : upl.data[seriesIdx]?.[index];
+              const scale = upl.series[seriesIdx]?.scale;
+              if (
+                index == null ||
+                xValue == null ||
+                yValue == null ||
+                scale == null ||
+                !Number.isFinite(xValue) ||
+                !Number.isFinite(yValue)
+              ) {
+                return { left: -1, top: -1, width: 0, height: 0 };
+              }
+              const valueX = upl.valToPos(xValue, "x");
+              const x = upl.cursor.left ?? valueX;
+              const y = upl.valToPos(yValue, scale);
+              return Number.isFinite(x) && Number.isFinite(y)
+                ? pixelAlignedCursorBBox(x, y, CURSOR_POINT_SIZE)
+                : { left: -1, top: -1, width: 0, height: 0 };
+            },
+          },
+          drag: { x: true, y: false, setScale: false },
         },
         scales: {
           x: { time: false },
@@ -97,6 +140,9 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               // Drag start line overlay
               const over = upl.over;
               let dragging = false;
+              let pointerDownClientX: number | null = null;
+              let pointerDownPlotX: number | null = null;
+              const DRAG_THRESHOLD_PX = 3;
 
               const getOverOffset = (startPx: number): DragSel | null => {
                 const overRect = over.getBoundingClientRect();
@@ -112,41 +158,62 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
               const onDown = (e: PointerEvent) => {
                 dragging = true;
+                pointerDownClientX = e.clientX;
+                pointerDownPlotX = e.offsetX;
                 const sel = getOverOffset(e.offsetX);
                 if (sel) setDragSel(sel);
               };
 
-              const onUp = () => {
-                if (dragging) {
-                  dragging = false;
-                  setDragSel(null);
+              const onUp = (e: PointerEvent) => {
+                if (!dragging) return;
+                dragging = false;
+                setDragSel(null);
+                const moved = pointerDownClientX == null ? 0 : Math.abs(e.clientX - pointerDownClientX);
+                const startPx = pointerDownPlotX;
+                pointerDownClientX = null;
+                pointerDownPlotX = null;
+                const overRect = over.getBoundingClientRect();
+                const endPx = e.clientX - overRect.left;
+                const start = startPx == null ? null : upl.posToVal(startPx, "x");
+                const end = upl.posToVal(endPx, "x");
+                if (moved < DRAG_THRESHOLD_PX) {
+                  return;
+                }
+                if (start != null && end != null && end > start) {
+                  onRangeSelect?.(start, end);
                 }
               };
-
+              const onDoubleClick = (event: MouseEvent) => {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                onZoomOut?.();
+              };
               over.addEventListener("pointerdown", onDown);
               window.addEventListener("pointerup", onUp);
+              over.addEventListener("dblclick", onDoubleClick, true);
 
               cleanupOverlayRef.current = () => {
                 over.removeEventListener("pointerdown", onDown);
                 window.removeEventListener("pointerup", onUp);
+                over.removeEventListener("dblclick", onDoubleClick, true);
               };
             },
           ],
           setCursor: [
             (upl: uPlot) => {
-              if (!onCursorMoveRef.current) return;
               const idx = upl.cursor.idx;
               if (idx != null && idx >= 0 && idx < data.distance.length) {
-                onCursorMoveRef.current(data.distance[idx]);
+                onCursorMoveRef.current?.(data.distance[idx]);
+              } else {
+                onCursorMoveRef.current?.(null);
               }
             },
           ],
         },
       };
-
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance],
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance, onRangeSelect, onZoomOut],
   );
 
   useEffect(() => {
@@ -158,15 +225,22 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
     if (syncKey) getSync(syncKey);
 
-    plotRef.current = new uPlot(buildOpts(rect.width), uplotData, el);
+    const plot = new uPlot(buildOpts(rect.width), uplotData, el);
+    plotRef.current = plot;
+    const domainMin = data.distance[0];
+    const domainMax = data.distance.at(-1);
+    if (visibleRange && domainMin != null && domainMax != null) {
+      const clampedRange = clampVisibleRange(visibleRange, { min: domainMin, max: domainMax });
+      if (clampedRange) plot.setScale("x", clampedRange);
+    }
 
     return () => {
       cleanupOverlayRef.current?.();
       cleanupOverlayRef.current = null;
-      plotRef.current?.destroy();
+      plot.destroy();
       plotRef.current = null;
     };
-  }, [buildOpts, data, syncKey]);
+  }, [buildOpts, data, syncKey, visibleRange]);
 
   // Resize handler
   useEffect(() => {
@@ -193,7 +267,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       {title && (
         <div className="relative flex items-center justify-center px-1 pb-0.5">
           <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
-          <span className="absolute right-1 hidden text-app-caption text-app-text-dim @3xl/workspace:inline">Click &amp; drag to zoom · Double-click to reset</span>
+          <span className="absolute right-1 hidden text-app-caption text-app-text-dim @3xl/workspace:inline">Click &amp; drag to zoom · Double-click to zoom out</span>
         </div>
       )}
       <div ref={outerRef} className="relative w-full">

@@ -11,7 +11,7 @@ type WebServerDefinition = {
   stderr: "pipe";
 };
 
-function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean): WebServerDefinition {
+function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetupData = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
     DATA_DIR: ports.dataDir,
@@ -19,6 +19,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     UDP_PORT: ports.udpPort,
     NODE_ENV: runtime.devServer ? "test" : "production",
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
+    RACEIQ_SEED_SETUP_DATA: seedSetupData ? "1" : "0",
   };
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
@@ -46,7 +47,7 @@ export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
   const servers: WebServerDefinition[] = [];
   if (runtime.needsFreshServer) servers.push(serverDefinition(runtime, runtime.freshInstall, false));
   if (!runtime.screenshotOnly && runtime.needsTunesServer) {
-    servers.push(serverDefinition(runtime, runtime.tunes, true));
+    servers.push(serverDefinition(runtime, runtime.tunes, true, true));
   }
   if (!runtime.screenshotOnly && runtime.needsTunesUnseededServer) {
     servers.push(serverDefinition(runtime, runtime.tunesUnseeded, false));

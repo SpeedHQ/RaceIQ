@@ -3,11 +3,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../shared/games/ids";
 import { ComboDash } from "../components/dashes/ComboDash";
-import { useGameStore } from "../stores/game";
+import { gameStore, } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 
 function ComboDash1Route() {
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   const view = useTelemetryStore((s) => s.telemetryView);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
