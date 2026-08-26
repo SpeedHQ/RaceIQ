@@ -43,6 +43,7 @@ export default defineConfig(({ command }) => {
 
   return {
     envDir: path.resolve(import.meta.dirname, ".."),
+    envPrefix: ["VITE_", "RACEIQ_"],
     plugins: [
       devtools(),
       react(),
