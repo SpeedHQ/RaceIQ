@@ -102,7 +102,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   const toggles: ViewToggles = {
     ...DEFAULT_TOGGLES,
     ...storedToggles,
-    ...(hideControls ? { wheelInfo: false } : {}),
+    ...(hideControls ? { wheelInfo: false, inputs: true } : {}),
   };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 

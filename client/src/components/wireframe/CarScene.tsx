@@ -57,6 +57,32 @@ function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft
   return { x: dirX * scale, z: dirZ * scale };
 }
 
+const MAX_LOAD_TRAIL_SAMPLES = 64;
+
+export function buildLoadTrail(
+  telemetry: SemanticAnalysisFrame[],
+  cursorIdx: number,
+  suspensionRange: { min: number; max: number } | undefined,
+  wb: number,
+  ft: number,
+  rt: number,
+): Array<[number, number]> {
+  const cur = telemetry[cursorIdx];
+  if (!cur) return [];
+  const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
+  const pts: Array<[number, number]> = [];
+  for (let i = cursorIdx; i >= 0 && cursorIdx - i < MAX_LOAD_TRAIL_SAMPLES; i--) {
+    const p = telemetry[i];
+    if (!p) break;
+    const lap = semanticNumber(p, "timing.current-lap") ?? 0;
+    if (lap > endLap || endLap - lap > 1) break;
+    const suspension = normalizedSuspension(p, suspensionRange);
+    const xz = computeLoadDotXZ(suspension, wb, ft, rt);
+    if (xz) pts.push([xz.x, xz.z]);
+  }
+  return pts.reverse();
+}
+
 export function CarScene({
   gameId,
   frame,
@@ -298,22 +324,7 @@ export function CarScene({
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
-  const loadTrail = useMemo(() => {
-    const cur = telemetry[cursorIdx];
-    if (!cur) return [];
-    const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
-    const pts: Array<[number, number]> = [];
-    for (let i = cursorIdx; i >= 0; i--) {
-      const p = telemetry[i];
-      if (!p) break;
-      const lap = semanticNumber(p, "timing.current-lap") ?? 0;
-      if (lap > endLap || endLap - lap > 1) break;
-      const suspension = normalizedSuspension(p, suspensionRange ?? undefined);
-      const xz = computeLoadDotXZ(suspension, wb, ft, rt);
-      if (xz) pts.push([xz.x, xz.z]);
-    }
-    return pts.reverse();
-  }, [telemetry, cursorIdx, wb, ft, rt, suspensionRange]);
+  const loadTrail = useMemo(() => buildLoadTrail(telemetry, cursorIdx, suspensionRange, wb, ft, rt), [telemetry, cursorIdx, suspensionRange, wb, ft, rt]);
 
   return (
     <>

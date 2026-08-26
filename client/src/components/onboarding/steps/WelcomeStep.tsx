@@ -12,12 +12,17 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 
-function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
+export function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
   const values: Record<string, unknown> = {
     "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
     "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
     "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
+    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
+    "timing.current-lap": packet.CurrentLap, "diagnostics.timestamp-ms": packet.TimestampMS,
+    "suspension.norm-suspension-travel": [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR],
+    "tires.tire-slip-ratio": [packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR],
+    "tires.wheel-rotation-speed": [packet.WheelRotationSpeedFL, packet.WheelRotationSpeedFR, packet.WheelRotationSpeedRL, packet.WheelRotationSpeedRR],
+    "tires.tire-wear": [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
   };
   return { values, states: {}, freshness: {} };
@@ -116,13 +121,14 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     return pts.length > 2 ? pts : null;
   }, [telemetry]);
   const packet = telemetry[cursorIdx] ?? telemetry[0];
+  const semanticTelemetry = useMemo(() => telemetry.map(toSemanticFrame), [telemetry]);
   if (!packet) return null;
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
-        frame={toSemanticFrame(packet)}
-        telemetry={telemetry.map(toSemanticFrame)}
+        frame={semanticTelemetry[cursorIdx] ?? semanticTelemetry[0]}
+        telemetry={semanticTelemetry}
         cursorIdx={cursorIdx}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
