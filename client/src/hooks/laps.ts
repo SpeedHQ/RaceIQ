@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { ComparisonData, ComparisonRangeData } from "../../../shared/racing/comparison/types";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -19,6 +20,48 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
+export function useLapComparison(lapAId: number | null, lapBId: number | null) {
+  return useQuery({
+    queryKey: ["lap-comparison", lapAId, lapBId],
+    queryFn: async ({ signal }) => {
+      if (lapAId == null || lapBId == null || lapAId === lapBId) return null;
+      const res = await client.api.laps[":id1"].compare[":id2"].$get(
+        { param: { id1: String(lapAId), id2: String(lapBId) } },
+        { init: { signal } },
+      );
+      if (!res.ok) throw await errorFromResponse(res);
+      return rpcJson<ComparisonData>(res);
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+
+export function useLapComparisonRange(
+  lapAId: number | null,
+  lapBId: number | null,
+  stepMeters: 0.1 | null,
+  start: number | null,
+  end: number | null,
+) {
+  return useQuery({
+    queryKey: ["lap-comparison-range", lapAId, lapBId, stepMeters, start, end],
+    queryFn: async ({ signal }) => {
+      if (lapAId == null || lapBId == null || lapAId === lapBId || stepMeters == null || start == null || end == null) return null;
+      const res = await client.api.laps[":id1"].compare[":id2"].range.$get(
+        {
+          param: { id1: String(lapAId), id2: String(lapBId) },
+          query: { step: String(stepMeters), start: String(start), end: String(end) },
+        },
+        { init: { signal } },
+      );
+      if (!res.ok) throw await errorFromResponse(res);
+      return rpcJson<ComparisonRangeData>(res);
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
 
 export interface SemanticReplayFrame {
   sequence: number;

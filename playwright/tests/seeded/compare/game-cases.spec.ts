@@ -16,7 +16,9 @@ for (const game of SEEDED_GAME_CASES) {
 
     const response = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
     expect(response.ok(), `${game.name} seeded comparison response`).toBe(true);
-    const payload = (await response.json()) as ComparisonData;
+    const body = await response.text();
+    if (game.gameId === "f1-2025") expect(Buffer.byteLength(body, "utf8"), "F1 comparison response size").toBeLessThan(5_000_000);
+    const payload = JSON.parse(body) as ComparisonData;
 
     await page.goto(`/${game.prefix}/compare?track=${pair.trackOrdinal}&carA=${pair.carOrdinal}&carB=${pair.carOrdinal}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`, { waitUntil: "domcontentloaded" });
 
