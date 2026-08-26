@@ -14,7 +14,7 @@ export function normalizeSuspensionTravel(
   range: SuspensionTravelRangeMm = DEFAULT_SUSPENSION_TRAVEL_RANGE_MM,
 ): [number, number, number, number] {
   const span = range.max - range.min;
-  if (span <= 0 || !values) return [0, 0, 0, 0];
+  if (span <= 0 || !Array.isArray(values)) return [0, 0, 0, 0];
   return [0, 1, 2, 3].map((index) => {
     const value = values[index];
     if (typeof value !== "number" || !Number.isFinite(value)) return 0;

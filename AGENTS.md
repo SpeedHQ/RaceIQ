@@ -228,6 +228,9 @@ ran v39 before the `car`/`driver` rename.
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
+### UI screenshot coverage
+
+Any new or materially changed UI element must include deterministic Playwright screenshot coverage. Screenshot tests must mock backend/API data and must not require a live backend, external service, network, or seeded database. Store reviewable baselines under `artifacts/`; keep runtime output under `playwright/screenshots/` untracked. Run focused screenshot coverage before opening or updating a PR.
 
 ### Dependency inspection
 

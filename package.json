@@ -74,6 +74,7 @@
     "@ai-sdk/google": "4.0.20",
     "@ai-sdk/openai": "^4.0.24",
     "@ai-sdk/provider-utils": "^5.0.15",
+    "@googleapis/drive": "21.0.0",
     "@hono/zod-validator": "^0.9.0",
     "@libsql/client": "^0.17.4",
     "@libsql/win32-x64-msvc": "^0.5.29",

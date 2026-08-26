@@ -18,7 +18,7 @@ import { f125Routes } from "./games/f1-2025";
 import { miscRoutes } from "./system";
 import { cacheRoutes } from "./cache-routes";
 import { devRoutes } from "./dev";
-
+import { setupBackupRoutes } from "./setup-backup-routes";
 const app = new Hono()
   // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities
   // with `credentials: "include"`; browsers reject a wildcard ACAO on
@@ -53,7 +53,8 @@ const app = new Hono()
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes)
-  .route("/", cacheRoutes);
+  .route("/", cacheRoutes)
+  .route("/", setupBackupRoutes);
 
 // Fixture import/replay routes stay unavailable in normal production. Compiled
 // Playwright runs opt in explicitly so they exercise the packaged server too.

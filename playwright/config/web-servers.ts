@@ -42,8 +42,19 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     stderr: "pipe",
   };
 }
-
 export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
+  if (runtime.uiScreenshots) {
+    return [{
+      command: "bun --cwd ../client dev --host 0.0.0.0 --port 5173",
+      env: { NODE_ENV: "test" },
+      url: "http://localhost:5173",
+      timeout: 120_000,
+      reuseExistingServer: false,
+      stdout: "pipe",
+      stderr: "pipe",
+    }];
+  }
+
   const servers: WebServerDefinition[] = [];
   if (runtime.needsFreshServer) servers.push(serverDefinition(runtime, runtime.freshInstall, false));
   if (!runtime.screenshotOnly && runtime.needsTunesServer) {
