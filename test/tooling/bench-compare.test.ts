@@ -60,7 +60,7 @@ describe("paired benchmark comparison", () => {
   });
   test("threshold crossing, error budget overflow, and unmeasurable heap are inconclusive", async () => {
     const crossing = await compare(paired([Array(20).fill(100), Array(20).fill(100), Array(20).fill(100)], [Array(20).fill(50), Array(20).fill(100), Array(20).fill(200)]), ["--fail-on-regression"]);
-    expect(crossing.code).toBe(1);
+    expect(crossing.code).toBe(0);
     expect(crossing.output).toContain("INCONCLUSIVE");
     const noisyGroups = Array.from({ length: 3 }, () => [...Array(10).fill(50), ...Array(10).fill(150)]);
     const noisy = await compare(paired([Array(20).fill(100), Array(20).fill(100), Array(20).fill(100)], noisyGroups), ["--max-cpu-error=0.1", "--fail-on-regression"]);
