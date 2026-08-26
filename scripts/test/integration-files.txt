@@ -189,6 +189,7 @@ test/telemetry/telemetry-fidelity.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/tooling/bench-compare.test.ts
+test/tooling/process-bench.test.ts
 test/tooling/changelog.test.ts
 test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/local-ui-diff.test.ts
