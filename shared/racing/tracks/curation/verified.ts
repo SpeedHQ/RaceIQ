@@ -1,34 +1,13 @@
-/**
- * Human-verification ledger for track data.
- *
- * Curated ≠ correct. A roster can be hand-authored and still wrong, and the
- * per-game geometry the app renders can be plain bad (f1-2025 segments are known
- * inaccurate). "Verified" means a human compared the data against a real
- * turn-by-turn guide / circuit map — or, for segments, the committed render in
- * `test/e2e/output/track-segments/<slug>-<gameId>.svg` — and signed it off.
- *
- * Entries are keyed by the **path of the file signed**, relative to the repo root:
- *   - `shared/data/tracks/meta/<slug>.json`              — the shared roster.
- *   - `shared/data/tracks/<gameId>/<slug>-segments.json` — that game's geometry.
- *
- * The key *is* the record of what was checked; nothing else needs to encode kind.
- *
- * Each entry pins a hash of the file it signed off. Change the file and the
- * signature goes **stale** — it stops counting as verified until a human looks
- * again and re-stamps (`bun run tracks:coverage --verify ...`). Nothing here is
- * inferred; entries only ever arrive by a person adding them.
- */
+/** Human-verification ledger for canonical track facts and per-game geometry. */
 
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@shared/games/ids";
-
-export const VERIFIED_FILE = resolve(SHARED_DIR, "tracks", "verified.json");
+import { getTrackRegistry } from "../registry";
+import { updateTrackRegistrySource } from "../registry/update";
+import { loadTrackFacts, loadTrackGeometry } from "../storage/meta";
 
 export interface VerifiedEntry {
-  /** Short sha256 of the file contents at sign-off. */
+  /** Short SHA-256 of normalized registry rows at sign-off. */
   hash: string;
   /** ISO date of sign-off. */
   date: string;
@@ -38,63 +17,73 @@ export interface VerifiedEntry {
   note?: string;
 }
 
-/** Repo-relative file path → sign-off. */
 export type VerifiedLedger = Record<string, VerifiedEntry>;
 
+interface VerificationRow {
+  kind: "meta" | "segments";
+  slug: string;
+  gameId: GameId | "";
+  hash: string;
+  date: string;
+  by: string | null;
+  note: string | null;
+}
+
+export function verifiedKey(kind: "meta" | "segments", slug: string, gameId?: GameId): string {
+  return kind === "meta" ? `meta:${slug}` : `segments:${gameId ?? ""}/${slug}`;
+}
+
 export function loadVerified(): VerifiedLedger {
-  if (!existsSync(VERIFIED_FILE)) return {};
-  return JSON.parse(readFileSync(VERIFIED_FILE, "utf8")) as VerifiedLedger;
+  const rows = getTrackRegistry()
+    .query(`
+    SELECT kind, facts_slug AS slug, game_id AS gameId, data_hash AS hash,
+           verified_date AS date, verified_by AS "by", note
+      FROM curation_verification ORDER BY kind, facts_slug, game_id
+  `)
+    .all() as VerificationRow[];
+  return Object.fromEntries(
+    rows.map((row) => [
+      verifiedKey(row.kind, row.slug, row.gameId || undefined),
+      {
+        hash: row.hash,
+        date: row.date,
+        ...(row.by ? { by: row.by } : {}),
+        ...(row.note ? { note: row.note } : {}),
+      },
+    ]),
+  );
 }
 
 export function saveVerified(ledger: VerifiedLedger): void {
-  const sorted = Object.fromEntries(Object.entries(ledger).sort(([a], [b]) => a.localeCompare(b)));
-  writeFileSync(VERIFIED_FILE, `${JSON.stringify(sorted, null, 2)}\n`);
+  updateTrackRegistrySource((draft) => {
+    draft.verification.entries = ledger;
+  });
 }
 
-/** Ledger key for a verifiable file: its path relative to the repo root. */
-export function verifiedKey(kind: "meta" | "segments", slug: string, gameId?: GameId): string {
-  return kind === "meta"
-    ? `shared/data/tracks/meta/${slug}.json`
-    : `shared/data/tracks/${gameId ?? ""}/${slug}-segments.json`;
-}
-
-/** Absolute path of the file a signature covers, or null if it doesn't exist. */
-export function verifiableFile(kind: "meta" | "segments", slug: string, gameId?: GameId): string | null {
-  const p = resolve(SHARED_DIR, verifiedKey(kind, slug, gameId).replace(/^shared\/data\//, ""));
-  return existsSync(p) ? p : null;
-}
-
-/** Short content hash used as the signature. Null when the file is missing. */
-export function fileHash(path: string | null): string | null {
-  if (!path || !existsSync(path)) return null;
-  return createHash("sha256").update(readFileSync(path)).digest("hex").slice(0, 12);
+/** Hash normalized registry rows for one shared roster or one game's geometry. */
+export function registryDataHash(kind: "meta" | "segments", slug: string, gameId?: GameId): string | null {
+  let value: unknown;
+  if (kind === "meta") {
+    value = loadTrackFacts(slug);
+  } else {
+    if (!gameId) return null;
+    const exists = getTrackRegistry().query("SELECT 1 FROM game_geometry WHERE facts_slug = ? AND game_id = ?").get(slug, gameId);
+    value = exists ? loadTrackGeometry(slug, gameId) : null;
+  }
+  return value ? createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 12) : null;
 }
 
 export type VerifyState = "verified" | "stale" | "unverified";
 
-/** Compare a ledger entry against the file it signed. */
-export function verifyState(
-  ledger: VerifiedLedger,
-  kind: "meta" | "segments",
-  slug: string,
-  gameId?: GameId,
-): VerifyState {
+export function verifyState(ledger: VerifiedLedger, kind: "meta" | "segments", slug: string, gameId?: GameId): VerifyState {
   const entry = ledger[verifiedKey(kind, slug, gameId)];
   if (!entry) return "unverified";
-  return entry.hash === fileHash(verifiableFile(kind, slug, gameId)) ? "verified" : "stale";
+  return entry.hash === registryDataHash(kind, slug, gameId) ? "verified" : "stale";
 }
 
-/** Stamp a sign-off. Throws when the target file doesn't exist. */
-export function stampVerified(
-  kind: "meta" | "segments",
-  slug: string,
-  opts: { gameId?: GameId; by?: string; note?: string; date?: string } = {},
-): VerifiedEntry {
-  const path = verifiableFile(kind, slug, opts.gameId);
-  const hash = fileHash(path);
-  if (!hash) {
-    throw new Error(`no ${kind} file to verify for ${slug}${opts.gameId ? ` (${opts.gameId})` : ""}`);
-  }
+export function stampVerified(kind: "meta" | "segments", slug: string, opts: { gameId?: GameId; by?: string; note?: string; date?: string } = {}): VerifiedEntry {
+  const hash = registryDataHash(kind, slug, opts.gameId);
+  if (!hash) throw new Error(`no ${kind} registry rows to verify for ${slug}${opts.gameId ? ` (${opts.gameId})` : ""}`);
   const entry: VerifiedEntry = {
     hash,
     date: opts.date ?? new Date().toISOString().slice(0, 10),

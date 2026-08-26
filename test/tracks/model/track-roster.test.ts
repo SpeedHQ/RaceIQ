@@ -1,26 +1,27 @@
 /** Committed track facts and geometry roster contracts. */
 import { describe, test, expect } from "bun:test";
-import { readdirSync, readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 import { cornerNumbers, type TrackFacts } from "../../../shared/racing/tracks/facts";
 import type { TrackGeometry } from "../../../shared/racing/tracks/geometry";
 import { checkKeys } from "../../../shared/racing/tracks/curation/join";
-import { SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { loadTrackRegistrySource } from "../../../shared/racing/tracks/registry/source";
 
-const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_IDS = ["fm-2023", "acc", "ac-evo", "f1-2025"] as const;
+const SOURCE = loadTrackRegistrySource();
+const FACTS_BY_SLUG = new Map(SOURCE.facts.facts.map((facts) => [facts.slug, facts]));
 function loadFacts(slug: string): TrackFacts {
-  return JSON.parse(readFileSync(resolve(META_DIR, `${slug}.json`), "utf-8")) as TrackFacts;
+  const facts = FACTS_BY_SLUG.get(slug);
+  if (!facts) throw new Error(`Missing track facts fixture: ${slug}`);
+  return facts;
 }
 function geometryFor(slug: string): Record<string, TrackGeometry> {
   const out: Record<string, TrackGeometry> = {};
   for (const gameId of GAME_IDS) {
-    const path = resolve(SHARED_DIR, "tracks", gameId, `${slug}-segments.json`);
-    if (existsSync(path)) out[gameId] = JSON.parse(readFileSync(path, "utf-8")) as TrackGeometry;
+    const geometry = SOURCE.geometry.geometry.find((entry) => entry.factsSlug === slug && entry.gameId === gameId);
+    if (geometry) out[gameId] = geometry;
   }
   return out;
 }
-const SLUGS = readdirSync(META_DIR).filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", "")).sort();
+const SLUGS = [...FACTS_BY_SLUG.keys()].sort();
 const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "brands-hatch/acc": ["t7"], "brands-hatch/ac-evo": ["t7"],
   "catalunya/acc": ["t13", "t15", "t6"], "catalunya/f1-2025": ["t13", "t14", "t15"], "catalunya/fm-2023": ["t13", "t14", "t15"],

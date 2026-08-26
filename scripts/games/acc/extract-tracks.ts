@@ -7,25 +7,24 @@
  * Usage: bun scripts/games/acc/extract-tracks.ts
  */
 
-import { resolve } from "node:path";
 import { extractAccTracks } from "../../../server/games/acc/extract-tracks";
 
-const OUT_DIR = resolve(import.meta.dir, "../../..", "shared", "data", "tracks", "acc");
-
 async function main(): Promise<void> {
-  await extractAccTracks(OUT_DIR, (event) => {
+  await extractAccTracks((event) => {
     if (event.type === "total") {
       console.log(`[ACC] Found ${event.count} track directories`);
     } else if (event.type === "extracted") {
       console.log(`[ACC] Extracted ${event.count} tracks so far...`);
     }
-  }).then(({ extracted }) => {
-    console.log(`\n[ACC] Done — extracted ${extracted} tracks to ${OUT_DIR}`);
-    process.exit(0);
-  }).catch((err) => {
-    console.error(`[ACC] Fatal: ${(err as Error).message}`);
-    process.exit(1);
-  });
+  })
+    .then(({ extracted }) => {
+      console.log(`\n[ACC] Done — extracted ${extracted} tracks to canonical venue geometry`);
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error(`[ACC] Fatal: ${(err as Error).message}`);
+      process.exit(1);
+    });
 }
 
 if (import.meta.main) main();

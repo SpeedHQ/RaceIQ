@@ -1,8 +1,7 @@
 /**
- * ONE-SHOT migration tool — delete once shared/data/tracks/guides/*.json is committed.
- *
- * Converts the inline `guides` array in server/ai/track-guides.ts into one JSON
- * file per layout.
+ * HISTORICAL one-shot migration from inline guides into the retired flat guide
+ * store. Current guides live beside canonical track metadata as `guide.json`;
+ * this source remains only as migration provenance.
  *
  * Guide *data* is read from the live module, never regexed out of the source:
  * the fragility of parsing that 1000-line literal is exactly what this
@@ -74,7 +73,11 @@ function extractComments(): Map<string, { sources?: string; notes?: string }> {
   let inner: string[] = [];
   let id: string | null = null;
 
-  const commentText = (l: string) => l.trim().replace(/^\/\/\s?/, "").trim();
+  const commentText = (l: string) =>
+    l
+      .trim()
+      .replace(/^\/\/\s?/, "")
+      .trim();
 
   for (let i = start + 1; i < end; i++) {
     const line = lines[i]!;
@@ -145,11 +148,7 @@ function render(guide: TrackGuideFile): string {
     for (const f of ["type", "technique", "trap"] as const) fields.push(`"${f}": ${JSON.stringify(c[f])}`);
     return `    {\n      ${fields.join(",\n      ")}\n    }`;
   };
-  const head: string[] = [
-    `  "id": ${JSON.stringify(guide.id)}`,
-    `  "locale": "en"`,
-    `  "character": ${JSON.stringify(guide.character)}`,
-  ];
+  const head: string[] = [`  "id": ${JSON.stringify(guide.id)}`, `  "locale": "en"`, `  "character": ${JSON.stringify(guide.character)}`];
   if (guide.sources) head.push(`  "sources": ${JSON.stringify(guide.sources)}`);
   if (guide.notes) head.push(`  "notes": ${JSON.stringify(guide.notes)}`);
   head.push(`  "corners": [\n${guide.corners.map(corner).join(",\n")}\n  ]`);
@@ -177,16 +176,18 @@ for (const g of guides) {
   });
 
   const byName = new Map(g.corners.map((c, i) => [c.name, corners[i]!.key]));
-  const priorityCorners = g.priorityCorners.map((p) => {
-    const key = byName.get(p);
-    if (!key) {
-      // Pre-existing dangling reference: the old code silently matched nothing.
-      console.warn(`${g.id}: priorityCorners entry ${JSON.stringify(p)} matches no corner — dropped`);
-      unresolved++;
-      return null;
-    }
-    return key;
-  }).filter((k): k is string => k !== null);
+  const priorityCorners = g.priorityCorners
+    .map((p) => {
+      const key = byName.get(p);
+      if (!key) {
+        // Pre-existing dangling reference: the old code silently matched nothing.
+        console.warn(`${g.id}: priorityCorners entry ${JSON.stringify(p)} matches no corner — dropped`);
+        unresolved++;
+        return null;
+      }
+      return key;
+    })
+    .filter((k): k is string => k !== null);
 
   const meta = comments.get(g.id) ?? {};
   const file: TrackGuideFile = {

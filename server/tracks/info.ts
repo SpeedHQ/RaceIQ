@@ -4,13 +4,9 @@ import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
 import type { TrackSectors } from "../../shared/racing/tracks/sectors";
 import { getTrackSectorsByOrdinal } from "../../shared/racing/tracks/storage/sectors";
 import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
-import {
-  loadLabelledSegments,
-  loadTrackFacts,
-  loadTrackGeometry,
-} from "../../shared/racing/tracks/storage/meta";
+import { loadLabelledSegments, loadTrackFacts, loadTrackGeometry } from "../../shared/racing/tracks/storage/meta";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
-import { tryGetServerGame } from "../games/registry";
+import { resolveTrackSharedName } from "./identity";
 
 interface Point {
   x: number;
@@ -58,7 +54,7 @@ interface TrackInfo {
  */
 export function resolveTrack(gameId: string | undefined, trackOrdinal: number | null | undefined): TrackInfo {
   const ordinal = trackOrdinal ?? null;
-  const slug = gameId && ordinal != null ? (tryGetServerGame(gameId)?.getSharedTrackName?.(ordinal) ?? undefined) : undefined;
+  const slug = gameId && ordinal != null ? resolveTrackSharedName(ordinal, gameId) : undefined;
 
   const facts = slug ? loadTrackFacts(slug) : null;
   const geometry = slug && gameId ? loadTrackGeometry(slug, gameId) : null;

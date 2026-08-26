@@ -13,13 +13,7 @@
  */
 
 import { detectCornerRegions, type CornerRegion } from "../../shared/racing/tracks/curation/segment-align-detect";
-import {
-  findCenterlines,
-  generateTrackSegments,
-  listCuratedSlugs,
-  loadCenterline,
-  writeTrackMeta,
-} from "../../shared/racing/tracks/curation/generate";
+import { findCenterlines, generateTrackSegments, listCuratedSlugs, loadCenterline, writeTrackMeta } from "../../shared/racing/tracks/curation/generate";
 import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";
 
 interface Args {
@@ -54,9 +48,7 @@ function printTable(corners: CornerRegion[]): void {
   for (let i = 0; i < corners.length; i++) {
     const c = corners[i];
     const radius = c.peakKappa > 0 ? (1 / c.peakKappa).toFixed(0) : "-";
-    console.log(
-      `    ${String(i).padStart(3)} | ${c.direction.padEnd(5)} | ${c.startFrac.toFixed(3)}-${c.endFrac.toFixed(3)} | ${c.lengthM.toFixed(0).padStart(4)} m | ${radius} m`,
-    );
+    console.log(`    ${String(i).padStart(3)} | ${c.direction.padEnd(5)} | ${c.startFrac.toFixed(3)}-${c.endFrac.toFixed(3)} | ${c.lengthM.toFixed(0).padStart(4)} m | ${radius} m`);
   }
 }
 
@@ -73,7 +65,7 @@ function main(): void {
   for (const slug of slugs) {
     const facts = loadTrackFacts(slug);
     if (!facts) {
-      console.error(`[${slug}] no facts file in shared/data/tracks/meta`);
+      console.error(`[${slug}] no facts rows in track registry`);
       failures++;
       continue;
     }
