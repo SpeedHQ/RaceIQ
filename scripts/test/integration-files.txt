@@ -151,6 +151,7 @@ test/setups/engineer/setup-engineer-apply-guard.test.ts
 test/setups/engineer/setup-engineer-confirmation.test.ts
 test/setups/engineer/setup-engineer-tools.test.ts
 test/setups/tuning/community-tunes-sync.test.ts
+test/sync/laptimes-lazy.test.ts
 test/setups/tuning/f1-setup-identity.test.ts
 test/setups/tuning/format-tune.test.ts
 test/setups/tuning/tune-issues.test.ts

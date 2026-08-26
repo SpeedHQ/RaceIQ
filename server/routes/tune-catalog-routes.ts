@@ -7,7 +7,7 @@ import { setTuneAssignment, getTuneAssignment, getTuneAssignments, deleteTuneAss
 import type { GameId } from "../../shared/games/ids";
 import { getCommunityTunes } from "../db/community-tune-queries";
 import { syncCommunityTunes } from "../tunes/community-sync";
-import { getLaptimes, syncLaptimes } from "../sync/laptimes";
+import { ensureLaptimesReady, getLaptimes, syncLaptimes } from "../sync/laptimes";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 
@@ -61,7 +61,9 @@ export const tuneCatalogRoutes = new Hono()
   // named in the X-Game-Id header (no fallback: without a header, no times).
   .get("/api/laptimes", async (c) => {
     const gameId = c.req.header("x-game-id") as GameId | undefined;
-    return c.json(gameId ? getLaptimes(gameId) : []);
+    if (!gameId) return c.json([]);
+    await ensureLaptimesReady();
+    return c.json(getLaptimes(gameId));
   })
 
   // POST /api/laptimes/refresh — force a CDN sync now
