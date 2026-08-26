@@ -13,23 +13,33 @@ async function openComparison(page: Page, request: Parameters<typeof getDistinct
   return chart;
 }
 
+type OverlayBounds = { x: number; y: number; width: number; height: number };
+async function overlayBounds(overlay: Locator): Promise<OverlayBounds> {
+  await expect.poll(
+    async () => {
+      const box = await overlay.boundingBox();
+      return box !== null && box.width > 0 && box.height > 0;
+    },
+    { timeout: 30_000, message: "comparison chart overlay must have settled bounds" },
+  ).toBe(true);
+  return (await overlay.boundingBox())!;
+}
+
 async function dragChart(page: Page, chart: Locator, startFraction: number, endFraction: number): Promise<void> {
   const overlay = chart.locator(".u-over");
   await expect(overlay).toBeVisible({ timeout: 30_000 });
-  const box = await overlay.boundingBox();
-  expect(box, "comparison chart overlay bounds").not.toBeNull();
-  const y = box!.y + box!.height / 2;
-  await page.mouse.move(box!.x + box!.width * startFraction, y);
+  const box = await overlayBounds(overlay);
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width * startFraction, y);
   await page.mouse.down();
-  await page.mouse.move(box!.x + box!.width * endFraction, y, { steps: 12 });
+  await page.mouse.move(box.x + box.width * endFraction, y, { steps: 12 });
   await page.mouse.up();
 }
 async function cursorDistance(chart: Locator, fraction: number): Promise<number> {
   const overlay = chart.locator(".u-over");
   await expect(overlay).toBeVisible({ timeout: 30_000 });
-  const box = await overlay.boundingBox();
-  expect(box, "comparison chart overlay bounds").not.toBeNull();
-  await overlay.hover({ position: { x: box!.width * fraction, y: box!.height / 2 } });
+  const box = await overlayBounds(overlay);
+  await overlay.hover({ position: { x: box.width * fraction, y: box.height / 2 } });
   const valueLocator = chart.locator(".u-legend .u-series").first().locator(".u-value");
   const parseValue = async () => Number((await valueLocator.textContent())?.replace(/[^0-9.-]/g, ""));
   await expect.poll(parseValue).toBeGreaterThanOrEqual(0);
@@ -45,9 +55,8 @@ async function visibleDistanceSpan(chart: Locator): Promise<number> {
 async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Promise<string> {
   const overlay = chart.locator(".u-over");
   await expect(overlay).toBeVisible({ timeout: 30_000 });
-  const overlayBox = await overlay.boundingBox();
-  expect(overlayBox, "comparison chart overlay bounds").not.toBeNull();
-  await overlay.hover({ position: { x: overlayBox!.width * fraction, y: overlayBox!.height / 2 } });
+  const overlayBox = await overlayBounds(overlay);
+  await overlay.hover({ position: { x: overlayBox.width * fraction, y: overlayBox.height / 2 } });
 
   const markers = chart.locator(".u-cursor-pt");
   await expect(markers).toHaveCount(2);
@@ -63,10 +72,10 @@ async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Pr
     expect(Number.isFinite(markerBox.top)).toBe(true);
     expect(Number.isFinite(markerBox.width)).toBe(true);
     expect(Number.isFinite(markerBox.height)).toBe(true);
-    expect(markerBox.left).toBeGreaterThanOrEqual(overlayBox!.x - markerBox.width);
-    expect(markerBox.right).toBeLessThanOrEqual(overlayBox!.x + overlayBox!.width + markerBox.width);
-    expect(markerBox.top).toBeGreaterThanOrEqual(overlayBox!.y - markerBox.height);
-    expect(markerBox.bottom).toBeLessThanOrEqual(overlayBox!.y + overlayBox!.height + markerBox.height);
+    expect(markerBox.left).toBeGreaterThanOrEqual(overlayBox.x - markerBox.width);
+    expect(markerBox.right).toBeLessThanOrEqual(overlayBox.x + overlayBox.width + markerBox.width);
+    expect(markerBox.top).toBeGreaterThanOrEqual(overlayBox.y - markerBox.height);
+    expect(markerBox.bottom).toBeLessThanOrEqual(overlayBox.y + overlayBox.height + markerBox.height);
   }
   const value = chart.locator(".u-legend .u-series").first().locator(".u-value");
   await expect.poll(async () => Number.isFinite(Number((await value.textContent())?.replace(/[^0-9.-]/g, "")))).toBe(true);
