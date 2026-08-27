@@ -1,6 +1,4 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
-import { wheelSlipRatios } from "@shared/racing/analysis/laps/physics/vehicle";
-import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,26 +11,11 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "@/stores/telemetry";
 
-export function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
-  const values: Record<string, unknown> = {
-    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
-    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
-    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
-    "timing.current-lap": packet.CurrentLap, "diagnostics.timestamp-ms": packet.TimestampMS,
-    "suspension.norm-suspension-travel": [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR],
-    "tires.tire-slip-ratio": (() => {
-      const slip = wheelSlipRatios(packet);
-      return [slip.fl, slip.fr, slip.rl, slip.rr];
-    })(),
-    "tires.tire-slip-angle": [packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR],
-    "tires.wheel-rotation-speed": [packet.WheelRotationSpeedFL, packet.WheelRotationSpeedFR, packet.WheelRotationSpeedRL, packet.WheelRotationSpeedRR],
-    "tires.tire-wear": [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
-    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
-  };
-  return { values, states: {}, freshness: {} };
+interface DemoFixture {
+  frames: SemanticAnalysisFrame[];
 }
-function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
+
+function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
   const isRunningRef = useRef(false);
@@ -40,7 +23,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const lastTimeRef = useRef(0);
   const telemetryLengthRef = useRef(telemetry.length);
   telemetryLengthRef.current = telemetry.length;
-  const trackOrdinal = telemetry[0]?.TrackOrdinal;
+  const trackOrdinal = telemetry[0]?.values["identity.track-ordinal"];
   const pauseAnimation = useCallback(() => {
     if (!isRunningRef.current) return;
     isRunningRef.current = false;
@@ -120,24 +103,26 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     const pts: { x: number; z: number }[] = [];
     for (let i = 0; i < telemetry.length; i += 10) {
       const p = telemetry[i];
-      if (p.PositionX === 0 && p.PositionZ === 0) continue;
-      pts.push({ x: p.PositionX, z: p.PositionZ });
+      const x = p.values["motion.position-x"];
+      const z = p.values["motion.position-z"];
+      if (typeof x !== "number" || typeof z !== "number" || (x === 0 && z === 0)) continue;
+      pts.push({ x, z });
     }
     return pts.length > 2 ? pts : null;
   }, [telemetry]);
   const packet = telemetry[cursorIdx] ?? telemetry[0];
-  const semanticTelemetry = useMemo(() => telemetry.map(toSemanticFrame), [telemetry]);
   if (!packet) return null;
+  const carOrdinal = packet.values["identity.car-ordinal"];
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
-        frame={semanticTelemetry[cursorIdx] ?? semanticTelemetry[0]}
-        telemetry={semanticTelemetry}
+        frame={packet}
+        telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
-        carOrdinal={packet.CarOrdinal}
+        carOrdinal={typeof carOrdinal === "number" ? carOrdinal : undefined}
         carModel={DEMO_CAR}
         minimal
         hideControls
@@ -152,19 +137,9 @@ export function WelcomeStep() {
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
     queryFn: async () => {
-      const res = await fetch("/demo-lap.csv");
+      const res = await fetch("/demo-lap.json.gz");
       if (!res.ok) return [];
-      const lines = (await res.text()).split("\n");
-      const headers = lines[0].split(",");
-      const packets: TelemetryPacket[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i]) continue;
-        const vals = lines[i].split(",");
-        const obj: Record<string, unknown> = {};
-        for (let j = 0; j < headers.length; j++) obj[headers[j]] = Number(vals[j]);
-        packets.push(obj as unknown as TelemetryPacket);
-      }
-      return packets;
+      return ((await res.json()) as DemoFixture).frames;
     },
     staleTime: Number.POSITIVE_INFINITY,
   });
