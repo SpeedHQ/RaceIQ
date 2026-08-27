@@ -4,6 +4,18 @@ export interface TrackSectors {
   // S3 ends at 1.0 (start/finish)
 }
 
+/** Sector-boundary response shared by track, recap, analysis, and live views. */
+export interface TrackSectorBoundaries {
+  ownership: "game" | "raceiq";
+  editable: boolean;
+  /** Ordered sector starts as lap fractions. Native games may expose any count. */
+  sectorStarts: number[] | null;
+  trackLength: number;
+  /** RaceIQ-owned three-sector layouts retain editable S1/S2 endpoints. */
+  s1End?: number;
+  s2End?: number;
+}
+
 const DEFAULT_SECTORS: TrackSectors = { s1End: 0.333, s2End: 0.666 };
 
 // Known FIA/real-world sector boundaries (approximate % of lap distance)
@@ -21,16 +33,16 @@ const TRACK_SECTORS: Record<string, TrackSectors> = {
   "Suzuka Circuit": { s1End: 0.37, s2End: 0.72 },
 
   // Laguna Seca: S1 ends after Turn 5 (~1.3km of 3.6km), S2 ends after Corkscrew (~2.5km)
-  "WeatherTech Raceway Laguna Seca": { s1End: 0.36, s2End: 0.70 },
+  "WeatherTech Raceway Laguna Seca": { s1End: 0.36, s2End: 0.7 },
 
   // Barcelona GP: S1 ends after Turn 5 (~1.5km of 4.66km), S2 ends after chicane (~3.1km)
   "Circuit de Barcelona-Catalunya": { s1End: 0.33, s2End: 0.67 },
 
   // Nurburgring GP: S1 ends after Turn 4 (~1.6km of 5.15km), S2 ends after chicane (~3.4km)
-  "Nürburgring": { s1End: 0.31, s2End: 0.66 },
+  Nürburgring: { s1End: 0.31, s2End: 0.66 },
 
   // Hockenheim: S1 ends after Nordkurve hairpin (~1.5km of 4.57km), S2 ends after Turn 10 (~3.1km)
-  "Hockenheimring": { s1End: 0.33, s2End: 0.68 },
+  Hockenheimring: { s1End: 0.33, s2End: 0.68 },
 
   // Yas Marina: S1 ends after Turn 7 (~1.8km of 5.28km), S2 ends after Turn 14 (~3.5km)
   "Yas Marina Circuit": { s1End: 0.34, s2End: 0.67 },

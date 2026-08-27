@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { GameId } from "../../../shared/games/ids";
+import type { TrackSectorBoundaries } from "../../../shared/racing/tracks/sectors";
 import { client } from "../lib/rpc";
 import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
@@ -36,7 +37,7 @@ export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride
     queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
     queryFn: async () => {
       const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
-      return rpcJson<{ s1End: number; s2End: number } | null>(res);
+      return rpcJson<TrackSectorBoundaries | null>(res);
     },
     enabled: ord != null && ord >= 0 && !!gameId,
   });

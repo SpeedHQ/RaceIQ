@@ -6,6 +6,7 @@ import { tryGetGame } from "../../../shared/games/registry";
 import { tryGetServerGame } from "../../games/registry";
 import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
+import type { TrackSectorBoundaries } from "../../../shared/racing/tracks/sectors";
 import { trackConfigurationCanonicalId } from "../../../shared/racing/tracks/configuration";
 import { getCorners, saveCorners } from "../../db/track-queries";
 import { getLapById, getLapSummariesByTrack } from "../../db/lap-read-queries";
@@ -139,7 +140,7 @@ export const trackSectorBoundaryRoutes = new Hono()
         editable: false as const,
         sectorStarts,
         trackLength,
-      });
+      } satisfies TrackSectorBoundaries);
     }
 
     const sharedName = getSharedTrackName(ordinal, gameId);
@@ -150,7 +151,7 @@ export const trackSectorBoundaryRoutes = new Hono()
       editable: true as const,
       sectorStarts: [0, sectors.s1End, sectors.s2End],
       trackLength,
-    });
+    } satisfies TrackSectorBoundaries);
   })
 
   // PUT /api/track-sector-boundaries/:ordinal — update s1End/s2End fractions (dev only)

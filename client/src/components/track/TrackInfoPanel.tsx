@@ -45,7 +45,7 @@ function SourceBadge({ source }: { source: string }) {
 export function TrackInfoPanel({
   track,
   sectors,
-  sectorBounds,
+  sectorStarts,
   segSource,
   lapCount,
   gameId,
@@ -53,7 +53,7 @@ export function TrackInfoPanel({
 }: {
   track: TrackInfoType;
   sectors: (TrackSectors & { source?: string }) | null;
-  sectorBounds: { s1End: number; s2End: number } | null;
+  sectorStarts: number[] | null;
   segSource: string;
   lapCount: number;
   gameId?: GameId | null;
@@ -83,16 +83,15 @@ export function TrackInfoPanel({
   // corner-segment count: a chicane is one segment spanning several turns.
   const turnCount = corners.reduce((max, s) => Math.max(max, ...turnNumbers(s), 0), 0);
 
-  /** Which sector a segment falls in, by its midpoint. */
-  const sectorOf = (startFrac: number, endFrac: number): 1 | 2 | 3 => {
-    if (!sectorBounds) return 1;
+  /** Which source-defined sector a segment falls in, by its midpoint. */
+  const sectorOf = (startFrac: number, endFrac: number): number => {
+    if (!sectorStarts) return 1;
     const mid = (startFrac + endFrac) / 2;
-    if (mid < sectorBounds.s1End) return 1;
-    if (mid < sectorBounds.s2End) return 2;
-    return 3;
+    for (let index = sectorStarts.length - 1; index > 0; index--) {
+      if (mid >= sectorStarts[index]) return index + 1;
+    }
+    return 1;
   };
-
-  const cornersInSector = (n: 1 | 2 | 3) => corners.filter((s) => sectorOf(s.startFrac, s.endFrac) === n);
 
   if (part === "summary") {
     return (
@@ -122,12 +121,13 @@ export function TrackInfoPanel({
         <div className="flex items-center gap-2 mb-1.5">
           <div className="text-app-label text-app-text-muted">{m.trackdetail_sector_boundaries()}</div>
         </div>
-        {sectorBounds ? (
+        {sectorStarts ? (
           <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-3">
-            {([1, 2, 3] as const).map((n) => {
-              const from = n === 1 ? 0 : n === 2 ? sectorBounds.s1End : sectorBounds.s2End;
-              const to = n === 1 ? sectorBounds.s1End : n === 2 ? sectorBounds.s2End : 1;
-              const within = cornersInSector(n);
+            {sectorStarts.map((start, index) => {
+              const n = index + 1;
+              const from = index === 0 ? 0 : start;
+              const to = sectorStarts[index + 1] ?? 1;
+              const within = corners.filter((segment) => sectorOf(segment.startFrac, segment.endFrac) === n);
               return (
                 <div key={n} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
                   <div className="flex items-baseline justify-between">
@@ -204,7 +204,7 @@ export function TrackInfoPanel({
                   <TD tone="muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TD>
                   <TD tone="muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TD>
                   <TD numeric tone="muted">
-                    {sectorBounds ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
+                    {sectorStarts ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
                   </TD>
                   <TD numeric tone="muted">
                     {(s.startFrac * 100).toFixed(1)}% – {(s.endFrac * 100).toFixed(1)}%

@@ -14,7 +14,7 @@ interface TrackCanvasPanelProps {
   setPan: Dispatch<SetStateAction<Pan>>;
   zoom: number;
   setZoom: Dispatch<SetStateAction<number>>;
-  sectorBounds: { s1End: number; s2End: number } | null;
+  sectorStarts: number[] | null;
   displaySectors: TrackSectors | null;
   mapDisplayMode: "segments" | "sectors";
   setMapDisplayMode: Dispatch<SetStateAction<"segments" | "sectors">>;
@@ -23,7 +23,7 @@ interface TrackCanvasPanelProps {
 }
 
 export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
-  const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorBounds, displaySectors, mapDisplayMode, setMapDisplayMode, corners, straights } = props;
+  const { track, outline, canvasRef, dragging, pan, setPan, zoom, setZoom, sectorStarts, displaySectors, mapDisplayMode, setMapDisplayMode, corners, straights } = props;
   return (
     <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
       {outline ? (
@@ -79,7 +79,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
               {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
             </Button>
           )}
-          {(sectorBounds || displaySectors) && (
+          {(sectorStarts || displaySectors) && (
             <>
               <div className="h-px" />
               <Button

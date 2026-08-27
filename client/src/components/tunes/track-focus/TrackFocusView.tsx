@@ -95,13 +95,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
     return { left: flipPoints(e.left), right: flipPoints(e.right) };
   }, [bounds, gameId]);
 
-  const metaSectors = useMemo(() => {
-    const s1End = sectorBoundaries?.s1End;
-    const s2End = sectorBoundaries?.s2End;
-    if (typeof s1End !== "number" || typeof s2End !== "number") return null;
-    if (!(s1End > 0 && s1End < s2End && s2End < 1)) return null;
-    return { s1End, s2End };
-  }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
+  const metaSectorStarts = sectorBoundaries?.sectorStarts ?? null;
 
   // Stats read the same eval-lap pool as the traces/lanes/ledgers below. Using
   // the full stintLaps here made the header disagree with everything under it
@@ -123,7 +117,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       issues={issues ?? []}
       stats={stats}
       lineSpread={lineSpread ?? null}
-      metaSectors={metaSectors}
+      metaSectorStarts={metaSectorStarts}
       shownLapCount={reviewLaps.length}
       totalLapCount={stintLaps.length}
       activeTab={activeTab}
@@ -147,9 +141,8 @@ export interface TrackFocusViewInnerProps {
   /** Trimmed racing-line spread trace (null while loading, no session, or too
    *  few clean laps — lane + map overlay render their empty state). */
   lineSpread: LineSpreadTrace | null;
-  /** Authoritative sector boundary fractions from track meta, when available.
-   *  Falls back to the focus lap's per-lap sector-index split. */
-  metaSectors?: { s1End: number; s2End: number } | null;
+  /** Authoritative source-defined sector starts. Falls back to focus-lap indices. */
+  metaSectorStarts?: number[] | null;
   /** Laps actually analysed in the per-frame views (fastest N). */
   shownLapCount?: number;
   /** Total eligible laps in the stint (for the "showing N of M" caption). */
@@ -172,7 +165,7 @@ export function TrackFocusViewInner({
   issues,
   stats,
   lineSpread,
-  metaSectors,
+  metaSectorStarts,
   shownLapCount,
   totalLapCount,
   activeTab: controlledActiveTab,
@@ -225,11 +218,11 @@ export function TrackFocusViewInner({
   // back to the focus lap's source-defined sector split indices so the sector ledger's rows line up
   // with what the map shows.
   const sectorBoundaryFracs = useMemo(() => {
-    if (metaSectors) return [metaSectors.s1End, metaSectors.s2End];
+    if (metaSectorStarts) return metaSectorStarts.slice(1);
     if (!focusTelemetry || focusTelemetry.length < 2 || !focusSectorTimes) return [];
     const last = focusTelemetry.length - 1;
     return focusSectorTimes.boundaryIndices.map((index) => index / last);
-  }, [metaSectors, focusTelemetry, focusSectorTimes]);
+  }, [metaSectorStarts, focusTelemetry, focusSectorTimes]);
 
   // Corners + apex fractions shared by the track map and the corner ledger:
   // real metadata when available, else the same telemetry-based apex
