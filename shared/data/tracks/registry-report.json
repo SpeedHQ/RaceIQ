@@ -1,10 +1,10 @@
 {
   "sourceVersion": 1,
-  "sourceHash": "4e7a9fb5d75356584979b9e62facfed548bf4cf64c2cfa8db0e5e91ed21a29aa",
+  "sourceHash": "7583235982093c5cd7373834312d062b180ee34db5e98205ac91ee0115cb06a8",
   "recordCounts": {
     "venues": 192,
-    "layouts": 495,
-    "assignments": 592,
+    "layouts": 497,
+    "assignments": 597,
     "facts": 99,
     "corners": 1219,
     "covers": 35,
@@ -1174,6 +1174,18 @@
     },
     {
       "gameId": "iracing",
+      "trackOrdinal": 46,
+      "layoutId": "barber-motorsports-park/main",
+      "factsSlug": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 47,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "factsSlug": "laguna-seca"
+    },
+    {
+      "gameId": "iracing",
       "trackOrdinal": 50,
       "layoutId": "road-america/bend",
       "factsSlug": null
@@ -1218,6 +1230,18 @@
       "gameId": "iracing",
       "trackOrdinal": 97,
       "layoutId": "sebring-international-raceway/club",
+      "factsSlug": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 99,
+      "layoutId": "barber-motorsports-park/short-a",
+      "factsSlug": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 100,
+      "layoutId": "barber-motorsports-park/short-b",
       "factsSlug": null
     },
     {
@@ -1519,6 +1543,12 @@
       "trackOrdinal": 157,
       "layoutId": "mid-ohio-sports-car-course/alt-oval",
       "factsSlug": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 158,
+      "layoutId": "weathertech-raceway-laguna-seca/full",
+      "factsSlug": "laguna-seca"
     },
     {
       "gameId": "iracing",
@@ -13426,6 +13456,20 @@
       ]
     },
     {
+      "layoutId": "barber-motorsports-park/main",
+      "factsSlug": null,
+      "assignments": [
+        {
+          "gameId": "iracing",
+          "trackOrdinal": 46
+        },
+        {
+          "gameId": "iracing",
+          "trackOrdinal": 585
+        }
+      ]
+    },
+    {
       "layoutId": "brands-hatch/grand-prix",
       "factsSlug": "brands-hatch",
       "assignments": [
@@ -14253,6 +14297,14 @@
         },
         {
           "gameId": "iracing",
+          "trackOrdinal": 47
+        },
+        {
+          "gameId": "iracing",
+          "trackOrdinal": 158
+        },
+        {
+          "gameId": "iracing",
           "trackOrdinal": 586
         }
       ]
@@ -14307,6 +14359,8 @@
       "autodromo-nazionale-monza/oval-right-turning",
       "bahrain-international-circuit/short",
       "barber-motorsports-park/main",
+      "barber-motorsports-park/short-a",
+      "barber-motorsports-park/short-b",
       "bark-river-international-raceway/main",
       "brands-hatch/2019/gp",
       "brands-hatch/rallycross",

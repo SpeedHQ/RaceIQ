@@ -20,6 +20,16 @@
     },
     {
       "gameId": "iracing",
+      "trackOrdinal": 47,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 158,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
       "trackOrdinal": 586,
       "confirmation": null
     }

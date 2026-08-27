@@ -27,7 +27,7 @@ export interface VenueRevisionPath {
 }
 
 /**
- * Splits SQLite venue path into its stable root venue and source revision.
+ * Splits canonical venue path into stable root venue and source revision.
  * A root-only path addresses current source revision.
  */
 export function parseVenueRevisionPath(venuePath: string): VenueRevisionPath {
@@ -50,7 +50,7 @@ export function canonicalTrackAssetPathComponents(venuePath: string, layoutSlug:
   return [...revisionDirectoryPathComponents(venuePath), "tracks", trackIdentityId.parse(layoutSlug)];
 }
 
-/** Splits one canonical layout ID into SQLite venue path and layout slug. */
+/** Splits one canonical layout ID into venue path and layout slug. */
 export function parseCanonicalTrackId(canonicalTrackId: string): { venuePath: string; layoutSlug: string } {
   const segments = TrackVenueIdSchema.parse(canonicalTrackId).split("/");
   if (segments.length < 2) throw new Error(`Invalid canonical track ID ${JSON.stringify(canonicalTrackId)}`);

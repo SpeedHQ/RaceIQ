@@ -33,12 +33,12 @@ Historical revision documents recreate existing nested venue nodes; current does
 not project revision venue node.
 
 Editors and curation commands update source manifests first, then regenerate
-`registry.sqlite` and `registry-report.json`. Never edit generated SQLite rows or
-export SQLite into source. Runtime package includes revision imagery, layout
-geometry/guides, and root shared geometry. It excludes venue/revision/layout
-manifests and layout `detect-hints.json`.
+`registry.json` and `registry-report.json`. Never edit generated read-model or
+report rows directly. Runtime package includes revision imagery, layout
+geometry/guides, root shared geometry, and bundled iRacing SVG layers. It
+excludes venue/revision/layout manifests and layout `detect-hints.json`.
 
-Resolve generated SQLite/report conflicts by merging source manifests, then
+Resolve generated read-model/report conflicts by merging source manifests, then
 regenerate registry.
 
 ### Why the roster is shared but geometry is not
@@ -89,8 +89,8 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 Sign-offs live in each canonical layout `metadata.json` under `verification`.
 Each record identifies kind and optional game ID, then stores content hash, date,
-reviewer, and note. Generated `curation_verification` SQLite rows mirror those
-records for runtime queries; they are not an authoring surface.
+reviewer, and note. Generated read model carries normalized verification records
+for runtime queries; they are not an authoring surface.
 
 Facts verification hashes normalized roster source. Geometry verification hashes
 normalized per-game geometry source. Editing relevant source makes previous
@@ -367,7 +367,7 @@ If a track looks wrong in the app: fix that track's curated data.
 | Shippable revision imagery | sibling `imagery/` beneath revision directory |
 | Layout geometry, authored guide, and source-only detector hints | sibling `geometry/<gameId>/`, `guide.json`, and `detect-hints.json` beneath layout directory |
 | Shared ACC/TUMFTM geometry | `shared/data/tracks/venues/<root-venue>/geometry/` |
-| Generated runtime projection and audit | `shared/data/tracks/registry.sqlite`, `shared/data/tracks/registry-report.json` |
+| Generated runtime read model and audit | `shared/data/tracks/registry.json`, `shared/data/tracks/registry-report.json` |
 | Runtime registry access | `shared/racing/tracks/registry.ts`, `shared/racing/tracks/storage/meta.ts` |
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
 | Coverage stats and verification | `shared/racing/tracks/curation/coverage.ts`, `shared/racing/tracks/curation/verified.ts` |

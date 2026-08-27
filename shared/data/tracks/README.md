@@ -25,7 +25,7 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
   - Every game-scoped asset needs explicit `gameId`; never infer/default one.
   - iRacing source layers live at `geometry/iracing/official/{active,start-finish,turns,pit-road}.svg`.
 - Shared root geometry is exceptional: `venues/<root-venue>/geometry/acc/` and `venues/<root-venue>/geometry/tumftm/`. Do not move it into a revision or layout.
-- `registry.sqlite` projects source for runtime; `registry-report.json` is generated audit output.
+- `registry.json` projects source into compact runtime read model; `registry-report.json` is generated audit output.
 
 ## Data formats
 
@@ -37,9 +37,9 @@ venues/<root-venue>/revisions/<revision-path>/tracks/<layout>/metadata.json
 
 ## Source and runtime boundary
 
-- Venue, revision, and layout manifests are editable source authority. Authoring APIs update source, then regenerate `registry.sqlite` and `registry-report.json`.
-- Never edit generated artifacts or export SQLite into source.
-- Runtime ships `registry.sqlite` plus revision imagery, layout geometry, and guides. It excludes `venue.json`, `revision.json`, `metadata.json`, `detect-hints.json`, and registry report/source files.
+- Venue, revision, and layout manifests are editable source authority. Authoring APIs update source, then regenerate `registry.json` and `registry-report.json`.
+- Never edit generated read model or audit report directly.
+- Runtime ships `registry.json` plus revision imagery, layout geometry and guides, root shared geometry, and all four iRacing SVG layers. It excludes `venue.json`, `revision.json`, `metadata.json`, `detect-hints.json`, registry report, and legacy game-root assets.
 - Merge generated-artifact conflicts through source manifests, then run `bun run tracks:registry`.
 - Registry generation, CI freshness checks, stability, and module ownership: [`shared/racing/tracks/registry/README.md`](../../racing/tracks/registry/README.md).
 - `<gameId>/*-centerline.csv`, `*-raceline.csv`, and `*-boundaries.json` are extractor snapshots. Installed-game data is authoritative when refreshing them.
@@ -70,4 +70,4 @@ Keep imagery packs in regular Git while every pack remains below GitHub's file-s
 - Keep facts, `geometryByGame`, and verification in one layout `metadata.json`; omit uncurated optional sections.
 - Account for each official turn once, in racing order; use `covers` for one physical corner spanning official numbers.
 - Add hint `optional` or `spans` only for demonstrated detector behavior.
-- Do not invent corner names/citations or mutate generated projection.
+- Do not invent corner names/citations or mutate generated read model.

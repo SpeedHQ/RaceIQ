@@ -4,8 +4,8 @@ import {
   parseIRacingActiveSvg,
   parseIRacingTurnLabels,
 } from "../../../server/games/iracing/track-map-svg";
-import { getIRacingSharedTrackName,
-getIRacingTrack, } from "../../../shared/racing/tracks/catalogs/iracing"
+import { getIRacingSvgTrackMap } from "../../../server/games/iracing/track-map";
+import { getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
@@ -142,5 +142,16 @@ describe("iRacing official SVG track maps", () => {
     expect(
       roadAmerica.some((segment) => segment.name === "Canada Corner"),
     ).toBe(true);
+  });
+
+  test("shares parsed map cache across retired aliases of one physical layout", async () => {
+    const [original, school, current] = await Promise.all([
+      getIRacingSvgTrackMap(47),
+      getIRacingSvgTrackMap(158),
+      getIRacingSvgTrackMap(586),
+    ]);
+    expect(original).not.toBeNull();
+    expect(school).toBe(original);
+    expect(current).toBe(original);
   });
 });

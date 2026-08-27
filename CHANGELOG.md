@@ -93,6 +93,7 @@
 - Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
 - Migrate static track data into canonical venue, revision, and layout registry assets while keeping imagery packs in regular Git
 - Read track configuration, identity, geometry, hints, and guides through the canonical registry while preserving existing behavior
+- Load iRacing track maps from bundled canonical SVG layers without external requests or writable caches
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
