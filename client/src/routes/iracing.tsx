@@ -1,9 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useGameStore } from "../stores/game";
+import { gameStore } from "../stores/game";
 
 function IRacingLayout() {
-  const setGameId = useGameStore((state) => state.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   useEffect(() => {
     setGameId("iracing");
     return () => setGameId(null);

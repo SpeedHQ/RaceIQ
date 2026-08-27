@@ -30,7 +30,7 @@ export const DEFAULT_TOGGLES: ViewToggles = {
   solid: "wire" as const,
   springs: true,
   trails: true,
-  inputs: false,
+  inputs: true,
   track: true,
   racingLine: false,
   grid: true,

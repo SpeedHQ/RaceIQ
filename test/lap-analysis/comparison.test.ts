@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compareLaps } from "../../server/lap-analysis/comparison";
+import { compareLaps, prepareComparisonAlignmentIndex } from "../../server/lap-analysis/comparison";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
@@ -128,5 +128,49 @@ describe("compare lap course alignment", () => {
     const result = compareLaps(lineLap(), lineLap({ timeOffset: 500 }), []);
     expect(result.distances).toHaveLength(101);
     expect(result.timeDelta.at(-1)).toBeCloseTo(-0.5, 3);
+  });
+  test("interpolates yaw and aligns every trace array to the distance grid", () => {
+    const result = compareLaps(
+      lineLap().map((p) => packet({ ...p, Yaw: p.PositionX })),
+      lineLap().map((p) => packet({ ...p, Yaw: p.PositionX * 2 })),
+      [],
+    );
+    expect(result.lapA.yaw[5]).toBeCloseTo(result.lapA.posX[5], 6);
+    expect(result.lapB.yaw[5]).toBeCloseTo(result.lapB.posX[5] * 2, 6);
+    for (const trace of [result.lapA, result.lapB]) {
+      for (const values of Object.values(trace)) expect(values).toHaveLength(result.distances.length);
+    }
+  });
+  test("supports finer bounded alignment grids", () => {
+    const result = compareLaps(lineLap(), lineLap(), [], { gridStepMeters: 0.5, distanceRange: { start: 10, end: 20 } });
+    expect(result.distances[0]).toBe(10);
+    expect(result.distances.at(-1)).toBe(20);
+    expect(result.distances).toHaveLength(21);
+    expect(result.lapA.yaw).toHaveLength(result.distances.length);
+  });
+  test("preserves bounded projection parity at inclusive segment boundaries", () => {
+    const lapA = lineLap();
+    const lapB = lineLap().map((sample, index) => packet({
+      ...sample,
+      PositionX: index === 5 ? 20 : index === 6 ? 20 : sample.PositionX,
+      DistanceTraveled: index * 5,
+    }));
+    const options = { trackLengthMeters: 100, gridStepMeters: 5, distanceRange: { start: 20, end: 70 } };
+    const prepared = prepareComparisonAlignmentIndex(lapA, lapB, options);
+    const internal = compareLaps(lapA, lapB, [], options);
+    const reused = compareLaps(lapA, lapB, [], { ...options, alignmentIndex: prepared });
+    expect(reused).toEqual(internal);
+    expect(reused.lapA.sourceIndices[0]).toBeGreaterThan(0);
+    expect(reused.lapB.sourceIndices[0]).toBeGreaterThan(0);
+    for (const sourceIndices of [reused.lapA.sourceIndices, reused.lapB.sourceIndices]) {
+      for (let index = 1; index < sourceIndices.length; index++) {
+        expect(sourceIndices[index]).toBeGreaterThanOrEqual(sourceIndices[index - 1]);
+      }
+    }
+  });
+
+  test("caps oversized fine grids at 50,000 points", () => {
+    const result = compareLaps(lineLap(), lineLap(), [], { gridStepMeters: 0.001 });
+    expect(result.distances.length).toBeLessThanOrEqual(50_000);
   });
 });

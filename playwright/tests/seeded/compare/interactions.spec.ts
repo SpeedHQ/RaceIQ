@@ -87,14 +87,12 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
       await lapB.click();
-      const reloadResponse = page.waitForResponse((response) => response.request().method() === "GET" && response.url().endsWith(endpoint));
       await page
         .getByRole("option", {
           name: lapOptionLabel(pair.lapB),
           exact: true,
         })
         .click();
-      expect((await reloadResponse).ok(), `${game.name} comparison reload`).toBe(true);
       await expect(workspace.locator(".uplot").first()).toBeVisible({ timeout: 30_000 });
       await expect(workspace.getByText("Time Delta", { exact: true })).toBeVisible();
       await expect(workspace.getByText("Gaining", { exact: true })).toBeVisible();

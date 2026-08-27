@@ -1,5 +1,4 @@
 import { startCommunityTunesSync } from "../tunes/community-sync";
-import { startLaptimesSync } from "../sync/laptimes";
 import { countStaleSessions } from "../db/session-queries";
 import { countStaleRaceResults } from "../db/session-result-queries";
 import { RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
@@ -21,7 +20,6 @@ const ALL_DETECTOR_IDS = [
 
 export interface StartupJobDependencies {
   startCommunityTunesSync?: () => void;
-  startLaptimesSync?: () => void;
   startSessionCompressor?: () => void;
   startUpdateCheckSchedule?: () => void;
   countStaleSessions?: typeof countStaleSessions;
@@ -30,7 +28,6 @@ export interface StartupJobDependencies {
 
 export function startSyncAndStaleSessionJobs(dependencies: StartupJobDependencies = {}): void {
   (dependencies.startCommunityTunesSync ?? startCommunityTunesSync)();
-  (dependencies.startLaptimesSync ?? startLaptimesSync)();
 
   (dependencies.countStaleSessions ?? countStaleSessions)(
     ALL_DETECTOR_IDS,

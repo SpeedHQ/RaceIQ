@@ -5,12 +5,12 @@ import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
 import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";
 import { RadioDock } from "../../components/live-engineer/RadioDock";
 import { gameIdForRoutePrefix, liveDashboardForGame } from "../../lib/game-routes";
-import { useGameStore } from "../../stores/game";
+import { gameStore } from "../../stores/game";
 
 function LiveDashboardRoute() {
   const { game: routePrefix } = Route.useParams();
   const gameId = gameIdForRoutePrefix(routePrefix);
-  const setGameId = useGameStore((state) => state.setGameId);
+  const setGameId = gameStore.actions.setGameId;
 
   if (!gameId) throw new Error(`Unknown live game route prefix: ${routePrefix}`);
   useEffect(() => { setGameId(gameId); return () => setGameId(null); }, [gameId, setGameId]);

@@ -19,7 +19,7 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
-import { useUiStore } from "../stores/ui";
+import { uiStore, useUiStore } from "../stores/ui";
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -55,7 +55,10 @@ function AppShell() {
   const updateState = useUpdateCheck();
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
-  const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
+  const showSettings = useUiStore((s) => s.settingsOpen);
+  const settingsSection = useUiStore((s) => s.settingsSection);
+  const onboardingOpen = useUiStore((s) => s.onboardingOpen);
+  const { openSettings, closeSettings, closeOnboarding } = uiStore.actions;
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
@@ -76,9 +79,9 @@ function AppShell() {
     if (!onGameRoot) setMobileNavOpen(false);
   }, [location.pathname]);
 
-  // Hide navigation only on individual dashboards (/dash/combo-1 etc.) — the
-  // dashboard catalogue at /dash keeps the app shell.
-  const isDash = location.pathname.startsWith("/dash/");
+  // Hide navigation only on individual portable dashboards (/portable/combo-1 etc.) — the
+  // portable dashboard catalogue at /portable keeps the app shell.
+  const isPortable = location.pathname.startsWith("/portable/");
 
   if (!settingsLoaded) {
     return <div className="h-screen bg-app-bg" />;
@@ -89,7 +92,7 @@ function AppShell() {
     return <OnboardingModal />;
   }
 
-  if (isDash) {
+  if (isPortable) {
     return (
       <div className="h-screen bg-app-bg text-app-text">
         <ResponsiveWorkspace className="overflow-hidden">
@@ -176,7 +179,7 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapReprocessing />

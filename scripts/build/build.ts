@@ -86,8 +86,8 @@ async function main() {
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   });
-  rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
+  await run(["bun", "scripts/telemetry/generate-demo-fixture.ts"]);
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
   await run(["bun", "scripts/build/copy-shared-data.ts"]);
   await run(["bun", "scripts/build/copy-client-dist.ts"]);

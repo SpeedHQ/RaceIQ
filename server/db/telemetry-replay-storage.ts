@@ -4,8 +4,9 @@ import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
+import { normalizeTelemetryPacket } from "../telemetry/normalization";
+import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 
@@ -21,14 +22,34 @@ const BYTES_PER_PACKET_ACC = 800;
 
 const DEFAULT_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
-interface CacheEntry {
+interface TelemetryCacheEntry {
+  kind: "telemetry";
   packets: TelemetryPacket[];
   bytes: number;
 }
 
-const telemetryCache = new Map<number, CacheEntry>();
+interface ComparisonCacheEntry {
+  kind: "comparison";
+  body?: string;
+  alignmentIndex?: ComparisonAlignmentIndex;
+  bytes: number;
+  idA: number;
+  idB: number;
+}
+
+type CacheEntry = TelemetryCacheEntry | ComparisonCacheEntry;
+
+const telemetryCache = new Map<string, CacheEntry>();
 let cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
 let cacheBytesUsed = 0;
+
+function lapKey(id: number): string {
+  return `lap:${id}`;
+}
+
+function comparisonKey(idA: number, idB: number): string {
+  return `comparison:${idA}:${idB}`;
+}
 
 function estimateBytes(packets: TelemetryPacket[]): number {
   if (packets.length === 0) return 0;
@@ -37,40 +58,106 @@ function estimateBytes(packets: TelemetryPacket[]): number {
   return packets.length * per;
 }
 
+function touch(key: string, entry: CacheEntry): void {
+  telemetryCache.delete(key);
+  telemetryCache.set(key, entry);
+}
+
 export function cacheGet(id: number): TelemetryPacket[] | undefined {
-  const entry = telemetryCache.get(id);
-  if (entry) {
-    telemetryCache.delete(id);
-    telemetryCache.set(id, entry);
-    return entry.packets;
-  }
-  return undefined;
+  const key = lapKey(id);
+  const entry = telemetryCache.get(key);
+  if (entry?.kind !== "telemetry") return undefined;
+  touch(key, entry);
+  return entry.packets;
 }
 
 export function cacheSet(id: number, packets: TelemetryPacket[]): void {
-  const existing = telemetryCache.get(id);
+  const key = lapKey(id);
+  const existing = telemetryCache.get(key);
   if (existing) {
     cacheBytesUsed -= existing.bytes;
-    telemetryCache.delete(id);
+    telemetryCache.delete(key);
   }
   const bytes = estimateBytes(packets);
-  telemetryCache.set(id, { packets, bytes });
+  telemetryCache.set(key, { kind: "telemetry", packets, bytes });
+  cacheBytesUsed += bytes;
+  evictUntilWithinBudget();
+}
+function comparisonEntryBytes(body: string | undefined, alignmentIndex: ComparisonAlignmentIndex | undefined): number {
+  return (body === undefined ? 0 : Buffer.byteLength(body, "utf8"))
+    + (alignmentIndex === undefined ? 0 : 8 * (alignmentIndex.distancesA.length + alignmentIndex.distancesB.length));
+}
+
+function replaceComparisonEntry(
+  idA: number,
+  idB: number,
+  fields: { body?: string; alignmentIndex?: ComparisonAlignmentIndex },
+): void {
+  const key = comparisonKey(idA, idB);
+  const existing = telemetryCache.get(key);
+  if (existing?.kind === "comparison") {
+    cacheBytesUsed -= existing.bytes;
+  }
+  const body = fields.body ?? (existing?.kind === "comparison" ? existing.body : undefined);
+  const alignmentIndex = fields.alignmentIndex ?? (existing?.kind === "comparison" ? existing.alignmentIndex : undefined);
+  const bytes = comparisonEntryBytes(body, alignmentIndex);
+  telemetryCache.delete(key);
+  telemetryCache.set(key, { kind: "comparison", body, alignmentIndex, bytes, idA, idB });
   cacheBytesUsed += bytes;
   evictUntilWithinBudget();
 }
 
+export function comparisonCacheGet(idA: number, idB: number): string | undefined {
+  const key = comparisonKey(idA, idB);
+  const entry = telemetryCache.get(key);
+  if (entry?.kind !== "comparison" || entry.body === undefined) return undefined;
+  touch(key, entry);
+  return entry.body;
+}
+
+export function comparisonCacheSet(idA: number, idB: number, body: string): void {
+  replaceComparisonEntry(idA, idB, { body });
+}
+
+export function comparisonAlignmentIndexCacheGet(idA: number, idB: number): ComparisonAlignmentIndex | undefined {
+  const key = comparisonKey(idA, idB);
+  const entry = telemetryCache.get(key);
+  if (entry?.kind !== "comparison" || entry.alignmentIndex === undefined) return undefined;
+  touch(key, entry);
+  return entry.alignmentIndex;
+}
+
+export function comparisonAlignmentIndexCacheSet(idA: number, idB: number, index: ComparisonAlignmentIndex): void {
+  replaceComparisonEntry(idA, idB, { alignmentIndex: index });
+}
+
 export function cacheDelete(id: number): boolean {
-  const entry = telemetryCache.get(id);
-  if (!entry) return false;
-  cacheBytesUsed -= entry.bytes;
-  return telemetryCache.delete(id);
+  let deleted = false;
+  const key = lapKey(id);
+  const lapEntry = telemetryCache.get(key);
+  if (lapEntry) {
+    cacheBytesUsed -= lapEntry.bytes;
+    telemetryCache.delete(key);
+    deleted = true;
+  }
+  for (const [entryKey, entry] of telemetryCache) {
+    if (entry.kind === "comparison" && (entry.idA === id || entry.idB === id)) {
+      cacheBytesUsed -= entry.bytes;
+      telemetryCache.delete(entryKey);
+      deleted = true;
+    }
+  }
+  return deleted;
 }
 
 function evictUntilWithinBudget(): void {
   while (cacheBytesUsed > cacheMaxBytes && telemetryCache.size > 0) {
     const oldest = telemetryCache.keys().next().value;
     if (oldest === undefined) break;
-    cacheDelete(oldest);
+    const entry = telemetryCache.get(oldest);
+    if (!entry) break;
+    cacheBytesUsed -= entry.bytes;
+    telemetryCache.delete(oldest);
   }
 }
 
@@ -82,11 +169,14 @@ export function setCacheMaxBytes(bytes: number): void {
 export function getCacheStats(): { bytesUsed: number; maxBytes: number; entries: number } {
   return { bytesUsed: cacheBytesUsed, maxBytes: cacheMaxBytes, entries: telemetryCache.size };
 }
-
 export const _telemetryCacheForTest = {
   get: cacheGet,
   set: cacheSet,
   delete: cacheDelete,
+  comparisonGet: comparisonCacheGet,
+  comparisonSet: comparisonCacheSet,
+  comparisonAlignmentIndexGet: comparisonAlignmentIndexCacheGet,
+  comparisonAlignmentIndexSet: comparisonAlignmentIndexCacheSet,
   clear: () => {
     telemetryCache.clear();
     cacheBytesUsed = 0;
@@ -98,7 +188,8 @@ export const _telemetryCacheForTest = {
   resetMaxBytes: () => {
     cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
   },
-  keys: () => Array.from(telemetryCache.keys()),
+  keys: () => Array.from(telemetryCache.keys()).filter((key) => key.startsWith("lap:")).map((key) => Number(key.slice(4))),
+  comparisonKeys: () => Array.from(telemetryCache.keys()).filter((key) => key.startsWith("comparison:")),
   estimateBytes,
 };
 

@@ -3,10 +3,11 @@ import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
 import { isLiveEngineerCalloutMessageV2, isLiveEngineerVoiceLineMessageV2 } from "../../../shared/racing/live/engineer-contracts";
-import { useTelemetryStore, type ServerStatus, type VersionInfo } from "../stores/telemetry";
+import type { ServerStatus, VersionInfo } from "../stores/telemetry";
+import { telemetryStore } from "../stores/telemetry";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import { useDevTelemetryStore } from "../stores/dev-telemetry";
+import { devTelemetryStore } from "../stores/dev-telemetry";
 import { useLiveEngineerStore } from "../stores/live-engineer";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
@@ -34,7 +35,7 @@ function fetchVersionInfo(signal: AbortSignal) {
     .$get(undefined, { init: { signal } })
     .then((r) => r.json())
     .then((d) => {
-      if (!signal.aborted) useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo);
+      if (!signal.aborted) telemetryStore.actions.setVersionInfo(d as unknown as VersionInfo);
     })
     .catch(() => {});
 }
@@ -82,14 +83,13 @@ export function useWebSocket() {
       const ws = new WebSocket(buildWebSocketUrl(window.location, devTarget));
       wsRef.current = ws;
 
-      // Read store actions via getState() — stable, no dependency issues
-      const store = useTelemetryStore.getState();
+      // Read store actions via stable references — stable, no dependency issues
 
       ws.onopen = () => {
-        store.setConnected(true);
+        telemetryStore.actions.setConnected(true);
         startVersionRequest();
         flushLiveEngineerOutbound(ws);
-        if (useDevTelemetryStore.getState().subscriptionWanted) {
+        if (devTelemetryStore.get().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
       };
@@ -100,31 +100,30 @@ export function useWebSocket() {
           const liveStore = useLiveEngineerStore.getState();
           if (isLiveEngineerCalloutMessageV2(data)) liveStore.receiveCallout(data);
           else if (isLiveEngineerVoiceLineMessageV2(data)) liveStore.receiveVoiceLine(data);
-          else if (data.type === "status") useTelemetryStore.getState().setServerStatus(data as unknown as ServerStatus);
-          else if (data.type === "update-available") { useTelemetryStore.getState().setUpdateAvailable(data.version as string); startVersionRequest(); }
-          else if (data.type === "update-progress") useTelemetryStore.getState().setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
+          else if (data.type === "status") telemetryStore.actions.setServerStatus(data as unknown as ServerStatus);
+          else if (data.type === "update-available") { telemetryStore.actions.setUpdateAvailable(data.version as string); startVersionRequest(); }
+          else if (data.type === "update-progress") telemetryStore.actions.setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
           else if (data.type === "onboarding_complete") queryClient.invalidateQueries({ queryKey: ["settings"] });
-          else if (data.type === "session-laps") useTelemetryStore.getState().setSessionLaps(data.laps as LapMeta[]);
-          else if (data.type === "dev-state") useTelemetryStore.getState().setDevState(data);
+          else if (data.type === "session-laps") telemetryStore.actions.setSessionLaps(data.laps as LapMeta[]);
+          else if (data.type === "dev-state") telemetryStore.actions.setDevState(data);
           else if (data.type === "lap-saved") queryClient.invalidateQueries({ queryKey: ["laps"] });
           else if (data.type === "stale-lap-detection") {
-            useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+            telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           }
           else if (data.type === "stale-race-results") {
-            useTelemetryStore.getState().setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+            telemetryStore.actions.setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
           }
           else if (data.type === "race-result-reconciled") {
-            const store = useTelemetryStore.getState();
             const done = data.done as number;
             const total = data.total as number;
             const failedNow = data.status === "error";
-            const failedEarlier = done > 1 && store.raceResultReprocessError != null;
-            if (done === 1) store.setRaceResultReprocessError(null);
-            store.setRaceResultReprocessProgress({ done, total });
-            if (failedNow) store.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
+            const failedEarlier = done > 1 && telemetryStore.get().raceResultReprocessError != null;
+            if (done === 1) telemetryStore.actions.setRaceResultReprocessError(null);
+            telemetryStore.actions.setRaceResultReprocessProgress({ done, total });
+            if (failedNow) telemetryStore.actions.setRaceResultReprocessError(RACE_RESULT_REPROCESS_ERROR);
             if (done === total) {
-              if (!failedEarlier && !failedNow) store.setStaleRaceResults(null);
-              store.setRaceResultReprocessProgress(null);
+              if (!failedEarlier && !failedNow) telemetryStore.actions.setStaleRaceResults(null);
+              telemetryStore.actions.setRaceResultReprocessProgress(null);
             }
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
             queryClient.invalidateQueries({ queryKey: queryKeys.sessionResults });
@@ -133,13 +132,13 @@ export function useWebSocket() {
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
-            useTelemetryStore.getState().incrementReprocessProgress();
+            telemetryStore.actions.incrementReprocessProgress();
           } else if (data.type === "experiment-updated") {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
             queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
           } else if (data.type === "lap-issues") {
-            useTelemetryStore.getState().addLapIssues({
+            telemetryStore.actions.addLapIssues({
               lapId: data.lapId as number,
               lapNumber: data.lapNumber as number,
               issues: data.issues as TuneIssue[],
@@ -154,15 +153,15 @@ export function useWebSocket() {
 
       ws.onclose = () => {
         abortVersionRequest();
-        const s = useTelemetryStore.getState();
-        s.setConnected(false);
-        s.setServerStatus(null);
-        useDevTelemetryStore.getState().clear();
+        const s = telemetryStore.get();
+        telemetryStore.actions.setConnected(false);
+        telemetryStore.actions.setServerStatus(null);
+        devTelemetryStore.actions.clear();
         // If update was in progress, transition to reconnecting stage
         // Covers both "installing" and "downloading" (race: server may exit before WS "installing" message arrives)
         const stage = s.updateProgress?.stage;
         if (stage === "installing" || stage === "downloading") {
-          s.setUpdateProgress({ stage: "reconnecting", percent: 100 });
+          telemetryStore.actions.setUpdateProgress({ stage: "reconnecting", percent: 100 });
         }
         wsRef.current = null;
         reconnectTimeoutRef.current = setTimeout(connect, 1000);
@@ -173,8 +172,10 @@ export function useWebSocket() {
       };
     }
 
-    const unsubscribeDev = useDevTelemetryStore.subscribe((state, previous) => {
-      if (state.subscriptionWanted === previous.subscriptionWanted) return;
+    let previousSubscriptionWanted = devTelemetryStore.get().subscriptionWanted;
+    const unsubscribeDev = devTelemetryStore.subscribe((state) => {
+      if (state.subscriptionWanted === previousSubscriptionWanted) return;
+      previousSubscriptionWanted = state.subscriptionWanted;
       const ws = wsRef.current;
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
@@ -190,17 +191,17 @@ export function useWebSocket() {
     connect();
 
     const interval = setInterval(() => {
-      useTelemetryStore.getState().setPacketsPerSec(packetCountRef.current);
+      telemetryStore.actions.setPacketsPerSec(packetCountRef.current);
       packetCountRef.current = 0;
     }, 1000);
 
     return () => {
-      unsubscribeDev();
+      unsubscribeDev.unsubscribe();
       unsubscribeLiveEngineer();
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);
       abortVersionRequest();
-      useDevTelemetryStore.getState().clear();
+      devTelemetryStore.actions.clear();
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.close();

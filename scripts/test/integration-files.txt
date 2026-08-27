@@ -163,6 +163,7 @@ test/setups/engineer/setup-engineer-apply-guard.test.ts
 test/setups/engineer/setup-engineer-confirmation.test.ts
 test/setups/engineer/setup-engineer-tools.test.ts
 test/setups/tuning/community-tunes-sync.test.ts
+test/sync/laptimes-lazy.test.ts
 test/setups/tuning/f1-setup-identity.test.ts
 test/setups/tuning/format-tune.test.ts
 test/setups/tuning/tune-issues.test.ts
@@ -201,6 +202,7 @@ test/telemetry/telemetry-fidelity.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/tooling/bench-compare.test.ts
+test/tooling/process-bench.test.ts
 test/tooling/changelog.test.ts
 test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/local-ui-diff.test.ts
@@ -237,3 +239,4 @@ test/games/shared/parser.test.ts
 test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
+test/runtime/update-github.integration.test.ts

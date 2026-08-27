@@ -28,3 +28,4 @@ test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
 test/tooling/test-shards.test.ts
+test/tooling/paraglide-cache.test.ts

@@ -2,11 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../shared/games/ids";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
-import { useGameStore } from "../stores/game";
+import { gameStore, } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 
 function ComboDash2Route() {
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   const view = useTelemetryStore((s) => s.telemetryView);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
@@ -19,6 +19,6 @@ function ComboDash2Route() {
   return <ComboDash2 view={view} sessionLaps={sessionLaps} />;
 }
 
-export const Route = createFileRoute("/dash/combo-2")({
+export const Route = createFileRoute("/portable/combo-2")({
   component: ComboDash2Route,
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import { client } from "../lib/rpc";
-import { useTelemetryStore } from "../stores/telemetry";
+import { telemetryStore, } from "../stores/telemetry";
 
 type DemoLap = { id: number; gameId: string; trackOrdinal?: number; isValid?: boolean; lapTime?: number };
 type ReplayResponse = { schema?: LiveTelemetrySchemaMessageV1; frames?: LiveTelemetryFrameMessageV1[] };
@@ -9,11 +9,11 @@ type ReplayResponse = { schema?: LiveTelemetrySchemaMessageV1; frames?: LiveTele
 export function useDemoMode(preferGameId?: string) {
   const [active, setActive] = useState(false);
   const [loading, setLoading] = useState(false);
-  const setSchema = useTelemetryStore((s) => s.setTelemetrySchema);
-  const setFrame = useTelemetryStore((s) => s.setTelemetryFrame);
-  const clearTelemetry = useTelemetryStore((s) => s.clearTelemetry);
-  const setConnected = useTelemetryStore((s) => s.setConnected);
-  const setPacketsPerSec = useTelemetryStore((s) => s.setPacketsPerSec);
+  const setSchema = telemetryStore.actions.setTelemetrySchema;
+  const setFrame = telemetryStore.actions.setTelemetryFrame;
+  const clearTelemetry = telemetryStore.actions.clearTelemetry;
+  const setConnected = telemetryStore.actions.setConnected;
+  const setPacketsPerSec = telemetryStore.actions.setPacketsPerSec;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const framesRef = useRef<LiveTelemetryFrameMessageV1[]>([]);
   const indexRef = useRef(0);
