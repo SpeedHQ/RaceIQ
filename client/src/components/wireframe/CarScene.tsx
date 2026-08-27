@@ -57,6 +57,32 @@ function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft
   return { x: dirX * scale, z: dirZ * scale };
 }
 
+const MAX_LOAD_TRAIL_SAMPLES = 64;
+
+export function buildLoadTrail(
+  telemetry: SemanticAnalysisFrame[],
+  cursorIdx: number,
+  suspensionRange: { min: number; max: number } | undefined,
+  wb: number,
+  ft: number,
+  rt: number,
+): Array<[number, number]> {
+  const cur = telemetry[cursorIdx];
+  if (!cur) return [];
+  const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
+  const pts: Array<[number, number]> = [];
+  for (let i = cursorIdx; i >= 0 && cursorIdx - i < MAX_LOAD_TRAIL_SAMPLES; i--) {
+    const p = telemetry[i];
+    if (!p) break;
+    const lap = semanticNumber(p, "timing.current-lap") ?? 0;
+    if (lap > endLap || endLap - lap > 1) break;
+    const suspension = normalizedSuspension(p, suspensionRange);
+    const xz = computeLoadDotXZ(suspension, wb, ft, rt);
+    if (xz) pts.push([xz.x, xz.z]);
+  }
+  return pts.reverse();
+}
+
 export function CarScene({
   gameId,
   frame,
@@ -222,7 +248,7 @@ export function CarScene({
       camber: cambFL,
       susp: suspFL,
       drop: dropFL,
-      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
+      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 0)).color,
       rimColor: colorFL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 0),
       pressure: pressFL,
@@ -241,7 +267,7 @@ export function CarScene({
       camber: cambFR,
       susp: suspFR,
       drop: dropFR,
-      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
+      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 1)).color,
       rimColor: colorFR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 1),
       pressure: pressFR,
@@ -260,7 +286,7 @@ export function CarScene({
       camber: cambRL,
       susp: suspRL,
       drop: dropRL,
-      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
+      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 2)).color,
       rimColor: colorRL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 2),
       pressure: pressRL,
@@ -279,7 +305,7 @@ export function CarScene({
       camber: cambRR,
       susp: suspRR,
       drop: dropRR,
-      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
+      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 3)).color,
       rimColor: colorRR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 3),
       pressure: pressRR,
@@ -298,22 +324,7 @@ export function CarScene({
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
-  const loadTrail = useMemo(() => {
-    const cur = telemetry[cursorIdx];
-    if (!cur) return [];
-    const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
-    const pts: Array<[number, number]> = [];
-    for (let i = cursorIdx; i >= 0; i--) {
-      const p = telemetry[i];
-      if (!p) break;
-      const lap = semanticNumber(p, "timing.current-lap") ?? 0;
-      if (lap > endLap || endLap - lap > 1) break;
-      const suspension = normalizedSuspension(p, suspensionRange ?? undefined);
-      const xz = computeLoadDotXZ(suspension, wb, ft, rt);
-      if (xz) pts.push([xz.x, xz.z]);
-    }
-    return pts.reverse();
-  }, [telemetry, cursorIdx, wb, ft, rt, suspensionRange]);
+  const loadTrail = useMemo(() => buildLoadTrail(telemetry, cursorIdx, suspensionRange, wb, ft, rt), [telemetry, cursorIdx, suspensionRange, wb, ft, rt]);
 
   return (
     <>
