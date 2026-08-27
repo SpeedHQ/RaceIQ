@@ -71,7 +71,8 @@ export function startHttpServer({
         if (filePath.startsWith(staticDir)) {
           const file = Bun.file(filePath);
           if (await file.exists()) {
-            return new Response(file);
+            const headers = pathname.endsWith(".gz") ? { "Content-Encoding": "gzip" } : undefined;
+            return new Response(file, { headers });
           }
         }
         return new Response(Bun.file(resolve(staticDir, "index.html")));

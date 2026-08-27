@@ -226,3 +226,4 @@ test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
 test/runtime/update-github.integration.test.ts
+test/runtime/http-server.test.ts
