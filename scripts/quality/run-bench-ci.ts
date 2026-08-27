@@ -24,6 +24,8 @@ const filesToSync = [
   "test/benchmarks/process-bench-runtime.ts",
   "test/benchmarks/process-bench-child.ts",
   "test/benchmarks/replay-process-bench.ts",
+  "test/benchmarks/compare-benchmarks.ts",
+  "test/benchmarks/benchmark-statistics.ts",
 ];
 const rounds = [
   { revision: "base-1", checkout: "base", caseOrder: "forward" },
@@ -63,6 +65,7 @@ requireDirectory(baseDir, "Base checkout");
 requireDirectory(currentDir, "Current checkout");
 mkdirSync(reportsDir, { recursive: true });
 await syncHarness();
+await run([bun, "test", "./test/benchmarks/verify-benchmark-setup.bench.ts"], currentDir);
 
 for (const round of rounds) {
   const checkout = round.checkout === "base" ? baseDir : currentDir;
@@ -87,7 +90,7 @@ const pairs = rounds.reduce<string[]>((paths, round, index) => {
   return paths;
 }, []);
 const comparisonPath = join(reportsDir, "comparison.md");
-const comparator = join(currentDir, "scripts/quality/bench-compare.ts");
+const comparator = join(currentDir, "test/benchmarks/compare-benchmarks.ts");
 const comparisonArgs = [
   bun,
   "run",

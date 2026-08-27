@@ -32,8 +32,12 @@ function report(options: Options = {}): string {
 async function compare(reports: string[], extra: string[] = []) {
   const dir = mkdtempSync(join(tmpdir(), "raceiq-compare-"));
   tempDirs.push(dir);
-  const paths = reports.map((contents, index) => { const path = join(dir, `${index}.json`); Bun.write(path, contents); return path; });
-  const proc = Bun.spawn([process.execPath, "scripts/quality/bench-compare.ts", ...paths, "--bootstrap-samples=200", ...extra], { stdout: "pipe", stderr: "pipe" });
+  const paths = await Promise.all(reports.map(async (contents, index) => {
+    const path = join(dir, `${index}.json`);
+    await Bun.write(path, contents);
+    return path;
+  }));
+  const proc = Bun.spawn([process.execPath, "test/benchmarks/compare-benchmarks.ts", ...paths, "--bootstrap-samples=200", ...extra], { stdout: "pipe", stderr: "pipe" });
   const [code, stdout, stderr] = await Promise.all([proc.exited, new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   return { code, output: `${stdout}\n${stderr}` };
 }
