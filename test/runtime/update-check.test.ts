@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
-import { findReleaseAsset, isNewer, mergeLatestRelease, shouldFetchReleaseArtifacts } from "../../server/runtime/update/check";
+import { collectReleaseNotes, fetchReleases, getReleaseNotes, isNewer, mergeLatestRelease, shouldFetchReleaseArtifacts } from "../../server/runtime/update/check";
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;
 
@@ -67,18 +67,60 @@ describe("release list merging", () => {
   });
 });
 
-describe("release asset selection", () => {
-  test("selects the full plural release history asset", () => {
+
+describe("release body selection", () => {
+  test("uses the GitHub release body instead of release-note assets", () => {
     const release = {
       tag_name: "v0.14.0",
-      assets: [
-        { name: "releasenote.md", browser_download_url: "single" },
-        { name: "releasenotes.md", browser_download_url: "full" },
-      ],
+      body: "### Features\n- Faster updates",
+      assets: [{ name: "releasenote.md", browser_download_url: "asset" }],
     };
 
-    expect(findReleaseAsset(release, "releasenotes.md")).toBe("full");
+    expect(getReleaseNotes(release)).toBe("### Features\n- Faster updates");
   });
+  test("collects bodies from the installed version through latest", () => {
+    const releases = [
+      { tag_name: "v0.16.0", body: "latest body", published_at: "2026-08-01", assets: [] },
+      { tag_name: "v0.15.0", body: "middle body", published_at: "2026-07-01", assets: [] },
+      { tag_name: "v0.14.0", body: "installed body", published_at: "2026-06-01", assets: [] },
+      { tag_name: "v0.13.0", body: "older body", published_at: "2026-05-01", assets: [] },
+    ];
+
+    expect(collectReleaseNotes(releases, "0.14.0")).toEqual({
+      newReleases: [
+        { version: "0.16.0", notes: "latest body", date: "2026-08-01" },
+        { version: "0.15.0", notes: "middle body", date: "2026-07-01" },
+      ],
+      currentReleaseNotes: "installed body",
+      currentReleaseDate: "2026-06-01",
+    });
+  });
+  test("fetches release bodies for every release from the installed version", async () => {
+    const originalFetch = globalThis.fetch;
+    let requestedUrl = "";
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      requestedUrl = String(input);
+      return new Response(JSON.stringify([
+        { tag_name: "v0.16.0", body: "latest body", published_at: "2026-08-01", assets: [] },
+        { tag_name: "v0.15.0", body: "middle body", published_at: "2026-07-01", assets: [] },
+        { tag_name: "v0.14.0", body: "installed body", published_at: "2026-06-01", assets: [] },
+        { tag_name: "v0.13.0", body: "older body", published_at: "2026-05-01", assets: [] },
+      ]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    try {
+      const result = await fetchReleases("0.14.0");
+      expect(requestedUrl).toBe("https://api.github.com/repos/SpeedHQ/RaceIQ/releases?per_page=50&page=1");
+      expect(result.newReleases).toEqual([
+        { version: "0.16.0", notes: "latest body", date: "2026-08-01" },
+        { version: "0.15.0", notes: "middle body", date: "2026-07-01" },
+      ]);
+      expect(result.currentReleaseNotes).toBe("installed body");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
 
 describe("release artifact cache gate", () => {
