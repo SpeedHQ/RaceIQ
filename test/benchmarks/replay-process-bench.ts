@@ -3,6 +3,7 @@ import { gunzipSync } from "node:zlib";
 import { parseRawLapFramesFromBuffer, type LapReplaySource } from "../../server/db/telemetry-replay-storage";
 import { resolveTelemetryReplay } from "../../server/telemetry/replay";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 export const REPLAY_PARSE_ALIAS = "replay/parse 20,000 raw lap frames";
@@ -11,7 +12,17 @@ export const REPLAY_ALIASES = [REPLAY_PARSE_ALIAS, REPLAY_RESOLVE_ALIAS] as cons
 
 const FRAME_COUNT = 20_000;
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
-const SEMANTIC_IDS = ["motion.speed", "inputs.throttle", "inputs.brake", "inputs.gear", "inputs.clutch", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
+const catalogSemanticIds = new Set(TELEMETRY_CATALOG.variables.map((variable) => variable.id));
+const SEMANTIC_IDS = [
+  "motion.speed",
+  catalogSemanticIds.has("inputs.throttle") ? "inputs.throttle" : "inputs.accel",
+  "inputs.brake",
+  "inputs.gear",
+  catalogSemanticIds.has("inputs.clutch") ? "inputs.clutch" : "inputs.clutch-percent",
+  "timing.current-lap",
+  "timing.lap-number",
+  "timing.distance-traveled",
+] as const;
 
 let capture: Buffer;
 let packets: TelemetryPacket[];
