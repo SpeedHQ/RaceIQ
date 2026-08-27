@@ -139,7 +139,7 @@ export function GearingTestViewer() {
                   key={file.name}
                   onClick={() => handleSelectFile(file.name)}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                    selectedFile === file.name ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt"
+                    selectedFile === file.name ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover"
                   }`}
                 >
                   <div className="font-mono truncate">{file.name}</div>

@@ -103,7 +103,7 @@ export function TrackSpeedChart({ laps, toDistance, toSpeed, distanceLabel, spee
       const speedLabel = speedLabelRef.current;
 
       // Background
-      ctx.fillStyle = "rgba(255,255,255,0.03)";
+      ctx.fillStyle = "color-mix(in srgb, var(--app-text) 3%, transparent)";
       ctx.fillRect(pad.left, pad.top, cW, cH);
 
       // Domains: distance from the lap baseline, speed from zero with headroom.

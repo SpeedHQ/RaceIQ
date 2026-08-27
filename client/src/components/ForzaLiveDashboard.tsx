@@ -46,7 +46,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/gearing` as any
           }
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
+          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${
             dashMode === "gearing"
               ? "bg-app-accent/20 text-app-accent"
               : "text-app-text-muted hover:text-app-text"
@@ -122,7 +122,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
   // ── GEARING MODE ─────────────────────────────────────────────
   if (mode === "gearing") {
     return (
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+      <div className="flex-1 grid grid-cols-1 @5xl/workspace:grid-cols-2 gap-0 h-full">
         {/* Left column: Gearing telemetry */}
         <div className="border-r border-app-border overflow-auto">
           <PageHeader dashMode={mode} demo={demo} />

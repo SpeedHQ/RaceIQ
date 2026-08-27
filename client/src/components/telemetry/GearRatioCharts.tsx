@@ -201,7 +201,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
           ) : draft ? (
             <>
               <div>
-                <div className="text-[9px] font-semibold uppercase tracking-wider text-app-text-muted">{m.aidisplay_setup()}</div>
+                <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.aidisplay_setup()}</div>
                 <SearchSelect value={selectedId != null ? String(selectedId) : ""} onChange={(value) => selectTune(Number(value))} options={setupOptions} placeholder={m.tune_section_gearing()} />
               </div>
 
@@ -233,12 +233,12 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
 
               <div className="pt-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <div className="text-[9px] font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_gear_ratios()}</div>
-                  <div className="text-[9px] text-app-text-dim">{speedLabel}</div>
+                  <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_gear_ratios()}</div>
+                  <div className="text-app-micro text-app-text-dim">{speedLabel}</div>
                 </div>
                 {draft.ratios.map((row, index) => (
                   <div key={row.id} className="flex items-center gap-1">
-                    <span className="w-9 text-[10px] text-app-text-dim shrink-0">
+                    <span className="w-9 text-app-caption text-app-text-dim shrink-0">
                       {m.dataguide_gear()} {index + 1}
                     </span>
                     <input
@@ -249,7 +249,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
                       onChange={(e) => updateRatio(index, parseFloat(e.target.value) || 0)}
                       className="flex-1 min-w-0 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
                     />
-                    <span className="w-12 shrink-0 text-right font-mono text-[10px] text-app-text">{speedByGear[index + 1] != null && row.value > 0 ? Math.round(speedByGear[index + 1]) : "—"}</span>
+                    <span className="w-12 shrink-0 text-right font-mono text-app-caption text-app-text">{speedByGear[index + 1] != null && row.value > 0 ? Math.round(speedByGear[index + 1]) : "—"}</span>
                     <button
                       type="button"
                       aria-label={`${m.dataguide_gear()} ${index + 1}`}
@@ -413,7 +413,7 @@ function GearSpeedChart({
       {gearLines.map((line) => (
         <g key={line.gear}>
           <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth={1.6} />
-          <text x={line.x2 + 4} y={line.y2 + 4} fontSize={10} fontWeight="bold" fill={line.color} fontFamily="var(--font-mono)">
+          <text x={line.x2 + 4} y={line.y2 + 4} fontSize={10} fontWeight="var(--font-weight-bold)" fill={line.color} fontFamily="var(--font-mono)">
             {line.gear}
           </text>
           {line.startRpm > 0 && (

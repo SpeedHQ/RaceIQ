@@ -97,14 +97,14 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       }
 
       // Background
-      ctx.fillStyle = "rgba(255,255,255,0.03)";
+      ctx.fillStyle = "color-mix(in srgb, var(--app-text) 3%, transparent)";
       ctx.fillRect(pad.left, pad.top, cW, cH);
 
       // Highlight power band (peak torque RPM -> peak power RPM)
       if (peakTorque && peakPower && peakTorque.rpm < peakPower.rpm) {
         const x1 = sx(peakTorque.rpm);
         const x2 = sx(peakPower.rpm);
-        ctx.fillStyle = "rgba(250,204,21,0.12)";
+        ctx.fillStyle = "color-mix(in srgb, var(--telemetry-power-band) 12%, transparent)";
         ctx.fillRect(x1, pad.top, x2 - x1, cH);
       }
 
@@ -200,7 +200,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
         if (crossRpm != null) {
           const cx = sx(crossRpm);
           crossLabel = { rpm: crossRpm, x: cx };
-          ctx.strokeStyle = "rgba(255,255,255,0.4)";
+          ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 40%, transparent)";
           ctx.setLineDash([2, 2]);
           ctx.lineWidth = 1;
           ctx.beginPath();
@@ -331,7 +331,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
       //     let bandY = pad.top + 14;
       //     if (px != null && Math.abs(midX - px) < 40 && powerAbove) bandY = pad.top + 28;
       //     if (tx != null && Math.abs(midX - tx) < 40 && torqueAbove) bandY = pad.top + 28;
-      //     drawLabel(ctx, bandText, midX, bandY, "var(--status-warning)", false, "center", "rgba(0,0,0,0.45)");
+      //     drawLabel(ctx, bandText, midX, bandY, "var(--status-warning)", false, "center", "color-mix(in srgb, var(--app-bg) 45%, transparent)");
       //   }
       // }
 
@@ -547,7 +547,7 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
 }
 
 /** Draw a text label with a rounded background for readability */
-function drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, above: boolean, align: CanvasTextAlign = "center", bg: string = "rgba(0,0,0,0.55)") {
+function drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string, above: boolean, align: CanvasTextAlign = "center", bg: string = "color-mix(in srgb, var(--app-bg) 55%, transparent)") {
   ctx.font = "var(--text-app-caption) var(--font-sans)";
   const metrics = ctx.measureText(text);
   const paddingX = 5;

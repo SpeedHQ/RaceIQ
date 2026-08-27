@@ -1,5 +1,14 @@
-/** Shared gear palette: gear-ratio sawtooth chart and track-speed trace use the same colors. */
-export const GEAR_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399", "#f472b6", "#60a5fa", "#fb923c", "#a3a3a3"] as const;
+/** Shared gear identity: gear-ratio sawtooth chart and track-speed trace use the same theme-owned colors. */
+export const GEAR_COLORS = [
+  "var(--telemetry-gear-1)",
+  "var(--telemetry-gear-2)",
+  "var(--telemetry-gear-3)",
+  "var(--telemetry-gear-4)",
+  "var(--telemetry-gear-5)",
+  "var(--telemetry-gear-6)",
+  "var(--telemetry-gear-7)",
+  "var(--telemetry-gear-8)",
+] as const;
 
 /** Stable identities shared by sector visualizations. */
 export const SECTOR_COLOR_VARS = ["var(--sector-1)", "var(--sector-2)", "var(--sector-3)", "var(--sector-4)", "var(--sector-5)", "var(--sector-6)"] as const;
