@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+  ast,
+  interfaceFields,
+  interfaceLeafFields,
+} from "../../../scripts/catalog/ast-discovery";
+import {
   buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
@@ -85,6 +90,24 @@ describe("semantic telemetry catalog artifacts", () => {
     const lf = "alpha\nbeta\n";
     expect(telemetryCatalogSourceHash(lf)).toBe(
       telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
+    );
+  });
+  test("normalizes line endings in extracted multiline types", () => {
+    const lf = [
+      "interface Sample {",
+      "  value: [",
+      "    [number, number],",
+      "    [number, number],",
+      "  ];",
+      "}",
+      "",
+    ].join("\n");
+    const crlf = lf.replaceAll("\n", "\r\n");
+    expect(interfaceFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceFields(lf, ast(lf), "Sample"),
+    );
+    expect(interfaceLeafFields(crlf, ast(crlf), "Sample")).toEqual(
+      interfaceLeafFields(lf, ast(lf), "Sample"),
     );
   });
   test("covers every normalized packet field and every parser source inventory", () => {

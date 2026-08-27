@@ -58,10 +58,15 @@ test("generates canonical pedal and tire channels for demo packets", () => {
   } as TelemetryPacket;
   const values = buildDemoFixture([packet])[0].values;
 
-  expect(values["inputs.accel"]).toBe(200);
-  expect(values["inputs.brake"]).toBe(64);
+  expect(values["inputs.throttle"]).toBeCloseTo(200 / 255);
+  expect(values["inputs.brake"]).toBeCloseTo(64 / 255);
   expect(values["suspension.norm-suspension-travel"]).toEqual([0.25, 0.3, 0.35, 0.4]);
   expect(values["tires.tire-slip-ratio"]).toEqual([expect.closeTo(0.109, 2), 0, 0, 0]);
   expect(values["tires.normalized-tire-slip-angle"]).toEqual([0.2, 0.1, 0.05, 0.02]);
-  expect(values["tire.temperature.average"]).toEqual([180, 181, 182, 183]);
+  expect(values["tire.temperature.average"]).toEqual([
+    expect.closeTo(82.22, 2),
+    expect.closeTo(82.78, 2),
+    expect.closeTo(83.33, 2),
+    expect.closeTo(83.89, 2),
+  ]);
 });

@@ -10,7 +10,7 @@ import { wheelSlipRatios } from "../../shared/racing/analysis/laps/physics/vehic
 
 export const DEMO_SEMANTIC_IDS = [
   "identity.track-ordinal", "identity.car-ordinal", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "motion.pitch", "motion.roll",
-  "inputs.accel", "inputs.brake", "inputs.gear", "inputs.steer", "timing.distance-traveled", "timing.current-lap", "diagnostics.timestamp-ms",
+  "inputs.throttle", "inputs.brake", "inputs.gear", "inputs.steering", "timing.distance-traveled", "timing.current-lap", "session.timestamp",
   "suspension.norm-suspension-travel", "tires.tire-slip-ratio", "tires.normalized-tire-slip-angle", "tires.wheel-rotation-speed", "tires.tire-wear", "tire.temperature.average",
 ] as const;
 
