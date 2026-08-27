@@ -93,6 +93,7 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+- Read release notes from GitHub release bodies instead of downloading release-note assets
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
