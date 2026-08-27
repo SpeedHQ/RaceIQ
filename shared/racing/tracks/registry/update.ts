@@ -52,14 +52,13 @@ function replaceStagedFile(stagedPath: string, targetPath: string): void {
 }
 
 function stageTrackRegistrySourceUpdate(
-  currentSource: TrackRegistrySource,
+  currentFiles: ReadonlyMap<string, string>,
   nextSource: TrackRegistrySource,
   resolved: TrackRegistryLocations,
   oldSourceHash: string,
   newSourceHash: string,
 ): TrackRegistryUpdateJournal {
   const sessionId = randomBytes(8).toString("hex");
-  const renderedCurrent = renderTrackRegistrySource(currentSource);
   const renderedNext = renderTrackRegistrySource(nextSource);
   const sourceBackups: Record<string, string> = {};
   const sourceStaged: Record<string, string> = {};
@@ -67,13 +66,13 @@ function stageTrackRegistrySourceUpdate(
   const reportStaged = `${resolved.reportPath}.stage.${sessionId}`;
 
   try {
-    const filenames = new Set([...renderedCurrent.keys(), ...renderedNext.keys()]);
+    const filenames = new Set([...currentFiles.keys(), ...renderedNext.keys()]);
     for (const filename of filenames) {
-      if (renderedCurrent.get(filename) === renderedNext.get(filename)) continue;
+      if (currentFiles.get(filename) === renderedNext.get(filename)) continue;
       const sourcePath = sourceFilePath(resolved, filename);
-      if (renderedCurrent.has(filename)) {
+      if (currentFiles.has(filename)) {
         const backupPath = `${sourcePath}.backup.${sessionId}`;
-        writeFile(backupPath, renderedCurrent.get(filename)!);
+        writeFile(backupPath, currentFiles.get(filename)!);
         sourceBackups[filename] = backupPath;
       }
       if (renderedNext.has(filename)) {
@@ -194,7 +193,7 @@ export function updateTrackRegistrySource(mutator: (draft: TrackRegistrySource) 
   if (currentHash === nextHash && !needsCanonicalRewrite) return;
   assertRemovedMetadataHasNoAssets(currentRendered, nextRendered, resolved);
 
-  const journal = stageTrackRegistrySourceUpdate(current, next, resolved, currentHash, nextHash);
+  const journal = stageTrackRegistrySourceUpdate(currentFiles, next, resolved, currentHash, nextHash);
   writeAtomicFile(resolved.transactionPath, `${JSON.stringify(journal, null, 2)}\n`);
   try {
     for (const [filename, staged] of Object.entries(journal.sourceStaged)) replaceStagedFile(staged, sourceFilePath(resolved, filename));
