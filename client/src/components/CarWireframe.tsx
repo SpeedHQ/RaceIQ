@@ -83,7 +83,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
-  const units = useUnits();
+  const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;

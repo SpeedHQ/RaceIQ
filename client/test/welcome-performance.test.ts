@@ -29,12 +29,18 @@ test("enables input lines in default wireframe view", () => {
   expect(DEFAULT_TOGGLES.inputs).toBe(true);
 });
 
-test("maps demo pedal and tire channels into semantic inputs", () => {
+test("maps demo pedal and canonical tire channels into semantic inputs", () => {
   const packet = {
     Accel: 200,
     Brake: 64,
+    Speed: 50,
+    WheelRotationSpeedFL: 170,
+    WheelRotationSpeedFR: 151.5151515,
+    WheelRotationSpeedRL: 151.5151515,
+    WheelRotationSpeedRR: 151.5151515,
     NormSuspensionTravelFL: 0.25,
     TireSlipRatioFL: 0.4,
+    TireSlipAngleFL: 0.2,
     TireTempFL: 180,
   } as Parameters<typeof toSemanticFrame>[0];
   const values = toSemanticFrame(packet).values;
@@ -42,6 +48,7 @@ test("maps demo pedal and tire channels into semantic inputs", () => {
   expect(values["inputs.accel"]).toBe(200);
   expect(values["inputs.brake"]).toBe(64);
   expect(values["suspension.norm-suspension-travel"]).toEqual([0.25, undefined, undefined, undefined]);
-  expect(values["tires.tire-slip-ratio"]).toEqual([0.4, undefined, undefined, undefined]);
+  expect(values["tires.tire-slip-ratio"]).toEqual([expect.closeTo(0.109, 2), 0, 0, 0]);
+  expect(values["tires.tire-slip-angle"]).toEqual([0.2, undefined, undefined, undefined]);
   expect(values["tire.temperature.average"]).toEqual([180, undefined, undefined, undefined]);
 });

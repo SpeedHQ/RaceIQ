@@ -1,4 +1,5 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
+import { wheelSlipRatios } from "@shared/racing/analysis/laps/physics/vehicle";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +21,11 @@ export function toSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame 
     "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.gear": packet.Gear, "inputs.steer": packet.Steer, "timing.distance-traveled": packet.DistanceTraveled,
     "timing.current-lap": packet.CurrentLap, "diagnostics.timestamp-ms": packet.TimestampMS,
     "suspension.norm-suspension-travel": [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR],
-    "tires.tire-slip-ratio": [packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR],
+    "tires.tire-slip-ratio": (() => {
+      const slip = wheelSlipRatios(packet);
+      return [slip.fl, slip.fr, slip.rl, slip.rr];
+    })(),
+    "tires.tire-slip-angle": [packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR],
     "tires.wheel-rotation-speed": [packet.WheelRotationSpeedFL, packet.WheelRotationSpeedFR, packet.WheelRotationSpeedRL, packet.WheelRotationSpeedRR],
     "tires.tire-wear": [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
     "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
