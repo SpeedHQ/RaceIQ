@@ -4,7 +4,7 @@ import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
@@ -35,17 +35,18 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; onClose: () => void }) {
+export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
 
   const stage = updateProgress?.stage ?? null;
+  const releasesToDisplay = currentReleaseNotes ? [...newReleases, { version: currentVersion, notes: currentReleaseNotes, date: currentReleaseDate ?? "" }] : newReleases;
   const percent = updateProgress?.percent ?? 0;
 
   const handleInstall = async () => {
     setError(null);
-    useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
+    telemetryStore.actions.setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
@@ -54,7 +55,7 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : m.update_failed());
-      useTelemetryStore.getState().setUpdateProgress(null);
+      telemetryStore.actions.setUpdateProgress(null);
     }
   };
 
@@ -113,9 +114,9 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
                   <ReleaseNotes notes={fullReleaseNotes} />
                 </div>
               ) : (
-                newReleases.length > 0 &&
+                releasesToDisplay.length > 0 &&
                 (() => {
-                  const [latest, ...older] = newReleases;
+                  const [latest, ...older] = releasesToDisplay;
                   return (
                     <div className="max-h-52 overflow-y-auto space-y-3">
                       <div>

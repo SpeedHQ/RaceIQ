@@ -9,7 +9,7 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
-import { cpSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
@@ -36,6 +36,7 @@ async function setupDataDir() {
     process.env[name] = line.slice(separator + 1);
   }
 
+
   const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
   process.env.RACEIQ_TEST_MODE = "1";
   prepareIsolatedTrackRegistryDir(TEST_DATA_DIR);
@@ -59,6 +60,11 @@ async function setupDataDir() {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
     }
+  }
+  if (resolve(process.env.DATA_DIR) === TEST_DATA_DIR) {
+    // Start each default test run from valid settings, even after an interrupted
+    // test left behind an intentionally invalid fixture value.
+    writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
   }
 
   /**

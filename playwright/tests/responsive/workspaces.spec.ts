@@ -33,8 +33,8 @@ const APP_ROUTES = [
   { name: "raw telemetry", path: "/fm23/raw" },
   { name: "Forza setups", path: "/fm23/setups" },
   { name: "ACC setups", path: "/acc/setups" },
-  { name: "dashboard catalogue", path: "/dash" },
-  { name: "standalone dashboard", path: "/dash/combo-1" },
+  { name: "portable catalogue", path: "/portable" },
+  { name: "standalone portable dashboard", path: "/portable/combo-1" },
   { name: "developer tools", path: "/dev" },
 ] as const;
 

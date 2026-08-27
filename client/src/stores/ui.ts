@@ -1,32 +1,13 @@
-import { create } from "zustand";
+import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
 import { getLocale } from "@/paraglide/runtime";
-
-interface UiStore {
-  settingsOpen: boolean;
-  settingsSection: string | undefined;
-  openSettings: (section?: string) => void;
-  closeSettings: () => void;
-  onboardingOpen: boolean;
-  openOnboarding: () => void;
-  closeOnboarding: () => void;
-  /**
-   * Current UI locale, mirrored from Paraglide. Used as a remount key on the
-   * routed content so a language switch re-renders every `m.*` string WITHOUT a
-   * full page reload (keeps the live WebSocket + telemetry store alive). Update
-   * it via `applyLocale()` in lib/locale.ts, never directly.
-   */
-  uiLocale: string;
-  setUiLocale: (locale: string) => void;
-}
-
-export const useUiStore = create<UiStore>((set) => ({
-  settingsOpen: false,
-  settingsSection: undefined,
-  openSettings: (section) => set({ settingsOpen: true, settingsSection: section }),
-  closeSettings: () => set({ settingsOpen: false, settingsSection: undefined }),
-  onboardingOpen: false,
-  openOnboarding: () => set({ onboardingOpen: true }),
-  closeOnboarding: () => set({ onboardingOpen: false }),
-  uiLocale: getLocale(),
-  setUiLocale: (locale) => set({ uiLocale: locale }),
+export interface UiState { settingsOpen: boolean; settingsSection: string | undefined; onboardingOpen: boolean; uiLocale: string }
+export interface UiActions extends StoreActionMap { openSettings: (section?: string) => void; closeSettings: () => void; openOnboarding: () => void; closeOnboarding: () => void; setUiLocale: (locale: string) => void }
+const initialUiState: UiState = { settingsOpen: false, settingsSection: undefined, onboardingOpen: false, uiLocale: getLocale() };
+export const uiStore = createStore(initialUiState, (store): UiActions => ({
+  openSettings: (section) => store.setState((state) => ({ ...state, settingsOpen: true, settingsSection: section })),
+  closeSettings: () => store.setState((state) => ({ ...state, settingsOpen: false, settingsSection: undefined })),
+  openOnboarding: () => store.setState((state) => ({ ...state, onboardingOpen: true })),
+  closeOnboarding: () => store.setState((state) => ({ ...state, onboardingOpen: false })),
+  setUiLocale: (uiLocale) => store.setState((state) => ({ ...state, uiLocale })),
 }));
+export function useUiStore<T>(selector: (state: UiState) => T): T { return useSelector(uiStore, selector, { compare: Object.is }); }
