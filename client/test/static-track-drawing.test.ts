@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { drawStaticTrack } from "../src/components/analyse/track-map/static-drawing";
+import { headingDirection } from "../src/components/analyse/track-map/overlay-drawing";
 import { needsTrackFlip } from "../../shared/racing/tracks/coords";
 import { initGameAdapters } from "../../shared/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
@@ -272,6 +273,48 @@ test("draws input, segment, and racing-line overlays together", () => {
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
+});
+test("places segment overlays on canonical centerline instead of replay trace", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const { canvas, strokes } = createDrawingHarness();
+    const centerLine = [
+      { x: 0, z: 10 },
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+    ];
+    const result = drawStaticTrack({
+      canvas,
+      bufferCanvas: canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: [
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+        { x: 10, z: 10 },
+      ],
+      boundaries: { ...boundaryFixture(), centerLine, coordSystem: "standard-xyz" },
+      sectors: null,
+      segments: [{ type: "corner", name: "", startFrac: 0, endFrac: 0.5 }],
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const marker = strokes.find((stroke) => stroke.color === "var(--track-corner-marker)");
+    expect(marker?.commands[0]).toEqual({
+      kind: "moveTo",
+      values: [result.transform!.offsetX + result.transform!.maxX * result.transform!.scale, result.transform!.offsetZ + 10 * result.transform!.scale],
+    });
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("orients GPS cursor from car heading instead of replay path", () => {
+  const [x, z] = headingDirection({ values: { "motion.yaw": Math.PI / 2 }, states: {}, freshness: {} });
+  expect(x).toBeCloseTo(1);
+  expect(z).toBeCloseTo(0);
 });
 
 function projectRaceLinePoint(point: Point, transform: TrackTransform, gameId: "acc" | "ac-evo"): [number, number] {

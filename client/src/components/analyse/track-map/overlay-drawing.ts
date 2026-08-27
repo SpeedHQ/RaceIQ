@@ -12,27 +12,29 @@ export interface OverlayOptions {
   transform: TrackTransform | null;
 }
 
-const direction = (frame: SemanticAnalysisFrame, path: [number, number] | null): [number, number] => path ?? [Math.sin(semanticNumber(frame, "motion.yaw") ?? 0), Math.cos(semanticNumber(frame, "motion.yaw") ?? 0)];
+export const headingDirection = (frame: SemanticAnalysisFrame): [number, number] => [Math.sin(semanticNumber(frame, "motion.yaw") ?? 0), Math.cos(semanticNumber(frame, "motion.yaw") ?? 0)];
+
+const direction = (frame: SemanticAnalysisFrame): [number, number] => headingDirection(frame);
 
 export function compositeTrack(options: OverlayOptions, idx: number): void {
-  const { canvas, telemetry, resolvedPositions, resolvedDirections, transform: t, bufferCanvas } = options;
+  const { canvas, telemetry, resolvedPositions, transform: t, bufferCanvas } = options;
   if (!bufferCanvas || !t) return;
   const ctx = getSemanticCanvasContext(canvas);
   if (!ctx) return;
   ctx.save();
   ctx.setTransform(canvas.width / t.w, 0, 0, canvas.height / t.h, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const frame = telemetry[idx], position = resolvedPositions[idx], path = resolvedDirections[idx];
+  const frame = telemetry[idx], position = resolvedPositions[idx];
   if (frame && position) {
     const cx = t.offsetX + (t.maxX - position.x) * t.scale, cy = t.offsetZ + (position.z - t.minZ) * t.scale;
     ctx.translate(t.w / 2, t.h / 2);
-    ctx.rotate(path ? -Math.PI / 2 - Math.atan2(path[1], -path[0]) : Math.PI - (semanticNumber(frame, "motion.yaw") ?? 0));
+    ctx.rotate(Math.PI - (semanticNumber(frame, "motion.yaw") ?? 0));
     ctx.translate(-cx, -cy);
   }
   ctx.drawImage(bufferCanvas, 0, 0, t.offW, t.offH);
   if (frame && position) {
-    const cx = t.offsetX + (t.maxX - position.x) * t.scale, cy = t.offsetZ + (position.z - t.minZ) * t.scale;
-    const [dx, dz] = direction(frame, path), fx = t.offsetX + (t.maxX - (position.x + dx)) * t.scale, fy = t.offsetZ + (position.z + dz - t.minZ) * t.scale;
+    const [dx, dz] = direction(frame), cx = t.offsetX + (t.maxX - position.x) * t.scale, cy = t.offsetZ + (position.z - t.minZ) * t.scale;
+    const fx = t.offsetX + (t.maxX - (position.x + dx)) * t.scale, fy = t.offsetZ + (position.z + dz - t.minZ) * t.scale;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.atan2(fy - cy, fx - cx));
     ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4.8, -4.8); ctx.lineTo(-4.8, 4.8); ctx.closePath();
     ctx.fillStyle = "var(--app-accent)"; ctx.fill(); ctx.strokeStyle = "var(--track-label-background)"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
@@ -41,14 +43,14 @@ export function compositeTrack(options: OverlayOptions, idx: number): void {
 }
 
 export function drawCarOverlay(options: OverlayOptions, idx: number): { x: number; y: number; w: number; h: number; angle?: number } | null {
-  const { carCanvas, telemetry, resolvedPositions, resolvedDirections, transform: t } = options;
+  const { carCanvas, telemetry, resolvedPositions, transform: t } = options;
   if (!t) return null;
   syncCanvasSize(carCanvas, t.w, t.h, window.devicePixelRatio || 1, false);
   const ctx = getSemanticCanvasContext(carCanvas); if (!ctx) return null;
   ctx.setTransform(carCanvas.width / t.w, 0, 0, carCanvas.height / t.h, 0, 0); ctx.clearRect(0, 0, t.w, t.h);
   const frame = telemetry[idx], position = resolvedPositions[idx]; if (!frame || !position) return null;
   const sx = t.w / t.offW, sy = t.h / t.offH, toCanvas = (x: number, z: number): [number, number] => [(t.offsetX + (t.maxX - x) * t.scale) * sx, (t.offsetZ + (z - t.minZ) * t.scale) * sy];
-  const [cx, cy] = toCanvas(position.x, position.z), [dx, dz] = direction(frame, resolvedDirections[idx]), [fx, fy] = toCanvas(position.x + dx, position.z + dz), angle = Math.atan2(fy - cy, fx - cx);
+  const [cx, cy] = toCanvas(position.x, position.z), [dx, dz] = direction(frame), [fx, fy] = toCanvas(position.x + dx, position.z + dz), angle = Math.atan2(fy - cy, fx - cx);
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle); ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4.8, -4.8); ctx.lineTo(-4.8, 4.8); ctx.closePath(); ctx.fillStyle = "var(--app-accent)"; ctx.fill(); ctx.strokeStyle = "var(--track-label-background)"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
   return { x: cx, y: cy, w: t.w, h: t.h, angle };
 }
