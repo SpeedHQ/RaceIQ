@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
+import { TrackDebugSidebar } from "../src/components/track/detail/TrackDebugSidebar";
 import { TrackInfoPanel } from "../src/components/track/TrackInfoPanel";
 import type { TrackInfo, TrackSectors } from "../src/components/track/types";
 
@@ -42,5 +43,40 @@ describe("track sector boundaries", () => {
     expect(markup).not.toContain(">S6<");
     expect(markup).toContain("80.0% – 100.0%");
     expect(markup).toContain(">T5<");
+  });
+
+  test("renders native sectors in Track Debug without exposing the editor", () => {
+    const markup = renderToStaticMarkup(
+      <TrackDebugSidebar
+        track={track}
+        displaySectors={sectors}
+        segSource="shared"
+        editing={false}
+        editSegments={[]}
+        saving={false}
+        sectorBounds={null}
+        sectorStarts={[0, 0.2, 0.4, 0.6, 0.8]}
+        editingSectors={false}
+        editS1={33.3}
+        editS2={66.6}
+        savingSectors={false}
+        segDisplayNames={[]}
+        startEditing={() => {}}
+        saveSegments={() => {}}
+        toggleSegType={() => {}}
+        addSegment={() => {}}
+        removeSegment={() => {}}
+        updateSegFrac={() => {}}
+        setEditing={() => {}}
+        startEditingSectors={() => {}}
+        saveSectorBounds={() => {}}
+        setEditingSectors={() => {}}
+        setEditS1={() => {}}
+        setEditS2={() => {}}
+      />,
+    );
+
+    expect(markup).toContain(">S5<");
+    expect(markup).not.toContain(">Edit<");
   });
 });

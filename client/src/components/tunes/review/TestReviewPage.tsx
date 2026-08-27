@@ -85,6 +85,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             gameId={gameId}
             laps={laps}
             trackName={session?.trackName ?? undefined}
+            trackOrdinal={session.trackOrdinal}
             onBack={backToWorkspace}
             test={activeTest}
             experimentId={experimentId}

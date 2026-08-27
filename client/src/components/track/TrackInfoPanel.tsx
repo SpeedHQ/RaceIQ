@@ -1,5 +1,6 @@
 import type { ResolvedTrackGuide } from "@shared/racing/tracks/guide/types";
 import { segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
+import { sectorIndexAtFraction } from "@shared/racing/tracks/sectors";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -83,16 +84,6 @@ export function TrackInfoPanel({
   // corner-segment count: a chicane is one segment spanning several turns.
   const turnCount = corners.reduce((max, s) => Math.max(max, ...turnNumbers(s), 0), 0);
 
-  /** Which source-defined sector a segment falls in, by its midpoint. */
-  const sectorOf = (startFrac: number, endFrac: number): number => {
-    if (!sectorStarts) return 1;
-    const mid = (startFrac + endFrac) / 2;
-    for (let index = sectorStarts.length - 1; index > 0; index--) {
-      if (mid >= sectorStarts[index]) return index + 1;
-    }
-    return 1;
-  };
-
   if (part === "summary") {
     return (
       <div className="space-y-3">
@@ -127,7 +118,7 @@ export function TrackInfoPanel({
               const n = index + 1;
               const from = index === 0 ? 0 : start;
               const to = sectorStarts[index + 1] ?? 1;
-              const within = corners.filter((segment) => sectorOf(segment.startFrac, segment.endFrac) === n);
+              const within = corners.filter((segment) => sectorIndexAtFraction(sectorStarts, (segment.startFrac + segment.endFrac) / 2) === index);
               return (
                 <div key={n} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
                   <div className="flex items-baseline justify-between">
@@ -204,7 +195,7 @@ export function TrackInfoPanel({
                   <TD tone="muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TD>
                   <TD tone="muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TD>
                   <TD numeric tone="muted">
-                    {sectorStarts ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
+                    {sectorStarts ? `S${sectorIndexAtFraction(sectorStarts, (s.startFrac + s.endFrac) / 2) + 1}` : "—"}
                   </TD>
                   <TD numeric tone="muted">
                     {(s.startFrac * 100).toFixed(1)}% – {(s.endFrac * 100).toFixed(1)}%

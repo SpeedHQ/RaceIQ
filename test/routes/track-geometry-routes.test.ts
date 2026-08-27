@@ -90,15 +90,18 @@ describe("track sector boundary routes", () => {
     expect(response.status).toBe(400);
   });
 
-  test("reports native ownership without RaceIQ fallback", async () => {
-    const response = await trackSectorBoundaryRoutes.request("/api/track-sector-boundaries/1?gameId=iracing");
+  test("returns authored fallback before a native lap exists", async () => {
+    const response = await trackSectorBoundaryRoutes.request("/api/track-sector-boundaries/47?gameId=iracing");
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
-      ownership: "game",
-      editable: false,
-      sectorStarts: null,
-    });
+    const body = (await response.json()) as {
+      ownership: string;
+      editable: boolean;
+      sectorStarts: number[];
+    };
+    expect(body.ownership).toBe("raceiq");
+    expect(body.editable).toBe(false);
+    expect(body.sectorStarts).toEqual([0, 0.3194, 0.728]);
   });
 
   test("reports editable RaceIQ timing boundaries for non-native games", async () => {

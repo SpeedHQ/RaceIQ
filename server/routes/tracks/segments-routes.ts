@@ -17,6 +17,7 @@ import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
 import { isValidNativeSectorStarts } from "../../lap-analysis/sectors";
+import { getLiveSectorLayout } from "../../telemetry/live-pipeline";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import { cornerKey } from "../../../shared/racing/tracks/keys";
@@ -106,19 +107,23 @@ export const trackCornerRoutes = new Hono()
 
 export const trackSectorBoundaryRoutes = new Hono()
 
-  // GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
+  // GET /api/track-sector-boundaries/:ordinal — source layout with authored fallback
   .get("/api/track-sector-boundaries/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", RequiredGameIdQuerySchema), async (c) => {
     const { ordinal } = c.req.valid("param");
     const { gameId } = c.req.valid("query");
     const adapter = tryGetGame(gameId) ?? tryGetServerGame(gameId);
 
-    // Native games own timing sectors. RaceIQ's stored S1/S2 values are
-    // not an effective fallback when no native lap layout is recorded.
-    const outline = getTrackOutlineByOrdinal(ordinal, gameId, getSharedTrackName(ordinal, gameId));
+    const sharedName = getSharedTrackName(ordinal, gameId);
+    const authoredSectors = (sharedName ? loadTrackSectorsFor(sharedName, gameId) : undefined) ?? getTrackSectorsByOrdinal(ordinal);
+    const authoredStarts = [0, authoredSectors.s1End, authoredSectors.s2End];
+    const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
     const trackLength = computeOutlineLength(outline);
     if (adapter?.nativeSectors) {
-      let sectorStarts: number[] | null = null;
-      if (adapter.getNativeSectorLayout) {
+      const liveLayout = getLiveSectorLayout(gameId, ordinal);
+      let sectorStarts = isValidNativeSectorStarts(liveLayout?.starts) ? [...liveLayout.starts] : null;
+      let nativeTrackLength = liveLayout?.trackLength && liveLayout.trackLength > 0 ? liveLayout.trackLength : trackLength;
+
+      if (!sectorStarts && adapter.getNativeSectorLayout) {
         const laps = await getLapSummariesByTrack(ordinal, gameId);
         laps.sort((left, right) => {
           const dateDelta = new Date(right.createdAt ?? 0).getTime() - new Date(left.createdAt ?? 0).getTime();
@@ -127,29 +132,29 @@ export const trackSectorBoundaryRoutes = new Hono()
         for (const summary of laps) {
           const lap = await getLapById(summary.lapId);
           for (const packet of lap?.telemetry ?? []) {
-            const starts = adapter.getNativeSectorLayout(packet)?.starts;
-            if (!isValidNativeSectorStarts(starts)) continue;
-            sectorStarts = [...starts];
+            const layout = adapter.getNativeSectorLayout(packet);
+            if (!isValidNativeSectorStarts(layout?.starts)) continue;
+            sectorStarts = [...layout.starts];
+            if (layout.trackLengthM && layout.trackLengthM > 0) nativeTrackLength = layout.trackLengthM;
             break;
           }
           if (sectorStarts) break;
         }
       }
+
       return c.json({
-        ownership: "game" as const,
+        ownership: sectorStarts ? ("game" as const) : ("raceiq" as const),
         editable: false as const,
-        sectorStarts,
-        trackLength,
+        sectorStarts: sectorStarts ?? authoredStarts,
+        trackLength: nativeTrackLength,
       } satisfies TrackSectorBoundaries);
     }
 
-    const sharedName = getSharedTrackName(ordinal, gameId);
-    const sectors = (sharedName ? loadTrackSectorsFor(sharedName, gameId) : undefined) ?? getTrackSectorsByOrdinal(ordinal);
     return c.json({
-      ...sectors,
+      ...authoredSectors,
       ownership: "raceiq" as const,
       editable: true as const,
-      sectorStarts: [0, sectors.s1End, sectors.s2End],
+      sectorStarts: authoredStarts,
       trackLength,
     } satisfies TrackSectorBoundaries);
   })

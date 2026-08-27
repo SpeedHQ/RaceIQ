@@ -15,6 +15,7 @@ import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
@@ -45,6 +46,11 @@ export function TrackDetail({
 }) {
   const gameId = useGameId();
   const gid = gameId ?? undefined;
+  const liveSectorStarts = useTelemetryStore((state) => {
+    const view = state.telemetryView;
+    if (view?.simulator !== gameId || view.identity.trackOrdinal !== track.ordinal) return null;
+    return state.sectors?.sectorStarts ?? null;
+  });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
@@ -144,13 +150,13 @@ export function TrackDetail({
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
-    setSectorStarts(boundsData?.sectorStarts ?? null);
+    setSectorStarts(liveSectorStarts ?? boundsData?.sectorStarts ?? null);
     if (typeof boundsData?.s1End === "number" && typeof boundsData.s2End === "number") {
       setSectorBounds({ s1End: boundsData.s1End, s2End: boundsData.s2End });
     } else {
       setSectorBounds(null);
     }
-  }, [trackMapData]);
+  }, [trackMapData, liveSectorStarts]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
@@ -358,7 +364,7 @@ export function TrackDetail({
               outline={outline}
               flipX={flipX}
               displaySectors={displaySectors}
-              sectorBounds={editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : sectorBounds}
+              sectorStarts={editingSectors ? [0, editS1 / 100, editS2 / 100] : sectorStarts}
               editingSegments={editing}
               editingSectors={editingSectors}
               trackLengthKm={track.lengthKm}
@@ -369,13 +375,13 @@ export function TrackDetail({
           </div>
           <TrackDebugSidebar
             track={track}
-            gameId={gameId}
             displaySectors={displaySectors}
             segSource={segSource}
             editing={editing}
             editSegments={editSegments}
             saving={saving}
             sectorBounds={sectorBounds}
+            sectorStarts={sectorStarts}
             editingSectors={editingSectors}
             editS1={editS1}
             editS2={editS2}

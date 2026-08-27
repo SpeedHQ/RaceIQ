@@ -7,12 +7,13 @@ import { initGameAdapters } from "../../shared/games/init";
 import { CurrentLapTireStrip } from "../src/components/tunes/CurrentLapTireStrip";
 import { LiveTestDashboard } from "../src/components/tunes/LiveTestDashboard";
 import { buildSectorRanges, METRICS } from "../src/components/tunes/SectorRangeBreakdown";
+import { TrackFocusMap } from "../src/components/tunes/track-focus/TrackFocusMap";
+import { ReviewOverviewSkeleton } from "../src/components/tunes/review/OverviewSkeleton";
 import { tireSnapshot } from "../src/components/tunes/review/tire-snapshot";
 import { semanticSamples } from "../src/components/tunes/semantic-tune";
 import { buildGeometry } from "../src/components/tunes/track-map-geometry";
-import type { SemanticReplayFrame } from "../src/hooks/laps";
-import { fakeAccSemanticFixture, fakeF1SemanticFixture } from "../src/stories/fakeData";
-import { useTelemetryStore } from "../src/stores/telemetry";
+import { telemetryStore } from "../src/stores/telemetry";
+import { fakeAccSemanticFixture, fakeF1SemanticFixture, fakeSectors } from "../src/stories/fakeData";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
@@ -55,6 +56,32 @@ describe("canonical tuning telemetry consumers", () => {
       expect(sample.fuel).toBe(fuel);
       expect(sample.fuelUnit).toBe(gameId === "f1-2025" ? "fraction" : "litre");
     }
+  });
+
+  test("publishes live sector boundaries before lap completion", () => {
+    const sectorStarts = [0, 0.137196, 0.273519, 0.353413, 0.630555];
+    const sectors = {
+      ...fakeSectors,
+      sectorCount: sectorStarts.length,
+      sectorStarts,
+      currentTimes: Array(sectorStarts.length).fill(0),
+      lastTimes: Array(sectorStarts.length).fill(0),
+      bestTimes: Array(sectorStarts.length).fill(0),
+    };
+    telemetryStore.actions.setTelemetrySchema(fakeAccSemanticFixture.schema);
+    telemetryStore.actions.setTelemetryFrame({
+      ...fakeAccSemanticFixture.frame,
+      context: { ...fakeAccSemanticFixture.frame.context, sectors },
+    });
+
+    expect(telemetryStore.get().sectors?.sectorStarts).toEqual(sectorStarts);
+    const stableStarts = telemetryStore.get().sectors!.sectorStarts;
+    telemetryStore.actions.setTelemetryFrame({
+      ...fakeAccSemanticFixture.frame,
+      sequence: 2,
+      context: { ...fakeAccSemanticFixture.frame.context, sectors: { ...sectors, sectorStarts: [...sectorStarts] } },
+    });
+    expect(telemetryStore.get().sectors?.sectorStarts).toBe(stableStarts);
   });
 
   test("rejects stale, missing, partial, and wrong-simulator values without zero coercion", () => {
@@ -117,8 +144,40 @@ describe("canonical tuning telemetry consumers", () => {
     expect(partialSnapshot?.FL.tempC).toBeUndefined();
     expect(partialSnapshot?.FL.wear).toBe(0);
   });
+  test("renders every source-defined Track Focus sector", () => {
+    const telemetry = semanticSamples(
+      "acc",
+      Array.from({ length: 12 }, (_, index) => replayFrame("acc", index, entries(index, 50))),
+    );
+    const markup = renderToStaticMarkup(
+      createElement(TrackFocusMap, {
+        telemetry,
+        sectorTimes: { times: [10, 11, 12, 13, 14], boundaryIndices: [2, 4, 6, 8] },
+        edges: null,
+        corners: [],
+        issues: [],
+        cursorFrac: null,
+        onCursorFrac: () => {},
+      }),
+    );
+
+    for (const sector of ["S1", "S2", "S3", "S4", "S5"]) {
+      expect(markup).toContain(` ${sector}</span>`);
+    }
+    expect(markup).not.toContain(">S6<");
+  });
+  test("does not invent sectors when no layout is available", () => {
+    const markup = renderToStaticMarkup(createElement(ReviewOverviewSkeleton));
+    expect(markup).not.toContain("Sector 1");
+    expect(markup).toContain("Sector layout will load from track data or live simulator telemetry when available.");
+  });
+  test("renders authored or live sectors before a lap exists", () => {
+    const markup = renderToStaticMarkup(createElement(ReviewOverviewSkeleton, { sectorStarts: [0, 0.2, 0.4, 0.6, 0.8] }));
+    expect(markup).toContain("Sector 5");
+    expect(markup).toContain("80.0%–100.0%");
+  });
   test("passes canonical lap number rather than running lap seconds", () => {
-    useTelemetryStore.setState({ telemetryView: null, sectors: null, sessionLaps: [] });
+    telemetryStore.setState((previous) => ({ ...previous, telemetryView: null, sectors: null, sessionLaps: [] }));
     const view = {
       ...fakeAccSemanticFixture.view,
       identity: { ...fakeAccSemanticFixture.view.identity, trackOrdinal: undefined },
@@ -145,6 +204,7 @@ describe("canonical tuning telemetry consumers", () => {
       sectors: {
         sectorCount: 3,
         currentSector: 0,
+        sectorStarts: [0, 1 / 3, 2 / 3],
         currentSectorTime: 30,
         currentTimes: [30],
         lastTimes: [29, 30, 31],
@@ -168,8 +228,7 @@ describe("canonical tuning telemetry consumers", () => {
         },
       ],
     };
-    useTelemetryStore.setState(mismatchedState);
-    Object.assign(useTelemetryStore.getInitialState(), mismatchedState);
+    telemetryStore.setState((previous) => ({ ...previous, ...mismatchedState }));
     const markup = renderToStaticMarkup(
       createElement(QueryClientProvider, { client: new QueryClient() }, createElement(LiveTestDashboard, { gameId: "acc", trackOrdinal: null, initialViews: [accView] })),
     );

@@ -25,10 +25,7 @@ export function useLapComparison(lapAId: number | null, lapBId: number | null) {
     queryKey: ["lap-comparison", lapAId, lapBId],
     queryFn: async ({ signal }) => {
       if (lapAId == null || lapBId == null || lapAId === lapBId) return null;
-      const res = await client.api.laps[":id1"].compare[":id2"].$get(
-        { param: { id1: String(lapAId), id2: String(lapBId) } },
-        { init: { signal } },
-      );
+      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } }, { init: { signal } });
       if (!res.ok) throw await errorFromResponse(res);
       return rpcJson<ComparisonData>(res);
     },
@@ -36,14 +33,7 @@ export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   });
 }
 
-
-export function useLapComparisonRange(
-  lapAId: number | null,
-  lapBId: number | null,
-  stepMeters: 0.1 | null,
-  start: number | null,
-  end: number | null,
-) {
+export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
   return useQuery({
     queryKey: ["lap-comparison-range", lapAId, lapBId, stepMeters, start, end],
     queryFn: async ({ signal }) => {
@@ -76,6 +66,7 @@ export interface SemanticLapTelemetry {
   requestedSemanticIds: string[];
   sectorTimes?: number[] | null;
   sectorStarts?: number[] | null;
+  sectorBoundaryIndices?: number[] | null;
   insights?: unknown[];
   parseError?: string | null;
   envelopes: SemanticReplayFrame[];

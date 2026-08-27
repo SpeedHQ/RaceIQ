@@ -1,4 +1,6 @@
 import type { TuneIssue } from "@shared/racing/tuning/issues";
+import type { TrackSectorBoundaries } from "@shared/racing/tracks/sectors";
+import type { LiveSectorData } from "@shared/racing/live/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { Button } from "@/components/ui/button";
@@ -9,11 +11,12 @@ import { drawLiveTrack, type Point, type TrackBoundaryData } from "./draw-live-t
 
 interface Props {
   view: LiveTelemetryView | null;
+  sectors?: LiveSectorData | null;
   /** Live Tuning Dashboard issues positioned by canonical lap fraction. */
   issues?: TuneIssue[];
 }
 
-export function LiveTrackMap({ view, issues }: Props) {
+export function LiveTrackMap({ view, sectors, issues }: Props) {
   const sample = useMemo(() => (view ? liveTrackSampleFromView(view) : null), [view]);
   const gameId = sample?.simulator ?? null;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,7 +24,7 @@ export function LiveTrackMap({ view, issues }: Props) {
   const [noOutline, setNoOutline] = useState(false);
   const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
-  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [sectorStarts, setSectorStarts] = useState<number[] | null>(null);
   const [boundaries, setBoundaries] = useState<TrackBoundaryData | null>(null);
   const lastTrackOrdRef = useRef<number | null>(null);
 
@@ -56,7 +59,7 @@ export function LiveTrackMap({ view, issues }: Props) {
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
     setNoOutline(false);
-    setSectors(null);
+    setSectorStarts(null);
     setBoundaries(null);
 
     if (!gameId) return;
@@ -64,10 +67,10 @@ export function LiveTrackMap({ view, issues }: Props) {
     // Fetch sector boundaries
     client.api["track-sector-boundaries"][":ordinal"]
       .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId! } })
-      .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-      .then((data: any) => {
-        if (data?.s1End) setSectors(data);
-      }) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((r) => r.json() as unknown as TrackSectorBoundaries)
+      .then((data) => {
+        if (data.sectorStarts?.length) setSectorStarts(data.sectorStarts);
+      })
       .catch(() => {});
 
     // Fetch track boundaries (edges)
@@ -185,10 +188,11 @@ export function LiveTrackMap({ view, issues }: Props) {
     lastTracePos.current = position;
     if (liveTraceRef.current.length > 2000) liveTraceRef.current.shift();
   }, [sample]);
+  const displaySectorStarts = sectors?.sectorStarts.length ? sectors.sectorStarts : sectorStarts;
 
   // Redraw
   useEffect(() => {
-    drawLiveTrack({ canvasRef, sample, outline, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
+    drawLiveTrack({ canvasRef, sample, outline, noOutline, isRecorded, startYaw, sectorStarts: displaySectorStarts, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
   });
 
   async function handleDeleteMap() {

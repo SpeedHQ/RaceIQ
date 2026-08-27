@@ -59,7 +59,13 @@ export function loadLabelledSegments(slug: string, gameId: string): NamedSegment
 
 /** Sector boundaries for a layout in one game's lap fractions. */
 export function loadTrackSectorsFor(slug: string, gameId: string): (TrackSectors & { source?: string }) | undefined {
-  return loadTrackGeometry(slug, gameId)?.sectors;
+  const parsedGameId = GameIdSchema.safeParse(gameId);
+  if (!slug || !parsedGameId.success) return undefined;
+  for (const candidate of [parsedGameId.data, ...(GEOMETRY_FALLBACKS[parsedGameId.data] ?? [])]) {
+    const sectors = loadTrackGeometryForGame(slug, candidate)?.sectors;
+    if (sectors) return sectors;
+  }
+  return undefined;
 }
 
 function upsertFactsSource(draft: TrackRegistrySource, facts: TrackFacts): void {

@@ -65,7 +65,7 @@ export function RaceInfo({
             <div className="p-2 border-b border-app-border">
               <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || m.raceinfo_track_map_heading()}</div>
             </div>
-            <LiveTrackMap view={view} />
+            <LiveTrackMap view={view} sectors={sectors} />
           </div>
         )}
       </div>

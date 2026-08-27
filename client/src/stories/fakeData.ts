@@ -693,6 +693,7 @@ export const fakeAllDataTelemetryView: LiveTelemetryView = {
 
 export const fakeSectors: LiveSectorData = {
   sectorCount: 3,
+  sectorStarts: [0, 1 / 3, 2 / 3],
   currentSector: 1, // 0-indexed: in sector 2
   currentSectorTime: 31.8, // elapsed time in current sector (S2)
   currentTimes: [29.845, 31.8, 0], // S1 done, S2 in progress

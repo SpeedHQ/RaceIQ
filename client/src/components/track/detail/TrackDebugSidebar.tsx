@@ -7,13 +7,13 @@ import type { TrackInfo, TrackSectors, TrackSegment } from "../types";
 
 interface TrackDebugSidebarProps {
   track: TrackInfo;
-  gameId: string | null;
   displaySectors: TrackSectors | null;
   segSource: string;
   editing: boolean;
   editSegments: TrackSegment[];
   saving: boolean;
   sectorBounds: { s1End: number; s2End: number } | null;
+  sectorStarts: number[] | null;
   editingSectors: boolean;
   editS1: number;
   editS2: number;
@@ -36,13 +36,13 @@ interface TrackDebugSidebarProps {
 export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
   const {
     track,
-    gameId,
     displaySectors,
     segSource,
     editing,
     editSegments,
     saving,
     sectorBounds,
+    sectorStarts,
     editingSectors,
     editS1,
     editS2,
@@ -172,10 +172,11 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
         </Card>
       )}
       {/* Sector Boundaries */}
-      <Card className={gameId === "iracing" ? "hidden" : undefined}>
+      <Card>
         <div className="flex items-center justify-between mb-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
           {isDevelopment &&
+            sectorBounds &&
             (!editingSectors ? (
               <Button
                 type="button"
@@ -205,82 +206,80 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
               </div>
             ))}
         </div>
-        {sectorBounds ? (
-          editingSectors ? (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
-                <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max={editS2 - 1}
-                  value={editS1.toFixed(1)}
-                  onChange={(e) => setEditS1(Number(e.target.value))}
-                  className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                />
-                <span className="text-app-label text-app-text-dim">%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
-                <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min={editS1 + 1}
-                  max="99"
-                  value={editS2.toFixed(1)}
-                  onChange={(e) => setEditS2(Number(e.target.value))}
-                  className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                />
-                <span className="text-app-label text-app-text-dim">%</span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[2] }} />
-                <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s3_end()}</span>
-                <span className="text-app-label font-mono text-app-text-secondary">100.0</span>
-                <span className="text-app-label text-app-text-dim">% ({m.trackdetail_finish()})</span>
-              </div>
-              <div className="flex h-2 rounded overflow-hidden mt-1">
-                <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${editS1}%` }} />
-                <div style={{ backgroundColor: SECTOR_COLOR_VARS[1], opacity: 0.6, width: `${editS2 - editS1}%` }} />
-                <div style={{ backgroundColor: SECTOR_COLOR_VARS[2], opacity: 0.6, width: `${100 - editS2}%` }} />
-              </div>
+        {editingSectors && sectorBounds ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
+              <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
+              <input
+                type="number"
+                step="0.1"
+                min="1"
+                max={editS2 - 1}
+                value={editS1.toFixed(1)}
+                onChange={(e) => setEditS1(Number(e.target.value))}
+                className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+              />
+              <span className="text-app-label text-app-text-dim">%</span>
             </div>
-          ) : (
-            <div className="space-y-1">
-              {[
-                { name: "S1", color: SECTOR_COLOR_VARS[0], frac: sectorBounds.s1End },
-                { name: "S2", color: SECTOR_COLOR_VARS[1], frac: sectorBounds.s2End - sectorBounds.s1End },
-                { name: "S3", color: SECTOR_COLOR_VARS[2], frac: 1 - sectorBounds.s2End },
-              ].map((s) => (
-                <div key={s.name} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                  <span className="text-app-label font-mono font-bold text-app-text">{s.name}</span>
-                  {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{(s.frac * track.lengthKm).toFixed(2)} km</span>}
-                  <span className="text-app-label font-mono text-app-text-secondary ml-auto">{(s.frac * 100).toFixed(1)}%</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
+              <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
+              <input
+                type="number"
+                step="0.1"
+                min={editS1 + 1}
+                max="99"
+                value={editS2.toFixed(1)}
+                onChange={(e) => setEditS2(Number(e.target.value))}
+                className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+              />
+              <span className="text-app-label text-app-text-dim">%</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[2] }} />
+              <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s3_end()}</span>
+              <span className="text-app-label font-mono text-app-text-secondary">100.0</span>
+              <span className="text-app-label text-app-text-dim">% ({m.trackdetail_finish()})</span>
+            </div>
+            <div className="flex h-2 rounded overflow-hidden mt-1">
+              <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${editS1}%` }} />
+              <div style={{ backgroundColor: SECTOR_COLOR_VARS[1], opacity: 0.6, width: `${editS2 - editS1}%` }} />
+              <div style={{ backgroundColor: SECTOR_COLOR_VARS[2], opacity: 0.6, width: `${100 - editS2}%` }} />
+            </div>
+          </div>
+        ) : sectorStarts ? (
+          <div className="space-y-1">
+            {sectorStarts.map((start, index) => {
+              const from = index === 0 ? 0 : start;
+              const fraction = (sectorStarts[index + 1] ?? 1) - from;
+              const color = SECTOR_COLOR_VARS[index % SECTOR_COLOR_VARS.length];
+              return (
+                <div key={index} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                  <span className="text-app-label font-mono font-bold text-app-text">S{index + 1}</span>
+                  {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{(fraction * track.lengthKm).toFixed(2)} km</span>}
+                  <span className="text-app-label font-mono text-app-text-secondary ml-auto">{(fraction * 100).toFixed(1)}%</span>
                 </div>
-              ))}
-              <div className="flex h-2 rounded overflow-hidden mt-1">
-                <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${sectorBounds.s1End * 100}%` }} />
-                <div
-                  style={{
-                    backgroundColor: SECTOR_COLOR_VARS[1],
-                    opacity: 0.6,
-                    width: `${(sectorBounds.s2End - sectorBounds.s1End) * 100}%`,
-                  }}
-                />
-                <div
-                  style={{
-                    backgroundColor: SECTOR_COLOR_VARS[2],
-                    opacity: 0.6,
-                    width: `${(1 - sectorBounds.s2End) * 100}%`,
-                  }}
-                />
-              </div>
+              );
+            })}
+            <div className="flex h-2 rounded overflow-hidden mt-1">
+              {sectorStarts.map((start, index) => {
+                const from = index === 0 ? 0 : start;
+                const fraction = (sectorStarts[index + 1] ?? 1) - from;
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      backgroundColor: SECTOR_COLOR_VARS[index % SECTOR_COLOR_VARS.length],
+                      opacity: 0.6,
+                      width: `${fraction * 100}%`,
+                    }}
+                  />
+                );
+              })}
             </div>
-          )
+          </div>
         ) : (
           <div className="text-app-label text-app-text-dim">{m.trackdetail_no_sector_data()}</div>
         )}

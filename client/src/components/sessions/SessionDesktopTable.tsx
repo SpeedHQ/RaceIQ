@@ -33,7 +33,6 @@ export type SessionDesktopTableProps = {
   toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
-  sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
@@ -64,7 +63,6 @@ export function SessionDesktopTable({
   toggleSessionSelection,
   selectedLaps,
   toggleLapSelection,
-  sectorCount,
   lapSortKey,
   lapSortDir,
   toggleLapSort,
@@ -196,7 +194,6 @@ export function SessionDesktopTable({
                           <SessionLapTable
                             session={session}
                             laps={sessionLaps}
-                            sectorCount={sectorCount}
                             lapSortKey={lapSortKey}
                             lapSortDir={lapSortDir}
                             toggleLapSort={toggleLapSort}

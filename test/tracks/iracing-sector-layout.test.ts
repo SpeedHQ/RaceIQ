@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { computeIRacingSectorTimeline } from "../../server/lap-analysis/sectors"
+import { computeIRacingSectorTimeline } from "../../server/lap-analysis/sectors";
 import { normalizeIRacingFrame } from "../../server/games/iracing/normalizer";
 import type { IRacingSourceFrameV2 } from "../../server/games/iracing/source-frame";
 import { SectorTracker } from "../../server/live-strategy/sector-tracker";
@@ -57,26 +57,30 @@ function lapPackets(sectorStarts: number[]): TelemetryPacket[] {
 describe("iRacing native sector layouts", () => {
   test("accepts a sector origin within floating-point epsilon everywhere", async () => {
     const sectorStarts = [0.0000005, 0.5];
-    expect(
-      normalizeIRacingFrame(sourceFrame(sectorStarts)).iracing?.sectorStarts,
-    ).toEqual(sectorStarts);
+    expect(normalizeIRacingFrame(sourceFrame(sectorStarts)).iracing?.sectorStarts).toEqual(sectorStarts);
 
     const packets = lapPackets(sectorStarts);
     expect(computeIRacingSectorTimeline(packets, 32)?.times).toEqual([16, 16]);
 
     const liveTracker = new SectorTracker();
     await liveTracker.reset(99, "iracing", 42);
-    let live: ReturnType<SectorTracker["feed"]> = null;
-    for (const packet of packets) live = liveTracker.feed(packet);
+    const firstLive = liveTracker.feed(packets[0]);
+    expect(liveTracker.getLayout()).toEqual({
+      gameId: "iracing",
+      trackOrdinal: 99,
+      starts: sectorStarts,
+      trackLength: 2350,
+    });
+    let live = firstLive;
+    for (const packet of packets.slice(1)) live = liveTracker.feed(packet);
+    expect(live?.sectorStarts).toEqual(sectorStarts);
     expect(live?.sectorCount).toBe(2);
     expect(live?.currentSector).toBe(1);
   });
 
   test("preserves a six-sector session layout through replay and live tracking", async () => {
     const sectorStarts = [0, 0.1, 0.25, 0.45, 0.7, 0.85];
-    expect(
-      normalizeIRacingFrame(sourceFrame(sectorStarts)).iracing?.sectorStarts,
-    ).toEqual(sectorStarts);
+    expect(normalizeIRacingFrame(sourceFrame(sectorStarts)).iracing?.sectorStarts).toEqual(sectorStarts);
 
     const packets = lapPackets(sectorStarts);
     const timeline = computeIRacingSectorTimeline(packets, 32);
@@ -97,21 +101,13 @@ describe("iRacing native sector layouts", () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
       const malformed = [0, 0.5, 0.5];
-      expect(
-        normalizeIRacingFrame(sourceFrame(malformed)).iracing?.sectorStarts,
-      ).toEqual([]);
-      expect(
-        normalizeIRacingFrame(sourceFrame(malformed)).iracing?.sectorStarts,
-      ).toEqual([]);
+      expect(normalizeIRacingFrame(sourceFrame(malformed)).iracing?.sectorStarts).toEqual([]);
+      expect(normalizeIRacingFrame(sourceFrame(malformed)).iracing?.sectorStarts).toEqual([]);
 
-      expect(
-        computeIRacingSectorTimeline(lapPackets(malformed), 32),
-      ).toBeNull();
+      expect(computeIRacingSectorTimeline(lapPackets(malformed), 32)).toBeNull();
 
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn.mock.calls[0]?.[0]).toContain(
-        "Ignoring malformed native sector layout",
-      );
+      expect(warn.mock.calls[0]?.[0]).toContain("Ignoring malformed native sector layout");
     } finally {
       warn.mockRestore();
     }

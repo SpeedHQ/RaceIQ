@@ -36,7 +36,10 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
 
   const bestSectors = Array.from({ length: sectorCount }, (_, index) => {
-    const times = filteredLaps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
+    const times = filteredLaps
+      .filter((lap) => lap.sectorTimes?.length === sectorCount)
+      .map((lap) => lap.sectorTimes?.[index] ?? 0)
+      .filter((time) => time > 0);
     return times.length > 0 ? Math.min(...times) : 0;
   });
 

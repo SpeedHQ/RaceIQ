@@ -111,7 +111,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
       focusTelemetry={semanticSamples(gameId, focusTel?.envelopes)}
-      focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
+      focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorBoundaryIndices ?? [] } : null}
       edges={edges}
       corners={corners ?? []}
       issues={issues ?? []}
@@ -214,14 +214,13 @@ export function TrackFocusViewInner({
     });
   }, [corners, resolvedTraces, bestLapId]);
 
-  // Sector boundary fractions: prefer authoritative track meta, else fall
-  // back to the focus lap's source-defined sector split indices so the sector ledger's rows line up
-  // with what the map shows.
+  // Focus-lap source boundaries outrank authored track fallback.
   const sectorBoundaryFracs = useMemo(() => {
-    if (metaSectorStarts) return metaSectorStarts.slice(1);
-    if (!focusTelemetry || focusTelemetry.length < 2 || !focusSectorTimes) return [];
-    const last = focusTelemetry.length - 1;
-    return focusSectorTimes.boundaryIndices.map((index) => index / last);
+    if (focusTelemetry && focusTelemetry.length >= 2 && focusSectorTimes && focusSectorTimes.boundaryIndices.length === focusSectorTimes.times.length - 1) {
+      const last = focusTelemetry.length - 1;
+      return focusSectorTimes.boundaryIndices.map((index) => index / last);
+    }
+    return metaSectorStarts?.slice(1) ?? [];
   }, [metaSectorStarts, focusTelemetry, focusSectorTimes]);
 
   // Corners + apex fractions shared by the track map and the corner ledger:

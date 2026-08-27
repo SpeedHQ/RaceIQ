@@ -16,6 +16,14 @@ export interface TrackSectorBoundaries {
   s2End?: number;
 }
 
+/** Return zero-based source sector containing one normalized lap fraction. */
+export function sectorIndexAtFraction(sectorStarts: readonly number[], fraction: number): number {
+  for (let index = sectorStarts.length - 1; index > 0; index--) {
+    if (fraction >= sectorStarts[index]) return index;
+  }
+  return 0;
+}
+
 const DEFAULT_SECTORS: TrackSectors = { s1End: 0.333, s2End: 0.666 };
 
 // Known FIA/real-world sector boundaries (approximate % of lap distance)

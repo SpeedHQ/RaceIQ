@@ -62,8 +62,8 @@ const SEV_COLOR: Record<string, string> = {
 };
 
 /**
- * Focus-lap track map: driven line (3 sector-colored segments), optional
- * track edges, corner markers, issue dots (severity-colored, critical gets a
+ * Focus-lap track map: driven line split across every source-defined sector,
+ * optional track edges, corner markers, issue dots (severity-colored, critical gets a
  * halo), a cursor dot synced to `cursorFrac`, and a "nearest corner" chip
  * that tracks the cursor (or the lap
  * average when no cursor is set).
@@ -226,8 +226,8 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           {heatSegments
             ? heatSegments.map((s) => <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />)
-            : (["s1", "s2", "s3"] as const).map((segKey, i) => (
-                <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+            : geometry?.segments.map((points, index) => (
+                <polyline key={`s${index + 1}`} points={points} fill="none" stroke={SECTOR_COLOR_VARS[index % SECTOR_COLOR_VARS.length]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
           {startMarker && (
             <g>
@@ -333,17 +333,11 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
             </span>
           </>
         ) : (
-          <>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[0] }} /> S1
+          geometry?.segments.map((_, index) => (
+            <span key={`s${index + 1}`} className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[index % SECTOR_COLOR_VARS.length] }} /> S{index + 1}
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[1] }} /> S2
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[2] }} /> S3
-            </span>
-          </>
+          ))
         )}
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.critical }} /> critical
