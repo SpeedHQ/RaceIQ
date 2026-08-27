@@ -48,15 +48,18 @@ describe("generated track registry runtime contract", () => {
     }
   });
 
-  test("equivalent current Spa layouts share one canonical identity and facts roster", () => {
+  test("keeps known current Spa aliases together without blocking future assignments", () => {
     const indexes = getTrackRegistryIndexes();
-    const layoutId = indexes.assignmentsByGame.get("f1-2025")?.get(10)?.layoutId;
-    expect(layoutId).toBe("circuit-de-spa-francorchamps/grand-prix");
-    expect(indexes.layoutsById.get(layoutId!)?.factsSlug).toBe("spa");
-    expect(
-      [...(indexes.assignmentsByLayoutId.get(layoutId!) ?? [])]
-        .map(({ gameId, trackOrdinal }) => `${gameId}/${trackOrdinal}`)
-        .sort(),
-    ).toEqual(["ac-evo/5", "acc/6", "f1-2025/10", "fm-2023/530", "iracing/523"]);
+    const knownAliases: Array<[GameId, number]> = [
+      ["f1-2025", 10],
+      ["acc", 6],
+      ["ac-evo", 5],
+      ["fm-2023", 530],
+      ["iracing", 523],
+    ];
+    const layoutIds = knownAliases.map(([gameId, ordinal]) => indexes.assignmentsByGame.get(gameId)?.get(ordinal)?.layoutId);
+    expect(layoutIds).not.toContain(undefined);
+    expect(new Set(layoutIds)).toEqual(new Set(["circuit-de-spa-francorchamps/grand-prix"]));
+    expect(indexes.layoutsById.get(layoutIds[0]!)?.factsSlug).toBe("spa");
   });
 });
