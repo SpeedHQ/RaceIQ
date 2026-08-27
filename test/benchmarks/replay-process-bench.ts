@@ -11,7 +11,7 @@ export const REPLAY_ALIASES = [REPLAY_PARSE_ALIAS, REPLAY_RESOLVE_ALIAS] as cons
 
 const FRAME_COUNT = 20_000;
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
-const SEMANTIC_IDS = ["motion.speed", "inputs.accel", "inputs.brake", "inputs.gear", "inputs.clutch-percent", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
+const SEMANTIC_IDS = ["motion.speed", "inputs.throttle", "inputs.brake", "inputs.gear", "inputs.clutch", "timing.current-lap", "timing.lap-number", "timing.distance-traveled"] as const;
 
 let capture: Buffer;
 let packets: TelemetryPacket[];

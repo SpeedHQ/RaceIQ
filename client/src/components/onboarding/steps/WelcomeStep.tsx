@@ -137,9 +137,10 @@ export function WelcomeStep() {
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
     queryFn: async () => {
-      const res = await fetch("/demo-lap.json.gz");
-      if (!res.ok) return [];
-      return ((await res.json()) as DemoFixture).frames;
+      const response = await fetch("/demo-lap.json.gz");
+      if (!response.ok || !response.body) return [];
+      const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
+      return ((await new Response(decompressed).json()) as DemoFixture).frames;
     },
     staleTime: Number.POSITIVE_INFINITY,
   });
