@@ -1,8 +1,9 @@
+import { assertBundledIRacingSvgTrackMaps } from "../../server/games/iracing/track-map";
 import { buildTrackRegistryArtifacts } from "../../shared/racing/tracks/registry/read-model";
 import { loadTrackRegistrySource } from "../../shared/racing/tracks/registry/source";
 import { assertTrackRegistryArtifactsCurrent, recoverTrackRegistrySourceUpdate, updateTrackRegistrySource } from "../../shared/racing/tracks/registry/update";
 
-function main(args: string[]): void {
+async function main(args: string[]): Promise<void> {
   const check = args.includes("--check");
   const unknown = args.filter((argument) => argument !== "--check");
   if (unknown.length > 0) {
@@ -11,23 +12,31 @@ function main(args: string[]): void {
 
   if (check) {
     assertTrackRegistryArtifactsCurrent();
-    console.log("Track registry artifacts are current.");
+    const mapCount = await assertBundledIRacingSvgTrackMaps();
+    console.log(`Track registry artifacts are current; validated ${mapCount} bundled iRacing SVG maps.`);
     return;
   }
 
   recoverTrackRegistrySourceUpdate();
   updateTrackRegistrySource(() => undefined);
+  let artifactsCurrent = true;
   try {
     assertTrackRegistryArtifactsCurrent();
-    console.log("Track registry artifacts already current.");
-    return;
   } catch {
-    // Source is valid but generated read model or report is stale.
+    artifactsCurrent = false;
+  }
+  if (artifactsCurrent) {
+    const mapCount = await assertBundledIRacingSvgTrackMaps();
+    console.log(`Track registry artifacts already current; validated ${mapCount} bundled iRacing SVG maps.`);
+    return;
   }
 
   const source = loadTrackRegistrySource();
   const { sourceHash, registry } = buildTrackRegistryArtifacts(source);
-  console.log(`Built track registry ${sourceHash.slice(0, 12)}: ${registry.venues.length} venues, ${registry.layouts.length} layouts, ${registry.assignments.length} assignments.`);
+  const mapCount = await assertBundledIRacingSvgTrackMaps();
+  console.log(
+    `Built track registry ${sourceHash.slice(0, 12)}: ${registry.venues.length} venues, ${registry.layouts.length} layouts, ${registry.assignments.length} assignments, ${mapCount} bundled iRacing SVG maps.`,
+  );
 }
 
-main(process.argv.slice(2));
+await main(process.argv.slice(2));

@@ -32,6 +32,12 @@ const turnsSvg = `
   </svg>
 `;
 
+const pitRoadSvg = `
+  <svg viewBox="0 0 100 100">
+    <path d="M10,20 L30,20 L30,25 L10,25 z"/>
+  </svg>
+`;
+
 function nearestIndex(
   points: { x: number; z: number }[],
   target: { x: number; z: number },
@@ -56,6 +62,7 @@ describe("iRacing official SVG track maps", () => {
       activeSvg,
       startFinishSvg,
       turnsSvg,
+      pitRoadSvg,
     );
 
     expect(map).not.toBeNull();
@@ -67,12 +74,17 @@ describe("iRacing official SVG track maps", () => {
       "2",
       "Main Straight",
     ]);
+    expect(map!.pitRoad[0]).toContainEqual({ x: -10, z: 20 });
 
     const turn1 = map!.labels.find((label) => label.text === "1")!;
     const turn2 = map!.labels.find((label) => label.text === "2")!;
     expect(nearestIndex(map!.points, turn1)).toBeLessThan(
       nearestIndex(map!.points, turn2),
     );
+  });
+
+  test("accepts an explicitly empty pit-road layer", () => {
+    expect(parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, "<svg />")!.pitRoad).toEqual([]);
   });
 
   test("reads matrix-positioned official turn names", () => {
