@@ -3,8 +3,11 @@ import { openStoryForSnapshot } from "./storybook-ready";
 import fixture from "./marketing/track-wall.generated.json" with { type: "json" };
 
 const storyUrl = "/iframe.html?id=marketing-track-wall--browse-background&viewMode=story";
+const visibleTracks = fixture.tracks
+  .filter((track) => track.mapKind !== "none" && !/\blegacy\b/i.test(`${track.name} ${track.variant} ${track.location}`))
+  .filter((track, index, tracks) => tracks.findIndex((candidate) => candidate.name === track.name) === index);
 
-test("marketing track wall renders and scrolls the complete demo catalog", async ({ page }) => {
+test("marketing track wall renders and scrolls the filtered demo catalog", async ({ page }) => {
   const consoleErrors: string[] = [];
   await page.addInitScript(() => {
     new MutationObserver(() => document.querySelectorAll("img").forEach((image) => image.loading = "eager")).observe(document, { childList: true, subtree: true });
@@ -13,9 +16,11 @@ test("marketing track wall renders and scrolls the complete demo catalog", async
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   await openStoryForSnapshot(page, storyUrl);
   const wall = page.locator("[data-marketing-track-wall]");
-  await expect(wall).toHaveAttribute("data-track-count", String(fixture.tracks.length));
-  await expect(wall).toContainText("DEMO DATA");
-  await expect(wall.locator("article")).toHaveCount(fixture.tracks.length);
+  await expect(wall).toHaveAttribute("data-track-count", String(visibleTracks.length));
+  await expect(wall).not.toContainText("DEMO DATA");
+  await expect(wall).not.toContainText("No outline available");
+  await expect(wall).not.toContainText(/legacy/i);
+  await expect(wall.locator("article")).toHaveCount(visibleTracks.length);
   const scroller = wall.locator('[tabindex="0"]');
   for (const gameId of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"]) await expect(wall.locator(`[data-game-id="${gameId}"]`).first()).toBeVisible();
   await expect(wall.locator("article").first()).toContainText(/laps/);

@@ -104,12 +104,18 @@ async function main() {
     const checks = await checkPage.evaluate((expectedCount) => {
       const wall = document.querySelector("[data-marketing-track-wall]");
       const articles = wall?.querySelectorAll("article").length ?? 0;
-      const external = [...document.querySelectorAll("script, link[rel=stylesheet], [src], [href]")].filter((node) => {
+      const externalAttributes = [...document.querySelectorAll("script, link[rel=stylesheet], [src], [href]")].filter((node) => {
         const value = node.getAttribute("src") || node.getAttribute("href") || "";
         return /^https?:|^\/\//.test(value);
       }).length;
+      const externalCss = [...document.querySelectorAll("style")].some((style) => /url\((?!data:|#)/.test(style.textContent || ""));
       const scroller = wall?.querySelector('[tabindex="0"]') as HTMLElement | null;
-      return { articles, external, gameIds: ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"].every((id) => Boolean(document.querySelector(`[data-game-id="${id}"]`))), overflow: Boolean(scroller && scroller.scrollHeight > scroller.clientHeight), finalVisible: Boolean(scroller && scroller.scrollHeight > scroller.clientHeight), expectedCount };
+      const last = wall?.querySelector("article:last-of-type") as HTMLElement | null;
+      if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      const viewport = scroller?.getBoundingClientRect();
+      const lastRect = last?.getBoundingClientRect();
+      const finalVisible = Boolean(viewport && lastRect && lastRect.bottom > viewport.top && lastRect.top < viewport.bottom);
+      return { articles, external: externalAttributes + (externalCss ? 1 : 0), gameIds: ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"].every((id) => Boolean(document.querySelector(`[data-game-id="${id}"]`))), overflow: Boolean(scroller && scroller.scrollHeight > scroller.clientHeight), finalVisible, expectedCount };
     }, expectedCount);
     await checkPage.close();
     if (checks.articles !== checks.expectedCount) throw new Error(`Offline export has ${checks.articles} articles; expected ${checks.expectedCount}`);
