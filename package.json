@@ -67,6 +67,8 @@
     "test:e2e:compiled": "E2E_SERVER_MODE=compiled PW_SERVER_SET=all bun run test:e2e",
     "ui:diff": "bun scripts/ui/local-ui-diff.ts",
     "ui:diff:storybook": "bun scripts/ui/local-ui-diff.ts --storybook-only",
+    "marketing:track-wall:fixture": "bun scripts/marketing/track-wall-data.ts",
+    "marketing:track-wall": "bun scripts/marketing/export-track-wall.ts",
     "render:demo": "ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libx264 -pix_fmt yuv420p -crf 30 assets/demo-render.mp4 && ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libvpx-vp9 -crf 32 -b:v 0 assets/demo-render.webm",
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
