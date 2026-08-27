@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
 import { type GameRouteFeature, supportsGameFeature } from "../lib/game-routes";
+import { isGameContextPath } from "../lib/sidebar-navigation";
 import { ConnectionStatus } from "./ConnectionStatus";
 
 export interface AppSidebarProps {
@@ -53,17 +54,22 @@ type SidebarLinkProps = {
   exact?: boolean;
   icon: LucideIcon;
   label: string;
+  logoSrc?: string;
   onClick?: () => void;
   to: string;
 };
 
-function SidebarLink({ collapsed, exact = false, icon: Icon, label, onClick, to }: SidebarLinkProps) {
+function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onClick, to }: SidebarLinkProps) {
   const className = `flex min-h-9 items-center gap-2 border-l-2 px-3 text-xs font-semibold uppercase tracking-wider transition-colors ${collapsed ? "justify-center px-0" : ""}`;
   const activeProps = { className: `${className} border-app-accent bg-app-surface-alt text-app-accent` };
   const inactiveProps = { className: `${className} border-transparent text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary` };
   const content = (
     <>
-      <Icon className="size-4 shrink-0" />
+      {logoSrc ? (
+        <span aria-hidden="true" className="h-4 w-5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]" style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }} />
+      ) : (
+        <Icon className="size-4 shrink-0" />
+      )}
       <span className={collapsed ? "sr-only" : "truncate"}>{label}</span>
     </>
   );
@@ -152,7 +158,8 @@ export function AppSidebar({
   const navigate = useNavigate();
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
-  const activeGame = getAllGames().find((game) => location.pathname === `/${game.routePrefix}` || location.pathname.startsWith(`/${game.routePrefix}/`));
+  const activeGame = getAllGames().find((game) => isGameContextPath(location.pathname, [game.routePrefix]));
+  const isRootHome = location.pathname === "/";
   const visibleGames = getAllGames().filter((game) => !hiddenGames.includes(game.id) || game.id === activeGame?.id);
   const selectItems = useMemo(() => visibleGames.map((game) => ({ value: game.id, label: game.displayName })), [visibleGames]);
   const visibleFeatures = activeGame ? FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(activeGame.routePrefix, feature.feature)) : [];
@@ -215,11 +222,7 @@ export function AppSidebar({
         } transition-[width] duration-200 motion-reduce:transition-none`}
       >
         <div className={`flex h-14 items-center border-b border-app-border ${showCollapsed ? "justify-center" : "justify-between px-3"}`}>
-          {!showCollapsed && (
-            <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-              RaceIQ
-            </Link>
-          )}
+          {!showCollapsed && <span className="text-sm font-semibold text-app-text">RaceIQ</span>}
           {mobile ? (
             <Button variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close navigation">
               <X className="size-4" />
@@ -230,53 +233,81 @@ export function AppSidebar({
             </SidebarAction>
           )}
         </div>
-
-        <div className="border-b border-app-border p-2">
-          <Select.Root<string> items={selectItems} value={activeGame?.id ?? null} open={gameSelectOpen} onOpenChange={setGameSelectOpen} onValueChange={handleGameChange} modal={false}>
-            <Select.Trigger
-              aria-label={m.label_games()}
-              onPointerEnter={openOnHover}
-              onPointerLeave={scheduleClose}
-              className={`flex h-9 w-full items-center gap-2 rounded border border-app-border-input bg-app-surface text-xs font-semibold text-app-text transition-colors hover:border-app-accent focus-visible:border-app-accent focus-visible:outline-none ${
-                showCollapsed ? "justify-center px-0" : "px-2"
-              }`}
-            >
-              {activeGame && GAME_LOGO_SRC[activeGame.id] ? (
-                <span
-                  aria-hidden="true"
-                  className="h-4 w-5 shrink-0 bg-app-accent [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
-                  style={{ maskImage: `url(${GAME_LOGO_SRC[activeGame.id]})`, WebkitMaskImage: `url(${GAME_LOGO_SRC[activeGame.id]})` }}
-                />
-              ) : (
-                <Gamepad2 className="size-4 shrink-0 text-app-accent" />
-              )}
-              <Select.Value className={showCollapsed ? "sr-only" : "truncate"} placeholder={m.label_games()} />
-            </Select.Trigger>
-            <Select.Portal>
-              <Select.Positioner className="z-50" alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
-                <Select.Popup onPointerEnter={openOnHover} onPointerLeave={scheduleClose} className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text">
-                  <Select.List>
-                    {visibleGames.map((game) => (
-                      <Select.Item
-                        key={game.id}
-                        value={game.id}
-                        className="flex cursor-default items-center justify-between gap-3 rounded px-2 py-2 text-sm outline-none data-highlighted:bg-app-surface-alt data-selected:text-app-accent"
-                      >
-                        <Select.ItemText>{game.displayName}</Select.ItemText>
-                        <Select.ItemIndicator>
-                          <Check className="size-4" />
-                        </Select.ItemIndicator>
-                      </Select.Item>
-                    ))}
-                  </Select.List>
-                </Select.Popup>
-              </Select.Positioner>
-            </Select.Portal>
-          </Select.Root>
-        </div>
+        {activeGame ? (
+          <div className="border-b border-app-border py-2">
+            <div className={`flex px-2 ${showCollapsed ? "flex-col items-stretch gap-1" : "items-center gap-1"}`}>
+              <Link
+                to="/"
+                onClick={onClose}
+                aria-label={m.nav_home()}
+                className={`flex min-h-9 min-w-0 items-center gap-2 border-l-2 border-transparent px-1 text-xs font-semibold uppercase tracking-wider text-app-text-muted transition-colors hover:bg-app-surface-hover hover:text-app-text-secondary ${
+                  showCollapsed ? "size-9 justify-center px-0" : "flex-1"
+                }`}
+              >
+                <House className="size-4 shrink-0" />
+                <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_home()}</span>
+              </Link>
+              <Select.Root<string> items={selectItems} value={activeGame.id} open={gameSelectOpen} onOpenChange={setGameSelectOpen} onValueChange={handleGameChange} modal={false}>
+                <Select.Trigger
+                  aria-label={m.label_games()}
+                  onPointerEnter={openOnHover}
+                  onPointerLeave={scheduleClose}
+                  className={`flex min-h-9 min-w-0 items-center gap-2 rounded border border-app-border-input bg-app-surface px-2 text-xs font-semibold text-app-text transition-colors hover:border-app-accent focus-visible:border-app-accent focus-visible:outline-none ${
+                    showCollapsed ? "size-9 justify-center px-0" : "max-w-[11rem] flex-1"
+                  }`}
+                >
+                  {GAME_LOGO_SRC[activeGame.id] ? (
+                    <span
+                      aria-hidden="true"
+                      className="h-4 w-5 shrink-0 bg-app-accent [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
+                      style={{ maskImage: `url(${GAME_LOGO_SRC[activeGame.id]})`, WebkitMaskImage: `url(${GAME_LOGO_SRC[activeGame.id]})` }}
+                    />
+                  ) : (
+                    <Gamepad2 className="size-4 shrink-0 text-app-accent" />
+                  )}
+                  <Select.Value className={showCollapsed ? "sr-only" : "truncate"} placeholder={m.label_games()} />
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Positioner className="z-50" alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
+                    <Select.Popup onPointerEnter={openOnHover} onPointerLeave={scheduleClose} className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text">
+                      <Select.List>
+                        {visibleGames.map((game) => (
+                          <Select.Item
+                            key={game.id}
+                            value={game.id}
+                            className="flex cursor-default items-center justify-between gap-3 rounded px-2 py-2 text-sm outline-none data-highlighted:bg-app-surface-alt data-selected:text-app-accent"
+                          >
+                            <Select.ItemText>{game.displayName}</Select.ItemText>
+                            <Select.ItemIndicator>
+                              <Check className="size-4" />
+                            </Select.ItemIndicator>
+                          </Select.Item>
+                        ))}
+                      </Select.List>
+                    </Select.Popup>
+                  </Select.Positioner>
+                </Select.Portal>
+              </Select.Root>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="border-b border-app-border py-2">
+              <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_home()} to="/" onClick={onClose} />
+            </div>
+            {isRootHome && (
+              <div className="min-h-0 flex-1 overflow-y-auto py-2" aria-label={m.label_games()}>
+                {visibleGames.map((game) => (
+                  <SidebarLink key={game.id} collapsed={showCollapsed} icon={Gamepad2} logoSrc={GAME_LOGO_SRC[game.id]} label={game.displayName} to={`/${game.routePrefix}`} onClick={onClose} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
         {activeGame && (
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
+            <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_dashboard()} to={`/${activeGame.routePrefix}`} onClick={onClose} />
             {visibleFeatures.map((feature) => (
               <SidebarLink key={feature.segment} collapsed={showCollapsed} icon={feature.icon} label={feature.label()} to={`/${activeGame.routePrefix}/${feature.segment}`} onClick={onClose} />
             ))}
@@ -284,8 +315,7 @@ export function AppSidebar({
         )}
 
         <div className="mt-auto border-t border-app-border p-2">
-          <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_home()} to="/" onClick={onClose} />
-          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_dash()} to="/dash" onClick={onClose} />
+          <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>

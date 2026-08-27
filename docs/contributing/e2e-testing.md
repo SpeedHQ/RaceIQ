@@ -25,7 +25,7 @@ Functional E2E and screenshots share reusable seams: seeded database, route-case
 
 Audit route families, not only home pages:
 
-- Global: `/`, `/dash`, `/dash/combo-1`, `/dash/combo-2`, `/dev`.
+- Global: `/`, `/portable`, `/portable/combo-1`, `/portable/combo-2`, `/dev`.
 - Shared game routes: `/:gameid`, `/:gameid/analyse`, `/:gameid/cars`, `/:gameid/chats`, `/:gameid/compare`, `/:gameid/sessions`, `/:gameid/tracks`, `/:gameid/tracks/:trackOrdinal/info`, and each track detail tab.
 - Capability-gated shared routes: `/:gameid/driver` and `/:gameid/experiments`. Support is defined in `client/src/lib/game-routes.ts`; see [game feature coverage](../reference/game-feature-coverage.md).
 - Live surfaces: `/fm23/live`, `/f125/live`, `/acc/live`, `/ac-evo/live`, and the specialized `/iracing/live/driver` and `/iracing/live/pit`.
