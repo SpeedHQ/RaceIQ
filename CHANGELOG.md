@@ -15,6 +15,7 @@
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+- Export one or multiple selected laps directly from the Sessions toolbar
 
 ### Fixes
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel

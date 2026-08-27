@@ -92,6 +92,22 @@ describe("lap export → import round-trip (real capture)", () => {
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
   }, 120000);
+  test("two selected laps from one session both round-trip", async () => {
+    const { rows } = await seedSession();
+    expect(rows.length).toBeGreaterThan(1);
+
+    const selected = rows.slice(0, 2);
+    const { bytes: zip, manifest } = await buildLapsZip(selected.map((row) => row.id));
+    expect(manifest.entries).toHaveLength(1);
+    expect(manifest.entries[0]?.laps).toHaveLength(2);
+
+    const result = await importLapsZip(zip);
+    expect(result.errors).toEqual([]);
+    const got = result.laps.map((lap) => Math.round(lap.lapTime * 1000)).sort((a, b) => a - b);
+    const want = selected.map((lap) => Math.round(lap.lapTime * 1000)).sort((a, b) => a - b);
+    expect(got).toEqual(want);
+  }, 120000);
+
 
   test("a whole session round-trips every lap that has a raw capture", async () => {
     const { rows } = await seedSession();

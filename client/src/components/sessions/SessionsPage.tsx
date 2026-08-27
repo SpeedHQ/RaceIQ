@@ -225,6 +225,8 @@ export function SessionsPage() {
         setPage={setPage}
         selectedSessions={selectedSessions}
         selectedLaps={selectedLaps}
+        exporting={exporting}
+        runExport={runExport}
         setImportOpen={setImportOpen}
         confirmDelete={confirmDelete}
         setConfirmDelete={setConfirmDelete}
