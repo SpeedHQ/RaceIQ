@@ -3,4 +3,3 @@ shared/telemetry/catalog/generated/* text eol=lf
 shared/data/tracks/**/*.json text eol=lf
 shared/data/tracks/**/*.csv text eol=lf
 shared/data/tracks/**/*.svg text eol=lf
-shared/data/tracks/*.sqlite -text

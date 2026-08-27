@@ -22,10 +22,10 @@ import { parseCornerKey, parseStraightKey } from "../keys";
 /** Authored track registry source schema version. */
 export const TRACK_REGISTRY_SOURCE_VERSION = 1 as const;
 
-/** Resolved source, generated database, report, and transaction paths. */
+/** Resolved source, generated read-model, report, and transaction paths. */
 export interface TrackRegistryLocations {
   sourceDirectory: string;
-  databasePath: string;
+  registryPath: string;
   reportPath: string;
   transactionPath: string;
 }
@@ -33,7 +33,7 @@ export interface TrackRegistryLocations {
 /** Optional path overrides for isolated generation and tests. */
 export interface TrackRegistryLocationsInput {
   sourceDirectory?: string;
-  databasePath?: string;
+  registryPath?: string;
   reportPath?: string;
   transactionPath?: string;
 }
@@ -381,7 +381,7 @@ export function resolveTrackRegistryLocations(locations: TrackRegistryLocationsI
   const tracksRoot = overrideRoot ?? resolve(SHARED_DIR, "tracks");
   const defaultLocations: TrackRegistryLocations = {
     sourceDirectory: resolve(tracksRoot, "registry-source"),
-    databasePath: resolve(tracksRoot, "registry.sqlite"),
+    registryPath: resolve(tracksRoot, "registry.json"),
     reportPath: resolve(tracksRoot, "registry-report.json"),
     transactionPath: resolve(tracksRoot, ".registry-source-update.json"),
   };

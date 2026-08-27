@@ -1,4 +1,4 @@
-import { buildTrackRegistryArtifacts } from "../../shared/racing/tracks/registry/projection";
+import { buildTrackRegistryArtifacts } from "../../shared/racing/tracks/registry/read-model";
 import { loadTrackRegistrySource } from "../../shared/racing/tracks/registry/source";
 import { assertTrackRegistryArtifactsCurrent, recoverTrackRegistrySourceUpdate, updateTrackRegistrySource } from "../../shared/racing/tracks/registry/update";
 
@@ -22,12 +22,12 @@ function main(args: string[]): void {
     console.log("Track registry artifacts already current.");
     return;
   } catch {
-    // Source is valid but generated projection or report is stale.
+    // Source is valid but generated read model or report is stale.
   }
 
   const source = loadTrackRegistrySource();
-  const { sourceHash, projection } = buildTrackRegistryArtifacts(source);
-  console.log(`Built track registry ${sourceHash.slice(0, 12)}: ${projection.venueNodes.length} venues, ${projection.layouts.length} layouts, ${projection.assignments.length} assignments.`);
+  const { sourceHash, registry } = buildTrackRegistryArtifacts(source);
+  console.log(`Built track registry ${sourceHash.slice(0, 12)}: ${registry.venues.length} venues, ${registry.layouts.length} layouts, ${registry.assignments.length} assignments.`);
 }
 
 main(process.argv.slice(2));
