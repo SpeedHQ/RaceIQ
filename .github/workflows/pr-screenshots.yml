@@ -131,6 +131,27 @@ jobs:
           }
           exit $status
 
+      - name: Capture current Setup Manager screenshot
+        id: current-ui
+        continue-on-error: true
+        env:
+          E2E_SERVER_MODE: compiled
+          PW_UI_SCREENSHOTS: "1"
+          RACEIQ_SCREENSHOT_DIR: ${{ runner.temp }}/current-ui
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Remove-Item $env:RACEIQ_SCREENSHOT_DIR -Recurse -Force -ErrorAction SilentlyContinue
+          Push-Location playwright
+          $ErrorActionPreference = "Continue"
+          & bunx playwright test --project=ui-screenshots --grep "visual baseline"
+          $status = $LASTEXITCODE
+          $ErrorActionPreference = "Stop"
+          Pop-Location
+          exit $status
+
+
+
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
         continue-on-error: true
@@ -157,6 +178,24 @@ jobs:
             Move-Item "screenshots/mobile" $output
           }
           exit $status
+      - name: Capture base Setup Manager screenshot with current test
+        id: base-ui
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/raceiq-base
+        env:
+          E2E_SERVER_MODE: compiled
+          PW_UI_SCREENSHOTS: "1"
+          RACEIQ_SCREENSHOT_DIR: ${{ runner.temp }}/base-ui
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          Remove-Item $env:RACEIQ_SCREENSHOT_DIR -Recurse -Force -ErrorAction SilentlyContinue
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
+          $ErrorActionPreference = "Continue"
+          & bunx playwright test --project=ui-screenshots --grep "visual baseline"
+          $status = $LASTEXITCODE
+          $ErrorActionPreference = "Stop"
+          exit $status
 
       - name: Collect diffs
         id: collect
@@ -178,6 +217,19 @@ jobs:
           )
           & bun (Join-Path $env:GITHUB_WORKSPACE "scripts/ui/collect-screenshot-diffs.ts") @diffArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $uiDiffArgs = @(
+            "--base", (Join-Path $env:RUNNER_TEMP "base-ui"),
+            "--current", (Join-Path $env:RUNNER_TEMP "current-ui"),
+            "--out", $out,
+            "--prefix", "setup-manager"
+          )
+          & bun (Join-Path $env:GITHUB_WORKSPACE "scripts/ui/collect-screenshot-diffs.ts") @uiDiffArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          if ("${{ steps.current-ui.outcome }}" -eq "failure" -or "${{ steps.base-ui.outcome }}" -eq "failure") {
+            Write-Output "::warning::Setup Manager screenshot comparison is partial because one render failed."
+          }
 
           if ("${{ steps.current-responsive.outcome }}" -eq "failure" -or "${{ steps.base-responsive.outcome }}" -eq "failure") {
             Write-Output "::warning::Responsive screenshot comparison is partial because one render failed."

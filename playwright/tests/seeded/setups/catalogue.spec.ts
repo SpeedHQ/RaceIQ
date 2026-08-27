@@ -182,6 +182,13 @@ test("setup manager visual baseline stays stable", async ({ page }) => {
   await page.goto("/acc/setup-manager", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Google Drive" })).toBeVisible();
 
+  if (process.env.RACEIQ_SCREENSHOT_DIR) {
+    await page.screenshot({
+      path: `${process.env.RACEIQ_SCREENSHOT_DIR}/setup-manager-default.png`,
+      animations: "disabled",
+      fullPage: true,
+    });
+  }
   await expect(page).toHaveScreenshot("setup-manager-default.png", {
     animations: "disabled",
     fullPage: true,
