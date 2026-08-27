@@ -120,6 +120,7 @@ export interface SessionRecorderAdapter {
   start(gameId: GameId): void;
   writeMetaFrame(): void;
   writeRecord(buf: Buffer): void;
+  writeSegmentBoundary(): void;
   getCurrentByteOffset(): number;
   flush(): void;
   stop(): Promise<void>;
@@ -321,6 +322,8 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
   }
 
   writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
+
+  writeSegmentBoundary(): void { this._inner?.writeSegmentBoundary(); }
   writeRecord(buf: Buffer): void { this._inner?.writeRecord(buf); }
   getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
   flush(): void { this._inner?.flush(); }
@@ -339,6 +342,8 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
   writeRecord(_buf: Buffer): void {}
+
+  writeSegmentBoundary(): void {}
   getCurrentByteOffset(): number { return 0; }
   flush(): void {}
   async stop(): Promise<void> {}

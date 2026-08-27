@@ -13,7 +13,7 @@ import {
 import { readIRacingFrames } from "../games/iracing/recorder";
 import { readKunosFrames } from "../games/kunos/frame-reader";
 import { getServerGame } from "../games/registry";
-import { decompressIfGzipSync, iterateSessionFrames } from "./framing";
+import { decompressIfGzipSync, iterateSessionCaptureRecords } from "./framing";
 
 export interface RecordedTelemetry {
   readonly packets: TelemetryPacket[];
@@ -23,11 +23,15 @@ export interface RecordedTelemetry {
 
 function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPacket[] {
   const game = getServerGame(gameId);
-  const parserState = game.createParserState?.() ?? null;
+  let parserState = game.createParserState?.() ?? null;
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
   const packets: TelemetryPacket[] = [];
-  for (const frame of iterateSessionFrames(bytes)) {
-    const packet = game.tryParse(frame, parserState);
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "segment-boundary") {
+      parserState = game.createParserState?.() ?? null;
+      continue;
+    }
+    const packet = game.tryParse(record.frame, parserState);
     if (packet) packets.push(packet);
   }
   return packets;

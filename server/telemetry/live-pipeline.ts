@@ -48,6 +48,7 @@ export class LiveTelemetryPipeline {
    *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
+  private _continuingSegment = false;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
@@ -161,30 +162,36 @@ export class LiveTelemetryPipeline {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
-        await withSessionCaptureMaintenanceLock(async () => {
-          this._recordingSession = null;
-          await this.recorder.stop();
-          this.recorder.start(session.gameId);
-          this.recorder.writeMetaFrame();
-          this._recordingSession = {
-            sessionId: session.sessionId,
-            gameId: session.gameId,
-          };
-          if (this.recorder.path) {
-            await this.db.updateSessionRawFile(
-              session.sessionId,
-              this.recorder.path,
-              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
-            );
-          }
-        });
-        if (previousSession) {
-          void this._reconcileRecordedSession(previousSession).catch((error) => {
-            console.error(
-              `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
-              error,
-            );
+        const continuing = this._continuingSegment &&
+          previousSession?.sessionId === session.sessionId &&
+          previousSession.gameId === session.gameId;
+        this._continuingSegment = false;
+        if (!continuing) {
+          await withSessionCaptureMaintenanceLock(async () => {
+            this._recordingSession = null;
+            await this.recorder.stop();
+            this.recorder.start(session.gameId);
+            this.recorder.writeMetaFrame();
+            this._recordingSession = {
+              sessionId: session.sessionId,
+              gameId: session.gameId,
+            };
+            if (this.recorder.path) {
+              await this.db.updateSessionRawFile(
+                session.sessionId,
+                this.recorder.path,
+                this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+              );
+            }
           });
+          if (previousSession) {
+            void this._reconcileRecordedSession(previousSession).catch((error) => {
+              console.error(
+                `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
+                error,
+              );
+            });
+          }
         }
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
@@ -437,6 +444,17 @@ export class LiveTelemetryPipeline {
 
   async flushSessionRecorder(): Promise<void> {
     await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
+  }
+
+  /** Start next offline capture segment without rotating canonical session. */
+  beginSessionSegment(): void {
+    if (!this.recorder.active || !this._recordingSession) {
+      throw new Error("Cannot begin import segment before a session has started");
+    }
+    this.recorder.writeSegmentBoundary();
+    this._lapDetector = null;
+    this._lapDetectorGameId = null;
+    this._continuingSegment = true;
   }
 
   /** Flush buffered writes to disk without closing. */

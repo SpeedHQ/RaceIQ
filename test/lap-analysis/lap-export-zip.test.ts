@@ -2,11 +2,10 @@
  * buildLapsZip — the export half of the lap/session ZIP feature.
  *
  * The zip is a *slice of the session's raw capture*, not a re-encoded blob, so
- * what matters here is the byte maths: which frames land in the slice, that the
- * 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
- * complete the final lap on replay is included, and that the manifest lists
- * every lap the importer will actually recreate (including laps that fall
- * *between* two cherry-picked ones).
+ * what matters here is the byte maths: which frames land in the slice, that
+ * the 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
+ * complete each selected lap on replay is included, and that the manifest
+ * lists only selected laps.
  *
  * Uses the real (test) SQLite DB directly — same convention as
  * laps-issues-route.test.ts — since getLapsRaw joins laps→sessions with no
@@ -21,8 +20,8 @@ import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
-import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive"
+import { META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
+import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
@@ -55,12 +54,21 @@ function makeCapture(frameCount: number): Buffer {
   return buf;
 }
 
-/** Frame indices present in an exported slice, read back from payload[0]. */
+/** Frame indices present in exported ordinary records; tagged boundaries skipped. */
 function frameIndices(slice: Buffer): number[] {
   const out: number[] = [];
   let at = META;
   while (at + 4 <= slice.length) {
     const len = slice.readUInt32LE(at);
+    if (
+      slice.readUInt32LE(at) === META_FRAME_MAGIC &&
+      slice.readUInt32LE(at + 4) === 8 &&
+      at + 16 <= slice.length &&
+      slice.readUInt32LE(at + 8) === SEGMENT_BOUNDARY_MAGIC
+    ) {
+      at += 16;
+      continue;
+    }
     if (len <= 0 || at + 4 + len > slice.length) break;
     out.push(slice.readUInt8(at + 4));
     at += 4 + len;
@@ -127,10 +135,10 @@ describe("buildLapsZip", () => {
     return row!.id;
   }
 
-  /** 5-frame capture, laps at frames [0,1], [2,3], [4]. */
+  /** 6-frame capture, laps at frames [0,1], [2,3], [4], trigger [5]. */
   async function fixture(): Promise<{ sid: number; lapIds: number[] }> {
     const path = `${process.env.DATA_DIR ?? "."}/zip-test-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`;
-    await Bun.write(path, makeCapture(5));
+    await Bun.write(path, makeCapture(6));
     tmpFiles.push(path);
     const sid = await insertSession(path);
     const lapIds = [
@@ -153,14 +161,14 @@ describe("buildLapsZip", () => {
     expect(frameIndices(slice)).toEqual([0, 1, 2]); // lap 1's frames + 1 trigger
   });
 
-  test("manifest lists laps carried along inside the exported span", async () => {
+  test("selected non-contiguous laps export as separated segments", async () => {
     const { lapIds } = await fixture();
-    // Cherry-pick laps 1 and 3 — lap 2 sits between them and rides along.
     const { bytes, manifest } = await buildLapsZip([lapIds[0], lapIds[2]]);
-
-    const slice = readEntry(bytes, manifest.entries[0].file);
-    expect(frameIndices(slice)).toEqual([0, 1, 2, 3, 4]);
-    expect(manifest.entries[0].laps.map((l) => l.lapNumber)).toEqual([1, 2, 3]);
+    expect(manifest.version).toBe(3);
+    expect(manifest.entries[0]!.laps.map((l) => l.lapNumber)).toEqual([1, 3]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+    expect(frameIndices(slice)).toEqual([0, 1, 2, 4, 5]);
+    expect(slice.indexOf(Buffer.from("SEGM"))).toBeGreaterThanOrEqual(0);
   });
 
   test("entry filename starts with the gameId so import can detect the game", async () => {

@@ -7,7 +7,7 @@ import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetr
 import type { GameId } from "../../shared/games/ids";
 import {
   gunzipBuffer,
-  iterateSessionFrameRecords,
+  iterateSessionCaptureRecords,
   readFrameStreamStart,
 } from "./framing";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
@@ -78,17 +78,22 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
   // Replay all frames through a capturing lap detector
   const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({
+  let detector = serverGame.createLapDetector({
     db: capturingDb,
     bypassPacketRateFilter: true,
   });
-  const parserState = serverGame.createParserState?.() ?? null;
+  let parserState = serverGame.createParserState?.() ?? null;
 
-  for (const { offset, frame } of iterateSessionFrameRecords(
-    buf,
-    frameStreamStart,
-    { skipMetaFrames: true, allowEmptyFrames: true },
-  )) {
+  for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
+    if (record.kind === "segment-boundary") {
+      detector = serverGame.createLapDetector({
+        db: capturingDb,
+        bypassPacketRateFilter: true,
+      });
+      parserState = serverGame.createParserState?.() ?? null;
+      continue;
+    }
+    const { offset, frame } = record;
     const packet = serverGame.tryParse(frame, parserState);
     if (packet) {
       await detector.feed(packet, offset);

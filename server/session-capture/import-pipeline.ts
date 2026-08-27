@@ -7,6 +7,7 @@ import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { SESSION_SEGMENT_BOUNDARY } from "./framing";
 
 
 export interface ImportedLap {
@@ -33,8 +34,9 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _lapWriteFailure: unknown;
   private readonly _sessionMeta = new Map<
     number,
-    { carOrdinal: number; trackOrdinal: number }
+    { carOrdinal: number; trackOrdinal: number; gameId: GameId }
   >();
+  private _continueSession = false;
 
   constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
     this._inner = new RealDbAdapter(options);
@@ -48,6 +50,22 @@ export class ImportCaptureAdapter implements DbAdapter {
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
   ): Promise<number> {
+    if (this._continueSession) {
+      this._continueSession = false;
+      const sessionId = [...this.sessionIds].at(-1);
+      if (sessionId === undefined) {
+        throw new Error("Cannot continue import segment before a session has started");
+      }
+      const meta = this._sessionMeta.get(sessionId);
+      if (meta && meta.gameId !== gameId) {
+        throw new Error("Import segment game does not match its source session");
+      }
+      if (meta && (meta.carOrdinal !== carOrdinal || meta.trackOrdinal !== trackOrdinal)) {
+        await this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+      }
+      this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal, gameId });
+      return sessionId;
+    }
     const id = await this._inner.insertSession(
       carOrdinal,
       trackOrdinal,
@@ -57,8 +75,15 @@ export class ImportCaptureAdapter implements DbAdapter {
       ownership,
     );
     this.sessionIds.add(id);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
+    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId });
     return id;
+  }
+
+  continueSessionOnNextInsert(): void {
+    if (this.sessionIds.size === 0) {
+      throw new Error("Cannot continue import segment before a session has started");
+    }
+    this._continueSession = true;
   }
 
   insertLap(
@@ -114,7 +139,8 @@ export class ImportCaptureAdapter implements DbAdapter {
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
+    const existing = this._sessionMeta.get(sessionId);
+    if (existing) this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
   }
   getLapsForExclusionScope(experimentId: number, tuneId: number) {
@@ -157,7 +183,9 @@ async function rollbackImport(
   throw error;
 }
 
-type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
+type SessionFrameSource =
+  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY>
+  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY>;
 
 interface ImportSessionFramesOptions {
   /** Roll back the imported session and capture when no complete lap exists. */
@@ -184,7 +212,7 @@ export async function importSessionFrames(
   sessionIds: number[];
 }> {
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
@@ -197,6 +225,12 @@ export async function importSessionFrames(
   let failure: unknown;
   try {
     for await (const sourceFrame of frames) {
+      if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
+        db.continueSessionOnNextInsert();
+        pipeline.beginSessionSegment();
+        state = serverGame.createParserState?.() ?? null;
+        continue;
+      }
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
       await pipeline.processPacket(packet, sourceFrame);

@@ -4,6 +4,7 @@ import { getAllServerGames } from "../games/registry";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
+  iterateSessionImportFrames,
 } from "./framing";
 import { importSessionFrames, type ImportedLap } from "./import-pipeline";
 
@@ -42,7 +43,7 @@ export async function importSessionBin(
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
   const { packetCount, laps } = await importSessionFrames(
-    iterateSessionFrames(buf),
+    iterateSessionImportFrames(buf),
     gameId,
     options,
   );

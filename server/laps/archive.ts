@@ -29,16 +29,17 @@ import type { ImportedLap } from "../session-capture/import-pipeline";
 import {
   advanceSessionFrames,
   encodeMetaFrame,
-  gzipBufferSync,
+  encodeSegmentBoundaryFrame,
   gunzipBufferSync,
-  readFrameStreamStart,
+  gzipBufferSync,
+  iterateSessionCaptureRecords,
   sessionFrameAt,
 } from "../session-capture/framing";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import type { GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
-export const LAPS_ZIP_VERSION = 2;
+export const LAPS_ZIP_VERSION = 3;
 
 export interface ManifestLap {
   lapNumber: number;
@@ -161,25 +162,19 @@ function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
 }
 
 /**
- * iRacing value frames depend on the latest packed session frame. Exports can
- * begin at a later lap, so carry that one length-prefixed header record into
- * the slice instead of replaying every preceding telemetry frame.
+ * iRacing value frames depend on latest packed session frame. Scan ordinary
+ * records (including internal metadata) and carry latest preceding context.
  */
 function latestIRacingSessionRecord(
   buf: Buffer,
   beforeOffset: number,
 ): Buffer | null {
-  let offset = readFrameStreamStart(buf);
   let latest: Buffer | null = null;
-  while (offset < beforeOffset) {
-    const frame = sessionFrameAt(buf, offset);
-    if (!frame) break;
-    const recordEnd = offset + 4 + frame.length;
-    if (recordEnd > beforeOffset) break;
-    if (isIRacingSessionFrame(frame)) {
-      latest = Buffer.from(buf.subarray(offset, recordEnd));
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.kind !== "frame" || record.offset >= beforeOffset) break;
+    if (isIRacingSessionFrame(record.frame)) {
+      latest = Buffer.from(buf.subarray(record.offset, record.offset + 4 + record.frame.length));
     }
-    offset = recordEnd;
   }
   return latest;
 }
@@ -189,20 +184,11 @@ function slugify(s: string): string {
 }
 
 /**
- * Build a zip containing the raw frames for the given laps, grouped by session.
- *
- * Per session the slice spans from the first selected lap's frames through the
- * last selected lap's frames *plus one trigger frame*, so the importing lap
- * detector sees the crossing that completes the final lap. Cherry-picking
- * non-adjacent laps therefore also carries the laps in between — a contiguous
- * frame stream is what makes the capture replayable, and the manifest lists
- * exactly what will come back.
- *
- * Laps with no raw capture (pre-migration rows, or a capture deleted off disk)
- * are skipped.
+ * Build a zip containing selected raw lap windows grouped by session.
+ * Each selected lap gets one completion trigger; boundaries reset import state.
  */
 export async function buildLapsZip(
-  lapIds: number[]
+  lapIds: number[],
 ): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
@@ -211,95 +197,52 @@ export async function buildLapsZip(
 
   const files: Record<string, Uint8Array> = {};
   const entries: ManifestEntry[] = [];
-
   for (const [sessionId, rows] of sessions) {
-    const usable = usableRawLaps(rows);
+    const usable = usableRawLaps(rows).sort(
+      (a, b) => (a.rawByteOffset as number) - (b.rawByteOffset as number),
+    );
     if (usable.length === 0) continue;
-
-    const rawFile = usable[0].rawFile as string;
-    const buf = await readCapture(rawFile);
-    if (!buf) continue; // capture gone from disk — nothing to export for this session
-
-    const first = usable[0];
-    let startByte = first.rawByteOffset as number;
-    let last = first;
-    for (let i = 1; i < usable.length; i++) {
-      const row = usable[i];
-      const offset = row.rawByteOffset as number;
-      if (offset < startByte) startByte = offset;
-      if (offset > (last.rawByteOffset as number)) last = row;
+    const first = usable[0]!;
+    const buf = await readCapture(first.rawFile as string);
+    if (!buf) continue;
+    const segments: Buffer[] = [];
+    for (const row of usable) {
+      const start = row.rawByteOffset as number;
+      if (start >= buf.length) continue;
+      const end = advanceSessionFrames(buf, start, (row.rawFrameCount as number) + 1);
+      const frame = sessionFrameAt(buf, start);
+      const prefix =
+        first.gameId === "iracing" && frame && !isIRacingSessionFrame(frame)
+          ? latestIRacingSessionRecord(buf, start)
+          : null;
+      segments.push(Buffer.concat([...(prefix ? [prefix] : []), buf.subarray(start, end)]));
     }
-    if (startByte >= buf.length) continue;
-    // +1 frame: the next-lap trigger that completes the final lap on replay.
-    const endByte = advanceSessionFrames(
-      buf,
-      last.rawByteOffset as number,
-      (last.rawFrameCount as number) + 1
-    );
-
+    if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
-    const firstFrame = sessionFrameAt(buf, startByte);
-    const sessionPrefix =
-      gameId === "iracing" &&
-      firstFrame &&
-      !isIRacingSessionFrame(firstFrame)
-        ? latestIRacingSessionRecord(buf, startByte)
-        : null;
-    const telemetrySlice = buf.subarray(startByte, endByte);
-    const slice = Buffer.concat(
-      sessionPrefix
-        ? [encodeMetaFrame(), sessionPrefix, telemetrySlice]
-        : [encodeMetaFrame(), telemetrySlice],
+    const telemetry = Buffer.concat(
+      segments.flatMap((segment, index) =>
+        index === 0 ? [segment] : [encodeSegmentBoundaryFrame(), segment],
+      ),
     );
-
+    const slice = Buffer.concat([encodeMetaFrame(), telemetry]);
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
-    // Filename MUST start with `<gameId>-` so import can fall back to
-    // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
-
     files[fileName] = gzipBufferSync(slice);
-
-    // Everything inside the exported span comes back on import — list it all.
-    const covered = allRows
-      .filter(
-        (r) =>
-          r.sessionId === sessionId &&
-          r.rawByteOffset != null &&
-          r.rawByteOffset >= startByte &&
-          r.rawByteOffset < endByte
-      )
-      .sort((a, b) => a.lapNumber - b.lapNumber);
-
     entries.push({
-      file: fileName,
-      gameId,
-      sessionId,
-      carOrdinal: first.carOrdinal ?? 0,
-      trackOrdinal: first.trackOrdinal ?? 0,
-      carName,
-      trackName,
-      createdAt: first.createdAt,
-      laps: covered.map((r) => ({
-        lapNumber: r.lapNumber,
-        lapTime: r.lapTime,
-        isValid: r.isValid,
-      })),
+      file: fileName, gameId, sessionId,
+      carOrdinal: first.carOrdinal ?? 0, trackOrdinal: first.trackOrdinal ?? 0,
+      carName, trackName, createdAt: first.createdAt,
+      laps: usable.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
     });
   }
-
   if (entries.length === 0) {
     throw new Error("None of the selected laps have a raw capture available to export");
   }
-
   const manifest: LapsZipManifest = {
-    version: LAPS_ZIP_VERSION,
-    exportedAt: new Date().toISOString(),
-    entries,
+    version: LAPS_ZIP_VERSION, exportedAt: new Date().toISOString(), entries,
   };
   files[MANIFEST_FILE_NAME] = encodeManifestFile(manifest);
-
-  // level 0 for the .bin.gz members (already gzip'd), default for the manifest.
   const bytes = zipSync(files, { level: 6 });
   return { bytes, manifest };
 }

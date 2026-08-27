@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "node:fs";
 import { dirname } from "node:path";
-import { encodeFrameLength, encodeMetaFrame, META_FRAME_BYTES } from "./framing";
+import { encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, META_FRAME_BYTES } from "./framing";
 
 /**
  * Appends raw telemetry records to a binary dump file.
@@ -78,6 +78,13 @@ export class SessionRecorder {
     this._file.write(buf);
     this._recordCount++;
     this._byteOffset += 4 + buf.length;
+  }
+
+  /** Append a tagged segment boundary without affecting telemetry count. */
+  writeSegmentBoundary(): void {
+    if (!this._active || !this._file) return;
+    this._file.write(encodeSegmentBoundaryFrame());
+    this._byteOffset += 16;
   }
 
   private _openAndWriteMeta(): void {
