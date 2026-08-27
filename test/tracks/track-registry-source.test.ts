@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-import { buildTrackRegistryArtifacts, readTrackRegistryProjection } from "../../shared/racing/tracks/registry/projection";
+import { buildTrackRegistryArtifacts, readTrackRegistryReadModel } from "../../shared/racing/tracks/registry/read-model";
 import {
   loadTrackRegistrySource,
   readTrackRegistrySourceFiles,
@@ -18,9 +18,8 @@ import {
   recoverTrackRegistrySourceUpdate,
   updateTrackRegistrySource,
 } from "../../shared/racing/tracks/registry/update";
-import { closeTrackRegistry } from "../../shared/racing/tracks/registry";
 
-type ArtifactSnapshot = { source: Record<string, string>; database: string; report: string };
+type ArtifactSnapshot = { source: Record<string, string>; registry: string; report: string };
 
 function makeWorkspace(): { root: string; locations: TrackRegistryLocations } {
   const root = mkdtempSync(join(tmpdir(), "raceiq-track-registry-"));
@@ -28,7 +27,7 @@ function makeWorkspace(): { root: string; locations: TrackRegistryLocations } {
     root,
     locations: {
       sourceDirectory: resolve(root, "registry-source"),
-      databasePath: resolve(root, "registry.sqlite"),
+      registryPath: resolve(root, "registry.json"),
       reportPath: resolve(root, "registry-report.json"),
       transactionPath: resolve(root, ".registry-source-update.json"),
     },
@@ -37,11 +36,9 @@ function makeWorkspace(): { root: string; locations: TrackRegistryLocations } {
 
 function withWorkspace<T>(run: (locations: TrackRegistryLocations) => T): T {
   const { root, locations } = makeWorkspace();
-  closeTrackRegistry();
   try {
     return run(locations);
   } finally {
-    closeTrackRegistry();
     rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   }
 }
@@ -77,7 +74,7 @@ function sourceHash(source: TrackRegistrySource): string {
 function artifactSnapshot(locations: TrackRegistryLocations): ArtifactSnapshot {
   return {
     source: sourceSnapshot(locations),
-    database: readFileSync(locations.databasePath).toString("base64"),
+    registry: readFileSync(locations.registryPath, "utf8"),
     report: readFileSync(locations.reportPath, "utf8"),
   };
 }
@@ -167,14 +164,12 @@ function writeRecoveryJournal(locations: TrackRegistryLocations, oldSource: Trac
     locations.transactionPath,
     `${JSON.stringify(
       {
-        version: 1,
+        version: 2,
         oldSourceHash: sourceHash(oldSource),
         newSourceHash: sourceHash(nextSource),
         sourceBackups,
         sourceStaged,
-        databaseBackup: `${locations.databasePath}.backup`,
-        databaseStaged: `${locations.databasePath}.stage`,
-        reportBackup: `${locations.reportPath}.backup`,
+        registryStaged: `${locations.registryPath}.stage`,
         reportStaged: `${locations.reportPath}.stage`,
       },
       null,
@@ -207,10 +202,10 @@ describe("track registry venue metadata source", () => {
       expect(sourceHash(loaded)).toBe(sourceHash(source));
       expect(sourceHash(structuredClone(source))).toBe(sourceHash(source));
       buildTrackRegistryArtifacts(loaded, locations);
-      const projection = readTrackRegistryProjection(locations.databasePath);
-      expect(projection.venueNodes.map((venue) => venue.path)).toEqual(["alpha", "alpha/2010", "alpha/historical", "alpha/historical/2011"]);
-      expect(projection.layouts.map((layout) => layout.canonical_id)).toEqual(["alpha/2010/legacy", "alpha/historical/2011/nested", "alpha/main"]);
-      expect(readTrackRegistryProjection(locations.databasePath).corners[0]!.name).toBe("Juncão");
+      const registry = readTrackRegistryReadModel(locations.registryPath);
+      expect(registry.venues.map((venue) => venue.id)).toEqual(["alpha", "alpha/2010", "alpha/historical", "alpha/historical/2011"]);
+      expect(registry.layouts.map((layout) => layout.id)).toEqual(["alpha/2010/legacy", "alpha/historical/2011/nested", "alpha/main"]);
+      expect(readTrackRegistryReadModel(locations.registryPath).facts[0]!.corners[0]!.name).toBe("Juncão");
     });
   });
 
@@ -280,7 +275,7 @@ describe("track registry venue metadata source", () => {
     });
   });
 
-  test("updates added, changed, and removed layout shards with SQLite projection", () => {
+  test("updates added, changed, and removed layout shards with JSON read model", () => {
     withWorkspace((locations) => {
       const source = baseSource();
       writeSource(locations, source);
@@ -294,7 +289,7 @@ describe("track registry venue metadata source", () => {
         draft.geometry.geometry.push({ factsSlug: "added-layout", gameId: "fm-2023", segments: [{ key: "t1", startFrac: 0, endFrac: 1 }] });
       }, locations);
       expect(existsSync(shardPath(locations, "venues/alpha/revisions/historical/2011/tracks/added/metadata.json"))).toBe(true);
-      expect(readTrackRegistryProjection(locations.databasePath).facts.map((fact) => fact.slug)).toEqual(["added-layout", "oval-main"]);
+      expect(readTrackRegistryReadModel(locations.registryPath).facts.map((fact) => fact.slug)).toEqual(["added-layout", "oval-main"]);
 
       updateTrackRegistrySource((draft) => {
         draft.configurations.layouts = draft.configurations.layouts.filter((layout) => layout.id !== "alpha/historical/2011/added");
@@ -303,9 +298,9 @@ describe("track registry venue metadata source", () => {
         draft.geometry.geometry = draft.geometry.geometry.filter((geometry) => geometry.factsSlug !== "added-layout");
       }, locations);
       expect(existsSync(shardPath(locations, "venues/alpha/revisions/historical/2011/tracks/added/metadata.json"))).toBe(false);
-      const projection = readTrackRegistryProjection(locations.databasePath);
-      expect(projection.facts).toHaveLength(1);
-      expect(projection.facts[0]!.name).toBe("Updated Oval Main");
+      const registry = readTrackRegistryReadModel(locations.registryPath);
+      expect(registry.facts).toHaveLength(1);
+      expect(registry.facts[0]!.name).toBe("Updated Oval Main");
       expect(() => assertTrackRegistryArtifactsCurrent(locations)).not.toThrow();
     });
   });

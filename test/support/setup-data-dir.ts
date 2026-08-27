@@ -21,7 +21,7 @@ function prepareIsolatedTrackRegistryDir(testDataDir: string): void {
     recursive: true,
     filter: (source) => statSync(source).isDirectory() || ["venue.json", "revision.json", "metadata.json"].includes(basename(source)),
   });
-  cpSync(resolve(tracksSource, "registry.sqlite"), resolve(trackRegistryDir, "registry.sqlite"));
+  cpSync(resolve(tracksSource, "registry.json"), resolve(trackRegistryDir, "registry.json"));
   cpSync(resolve(tracksSource, "registry-report.json"), resolve(trackRegistryDir, "registry-report.json"));
   process.env.RACEIQ_TRACK_REGISTRY_DIR = trackRegistryDir;
 }

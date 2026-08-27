@@ -69,6 +69,7 @@ function stageTrackRegistrySourceUpdate(
   try {
     const filenames = new Set([...renderedCurrent.keys(), ...renderedNext.keys()]);
     for (const filename of filenames) {
+      if (renderedCurrent.get(filename) === renderedNext.get(filename)) continue;
       const sourcePath = sourceFilePath(resolved, filename);
       if (renderedCurrent.has(filename)) {
         const backupPath = `${sourcePath}.backup.${sessionId}`;

@@ -15,7 +15,8 @@ import {
   type GeometryAssetKind,
   type TrackAssetIdentity,
 } from "./storage/assets";
-import { getTrackRegistry } from "./registry";
+import { getTrackRegistryIndexes } from "./registry";
+import { parseCanonicalTrackId } from "./configuration";
 
 export interface TrackPoint {
   x: number;
@@ -43,32 +44,22 @@ function readDataFile(filePath: string): string | null {
     return null;
   }
 }
-interface ConfiguredNameRow {
-  venuePath: string;
-  layoutName: string;
-  confirmedAt: string | null;
-  confirmedBy: string | null;
-}
-
 function configuredTrackName(ordinal: number, gameId: string | undefined): string | null {
   const parsedGameId = GameIdSchema.safeParse(gameId);
   if (!parsedGameId.success) return null;
-  const database = getTrackRegistry();
-  const row = database.query(`
-    SELECT l.venue_path AS venuePath, l.name AS layoutName,
-           gt.confirmed_at AS confirmedAt, gt.confirmed_by AS confirmedBy
-      FROM game_tracks gt
-      JOIN layouts l ON l.canonical_id = gt.layout_id
-     WHERE gt.game_id = ? AND gt.track_ordinal = ?
-  `).get(parsedGameId.data, ordinal) as ConfiguredNameRow | null;
-  if (!row?.confirmedAt || !row.confirmedBy) return null;
-  const paths = row.venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
+  const indexes = getTrackRegistryIndexes();
+  const assignment = indexes.assignmentsByGame.get(parsedGameId.data)?.get(ordinal);
+  if (!assignment?.confirmation?.confirmedAt || !assignment.confirmation.confirmedBy) return null;
+  const layout = indexes.layoutsById.get(assignment.layoutId);
+  if (!layout) throw new Error(`Track registry layout is missing for ${assignment.layoutId}`);
+  const { venuePath } = parseCanonicalTrackId(layout.id);
+  const paths = venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
   const names = paths.map((path) => {
-    const venue = database.query("SELECT name FROM venue_nodes WHERE path = ?").get(path) as { name: string } | null;
-    if (!venue) throw new Error(`Track registry venue hierarchy is incomplete for ${row.venuePath}`);
+    const venue = indexes.venuesById.get(path);
+    if (!venue) throw new Error(`Track registry venue hierarchy is incomplete for ${venuePath}`);
     return venue.name;
   });
-  return [...names, row.layoutName].join(" — ");
+  return [...names, layout.name].join(" — ");
 }
 
 

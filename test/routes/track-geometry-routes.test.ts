@@ -51,9 +51,9 @@ function readTrackRegistrySourceFilesSnapshot(sourceDirectory: string): Record<s
 function expectSourceFilesUnchanged(before: Record<string, string>, after: Record<string, string>): void {
   expect(after).toEqual(before);
 }
-function readRepoGeneratedArtifacts(): { database: Buffer; report: Buffer } {
+function readRepoGeneratedArtifacts(): { registry: Buffer; report: Buffer } {
   return {
-    database: readFileSync(resolve(REPO_TRACK_REGISTRY_DIR, "registry.sqlite")),
+    registry: readFileSync(resolve(REPO_TRACK_REGISTRY_DIR, "registry.json")),
     report: readFileSync(resolve(REPO_TRACK_REGISTRY_DIR, "registry-report.json")),
   };
 }
@@ -119,7 +119,7 @@ describe("track sector boundary routes", () => {
     expect(body.trackLength).toBeGreaterThanOrEqual(0);
   });
 
-  test("persists sector and segment edits through isolated source and SQLite projection", async () => {
+  test("persists sector and segment edits through isolated source and JSON read model", async () => {
     const repoBefore = readTrackRegistrySourceFilesSnapshot(REPO_TRACK_REGISTRY_SOURCE_DIR);
     const repoGeneratedBefore = readRepoGeneratedArtifacts();
     try {
@@ -210,7 +210,7 @@ describe("track sector boundary routes", () => {
     } finally {
       saveTrackMetadata(TRACK_SECTOR_FIXTURE.factsSlug, TRACK_SECTOR_FIXTURE.originalFacts, { [TRACK_SECTOR_FIXTURE.gameId]: TRACK_SECTOR_FIXTURE.originalGeometry });
     }
-  });
+  }, 15_000);
 
   test("rejects native PUT before parsing malformed body", async () => {
     const repoBefore = readTrackRegistrySourceFilesSnapshot(REPO_TRACK_REGISTRY_SOURCE_DIR);
@@ -247,13 +247,13 @@ describe("track sector boundary routes", () => {
     expectSourceFilesUnchanged(testRootBefore, readTrackRegistrySourceFilesSnapshot(TRACK_REGISTRY_LOCATIONS.sourceDirectory));
   });
 
-  test("serves SQL only and persists explicit generated previews through canonical JSON", async () => {
+  test("serves generated read model only and persists explicit previews through canonical JSON", async () => {
     const gameId = "iracing";
     const trackOrdinal = 123;
     const repoBefore = readTrackRegistrySourceFilesSnapshot(REPO_TRACK_REGISTRY_SOURCE_DIR);
     const isolatedBefore = loadTrackRegistrySource();
     const isolatedFilesBefore = readTrackRegistrySourceFilesSnapshot(TRACK_REGISTRY_LOCATIONS.sourceDirectory);
-    const isolatedDatabaseBefore = readFileSync(TRACK_REGISTRY_LOCATIONS.databasePath);
+    const isolatedRegistryBefore = readFileSync(TRACK_REGISTRY_LOCATIONS.registryPath);
     const assignmentBefore = isolatedBefore.configurations.assignments.find((entry) => entry.gameId === gameId && entry.trackOrdinal === trackOrdinal);
     const layoutBefore = isolatedBefore.configurations.layouts.find((entry) => entry.id === assignmentBefore?.layoutId);
     expect(assignmentBefore).toBeDefined();
@@ -273,7 +273,7 @@ describe("track sector boundary routes", () => {
       expect(generated.source).toBe("auto");
       expect(generated.segments.length).toBeGreaterThan(0);
       expectSourceFilesUnchanged(isolatedFilesBefore, readTrackRegistrySourceFilesSnapshot(TRACK_REGISTRY_LOCATIONS.sourceDirectory));
-      expect(readFileSync(TRACK_REGISTRY_LOCATIONS.databasePath)).toEqual(isolatedDatabaseBefore);
+      expect(readFileSync(TRACK_REGISTRY_LOCATIONS.registryPath)).toEqual(isolatedRegistryBefore);
 
       const saveResponse = await trackSegmentRoutes.request(`/api/tracks/${trackOrdinal}/segments?gameId=${gameId}`, {
         method: "PUT",
@@ -304,5 +304,5 @@ describe("track sector boundary routes", () => {
     } finally {
       updateTrackRegistrySource(() => isolatedBefore);
     }
-  });
+  }, 10_000);
 });

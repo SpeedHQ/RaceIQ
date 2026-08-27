@@ -16,8 +16,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
-import { getTrackRegistry, getTrackRegistryRevision } from "./registry";
-import { canonicalTrackAssetPathComponents } from "./configuration";
+import { getTrackRegistry, getTrackRegistryIndexes, type TrackRegistryReadModel } from "./registry";
+import { canonicalTrackAssetPathComponents, parseCanonicalTrackId } from "./configuration";
 
 /** Detector tolerances for one corner. Absent fields mean "no allowance". */
 export interface CornerDetectHint {
@@ -51,13 +51,13 @@ interface LayoutRow {
 }
 
 const cache = new Map<string, DetectHints>();
-let cacheRevision = -1;
+let cachedRegistry: TrackRegistryReadModel | null = null;
 
-function refreshCacheForRegistryRevision(): void {
-  const revision = getTrackRegistryRevision();
-  if (revision === cacheRevision) return;
+function refreshCacheForRegistry(): void {
+  const registry = getTrackRegistry();
+  if (registry === cachedRegistry) return;
   cache.clear();
-  cacheRevision = revision;
+  cachedRegistry = registry;
 }
 
 function readHints(path: string): DetectHints {
@@ -93,22 +93,16 @@ function hintPath(row: LayoutRow): string {
 
 /** Detector allowances for a layout. Empty map when the layout needs none. */
 export function loadDetectHints(factsSlug: string): DetectHints {
-  refreshCacheForRegistryRevision();
+  refreshCacheForRegistry();
   const cached = cache.get(factsSlug);
   if (cached) return cached;
 
-  const rows = getTrackRegistry()
-    .query(`
-    SELECT venue_path AS venuePath, slug
-      FROM layouts
-     WHERE facts_slug = ?
-  `)
-    .all(factsSlug) as LayoutRow[];
-  if (rows.length > 1) {
+  const layouts = getTrackRegistryIndexes().layoutsByFactsSlug.get(factsSlug) ?? [];
+  if (layouts.length > 1) {
     throw new Error(`Ambiguous detect hints layout for facts slug ${JSON.stringify(factsSlug)}`);
   }
-
-  const path = rows[0] ? hintPath(rows[0]) : null;
+  const parsed = layouts[0] ? parseCanonicalTrackId(layouts[0].id) : null;
+  const path = parsed ? hintPath({ venuePath: parsed.venuePath, slug: parsed.layoutSlug }) : null;
   const hints = !path || !existsSync(path) ? NO_DETECT_HINTS : readHints(path);
   cache.set(factsSlug, hints);
   return hints;
@@ -116,13 +110,7 @@ export function loadDetectHints(factsSlug: string): DetectHints {
 
 /** Every layout carrying at least one hint — for validation and reporting. */
 export function listDetectHintSlugs(): string[] {
-  const rows = getTrackRegistry()
-    .query(`
-    SELECT facts_slug AS factsSlug
-      FROM layouts
-     WHERE facts_slug IS NOT NULL
-     ORDER BY facts_slug
-  `)
-    .all() as Array<{ factsSlug: string }>;
-  return rows.filter(({ factsSlug }) => loadDetectHints(factsSlug).size > 0).map(({ factsSlug }) => factsSlug);
+  return getTrackRegistry()
+    .facts.map(({ slug }) => slug)
+    .filter((factsSlug) => loadDetectHints(factsSlug).size > 0);
 }

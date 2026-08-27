@@ -1,84 +1,50 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
-import { TrackConfigurationSchema, trackConfigurationCanonicalId, type TrackConfiguration, type TrackIdentityNode } from "../../shared/racing/tracks/configuration";
+import {
+  TrackConfigurationSchema,
+  parseCanonicalTrackId,
+  trackConfigurationCanonicalId,
+  type TrackConfiguration,
+} from "../../shared/racing/tracks/configuration";
+import { getTrackRegistry, getTrackRegistryIndexes, type TrackRegistryReadModel } from "../../shared/racing/tracks/registry";
 import { updateTrackRegistrySource } from "../../shared/racing/tracks/registry/update";
-import { getTrackRegistry } from "../../shared/racing/tracks/registry";
 
-interface ConfigurationRow {
-  gameId: GameId;
-  trackOrdinal: number;
-  venuePath: string;
-  layoutSlug: string;
-  layoutName: string;
-  confirmedAt: string | null;
-  confirmedBy: string | null;
-  commitId: string | null;
-}
+type TrackAssignment = TrackRegistryReadModel["assignments"][number];
 
-interface VenueRow extends TrackIdentityNode {
-  path: string;
-  depth: number;
-}
-
-const CONFIGURATION_SELECT = `
-  SELECT gt.game_id AS gameId,
-         gt.track_ordinal AS trackOrdinal,
-         l.venue_path AS venuePath,
-         l.slug AS layoutSlug,
-         l.name AS layoutName,
-         gt.confirmed_at AS confirmedAt,
-         gt.confirmed_by AS confirmedBy,
-         gt.commit_id AS commitId
-    FROM game_tracks gt
-    JOIN layouts l ON l.canonical_id = gt.layout_id`;
-
-function venueNodesByPath(): Map<string, VenueRow> {
-  const rows = getTrackRegistry()
-    .query("SELECT path, slug AS id, name, depth FROM venue_nodes ORDER BY depth, path")
-    .all() as VenueRow[];
-  return new Map(rows.map((row) => [row.path, row]));
-}
-
-function configurationFromRow(row: ConfigurationRow, venues: Map<string, VenueRow>): TrackConfiguration {
-  const paths = row.venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
-  const nodes = paths.map((path) => venues.get(path));
-  if (nodes.some((entry) => !entry)) throw new Error(`Track registry venue hierarchy is incomplete for ${row.venuePath}`);
-  const [venue, ...subVenues] = nodes as VenueRow[];
+function configurationFromAssignment(assignment: TrackAssignment): TrackConfiguration {
+  const indexes = getTrackRegistryIndexes();
+  const layout = indexes.layoutsById.get(assignment.layoutId);
+  if (!layout) throw new Error(`Track registry layout is missing for ${assignment.layoutId}`);
+  const { venuePath, layoutSlug } = parseCanonicalTrackId(layout.id);
+  const paths = venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
+  const nodes = paths.map((path) => indexes.venuesById.get(path));
+  if (nodes.some((entry) => !entry)) throw new Error(`Track registry venue hierarchy is incomplete for ${venuePath}`);
+  const [venue, ...subVenues] = nodes as Array<{ id: string; name: string }>;
   return TrackConfigurationSchema.parse({
     version: 1,
-    gameId: row.gameId,
-    trackOrdinal: row.trackOrdinal,
-    venue: { id: venue.id, name: venue.name },
-    subVenues: subVenues.map(({ id, name }) => ({ id, name })),
-    track: { id: row.layoutSlug, name: row.layoutName },
-    confirmation: row.confirmedAt && row.confirmedBy
-      ? { confirmedAt: row.confirmedAt, confirmedBy: row.confirmedBy, ...(row.commitId ? { commitId: row.commitId } : {}) }
-      : null,
+    gameId: assignment.gameId,
+    trackOrdinal: assignment.trackOrdinal,
+    venue: { id: venue.id.split("/").at(-1), name: venue.name },
+    subVenues: subVenues.map(({ id, name }) => ({ id: id.split("/").at(-1), name })),
+    track: { id: layoutSlug, name: layout.name },
+    confirmation: assignment.confirmation,
   });
 }
 
 export function loadTrackConfiguration(gameId: GameId, trackOrdinal: number): TrackConfiguration | null {
-  const row = getTrackRegistry()
-    .query(`${CONFIGURATION_SELECT} WHERE gt.game_id = ? AND gt.track_ordinal = ?`)
-    .get(gameId, trackOrdinal) as ConfigurationRow | null;
-  return row ? configurationFromRow(row, venueNodesByPath()) : null;
+  const assignment = getTrackRegistryIndexes().assignmentsByGame.get(gameId)?.get(trackOrdinal);
+  return assignment ? configurationFromAssignment(assignment) : null;
 }
 
-/** Resolve authored facts identity directly from generated registry SQLite. */
+/** Resolve authored facts identity directly from generated registry. */
 export function loadTrackConfigurationFactsSlug(gameId: GameId, trackOrdinal: number): string | null {
-  const row = getTrackRegistry().query(`
-    SELECT l.facts_slug AS factsSlug
-      FROM game_tracks gt
-      JOIN layouts l ON l.canonical_id = gt.layout_id
-     WHERE gt.game_id = ? AND gt.track_ordinal = ?
-  `).get(gameId, trackOrdinal) as { factsSlug: string | null } | null;
-  return row?.factsSlug ?? null;
+  const indexes = getTrackRegistryIndexes();
+  const assignment = indexes.assignmentsByGame.get(gameId)?.get(trackOrdinal);
+  return assignment ? indexes.layoutsById.get(assignment.layoutId)?.factsSlug ?? null : null;
 }
 
 export function listTrackConfigurations(): TrackConfiguration[] {
-  const venues = venueNodesByPath();
-  const rows = getTrackRegistry().query(`${CONFIGURATION_SELECT} ORDER BY gt.game_id, gt.track_ordinal`).all() as ConfigurationRow[];
-  return rows
-    .map((row) => configurationFromRow(row, venues))
+  return getTrackRegistry()
+    .assignments.map(configurationFromAssignment)
     .sort((a, b) => KNOWN_GAME_IDS.indexOf(a.gameId) - KNOWN_GAME_IDS.indexOf(b.gameId) || a.trackOrdinal - b.trackOrdinal);
 }
 
@@ -134,33 +100,36 @@ export function deleteTrackConfiguration(gameId: GameId, trackOrdinal: number): 
   return deleted;
 }
 
-/** List tracks from one game in the same root venue family, preferring overall venue layouts before historical descendants. */
+/** List tracks from one game in same root venue family, preferring root layouts before historical descendants. */
 export function listTrackVenueFamilyConfigurations(gameId: GameId, trackOrdinal: number, venueGameId: GameId): TrackConfiguration[] {
   const source = loadTrackConfiguration(gameId, trackOrdinal);
   if (!source) return [];
   const venueRoot = source.venue.id;
-  const rows = getTrackRegistry().query(`
-    ${CONFIGURATION_SELECT}
-     WHERE gt.game_id = ?
-       AND (l.venue_path = ? OR l.venue_path LIKE ?)
-     ORDER BY CASE WHEN l.venue_path = ? THEN 0 ELSE 1 END,
-              l.venue_path,
-              gt.track_ordinal
-  `).all(venueGameId, venueRoot, `${venueRoot}/%`, venueRoot) as ConfigurationRow[];
-  const venues = venueNodesByPath();
-  return rows.map((row) => configurationFromRow(row, venues));
+  const indexes = getTrackRegistryIndexes();
+  return [...(indexes.assignmentsByGame.get(venueGameId)?.values() ?? [])]
+    .filter((assignment) => {
+      const layout = indexes.layoutsById.get(assignment.layoutId);
+      if (!layout) return false;
+      const { venuePath } = parseCanonicalTrackId(layout.id);
+      return venuePath === venueRoot || venuePath.startsWith(`${venueRoot}/`);
+    })
+    .sort((a, b) => {
+      const aVenue = parseCanonicalTrackId(indexes.layoutsById.get(a.layoutId)!.id).venuePath;
+      const bVenue = parseCanonicalTrackId(indexes.layoutsById.get(b.layoutId)!.id).venuePath;
+      return Number(aVenue !== venueRoot) - Number(bVenue !== venueRoot) || aVenue.localeCompare(bVenue) || a.trackOrdinal - b.trackOrdinal;
+    })
+    .map(configurationFromAssignment);
 }
 
-/** List tracks assigned to the same exact canonical layout, excluding source track. */
+/** List tracks assigned to same exact canonical layout, excluding source track. */
 export function listCanonicalTrackPeers(gameId: GameId, trackOrdinal: number): TrackConfiguration[] {
-  const rows = getTrackRegistry().query(`
-    ${CONFIGURATION_SELECT}
-     WHERE gt.layout_id = (SELECT layout_id FROM game_tracks WHERE game_id = ? AND track_ordinal = ?)
-       AND (gt.game_id <> ? OR gt.track_ordinal <> ?)
-     ORDER BY gt.game_id, gt.track_ordinal
-  `).all(gameId, trackOrdinal, gameId, trackOrdinal) as ConfigurationRow[];
-  const venues = venueNodesByPath();
-  return rows.map((row) => configurationFromRow(row, venues));
+  const indexes = getTrackRegistryIndexes();
+  const source = indexes.assignmentsByGame.get(gameId)?.get(trackOrdinal);
+  if (!source) return [];
+  return [...(indexes.assignmentsByLayoutId.get(source.layoutId) ?? [])]
+    .filter((assignment) => assignment.gameId !== gameId || assignment.trackOrdinal !== trackOrdinal)
+    .sort((a, b) => KNOWN_GAME_IDS.indexOf(a.gameId) - KNOWN_GAME_IDS.indexOf(b.gameId) || a.trackOrdinal - b.trackOrdinal)
+    .map(configurationFromAssignment);
 }
 
 export function loadCanonicalTrackPeer(gameId: GameId, trackOrdinal: number, peerGameId: GameId): TrackConfiguration | null {

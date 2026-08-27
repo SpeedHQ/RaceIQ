@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { NO_DETECT_HINTS, listDetectHintSlugs, loadDetectHints } from "../../shared/racing/tracks/detect-hints";
-import { getTrackRegistry, writeGeneratedTrackRegistry } from "../../shared/racing/tracks/registry";
+import { getTrackRegistryIndexes } from "../../shared/racing/tracks/registry";
+import { updateTrackRegistrySource } from "../../shared/racing/tracks/registry/update";
 
 type Hint = { spans?: number; optional?: boolean };
 
@@ -53,37 +54,21 @@ describe("detect hints", () => {
 
   test("maps every hinted facts slug to one layout", () => {
     const slugs = Object.keys(EXPECTED_HINTS).sort();
-    const rows = getTrackRegistry()
-      .query(`
-      SELECT facts_slug AS factsSlug, COUNT(*) AS count
-        FROM layouts
-       WHERE facts_slug IN (${slugs.map(() => "?").join(", ")})
-       GROUP BY facts_slug
-       ORDER BY facts_slug
-    `)
-      .all(...slugs) as Array<{ factsSlug: string; count: number }>;
-    expect(rows).toEqual(slugs.map((factsSlug) => ({ factsSlug, count: 1 })));
+    const indexes = getTrackRegistryIndexes();
+    expect(slugs.map((factsSlug) => ({ factsSlug, count: indexes.layoutsByFactsSlug.get(factsSlug)?.length ?? 0 }))).toEqual(
+      slugs.map((factsSlug) => ({ factsSlug, count: 1 })),
+    );
   });
 
-  test("rejects ambiguous layout mappings", () => {
-    // Bump loader cache revision before opening rollback-only nested transaction.
-    writeGeneratedTrackRegistry(() => {});
-    writeGeneratedTrackRegistry((database) => {
-      const rollback = new Error("rollback detect-hints ambiguity fixture");
-      try {
-        database.transaction(() => {
-          database
-            .query(`
-            INSERT INTO layouts (canonical_id, venue_path, slug, name, facts_slug)
-            VALUES ('detect-hints-test/duplicate', 'circuit-of-the-americas', 'detect-hints-test-duplicate', 'Duplicate', 'austin')
-          `)
-            .run();
-          expect(() => loadDetectHints("austin")).toThrow('Ambiguous detect hints layout for facts slug "austin"');
-          throw rollback;
-        })();
-      } catch (error) {
-        if (error !== rollback) throw error;
-      }
-    });
+  test("rejects ambiguous layout mappings in authored source", () => {
+    expect(() =>
+      updateTrackRegistrySource((draft) => {
+        draft.configurations.layouts.push({
+          id: "circuit-of-the-americas/duplicate",
+          name: "Duplicate",
+          factsSlug: "austin",
+        });
+      }),
+    ).toThrow(/Facts austin belongs to multiple layouts/);
   });
 });

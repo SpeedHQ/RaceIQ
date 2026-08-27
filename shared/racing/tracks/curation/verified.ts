@@ -2,9 +2,9 @@
 
 import { createHash } from "node:crypto";
 import type { GameId } from "@shared/games/ids";
-import { getTrackRegistry } from "../registry";
+import { getTrackRegistry, getTrackRegistryIndexes } from "../registry";
 import { updateTrackRegistrySource } from "../registry/update";
-import { loadTrackFacts, loadTrackGeometry } from "../storage/meta";
+import { loadTrackFacts, loadTrackGeometryForGame } from "../storage/meta";
 
 export interface VerifiedEntry {
   /** Short SHA-256 of normalized registry rows at sign-off. */
@@ -19,39 +19,14 @@ export interface VerifiedEntry {
 
 export type VerifiedLedger = Record<string, VerifiedEntry>;
 
-interface VerificationRow {
-  kind: "meta" | "segments";
-  slug: string;
-  gameId: GameId | "";
-  hash: string;
-  date: string;
-  by: string | null;
-  note: string | null;
-}
+
 
 export function verifiedKey(kind: "meta" | "segments", slug: string, gameId?: GameId): string {
   return kind === "meta" ? `meta:${slug}` : `segments:${gameId ?? ""}/${slug}`;
 }
 
 export function loadVerified(): VerifiedLedger {
-  const rows = getTrackRegistry()
-    .query(`
-    SELECT kind, facts_slug AS slug, game_id AS gameId, data_hash AS hash,
-           verified_date AS date, verified_by AS "by", note
-      FROM curation_verification ORDER BY kind, facts_slug, game_id
-  `)
-    .all() as VerificationRow[];
-  return Object.fromEntries(
-    rows.map((row) => [
-      verifiedKey(row.kind, row.slug, row.gameId || undefined),
-      {
-        hash: row.hash,
-        date: row.date,
-        ...(row.by ? { by: row.by } : {}),
-        ...(row.note ? { note: row.note } : {}),
-      },
-    ]),
-  );
+  return structuredClone(getTrackRegistry().verification);
 }
 
 export function saveVerified(ledger: VerifiedLedger): void {
@@ -67,8 +42,8 @@ export function registryDataHash(kind: "meta" | "segments", slug: string, gameId
     value = loadTrackFacts(slug);
   } else {
     if (!gameId) return null;
-    const exists = getTrackRegistry().query("SELECT 1 FROM game_geometry WHERE facts_slug = ? AND game_id = ?").get(slug, gameId);
-    value = exists ? loadTrackGeometry(slug, gameId) : null;
+    const exists = getTrackRegistryIndexes().geometryByFactsSlug.get(slug)?.has(gameId) ?? false;
+    value = exists ? loadTrackGeometryForGame(slug, gameId) : null;
   }
   return value ? createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 12) : null;
 }

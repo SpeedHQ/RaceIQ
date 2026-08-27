@@ -1,9 +1,9 @@
 import { getAccSharedTrackName } from "../catalogs/acc";
 import { resolve } from "node:path";
-import { GameIdSchema, type GameId } from "@shared/games/ids";
+import { GameIdSchema, KNOWN_GAME_IDS, type GameId } from "@shared/games/ids";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
-import { getTrackRegistry, getTrackRegistryRevision } from "../registry";
-import { canonicalTrackAssetPathComponents, parseVenueRevisionPath } from "../configuration";
+import { getTrackRegistry, getTrackRegistryIndexes, type TrackRegistryReadModel } from "../registry";
+import { canonicalTrackAssetPathComponents, parseCanonicalTrackId, parseVenueRevisionPath } from "../configuration";
 
 export type GeometryAssetKind = "centerline" | "raceline" | "boundaries";
 export type SharedGeometrySource = "acc" | "tumftm";
@@ -16,88 +16,63 @@ export interface TrackAssetIdentity {
   factsSlug: string | null;
 }
 
-interface IdentityRow {
-  venuePath: string;
-  layoutSlug: string;
-  factsSlug: string | null;
+type TrackAssignment = TrackRegistryReadModel["assignments"][number];
+
+function identityFromAssignment(assignment: TrackAssignment): TrackAssetIdentity {
+  const layout = getTrackRegistryIndexes().layoutsById.get(assignment.layoutId);
+  if (!layout) throw new Error(`Track registry layout is missing for ${assignment.layoutId}`);
+  const { venuePath, layoutSlug } = parseCanonicalTrackId(layout.id);
+  return {
+    gameId: assignment.gameId,
+    ordinal: assignment.trackOrdinal,
+    venuePath,
+    layoutSlug,
+    factsSlug: layout.factsSlug ?? null,
+  };
 }
 
-const identityCache = new Map<string, TrackAssetIdentity | null>();
-let identityCacheRevision = -1;
-
-function clearStaleIdentityCache(): void {
-  const revision = getTrackRegistryRevision();
-  if (identityCacheRevision === revision) return;
-  identityCache.clear();
-  identityCacheRevision = revision;
+function sortIdentities(a: TrackAssetIdentity, b: TrackAssetIdentity): number {
+  return KNOWN_GAME_IDS.indexOf(a.gameId) - KNOWN_GAME_IDS.indexOf(b.gameId) || a.ordinal - b.ordinal;
 }
 
 /** Registry-backed canonical venue/layout identity for a game track ordinal. */
 export function getTrackAssetIdentity(gameId: string, ordinal: number): TrackAssetIdentity | null {
   const parsedGameId = GameIdSchema.safeParse(gameId);
   if (!parsedGameId.success || !Number.isInteger(ordinal) || ordinal < 0) return null;
-
-  clearStaleIdentityCache();
-  const key = `${parsedGameId.data}:${ordinal}`;
-  const cached = identityCache.get(key);
-  if (cached !== undefined) return cached;
-
-  const row = getTrackRegistry().query(`
-    SELECT l.venue_path AS venuePath, l.slug AS layoutSlug, l.facts_slug AS factsSlug
-      FROM game_tracks gt
-      JOIN layouts l ON l.canonical_id = gt.layout_id
-     WHERE gt.game_id = ? AND gt.track_ordinal = ?
-  `).get(parsedGameId.data, ordinal) as IdentityRow | null;
-  const identity = row && {
-    gameId: parsedGameId.data,
-    ordinal,
-    venuePath: row.venuePath,
-    layoutSlug: row.layoutSlug,
-    factsSlug: row.factsSlug,
-  };
-  identityCache.set(key, identity);
-  return identity;
+  const assignment = getTrackRegistryIndexes().assignmentsByGame.get(parsedGameId.data)?.get(ordinal);
+  return assignment ? identityFromAssignment(assignment) : null;
 }
 
 /** Canonical venue/layout identity for one facts slug, or null when ambiguous. */
 export function getTrackAssetIdentityForFactsSlug(factsSlug: string): TrackAssetIdentity | null {
-  const rows = getTrackRegistry().query(`
-    SELECT gt.game_id AS gameId, MIN(gt.track_ordinal) AS ordinal,
-           l.venue_path AS venuePath, l.slug AS layoutSlug, l.facts_slug AS factsSlug
-      FROM layouts l
-      JOIN game_tracks gt ON gt.layout_id = l.canonical_id
-     WHERE l.facts_slug = ?
-     GROUP BY l.canonical_id
-     ORDER BY l.canonical_id
-  `).all(factsSlug) as TrackAssetIdentity[];
-  return rows.length === 1 ? rows[0] : null;
+  const indexes = getTrackRegistryIndexes();
+  const layouts = indexes.layoutsByFactsSlug.get(factsSlug) ?? [];
+  if (layouts.length !== 1) return null;
+  const assignments = indexes.assignmentsByLayoutId.get(layouts[0]!.id) ?? [];
+  const identities = assignments.map(identityFromAssignment).sort(sortIdentities);
+  return identities[0] ?? null;
 }
+
 /** Every game assignment for one facts slug, optionally scoped to one game. */
 export function findTrackAssetIdentities(factsSlug: string, gameFilter?: string): TrackAssetIdentity[] {
   const parsedGameId = gameFilter === undefined ? null : GameIdSchema.safeParse(gameFilter);
   if (parsedGameId && !parsedGameId.success) return [];
-  return getTrackRegistry().query(`
-    SELECT gt.game_id AS gameId, gt.track_ordinal AS ordinal,
-           l.venue_path AS venuePath, l.slug AS layoutSlug, l.facts_slug AS factsSlug
-      FROM game_tracks gt
-      JOIN layouts l ON l.canonical_id = gt.layout_id
-     WHERE l.facts_slug = ?
-       AND (? IS NULL OR gt.game_id = ?)
-     ORDER BY gt.game_id, gt.track_ordinal
-  `).all(factsSlug, parsedGameId?.data ?? null, parsedGameId?.data ?? null) as TrackAssetIdentity[];
+  const indexes = getTrackRegistryIndexes();
+  return (indexes.layoutsByFactsSlug.get(factsSlug) ?? [])
+    .flatMap((layout) => indexes.assignmentsByLayoutId.get(layout.id) ?? [])
+    .filter((assignment) => !parsedGameId || assignment.gameId === parsedGameId.data)
+    .map(identityFromAssignment)
+    .sort(sortIdentities);
 }
+
 /** Every canonical game-track identity, optionally scoped to one game. */
 export function listTrackAssetIdentities(gameFilter?: string): TrackAssetIdentity[] {
   const parsedGameId = gameFilter === undefined ? null : GameIdSchema.safeParse(gameFilter);
   if (parsedGameId && !parsedGameId.success) return [];
-  return getTrackRegistry().query(`
-    SELECT gt.game_id AS gameId, gt.track_ordinal AS ordinal,
-           l.venue_path AS venuePath, l.slug AS layoutSlug, l.facts_slug AS factsSlug
-      FROM game_tracks gt
-      JOIN layouts l ON l.canonical_id = gt.layout_id
-     WHERE (? IS NULL OR gt.game_id = ?)
-     ORDER BY gt.game_id, gt.track_ordinal
-  `).all(parsedGameId?.data ?? null, parsedGameId?.data ?? null) as TrackAssetIdentity[];
+  return getTrackRegistry()
+    .assignments.filter((assignment) => !parsedGameId || assignment.gameId === parsedGameId.data)
+    .map(identityFromAssignment)
+    .sort(sortIdentities);
 }
 
 
