@@ -55,7 +55,7 @@ export function buildDemoFixture(packets: readonly TelemetryPacket[]): DemoSeman
 
 if (import.meta.main) {
   const root = process.cwd();
-  const frames = buildDemoFixture(parseCsv(join(root, "client/public/demo-lap.csv")));
+  const frames = buildDemoFixture(parseCsv(join(root, "scripts/telemetry/fixtures/demo-lap.csv")));
   writeFileSync(join(root, "client/public/demo-lap.json.gz"), gzipSync(JSON.stringify({ simulator: "fm-2023", frames }), { level: 9 }));
   console.log(`Generated ${frames.length} canonical demo frames`);
 }
