@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { SessionMeta } from "@shared/racing/sessions/types";
-import { filterSessions } from "../src/components/sessions/helpers";
-import { validateSessionsSearch } from "../src/lib/game-routes";
+import { filterSessions } from "../../src/components/sessions/helpers";
+import { validateSessionsSearch } from "../../src/lib/game-routes";
 
 const names = { trackNames: { 1: "Silverstone" }, carNames: { 2: "Porsche" } };
 const sessions: SessionMeta[] = [
