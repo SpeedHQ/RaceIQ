@@ -1,3 +1,5 @@
+import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
+
 /**
  * Track calibration: aligns external track outlines (TUMFTM/OSM coordinates)
  * with source coordinate space using Procrustes alignment.
@@ -32,6 +34,18 @@ interface CalibrationHistoryEntry {
   points: number;
 }
 
+interface AlignmentPair {
+  source: Point;
+  target: Point;
+  targetProgress: number;
+}
+
+interface AlignmentResult {
+  transform: Transform;
+  rmse: number;
+  points: number;
+}
+
 interface CalibrationState {
   transform: Transform | null;
   sourcePoints: Point[];     // bounded progress-bin representatives
@@ -42,27 +56,28 @@ interface CalibrationState {
   nextSequence: number;
 }
 
-function recordCalibration(state: CalibrationState, samples: CalibrationSample[], outline: Point[], transform: Transform): void {
-  const arc = normalizedArcLengths(outline);
-  let squaredError = 0;
-  for (const sample of samples) {
-    const target = interpolateAtFrac(outline, arc, sample.progress);
-    squaredError += squaredDistance(applyTransform(sample.point, transform), target);
-  }
+function recordCalibration(
+  state: CalibrationState,
+  samples: CalibrationSample[],
+  result: AlignmentResult
+): void {
   state.history.push({
     sequence: state.nextSequence++,
     lapNumber: samples.reduce((max, sample) => Math.max(max, sample.lapNumber), 0),
-    transform: { ...transform },
-    rmse: samples.length ? Math.sqrt(squaredError / samples.length) : null,
-    points: samples.length,
+    transform: { ...result.transform },
+    rmse: result.rmse,
+    points: result.points,
   });
   if (state.history.length > 12) state.history.splice(0, state.history.length - 12);
 }
 
 const PROGRESS_BIN_COUNT = 100;
+const SOURCE_ARC_MIN_PROGRESS_SPAN = 0.8;
+const FIT_RETAIN_FRACTION = 0.8;
+const REFINEMENT_PROGRESS_WINDOW = 0.04;
+const BOUNDARY_MARGIN_METERS = 0.5;
 
-// One calibration per track — persists for the server lifetime.
-// Re-calibrates each time the player completes a full lap.
+// One accepted live calibration per track session. Session reset clears it.
 const calibrations = new Map<number, CalibrationState>();
 // Cache for static transforms (TUMFTM center-line → recorded source outline)
 const staticTransforms = new Map<number, Transform>();
@@ -128,32 +143,249 @@ function closestPointIdx(outline: Point[], p: Point): number {
   return bestIdx;
 }
 
-/**
- * Build transform from bounded source evidence paired to outline by normalized arc position.
- * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
- */
-/**
- * Build transform from bounded source evidence paired to outline by normalized
- * evidence order. This avoids assuming source and outline share coordinates.
- * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
- */
-function buildAlignmentTransform(samples: CalibrationSample[], outline: Point[]): Transform {
-  const arc = normalizedArcLengths(outline);
-  const paired = samples.map(sample => ({
-    source: sample.point,
-    target: interpolateAtFrac(outline, arc, sample.progress),
-  }));
-  let active = paired;
+function fitPairs(pairs: AlignmentPair[]): { transform: Transform; active: AlignmentPair[] } {
+  let active = pairs;
   for (let pass = 0; pass < 2; pass++) {
     const transform = procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
-    if (active.length < 3) return transform;
-    const ranked = active.map(pair => {
-      const mapped = applyTransform(pair.source, transform);
-      return { pair, error: squaredDistance(mapped, pair.target) };
-    }).sort((a, b) => a.error - b.error);
-    active = ranked.slice(0, Math.max(3, Math.ceil(ranked.length * 0.8))).map(item => item.pair);
+    if (active.length < 3) return { transform, active };
+    active = active
+      .map(pair => ({
+        pair,
+        error: squaredDistance(applyTransform(pair.source, transform), pair.target),
+      }))
+      .sort((a, b) => a.error - b.error)
+      .slice(0, Math.max(3, Math.ceil(active.length * FIT_RETAIN_FRACTION)))
+      .map(item => item.pair);
   }
-  return procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
+  return {
+    transform: procrustes(active.map(pair => pair.source), active.map(pair => pair.target)),
+    active,
+  };
+}
+
+function fitAllPairs(pairs: AlignmentPair[]): { transform: Transform; active: AlignmentPair[] } {
+  return {
+    transform: procrustes(pairs.map(pair => pair.source), pairs.map(pair => pair.target)),
+    active: pairs,
+  };
+}
+
+function sourceArcPairs(
+  samples: CalibrationSample[],
+  outline: Point[],
+  deriveSourceArc: boolean
+): AlignmentPair[] {
+  const sorted = [...samples].sort((a, b) => a.progress - b.progress);
+  const outlineArc = normalizedArcLengths(outline);
+  const progressSpan = sorted.at(-1)!.progress - sorted[0]!.progress;
+  if (!deriveSourceArc || progressSpan < SOURCE_ARC_MIN_PROGRESS_SPAN) {
+    return sorted.map(sample => ({
+      source: sample.point,
+      target: interpolateAtFrac(outline, outlineArc, sample.progress),
+      targetProgress: sample.progress,
+    }));
+  }
+
+  const segmentLengths = sorted.slice(1).map((sample, index) =>
+    Math.sqrt(squaredDistance(sorted[index]!.point, sample.point)));
+  segmentLengths.push(Math.sqrt(squaredDistance(sorted.at(-1)!.point, sorted[0]!.point)));
+  const rankedLengths = [...segmentLengths].sort((a, b) => a - b);
+  const medianLength = rankedLengths[Math.floor(rankedLengths.length / 2)]!;
+  const maximumSegmentLength = medianLength * 4;
+  const cumulative = [0];
+  for (let i = 1; i < sorted.length; i++) {
+    cumulative.push(cumulative[i - 1]! + Math.min(segmentLengths[i - 1]!, maximumSegmentLength));
+  }
+  const total = cumulative.at(-1)! + Math.min(segmentLengths.at(-1)!, maximumSegmentLength);
+  const phase = sorted[0]!.progress;
+  return sorted.map((_, index) => {
+    const arcProgress = index / sorted.length;
+    const distance = arcProgress * total;
+    let segment = 0;
+    while (segment + 1 < cumulative.length && cumulative[segment + 1]! <= distance) segment++;
+    const start = sorted[segment]!.point;
+    const end = segment + 1 < sorted.length ? sorted[segment + 1]!.point : sorted[0]!.point;
+    const segmentStart = cumulative[segment]!;
+    const segmentLength = segment + 1 < sorted.length
+      ? Math.min(segmentLengths[segment]!, maximumSegmentLength)
+      : Math.min(segmentLengths.at(-1)!, maximumSegmentLength);
+    const interpolation = segmentLength > 0
+      ? Math.max(0, Math.min(1, (distance - segmentStart) / segmentLength))
+      : 0;
+    const source = {
+      x: start.x + (end.x - start.x) * interpolation,
+      z: start.z + (end.z - start.z) * interpolation,
+    };
+    const targetProgress = phase + arcProgress;
+    return {
+      source,
+      target: interpolateAtFrac(outline, outlineArc, targetProgress),
+      targetProgress,
+    };
+  });
+}
+
+function nearestOutlinePair(
+  source: Point,
+  mapped: Point,
+  expectedProgress: number,
+  minimumProgress: number,
+  outline: Point[],
+  outlineArc: number[]
+): AlignmentPair | null {
+  let best: AlignmentPair | null = null;
+  let bestDistance = Infinity;
+  for (let i = 0; i < outline.length - 1; i++) {
+    const start = outline[i]!;
+    const end = outline[i + 1]!;
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const lengthSq = dx * dx + dz * dz;
+    const t = lengthSq > 0
+      ? Math.max(0, Math.min(1, ((mapped.x - start.x) * dx + (mapped.z - start.z) * dz) / lengthSq))
+      : 0;
+    const targetProgress = outlineArc[i]! + (outlineArc[i + 1]! - outlineArc[i]!) * t;
+    const unwrappedProgress = targetProgress + Math.round(expectedProgress - targetProgress);
+    if (Math.abs(unwrappedProgress - expectedProgress) > REFINEMENT_PROGRESS_WINDOW ||
+        unwrappedProgress < minimumProgress) continue;
+    const target = { x: start.x + dx * t, z: start.z + dz * t };
+    const distance = squaredDistance(mapped, target);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = { source, target, targetProgress: unwrappedProgress };
+    }
+  }
+  return best;
+}
+
+function boundaryCenterline(boundary: TrackBoundary | undefined): Point[] | null {
+  if (!boundary || boundary.leftEdge.length < 2 || boundary.rightEdge.length < 2) return null;
+  const count = Math.min(
+    500,
+    Math.max(boundary.leftEdge.length, boundary.rightEdge.length)
+  );
+  const leftArc = normalizedArcLengths(boundary.leftEdge);
+  const rightArc = normalizedArcLengths(boundary.rightEdge);
+  return Array.from({ length: count }, (_, index) => {
+    const progress = index / (count - 1);
+    const left = interpolateAtFrac(boundary.leftEdge, leftArc, progress);
+    const right = interpolateAtFrac(boundary.rightEdge, rightArc, progress);
+    return { x: (left.x + right.x) / 2, z: (left.z + right.z) / 2 };
+  });
+}
+
+function withinBoundary(
+  mapped: Point,
+  progress: number,
+  boundary: TrackBoundary | undefined,
+  leftArc: number[] | undefined,
+  rightArc: number[] | undefined
+): boolean {
+  if (!boundary || !leftArc || !rightArc) return true;
+  const left = interpolateAtFrac(boundary.leftEdge, leftArc, progress);
+  const right = interpolateAtFrac(boundary.rightEdge, rightArc, progress);
+  const center = { x: (left.x + right.x) / 2, z: (left.z + right.z) / 2 };
+  const halfWidth = Math.sqrt(squaredDistance(left, right)) / 2;
+  return squaredDistance(mapped, center) <= (halfWidth + BOUNDARY_MARGIN_METERS) ** 2;
+}
+
+
+function fitBoundarySeededPairs(
+  pairs: AlignmentPair[],
+  boundary: TrackBoundary,
+  leftArc: number[],
+  rightArc: number[]
+): { transform: Transform; active: AlignmentPair[] } {
+  const fullTransform = procrustes(
+    pairs.map(pair => pair.source),
+    pairs.map(pair => pair.target)
+  );
+  const fullInliers = pairs.filter(pair =>
+    withinBoundary(
+      applyTransform(pair.source, fullTransform),
+      pair.targetProgress,
+      boundary,
+      leftArc,
+      rightArc
+    ));
+  if (fullInliers.length >= pairs.length * 0.8) return fitAllPairs(pairs);
+  const windowSize = Math.max(3, Math.ceil(pairs.length * 0.2));
+  const stride = Math.max(1, Math.floor(windowSize / 2));
+  const candidateTransforms = [fullTransform];
+  for (let start = 0; start + windowSize <= pairs.length; start += stride) {
+    const window = pairs.slice(start, start + windowSize);
+    candidateTransforms.push(
+      procrustes(window.map(pair => pair.source), window.map(pair => pair.target))
+    );
+  }
+  let bestInliers: AlignmentPair[] = [];
+  let bestError = Infinity;
+  for (const transform of candidateTransforms) {
+    const inliers = pairs.filter(pair =>
+      withinBoundary(
+        applyTransform(pair.source, transform),
+        pair.targetProgress,
+        boundary,
+        leftArc,
+        rightArc
+      ));
+    const error = inliers.reduce((sum, pair) =>
+      sum + squaredDistance(applyTransform(pair.source, transform), pair.target), 0);
+    if (inliers.length > bestInliers.length ||
+        (inliers.length === bestInliers.length && error < bestError)) {
+      bestInliers = inliers;
+      bestError = error;
+    }
+  }
+  return bestInliers.length >= 3 ? fitAllPairs(bestInliers) : fitPairs(pairs);
+}
+
+function buildAlignmentTransform(
+  samples: CalibrationSample[],
+  outline: Point[],
+  boundary?: TrackBoundary,
+  deriveSourceArc = true
+): AlignmentResult {
+  const targetOutline = boundaryCenterline(boundary) ?? outline;
+  let pairs = sourceArcPairs(samples, targetOutline, deriveSourceArc);
+  const outlineArc = normalizedArcLengths(targetOutline);
+  const leftArc = boundary?.leftEdge.length && boundary.leftEdge.length > 1
+    ? normalizedArcLengths(boundary.leftEdge)
+    : undefined;
+  const rightArc = boundary?.rightEdge.length && boundary.rightEdge.length > 1
+    ? normalizedArcLengths(boundary.rightEdge)
+    : undefined;
+  let fitted = boundary && leftArc && rightArc
+    ? fitBoundarySeededPairs(pairs, boundary, leftArc, rightArc)
+    : fitPairs(pairs);
+  for (let pass = 0; pass < (boundary ? 0 : 2); pass++) {
+    let minimumProgress = -Infinity;
+    const refined: AlignmentPair[] = [];
+    for (const pair of pairs) {
+      const mapped = applyTransform(pair.source, fitted.transform);
+      const match = nearestOutlinePair(
+        pair.source,
+        mapped,
+        pair.targetProgress,
+        minimumProgress,
+        targetOutline,
+        outlineArc
+      );
+      if (!match || !withinBoundary(mapped, match.targetProgress, boundary, leftArc, rightArc)) continue;
+      refined.push(match);
+      minimumProgress = match.targetProgress;
+    }
+    if (refined.length < 3) break;
+    pairs = refined;
+    fitted = boundary ? fitAllPairs(pairs) : fitPairs(pairs);
+  }
+  const squaredError = fitted.active.reduce((sum, pair) =>
+    sum + squaredDistance(applyTransform(pair.source, fitted.transform), pair.target), 0);
+  return {
+    transform: fitted.transform,
+    rmse: Math.sqrt(squaredError / fitted.active.length),
+    points: samples.length,
+  };
 }
 
 /**
@@ -291,6 +523,7 @@ function hasUsableOutline(outline: Point[]): boolean {
   return normalizedArcLengths(outline).some((value, index, values) => index > 0 && value > values[index - 1]!);
 }
 
+
 /**
  * Feed a telemetry position. Collects points and auto-calibrates after a lap.
  */
@@ -299,7 +532,8 @@ export function feedCalibrationPosition(
   sourcePos: Point,
   lapNumber: number,
   outline: Point[],
-  normalizedProgress?: number
+  normalizedProgress?: number,
+  boundary?: TrackBoundary
 ): void {
   if (!Number.isFinite(sourcePos.x) || !Number.isFinite(sourcePos.z) ||
       (sourcePos.x === 0 && sourcePos.z === 0) || !hasUsableOutline(outline)) return;
@@ -315,10 +549,13 @@ export function feedCalibrationPosition(
       lastLap: lapNumber, collecting: true, history: [], nextSequence: 1 };
     calibrations.set(trackOrdinal, state);
   }
-  const geometricProgress = normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
+  if (state.transform) {
+    state.lastLap = Math.max(state.lastLap, lapNumber);
+    return;
+  }
   const progress = Number.isFinite(normalizedProgress)
     ? Math.max(0, Math.min(1, normalizedProgress!))
-    : geometricProgress;
+    : normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
   if (!Number.isFinite(progress) || progress < 0 || progress > 1) return;
   const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
   const previous = state.samplesByBin[bin];
@@ -331,8 +568,8 @@ export function feedCalibrationPosition(
 
   // Trigger calibration at lap boundary without discarding session evidence.
   if (lapNumber > state.lastLap && state.sourcePoints.length > MIN_CALIBRATION_POINTS) {
-    calibrate(trackOrdinal, outline);
-    state.collecting = true;
+    calibrate(trackOrdinal, outline, boundary);
+    state.collecting = false;
   }
   state.lastLap = Math.max(state.lastLap, lapNumber);
 }
@@ -340,18 +577,23 @@ export function feedCalibrationPosition(
 /**
  * Run Procrustes calibration using collected source points vs outline.
  */
-function calibrate(trackOrdinal: number, outline: Point[]): void {
+function calibrate(trackOrdinal: number, outline: Point[], boundary?: TrackBoundary): void {
   const state = calibrations.get(trackOrdinal);
-  if (!state) return;
+  if (!state || state.transform) return;
   const samples = state.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
   if (samples.length < MIN_CALIBRATION_POINTS) return;
-  const transform = buildAlignmentTransform(samples, outline);
-  state.transform = transform;
-  recordCalibration(state, samples, outline, transform);
+  const result = buildAlignmentTransform(samples, outline, boundary);
+  state.transform = result.transform;
+  recordCalibration(state, samples, result);
   state.collecting = false;
 }
 
-export function calibrateFromPositions(trackOrdinal: number, positions: Point[], outline: Point[]): boolean {
+export function calibrateFromPositions(
+  trackOrdinal: number,
+  positions: Point[],
+  outline: Point[],
+  boundary?: TrackBoundary
+): boolean {
   if (!hasUsableOutline(outline)) return false;
   const filtered = collectSpatiallyDistinct(positions.filter(point =>
     Number.isFinite(point.x) && Number.isFinite(point.z) && !(point.x === 0 && point.z === 0)
@@ -359,16 +601,17 @@ export function calibrateFromPositions(trackOrdinal: number, positions: Point[],
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
   const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
   for (let index = 0; index < filtered.length; index++) {
-    const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(index * PROGRESS_BIN_COUNT / filtered.length));
-    if (!samplesByBin[bin]) samplesByBin[bin] = { point: filtered[index]!, progress: (bin + 0.5) / PROGRESS_BIN_COUNT, lapNumber: 0 };
+    const progress = index / filtered.length;
+    const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
+    if (!samplesByBin[bin]) samplesByBin[bin] = { point: filtered[index]!, progress, lapNumber: 0 };
   }
   const samples = samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
   if (samples.length < MIN_CALIBRATION_POINTS) return false;
-  const transform = buildAlignmentTransform(samples, outline);
+  const result = buildAlignmentTransform(samples, outline, boundary, false);
   const previous = calibrations.get(trackOrdinal);
-  const state: CalibrationState = { transform, sourcePoints: samples.map(sample => sample.point), samplesByBin,
+  const state: CalibrationState = { transform: result.transform, sourcePoints: samples.map(sample => sample.point), samplesByBin,
     lastLap: 0, collecting: false, history: previous?.history ?? [], nextSequence: previous?.nextSequence ?? 1 };
-  recordCalibration(state, samples, outline, transform);
+  recordCalibration(state, samples, result);
   calibrations.set(trackOrdinal, state);
   return true;
 }

@@ -16,6 +16,8 @@ import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import { getTrackBoundariesByOrdinal } from "../../shared/racing/tracks/geometry/extracted";
+import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
@@ -53,6 +55,7 @@ export class LiveTelemetryPipeline {
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
+  private _calibrationBoundary: TrackBoundary | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -189,6 +192,7 @@ export class LiveTelemetryPipeline {
         }
 
         resetLiveCalibration(session.trackOrdinal);
+        this._calibrationBoundary = getTrackBoundariesByOrdinal(session.trackOrdinal, session.gameId);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
@@ -413,7 +417,8 @@ export class LiveTelemetryPipeline {
             { x: packet.PositionX, z: packet.PositionZ },
             packet.LapNumber,
             outline,
-            normalizedProgress
+            normalizedProgress,
+            this._calibrationBoundary ?? undefined
           );
         }
       }

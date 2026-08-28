@@ -18,6 +18,27 @@ function circle(count = 120): Point[] {
   });
 }
 
+function stadium(count = 400, straightLength = 200, radius = 20): Point[] {
+  const turnLength = Math.PI * radius;
+  const totalLength = 2 * straightLength + 2 * turnLength;
+  return Array.from({ length: count }, (_, i) => {
+    const distance = i / (count - 1) * totalLength;
+    if (distance < straightLength) {
+      return { x: -straightLength / 2 + distance, z: -radius };
+    }
+    if (distance < straightLength + turnLength) {
+      const angle = -Math.PI / 2 + (distance - straightLength) / radius;
+      return { x: straightLength / 2 + Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+    }
+    if (distance < 2 * straightLength + turnLength) {
+      return { x: straightLength / 2 - (distance - straightLength - turnLength), z: radius };
+    }
+    const angle = Math.PI / 2 + (distance - 2 * straightLength - turnLength) / radius;
+    return { x: -straightLength / 2 + Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+  });
+}
+
+
 describe("calibration progress sampling", () => {
   test("bounds representatives to 100 progress bins", () => {
     const outline = circle();
@@ -27,6 +48,7 @@ describe("calibration progress sampling", () => {
     }
     expect(getCalibrationStatus(9101).pointsCollected).toBeLessThanOrEqual(100);
   });
+
 
   test("repeated samples in one bin do not grow state", () => {
     const outline = circle();
@@ -90,6 +112,38 @@ describe("calibration progress sampling", () => {
     }
     expect(getCalibrationStatus(9111).pointsCollected).toBe(100);
   });
+
+  test("fits geometry when game progress drifts from outline arc distance", () => {
+    const outline = stadium();
+    for (let i = 0; i < 100; i++) {
+      const pathProgress = (i + 0.5) / 100;
+      const point = outline[Math.floor(pathProgress * (outline.length - 1))]!;
+      const gameProgress = pathProgress < 0.5
+        ? pathProgress * 0.8
+        : 0.4 + (pathProgress - 0.5) * 1.2;
+      feedCalibrationPosition(9117, point, 1, outline, gameProgress);
+    }
+    feedCalibrationPosition(9117, outline[0]!, 2, outline, 0);
+    const transform = getCalibrationStatus(9117).transform!;
+    expect(transform.scale).toBeCloseTo(1, 2);
+    expect(transform.rotation).toBeCloseTo(0, 2);
+    expect(transform.tx).toBeCloseTo(0, 0);
+    expect(transform.tz).toBeCloseTo(0, 0);
+  });
+
+  test("freezes accepted transform for remaining session laps", () => {
+    const outline = circle();
+    for (let i = 0; i < 100; i++) {
+      feedCalibrationPosition(9118, outline[i]!, 1, outline, i / 100);
+    }
+    feedCalibrationPosition(9118, outline[0]!, 2, outline, 0);
+    const accepted = { ...getCalibrationStatus(9118).transform! };
+    for (let i = 0; i < 100; i++) {
+      feedCalibrationPosition(9118, { x: outline[i]!.x + 20, z: outline[i]!.z - 15 }, 2, outline, i / 100);
+    }
+    feedCalibrationPosition(9118, outline[0]!, 3, outline, 0);
+    expect(getCalibrationStatus(9118).transform).toEqual(accepted);
+  });
   test("pairs sparse progress bins at their actual outline fractions", () => {
     const outline = circle(1200);
     for (let i = 0; i < 60; i++) {
@@ -113,6 +167,48 @@ describe("calibration progress sampling", () => {
     expect(calibrateFromPositions(9109, positions, outline)).toBe(true);
     expect(getCalibrationStatus(9109).transform!.scale).toBeCloseTo(1 / 1.2, 1);
     expect(calibrateFromPositions(9110, positions.slice(0, 20), outline)).toBe(false);
+  });
+
+  test("rejects sustained samples outside supplied track boundaries", () => {
+    const outline = circle();
+    const boundaries = {
+      leftEdge: circle().map(point => ({ x: point.x * 0.95, z: point.z * 0.95 })),
+      rightEdge: circle().map(point => ({ x: point.x * 1.05, z: point.z * 1.05 })),
+      pitLane: null,
+    };
+    const positions = outline.map((point, index) => index < 80
+      ? point
+      : { x: point.x * 1.8, z: point.z * 1.8 });
+    expect(calibrateFromPositions(9120, outline, outline, boundaries)).toBe(true);
+    const baseline = getCalibrationStatus(9120).transform!;
+    expect(calibrateFromPositions(9119, positions, outline, boundaries)).toBe(true);
+    const transform = getCalibrationStatus(9119).transform!;
+    expect(transform.scale).toBeCloseTo(baseline.scale, 2);
+    expect(transform.rotation).toBeCloseTo(baseline.rotation, 1);
+    expect(transform.tx).toBeCloseTo(baseline.tx, 0);
+    expect(Math.abs(transform.tz - baseline.tz)).toBeLessThan(1);
+  });
+
+  test("keeps every valid racing-line representative inside track corridor", () => {
+    const outline = circle();
+    const boundaries = {
+      leftEdge: circle().map(point => ({ x: point.x * 0.95, z: point.z * 0.95 })),
+      rightEdge: circle().map(point => ({ x: point.x * 1.05, z: point.z * 1.05 })),
+      pitLane: null,
+    };
+    const positions = outline.map((point, index) => {
+      const radiusScale = index < 72 ? 0.96 : 1.04;
+      return { x: point.x * radiusScale, z: point.z * radiusScale };
+    });
+    expect(calibrateFromPositions(9121, positions, outline, boundaries)).toBe(true);
+    const transform = getCalibrationStatus(9121).transform!;
+    const cos = Math.cos(transform.rotation);
+    const sin = Math.sin(transform.rotation);
+    for (const point of positions) {
+      const x = transform.scale * (cos * point.x - sin * point.z) + transform.tx;
+      const z = transform.scale * (sin * point.x + cos * point.z) + transform.tz;
+      expect(Math.hypot(x, z)).toBeWithin(95, 105);
+    }
   });
 
   test("reset clears live evidence but preserves cached static fallback", () => {
