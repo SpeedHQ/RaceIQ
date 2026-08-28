@@ -18,12 +18,20 @@ export interface Transform {
   tz: number;
 }
 
+interface CalibrationSample {
+  point: Point;
+  lapNumber: number;
+}
+
 interface CalibrationState {
   transform: Transform | null;
-  sourcePoints: Point[];     // collected during driving
+  sourcePoints: Point[];     // bounded progress-bin representatives
+  samplesByBin: Array<CalibrationSample | null>;
   lastLap: number;
   collecting: boolean;
 }
+
+const PROGRESS_BIN_COUNT = 100;
 
 // One calibration per track — persists for the server lifetime.
 // Re-calibrates each time the player completes a full lap.
@@ -252,25 +260,39 @@ export function feedCalibrationPosition(
   lapNumber: number,
   outline: Point[]
 ): void {
+  // Reject malformed telemetry before it can affect session evidence.
+  if (!Number.isFinite(sourcePos.x) || !Number.isFinite(sourcePos.z) ||
+      (sourcePos.x === 0 && sourcePos.z === 0) || outline.length < 2) return;
+
   let state = calibrations.get(trackOrdinal);
   if (!state) {
-    state = { transform: null, sourcePoints: [], lastLap: lapNumber, collecting: true };
+    state = {
+      transform: null,
+      sourcePoints: [],
+      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
+      lastLap: lapNumber,
+      collecting: true,
+    };
     calibrations.set(trackOrdinal, state);
   }
 
-  // Skip zero positions
-  if (sourcePos.x === 0 && sourcePos.z === 0) return;
+  const progress = normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
+  if (!Number.isFinite(progress) || progress < 0 || progress > 1) return;
+  const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
+  const previous = state.samplesByBin[bin];
+  if (!previous || lapNumber > previous.lapNumber) {
+    state.samplesByBin[bin] = { point: sourcePos, lapNumber };
+    state.sourcePoints = state.samplesByBin
+      .filter((sample): sample is CalibrationSample => sample !== null)
+      .map(sample => sample.point);
+  }
 
-  // Detect lap boundary — trigger calibration
+  // Trigger calibration at lap boundary without discarding session evidence.
   if (lapNumber > state.lastLap && state.sourcePoints.length > MIN_CALIBRATION_POINTS) {
     calibrate(trackOrdinal, outline);
-    state.sourcePoints = [];
     state.collecting = true;
   }
-  state.lastLap = lapNumber;
-
-  // Spatial downsampling avoids clustering at slow corners and gaps on straights.
-  if (state.collecting) pushIfFarEnough(state.sourcePoints, sourcePos, MIN_POINT_SEPARATION_SQ);
+  state.lastLap = Math.max(state.lastLap, lapNumber);
 }
 
 /**
@@ -306,7 +328,13 @@ export function calibrateFromPositions(
   // Set up calibration state with collected points
   let state = calibrations.get(trackOrdinal);
   if (!state) {
-    state = { transform: null, sourcePoints: [], lastLap: 0, collecting: false };
+    state = {
+      transform: null,
+      sourcePoints: [],
+      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
+      lastLap: 0,
+      collecting: false,
+    };
     calibrations.set(trackOrdinal, state);
   }
   state.sourcePoints = filtered;
