@@ -1,5 +1,6 @@
 
-## Stored Import Replacement Fix
-- `calibrateFromPositions` now resets prior live/stored evidence before feeding imported positions, so repeated imports cannot retain stale bins or ignore new data.
-- Commit: `e5f13e826`.
-- Focused test: 4 pass, 0 fail.
+## Atomic Replacement Fix
+- Candidate stored evidence and transform now build off-map; existing calibration remains intact when replacement input fails validation or has insufficient bins.
+- Added regression test for failed replacement preservation.
+- Commit: `5abdcc833`.
+- Focused test: 5 pass, 0 fail.
