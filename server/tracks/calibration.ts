@@ -320,6 +320,8 @@ export function calibrateFromPositions(
   if (!hasUsableOutline(outline)) return false;
   const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
+  // Stored calibration replaces prior session evidence, including repeated imports.
+  calibrations.delete(trackOrdinal);
   for (const point of filtered) feedCalibrationPosition(trackOrdinal, point, 0, outline);
   const state = calibrations.get(trackOrdinal);
   if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
