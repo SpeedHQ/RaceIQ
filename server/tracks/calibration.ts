@@ -270,7 +270,8 @@ export function feedCalibrationPosition(
   trackOrdinal: number,
   sourcePos: Point,
   lapNumber: number,
-  outline: Point[]
+  outline: Point[],
+  normalizedProgress?: number
 ): void {
   if (!Number.isFinite(sourcePos.x) || !Number.isFinite(sourcePos.z) ||
       (sourcePos.x === 0 && sourcePos.z === 0) || !hasUsableOutline(outline)) return;
@@ -286,8 +287,10 @@ export function feedCalibrationPosition(
     };
     calibrations.set(trackOrdinal, state);
   }
-
-  const progress = normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
+  const geometricProgress = normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
+  const progress = Number.isFinite(normalizedProgress)
+    ? Math.max(0, Math.min(1, normalizedProgress!))
+    : geometricProgress;
   if (!Number.isFinite(progress) || progress < 0 || progress > 1) return;
   const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
   const previous = state.samplesByBin[bin];

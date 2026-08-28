@@ -75,6 +75,14 @@ describe("calibration progress sampling", () => {
     expect(transform.rotation).toBeCloseTo(0, 1);
   });
 
+  test("uses normalized lap progress to distribute samples across laps", () => {
+    const outline = circle();
+    for (let i = 0; i < 100; i++) {
+      feedCalibrationPosition(9111, { x: 40, z: 40 }, 1, outline, (i + 0.5) / 100);
+    }
+    expect(getCalibrationStatus(9111).pointsCollected).toBe(100);
+  });
+
   test("rejects sparse evidence and resists one extreme outlier", () => {
     const outline = circle();
     const positions = outline.map(point => ({ x: point.x * 1.2, z: point.z * 1.2 }));
