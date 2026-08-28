@@ -320,13 +320,27 @@ export function calibrateFromPositions(
   if (!hasUsableOutline(outline)) return false;
   const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
-  // Stored calibration replaces prior session evidence, including repeated imports.
-  calibrations.delete(trackOrdinal);
-  for (const point of filtered) feedCalibrationPosition(trackOrdinal, point, 0, outline);
-  const state = calibrations.get(trackOrdinal);
-  if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
-  state.transform = buildAlignmentTransform(state.sourcePoints, outline);
-  state.collecting = false;
+  const arc = normalizedArcLengths(outline);
+  const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
+  for (const point of filtered) {
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.z) || (point.x === 0 && point.z === 0)) continue;
+    const progress = arc[closestPointIdx(outline, point)];
+    if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
+    const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
+    if (!samplesByBin[bin]) samplesByBin[bin] = { point, lapNumber: 0 };
+  }
+  const sourcePoints = samplesByBin
+    .filter((sample): sample is CalibrationSample => sample !== null)
+    .map(sample => sample.point);
+  if (sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
+  const transform = buildAlignmentTransform(sourcePoints, outline);
+  calibrations.set(trackOrdinal, {
+    transform,
+    sourcePoints,
+    samplesByBin,
+    lastLap: 0,
+    collecting: false,
+  });
   return true;
 }
 

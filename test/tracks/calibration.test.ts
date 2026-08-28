@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { feedCalibrationPosition, getCalibrationStatus } from "../../server/tracks/calibration";
+import { calibrateFromPositions, feedCalibrationPosition, getCalibrationStatus } from "../../server/tracks/calibration";
 
 type Point = { x: number; z: number };
 
@@ -44,5 +44,13 @@ describe("calibration progress sampling", () => {
     feedCalibrationPosition(9105, { x: Number.NaN, z: 1 }, 1, outline);
     expect(getCalibrationStatus(9104).pointsCollected).toBe(0);
     expect(getCalibrationStatus(9105).pointsCollected).toBe(0);
+  });
+
+  test("failed stored replacement preserves existing calibration", () => {
+    const outline = circle();
+    const positions = outline.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }));
+    expect(calibrateFromPositions(9106, positions, outline)).toBe(true);
+    expect(calibrateFromPositions(9106, [{ x: 0, z: 0 }], outline)).toBe(false);
+    expect(getCalibrationStatus(9106).calibrated).toBe(true);
   });
 });
