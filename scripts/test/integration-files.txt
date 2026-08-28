@@ -179,6 +179,7 @@ test/telemetry/line-spread-cache.test.ts
 test/telemetry/live-contracts.test.ts
 test/telemetry/live-projector.test.ts
 test/telemetry/live-semantics.test.ts
+test/telemetry/live-pipeline-calibration.test.ts
 test/telemetry/pipeline-adapters.test.ts
 test/telemetry/pipeline-live-issues.test.ts
 test/telemetry/resolver/basic.test.ts
