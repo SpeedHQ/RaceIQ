@@ -327,7 +327,8 @@ export function feedCalibrationPosition(
  */
 function calibrate(trackOrdinal: number, outline: Point[]): void {
   const state = calibrations.get(trackOrdinal);
-  const samples = state?.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null) ?? [];
+  if (!state) return;
+  const samples = state.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
   if (samples.length < MIN_CALIBRATION_POINTS) return;
   const transform = buildAlignmentTransform(samples, outline);
   state.transform = transform;
