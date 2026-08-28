@@ -53,4 +53,10 @@ describe("calibration progress sampling", () => {
     expect(calibrateFromPositions(9106, [{ x: 0, z: 0 }], outline)).toBe(false);
     expect(getCalibrationStatus(9106).calibrated).toBe(true);
   });
+
+  test("stored calibration ignores malformed positions before downsampling", () => {
+    const outline = circle();
+    const positions = [{ x: Number.NaN, z: 1 }, ...outline.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }))];
+    expect(calibrateFromPositions(9107, positions, outline)).toBe(true);
+  });
 });

@@ -318,7 +318,10 @@ export function calibrateFromPositions(
   outline: Point[]
 ): boolean {
   if (!hasUsableOutline(outline)) return false;
-  const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
+  const validPositions = positions.filter(point =>
+    Number.isFinite(point.x) && Number.isFinite(point.z) && !(point.x === 0 && point.z === 0)
+  );
+  const filtered = collectSpatiallyDistinct(validPositions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
   const arc = normalizedArcLengths(outline);
   const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
