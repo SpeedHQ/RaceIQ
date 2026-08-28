@@ -1,4 +1,3 @@
-import type { GameId } from "@shared/games/ids";
 import type { SessionOwnership } from "@shared/racing/sessions/types";
 import { useRef, useState } from "react";
 import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
@@ -33,7 +32,7 @@ function formatLabel(format: DetectedFormat): string {
   }
 }
 
-export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
+export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: ImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
@@ -99,7 +98,6 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
   if (detected?.format === "motec" && file) {
     return (
       <MotecImportModal
-        initialGameId={gameId}
         initialLd={file}
         onClose={onClose}
         onImported={(motecResult: MotecImportSuccess) => onImported?.({ imported: motecResult.imported, gameId: motecResult.gameId })}

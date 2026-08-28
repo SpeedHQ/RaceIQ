@@ -51,13 +51,11 @@ function fmtLapTime(ms: number | null | undefined): string {
  */
 export function MotecImportModal({
   target: fixedTarget,
-  initialGameId,
   initialLd,
   onClose,
   onImported,
 }: {
   target?: MotecTargetInfo;
-  initialGameId?: GameId | null;
   initialLd?: File | null;
   onClose: () => void;
   onImported?: (r: MotecImportSuccess) => void;
@@ -75,11 +73,6 @@ export function MotecImportModal({
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
-  useEffect(() => {
-    if (!fixedTarget && !selectedGameId && initialGameId && targets.some((item) => item.gameId === initialGameId)) {
-      setSelectedGameId(initialGameId);
-    }
-  }, [fixedTarget, initialGameId, selectedGameId, targets]);
 
   useEffect(() => {
     setCarOrdinal("");

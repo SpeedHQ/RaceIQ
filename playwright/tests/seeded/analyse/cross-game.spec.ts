@@ -150,7 +150,7 @@ test("Analyse MoTeC import follows selected game support", async ({ page, reques
     }
   }
 });
-test("Session MoTeC import reuses setup modal with current game default", async ({ page }) => {
+test("Session MoTeC import requires explicit game selection", async ({ page }) => {
   test.setTimeout(120_000);
   await page.route("**/api/laps/detect-import", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ format: "motec", supported: true, gameIds: [], captureCount: 1, message: null }) });
@@ -161,8 +161,9 @@ test("Session MoTeC import reuses setup modal with current game default", async 
   await sessionDialog.locator('input[type="file"]').setInputFiles({ name: "sample.ld", mimeType: "application/octet-stream", buffer: Buffer.from("synthetic") });
   const motecDialog = page.getByRole("dialog");
   await expect(motecDialog).toContainText("Import MoTeC log");
-  await expect(motecDialog).toContainText("Assetto Corsa Competizione");
-  await expect(motecDialog.getByRole("combobox", { name: "Game" })).toHaveValue("Assetto Corsa Competizione");
+
+  await expect(motecDialog).toContainText("Choose supported game to load its car and track catalogs.");
+  await expect(motecDialog.getByRole("combobox", { name: "Game" })).toHaveValue("");
 });
 
 test("Analyse racing-line overlay follows seeded track availability", async ({ page, request }) => {
