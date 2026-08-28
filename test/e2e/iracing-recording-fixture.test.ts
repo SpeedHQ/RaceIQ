@@ -87,7 +87,7 @@ describe("committed iRacing recorder fixture", () => {
 
 describe("committed iRacing seed fixture", () => {
   test("replays the compact real-telemetry window through the production parser", () => {
-    expect(recording.rawPackets).toHaveLength(6_357);
+    expect(recording.rawPackets).toHaveLength(38_110);
     expect(recording.sessions).toEqual([
       {
         carOrdinal: 206,
