@@ -195,18 +195,25 @@ function buildIRacingContextRecord(
 function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
   const records = [...iterateSessionCaptureRecords(buf)]
     .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+      record.kind === "frame" && record.offset < beforeOffset,
+    );
+  const selected = [...iterateSessionCaptureRecords(buf, beforeOffset)]
+    .find((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
       record.kind === "frame",
     );
-  const firstSelected = records.find((record) => record.offset >= beforeOffset);
-  const sessionUID = firstSelected ? parseF1Header(firstSelected.frame).sessionUID : null;
-  const context = records.filter((record) =>
-    record.offset < beforeOffset &&
-    (sessionUID === null || parseF1Header(record.frame).sessionUID === sessionUID),
-  );
-  return context.map((record) => Buffer.concat([
-    encodeFrameLength(record.frame.length),
-    record.frame,
-  ]));
+  if (!selected) return [];
+  const sessionUID = parseF1Header(selected.frame).sessionUID;
+  const latestByPacket = new Map<number, (typeof records)[number]>();
+  for (const record of records) {
+    const header = parseF1Header(record.frame);
+    if (header.sessionUID === sessionUID) latestByPacket.set(header.packetId, record);
+  }
+  return records
+    .filter((record) => latestByPacket.get(parseF1Header(record.frame).packetId) === record)
+    .map((record) => Buffer.concat([
+      encodeFrameLength(record.frame.length),
+      record.frame,
+    ]));
 }
 
 function iracingSegmentEnd(

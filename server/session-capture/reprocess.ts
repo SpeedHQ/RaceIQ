@@ -83,6 +83,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     bypassPacketRateFilter: true,
   });
   let parserState = serverGame.createParserState?.() ?? null;
+  let inContext = false;
 
   for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
     if (record.kind === "segment-boundary") {
@@ -90,13 +91,23 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         db: capturingDb,
         bypassPacketRateFilter: true,
       });
+      detector.expectCompleteLapStart?.();
       parserState = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
       continue;
     }
     if (record.kind !== "frame") continue;
     const { offset, frame } = record;
     const packet = serverGame.tryParse(frame, parserState);
-    if (packet) {
+    if (packet && !inContext) {
       await detector.feed(packet, offset);
     }
   }

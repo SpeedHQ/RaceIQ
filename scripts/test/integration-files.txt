@@ -139,6 +139,7 @@ test/session-capture/parse-dump.test.ts
 test/session-capture/raw-binary-storage.test.ts
 test/session-capture/session-compressor.test.ts
 test/session-capture/session-recorder.test.ts
+test/session-capture/context-markers.test.ts
 test/setups/ac-evo/ac-evo-carsetup-f1.test.ts
 test/setups/ac-evo/ac-evo-carsetup-knobs.test.ts
 test/setups/ac-evo/ac-evo-carsetup-writer.test.ts

@@ -302,9 +302,19 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
   let state = serverGame.createParserState?.() ?? null;
   const buf = await loadDecompressedRawFile(rawFile);
   const packets: TelemetryPacket[] = [];
+  let inContext = false;
   for (const record of iterateSessionCaptureRecords(buf)) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
       continue;
     }
     if (record.kind !== "frame") continue;
@@ -312,7 +322,7 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
       const packet = serverGame.tryParse(record.frame, state);
       if (!packet) continue;
       normalizeReplayPacket(packet, serverGame);
-      packets.push(packet);
+      if (!inContext) packets.push(packet);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
     }
@@ -555,23 +565,33 @@ export async function parseSessionLapsBatched(rawFile: string, lapMetas: { id: n
   const parsed: (TelemetryPacket | null)[] = new Array(lastFrame + 1).fill(null);
   let state = serverGame.createParserState?.() ?? null;
   let ordinaryIndex = 0;
+  let inContext = false;
   for (const record of records) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
       continue;
     }
     if (record.kind !== "frame") continue;
-    if (ordinaryIndex > lastFrame) break;
+    if (ordinaryIndex > lastFrame && !inContext) break;
     try {
       const packet = serverGame.tryParse(record.frame, state);
-      if (packet) {
+      if (packet && !inContext) {
         normalizeReplayPacket(packet, serverGame);
         parsed[ordinaryIndex] = packet;
       }
     } catch {
       /* single bad frame — skip, matches per-lap tolerance */
     }
-    ordinaryIndex++;
+    if (!inContext) ordinaryIndex++;
   }
 
   for (const lap of resolved) {

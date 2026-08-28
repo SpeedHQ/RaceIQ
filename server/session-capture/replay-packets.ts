@@ -26,14 +26,24 @@ function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPack
   let parserState = game.createParserState?.() ?? null;
   const bytes = decompressIfGzipSync(readFileSync(recordingPath));
   const packets: TelemetryPacket[] = [];
+  let inContext = false;
   for (const record of iterateSessionCaptureRecords(bytes)) {
     if (record.kind === "segment-boundary") {
       parserState = game.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
       continue;
     }
     if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
-    if (packet) packets.push(packet);
+    if (packet && !inContext) packets.push(packet);
   }
   return packets;
 }

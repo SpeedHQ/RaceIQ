@@ -29,6 +29,7 @@ import {
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
 } from "../../server/games/iracing/source-frame";
+import { F1_PACKET_IDS } from "../../server/games/f1-2025/f1-wire";
 import type { GameId } from "../../shared/games/ids";
 
 initGameAdapters();
@@ -50,6 +51,39 @@ function makeCapture(frameCount: number): Buffer {
     const at = frameAt(i);
     buf.writeUInt32LE(PAYLOAD, at);
     buf.writeUInt8(i, at + 4);
+  }
+  return buf;
+}
+
+function makeF1Capture(frameCount: number): Buffer {
+  const frameBytes = 29;
+  const buf = Buffer.alloc(META + frameCount * (4 + frameBytes));
+  buf.writeUInt32LE(META_FRAME_MAGIC, 0);
+  buf.writeUInt32LE(4, 4);
+  buf.writeUInt32LE(0, 8);
+  const packetIds = [
+    F1_PACKET_IDS.MOTION,
+    F1_PACKET_IDS.SESSION,
+    F1_PACKET_IDS.LAP_DATA,
+    F1_PACKET_IDS.PARTICIPANTS,
+    F1_PACKET_IDS.CAR_SETUP,
+    F1_PACKET_IDS.CAR_TELEMETRY,
+    F1_PACKET_IDS.CAR_STATUS,
+    F1_PACKET_IDS.FINAL_CLASSIFICATION,
+    F1_PACKET_IDS.CAR_DAMAGE,
+    F1_PACKET_IDS.SESSION_HISTORY,
+    F1_PACKET_IDS.MOTION_EX,
+  ];
+  for (let i = 0; i < frameCount; i++) {
+    const at = META + i * (4 + frameBytes);
+    buf.writeUInt32LE(frameBytes, at);
+    buf.writeUInt16LE(2025, at + 4);
+    buf.writeUInt8(25, at + 6);
+    buf.writeUInt8(1, at + 7);
+    buf.writeUInt8(0, at + 8);
+    buf.writeUInt8(packetIds[i % packetIds.length]!, at + 10);
+    buf.writeBigUInt64LE(1n, at + 11);
+    buf.writeUInt8(0, at + 31);
   }
   return buf;
 }
@@ -169,6 +203,26 @@ describe("buildLapsZip", () => {
     const slice = readEntry(bytes, manifest.entries[0]!.file);
     expect(frameIndices(slice)).toEqual([0, 1, 2, 4, 5]);
     expect(slice.indexOf(Buffer.from("SEGM"))).toBeGreaterThanOrEqual(0);
+  });
+
+  test("F1 export bounds parser context instead of copying all prior frames", async () => {
+    const frameBytes = 29;
+    const path = `${process.env.DATA_DIR ?? "."}/zip-test-f1-context-${Date.now()}.bin`;
+    const capture = makeF1Capture(40);
+    await Bun.write(path, capture);
+    tmpFiles.push(path);
+    const sid = await insertSession(path, "f1-2025");
+    const lapId = await insertLap(sid, 1, META + 30 * (4 + frameBytes), 1);
+
+    const { bytes, manifest } = await buildLapsZip([lapId]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+    const records = [...iterateSessionCaptureRecords(slice)];
+    const contextStart = records.findIndex((record) => record.kind === "segment-context");
+    const contextEnd = records.findIndex((record) => record.kind === "segment-context-end");
+    const contextFrames = records.slice(contextStart + 1, contextEnd)
+      .filter((record) => record.kind === "frame");
+
+    expect(contextFrames.length).toBeLessThanOrEqual(11);
   });
 
   test("entry filename starts with the gameId so import can detect the game", async () => {

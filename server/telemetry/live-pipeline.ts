@@ -22,6 +22,7 @@ import { detectCorners } from "../lap-analysis/corners"
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
@@ -464,11 +465,17 @@ export class LiveTelemetryPipeline {
    */
   recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
     this._expectCompleteLapStart = completeLapStart;
+    const contextRecord = Buffer.concat([
+      encodeSegmentContextFrame(),
+      encodeFrameLength(sourceFrame.length),
+      sourceFrame,
+      encodeSegmentContextEndFrame(),
+    ]);
     if (this.recorder.active) {
-      this.recorder.writeRecord(sourceFrame);
+      this.recorder.writeRecord(contextRecord);
       return;
     }
-    this._pendingSessionContextFrames.push(sourceFrame);
+    this._pendingSessionContextFrames.push(contextRecord);
   }
 
   /** Start next offline capture segment without rotating canonical session. */
