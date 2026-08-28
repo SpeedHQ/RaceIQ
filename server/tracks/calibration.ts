@@ -118,12 +118,12 @@ function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Trans
   let active = paired;
   for (let pass = 0; pass < 2; pass++) {
     const transform = procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
-    if (active.length < MIN_CALIBRATION_POINTS) return transform;
+    if (active.length < 3) return transform;
     const ranked = active.map(pair => {
       const mapped = applyTransform(pair.source, transform);
       return { pair, error: squaredDistance(mapped, pair.target) };
     }).sort((a, b) => a.error - b.error);
-    active = ranked.slice(0, Math.max(MIN_CALIBRATION_POINTS, Math.ceil(ranked.length * 0.8))).map(item => item.pair);
+    active = ranked.slice(0, Math.max(3, Math.ceil(ranked.length * 0.8))).map(item => item.pair);
   }
   return procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
 }
