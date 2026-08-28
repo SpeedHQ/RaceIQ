@@ -93,6 +93,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       parserState = serverGame.createParserState?.() ?? null;
       continue;
     }
+    if (record.kind !== "frame") continue;
     const { offset, frame } = record;
     const packet = serverGame.tryParse(frame, parserState);
     if (packet) {

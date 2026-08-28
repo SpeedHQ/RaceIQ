@@ -25,6 +25,7 @@ function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | 
       replayFrames = 0;
       continue;
     }
+    if (record.kind !== "frame") continue;
     if (record.offset < source.rawByteOffset) {
       decodeIRacingSourceFrame(record.frame, decoderState);
       continue;

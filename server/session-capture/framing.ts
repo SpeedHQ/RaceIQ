@@ -6,10 +6,17 @@ const META_FRAME_PAYLOAD_BYTES = 4;
 export const META_FRAME_BYTES = 8 + META_FRAME_PAYLOAD_BYTES;
 export const SEGMENT_BOUNDARY_MAGIC = 0x4d474553;
 export const SEGMENT_BOUNDARY_VERSION = 1;
+export const SEGMENT_CONTEXT_MAGIC = 0x58544753;
+export const SEGMENT_CONTEXT_VERSION = 1;
+export const SEGMENT_CONTEXT_END_MAGIC = 0x454e4353;
 export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");
+export const SESSION_SEGMENT_CONTEXT = Symbol("session-segment-context");
+export const SESSION_SEGMENT_CONTEXT_END = Symbol("session-segment-context-end");
 export type SessionCaptureRecord =
   | { kind: "frame"; offset: number; frame: Buffer }
-  | { kind: "segment-boundary"; offset: number };
+  | { kind: "segment-boundary"; offset: number }
+  | { kind: "segment-context"; offset: number }
+  | { kind: "segment-context-end"; offset: number };
 
 const gunzipAsync = promisify(gunzip);
 const gzipAsync = promisify(gzip);
@@ -27,6 +34,22 @@ export function encodeSegmentBoundaryFrame(): Buffer {
   frame.writeUInt32LE(8, 4);
   frame.writeUInt32LE(SEGMENT_BOUNDARY_MAGIC, 8);
   frame.writeUInt32LE(SEGMENT_BOUNDARY_VERSION, 12);
+  return frame;
+}
+export function encodeSegmentContextFrame(): Buffer {
+  const frame = Buffer.alloc(16);
+  frame.writeUInt32LE(META_FRAME_MAGIC, 0);
+  frame.writeUInt32LE(8, 4);
+  frame.writeUInt32LE(SEGMENT_CONTEXT_MAGIC, 8);
+  frame.writeUInt32LE(SEGMENT_CONTEXT_VERSION, 12);
+  return frame;
+}
+export function encodeSegmentContextEndFrame(): Buffer {
+  const frame = Buffer.alloc(16);
+  frame.writeUInt32LE(META_FRAME_MAGIC, 0);
+  frame.writeUInt32LE(8, 4);
+  frame.writeUInt32LE(SEGMENT_CONTEXT_END_MAGIC, 8);
+  frame.writeUInt32LE(SEGMENT_CONTEXT_VERSION, 12);
   return frame;
 }
 export function encodeFrameLength(length: number): Buffer {
@@ -52,6 +75,8 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, offset = readRecord
       const payloadBytes = bytes.readUInt32LE(offset + 4);
       if (offset + 8 + payloadBytes > bytes.length) break;
       if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_BOUNDARY_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_BOUNDARY_VERSION) yield { kind: "segment-boundary", offset: recordOffset };
+      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_CONTEXT_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset: recordOffset };
+      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_CONTEXT_END_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context-end", offset: recordOffset };
       offset += 8 + payloadBytes;
       continue;
     }
@@ -61,8 +86,13 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, offset = readRecord
     offset += length;
   }
 }
-export function* iterateSessionImportFrames(bytes: Buffer): Generator<Buffer | typeof SESSION_SEGMENT_BOUNDARY> {
-  for (const record of iterateSessionCaptureRecords(bytes)) yield record.kind === "segment-boundary" ? SESSION_SEGMENT_BOUNDARY : record.frame;
+export function* iterateSessionImportFrames(bytes: Buffer): Generator<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END> {
+  for (const record of iterateSessionCaptureRecords(bytes)) {
+    if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
+    else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
+    else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
+    else yield record.frame;
+  }
 }
 export function* iterateSessionFrameRecords(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes), _options?: SessionFrameIterationOptions): Generator<SessionFrameRecord> {
   for (const record of iterateSessionCaptureRecords(bytes, offset)) if (record.kind === "frame") yield record;

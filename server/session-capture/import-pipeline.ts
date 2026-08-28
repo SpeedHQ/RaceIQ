@@ -5,10 +5,10 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
-import { SESSION_SEGMENT_BOUNDARY } from "./framing";
 
 
 export interface ImportedLap {
@@ -185,8 +185,8 @@ async function rollbackImport(
 }
 
 type SessionFrameSource =
-  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY>
-  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY>;
+  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>
+  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>;
 
 interface ImportSessionFramesOptions {
   /** Roll back the imported session and capture when no complete lap exists. */
@@ -226,6 +226,7 @@ export async function importSessionFrames(
   let failure: unknown;
   let expectsSessionContext = gameId === "iracing";
   let completeLapStart = false;
+  let inParserContext = false;
   try {
     for await (const sourceFrame of frames) {
       if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
@@ -236,6 +237,20 @@ export async function importSessionFrames(
         state = serverGame.createParserState?.() ?? null;
         expectsSessionContext = gameId === "iracing";
         completeLapStart = true;
+        inParserContext = false;
+        continue;
+      }
+      if (sourceFrame === SESSION_SEGMENT_CONTEXT) {
+        inParserContext = true;
+        continue;
+      }
+      if (sourceFrame === SESSION_SEGMENT_CONTEXT_END) {
+        inParserContext = false;
+        continue;
+      }
+      if (inParserContext) {
+        serverGame.tryParse(sourceFrame, state);
+        pipeline.recordSessionContextFrame(sourceFrame);
         continue;
       }
       if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(sourceFrame)) {

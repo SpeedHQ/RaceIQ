@@ -307,6 +307,7 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
       state = serverGame.createParserState?.() ?? null;
       continue;
     }
+    if (record.kind !== "frame") continue;
     try {
       const packet = serverGame.tryParse(record.frame, state);
       if (!packet) continue;
@@ -358,6 +359,7 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
       state = serverGame.createParserState?.() ?? null;
       continue;
     }
+    if (record.kind !== "frame") continue;
     try {
       serverGame.tryParse(record.frame, state);
     } catch {
@@ -558,6 +560,7 @@ export async function parseSessionLapsBatched(rawFile: string, lapMetas: { id: n
       state = serverGame.createParserState?.() ?? null;
       continue;
     }
+    if (record.kind !== "frame") continue;
     if (ordinaryIndex > lastFrame) break;
     try {
       const packet = serverGame.tryParse(record.frame, state);

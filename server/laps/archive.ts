@@ -31,9 +31,12 @@ import {
   encodeFrameLength,
   encodeMetaFrame,
   encodeSegmentBoundaryFrame,
-  gunzipBufferSync,
+  encodeSegmentContextEndFrame,
+  encodeSegmentContextFrame,
   gzipBufferSync,
+  gunzipBufferSync,
   iterateSessionCaptureRecords,
+  type SessionCaptureRecord,
   sessionFrameAt,
 } from "../session-capture/framing";
 import {
@@ -42,6 +45,7 @@ import {
   IRacingSourceFrameEncoder,
   type IRacingSourceFrame,
 } from "../games/iracing/source-frame";
+import { parseF1Header } from "../games/f1-2025/f1-wire";
 import type { GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
@@ -188,6 +192,22 @@ function buildIRacingContextRecord(
   const context = new IRacingSourceFrameEncoder().encode(latest);
   return Buffer.concat([encodeFrameLength(context.length), context]);
 }
+function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
+  const records = [...iterateSessionCaptureRecords(buf)]
+    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+      record.kind === "frame",
+    );
+  const firstSelected = records.find((record) => record.offset >= beforeOffset);
+  const sessionUID = firstSelected ? parseF1Header(firstSelected.frame).sessionUID : null;
+  const context = records.filter((record) =>
+    record.offset < beforeOffset &&
+    (sessionUID === null || parseF1Header(record.frame).sessionUID === sessionUID),
+  );
+  return context.map((record) => Buffer.concat([
+    encodeFrameLength(record.frame.length),
+    record.frame,
+  ]));
+}
 
 function iracingSegmentEnd(
   buf: Buffer,
@@ -257,17 +277,24 @@ export async function buildLapsZip(
         first.gameId === "iracing"
           ? buildIRacingContextRecord(buf, start)
           : null;
+      const context = first.gameId === "f1-2025"
+        ? buildF1ContextRecords(buf, start)
+        : [];
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix)
         : advanceSessionFrames(buf, start, frameCount + 1);
-      segments.push(Buffer.concat([...(prefix ? [prefix] : []), buf.subarray(start, end)]));
+      segments.push(Buffer.concat([
+        encodeSegmentBoundaryFrame(),
+        ...(context.length > 0
+          ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
+          : []),
+        ...(prefix ? [prefix] : []),
+        buf.subarray(start, end),
+      ]));
     }
     if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
-    const telemetry = Buffer.concat(
-      segments.flatMap((segment) => [encodeSegmentBoundaryFrame(), segment]),
-    );
-    const slice = Buffer.concat([encodeMetaFrame(), telemetry]);
+    const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;

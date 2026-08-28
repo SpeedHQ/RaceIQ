@@ -41,6 +41,14 @@ const MIN_FRAMES = 0;
 
 const CAPTURE = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 const IRACING_CAPTURE = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
+const ALL_GAME_CAPTURES: { gameId: GameId; capture: string; label: string }[] = [
+  { gameId: "fm-2023", capture: CAPTURE, label: "Forza Motorsport" },
+  { gameId: "f1-2025", capture: "test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz", label: "F1 25" },
+  { gameId: "acc", capture: "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz", label: "Assetto Corsa Competizione" },
+  { gameId: "ac-evo", capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
+  { gameId: "iracing", capture: IRACING_CAPTURE, label: "iRacing" },
+];
+
 
 describe("lap export → import round-trip (real capture)", () => {
   const createdSessions: number[] = [];
@@ -120,6 +128,44 @@ describe("lap export → import round-trip (real capture)", () => {
     const match = result.laps.find((l) => Math.abs(l.lapTime - exported.lapTime) < 0.001);
     expect(match).toBeDefined();
   }, 120000);
+  for (const { gameId, capture, label } of ALL_GAME_CAPTURES) {
+    test(`${label} selected lap preserves source telemetry through export and import`, async () => {
+      const { sid, rows } = await seedSession({ capture, gameId, minimumLaps: 1 });
+      const exported = rows.at(-1)!;
+      const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+      const sourcePackets = await parseRawLapFrames(
+        sourceSession!.rawFile!,
+        exported.rawByteOffset!,
+        exported.rawFrameCount!,
+        gameId,
+      );
+      expect(sourcePackets.length).toBeGreaterThan(0);
+
+      const { bytes: zip } = await buildLapsZip([exported.id]);
+      const result = await importLapsZip(zip);
+      expect(result.errors).toEqual([]);
+      expect(result.laps).toHaveLength(1);
+      const imported = result.laps[0]!;
+      createdSessions.push(imported.sessionId);
+      const importedSession = await db.select().from(sessions).where(eq(sessions.id, imported.sessionId)).get();
+      if (importedSession?.rawFile) tmpFiles.push(importedSession.rawFile);
+      const importedRow = (await db.select().from(laps).where(eq(laps.sessionId, imported.sessionId)).all())
+        .find((lap) => lap.lapNumber === exported.lapNumber);
+      expect(importedRow).toBeDefined();
+      const importedPackets = await parseRawLapFrames(
+        importedSession!.rawFile!,
+        importedRow!.rawByteOffset!,
+        importedRow!.rawFrameCount!,
+        gameId,
+      );
+
+      expect(imported.lapNumber).toBe(exported.lapNumber);
+      expect(imported.lapTime).toBe(exported.lapTime);
+      expect(importedPackets.length).toBe(sourcePackets.length);
+      expect(importedPackets).toEqual(sourcePackets);
+    }, 120000);
+  }
+
   test("first and last selected laps round-trip as compact segments", async () => {
     const { sid, rows } = await seedSession();
     const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);

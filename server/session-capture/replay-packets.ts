@@ -31,6 +31,7 @@ function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPack
       parserState = game.createParserState?.() ?? null;
       continue;
     }
+    if (record.kind !== "frame") continue;
     const packet = game.tryParse(record.frame, parserState);
     if (packet) packets.push(packet);
   }
