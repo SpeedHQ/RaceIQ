@@ -14,7 +14,7 @@ import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
-import { feedCalibrationPosition } from "../tracks/calibration";
+import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
@@ -187,6 +187,8 @@ export class LiveTelemetryPipeline {
             );
           });
         }
+
+        resetLiveCalibration(session.trackOrdinal);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
