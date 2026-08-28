@@ -19,18 +19,17 @@ const comparison: CalibrationComparison = {
 };
 
 describe("calibration comparison overlay", () => {
-  test("applies calibration coordinates without an additional axis flip", () => {
-    const transformed = transformCalibrationPath([{ x: 1, z: 2 }], {
+  test("maps outline coordinates into source space with the inverse calibration transform", () => {
+    const transformed = transformCalibrationPath([{ x: 6, z: 22 }], {
       scale: 2,
       rotation: Math.PI / 2,
       tx: 10,
       tz: 20,
     });
 
-    expect(transformed[0].x).toBeCloseTo(6);
-    expect(transformed[0].z).toBeCloseTo(22);
+    expect(transformed[0].x).toBeCloseTo(1);
+    expect(transformed[0].z).toBeCloseTo(2);
   });
-
   test("renders an accessible history toggle and numeric fit legend", () => {
     const markup = renderToStaticMarkup(
       <CalibrationComparisonSection comparison={comparison} showHistory onShowHistoryChange={() => undefined} />,
