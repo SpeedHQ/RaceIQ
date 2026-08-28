@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { calibrateFromPositions, feedCalibrationPosition, getCalibrationStatus } from "../../server/tracks/calibration";
+import {
+  calibrateFromPositions,
+  computeStaticAlignment,
+  feedCalibrationPosition,
+  getCalibrationStatus,
+  resetLiveCalibration,
+  transformToSourceSpace,
+} from "../../server/tracks/calibration";
 
 type Point = { x: number; z: number };
 
@@ -90,5 +97,31 @@ describe("calibration progress sampling", () => {
     expect(calibrateFromPositions(9109, positions, outline)).toBe(true);
     expect(getCalibrationStatus(9109).transform!.scale).toBeCloseTo(1 / 1.2, 1);
     expect(calibrateFromPositions(9110, positions.slice(0, 20), outline)).toBe(false);
+  });
+
+  test("reset clears live evidence but preserves cached static fallback", () => {
+    const tumftm = circle();
+    const recorded = tumftm.map(point => ({ x: point.x + 300, z: point.z - 120 }));
+    computeStaticAlignment(9112, tumftm, recorded);
+    expect(transformToSourceSpace(9112, [{ x: 0, z: 0 }])).not.toBeNull();
+
+    const livePositions = tumftm.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }));
+    expect(calibrateFromPositions(9112, livePositions, tumftm)).toBe(true);
+    expect(getCalibrationStatus(9112).calibrated).toBe(true);
+
+    resetLiveCalibration(9112);
+    expect(getCalibrationStatus(9112).calibrated).toBe(false);
+    expect(transformToSourceSpace(9112, [{ x: 0, z: 0 }])).not.toBeNull();
+  });
+
+  test("lap counter reset isolates next live session", () => {
+    const outline = circle();
+    for (let i = 0; i < 60; i++) {
+      feedCalibrationPosition(9113, outline[i]!, 4, outline, i / 60);
+    }
+    expect(getCalibrationStatus(9113).pointsCollected).toBeGreaterThan(0);
+    feedCalibrationPosition(9113, outline[0]!, 1, outline, 0);
+    expect(getCalibrationStatus(9113).pointsCollected).toBe(1);
+    expect(getCalibrationStatus(9113).calibrated).toBe(false);
   });
 });
