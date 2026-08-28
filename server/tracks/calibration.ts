@@ -43,7 +43,6 @@ const curbRefined = new Set<number>();
 
 const MIN_POINT_SEPARATION_SQ = 25; // 5m squared
 const MIN_CALIBRATION_POINTS = 50;
-const ALIGN_SAMPLE_LIMIT = 200;
 const STATIC_ALIGNMENT_SAMPLES = 500;
 const STATIC_ALIGNMENT_OFFSET_STEPS = 36;
 const CURB_ALIGNMENT_SAMPLES = 300;
@@ -102,13 +101,26 @@ function closestPointIdx(outline: Point[], p: Point): number {
 }
 
 /**
- * Build a calibration transform from source points and target outline.
+ * Build transform from bounded source evidence paired to outline by normalized arc position.
+ * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
  */
 function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Transform {
-  const n = Math.min(sourcePoints.length, outline.length, ALIGN_SAMPLE_LIMIT);
-  const srcSampled = downsample(sourcePoints, n);
-  const tgtSampled = downsample(outline, n);
-  return procrustes(srcSampled, tgtSampled);
+  const arc = normalizedArcLengths(outline);
+  const paired = sourcePoints.map((point) => ({
+    source: point,
+    target: interpolateAtFrac(outline, arc, arc[closestPointIdx(outline, point)] ?? 0),
+  }));
+  let active = paired;
+  for (let pass = 0; pass < 2; pass++) {
+    const transform = procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
+    if (active.length < MIN_CALIBRATION_POINTS + 1) return transform;
+    const ranked = active.map(pair => {
+      const mapped = applyTransform(pair.source, transform);
+      return { pair, error: squaredDistance(mapped, pair.target) };
+    }).sort((a, b) => a.error - b.error);
+    active = ranked.slice(0, Math.max(MIN_CALIBRATION_POINTS, Math.ceil(ranked.length * 0.8))).map(item => item.pair);
+  }
+  return procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
 }
 
 /**
@@ -120,18 +132,6 @@ function centroid(points: Point[]): Point {
   return { x: sx / points.length, z: sz / points.length };
 }
 
-/**
- * Downsample points to a target count using uniform spacing.
- */
-function downsample(points: Point[], target: number): Point[] {
-  if (points.length <= target) return points;
-  const step = points.length / target;
-  const result: Point[] = [];
-  for (let i = 0; i < target; i++) {
-    result.push(points[Math.floor(i * step)]);
-  }
-  return result;
-}
 
 /**
  * Procrustes alignment: find best scale + rotation + translation
