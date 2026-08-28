@@ -277,6 +277,18 @@ export function feedCalibrationPosition(
       (sourcePos.x === 0 && sourcePos.z === 0) || !hasUsableOutline(outline)) return;
 
   let state = calibrations.get(trackOrdinal);
+  if (state && lapNumber < state.lastLap) {
+    // Lap counters reset at independent session/import boundaries. Keep static
+    // alignment, but never let prior live evidence leak into new calibration.
+    state = {
+      transform: null,
+      sourcePoints: [],
+      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
+      lastLap: lapNumber,
+      collecting: true,
+    };
+    calibrations.set(trackOrdinal, state);
+  }
   if (!state) {
     state = {
       transform: null,
@@ -384,6 +396,15 @@ export function transformToSourceSpace(
     : staticTransforms.get(trackOrdinal);
   return transform ? points.map((point) => applyTransform(point, transform)) : null;
 }
+/**
+ * Clear live calibration evidence for a track without evicting static alignment.
+ * Call when starting an independent telemetry session/import.
+ */
+export function resetLiveCalibration(trackOrdinal: number): void {
+  calibrations.delete(trackOrdinal);
+}
+
+
 
 
 /**
