@@ -251,6 +251,13 @@ function alignmentErrorAtOffset(
   return error;
 }
 
+function hasUsableOutline(outline: Point[]): boolean {
+  if (outline.length < 2 || outline.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.z))) {
+    return false;
+  }
+  return normalizedArcLengths(outline).some((value, index, values) => index > 0 && value > values[index - 1]!);
+}
+
 /**
  * Feed a telemetry position. Collects points and auto-calibrates after a lap.
  */
@@ -260,9 +267,8 @@ export function feedCalibrationPosition(
   lapNumber: number,
   outline: Point[]
 ): void {
-  // Reject malformed telemetry before it can affect session evidence.
   if (!Number.isFinite(sourcePos.x) || !Number.isFinite(sourcePos.z) ||
-      (sourcePos.x === 0 && sourcePos.z === 0) || outline.length < 2) return;
+      (sourcePos.x === 0 && sourcePos.z === 0) || !hasUsableOutline(outline)) return;
 
   let state = calibrations.get(trackOrdinal);
   if (!state) {
@@ -301,52 +307,24 @@ export function feedCalibrationPosition(
 function calibrate(trackOrdinal: number, outline: Point[]): void {
   const state = calibrations.get(trackOrdinal);
   if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return;
-
   const transform = buildAlignmentTransform(state.sourcePoints, outline);
   state.transform = transform;
   state.collecting = false;
-
-  console.log(
-    `[Calibration] Track ${trackOrdinal} calibrated: scale=${transform.scale.toFixed(3)} rot=${(transform.rotation * 180 / Math.PI).toFixed(1)}°`
-  );
 }
 
-
-/**
- * Calibrate from an array of source positions (e.g. from a stored lap).
- * Applies the same spatial downsampling and Procrustes alignment as live calibration.
- * Returns true if calibration succeeded.
- */
 export function calibrateFromPositions(
   trackOrdinal: number,
   positions: Point[],
   outline: Point[]
 ): boolean {
+  if (!hasUsableOutline(outline)) return false;
   const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
-
-  // Set up calibration state with collected points
-  let state = calibrations.get(trackOrdinal);
-  if (!state) {
-    state = {
-      transform: null,
-      sourcePoints: [],
-      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
-      lastLap: 0,
-      collecting: false,
-    };
-    calibrations.set(trackOrdinal, state);
-  }
-  state.sourcePoints = filtered;
-
-  // Run Procrustes alignment with the same sampling as live calibration.
-  const transform = buildAlignmentTransform(filtered, outline);
-  state.transform = transform;
+  for (const point of filtered) feedCalibrationPosition(trackOrdinal, point, 0, outline);
+  const state = calibrations.get(trackOrdinal);
+  if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
+  state.transform = buildAlignmentTransform(state.sourcePoints, outline);
   state.collecting = false;
-
-  console.log(
-    `[Calibration] Track ${trackOrdinal} calibrated from stored lap: scale=${transform.scale.toFixed(3)} rot=${(transform.rotation * 180 / Math.PI).toFixed(1)}° (${filtered.length} points)`
-  );
   return true;
 }
 
