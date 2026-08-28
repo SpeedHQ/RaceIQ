@@ -49,6 +49,8 @@ export class LiveTelemetryPipeline {
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _continuingSegment = false;
+  private _pendingSessionContextFrame: Buffer | null = null;
+  private _expectCompleteLapStart = false;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
@@ -287,6 +289,10 @@ export class LiveTelemetryPipeline {
         callbacks: this._buildCallbacks(),
       });
       this._lapDetectorGameId = gameId;
+      if (this._expectCompleteLapStart) {
+        this._lapDetector.expectCompleteLapStart?.();
+        this._expectCompleteLapStart = false;
+      }
     }
     return this._lapDetector;
   }
@@ -382,6 +388,10 @@ export class LiveTelemetryPipeline {
     // Catch up: write it to the NEW recorder as lap 1's first frame and patch
     // the detector's lap byte offset so the DB row points at the right place.
     if (sourceFrame && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      if (this._pendingSessionContextFrame) {
+        this.recorder.writeRecord(this._pendingSessionContextFrame);
+        this._pendingSessionContextFrame = null;
+      }
       const firstOffset = this.recorder.getCurrentByteOffset();
       this.recorder.writeRecord(sourceFrame);
       detector.setCurrentLapByteOffset?.(firstOffset);
@@ -444,6 +454,19 @@ export class LiveTelemetryPipeline {
 
   async flushSessionRecorder(): Promise<void> {
     await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
+  }
+
+  /**
+   * Preserve parser context in imported captures without feeding its stale
+   * telemetry values through the lap detector.
+   */
+  recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
+    this._expectCompleteLapStart = completeLapStart;
+    if (this.recorder.active) {
+      this.recorder.writeRecord(sourceFrame);
+      return;
+    }
+    this._pendingSessionContextFrame = sourceFrame;
   }
 
   /** Start next offline capture segment without rotating canonical session. */

@@ -4,6 +4,7 @@ import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/typ
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
+import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
@@ -223,14 +224,29 @@ export async function importSessionFrames(
 
   let packetCount = 0;
   let failure: unknown;
+  let expectsSessionContext = gameId === "iracing";
+  let completeLapStart = false;
   try {
     for await (const sourceFrame of frames) {
       if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
-        db.continueSessionOnNextInsert();
-        pipeline.beginSessionSegment();
+        if (db.sessionIds.size > 0) {
+          db.continueSessionOnNextInsert();
+          pipeline.beginSessionSegment();
+        }
         state = serverGame.createParserState?.() ?? null;
+        expectsSessionContext = gameId === "iracing";
+        completeLapStart = true;
         continue;
       }
+      if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(sourceFrame)) {
+        serverGame.tryParse(sourceFrame, state);
+        pipeline.recordSessionContextFrame(sourceFrame, completeLapStart);
+        expectsSessionContext = false;
+        completeLapStart = false;
+        continue;
+      }
+      expectsSessionContext = false;
+      completeLapStart = false;
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
       await pipeline.processPacket(packet, sourceFrame);

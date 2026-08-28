@@ -20,7 +20,7 @@ import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
+import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive";
 import {
   createIRacingSourceDecoderState,
@@ -234,14 +234,9 @@ describe("buildLapsZip", () => {
     const { bytes, manifest } = await buildLapsZip([lapId]);
     const slice = readEntry(bytes, manifest.entries[0]!.file);
 
-    const exportedFrames: Buffer[] = [];
-    let at = META;
-    while (at + 4 <= slice.length) {
-      const length = slice.readUInt32LE(at);
-      if (length <= 0 || at + 4 + length > slice.length) break;
-      exportedFrames.push(slice.subarray(at + 4, at + 4 + length));
-      at += 4 + length;
-    }
+    const exportedFrames = [...iterateSessionCaptureRecords(slice)].flatMap(
+      (record) => record.kind === "frame" ? [record.frame] : [],
+    );
     expect(exportedFrames).toHaveLength(3);
     expect(isIRacingSessionFrame(exportedFrames[0]!)).toBe(true);
 
@@ -251,7 +246,7 @@ describe("buildLapsZip", () => {
         (frame) =>
           decodeIRacingSourceFrame(frame, decoder)?.values.SessionTick,
       ),
-    ).toEqual([0, 2, 3]);
+    ).toEqual([1, 2, 3]);
   });
 
   test("unknown lap ids are rejected", async () => {

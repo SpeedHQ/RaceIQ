@@ -62,6 +62,8 @@ export interface ILapDetector {
    * stuck at null.
    */
   setCurrentLapByteOffset?(offset: number): void;
+  /** Treat the first observed lap as complete rather than an attach-mid-lap fragment. */
+  expectCompleteLapStart?(): void;
   /** Return implementation-specific debug state for the dev panel. */
   getDebugState?(): Record<string, unknown>;
 }

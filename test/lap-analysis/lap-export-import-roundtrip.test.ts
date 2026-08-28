@@ -10,7 +10,7 @@
  * zip back, and assert the same lap reappears with the same lap time.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import { gunzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
 import { rmSync, readFileSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
 import { unzipSync, zipSync } from "fflate";
@@ -18,13 +18,21 @@ import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { importSessionBin } from "../../server/session-capture/import-capture";
+import { isIRacingSessionFrame } from "../../server/games/iracing/source-frame";
+import { readIRacingFrames } from "../../server/games/iracing/recorder";
+import { importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/laps/archive";
 import { getSessionTelemetry, parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
 import { reprocessSession } from "../../server/session-capture/reprocess";
-import { iterateSessionCaptureRecords } from "../../server/session-capture/framing";
+import {
+  iterateSessionCaptureRecords,
+  iterateSessionFrames,
+  META_FRAME_BYTES,
+} from "../../server/session-capture/framing";
+import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
+import type { GameId } from "../../shared/games/ids";
 initGameAdapters();
 initServerGameAdapters();
 
@@ -32,6 +40,7 @@ initServerGameAdapters();
 const MIN_FRAMES = 0;
 
 const CAPTURE = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+const IRACING_CAPTURE = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
 
 describe("lap export → import round-trip (real capture)", () => {
   const createdSessions: number[] = [];
@@ -58,11 +67,21 @@ describe("lap export → import round-trip (real capture)", () => {
    * which are junk — e.g. a 2-frame "incomplete lap (session ended)" stub. Pick
    * the session holding the real laps rather than assuming it is the first.
    */
-  async function seedSession() {
-    const gz = Buffer.from(await Bun.file(CAPTURE).arrayBuffer());
-    const raw = Buffer.from(gunzipSync(gz));
-
-    const res = await importSessionBin(raw, "fm-2023");
+  async function seedSession({
+    capture = CAPTURE,
+    gameId = "fm-2023",
+    minimumLaps = 2,
+  }: {
+    capture?: string;
+    gameId?: GameId;
+    minimumLaps?: number;
+  } = {}) {
+    const frames = gameId === "iracing"
+      ? readIRacingFrames(capture)
+      : iterateSessionFrames(
+          Buffer.from(gunzipSync(await Bun.file(capture).arrayBuffer())),
+        );
+    const res = await importSessionFrames(frames, gameId);
     expect(res.laps.length).toBeGreaterThan(0);
 
     const sids = [...new Set(res.laps.map((l) => l.sessionId))];
@@ -75,8 +94,10 @@ describe("lap export → import round-trip (real capture)", () => {
     const sessionCounts = new Map<number, number>();
     for (const row of withCapture) sessionCounts.set(row.sessionId, (sessionCounts.get(row.sessionId) ?? 0) + 1);
     const sid = [...sessionCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
-    expect(sessionCounts.get(sid)).toBeGreaterThan(1);
-    expect(await getSessionResult(sid, "fm-2023")).not.toBeNull();
+    expect(sessionCounts.get(sid)).toBeGreaterThanOrEqual(minimumLaps);
+    if (gameId === "fm-2023") {
+      expect(await getSessionResult(sid, gameId)).not.toBeNull();
+    }
     const rows = withCapture.filter((r) => r.sessionId === sid);
 
     const session = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
@@ -138,11 +159,88 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all()).toHaveLength(2);
   }, 120000);
 
+  test("non-contiguous iRacing laps preserve source telemetry through export, import, replay, and reprocess", async () => {
+    const { sid, rows } = await seedSession({
+      capture: IRACING_CAPTURE,
+      gameId: "iracing",
+      minimumLaps: 4,
+    });
+    const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);
+    const selected = [exportable[0]!, exportable.at(-1)!];
+    const selectedNumbers = selected.map((lap) => lap.lapNumber);
+    const omittedNumbers = exportable.slice(1, -1).map((lap) => lap.lapNumber);
+    expect(omittedNumbers.length).toBeGreaterThan(0);
+
+    const { bytes: zip, manifest } = await buildLapsZip(selected.map((lap) => lap.id));
+    expect(manifest.entries[0]?.laps.map((lap) => lap.lapNumber)).toEqual(selectedNumbers);
+
+    const archived = unzipSync(zip);
+    const exportedCapture = Buffer.from(gunzipSync(archived[manifest.entries[0]!.file]!));
+    const records = [...iterateSessionCaptureRecords(exportedCapture)];
+    const boundaryIndexes = records.flatMap((record, index) =>
+      record.kind === "segment-boundary" ? [index] : [],
+    );
+    expect(boundaryIndexes).toHaveLength(2);
+    for (const boundaryIndex of boundaryIndexes) {
+      const record = records[boundaryIndex + 1];
+      expect(record?.kind === "frame" && isIRacingSessionFrame(record.frame)).toBe(true);
+    }
+
+    const result = await importLapsZip(zip);
+    expect(result.errors).toEqual([]);
+    expect(result.laps.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+    expect(result.laps.some((lap) => omittedNumbers.includes(lap.lapNumber))).toBe(false);
+    expect(new Set(result.laps.map((lap) => lap.sessionId)).size).toBe(1);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+
+    const importedSid = result.laps[0]!.sessionId;
+    const importedSession = await db.select().from(sessions).where(eq(sessions.id, importedSid)).get();
+    const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
+    const importedRawFile = importedSession!.rawFile!;
+    const sourceRawFile = sourceSession!.rawFile!;
+    tmpFiles.push(importedRawFile);
+    const importedRows = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+
+    for (const sourceLap of selected) {
+      const importedLap = importedRows.find((lap) => lap.lapNumber === sourceLap.lapNumber)!;
+      const sourcePackets = await parseRawLapFrames(
+        sourceRawFile,
+        sourceLap.rawByteOffset!,
+        sourceLap.rawFrameCount!,
+        "iracing",
+      );
+      const importedPackets = await parseRawLapFrames(
+        importedRawFile,
+        importedLap.rawByteOffset!,
+        importedLap.rawFrameCount!,
+        "iracing",
+      );
+      expect(importedPackets).toEqual(sourcePackets);
+      expect((await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"]))?.envelopes.length).toBeGreaterThan(0);
+    }
+
+    await reprocessSession(importedSid);
+    const reprocessed = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
+    expect(reprocessed.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
+  }, 120000);
+
   test("imports legacy v2 manifest for a single segment", async () => {
     const { rows } = await seedSession();
     const { bytes: zip } = await buildLapsZip([rows[0]!.id]);
     const entries = unzipSync(zip);
     const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as LapsZipManifest;
+    const memberName = manifest.entries[0]!.file;
+    const capture = Buffer.from(gunzipSync(entries[memberName]!));
+    const firstFrame = [...iterateSessionCaptureRecords(capture)].find(
+      (record) => record.kind === "frame",
+    );
+    expect(firstFrame).toBeDefined();
+    entries[memberName] = gzipSync(
+      Buffer.concat([
+        capture.subarray(0, META_FRAME_BYTES),
+        capture.subarray(firstFrame!.offset),
+      ]),
+    );
     manifest.version = 2;
     const legacyZip = zipSync({ ...entries, "manifest.json": new TextEncoder().encode(JSON.stringify(manifest)) });
     const result = await importLapsZip(legacyZip);

@@ -28,6 +28,7 @@ import {
 import type { ImportedLap } from "../session-capture/import-pipeline";
 import {
   advanceSessionFrames,
+  encodeFrameLength,
   encodeMetaFrame,
   encodeSegmentBoundaryFrame,
   gunzipBufferSync,
@@ -35,7 +36,12 @@ import {
   iterateSessionCaptureRecords,
   sessionFrameAt,
 } from "../session-capture/framing";
-import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import {
+  createIRacingSourceDecoderState,
+  decodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
+  type IRacingSourceFrame,
+} from "../games/iracing/source-frame";
 import type { GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
@@ -162,21 +168,58 @@ function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
 }
 
 /**
- * iRacing value frames depend on latest packed session frame. Scan ordinary
- * records (including internal metadata) and carry latest preceding context.
+ * Re-encode decoder state immediately before a selected iRacing lap as a full
+ * session frame. Delta frames then parse identically without earlier laps.
  */
-function latestIRacingSessionRecord(
+function buildIRacingContextRecord(
   buf: Buffer,
   beforeOffset: number,
 ): Buffer | null {
-  let latest: Buffer | null = null;
+  const state = createIRacingSourceDecoderState();
+  let latest: IRacingSourceFrame | null = null;
   for (const record of iterateSessionCaptureRecords(buf)) {
-    if (record.kind !== "frame" || record.offset >= beforeOffset) break;
-    if (isIRacingSessionFrame(record.frame)) {
-      latest = Buffer.from(buf.subarray(record.offset, record.offset + 4 + record.frame.length));
+    if (record.kind !== "frame") continue;
+    if (record.offset >= beforeOffset && latest) break;
+    const decoded = decodeIRacingSourceFrame(record.frame, state);
+    if (decoded) latest = decoded;
+    if (record.offset >= beforeOffset) break;
+  }
+  if (!latest) return null;
+  const context = new IRacingSourceFrameEncoder().encode(latest);
+  return Buffer.concat([encodeFrameLength(context.length), context]);
+}
+
+function iracingSegmentEnd(
+  buf: Buffer,
+  start: number,
+  frameCount: number,
+  sessionPrefix: Buffer | null,
+): number {
+  const state = createIRacingSourceDecoderState();
+  const prefixFrame = sessionPrefix ? sessionFrameAt(sessionPrefix, 0) : null;
+  if (prefixFrame) decodeIRacingSourceFrame(prefixFrame, state);
+
+  let end = start;
+  let seen = 0;
+  let staleLastLap: number | undefined;
+  for (const record of iterateSessionCaptureRecords(buf, start)) {
+    if (record.kind !== "frame") continue;
+    const decoded = decodeIRacingSourceFrame(record.frame, state);
+    seen++;
+    end = record.offset + 4 + record.frame.length;
+    const lastLap = decoded?.values.LapLastLapTime;
+    if (seen <= frameCount && typeof lastLap === "number") staleLastLap = lastLap;
+    if (
+      seen > frameCount &&
+      typeof lastLap === "number" &&
+      lastLap > 0 &&
+      staleLastLap !== undefined &&
+      Math.abs(lastLap - staleLastLap) > 0.000_1
+    ) {
+      return end;
     }
   }
-  return latest;
+  return end;
 }
 
 function slugify(s: string): string {
@@ -209,20 +252,20 @@ export async function buildLapsZip(
     for (const row of usable) {
       const start = row.rawByteOffset as number;
       if (start >= buf.length) continue;
-      const end = advanceSessionFrames(buf, start, (row.rawFrameCount as number) + 1);
-      const frame = sessionFrameAt(buf, start);
+      const frameCount = row.rawFrameCount as number;
       const prefix =
-        first.gameId === "iracing" && frame && !isIRacingSessionFrame(frame)
-          ? latestIRacingSessionRecord(buf, start)
+        first.gameId === "iracing"
+          ? buildIRacingContextRecord(buf, start)
           : null;
+      const end = first.gameId === "iracing"
+        ? iracingSegmentEnd(buf, start, frameCount, prefix)
+        : advanceSessionFrames(buf, start, frameCount + 1);
       segments.push(Buffer.concat([...(prefix ? [prefix] : []), buf.subarray(start, end)]));
     }
     if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
     const telemetry = Buffer.concat(
-      segments.flatMap((segment, index) =>
-        index === 0 ? [segment] : [encodeSegmentBoundaryFrame(), segment],
-      ),
+      segments.flatMap((segment) => [encodeSegmentBoundaryFrame(), segment]),
     );
     const slice = Buffer.concat([encodeMetaFrame(), telemetry]);
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
