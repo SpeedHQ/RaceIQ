@@ -20,6 +20,7 @@ export interface Transform {
 
 interface CalibrationSample {
   point: Point;
+  progress: number;
   lapNumber: number;
 }
 
@@ -109,11 +110,11 @@ function closestPointIdx(outline: Point[], p: Point): number {
  * evidence order. This avoids assuming source and outline share coordinates.
  * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
  */
-function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Transform {
+function buildAlignmentTransform(samples: CalibrationSample[], outline: Point[]): Transform {
   const arc = normalizedArcLengths(outline);
-  const paired = sourcePoints.map((point, index) => ({
-    source: point,
-    target: interpolateAtFrac(outline, arc, index / Math.max(1, sourcePoints.length)),
+  const paired = samples.map(sample => ({
+    source: sample.point,
+    target: interpolateAtFrac(outline, arc, sample.progress),
   }));
   let active = paired;
   for (let pass = 0; pass < 2; pass++) {
@@ -307,7 +308,7 @@ export function feedCalibrationPosition(
   const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
   const previous = state.samplesByBin[bin];
   if (!previous || lapNumber > previous.lapNumber) {
-    state.samplesByBin[bin] = { point: sourcePos, lapNumber };
+    state.samplesByBin[bin] = { point: sourcePos, progress, lapNumber };
     state.sourcePoints = state.samplesByBin
       .filter((sample): sample is CalibrationSample => sample !== null)
       .map(sample => sample.point);
@@ -326,8 +327,9 @@ export function feedCalibrationPosition(
  */
 function calibrate(trackOrdinal: number, outline: Point[]): void {
   const state = calibrations.get(trackOrdinal);
-  if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return;
-  const transform = buildAlignmentTransform(state.sourcePoints, outline);
+  const samples = state?.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null) ?? [];
+  if (samples.length < MIN_CALIBRATION_POINTS) return;
+  const transform = buildAlignmentTransform(samples, outline);
   state.transform = transform;
   state.collecting = false;
 }
@@ -346,13 +348,20 @@ export function calibrateFromPositions(
   const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
   for (let index = 0; index < filtered.length; index++) {
     const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(index * PROGRESS_BIN_COUNT / filtered.length));
-    if (!samplesByBin[bin]) samplesByBin[bin] = { point: filtered[index]!, lapNumber: 0 };
+    if (!samplesByBin[bin]) samplesByBin[bin] = {
+      point: filtered[index]!,
+      progress: (bin + 0.5) / PROGRESS_BIN_COUNT,
+      lapNumber: 0,
+    };
   }
   const sourcePoints = samplesByBin
     .filter((sample): sample is CalibrationSample => sample !== null)
     .map(sample => sample.point);
   if (sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
-  const transform = buildAlignmentTransform(sourcePoints, outline);
+  const transform = buildAlignmentTransform(
+    samplesByBin.filter((sample): sample is CalibrationSample => sample !== null),
+    outline,
+  );
   calibrations.set(trackOrdinal, {
     transform,
     sourcePoints,
