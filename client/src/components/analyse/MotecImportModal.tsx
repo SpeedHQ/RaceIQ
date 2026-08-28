@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { GameId } from "../../../../shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
-import { useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
+import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";
 import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
@@ -45,17 +46,26 @@ function fmtLapTime(ms: number | null | undefined): string {
  * one unsplit stint, which is the right answer for a standalone hotlap export
  * but wrong for a full session, hence the inline note rather than a hard
  * requirement.
- *
- * The game is asked of the server (`/api/motec/targets`) — a `.ld` names no
- * sim, and each one's exporter scales channels differently, so which game the
- * log came from is the user's call among the transcoders that exist. While
- * there is only one the picker stays hidden and the dialog states the
- * assumption instead.
+ * The game is selected explicitly when this modal is opened outside Analyse.
+ * When Analyse supplies a target, its route game remains authoritative.
  */
-export function MotecImportModal({ target, onClose, onImported }: { target: MotecTargetInfo; onClose: () => void; onImported?: (r: MotecImportSuccess) => void }) {
-  const ldRef = useRef<HTMLInputElement>(null);
-  const ldxRef = useRef<HTMLInputElement>(null);
-  const [ld, setLd] = useState<File | null>(null);
+export function MotecImportModal({
+  target: fixedTarget,
+  initialGameId,
+  initialLd,
+  onClose,
+  onImported,
+}: {
+  target?: MotecTargetInfo;
+  initialGameId?: GameId | null;
+  initialLd?: File | null;
+  onClose: () => void;
+  onImported?: (r: MotecImportSuccess) => void;
+}) {
+  const { data: targets = [] } = useMotecTargets();
+  const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? "");
+  const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
+  const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
   const [carOrdinal, setCarOrdinal] = useState("");
   const [trackOrdinal, setTrackOrdinal] = useState("");
@@ -65,9 +75,23 @@ export function MotecImportModal({ target, onClose, onImported }: { target: Mote
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
-  const { data: cars = [] } = useCarsFromEndpoint(target.carsEndpoint);
-  const { data: tracks = [] } = useTracksForGame(target.gameId);
-  const { data: tunes = [] } = useUserTunes(target.gameId);
+  useEffect(() => {
+    if (!fixedTarget && !selectedGameId && initialGameId && targets.some((item) => item.gameId === initialGameId)) {
+      setSelectedGameId(initialGameId);
+    }
+  }, [fixedTarget, initialGameId, selectedGameId, targets]);
+
+  useEffect(() => {
+    setCarOrdinal("");
+    setTrackOrdinal("");
+    setTuneId("");
+  }, [target?.gameId]);
+
+  const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
+  const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
+  const { data: tunes = [] } = useUserTunes(target?.gameId);
+  const ldRef = useRef<HTMLInputElement>(null);
+  const ldxRef = useRef<HTMLInputElement>(null);
 
   const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.ordinal), label: c.name, group: c.class })), [cars]);
   const trackOptions = useMemo(() => [...tracks].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.name })), [tracks]);
@@ -80,10 +104,11 @@ export function MotecImportModal({ target, onClose, onImported }: { target: Mote
       .map((t) => ({ value: String(t.id), label: t.name }));
   }, [tunes, carOrdinal]);
 
-  const canSubmit = !!ld && !!carOrdinal && !!trackOrdinal && !busy;
+  const canSubmit = !!target && !!ld && !!carOrdinal && !!trackOrdinal && !busy;
 
   async function submit() {
-    if (!ld || !carOrdinal || !trackOrdinal) return;
+    if (!target || !ld || !carOrdinal || !trackOrdinal) return;
+    setBusy(true);
     setError(null);
     try {
       const body = new FormData();
@@ -114,7 +139,7 @@ export function MotecImportModal({ target, onClose, onImported }: { target: Mote
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
         <DialogHeader>
           <DialogTitle variant="import">Import MoTeC log</DialogTitle>
         </DialogHeader>
@@ -149,8 +174,24 @@ export function MotecImportModal({ target, onClose, onImported }: { target: Mote
           </div>
         ) : (
           <div className="mt-4 space-y-4 text-xs">
+            {!fixedTarget && (
+              <div className="block text-app-text-dim">
+                Game
+                <SearchSelect
+                  value={selectedGameId}
+                  onChange={(value) => setSelectedGameId(value as GameId)}
+                  options={targets.map((item) => ({ value: item.gameId, label: item.displayName }))}
+                  placeholder="Choose game..."
+                  className="mt-1"
+                />
+              </div>
+            )}
             <p className="text-app-text-dim">
-              Filed as <span className="text-app-text">{target.displayName}</span> — use a log exported by this game; another sim’s channels can import with the wrong meaning instead of failing.
+              {target ? (
+                <>Filed as <span className="text-app-text">{target.displayName}</span> — use a log exported by this game; another sim’s channels can import with the wrong meaning instead of failing.</>
+              ) : (
+                "Choose supported game to load its car and track catalogs."
+              )}
             </p>
 
             <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
