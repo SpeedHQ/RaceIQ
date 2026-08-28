@@ -11,13 +11,13 @@ const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
 interface DashMeta {
   slug: "combo-1" | "combo-2";
-  href: "/dash/combo-1" | "/dash/combo-2";
+  href: "/portable/combo-1" | "/portable/combo-2";
 }
 
 // Title/description resolve at render time (localized) — see dashTitle/dashDesc.
 const DASH_META: DashMeta[] = [
-  { slug: "combo-1", href: "/dash/combo-1" },
-  { slug: "combo-2", href: "/dash/combo-2" },
+  { slug: "combo-1", href: "/portable/combo-1" },
+  { slug: "combo-2", href: "/portable/combo-2" },
 ];
 
 const dashTitle = (slug: DashMeta["slug"]) => (slug === "combo-1" ? m.dash_race_hud() : m.dash_lap_pace());
@@ -101,6 +101,6 @@ function DashCatalogue() {
   );
 }
 
-export const Route = createFileRoute("/dash/")({
+export const Route = createFileRoute("/portable/")({
   component: DashCatalogue,
 });

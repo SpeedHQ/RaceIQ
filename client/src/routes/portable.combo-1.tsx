@@ -1,24 +1,28 @@
+import { tryGetGame } from "@shared/games/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../shared/games/ids";
-import { ComboDash2 } from "../components/dashes/ComboDash2";
+import { ComboDash } from "../components/dashes/ComboDash";
 import { gameStore, } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 
-function ComboDash2Route() {
+function ComboDash1Route() {
   const setGameId = gameStore.actions.setGameId;
   const view = useTelemetryStore((s) => s.telemetryView);
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const sectors = useTelemetryStore((s) => s.sectors);
+  const pit = useTelemetryStore((s) => s.pit);
+  const unitSystem = useTelemetryStore((s) => s.unitSystem);
   const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
+  const game = detectedGameId ? tryGetGame(detectedGameId) : null;
 
   useEffect(() => {
     if (detectedGameId) setGameId(detectedGameId);
     return () => setGameId(null);
   }, [detectedGameId, setGameId]);
 
-  return <ComboDash2 view={view} sessionLaps={sessionLaps} />;
+  return <ComboDash view={view} sectors={sectors} pit={pit} unitSystem={unitSystem} tireHealthThresholds={game?.tireHealthThresholds} />;
 }
 
-export const Route = createFileRoute("/dash/combo-2")({
-  component: ComboDash2Route,
+export const Route = createFileRoute("/portable/combo-1")({
+  component: ComboDash1Route,
 });
