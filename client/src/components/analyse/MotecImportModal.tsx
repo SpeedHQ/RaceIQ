@@ -51,17 +51,19 @@ function fmtLapTime(ms: number | null | undefined): string {
  */
 export function MotecImportModal({
   target: fixedTarget,
+  initialGameId,
   initialLd,
   onClose,
   onImported,
 }: {
   target?: MotecTargetInfo;
+  initialGameId?: GameId | null;
   initialLd?: File | null;
   onClose: () => void;
   onImported?: (r: MotecImportSuccess) => void;
 }) {
   const { data: targets = [] } = useMotecTargets();
-  const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? "");
+  const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? initialGameId ?? "");
   const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
   const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
@@ -72,7 +74,6 @@ export function MotecImportModal({
   const [error, setError] = useState<string | null>(null);
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
-
 
   useEffect(() => {
     setCarOrdinal("");
@@ -87,7 +88,7 @@ export function MotecImportModal({
   const ldxRef = useRef<HTMLInputElement>(null);
 
   const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.ordinal), label: c.name, group: c.class })), [cars]);
-  const trackOptions = useMemo(() => [...tracks].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.name })), [tracks]);
+  const trackOptions = useMemo(() => [...tracks].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.variant ? `${t.name} (${t.variant})` : t.name })), [tracks]);
   // Only setups for the chosen car can apply to these laps; before a car is
   // picked there is nothing sensible to offer, so the list stays empty.
   const tuneOptions = useMemo(() => {
@@ -167,7 +168,12 @@ export function MotecImportModal({
           </div>
         ) : (
           <div className="mt-4 space-y-4 text-xs">
-            {!fixedTarget && (
+            {initialGameId && target && (
+              <p className="text-app-text-dim">
+                Game <span className="text-app-text">{target.displayName}</span>
+              </p>
+            )}
+            {!fixedTarget && !initialGameId && (
               <div className="block text-app-text-dim">
                 Game
                 <SearchSelect

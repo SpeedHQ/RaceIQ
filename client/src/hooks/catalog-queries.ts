@@ -10,7 +10,7 @@ import { queryKeys } from "./query-keys";
 export function useTracksForGame(gameId: GameId | null) {
   return useQuery({
     queryKey: ["tracks", gameId ?? null],
-    queryFn: async () => rpcJson<{ ordinal: number; name: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    queryFn: async () => rpcJson<{ ordinal: number; name: string; variant?: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
     staleTime: Number.POSITIVE_INFINITY,
   });
