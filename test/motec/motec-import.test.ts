@@ -8,11 +8,14 @@ import { parseLdxBeacons } from "../../server/motec/ldx";
 import {
   deadReckonPath,
   lapWindows,
+} from "../../server/motec/kunos-synthesis";
+import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
+import {
   resolveMotecCarTrack,
   synthesizeAcEvoCapture,
-  SYNTH_HZ,
 } from "../../server/games/ac-evo/motec";
-import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
+import { importMotec, MOTEC_SESSION_SOURCE, resolveMotecTarget } from "../../server/motec/import";
+import { getMotecTargets, initMotecTargets } from "../../server/motec/targets";
 import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
@@ -22,6 +25,15 @@ import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 
 initGameAdapters();
 initServerGameAdapters();
+initMotecTargets();
+describe("MoTeC target registry", () => {
+  test("registers only explicit ACC and AC Evo targets", () => {
+    expect(getMotecTargets().map((target) => target.gameId)).toEqual(["acc", "ac-evo"]);
+    expect(resolveMotecTarget("acc").gameId).toBe("acc");
+    expect(resolveMotecTarget("ac-evo").gameId).toBe("ac-evo");
+    expect(() => resolveMotecTarget("forza-motorsport")).toThrow("No MoTeC transcoder for game 'forza-motorsport'");
+  });
+});
 
 /** Walk the session-capture framing the transcoder emits. */
 function* iterateFrames(buf: Buffer): Generator<Buffer> {
@@ -234,7 +246,7 @@ describe("synthesizeAcEvoCapture", () => {
   const capture = synthesizeAcEvoCapture(log, beacons);
 
   test("emits frames at the synthesis rate for the log's duration", () => {
-    expect(capture.frameCount).toBe(Math.floor(log.duration * SYNTH_HZ));
+    expect(capture.frameCount).toBe(Math.floor(log.duration * MOTEC_SYNTH_HZ));
     expect(capture.lapCount).toBe(3);
   });
 
@@ -306,7 +318,7 @@ describe("synthesizeAcEvoCapture", () => {
 describe("importMotec end to end", () => {
   test("lands laps in the DB and marks the session as MoTeC-sourced", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons));
+    const result = await importMotec(buildLd(spec), buildLdx(beacons), { gameId: "ac-evo" });
 
     // Three windows, but the last is still open when the log ends, so the
     // detector completes the two that closed at a beacon.
@@ -331,6 +343,7 @@ describe("importMotec end to end", () => {
     // Header says spa (see syntheticStint); import it as Monza instead.
     const monza = getAcEvoTrackByName("monza")!;
     const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: monza.id,
     });
@@ -354,6 +367,7 @@ describe("importMotec end to end", () => {
       .returning({ id: tunes.id });
     const tuneId = tune!.id;
     const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
       tuneId,
@@ -369,6 +383,7 @@ describe("importMotec end to end", () => {
   test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
     });

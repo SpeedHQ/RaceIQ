@@ -33,8 +33,8 @@ import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
+import type { GameId } from "../../shared/games/ids";
 import {
-  getDefaultMotecTarget,
   initMotecTargets,
   tryGetMotecTarget,
   type MotecTarget,
@@ -43,21 +43,13 @@ import {
 export { MOTEC_SESSION_SOURCE };
 
 /**
- * Resolve the game an import should land in.
- *
- * Throws rather than falling back to a game: filing a log against the wrong
- * sim's transcoder is the one failure this module cannot detect afterwards.
+ * Resolve the explicitly selected game transcoder.
  */
-export function resolveMotecTarget(gameId?: string): MotecTarget {
+export function resolveMotecTarget(gameId: string): MotecTarget {
   initMotecTargets();
-  if (gameId !== undefined) {
-    const target = tryGetMotecTarget(gameId);
-    if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
-    return target;
-  }
-  const only = getDefaultMotecTarget();
-  if (!only) throw new Error("gameId is required: more than one game can be imported");
-  return only;
+  const target = tryGetMotecTarget(gameId);
+  if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
+  return target;
 }
 
 export interface MotecImportResult {
@@ -81,11 +73,8 @@ export interface MotecImportResult {
 }
 
 export interface MotecImportOptions {
-  /**
-   * Which game's transcoder to run the log through. Optional only while a
-   * single game is registered — see {@link resolveMotecTarget}.
-   */
-  gameId?: string;
+  /** Which game's transcoder to run the log through. */
+  gameId: GameId;
   /**
    * Car and track the log was driven on, as chosen by the user. Takes priority
    * over the log header — see `resolveMotecCarTrack` for why the header is only
@@ -112,10 +101,10 @@ export interface MotecImportOptions {
  */
 export async function importMotec(
   ldBytes: Buffer,
-  ldxText?: string,
-  options?: MotecImportOptions,
+  ldxText: string | undefined,
+  options: MotecImportOptions,
 ): Promise<MotecImportResult> {
-  const target = resolveMotecTarget(options?.gameId);
+  const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
 

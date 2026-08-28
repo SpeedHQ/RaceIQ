@@ -9,7 +9,7 @@ import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
-import { getMotecTargets, initMotecTargets } from "../../motec/targets";
+import { getMotecTargets, initMotecTargets, type MotecTarget } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 export const transferRoutes = new Hono()
@@ -143,6 +143,11 @@ export const transferRoutes = new Hono()
       return c.json({ error: "Expected a MoTeC .ld file" }, 400);
     }
 
+    const gameIdRaw = form?.get("gameId");
+    if (typeof gameIdRaw !== "string" || gameIdRaw.trim() === "") {
+      return c.json({ error: "gameId is required" }, 400);
+    }
+
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
@@ -166,14 +171,12 @@ export const transferRoutes = new Hono()
     }
 
     // Which sim exported the log. Resolved up front so an unsupported game is a
-    // 400 naming the problem, not a 500 from deep inside the transcoder — and
-    // so the ordinals above are read against the right game's roster.
-    const gameIdRaw = form?.get("gameId");
-    let target: ReturnType<typeof resolveMotecTarget>;
+    // 400 naming the problem, not a 500 from deep inside the transcoder.
+    let target: MotecTarget;
     try {
-      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
-    } catch (err: any) {
-      return c.json({ error: String(err?.message ?? err) }, 400);
+      target = resolveMotecTarget(gameIdRaw);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
 
     // laps.tune_id is a real FK, so an id that doesn't exist would surface as a

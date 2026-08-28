@@ -129,6 +129,27 @@ test("Analyse shared controls work across seeded game recordings", async ({ page
 
   expect(browserErrors.errors, "unexpected browser errors in seeded Analyse matrix").toEqual([]);
 });
+test("Analyse MoTeC import follows selected game support", async ({ page, request }) => {
+  test.setTimeout(240_000);
+  for (const game of SEEDED_GAME_CASES) {
+    const target = await getSeededLapTarget(request, game.gameId);
+    await openAnalyseLap(page, target, game.prefix);
+    await page.getByRole("button", { name: /Export \/ Import/ }).click();
+    const motecItem = page.getByRole("menuitem", { name: "Import MoTeC log", exact: true });
+    if (game.gameId === "acc" || game.gameId === "ac-evo") {
+      await expect(motecItem).toHaveCount(1);
+      await motecItem.click();
+      await expect(page.getByRole("dialog")).toContainText(new RegExp(game.name, "i"));
+      await expect(page.getByRole("dialog").getByText(/Which sim exported this log/)).toHaveCount(0);
+      await page.keyboard.press("Escape");
+    } else {
+      await expect(motecItem).toHaveCount(1);
+      await expect(motecItem).toBeDisabled();
+      await expect(motecItem).toHaveAttribute("title", "MoTeC import is not supported for this game yet.");
+      await page.keyboard.press("Escape");
+    }
+  }
+});
 
 test("Analyse racing-line overlay follows seeded track availability", async ({ page, request }) => {
   test.setTimeout(240_000);
