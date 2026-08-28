@@ -91,7 +91,7 @@ function seededIRacingIdentity(dataDir: string): Array<{ kind: string; ordinal: 
 
 function assertSeededRawFilesExist(dataDir: string): void {
   const laps = seededIRacingLaps(dataDir);
-  expect(laps).toHaveLength(4);
+  expect(laps).toHaveLength(5);
   expect(
     laps.map(({ lapNumber, isValid, invalidReason }) => ({
       lapNumber,
@@ -99,6 +99,7 @@ function assertSeededRawFilesExist(dataDir: string): void {
       invalidReason,
     })),
   ).toEqual([
+    { lapNumber: 413, isValid: 1, invalidReason: null },
     { lapNumber: 414, isValid: 0, invalidReason: "inlap" },
     { lapNumber: 415, isValid: 0, invalidReason: "outlap" },
     { lapNumber: 416, isValid: 1, invalidReason: null },

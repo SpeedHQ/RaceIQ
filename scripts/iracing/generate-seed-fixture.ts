@@ -4,9 +4,9 @@
  * Usage:
  *   bun scripts/iracing/generate-seed-fixture.ts <recording.ibt>
  *
- * The selected window starts at lap 413, retains the lap 414 pit entry and lap
- * 415 service/exit, and ends after lap 417's native timer rollover. Every native
- * 60 Hz SDK tick is retained; only the selected pit-stop window is committed.
+ * The selected window starts at lap 412 so replay persists lap 413 before the
+ * lap 414 pit entry, lap 415 service/exit, and clean laps 416-417. Every native
+ * 60 Hz SDK tick is retained; only this five-lap pit-stop window is committed.
  * Source frames use schema v2 intentionally: IBT SessionInfo contains driver
  * identities, which do not belong in a committed test artifact.
  */
@@ -29,7 +29,7 @@ import {
   type IRacingSessionSnapshot,
 } from "../../server/games/iracing/source-frame";
 
-const FIRST_LAP = 413;
+const FIRST_LAP = 412;
 const PIT_LAP = 415;
 const LAST_LAP = 417;
 const TIMING_ROLLOVER_SECONDS = 5;
