@@ -1,6 +1,6 @@
 
-## Atomic Replacement Fix
-- Candidate stored evidence and transform now build off-map; existing calibration remains intact when replacement input fails validation or has insufficient bins.
-- Added regression test for failed replacement preservation.
-- Commit: `5abdcc833`.
-- Focused test: 5 pass, 0 fail.
+## Malformed Stored Position Fix
+- Filter non-finite and zero positions before spatial downsampling, preventing malformed first samples from poisoning valid evidence.
+- Added mixed malformed/valid regression.
+- Commit: `ed2159230`.
+- Focused test: 6 pass, 0 fail.
