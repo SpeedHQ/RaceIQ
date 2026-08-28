@@ -400,11 +400,17 @@ export class LiveTelemetryPipeline {
       if (session?.trackOrdinal) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
+          const trackLength = this.sectorTracker.getTrackLength();
+          const normalizedProgress = Number.isFinite(packet.DistanceTraveled) &&
+            Number.isFinite(trackLength) && trackLength > 0
+            ? ((packet.DistanceTraveled % trackLength) + trackLength) % trackLength / trackLength
+            : undefined;
           feedCalibrationPosition(
             session.trackOrdinal,
             { x: packet.PositionX, z: packet.PositionZ },
             packet.LapNumber,
-            outline
+            outline,
+            normalizedProgress
           );
         }
       }
