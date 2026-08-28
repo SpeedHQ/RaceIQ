@@ -76,6 +76,48 @@
       "durationMs": 2720
     },
     {
+      "lineId": "opponent-faster-last-lap",
+      "spokenText": "Opponent was point three seconds faster last lap.",
+      "path": "full__opponent-faster-last-lap.wav",
+      "sha256": "ea64c8b865420c057561068c301c141d0b5feab94c3570c7bef60da0d7f4cdfa",
+      "durationMs": 2960
+    },
+    {
+      "lineId": "driver-faster-last-lap",
+      "spokenText": "You were point three seconds faster last lap.",
+      "path": "full__driver-faster-last-lap.wav",
+      "sha256": "ff4dc0f0f5566889df207b297b758ec68424d1161e543db8b44b1fafb5fc6323",
+      "durationMs": 2240
+    },
+    {
+      "lineId": "tires-cold",
+      "spokenText": "Tires are cold. Be careful.",
+      "path": "full__tires-cold.wav",
+      "sha256": "48d6449d097086718f214c897242794376a40a9f3db4d203d9c3743dc93c3324",
+      "durationMs": 1680
+    },
+    {
+      "lineId": "tires-optimal",
+      "spokenText": "Tires are optimal.",
+      "path": "full__tires-optimal.wav",
+      "sha256": "aa479d5836e8cc9ff90409aab85fd01ae36150e9cbfd6e4bfd739e97437ca379",
+      "durationMs": 1120
+    },
+    {
+      "lineId": "pit-this-lap",
+      "spokenText": "Pit this lap.",
+      "path": "full__pit-this-lap.wav",
+      "sha256": "a11d1bb976c677959b10c67e0986d0aec9627d4da4bac4afc1927843710ecd1c",
+      "durationMs": 720
+    },
+    {
+      "lineId": "pit-pit-pit",
+      "spokenText": "Pit pit pit.",
+      "path": "full__pit-pit-pit.wav",
+      "sha256": "817b1e85848aaeb0c7425d8db903adcaa7e1926da5bbaa040bbe4340ad2b7d25",
+      "durationMs": 1440
+    },
+    {
       "lineId": "car-left",
       "spokenText": "Car left.",
       "path": "full__car-left.wav",
@@ -489,6 +531,35 @@
       "path": "clip__number__point.wav",
       "sha256": "9d4a05042197cdc39cbaa8f1237000f70ae13c0a5c5c2064aac06bc8e956ed27",
       "durationMs": 400
+    },
+    {
+      "segmentId": "phrase.opponent-was",
+      "spokenText": "Opponent was",
+      "path": "clip__phrase__opponent-was.wav",
+      "sha256": "86d2fc2385b5734787f0a46f565cee5dbee40b888f470876c02f5a722a46da24",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "phrase.you-were",
+      "spokenText": "You were",
+      "path": "clip__phrase__you-were.wav",
+      "sha256": "b038c3c20d3f7452328941a61090209da7006be216a6eae729f8c435b28eb3e6",
+      "durationMs": 560
+    },
+    {
+      "segmentId": "phrase.faster-last-lap",
+      "spokenText": "faster last lap.",
+      "path": "clip__phrase__faster-last-lap.wav",
+      "sha256": "10bcfaf10397eeef7408754b70d8d222844fca178c92107b4f9bcb66e7fc238c",
+      "durationMs": 1440
+    },
+    {
+      "segmentId": "phrase.same-pace-last-lap",
+      "spokenText": "Same pace as opponent last lap.",
+      "path": "clip__phrase__same-pace-last-lap.wav",
+      "sha256": "1d190920365630de3bab778ef7a5fe464dba09b9110a905194f6643f3a014fa2",
+      "durationMs": 2000
     }
-  ]
+  ],
+  "referenceAudio": "scripts/live-engineer/voices/Aussie-short.flac"
 }

@@ -75,6 +75,30 @@ export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, o
   const segmentIds = [`phrase.${parameters.relation}`, ...deltaSegments, unit, `phrase.${join}`, `phrase.scope.${parameters.scope}`];
   return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds, voiceMode };
 }
+export function renderOpponentLapPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech {
+  const voiceMode = options.voiceMode ?? "automatic";
+  const deltaMs = Math.abs(parameters.deltaMs);
+  if (deltaMs === 0) return { textKey: "live_engineer_opponent_lap_pace", text: "Same pace as opponent last lap.", segmentIds: ["phrase.same-pace-last-lap"], voiceMode };
+  const deltaSegments = numberSegmentIds(deltaMs / 1000, voiceMode === "automatic" ? 1 : 3);
+  const prefix = parameters.deltaMs > 0 ? "phrase.opponent-was" : "phrase.you-were";
+  const unit = deltaMs === 1000 ? "unit.second" : "unit.seconds";
+  return {
+    textKey: "live_engineer_opponent_lap_pace",
+    text: `${parameters.deltaMs > 0 ? "Opponent was" : "You were"} ${formatLiveEngineerDeltaText(deltaMs, voiceMode === "automatic" ? 1 : 3)} faster last lap.`,
+    segmentIds: [prefix, ...deltaSegments, unit, "phrase.faster-last-lap"],
+    voiceMode,
+  };
+}
+export type LiveEngineerPreviewLine = "tires-cold" | "tires-optimal" | "pit-this-lap" | "pit-pit-pit";
+const PREVIEW_LINES: Record<LiveEngineerPreviewLine, string> = {
+  "tires-cold": "Tires are cold. Be careful.",
+  "tires-optimal": "Tires are optimal.",
+  "pit-this-lap": "Pit this lap.",
+  "pit-pit-pit": "Pit pit pit.",
+};
+export function renderPreviewLine(lineId: LiveEngineerPreviewLine): { lineId: LiveEngineerPreviewLine; text: string } {
+  return { lineId, text: PREVIEW_LINES[lineId] };
+}
 
 export function renderSpotter(state: SpotterStateV1): LiveEngineerRenderedSpeech {
   const text = {

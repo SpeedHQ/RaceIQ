@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { renderLapTime, renderOpponentPace, renderSpotter } from "./live-engineer-renderer";
+import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderSpotter } from "./live-engineer-renderer";
 import { SPOTTER_STATES } from "../../shared/racing/live/spotter-contracts";
 import { liveEngineerIntegerAtoms } from "../../shared/racing/live/time-text";
 
@@ -22,6 +22,7 @@ test("all live engineer renderer combinations resolve to rendered Qwen clips", (
       expectRenderedClipsReady(`${relation}/${scope}`, renderOpponentPace({ relation, scope, playerLapNumber: 3, playerLapTimeMs: 92_417, benchmarkLapTimeMs: 91_183, deltaMs: 1234, benchmarkKind: "session-best" }, { voiceMode: "exact-response" }).segmentIds);
     }
   }
+  expectRenderedClipsReady("opponent-lap-pace", renderOpponentLapPace({ relation: "within-class-pace", scope: "class", playerLapNumber: 3, playerLapTimeMs: 92_417, benchmarkLapTimeMs: 91_183, deltaMs: 1234, benchmarkKind: "session-best" }, { voiceMode: "exact-response" }).segmentIds);
 
   for (let value = 0; value <= 999; value += 1) {
     expectRenderedClipsReady(`number/${value}`, liveEngineerIntegerAtoms(value).map((atom) => `number.${atom}`));

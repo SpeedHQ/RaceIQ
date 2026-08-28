@@ -11,6 +11,7 @@ export function useDevSpeechAudio(spotter: boolean) {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement[]>([]);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const playerRef = useRef<LiveEngineerAudioPlayer | null>(null);
   const stop = () => {
     for (const audio of audioRef.current) {
@@ -20,6 +21,10 @@ export function useDevSpeechAudio(spotter: boolean) {
       audio.currentTime = 0;
     }
     audioRef.current = [];
+    if (speechRef.current) {
+      speechSynthesis.cancel();
+      speechRef.current = null;
+    }
     playerRef.current?.stop();
     setPlaying(null);
   };
@@ -53,16 +58,35 @@ export function useDevSpeechAudio(spotter: boolean) {
       return Promise.resolve();
     }
     setPlaying(id);
-    const audio = new Audio(line.url);
-    audioRef.current = [audio];
-    const { promise, resolve } = Promise.withResolvers<void>();
-    const finish = () => { audioRef.current = []; setPlaying(null); resolve(); };
-    audio.onended = finish;
-    audio.onerror = () => { setResult({ error: "Qwen full-line audio failed to load", lineId }); finish(); };
-    void audio.play().catch((error: unknown) => { setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" }); finish(); });
-    return promise;
+    const player = playerRef.current ?? (playerRef.current = new LiveEngineerAudioPlayer());
+    return player.playFullLine(lineId).then(() => {
+      setPlaying((current) => current === id ? null : current);
+    }).catch((error: unknown) => {
+      setResult({ error: error instanceof Error ? error.message : String(error), hint: "Browser audio permission or asset load failed" });
+      setPlaying((current) => current === id ? null : current);
+    });
+  };
+  const playText = (id: string, text: string): Promise<void> => {
+    stop();
+    if (typeof speechSynthesis === "undefined" || typeof SpeechSynthesisUtterance === "undefined") {
+      setResult({ error: "Browser speech synthesis unavailable", text });
+      return Promise.resolve();
+    }
+    setPlaying(id);
+    const utterance = new SpeechSynthesisUtterance(text);
+    speechRef.current = utterance;
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        if (speechRef.current === utterance) speechRef.current = null;
+        setPlaying((current) => current === id ? null : current);
+        resolve();
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      speechSynthesis.speak(utterance);
+    });
   };
   const playQwenClip = (id: string, segmentId: string): Promise<void> => playSegments(id, [segmentId]);
   const playQwenSegments = (id: string, segmentIds: string[]): Promise<void> => playSegments(id, segmentIds);
-  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine, playQwenClip, playQwenSegments };
+  return { catalog, visibleLines, result, setResult, playing, loadCatalog, stop, playSegments, playFullLine, playText, playQwenClip, playQwenSegments };
 }

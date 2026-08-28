@@ -14,7 +14,13 @@ const sentenceExamples = [
   { kind: "pace", id: "off-overall-pace", relation: "off-class-pace", scope: "overall", label: "You are point three seconds off overall pace." },
   { kind: "pace", id: "outlier-class", relation: "outlier-lap", scope: "class", label: "That lap is point three seconds off class pace." },
   { kind: "pace", id: "outlier-overall", relation: "outlier-lap", scope: "overall", label: "That lap is point three seconds off overall pace." },
+  { kind: "opponent-lap-pace", id: "opponent-faster-last-lap", label: "Opponent was point three seconds faster last lap." },
+  { kind: "opponent-lap-pace", id: "driver-faster-last-lap", label: "You were point three seconds faster last lap." },
+  { kind: "preview-line", id: "tires-cold", label: "Tires are cold. Be careful." },
+  { kind: "preview-line", id: "tires-optimal", label: "Tires are optimal." },
+  { kind: "preview-line", id: "pit-this-lap", label: "Pit this lap." },
   { kind: "lap-time", id: "lap-time", label: "Your lap was one minute thirty two point four one seven." },
+  { kind: "preview-line", id: "pit-pit-pit", label: "Pit pit pit." },
 ] as const;
 const groupLabel = (segmentId: string): string => {
   if (segmentId.startsWith("phrase.exact")) return "Exact response";
@@ -40,6 +46,11 @@ const scenarioStates = [
   { id: "three-wide-right", label: "Three wide · right", detail: "2+ cars right", priority: "high", color: "text-app-signal-red" },
 ] as const;
 type ScenarioState = (typeof scenarioStates)[number]["id"];
+export const scenarioVoiceText = (activeStates: readonly ScenarioState[]): { state: ScenarioState; text: string } | null => {
+  const state = activeStates.find((candidate) => ["damage-detected", "lap-invalidated", "opponent-ahead", "opponent-behind"].includes(candidate));
+  if (!state) return null;
+  return { state, text: ({ "lap-invalidated": "Lap invalidated.", "damage-detected": "Damage detected.", "opponent-ahead": "Opponent ahead.", "opponent-behind": "Opponent behind." } as Partial<Record<ScenarioState, string>>)[state]! };
+};
 type EngineEvent = { state: (typeof relations)[number]; outcome: "selected"; at: string };
 
 const stateDefinitionFor = (state: (typeof relations)[number]) => stateDefinitions.find((item) => item.id === state)!;
@@ -65,6 +76,20 @@ export function DevRaceEngineerSpeechPanel() {
     }
     return [...grouped.entries()];
   }, [audio.visibleLines]);
+  const debugStateJson = JSON.stringify({
+    activeStates: activeScenarioStates,
+    paceState: engineState,
+    sampleDeltaMs,
+    voiceMode,
+    decision: scenarioDecision,
+    output: scenarioOutput,
+    events: engineEvents,
+    catalog: audio.catalog ? { model: audio.catalog.model, validation: audio.catalog.validation, clips: audio.catalog.fullLines.length } : null,
+    capturedAt: new Date().toISOString(),
+  }, null, 2);
+  const copyDebugState = async () => {
+    await navigator.clipboard.writeText(debugStateJson);
+  };
   const renderPace = async (nextRelation: (typeof relations)[number], scope: "class" | "overall" = "class"): Promise<RenderedPace> => {
     const response = await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ relation: nextRelation, scope, playerLapNumber: 1, playerLapTimeMs: 60_000 + sampleDeltaMs, benchmarkLapTimeMs: 60_000, deltaMs: sampleDeltaMs, benchmarkKind: "session-best", voiceMode }) });
     return await response.json() as RenderedPace;
@@ -93,16 +118,9 @@ export function DevRaceEngineerSpeechPanel() {
   const testScenario = async () => {
     setEngineBusy(true);
     const side = activeScenarioStates.includes("three-wide-left") ? "left" : activeScenarioStates.includes("three-wide-right") ? "right" : null;
-    const priorityState = activeScenarioStates.find((state) => ["damage-detected", "lap-invalidated", "opponent-ahead", "opponent-behind"].includes(state));
-    const scenarioOutputs: Partial<Record<ScenarioState, string>> = {
-      "lap-invalidated": "Lap invalidated.",
-      "damage-detected": "Damage detected.",
-      "opponent-ahead": "Opponent ahead.",
-      "opponent-behind": "Opponent behind.",
-    };
-    const specialOutput = priorityState ? scenarioOutputs[priorityState] : undefined;
-    const rendered = specialOutput
-      ? { text: specialOutput, segmentIds: [] }
+    const special = scenarioVoiceText(activeScenarioStates);
+    const rendered = special
+      ? { text: special.text, segmentIds: [] }
       : side
         ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: `three-wide-${side}`, overlapCount: 2 }) })).json() as RenderedPace
         : activeScenarioStates.includes("cross-finish")
@@ -110,15 +128,25 @@ export function DevRaceEngineerSpeechPanel() {
           : await renderPace(engineState);
     audio.setResult(rendered);
     setScenarioOutput(rendered.text ?? "No voice line emitted.");
-    setScenarioDecision(specialOutput ? `${scenarioStates.find((item) => item.id === priorityState)?.label} wins priority` : side ? `Three-wide ${side} wins priority over lap boundary` : activeScenarioStates.includes("cross-finish") ? "Lap boundary selected" : `${engineState} pace candidate selected`);
+    setScenarioDecision(special ? `${scenarioStates.find((item) => item.id === special.state)?.label} wins priority` : side ? `Three-wide ${side} wins priority over lap boundary` : activeScenarioStates.includes("cross-finish") ? "Lap boundary selected" : `${engineState} pace candidate selected`);
     const segmentIds = segmentIdsFor(rendered);
-    if (segmentIds?.length) await audio.playSegments(`scenario-${priorityState ?? side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
+    if (special) await audio.playText(`scenario-${special.state}`, special.text);
+    else if (segmentIds?.length) await audio.playSegments(`scenario-${side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
     setEngineBusy(false);
   };
   const playSentence = async (example: (typeof sentenceExamples)[number]) => {
+    if (example.kind === "preview-line") {
+      const rendered = await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "preview-line", lineId: example.id }) })).json() as RenderedPace & { lineId?: string };
+      audio.setResult(rendered);
+      if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
+      if (rendered.lineId) await audio.playFullLine(`qwen-sentence-${example.id}`, rendered.lineId);
+      return;
+    }
     const rendered = example.kind === "lap-time"
       ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "lap-time", lapTimeMs: 92_417 }) })).json() as RenderedPace
-      : await renderPace(example.relation, example.scope);
+      : example.kind === "opponent-lap-pace"
+        ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "opponent-lap-pace", deltaMs: example.id === "opponent-faster-last-lap" ? 300 : -300 }) })).json() as RenderedPace
+        : await renderPace(example.relation, example.scope);
     audio.setResult(rendered);
     if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
     const segmentIds = segmentIdsFor(rendered);
@@ -132,14 +160,15 @@ export function DevRaceEngineerSpeechPanel() {
         <div className="mt-4 grid gap-2 sm:grid-cols-4"><div className="rounded border border-app-border bg-app-surface-alt p-3"><div className="text-[10px] uppercase tracking-wide text-app-text-muted">Active inputs</div><div className="mt-1 font-semibold">{activeScenarioStates.length || "None"}</div></div><div className="rounded border border-app-accent/50 bg-app-accent/5 p-4 sm:col-span-2"><div className="text-[10px] uppercase tracking-wide text-app-text-muted">Decision</div><div className="mt-2 min-h-12 text-lg font-semibold leading-tight">{scenarioDecision}</div></div><div className="rounded border border-app-border bg-app-surface-alt p-3"><div className="text-[10px] uppercase tracking-wide text-app-text-muted">Pace priority</div><div className={`mt-1 font-semibold ${selectedDefinition.color}`}>{selectedDefinition.priority}</div></div><div className="rounded border border-app-border bg-app-surface-alt p-3"><div className="text-[10px] uppercase tracking-wide text-app-text-muted">Trace</div><div className="mt-1 font-semibold">{engineEvents.length} events</div></div></div></div>
         <aside aria-label="Scenario output and logic diagram" className="rounded border border-app-border bg-app-surface-alt p-3"><h4 className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">Would say</h4><div className="mt-2 min-h-16 rounded border border-app-accent/50 bg-app-accent/5 p-3 text-sm font-semibold">{scenarioOutput}</div><h4 className="mt-4 text-xs font-semibold uppercase tracking-wide text-app-text-muted">Arbitration path</h4><div className="mt-2 space-y-1 text-[10px]"><div className={`rounded border px-2 py-2 ${activeScenarioStates.includes("cross-finish") ? "border-app-accent bg-app-accent/15" : "border-app-border"}`}>Cross finish → lap-time candidate</div><div className="pl-3 text-app-text-muted">↓</div><div className={`rounded border px-2 py-2 ${activeScenarioStates.some((item) => item.startsWith("three-wide")) ? "border-app-signal-red bg-app-signal-red/10" : "border-app-border"}`}>Three-wide → spotter candidate · high priority</div><div className="pl-3 text-app-text-muted">↓</div><div className="rounded border border-app-border px-2 py-2">Priority arbitration → voice line</div></div></aside></div>
       <div className="mt-4 border-t border-app-border pt-3"><div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-app-text-muted"><span>Pace state candidates</span><span>click to select fallback</span></div><div className="mt-2 grid gap-2 sm:grid-cols-5">{stateDefinitions.map((item) => <button key={item.id} type="button" onClick={() => { setEngineState(item.id); setRelation(item.id); }} className={`rounded border px-2 py-2 text-left text-[10px] ${engineState === item.id ? "border-app-accent bg-app-accent/15" : "border-app-border"}`} aria-pressed={engineState === item.id}><span className="block font-semibold">{item.label}</span><span className="text-app-text-muted">{item.priority}</span></button>)}</div></div>
+      <div className="mt-4 rounded border border-app-border bg-app-surface-alt p-3"><div className="flex items-center justify-between gap-3"><div><h3 className="text-xs font-semibold uppercase tracking-wide text-app-text-muted">Debug state JSON</h3><p className="mt-1 text-xs text-app-text-muted">Copy this snapshot when reporting state-machine behavior.</p></div><Button variant="outline" size="app-sm" onClick={() => void copyDebugState()}>Copy JSON</Button></div><pre className="mt-3 max-h-64 overflow-auto rounded border border-app-border bg-app-surface p-3 text-[10px] leading-relaxed text-app-text">{debugStateJson}</pre></div>
     </section>
     <div className="mt-6 flex flex-wrap items-end gap-2"><select aria-label="Relation" value={relation} onChange={(event) => setRelation(event.target.value as (typeof relations)[number])}>{relations.map((item) => <option key={item}>{item}</option>)}</select><select aria-label="Voice mode" value={voiceMode} onChange={(event) => setVoiceMode(event.target.value as "automatic" | "exact-response") }><option value="automatic">Automatic</option><option value="exact-response">Exact pace</option></select><label className="flex flex-col gap-1 text-xs text-app-text-muted">Sample delta (ms)<input aria-label="Sample delta (ms)" type="number" min="1" step="100" value={sampleDeltaMs} onChange={(event) => setSampleDeltaMs(Math.max(1, Number(event.target.value) || 1))} className="h-9 w-32 rounded border border-app-border bg-app-surface px-2 text-sm text-app-text" /><span>{sampleDeltaText(sampleDeltaMs)}</span></label><Button onClick={() => void previewPace()}>Preview pace</Button><Button onClick={audio.stop}>Stop</Button></div>
     <p className="mt-3 text-xs text-app-text-muted">{audio.catalog ? `${audio.visibleLines.length} Qwen clips · ${audio.catalog.model ?? "Qwen"} · validation ${audio.catalog.validation ? "passed" : "pending"} · ${audio.catalog.fullLines.length} Qwen full lines` : "Loading Qwen audio catalog…"}</p>
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-    <section className="mt-6 space-y-5"><div><h3 className="font-semibold">Sentences</h3><p className="mt-1 text-xs text-app-text-muted">Complete examples sent to drivers, including lap-time deltas.</p><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sentenceExamples.map((example) => <div key={example.id} className="flex items-center justify-between gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div><div className="font-medium">{renderedSentenceText[example.id] ?? example.label.replace("point three seconds", sampleDeltaText(sampleDeltaMs))}</div><div className="mt-1 text-xs text-app-text-muted">{example.kind === "lap-time" ? "completed lap time · sample 1:32.417" : `${example.relation} · sample delta ${sampleDeltaText(sampleDeltaMs)}`}</div></div><Button variant="app-outline" size="app-sm" aria-label={`Play Qwen sentence: ${example.label}`} onClick={() => void playSentence(example)}>Play Qwen</Button></div>)}</div></div>
+    <section className="mt-6 space-y-5"><div><h3 className="font-semibold">Sentences</h3><p className="mt-1 text-xs text-app-text-muted">Complete examples sent to drivers, including lap-time deltas.</p><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sentenceExamples.map((example) => <div key={example.id} className="flex items-center justify-between gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div><div className="font-medium">{renderedSentenceText[example.id] ?? example.label.replace("point three seconds", sampleDeltaText(sampleDeltaMs))}</div><div className="mt-1 text-xs text-app-text-muted">{example.kind === "lap-time" ? "completed lap time · sample 1:32.417" : example.kind === "opponent-lap-pace" ? "opponent lap pace · sample delta 0.300s" : example.kind === "preview-line" ? "dev preview line" : `${example.relation} · sample delta ${sampleDeltaText(sampleDeltaMs)}`}</div></div><Button variant="app-outline" size="app-sm" aria-label={`Play Qwen sentence: ${example.label}`} onClick={() => void playSentence(example)}>Play Qwen</Button></div>)}</div></div>
       <div><h3 className="font-semibold">Individual Qwen clips</h3><p className="mt-1 text-xs text-app-text-muted">Atomic Qwen voice clips used to build complete sentences.</p><div className="mt-3 space-y-5">{groups.map(([label, clips]) => <div key={label}><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-muted">{label}</h4><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{clips.map((clip) => <div key={clip.segmentId} className="flex items-center gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div className="min-w-0 flex-1"><div className="font-medium truncate">{clip.spokenText || clip.segmentId}</div><div className="mt-1 text-xs text-app-text-muted">{clip.segmentId} · {clip.durationMs} ms</div></div><Button variant="app-outline" size="icon-sm" aria-label={`Play Qwen clip: ${clip.spokenText || clip.segmentId}`} onClick={() => void audio.playQwenClip(`qwen-clip-${clip.segmentId}`, clip.segmentId)}><span aria-hidden="true">Q</span></Button></div>)}</div></div>)}</div></div>
     </section>
-      {audio.result && <aside className="order-first h-fit rounded border border-app-border bg-app-surface-alt p-4 lg:order-last"><h3 className="font-semibold">Render JSON</h3><pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(audio.result, null, 2)}</pre></aside>}
+      {audio.result && <aside className="order-first h-fit self-start rounded border border-app-border bg-app-surface-alt p-4 lg:sticky lg:top-4 lg:order-last lg:max-h-[calc(100vh-2rem)] lg:overflow-auto"><h3 className="font-semibold">Render JSON</h3><pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(audio.result, null, 2)}</pre></aside>}
     </div>
   </div>;
 }

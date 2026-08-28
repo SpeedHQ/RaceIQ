@@ -44,12 +44,19 @@ interface CatalogSegment {
   durationMs: number;
 }
 
+interface CatalogFullLine {
+  lineId: string;
+  path: string;
+  sha256: string;
+  durationMs: number;
+}
 interface QwenCatalog {
   catalogVersion: string;
   sampleRate: number;
   channels: number;
   joinGapMs?: number;
   clips: CatalogSegment[];
+  fullLines: CatalogFullLine[];
 }
 
 export type LiveEngineerAudioErrorCode = "audio-blocked" | "asset-missing" | "decode-failed" | "catalog-mismatch";
@@ -132,25 +139,36 @@ export class LiveEngineerAudioPlayer {
   }
 
   async play(segmentIds: readonly string[], volume = this.gainNode.gain.value): Promise<void> {
-    this.stopped = false;
-    this.setVolume(volume);
-    if (this.context.state === "suspended") {
-      try { await this.context.resume(); }
-      catch { throw new LiveEngineerAudioError("audio-blocked", "Audio context blocked"); }
-    }
     const catalog = await this.loadCatalog();
     const segments = segmentIds.map((id) => {
       const segment = catalog.clips.find((entry) => entry.segmentId === id);
       if (!segment) throw new LiveEngineerAudioError("asset-missing", `Audio segment unavailable: ${id}`);
       return segment;
     });
+    return this.playEntries(segments, volume, catalog.joinGapMs ?? DEFAULT_JOIN_GAP_MS);
+  }
+  async playFullLine(lineId: string, volume = this.gainNode.gain.value): Promise<void> {
+    const catalog = await this.loadCatalog();
+    const line = catalog.fullLines.find((entry) => entry.lineId === lineId);
+    if (!line) throw new LiveEngineerAudioError("asset-missing", `Audio full line unavailable: ${lineId}`);
+    return this.playEntries([{ segmentId: line.lineId, path: line.path, sha256: line.sha256, durationMs: line.durationMs }], volume, 0);
+  }
+
+  private async playEntries(segments: readonly CatalogSegment[], volume: number, joinGapMs: number): Promise<void> {
+
+    this.stopped = false;
+    this.setVolume(volume);
+    if (this.context.state === "suspended") {
+      try { await this.context.resume(); }
+      catch { throw new LiveEngineerAudioError("audio-blocked", "Audio context blocked"); }
+    }
     const buffers = await Promise.all(segments.map((segment) => this.load(segment)));
     if (this.stopped) return;
 
     this.stop();
     this.stopped = false;
     const startTime = this.context.currentTime + 0.1;
-    const joinGap = (catalog.joinGapMs ?? DEFAULT_JOIN_GAP_MS) / 1000;
+    const joinGap = joinGapMs / 1000;
     const speechBounds = buffers.map(getSpeechBounds);
     let previousSpeechEnd = startTime + speechBounds[0]!.endMs / 1000;
     return new Promise<void>((resolve) => {

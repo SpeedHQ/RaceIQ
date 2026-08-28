@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createLiveEngineerVoiceLine, isOpponentPaceRenderParametersV1, isLiveEngineerCalloutMessageV2, LIVE_ENGINEER_AUDIO_CATALOG_VERSION, type OpponentPaceTextKeyV1, type SpotterTextKeyV1 } from "../../../shared/racing/live/engineer-contracts";
 import { isSpotterStateV1 } from "../../../shared/racing/live/spotter-contracts";
-import { renderLapTime, renderOpponentPace, renderSpotter } from "../../live-strategy/live-engineer-renderer";
+import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderPreviewLine, renderSpotter } from "../../live-strategy/live-engineer-renderer";
 import { wsManager } from "../../runtime/websocket-manager";
 
 const root = process.cwd();
@@ -47,6 +47,22 @@ liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
     const rendered = renderLapTime(Number(body.lapTimeMs));
     if (!rendered.segmentIds.length) return c.json({ error: "invalid lap time" }, 400);
     return c.json({ type: "live-engineer-lap-time-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds } });
+  }
+  if (body?.kind === "opponent-lap-pace") {
+    const rendered = renderOpponentLapPace({
+      relation: "within-class-pace",
+      scope: "class",
+      playerLapNumber: Number(body.playerLapNumber ?? 1),
+      playerLapTimeMs: Number(body.playerLapTimeMs ?? 60_400),
+      benchmarkLapTimeMs: Number(body.benchmarkLapTimeMs ?? 60_000),
+      deltaMs: Number(body.deltaMs ?? 400),
+      benchmarkKind: "session-best",
+    });
+    return c.json({ type: "live-engineer-opponent-lap-pace-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds } });
+  }
+  if (body?.kind === "preview-line" && typeof body.lineId === "string" && ["tires-cold", "tires-optimal", "pit-this-lap", "pit-pit-pit"].includes(body.lineId)) {
+    const rendered = renderPreviewLine(body.lineId as Parameters<typeof renderPreviewLine>[0]);
+    return c.json({ type: "live-engineer-preview-line", text: rendered.text, lineId: rendered.lineId });
   }
   if (body && isSpotterStateV1(body.state)) {
     const rendered = renderSpotter(body.state);
