@@ -31,9 +31,6 @@ import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as AccSetupsRouteImport } from './routes/acc/setups'
-import { Route as DashIndexRouteImport } from './routes/dash.index'
-import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
-import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
@@ -42,6 +39,9 @@ import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
 import { Route as IracingLiveRouteImport } from './routes/iracing/live'
+import { Route as PortableIndexRouteImport } from './routes/portable.index'
+import { Route as PortableCombo1RouteImport } from './routes/portable.combo-1'
+import { Route as PortableCombo2RouteImport } from './routes/portable.combo-2'
 import { Route as GameidExperimentsIndexRouteImport } from './routes/$gameid/experiments.index'
 import { Route as GameidExperimentsExperimentIdRouteImport } from './routes/$gameid/experiments.$experimentId'
 import { Route as GameidTracksIndexRouteImport } from './routes/$gameid/tracks.index'
@@ -179,21 +179,6 @@ const AccSetupsRoute = AccSetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => AccRoute,
 } as any)
-const DashIndexRoute = DashIndexRouteImport.update({
-  id: '/dash/',
-  path: '/dash/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashCombo1Route = DashCombo1RouteImport.update({
-  id: '/dash/combo-1',
-  path: '/dash/combo-1',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashCombo2Route = DashCombo2RouteImport.update({
-  id: '/dash/combo-2',
-  path: '/dash/combo-2',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const F125IndexRoute = F125IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -233,6 +218,21 @@ const IracingLiveRoute = IracingLiveRouteImport.update({
   id: '/live',
   path: '/live',
   getParentRoute: () => IracingRoute,
+} as any)
+const PortableIndexRoute = PortableIndexRouteImport.update({
+  id: '/portable/',
+  path: '/portable/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortableCombo1Route = PortableCombo1RouteImport.update({
+  id: '/portable/combo-1',
+  path: '/portable/combo-1',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortableCombo2Route = PortableCombo2RouteImport.update({
+  id: '/portable/combo-2',
+  path: '/portable/combo-2',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const GameidExperimentsIndexRoute = GameidExperimentsIndexRouteImport.update({
   id: '/',
@@ -390,19 +390,19 @@ export interface FileRoutesByFullPath {
   '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/acc/setups': typeof AccSetupsRouteWithChildren
-  '/dash/combo-1': typeof DashCombo1Route
-  '/dash/combo-2': typeof DashCombo2Route
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/portable/combo-1': typeof PortableCombo1Route
+  '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
-  '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -442,16 +442,16 @@ export interface FileRoutesByTo {
   '/$gameid/driver': typeof GameidDriverRoute
   '/$gameid/raw': typeof GameidRawRoute
   '/$gameid/sessions': typeof GameidSessionsRoute
-  '/dash/combo-1': typeof DashCombo1Route
-  '/dash/combo-2': typeof DashCombo2Route
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/portable/combo-1': typeof PortableCombo1Route
+  '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
-  '/dash': typeof DashIndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/iracing': typeof IracingIndexRoute
+  '/portable': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -501,19 +501,19 @@ export interface FileRoutesById {
   '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/acc/setups': typeof AccSetupsRouteWithChildren
-  '/dash/combo-1': typeof DashCombo1Route
-  '/dash/combo-2': typeof DashCombo2Route
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
   '/iracing/live': typeof IracingLiveRouteWithChildren
+  '/portable/combo-1': typeof PortableCombo1Route
+  '/portable/combo-2': typeof PortableCombo2Route
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
-  '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/iracing/': typeof IracingIndexRoute
+  '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
@@ -564,19 +564,19 @@ export interface FileRouteTypes {
     | '/$gameid/tracks'
     | '/ac-evo/setups'
     | '/acc/setups'
-    | '/dash/combo-1'
-    | '/dash/combo-2'
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/live'
     | '/fm23/setups'
     | '/iracing/live'
+    | '/portable/combo-1'
+    | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
-    | '/dash/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/portable/'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -616,16 +616,16 @@ export interface FileRouteTypes {
     | '/$gameid/driver'
     | '/$gameid/raw'
     | '/$gameid/sessions'
-    | '/dash/combo-1'
-    | '/dash/combo-2'
     | '/fm23/live'
     | '/iracing/live'
+    | '/portable/combo-1'
+    | '/portable/combo-2'
     | '/ac-evo'
     | '/acc'
-    | '/dash'
     | '/f125'
     | '/fm23'
     | '/iracing'
+    | '/portable'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -674,19 +674,19 @@ export interface FileRouteTypes {
     | '/$gameid/tracks'
     | '/ac-evo/setups'
     | '/acc/setups'
-    | '/dash/combo-1'
-    | '/dash/combo-2'
     | '/f125/setups'
     | '/f125/tunes'
     | '/fm23/live'
     | '/fm23/setups'
     | '/iracing/live'
+    | '/portable/combo-1'
+    | '/portable/combo-2'
     | '/ac-evo/'
     | '/acc/'
-    | '/dash/'
     | '/f125/'
     | '/fm23/'
     | '/iracing/'
+    | '/portable/'
     | '/$gameid/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
@@ -725,9 +725,9 @@ export interface RootRouteChildren {
   Fm23Route: typeof Fm23RouteWithChildren
   IracingRoute: typeof IracingRouteWithChildren
   GameLiveRoute: typeof GameLiveRoute
-  DashCombo1Route: typeof DashCombo1Route
-  DashCombo2Route: typeof DashCombo2Route
-  DashIndexRoute: typeof DashIndexRoute
+  PortableCombo1Route: typeof PortableCombo1Route
+  PortableCombo2Route: typeof PortableCombo2Route
+  PortableIndexRoute: typeof PortableIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -886,27 +886,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsRouteImport
       parentRoute: typeof AccRoute
     }
-    '/dash/': {
-      id: '/dash/'
-      path: '/dash'
-      fullPath: '/dash/'
-      preLoaderRoute: typeof DashIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dash/combo-1': {
-      id: '/dash/combo-1'
-      path: '/dash/combo-1'
-      fullPath: '/dash/combo-1'
-      preLoaderRoute: typeof DashCombo1RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dash/combo-2': {
-      id: '/dash/combo-2'
-      path: '/dash/combo-2'
-      fullPath: '/dash/combo-2'
-      preLoaderRoute: typeof DashCombo2RouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/f125/': {
       id: '/f125/'
       path: '/'
@@ -962,6 +941,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/iracing/live'
       preLoaderRoute: typeof IracingLiveRouteImport
       parentRoute: typeof IracingRoute
+    }
+    '/portable/': {
+      id: '/portable/'
+      path: '/portable'
+      fullPath: '/portable/'
+      preLoaderRoute: typeof PortableIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portable/combo-1': {
+      id: '/portable/combo-1'
+      path: '/portable/combo-1'
+      fullPath: '/portable/combo-1'
+      preLoaderRoute: typeof PortableCombo1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portable/combo-2': {
+      id: '/portable/combo-2'
+      path: '/portable/combo-2'
+      fullPath: '/portable/combo-2'
+      preLoaderRoute: typeof PortableCombo2RouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$gameid/experiments/': {
       id: '/$gameid/experiments/'
@@ -1392,9 +1392,9 @@ const rootRouteChildren: RootRouteChildren = {
   Fm23Route: Fm23RouteWithChildren,
   IracingRoute: IracingRouteWithChildren,
   GameLiveRoute: GameLiveRoute,
-  DashCombo1Route: DashCombo1Route,
-  DashCombo2Route: DashCombo2Route,
-  DashIndexRoute: DashIndexRoute,
+  PortableCombo1Route: PortableCombo1Route,
+  PortableCombo2Route: PortableCombo2Route,
+  PortableIndexRoute: PortableIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -167,7 +167,7 @@ test.describe
 
     test("dash catalogue lists dashboards", async ({ page }) => {
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
-      await page.goto("/dash", { waitUntil: "domcontentloaded" });
+      await page.goto("/portable", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
       await expect(page.getByText(/Combo Dash 1/)).toBeVisible();
       await expect(page.getByText(/Combo Dash 2/)).toBeVisible();

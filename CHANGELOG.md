@@ -3,6 +3,7 @@
 ### Breaking
 
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+- Rename dashboard routes from `/dash` to `/portable` and reorganize sidebar game navigation.
 
 ### Features
 
@@ -57,6 +58,7 @@
 - Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
+- Keep the welcome wizard responsive and show throttle and brake input lines in its preview
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
@@ -92,6 +94,7 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+- Read release notes from GitHub release bodies instead of downloading release-note assets
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs

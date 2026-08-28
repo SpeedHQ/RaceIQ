@@ -21,6 +21,8 @@
   "nav_navigation": "Navigation",
   "nav_home": "Home",
   "nav_dash": "Dash",
+  "nav_dashboard": "Dashboard",
+  "nav_portable": "Portable",
   "nav_dev": "Dev",
   "nav_this_game": "This game",
   "nav_settings": "Settings",
