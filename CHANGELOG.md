@@ -17,6 +17,7 @@
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
+- Improve live and imported lap-to-track alignment by matching driven geometry to track boundaries and rejecting off-track calibration samples
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
 - Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
