@@ -20,6 +20,7 @@ import {
   calibrateFromPositions,
   clearCurbRefinement,
   computeStaticAlignment,
+  getCalibrationComparison,
   getCalibrationStatus,
   refineAlignmentWithCurbs,
   transformToSourceSpace,
@@ -36,6 +37,10 @@ export const trackCalibrationRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
       return c.json(getCalibrationStatus(ordinal));
     }
+  )
+  .get("/api/track-calibration/:ordinal/comparison",
+    zValidator("param", OrdinalParamSchema),
+    (c) => c.json(getCalibrationComparison(c.req.valid("param").ordinal))
   )
 
   // POST /api/track-calibration/:ordinal/from-lap — calibrate using a stored lap's positions

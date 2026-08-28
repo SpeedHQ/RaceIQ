@@ -24,12 +24,39 @@ interface CalibrationSample {
   lapNumber: number;
 }
 
+interface CalibrationHistoryEntry {
+  sequence: number;
+  lapNumber: number;
+  transform: Transform;
+  rmse: number | null;
+  points: number;
+}
+
 interface CalibrationState {
   transform: Transform | null;
   sourcePoints: Point[];     // bounded progress-bin representatives
   samplesByBin: Array<CalibrationSample | null>;
   lastLap: number;
   collecting: boolean;
+  history: CalibrationHistoryEntry[];
+  nextSequence: number;
+}
+
+function recordCalibration(state: CalibrationState, samples: CalibrationSample[], outline: Point[], transform: Transform): void {
+  const arc = normalizedArcLengths(outline);
+  let squaredError = 0;
+  for (const sample of samples) {
+    const target = interpolateAtFrac(outline, arc, sample.progress);
+    squaredError += squaredDistance(applyTransform(sample.point, transform), target);
+  }
+  state.history.push({
+    sequence: state.nextSequence++,
+    lapNumber: samples.reduce((max, sample) => Math.max(max, sample.lapNumber), 0),
+    transform: { ...transform },
+    rmse: samples.length ? Math.sqrt(squaredError / samples.length) : null,
+    points: samples.length,
+  });
+  if (state.history.length > 12) state.history.splice(0, state.history.length - 12);
 }
 
 const PROGRESS_BIN_COUNT = 100;
@@ -279,25 +306,13 @@ export function feedCalibrationPosition(
 
   let state = calibrations.get(trackOrdinal);
   if (state && lapNumber < state.lastLap) {
-    // Lap counters reset at independent session/import boundaries. Keep static
-    // alignment, but never let prior live evidence leak into new calibration.
-    state = {
-      transform: null,
-      sourcePoints: [],
-      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
-      lastLap: lapNumber,
-      collecting: true,
-    };
+    state = { transform: null, sourcePoints: [], samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
+      lastLap: lapNumber, collecting: true, history: [], nextSequence: 1 };
     calibrations.set(trackOrdinal, state);
   }
   if (!state) {
-    state = {
-      transform: null,
-      sourcePoints: [],
-      samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
-      lastLap: lapNumber,
-      collecting: true,
-    };
+    state = { transform: null, sourcePoints: [], samplesByBin: Array(PROGRESS_BIN_COUNT).fill(null),
+      lastLap: lapNumber, collecting: true, history: [], nextSequence: 1 };
     calibrations.set(trackOrdinal, state);
   }
   const geometricProgress = normalizedArcLengths(outline)[closestPointIdx(outline, sourcePos)];
@@ -332,44 +347,29 @@ function calibrate(trackOrdinal: number, outline: Point[]): void {
   if (samples.length < MIN_CALIBRATION_POINTS) return;
   const transform = buildAlignmentTransform(samples, outline);
   state.transform = transform;
+  recordCalibration(state, samples, outline, transform);
   state.collecting = false;
 }
 
-export function calibrateFromPositions(
-  trackOrdinal: number,
-  positions: Point[],
-  outline: Point[]
-): boolean {
+export function calibrateFromPositions(trackOrdinal: number, positions: Point[], outline: Point[]): boolean {
   if (!hasUsableOutline(outline)) return false;
-  const validPositions = positions.filter(point =>
+  const filtered = collectSpatiallyDistinct(positions.filter(point =>
     Number.isFinite(point.x) && Number.isFinite(point.z) && !(point.x === 0 && point.z === 0)
-  );
-  const filtered = collectSpatiallyDistinct(validPositions, MIN_POINT_SEPARATION_SQ);
+  ), MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
   const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
   for (let index = 0; index < filtered.length; index++) {
     const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(index * PROGRESS_BIN_COUNT / filtered.length));
-    if (!samplesByBin[bin]) samplesByBin[bin] = {
-      point: filtered[index]!,
-      progress: (bin + 0.5) / PROGRESS_BIN_COUNT,
-      lapNumber: 0,
-    };
+    if (!samplesByBin[bin]) samplesByBin[bin] = { point: filtered[index]!, progress: (bin + 0.5) / PROGRESS_BIN_COUNT, lapNumber: 0 };
   }
-  const sourcePoints = samplesByBin
-    .filter((sample): sample is CalibrationSample => sample !== null)
-    .map(sample => sample.point);
-  if (sourcePoints.length < MIN_CALIBRATION_POINTS) return false;
-  const transform = buildAlignmentTransform(
-    samplesByBin.filter((sample): sample is CalibrationSample => sample !== null),
-    outline,
-  );
-  calibrations.set(trackOrdinal, {
-    transform,
-    sourcePoints,
-    samplesByBin,
-    lastLap: 0,
-    collecting: false,
-  });
+  const samples = samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
+  if (samples.length < MIN_CALIBRATION_POINTS) return false;
+  const transform = buildAlignmentTransform(samples, outline);
+  const previous = calibrations.get(trackOrdinal);
+  const state: CalibrationState = { transform, sourcePoints: samples.map(sample => sample.point), samplesByBin,
+    lastLap: 0, collecting: false, history: previous?.history ?? [], nextSequence: previous?.nextSequence ?? 1 };
+  recordCalibration(state, samples, outline, transform);
+  calibrations.set(trackOrdinal, state);
   return true;
 }
 
@@ -390,10 +390,21 @@ export function getCalibrationStatus(trackOrdinal: number): {
   };
 }
 
+export function getCalibrationComparison(trackOrdinal: number): {
+  calibrated: boolean;
+  pointsCollected: number;
+  current: Transform | null;
+  history: CalibrationHistoryEntry[];
+} {
+  const status = getCalibrationStatus(trackOrdinal);
+  const state = calibrations.get(trackOrdinal);
+  return { calibrated: status.calibrated, pointsCollected: status.pointsCollected, current: status.transform,
+    history: state?.history.map(entry => ({ ...entry, transform: { ...entry.transform } })) ?? [] };
+}
+
 /**
  * Transform an array of points from outline/TUMFTM space to source space.
- * Uses live calibration if available, otherwise falls back to static alignment
- * computed from known point sets.
+ * Uses live calibration if available, otherwise falls back to static alignment.
  * Returns null if no transform is available.
  */
 export function transformToSourceSpace(

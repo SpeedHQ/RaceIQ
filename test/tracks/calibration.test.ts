@@ -3,6 +3,7 @@ import {
   calibrateFromPositions,
   computeStaticAlignment,
   feedCalibrationPosition,
+  getCalibrationComparison,
   getCalibrationStatus,
   resetLiveCalibration,
   transformToSourceSpace,
@@ -138,5 +139,27 @@ describe("calibration progress sampling", () => {
     feedCalibrationPosition(9113, outline[0]!, 1, outline, 0);
     expect(getCalibrationStatus(9113).pointsCollected).toBe(1);
     expect(getCalibrationStatus(9113).calibrated).toBe(false);
+  });
+  test("records accepted fit comparison and clears history on reset", () => {
+    const outline = circle();
+    const positions = outline.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }));
+    expect(calibrateFromPositions(9115, positions, outline)).toBe(true);
+    const comparison = getCalibrationComparison(9115);
+    expect(comparison.history).toHaveLength(1);
+    expect(comparison.history[0]).toMatchObject({ sequence: 1, lapNumber: 0, points: 100 });
+    expect(comparison.history[0]!.rmse).toBeLessThan(3);
+    expect(comparison.current).toEqual(comparison.history[0]!.transform);
+    resetLiveCalibration(9115);
+    expect(getCalibrationComparison(9115).history).toHaveLength(0);
+  });
+
+  test("bounds comparison history to latest twelve fits", () => {
+    const outline = circle();
+    const positions = outline.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }));
+    for (let i = 0; i < 13; i++) expect(calibrateFromPositions(9116, positions, outline)).toBe(true);
+    const history = getCalibrationComparison(9116).history;
+    expect(history).toHaveLength(12);
+    expect(history[0]!.sequence).toBe(2);
+    expect(history.at(-1)!.sequence).toBe(13);
   });
 });
