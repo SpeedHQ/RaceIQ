@@ -8,11 +8,17 @@ export type CalibrationComparison = InferResponseType<ComparisonRequest, 200>;
 export type CalibrationTransform = NonNullable<CalibrationComparison["current"]>;
 
 export function transformCalibrationPath(points: Point[], transform: CalibrationTransform): Point[] {
-  const cos = Math.cos(transform.rotation);
-  const sin = Math.sin(transform.rotation);
+  const inverseScale = 1 / transform.scale;
+  const inverseRotation = -transform.rotation;
+  const cos = Math.cos(inverseRotation);
+  const sin = Math.sin(inverseRotation);
 
-  return points.map(({ x, z }) => ({
-    x: transform.scale * (cos * x - sin * z) + transform.tx,
-    z: transform.scale * (sin * x + cos * z) + transform.tz,
-  }));
+  return points.map(({ x, z }) => {
+    const translatedX = x - transform.tx;
+    const translatedZ = z - transform.tz;
+    return {
+      x: inverseScale * (cos * translatedX - sin * translatedZ),
+      z: inverseScale * (sin * translatedX + cos * translatedZ),
+    };
+  });
 }
