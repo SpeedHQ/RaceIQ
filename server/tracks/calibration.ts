@@ -104,16 +104,21 @@ function closestPointIdx(outline: Point[], p: Point): number {
  * Build transform from bounded source evidence paired to outline by normalized arc position.
  * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
  */
+/**
+ * Build transform from bounded source evidence paired to outline by normalized
+ * evidence order. This avoids assuming source and outline share coordinates.
+ * Iteratively trims largest residuals so isolated telemetry outliers cannot dominate.
+ */
 function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Transform {
   const arc = normalizedArcLengths(outline);
-  const paired = sourcePoints.map((point) => ({
+  const paired = sourcePoints.map((point, index) => ({
     source: point,
-    target: interpolateAtFrac(outline, arc, arc[closestPointIdx(outline, point)] ?? 0),
+    target: interpolateAtFrac(outline, arc, index / Math.max(1, sourcePoints.length)),
   }));
   let active = paired;
   for (let pass = 0; pass < 2; pass++) {
     const transform = procrustes(active.map(pair => pair.source), active.map(pair => pair.target));
-    if (active.length < MIN_CALIBRATION_POINTS + 1) return transform;
+    if (active.length < MIN_CALIBRATION_POINTS) return transform;
     const ranked = active.map(pair => {
       const mapped = applyTransform(pair.source, transform);
       return { pair, error: squaredDistance(mapped, pair.target) };
@@ -323,14 +328,10 @@ export function calibrateFromPositions(
   );
   const filtered = collectSpatiallyDistinct(validPositions, MIN_POINT_SEPARATION_SQ);
   if (filtered.length < MIN_CALIBRATION_POINTS) return false;
-  const arc = normalizedArcLengths(outline);
   const samplesByBin: Array<CalibrationSample | null> = Array(PROGRESS_BIN_COUNT).fill(null);
-  for (const point of filtered) {
-    if (!Number.isFinite(point.x) || !Number.isFinite(point.z) || (point.x === 0 && point.z === 0)) continue;
-    const progress = arc[closestPointIdx(outline, point)];
-    if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
-    const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(progress * PROGRESS_BIN_COUNT));
-    if (!samplesByBin[bin]) samplesByBin[bin] = { point, lapNumber: 0 };
+  for (let index = 0; index < filtered.length; index++) {
+    const bin = Math.min(PROGRESS_BIN_COUNT - 1, Math.floor(index * PROGRESS_BIN_COUNT / filtered.length));
+    if (!samplesByBin[bin]) samplesByBin[bin] = { point: filtered[index]!, lapNumber: 0 };
   }
   const sourcePoints = samplesByBin
     .filter((sample): sample is CalibrationSample => sample !== null)
