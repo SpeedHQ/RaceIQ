@@ -59,4 +59,28 @@ describe("calibration progress sampling", () => {
     const positions = [{ x: Number.NaN, z: 1 }, ...outline.map(point => ({ x: point.x * 1.1, z: point.z * 1.1 }))];
     expect(calibrateFromPositions(9107, positions, outline)).toBe(true);
   });
+  test("fits one transform across two laps with different lateral lines", () => {
+    const outline = circle();
+    const positions: Point[] = [];
+    for (const lateral of [8, -11]) {
+      for (let i = 0; i < 80; i++) {
+        const p = outline[i]!;
+        const length = Math.hypot(p.x, p.z);
+        positions.push({ x: p.x + (p.x / length) * lateral, z: p.z + (p.z / length) * lateral });
+      }
+    }
+    expect(calibrateFromPositions(9108, positions, outline)).toBe(true);
+    const transform = getCalibrationStatus(9108).transform!;
+    expect(transform.scale).toBeCloseTo(1, 0);
+    expect(transform.rotation).toBeCloseTo(0, 1);
+  });
+
+  test("rejects sparse evidence and resists one extreme outlier", () => {
+    const outline = circle();
+    const positions = outline.map(point => ({ x: point.x * 1.2, z: point.z * 1.2 }));
+    positions.push({ x: 10000, z: -10000 });
+    expect(calibrateFromPositions(9109, positions, outline)).toBe(true);
+    expect(getCalibrationStatus(9109).transform!.scale).toBeCloseTo(1 / 1.2, 1);
+    expect(calibrateFromPositions(9110, positions.slice(0, 20), outline)).toBe(false);
+  });
 });
