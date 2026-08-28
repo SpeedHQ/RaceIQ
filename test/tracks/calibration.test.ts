@@ -89,6 +89,21 @@ describe("calibration progress sampling", () => {
     }
     expect(getCalibrationStatus(9111).pointsCollected).toBe(100);
   });
+  test("pairs sparse progress bins at their actual outline fractions", () => {
+    const outline = circle(1200);
+    for (let i = 0; i < 60; i++) {
+      const progress = 0.1 + i * 0.01;
+      const point = outline[Math.round(progress * outline.length) % outline.length]!;
+      feedCalibrationPosition(9114, point, 1, outline, progress);
+    }
+    feedCalibrationPosition(9114, outline[0]!, 2, outline, 0);
+    const transform = getCalibrationStatus(9114).transform!;
+    expect(transform.scale).toBeCloseTo(1, 2);
+    expect(transform.rotation).toBeCloseTo(0, 1);
+    expect(transform.tx).toBeCloseTo(0, 0);
+    expect(transform.tz).toBeCloseTo(0, 0);
+  });
+
 
   test("rejects sparse evidence and resists one extreme outlier", () => {
     const outline = circle();
