@@ -38,7 +38,8 @@ export function useCarsFromEndpoint(endpoint: string | null) {
     queryFn: async () => {
       const res = await fetch(endpoint!);
       if (!res.ok) throw new Error(`Failed to load cars (${res.status})`);
-      return (await res.json()) as { ordinal: number; name: string; class?: string }[];
+      const cars = (await res.json()) as { ordinal?: number; id?: number; name: string; class?: string }[];
+      return cars.map((car) => ({ ordinal: car.ordinal ?? car.id!, name: car.name, class: car.class }));
     },
     enabled: !!endpoint,
     staleTime: Number.POSITIVE_INFINITY,

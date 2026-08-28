@@ -164,7 +164,10 @@ test("Session MoTeC import locks current game selection", async ({ page }) => {
 
   await expect(motecDialog).toContainText("Assetto Corsa Competizione");
   await expect(motecDialog.getByRole("combobox", { name: "Game" })).toHaveCount(0);
-  await motecDialog.getByRole("combobox", { name: "Track" }).click();
+  await motecDialog.getByPlaceholder("Search cars...").click();
+  await page.getByRole("option", { name: "Ferrari 296 GT3 2023", exact: true }).click();
+  await expect(motecDialog.getByPlaceholder("Search cars...")).toHaveValue("Ferrari 296 GT3 2023");
+  await motecDialog.getByPlaceholder("Search tracks...").click();
   await expect(page.getByRole("option", { name: "Brands Hatch (GP)" })).toBeVisible();
 });
 
