@@ -7,7 +7,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
+import { pathForwardOffsets, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
@@ -72,7 +72,51 @@ describe("iRacing analysis track marker", () => {
   });
 });
 
+describe("iRacing analysis semantic direction", () => {
+  const pathDirection: [number, number] = [1, 0];
+
+  test("prefers fresh valid semantic yaw over path tangent", () => {
+    const result = resolveFrameDirection(
+      { values: { "motion.yaw": Math.PI / 2 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "fresh" } },
+      pathDirection,
+    );
+    expect(result?.[0]).toBeCloseTo(1);
+    expect(result?.[1]).toBeCloseTo(0);
+  });
+
+  test("falls back to path tangent for missing, invalid, or stale yaw", () => {
+    for (const frame of [
+      { values: {}, states: {}, freshness: {} },
+      { values: { "motion.yaw": 0 }, states: { "motion.yaw": "error" }, freshness: {} },
+      { values: { "motion.yaw": 0 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "stale" } },
+    ]) {
+      expect(resolveFrameDirection(frame, pathDirection)).toEqual(pathDirection);
+    }
+  });
+});
+
+test("uses smooth reconstructed MoTeC yaw instead of the projected path tangent", () => {
+  const result = resolveFrameDirection(
+    { values: { "motion.yaw": Math.PI / 2 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "fresh" }, source: "motec" },
+    [0, 1],
+  );
+  expect(result?.[0]).toBeCloseTo(1);
+  expect(result?.[1]).toBeCloseTo(0);
+});
+
 describe("iRacing analysis segment timing", () => {
+
+test("shows N/A for missing canonical MoTeC metrics", () => {
+  const markup = renderToStaticMarkup(
+    createElement(AnalyseDynamicsPanel, {
+      frame: { values: { "motion.speed": 40, "brakes.brake-bias": 0 }, states: { "brakes.brake-bias": "missing", "tires.tire-slip-angle": "missing" }, freshness: {}, source: "motec" },
+      gameId: "ac-evo",
+      units,
+    }),
+  );
+  expect(markup).toContain("N/A");
+  expect(markup).toMatch(/Brake Bias[\s\S]*N\/A/);
+});
   test("uses lap distance when world positions are unavailable", () => {
     const telemetry = Array.from({ length: 101 }, (_, index) => frame({ "timing.distance-traveled": 7000 + index * 20, "timing.current-lap": index * 0.5, "motion.position-x": 0, "motion.position-z": 0 }));
     const segments = [{ type: "straight", name: "", startFrac: 0, endFrac: 0.25 }, { type: "corner", name: "T1", startFrac: 0.25, endFrac: 0.5 }, { type: "straight", name: "", startFrac: 0.5, endFrac: 0.75 }, { type: "corner", name: "T2", startFrac: 0.75, endFrac: 1 }];

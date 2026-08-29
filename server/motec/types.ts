@@ -21,6 +21,8 @@ export interface SynthesizeResult {
   carTrack: MotecCarTrack;
   /** Channels the transcoder looked for and did not find. */
   missingChannels: string[];
+  /** Effective source sample rates, for explaining resampling and gaps. */
+  sampleRates: Array<{ name: string; hz: number }>;
   /** True when the path was reconstructed from lateral G because `ROTY` was absent. */
   yawFromLateralG: boolean;
 }

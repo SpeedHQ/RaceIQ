@@ -5,17 +5,13 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/games/ids";
-import {
-  gunzipBuffer,
-  iterateSessionFrameRecords,
-  readFrameStreamStart,
-} from "./framing";
+import { loadSessionCapture } from "./source-loader";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-
+import { readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -46,33 +42,30 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile, gameId: sessions.gameId })
+  const sessionRows = await db
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
-    .get();
-
+    .all();
+  const session = sessionRows[0];
   if (!session) {
     throw new SessionNotFoundError(sessionId);
   }
   if (!session.rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
+  if (!(await Bun.file(session.rawFile).exists())) {
+    throw new SessionRawFileMissingError(sessionId, session.rawFile);
+  }
 
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
-  // Read the raw session file
-  const rawFileHandle = Bun.file(session.rawFile);
-  if (!(await rawFileHandle.exists())) {
-    throw new SessionRawFileMissingError(sessionId, session.rawFile);
-  }
-  const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
-  // Decompress if file is gzipped
-  const buf = session.rawFile.endsWith(".gz")
-    ? await gunzipBuffer(rawBuffer)
-    : rawBuffer;
+  const buf = await loadSessionCapture({
+    rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
+    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+  });
 
   const frameStreamStart = readFrameStreamStart(buf);
 
