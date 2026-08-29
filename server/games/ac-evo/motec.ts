@@ -527,7 +527,7 @@ export function synthesizeAcEvoCapture(
     physics.writeInt32LE(Math.max(0, Math.round(gear[i]!) + 1), PHYSICS.gear.offset);
     physics.writeInt32LE(Math.round(rpm[i]!), PHYSICS.rpms.offset);
     physics.writeFloatLE(
-      Math.max(-1, Math.min(1, steerDeg[i]! / STEER_LOCK_DEG)),
+      Math.max(-1, Math.min(1, -steerDeg[i]! / STEER_LOCK_DEG)),
       PHYSICS.steerAngle.offset,
     );
     physics.writeFloatLE(speedKmh[i]!, PHYSICS.speedKmh.offset);
@@ -538,7 +538,7 @@ export function synthesizeAcEvoCapture(
     // parser's player-slot correlation (which matches velocity against
     // coordinate deltas) sees a coherent car.
     physics.writeFloatLE(path.vx[i]!, PHYSICS.velocityX.offset);
-    physics.writeFloatLE(path.heading[i]!, PHYSICS.heading.offset);
+    physics.writeFloatLE(-path.heading[i]!, PHYSICS.heading.offset);
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);
@@ -555,7 +555,7 @@ export function synthesizeAcEvoCapture(
       physics.writeFloatLE(tyreTemp[c]![i]!, corner[c]!.temp.offset);
       physics.writeFloatLE(brakeTemp[c]![i]!, corner[c]!.brake.offset);
       physics.writeFloatLE(suspTravel[c]![i]!, corner[c]!.susp.offset);
-      physics.writeFloatLE(wheelSpeed[c]![i]!, corner[c]!.rot.offset);
+      physics.writeFloatLE(-wheelSpeed[c]![i]!, corner[c]!.rot.offset);
     }
 
     const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);

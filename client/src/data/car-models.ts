@@ -75,6 +75,5 @@ export function getCarModel(carOrdinal: number): CarModelEnrichment & { hasModel
 export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   ...DEFAULT_CAR,
   modelPath: "/models/aston_martin_vantage_gt3.glb",
-  glbRotationY: Math.PI,
   hasModel: true,
 };

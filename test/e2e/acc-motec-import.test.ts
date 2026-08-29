@@ -16,7 +16,7 @@ import { synthesizeAccCapture } from "../../server/games/acc/motec";
 
 const FIXTURE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
-type AccFixture = { ld: Buffer; ldx: string };
+type AccFixture = { ld: Buffer; ldx: Buffer };
 
 function loadAccFixture(): AccFixture {
   const members = unzipSync(readFileSync(FIXTURE));
@@ -27,7 +27,7 @@ function loadAccFixture(): AccFixture {
   }
   return {
     ld: Buffer.from(members[ldNames[0]!]!),
-    ldx: Buffer.from(members[ldxNames[0]!]!).toString("utf8"),
+    ldx: Buffer.from(members[ldxNames[0]!]!),
   };
 }
 
@@ -58,7 +58,7 @@ initServerGameAdapters();
 describe("ACC MoTeC real recording", () => {
   const fixture = loadAccFixture();
   const log = parseLd(fixture.ld);
-  const beacons = parseLdxBeacons(fixture.ldx);
+  const beacons = parseLdxBeacons(fixture.ldx.toString("utf8"));
 
   test("parses approved archive metadata and channel rates", () => {
     expect(log.venue).toBe("Barcelona");

@@ -8,8 +8,8 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
-import { importMotec, resolveMotecTarget } from "../../motec/import";
-import { getMotecTargets, initMotecTargets, type MotecTarget } from "../../motec/targets";
+import { importMotec } from "../../motec/import";
+import { resolveMotecTarget, getMotecTargets, initMotecTargets, type MotecTarget } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 export const transferRoutes = new Hono()
@@ -152,7 +152,7 @@ export const transferRoutes = new Hono()
     // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
-    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    const ldxBytes = sidecar instanceof File ? Buffer.from(await sidecar.arrayBuffer()) : undefined;
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
@@ -189,7 +189,7 @@ export const transferRoutes = new Hono()
     }
 
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxBytes, {
         gameId: target.gameId,
         carOrdinal,
         trackOrdinal,

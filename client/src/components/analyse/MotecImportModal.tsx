@@ -25,11 +25,10 @@ export interface MotecImportSuccess {
   limitations: readonly string[];
 }
 
-function fmtLapTime(ms: number | null | undefined): string {
-  if (ms == null || ms <= 0) return "—";
-  const totalSec = ms / 1000;
-  const mm = Math.floor(totalSec / 60);
-  const ss = (totalSec % 60).toFixed(3).padStart(6, "0");
+export function formatMotecLapTime(seconds: number | null | undefined): string {
+  if (seconds == null || seconds <= 0) return "—";
+  const mm = Math.floor(seconds / 60);
+  const ss = (seconds % 60).toFixed(3).padStart(6, "0");
   return `${mm}:${ss}`;
 }
 
@@ -148,7 +147,7 @@ export function MotecImportModal({
             <ul className="space-y-1 font-mono tabular-nums">
               {result.laps.map((l) => (
                 <li key={l.lapId}>
-                  Lap {l.lapNumber} — {fmtLapTime(l.lapTime)}
+                  Lap {l.lapNumber} — {formatMotecLapTime(l.lapTime)}
                 </li>
               ))}
             </ul>

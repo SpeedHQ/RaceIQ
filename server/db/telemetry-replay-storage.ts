@@ -7,10 +7,7 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { gunzip } from "node:zlib";
-import { promisify } from "node:util";
-
-const gunzipAsync = promisify(gunzip);
+import { loadSessionCapture, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
@@ -219,52 +216,9 @@ export class LapParseError extends Error {
 
 // Decompressed session-file buffer cache. Every lap fetch used to re-read AND
 // re-gunzip the whole session raw file; a stint of N laps then paid N full
-// reads + N full decompressions of the SAME file (the slow, one-lap-at-a-time
-// load). Caching the decompressed buffer per path — invalidated by size+mtime
-// so a live-growing session file stays correct — makes N laps share one
-// read+decompress. Buffers are only ever read (subarray views), never mutated.
-interface RawFileEntry {
-  size: number;
-  mtimeMs: number;
-  buf: Buffer;
-}
-const rawFileCache = new Map<string, RawFileEntry>();
-const RAW_FILE_CACHE_MAX = 2;
 
-/** Test/benchmark hook for uncached replay-storage measurements. */
-export function clearRawFileCacheForTest(): void {
-  rawFileCache.clear();
-}
-
-async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
-  const file = Bun.file(rawFile);
-  const size = file.size;
-  const mtimeMs = file.lastModified;
-  const hit = rawFileCache.get(rawFile);
-  if (hit && hit.size === size && hit.mtimeMs === mtimeMs) {
-    rawFileCache.delete(rawFile); // refresh LRU order
-    rawFileCache.set(rawFile, hit);
-    return hit.buf;
-  }
-  let buf = Buffer.from(await file.arrayBuffer());
-  if (rawFile.endsWith(".gz")) buf = await gunzipAsync(buf);
-  rawFileCache.set(rawFile, { size, mtimeMs, buf });
-  while (rawFileCache.size > RAW_FILE_CACHE_MAX) {
-    const oldest = rawFileCache.keys().next().value;
-    if (oldest === undefined) break;
-    rawFileCache.delete(oldest);
-  }
-  return buf;
-}
-
-export async function getSessionRawFile(sessionId: number, gameId: GameId): Promise<string | null> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile })
-    .from(sessions)
-    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
-    .get();
-  return session?.rawFile ?? null;
-}
+/** Compatibility hook for callers that clear replay source caches. */
+export function clearRawFileCacheForTest(): void { clearSourceCaptureCache(); }
 
 type ReplayGame = ReturnType<typeof getServerGame>;
 
@@ -287,50 +241,52 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   });
 }
 
+/** Return stored raw input path for race-result provenance hashing. */
+export async function getSessionRawFile(sessionId: number, gameId: GameId): Promise<string | null> {
+  const session = await db
+    .select({ rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
+    .get();
+  return session?.rawFile ?? null;
+}
+
 /**
  * Re-parse every frame from a completed session capture. Result reconciliation
  * needs the session tail because authoritative finish packets may arrive after
  * the final persisted lap range.
  */
-
 export async function getSessionTelemetry(sessionId: number, gameId: GameId): Promise<TelemetryPacket[]> {
-  const rawFile = await getSessionRawFile(sessionId, gameId);
-  if (!rawFile) return [];
-
+  const session = await db.select({
+    rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
+    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
+  }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
+  if (!session?.rawFile) return [];
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const buf = await loadDecompressedRawFile(rawFile);
+  const buf = await loadSessionCapture({
+    rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
+    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+  });
   const packets: TelemetryPacket[] = [];
-  let offset = 12; // recorder meta frame
-
+  let offset = 12;
   while (offset + 4 <= buf.length) {
-    const frameLen = buf.readUInt32LE(offset);
-    offset += 4;
+    const frameLen = buf.readUInt32LE(offset); offset += 4;
     if (frameLen <= 0 || offset + frameLen > buf.length) break;
-    const sourceFrame = buf.subarray(offset, offset + frameLen);
-    offset += frameLen;
+    const sourceFrame = buf.subarray(offset, offset + frameLen); offset += frameLen;
     try {
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
-      packets.push(packet);
-    } catch {
-      // Match lap replay: one malformed native frame does not discard session.
-    }
+      normalizeReplayPacket(packet, serverGame); packets.push(packet);
+    } catch {}
   }
-
   return packets;
 }
 
-export async function parseRawLapFrames(rawFile: string, rawByteOffset: number, rawFrameCount: number, gameId: GameId): Promise<TelemetryPacket[]> {
-  const buf = await loadDecompressedRawFile(rawFile);
-  return parseRawLapFramesFromBuffer(buf, rawByteOffset, rawFrameCount, gameId, rawFile);
+export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
+  const buf = await loadSessionCapture(source);
+  return parseRawLapFramesFromBuffer(buf, rawByteOffset, rawFrameCount, source.gameId, source.rawFile);
 }
-
-/**
- * Parse one lap from caller-owned, decompressed capture bytes.
- * File loading and decompression stay outside benchmarked parser work.
- */
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
@@ -531,13 +487,12 @@ export const parseSessionLapsBatchedForTest = parseSessionLapsBatched;
  * can't be located in the frame stream are omitted — the caller falls back to
  * the per-lap path for those.
  */
-export async function parseSessionLapsBatched(rawFile: string, lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[], gameId: GameId): Promise<Map<number, TelemetryPacket[]>> {
+export async function parseSessionLapsBatched(source: SessionCaptureSource, lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[]): Promise<Map<number, TelemetryPacket[]>> {
   const out = new Map<number, TelemetryPacket[]>();
   if (lapMetas.length === 0) return out;
-
-  const serverGame = getServerGame(gameId);
+  const serverGame = getServerGame(source.gameId);
   const state = serverGame.createParserState?.() ?? null;
-  const buf = await loadDecompressedRawFile(rawFile);
+  const buf = await loadSessionCapture(source);
 
   const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
   const firstOffset = metas[0].rawByteOffset;

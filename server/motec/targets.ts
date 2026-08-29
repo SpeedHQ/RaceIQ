@@ -114,3 +114,12 @@ export function initMotecTargets(): void {
     synthesize: synthesizeAcEvoCapture,
   });
 }
+/**
+ * Resolve explicitly selected game transcoder.
+ */
+export function resolveMotecTarget(gameId: string): MotecTarget {
+  initMotecTargets();
+  const target = tryGetMotecTarget(gameId);
+  if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
+  return target;
+}

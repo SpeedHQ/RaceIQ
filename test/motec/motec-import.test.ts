@@ -14,8 +14,9 @@ import {
   resolveMotecCarTrack,
   synthesizeAcEvoCapture,
 } from "../../server/games/ac-evo/motec";
-import { importMotec, MOTEC_SESSION_SOURCE, resolveMotecTarget } from "../../server/motec/import";
-import { getMotecTargets, initMotecTargets } from "../../server/motec/targets";
+import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
+import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
+import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "../../server/motec/targets";
 import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
@@ -292,13 +293,24 @@ describe("synthesizeAcEvoCapture", () => {
     expect(maxThrottle).toBe(255); // full throttle → 255
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
   });
-  test("round-trips reconstructed heading with world velocity", () => {
+  test("normalized reconstructed heading agrees with normalized world velocity", () => {
     const packets = parseFrames(capture.bin);
+    for (const packet of packets) normalizeTelemetryPacket(packet, true);
     const moving = packets.filter((packet) => Math.hypot(packet.VelocityX, packet.VelocityZ) > 1);
-    expect(new Set(moving.map((packet) => packet.Yaw.toFixed(4))).size).toBeGreaterThan(1);
-    for (const packet of moving.slice(0, 20)) {
-      expect(packet.Yaw).toBeCloseTo(Math.atan2(packet.VelocityX, packet.VelocityZ), 3);
+    expect(moving.some((packet) => Math.abs(packet.Yaw) > 0.01)).toBe(true);
+    for (const packet of moving.filter((_, index) => index % 10 === 0)) {
+      const expected = Math.atan2(packet.VelocityX, packet.VelocityZ);
+      const difference = Math.atan2(Math.sin(packet.Yaw - expected), Math.cos(packet.Yaw - expected));
+      expect(Math.abs(difference)).toBeLessThan(0.003);
     }
+  });
+
+  test("maps MoTeC steering and wheel rotation into AC Evo handedness", () => {
+    const packets = parseFrames(capture.bin);
+    const moving = packets.find((packet) => packet.Speed > 1 && Math.abs(packet.Steer) > 1);
+    expect(moving).toBeDefined();
+    expect(moving!.Steer).toBeLessThan(0);
+    expect(moving!.WheelRotationSpeedFL).toBeLessThan(0);
   });
 
   test("lap timing resets at each beacon and reports the completed lap time", () => {
@@ -347,7 +359,7 @@ describe("synthesizeAcEvoCapture", () => {
 describe("importMotec end to end", () => {
   test("lands laps in the DB and marks the session as MoTeC-sourced", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), { gameId: "ac-evo" });
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), { gameId: "ac-evo" });
 
     // Three windows, but the last is still open when the log ends, so the
     // detector completes the two that closed at a beacon.
@@ -371,7 +383,7 @@ describe("importMotec end to end", () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
     // Header says spa (see syntheticStint); import it as Monza instead.
     const monza = getAcEvoTrackByName("monza")!;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: monza.id,
@@ -395,7 +407,7 @@ describe("importMotec end to end", () => {
       })
       .returning({ id: tunes.id });
     const tuneId = tune!.id;
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
@@ -411,7 +423,7 @@ describe("importMotec end to end", () => {
 
   test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
-    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+    const result = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
       gameId: "ac-evo",
       carOrdinal: 0,
       trackOrdinal: getAcEvoTrackByName("monza")!.id,
