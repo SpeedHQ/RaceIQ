@@ -12,6 +12,20 @@ import type {
   ValueType,
 } from "./model";
 
+// Catalog identifiers are ASCII; avoid runtime-specific Intl/ICU collation.
+export function compareCatalogStrings(left: string, right: string): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    let leftCode = left.charCodeAt(index);
+    let rightCode = right.charCodeAt(index);
+    if (leftCode >= 65 && leftCode <= 90) leftCode += 32;
+    if (rightCode >= 65 && rightCode <= 90) rightCode += 32;
+    if (leftCode !== rightCode) return leftCode < rightCode ? -1 : 1;
+  }
+  if (left.length !== right.length) return left.length < right.length ? -1 : 1;
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -19,7 +33,7 @@ function canonicalize(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, entry]) => entry !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => compareCatalogStrings(left, right))
       .map(([key, entry]) => [key, canonicalize(entry)]),
   );
 }
@@ -35,7 +49,9 @@ export function telemetryCatalogSourceHash(source: string): string {
 }
 
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  "engine.fuel-mixture": ["lean", "standard", "rich", "max"],
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
+  "race.competitor.pit-status": ["none", "pitting", "in-pit-area"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
@@ -94,6 +110,7 @@ export function dimensionForUnit(unit: string): readonly string[] {
       "0-100",
       "0-255",
       "-128-127",
+      "s/s",
       "game-native",
       "value-with-unit",
       "unknown",
@@ -104,6 +121,8 @@ export function dimensionForUnit(unit: string): readonly string[] {
   if (/^(s|ms|min|h)$/.test(normalized)) return ["time"];
   if (/^(m|mm|cm|km|ft|in)$/.test(normalized)) return ["length"];
   if (/^(m\/s|km\/h|mph)$/.test(normalized)) return ["length", "time^-1"];
+  if (/^(km\/l)$/.test(normalized)) return ["length^-2"];
+  if (/^(l\/km)$/.test(normalized)) return ["length^2"];
   if (/^(m\/s(?:\^?2|²)|g)$/.test(normalized)) {
     return ["length", "time^-2"];
   }
@@ -117,12 +136,15 @@ export function dimensionForUnit(unit: string): readonly string[] {
   }
   if (/^(l|ml|gal)$/.test(normalized)) return ["length^3"];
   if (/^(kg|g)$/.test(normalized)) return ["mass"];
+  if (/^(kg\/h)$/.test(normalized)) return ["mass", "time^-1"];
   if (/^(n)$/.test(normalized)) return ["mass", "length", "time^-2"];
-  if (/^(nm)$/.test(normalized)) return ["mass", "length^2", "time^-2"];
+  if (/^(nm|n·m|n\*m)$/.test(normalized)) {
+    return ["mass", "length^2", "time^-2"];
+  }
   if (/^(j|kj|mj)$/.test(normalized)) {
     return ["mass", "length^2", "time^-2"];
   }
-  if (/^(w|kw|hp)$/.test(normalized)) {
+  if (/^(w|kw|hp|bhp)$/.test(normalized)) {
     return ["mass", "length^2", "time^-3"];
   }
   if (/^(a)$/.test(normalized)) return ["electric-current"];

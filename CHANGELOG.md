@@ -12,6 +12,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
+- Keep semantic telemetry values and parser provenance consistent across supported simulators, live views, Analyse, and Compare
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives

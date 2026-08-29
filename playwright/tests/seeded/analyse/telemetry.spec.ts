@@ -121,8 +121,9 @@ for (const game of SEEDED_GAME_CASES) {
       expect(await metricRowText(page, "Deployed")).toContain(`${(((parityPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Harvested")).toContain(`${(((parityPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%`);
       expect(await metricRowText(page, "Mode")).toContain(ersModes[parityPacket.ErsDeployMode ?? 0] ?? "Unknown");
+      const fuelCapacity = parityPacket.FuelCapacity ?? 0;
       expect(await metricRowText(page, "Fuel")).toContain(
-        `${((lap.telemetry[0]!.Fuel - parityPacket.Fuel) * 100).toFixed(1)}% used ${(parityPacket.Fuel * 100).toFixed(1)}% left`,
+        `${((lap.telemetry[0]!.Fuel - parityPacket.Fuel) * fuelCapacity).toFixed(1)}L used ${(parityPacket.Fuel * fuelCapacity).toFixed(1)}L left`,
       );
     }
     expect(browserErrors.errors, `${game.gameId} Analyse browser errors`).toEqual([]);

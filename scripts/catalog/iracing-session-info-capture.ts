@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { compareCatalogStrings } from "./contract-inference";
 
 export interface IRacingSessionInfoCapture {
   fileName: string;
@@ -166,7 +167,7 @@ export function assertIRacingSessionInfoCaptureCoverage(
       [
         "Uncatalogued iRacing SessionInfo capture leaves:",
         ...[...missing.entries()]
-          .sort(([left], [right]) => left.localeCompare(right))
+          .sort(([left], [right]) => compareCatalogStrings(left, right))
           .map(
             ([path, files]) =>
               `- ${path} (${[...files].sort().join(", ")})`,

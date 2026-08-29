@@ -239,21 +239,26 @@ describe("semantic telemetry catalog contracts", () => {
     const speed = getTelemetryVariable("motion.speed");
     const brake = getTelemetryVariable("inputs.brake");
     for (const gameId of ["f1-2025", "acc", "ac-evo", "iracing"] as const) {
-      expect(speed.games[gameId].kind).toBe("normalized");
+      expect(speed.games[gameId].kind).toBe("direct");
       expect(brake.games[gameId].kind).toBe("normalized");
     }
     expect(getTelemetryVariable("timing.current-lap").games.iracing.kind).toBe(
-      "derived",
+      "direct",
     );
     expect(getTelemetryVariable("engine.power").games["f1-2025"]).toMatchObject({
-      kind: "derived",
-      execution: { kind: "derivation" },
+      kind: "direct",
+      sources: ["TelemetryPacket.Power"],
     });
     expect(
       getTelemetryVariable("tires.tire-combined-slip").games["f1-2025"],
     ).toMatchObject({
-      kind: "derived",
-      execution: { kind: "derivation" },
+      kind: "direct",
+      sources: {
+        FL: ["TelemetryPacket.TireCombinedSlipFL"],
+        FR: ["TelemetryPacket.TireCombinedSlipFR"],
+        RL: ["TelemetryPacket.TireCombinedSlipRL"],
+        RR: ["TelemetryPacket.TireCombinedSlipRR"],
+      },
     });
     expect(getTelemetryVariable("weather.weather-type").games.acc).toMatchObject({
       kind: "simplified",

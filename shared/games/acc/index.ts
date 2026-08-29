@@ -6,7 +6,7 @@ export const accAdapter: GameAdapter = {
   shortName: "ACC",
   routePrefix: "acc",
   telemetry: {
-    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
+    fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.remaining-volume" } },
     tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.average" } },
     brakeTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "brakes.brake-temp" } },
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
@@ -15,7 +15,7 @@ export const accAdapter: GameAdapter = {
       balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] } },
-      traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } },
+      traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steering", "tires.wheel-rotation-speed"] } },
       tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },

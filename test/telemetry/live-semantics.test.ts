@@ -20,8 +20,63 @@ describe("live telemetry semantics", () => {
   });
 
   test("matches exact ordered allowlists and deduplicates", () => {
-    expect(LIVE_CORE_SEMANTIC_IDS).toEqual(["brakes.brake-temp","engine.boost","engine.current-engine-rpm","engine.engine-idle-rpm","engine.engine-max-rpm","engine.power","engine.torque","fuel.fuel","fuel.fuel-capacity","identity.car-class","identity.car-ordinal","identity.car-performance-index","identity.drivetrain-type","identity.track-ordinal","inputs.accel","inputs.brake","inputs.gear","inputs.steer","motion.acceleration-x","motion.acceleration-z","motion.pitch","motion.position-x","motion.position-z","motion.roll","motion.speed","motion.yaw","race.race-position","suspension.norm-suspension-travel","timing.best-lap","timing.current-lap","timing.distance-traveled","timing.lap-number","timing.last-lap","tire.temperature.average","tires.tire-combined-slip","tires.tire-pressure","tires.tire-slip-angle","tires.tire-slip-ratio","tires.tire-wear","tires.wheel-in-puddle-depth","tires.wheel-on-rumble-strip","tires.wheel-rotation-speed","weather.air-temp","weather.track-temp","weather.weather-type"]);
-    expect(LIVE_GAME_SEMANTIC_IDS).toMatchObject({ "fm-2023": [], acc: ["damage.brake-pad-wear","race.pit-status","tires.tire-compound-name","tires.tire-radius"], "ac-evo": ["damage.brake-pad-wear","race.pit-status","tires.tire-compound-name","tires.tire-radius"], iracing: ["race.on-pit-road","timing.lap-fraction"] });
+    expect(LIVE_CORE_SEMANTIC_IDS).toEqual([
+      "brakes.brake-temp",
+      "engine.boost",
+      "engine.current-engine-rpm",
+      "engine.engine-idle-rpm",
+      "engine.engine-max-rpm",
+      "engine.power",
+      "engine.torque",
+      "fuel.capacity",
+      "fuel.remaining-fraction",
+      "fuel.remaining-percent",
+      "fuel.remaining-volume",
+      "identity.car-class",
+      "identity.car-ordinal",
+      "identity.car-performance-index",
+      "identity.drivetrain-type",
+      "identity.track-ordinal",
+      "inputs.throttle",
+      "inputs.brake",
+      "inputs.clutch",
+      "inputs.handbrake",
+      "inputs.gear",
+      "inputs.steering",
+      "motion.acceleration-x",
+      "motion.acceleration-z",
+      "motion.pitch",
+      "motion.position-x",
+      "motion.position-z",
+      "motion.roll",
+      "motion.speed",
+      "motion.yaw",
+      "race.race-position",
+      "suspension.norm-suspension-travel",
+      "timing.best-lap",
+      "timing.current-lap",
+      "timing.distance-traveled",
+      "timing.lap-number",
+      "timing.last-lap",
+      "tire.temperature.average",
+      "tires.tire-combined-slip",
+      "tires.tire-pressure",
+      "tires.tire-slip-angle",
+      "tires.tire-slip-ratio",
+      "tires.tire-wear",
+      "tires.wheel-in-puddle-depth",
+      "tires.wheel-on-rumble-strip",
+      "tires.wheel-rotation-speed",
+      "weather.air-temp",
+      "weather.track-temp",
+      "weather.weather-type",
+    ]);
+    expect(LIVE_GAME_SEMANTIC_IDS).toMatchObject({
+      "fm-2023": [],
+      acc: ["damage.brake-pad-wear", "race.pit-status", "tires.tire-compound-name", "tires.tire-radius"],
+      "ac-evo": ["damage.brake-pad-wear", "race.pit-status", "tires.tire-compound-name", "tires.tire-radius"],
+      iracing: ["race.on-pit-road", "timing.lap-fraction"],
+    });
     for (const gameId of KNOWN_GAME_IDS) expect(new Set(liveSemanticIds(gameId)).size).toBe(liveSemanticIds(gameId).length);
   });
 
@@ -34,8 +89,16 @@ describe("live telemetry semantics", () => {
       expect(frame.resolveNumber(resolver.slot("motion.speed")).state).toBe("ok");
     }
     for (const gameId of ["acc", "ac-evo"] as const) {
-      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, { simulator: gameId, requested: ["damage.brake-pad-wear", "tires.tire-radius", "tires.tire-camber"].map((semanticId) => ({ semanticId })) });
-      const frame = resolver.createFrameView(packet(gameId, { acc: { brakePadWear: [1, 2, 3, 4], tireRadius: [0.3, 0.3, 0.3, 0.3], tireCamber: [0.1, 0.1, 0.1, 0.1] } as NonNullable<import("../../shared/telemetry/types").TelemetryPacket["acc"]> }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) });
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator: gameId,
+        requested: ["damage.brake-pad-wear", "tires.tire-radius", "tires.tire-camber"].map((semanticId) => ({ semanticId })),
+      });
+      const frame = resolver.createFrameView(
+        packet(gameId, {
+          acc: { brakePadWear: [1, 2, 3, 4], tireRadius: [0.3, 0.3, 0.3, 0.3], tireCamber: [0.1, 0.1, 0.1, 0.1] } as NonNullable<import("../../shared/telemetry/types").TelemetryPacket["acc"]>,
+        }),
+        { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+      );
       expect(frame.resolveValue(resolver.slot("damage.brake-pad-wear")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-camber")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-radius")).state).not.toBe("error");

@@ -13,9 +13,9 @@ const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["v
 
 
 export function AnalyseSteeringOverlay({ frame }: Props) {
-  const steer = number(frame, "inputs.steer");
+  const steer = number(frame, "inputs.steering");
   const brake = number(frame, "inputs.brake");
-  const throttle = number(frame, "inputs.accel");
+  const throttle = number(frame, "inputs.throttle");
   const halfLock = getSteeringLock() / 2;
   const steerDeg = steer == null ? null : (steer / 127) * halfLock;
   const steerValue = steer ?? 0;

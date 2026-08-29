@@ -31,7 +31,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const suspensionM = numericWheels(frame, "suspension.suspension-travel-m");
   const brakes = numericWheels(frame, "brakes.brake-temp");
   const states = resolveWheelStates(frame, analysis.traction);
-  const steering = numeric(frame, "inputs.steer");
+  const steering = numeric(frame, "inputs.steering");
   const temperatureAvailable = temps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
   const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
@@ -114,7 +114,7 @@ export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gam
   if (props.view) {
     const { view } = props;
     const values: SemanticAnalysisFrame["values"] = {
-      "inputs.steer": view.inputs.steer,
+      "inputs.steering": view.inputs.steering,
       "motion.speed": view.motion.speedMps,
       "tire.temperature.average": view.tires.temperatureC && Object.values(view.tires.temperatureC),
       "tires.tire-wear": view.tires.wear && Object.values(view.tires.wear),

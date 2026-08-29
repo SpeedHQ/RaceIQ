@@ -95,12 +95,12 @@ test("draws throttle input traces in the throttle channel color", () => {
       getBoundingClientRect: () => ({ width: 800, height: 600 }),
       getContext: () => context,
     } as unknown as HTMLCanvasElement;
-    const frame = (accel: number) => ({ values: { "inputs.accel": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
+    const frame = (accel: number) => ({ values: { "inputs.throttle": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
 
     drawStaticTrack({
       canvas,
       bufferCanvas: canvas,
-      telemetry: [frame(64), frame(128), frame(255)],
+      telemetry: [frame(0.25), frame(0.5), frame(1)],
       resolvedPositions: [
         { x: 1, z: 1 },
         { x: 2, z: 2 },
@@ -117,7 +117,7 @@ test("draws throttle input traces in the throttle channel color", () => {
     });
 
     expect(strokes.filter((stroke) => stroke.color === "var(--ch-throttle)")).toEqual([
-      { color: "var(--ch-throttle)", alpha: 0.35 + (128 / 255) * 0.65, width: 2 },
+      { color: "var(--ch-throttle)", alpha: 0.35 + 0.5 * 0.65, width: 2 },
       { color: "var(--ch-throttle)", alpha: 1, width: 2 },
     ]);
   } finally {
@@ -240,11 +240,11 @@ test("draws input, segment, and racing-line overlays together", () => {
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
   try {
     const { canvas, strokes } = createDrawingHarness();
-    const frame = (accel: number) => ({ values: { "inputs.accel": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
+    const frame = (accel: number) => ({ values: { "inputs.throttle": accel, "inputs.brake": 0 }, states: {}, freshness: {} });
     drawStaticTrack({
       canvas,
       bufferCanvas: canvas,
-      telemetry: [frame(64), frame(128), frame(255)],
+      telemetry: [frame(0.25), frame(0.5), frame(1)],
       resolvedPositions: [
         { x: 1, z: 1 },
         { x: 2, z: 2 },

@@ -293,6 +293,11 @@ export function parseAcEvoBuffers(
   const sessBase = GRAPHICS_EVO.session_state_base.offset;
   const timBase = GRAPHICS_EVO.timing_state_base.offset;
 
+  const clutchPercent = graphicsBuf.readFloatLE(GRAPHICS_EVO.clutch_percent.offset);
+  const handbrakePercent = graphicsBuf.readFloatLE(GRAPHICS_EVO.handbrake_percent.offset);
+  const currentTorque = graphicsBuf.readFloatLE(GRAPHICS_EVO.current_torque.offset);
+  const currentBhp = graphicsBuf.readInt32LE(GRAPHICS_EVO.current_bhp.offset);
+
   const acEvoExt: AcEvoExtendedData = {
     physicsPacketId: physPacketId,
     graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
@@ -325,15 +330,15 @@ export function parseAcEvoBuffers(
     engineMapLevel,
     isDrsOpen: graphicsBuf.readUInt8(elecBase + ELECTRONICS.is_drs_open) !== 0,
 
-    clutchPercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.clutch_percent.offset),
-    handbrakePercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.handbrake_percent.offset),
+    clutchPercent,
+    handbrakePercent,
     waterTempC: physicsBuf.readFloatLE(PHYSICS.waterTemp.offset),
     oilTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_temperature_c.offset),
     oilPressureBar: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_pressure_bar.offset),
     exhaustTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.exhaust_temperature_c.offset),
     turboBoost: graphicsBuf.readFloatLE(GRAPHICS_EVO.turbo_boost.offset),
-    currentTorque: graphicsBuf.readFloatLE(GRAPHICS_EVO.current_torque.offset),
-    currentBhp: graphicsBuf.readInt32LE(GRAPHICS_EVO.current_bhp.offset),
+    currentTorque,
+    currentBhp,
     isWrongWay: graphicsBuf.readUInt8(GRAPHICS_EVO.is_wrong_way.offset) !== 0,
 
     fuelLiters: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_current_quantity.offset),
@@ -363,8 +368,9 @@ export function parseAcEvoBuffers(
       physicsBuf.readFloatLE(PHYSICS.localVelocityZ.offset),
     ],
 
-    gapAheadMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_ahead.offset),
-    gapBehindMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_behind.offset),
+    // GRAPHICS_EVO exposes signed gaps in seconds; preserve its f32 values unchanged.
+    gapAheadSeconds: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_ahead.offset),
+    gapBehindSeconds: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_behind.offset),
 
     sessionKm: currentKm,
     totalDrivingTimeS: graphicsBuf.readUInt32LE(GRAPHICS_EVO.total_driving_time_s.offset),
@@ -378,6 +384,8 @@ export function parseAcEvoBuffers(
   const gear = accGear <= 1 ? 0 : accGear - 1;
   const accel = Math.round(gas * 255);
   const brakeVal = Math.round(brake * 255);
+  const clutch = Math.round(clutchPercent * 255);
+  const handbrake = Math.round(handbrakePercent * 255);
   const steer = Math.round(steerAngle * 127);
   const speed = speedKmh / 3.6;
 
@@ -560,8 +568,8 @@ export function parseAcEvoBuffers(
 
     Accel: accel,
     Brake: brakeVal,
-    Clutch: 0,
-    HandBrake: 0,
+    Clutch: clutch,
+    HandBrake: handbrake,
     Gear: gear,
     Steer: steer,
     NormDrivingLine: 0,
@@ -615,8 +623,8 @@ export function parseAcEvoBuffers(
     PositionY: carY,
     PositionZ: carZ,
     Speed: speed,
-    Power: 0,
-    Torque: 0,
+    Power: currentBhp * 745.7,
+    Torque: currentTorque,
     TrackOrdinal: cache.trackOrdinal,
 
     WeatherType: 0,

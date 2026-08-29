@@ -28,7 +28,11 @@ function replayFrame(simulator: GameId, sequence: number, entries: Array<{ seman
   };
 }
 
-function entries(index: number, fuel: number) {
+function entries(
+  index: number,
+  fuel: number,
+  fuelSemanticId: "fuel.remaining-volume" | "fuel.remaining-fraction" = "fuel.remaining-volume",
+) {
   return [
     { semanticId: "identity.track-ordinal", value: 7 },
     { semanticId: "motion.position-x", value: index * 10 },
@@ -39,7 +43,7 @@ function entries(index: number, fuel: number) {
     { semanticId: "brakes.brake-temp", value: [300 + index, 301 + index, 250 + index, 251 + index] },
     { semanticId: "tires.tire-pressure", value: [27, 27.1, 26.5, 26.6] },
     { semanticId: "tires.tire-wear", value: [0, 0.1, 0.2, 0.3] },
-    { semanticId: "fuel.fuel", value: fuel },
+    { semanticId: fuelSemanticId, value: fuel },
   ];
 }
 
@@ -47,7 +51,13 @@ describe("canonical tuning telemetry consumers", () => {
   test("preserves simulator identity and explicit units across supported tuning games", () => {
     for (const gameId of TUNING_GAMES) {
       const fuel = gameId === "f1-2025" ? 0.5 : 50;
-      const [sample] = semanticSamples(gameId, [replayFrame(gameId, 1, entries(1, fuel))]);
+      const [sample] = semanticSamples(gameId, [
+        replayFrame(
+          gameId,
+          1,
+          entries(1, fuel, gameId === "f1-2025" ? "fuel.remaining-fraction" : "fuel.remaining-volume"),
+        ),
+      ]);
       expect(sample.gameId).toBe(gameId);
       expect(sample.positionM).toEqual({ x: 10, z: 5 });
       expect(sample.speedMps).toBe(21);
@@ -82,7 +92,9 @@ describe("canonical tuning telemetry consumers", () => {
     );
     const f1 = semanticSamples(
       "f1-2025",
-      Array.from({ length: 6 }, (_, index) => replayFrame("f1-2025", index, entries(index, 0.8 - index * 0.02))),
+      Array.from({ length: 6 }, (_, index) =>
+        replayFrame("f1-2025", index, entries(index, 0.8 - index * 0.02, "fuel.remaining-fraction")),
+      ),
     );
     const accMarkup = renderToStaticMarkup(createElement(CurrentLapTireStrip, { telemetry: acc }));
     const acEvoMarkup = renderToStaticMarkup(createElement(CurrentLapTireStrip, { telemetry: acEvo }));

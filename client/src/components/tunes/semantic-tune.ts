@@ -1,5 +1,4 @@
 import type { GameId } from "@shared/games/ids";
-import { getGame } from "@shared/games/registry";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 
@@ -38,8 +37,10 @@ function wheelValues(value: unknown): TuneWheelValues | undefined {
 function sampleFromValues(gameId: GameId, values: Readonly<Record<string, unknown>>): SemanticTuneSample {
   const positionX = finiteNumber(values["motion.position-x"]);
   const positionZ = finiteNumber(values["motion.position-z"]);
-  const fuel = finiteNumber(values["fuel.fuel"]);
-  const fuelUnit = getGame(gameId).telemetry.fuel.packetUnit;
+  const remainingVolumeL = finiteNumber(values["fuel.remaining-volume"]);
+  const remainingFraction = finiteNumber(values["fuel.remaining-fraction"]);
+  const fuel = remainingVolumeL ?? remainingFraction;
+  const fuelUnit = remainingVolumeL === undefined ? "fraction" : "litre";
   return {
     gameId,
     distanceM: finiteNumber(values["timing.distance-traveled"]),
@@ -67,7 +68,8 @@ export function semanticSamples(gameId: GameId, frames: SemanticReplayFrame[] | 
 }
 
 export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTuneSample {
-  const fuelUnit = getGame(view.simulator).telemetry.fuel.packetUnit;
+  const fuel = view.fuel.remainingVolumeL ?? view.fuel.remainingFraction;
+  const fuelUnit = view.fuel.remainingVolumeL === undefined ? "fraction" : "litre";
   return {
     gameId: view.simulator,
     distanceM: view.motion.distanceM,
@@ -78,7 +80,7 @@ export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTun
     brakeTemperatureC: view.tires.brakeTemperatureC,
     tirePressurePsi: view.tires.pressurePsi,
     tireWearFraction: view.tires.wear,
-    fuel: view.fuel.amount,
+    fuel,
     fuelUnit,
   };
 }

@@ -1,11 +1,17 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 import {
+  ast,
+  interfaceFields,
+  interfaceLeafFields,
+} from "../../../scripts/catalog/ast-discovery";
+import {
+  buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   getSourcesWithoutSemanticDefinition,
   getTelemetrySources,
   getTelemetryVariable,
   IRACING_SESSION_INFO_SOURCE_VARIABLES,
+  IRACING_TELEMETRY_SOURCE_VARIABLES,
   KNOWN_GAME_IDS,
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
@@ -14,25 +20,13 @@ import {
   telemetryCatalogSourceHash,
   assertTelemetryCatalogComplete,
 } from "../../support/telemetry/catalog";
-import {
-  ast,
-  interfaceFields,
-  interfaceLeafFields,
-} from "../../../scripts/catalog/ast-discovery";
 
 describe("semantic telemetry catalog artifacts", () => {
   test("generated artifact is current and structurally complete", async () => {
-    const jsonArtifact = [...(await buildTelemetryCatalogArtifacts())].find(
-      ([path]) => path.endsWith("telemetry-catalog.generated.json"),
+    expect(JSON.stringify(await buildTelemetryCatalog())).toBe(
+      JSON.stringify(TELEMETRY_CATALOG),
     );
-    if (!jsonArtifact) {
-      throw new Error("Generated telemetry catalog JSON is missing");
-    }
-    const actualJson = readFileSync(jsonArtifact[0], "utf8");
-    expect(actualJson).toBe(jsonArtifact[1]);
-    expect(() =>
-      assertTelemetryCatalogComplete(JSON.parse(actualJson)),
-    ).not.toThrow();
+    expect(() => assertTelemetryCatalogComplete()).not.toThrow();
   });
   test("rejects unconstrained structured and enum value contracts", () => {
     const structured = getTelemetryVariable("race.competitor.position");
@@ -98,13 +92,16 @@ describe("semantic telemetry catalog artifacts", () => {
       telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
     );
   });
-  test("normalizes line endings in discovered source types", () => {
-    const lf = `interface Sample {
-  value: [
-    [number, number, number],
-    [number, number, number],
-  ];
-}`;
+  test("normalizes line endings in extracted multiline types", () => {
+    const lf = [
+      "interface Sample {",
+      "  value: [",
+      "    [number, number],",
+      "    [number, number],",
+      "  ];",
+      "}",
+      "",
+    ].join("\n");
     const crlf = lf.replaceAll("\n", "\r\n");
     expect(interfaceFields(crlf, ast(crlf), "Sample")).toEqual(
       interfaceFields(lf, ast(lf), "Sample"),
@@ -115,7 +112,7 @@ describe("semantic telemetry catalog artifacts", () => {
   });
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(735);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(720);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -127,13 +124,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 95,
       },
       "f1-2025": {
-        total: 288,
+        total: 289,
         packet: 119,
-        extension: 169,
+        extension: 170,
         sdk: 0,
         yaml: 0,
         setup: 0,
-        recorded: 288,
+        recorded: 289,
       },
       acc: {
         total: 200,
@@ -160,7 +157,7 @@ describe("semantic telemetry catalog artifacts", () => {
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 705,
+        recorded: 714,
       },
     });
 
@@ -199,7 +196,7 @@ describe("semantic telemetry catalog artifacts", () => {
       iracing: { kind: "direct", nativeUnit: "L" },
     });
     expect(
-      Object.values(getTelemetryVariable("fuel.fuel-percent").games).every(
+      Object.values(getTelemetryVariable("fuel.remaining-percent").games).every(
         (mapping) => mapping.kind !== "unavailable",
       ),
     ).toBe(true);
@@ -244,20 +241,27 @@ describe("semantic telemetry catalog artifacts", () => {
     expect(getTelemetryVariable("race.is-race-on").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       iracing: {
-        kind: "normalized",
-        sources: ["iRacing.IsOnTrack"],
+        kind: "direct",
+        sources: ["TelemetryPacket.IsRaceOn", "iRacing.IsOnTrack"],
       },
     });
-    expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
-      kind: "normalized",
-      nativeUnit: "kPa",
+    const iracingPressure =
+      getTelemetryVariable("tires.tire-pressure").games.iracing;
+    expect(iracingPressure).toMatchObject({
+      kind: "direct",
+      nativeUnit: "psi",
       sources: {
-        FL: ["iRacing.LFcoldPressure"],
-        FR: ["iRacing.RFcoldPressure"],
-        RL: ["iRacing.LRcoldPressure"],
-        RR: ["iRacing.RRcoldPressure"],
+        FL: ["TelemetryPacket.TirePressureFrontLeft"],
+        FR: ["TelemetryPacket.TirePressureFrontRight"],
+        RL: ["TelemetryPacket.TirePressureRearLeft"],
+        RR: ["TelemetryPacket.TirePressureRearRight"],
       },
     });
+    expect(
+      iracingPressure.kind === "unavailable"
+        ? ""
+        : iracingPressure.description,
+    ).toContain("iRacing.LFcoldPressure");
 
     expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
       "normalized",
@@ -270,6 +274,35 @@ describe("semantic telemetry catalog artifacts", () => {
         (source) => source.path === "TelemetryPacket.TireTempFL",
       ),
     ).toMatchObject({ unit: "°F" });
+    for (const gameId of KNOWN_GAME_IDS) {
+      const sources = getTelemetrySources(gameId);
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Accel"),
+      ).toMatchObject({ unit: "0–255" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.Steer"),
+      ).toMatchObject({ unit: "-128–127" });
+      expect(
+        sources.find((source) => source.path === "TelemetryPacket.TimestampMS"),
+      ).toMatchObject({ unit: "ms" });
+    }
+    for (const path of [
+      "BrakeABSactive",
+      "CarIdxOnPitRoad",
+      "FuelLevelPct",
+      "PlayerCarSLFirstRPM",
+      "PlayerCarSLShiftRPM",
+      "PlayerCarSLLastRPM",
+      "PlayerCarSLBlinkRPM",
+      "SessionTimeOfDay",
+      "SessionTimeRemain",
+    ]) {
+      expect(
+        IRACING_TELEMETRY_SOURCE_VARIABLES.find(
+          (source) => source.path === path,
+        ),
+      ).toMatchObject({ recordedByRaceIQ: true, retention: "exact" });
+    }
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
         (source) => source.path === "SessionInfo.WeekendInfo.TrackDirection",

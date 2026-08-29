@@ -12,14 +12,14 @@ describe("compiled telemetry resolver derivations", () => {
       id: "test.double-speed",
       version: "1",
       output: {
-        semanticId: "timing.current-lap",
-        unit: "s",
+        semanticId: "fuel.remaining-percent",
+        unit: "%",
         valueType: "number" as const,
       },
       inputs: [
         {
           semanticId: "motion.speed",
-          acceptedMappings: ["normalized" as const],
+          acceptedMappings: ["direct" as const],
           required: true,
         },
       ],
@@ -33,12 +33,12 @@ describe("compiled telemetry resolver derivations", () => {
       },
     };
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "iracing",
-      requested: [{ semanticId: "timing.current-lap" }],
+      simulator: "f1-2025",
+      requested: [{ semanticId: "fuel.remaining-percent" }],
       derivations: [derivation],
     });
-    const slot = resolver.slot("timing.current-lap");
-    const frame = resolver.createFrameView(packet("iracing", { Speed: 30 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
+    const slot = resolver.slot("fuel.remaining-percent");
+    const frame = resolver.createFrameView(packet("f1-2025", { Speed: 30 }), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
 
     expect(frame.readNumber(slot)).toBe(60);
     expect(frame.readNumber(slot)).toBe(60);
@@ -54,13 +54,13 @@ describe("compiled telemetry resolver derivations", () => {
       id: "cycle-a",
       version: "1",
       output: {
-        semanticId: "timing.current-lap",
-        unit: "s",
+        semanticId: "fuel.remaining-percent",
+        unit: "%",
         valueType: "number" as const,
       },
       inputs: [
         {
-          semanticId: "timing.distance-traveled",
+          semanticId: "fuel.remaining-volume",
           acceptedMappings: ["derived" as const],
           required: true,
         },
@@ -74,13 +74,13 @@ describe("compiled telemetry resolver derivations", () => {
       id: "cycle-b",
       version: "1",
       output: {
-        semanticId: "timing.distance-traveled",
-        unit: "m",
+        semanticId: "fuel.remaining-volume",
+        unit: "L",
         valueType: "number" as const,
       },
       inputs: [
         {
-          semanticId: "timing.current-lap",
+          semanticId: "fuel.remaining-percent",
           acceptedMappings: ["derived" as const],
           required: true,
         },
@@ -93,8 +93,8 @@ describe("compiled telemetry resolver derivations", () => {
 
     expect(() =>
       compileTelemetryResolver(TELEMETRY_CATALOG, {
-        simulator: "iracing",
-        requested: [{ semanticId: "timing.current-lap" }],
+        simulator: "f1-2025",
+        requested: [{ semanticId: "fuel.remaining-percent" }],
         derivations: [a, b],
       }),
     ).toThrow("Telemetry derivation cycle");

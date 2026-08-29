@@ -174,9 +174,9 @@ export interface AcEvoExtendedData {
   // Car-frame velocity (PHYSICS localVelocity — distinct from world VelocityXYZ)
   localVelocity: [number, number, number]; // x, y, z
 
-  // Race gaps (GRAPHICS_EVO)
-  gapAheadMs: number;
-  gapBehindMs: number;
+  // Race gaps (GRAPHICS_EVO, signed seconds as reported by the source)
+  gapAheadSeconds: number;
+  gapBehindSeconds: number;
 
   // Odometry (GRAPHICS_EVO)
   sessionKm: number;

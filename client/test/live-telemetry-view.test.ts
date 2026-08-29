@@ -88,6 +88,39 @@ describe("live telemetry view", () => {
     expect(acc.tires.temperatureC).toEqual({ fl: 100, fr: 0, rl: 20, rr: 30 });
   });
 
+  it("projects canonical control and fuel representations", () => {
+    const definition = schema([
+      "inputs.throttle",
+      "inputs.brake",
+      "inputs.clutch",
+      "inputs.handbrake",
+      "inputs.steering",
+      "fuel.remaining-volume",
+      "fuel.remaining-fraction",
+      "fuel.remaining-percent",
+      "fuel.capacity",
+    ]);
+    const value = buildLiveTelemetryView(
+      definition,
+      frame([0.8, 0.2, 0, 0, -0.25, 42.5, 42.5 / 110, (42.5 / 110) * 100, 110]),
+    )!;
+
+    expect(value.inputs).toEqual({
+      throttle: 0.8,
+      brake: 0.2,
+      clutch: 0,
+      handbrake: 0,
+      steering: -0.25,
+      gear: undefined,
+    });
+    expect(value.fuel).toEqual({
+      remainingVolumeL: 42.5,
+      remainingFraction: 42.5 / 110,
+      remainingPercent: (42.5 / 110) * 100,
+      capacityL: 110,
+    });
+  });
+
   it("projects game features through canonical groups without simulator branches", () => {
     const definition = schema(["aero.drs-active", "fuel.ers-store-energy", "weather.rain-percent", "damage.front-left-wing-damage", "session.session-type"], "f1-2025");
     const value = buildLiveTelemetryView(definition, frame([true, 2_000_000, 25, 0, "race"], { schemaId: "schema-f1-2025" }))!;

@@ -22,7 +22,7 @@ import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
 import { TireDiagram } from "../src/components/telemetry/TireDiagram";
 import { LiveTrackConditions } from "../src/components/tunes/LiveTestDashboard";
 import type { LiveTelemetryView } from "../src/lib/live-telemetry-view";
-import { fakeAccPacket, fakeAccSemanticFixture, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
+import { fakeAccPacket, fakeAccSemanticFixture, fakeF1Packet, fakeF1SemanticFixture, fakeForzaSemanticFixture, fakePit } from "../src/stories/fakeData";
 import { DEFAULT_DISPLAY_SETTINGS } from "../src/stores/telemetry";
 
 const semanticFrame = (values: Record<string, unknown>): SemanticAnalysisFrame => ({ values, states: {}, freshness: {} });
@@ -76,14 +76,14 @@ const f1ParityFrame = semanticFrame({
   "motion.speed": 30,
   "engine.current-engine-rpm": 12000,
   "inputs.gear": 7,
-  "inputs.accel": 204,
-  "inputs.brake": 51,
-  "inputs.steer": -32,
+  "inputs.throttle": 0.8,
+  "inputs.brake": 0.2,
+  "inputs.steering": -0.25,
   "engine.boost": 0.4,
   "engine.power": 745700,
   "engine.torque": 620,
-  "fuel.fuel": 0.42,
-  "fuel.fuel-capacity": 1,
+  "fuel.remaining-fraction": 0.42,
+  "fuel.capacity": 1,
   "motion.acceleration-x": 4.905,
   "motion.acceleration-z": 9.81,
   "brakes.brake-bias": 0.6,
@@ -166,7 +166,7 @@ function renderTireAnalysis(value: TelemetryPacket): string {
           "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
           "suspension.norm-suspension-travel": [value.NormSuspensionTravelFL, value.NormSuspensionTravelFR, value.NormSuspensionTravelRL, value.NormSuspensionTravelRR],
           "brakes.brake-temp": [value.BrakeTempFrontLeft, value.BrakeTempFrontRight, value.BrakeTempRearLeft, value.BrakeTempRearRight],
-          "inputs.steer": value.Steer,
+          "inputs.steering": Math.max(-1, Math.min(1, value.Steer >= 0 ? value.Steer / 127 : value.Steer / 128)),
         }),
         gameId: value.gameId,
         units,
@@ -179,7 +179,7 @@ function renderTireAnalysis(value: TelemetryPacket): string {
 function renderTireDiagram(value: TelemetryPacket): string {
   const queryClient = new QueryClient();
   const frame = semanticFrame({
-    "inputs.steer": value.Steer,
+    "inputs.steering": Math.max(-1, Math.min(1, value.Steer >= 0 ? value.Steer / 127 : value.Steer / 128)),
     "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
     "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
     "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
@@ -235,7 +235,7 @@ describe("telemetry capability UI", () => {
     queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, temperatureUnit: "F" });
     const view = liveView("acc", {
       motion: { speedMps: 10 },
-      inputs: { steer: 0 },
+      inputs: { steering: 0 },
       tires: {
         temperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
         wear: { fl: 0, fr: 0, rl: 0, rr: 0 },
@@ -273,7 +273,7 @@ describe("telemetry capability UI", () => {
   test("shows canonical litre fuel without inventing unavailable capacity", () => {
     const markup = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: liveView("iracing", { fuel: { amount: 40 } }),
+        view: liveView("iracing", { fuel: { remainingVolumeL: 40 } }),
       }),
     );
 
@@ -285,7 +285,7 @@ describe("telemetry capability UI", () => {
   test("uses canonical litre capacity for fuel fill", () => {
     const markup = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: liveView("acc", { fuel: { amount: 40, capacity: 100 } }),
+        view: liveView("acc", { fuel: { remainingVolumeL: 40, capacityL: 100 } }),
       }),
     );
 
@@ -301,7 +301,7 @@ describe("telemetry capability UI", () => {
     );
     const empty = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: liveView("acc", { fuel: { amount: 0, capacity: 100 } }),
+        view: liveView("acc", { fuel: { remainingVolumeL: 0, capacityL: 100 } }),
       }),
     );
 
@@ -314,12 +314,12 @@ describe("telemetry capability UI", () => {
   test("renders changing semantic iRacing fuel as a visible fill bar", () => {
     const full = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: liveView("iracing", { fuel: { amount: 100, capacity: 100 } }),
+        view: liveView("iracing", { fuel: { remainingVolumeL: 100, capacityL: 100 } }),
       }),
     );
     const used = renderToStaticMarkup(
       createElement(FuelGauge, {
-        view: liveView("iracing", { fuel: { amount: 60, capacity: 100 } }),
+        view: liveView("iracing", { fuel: { remainingVolumeL: 60, capacityL: 100 } }),
       }),
     );
 
@@ -330,25 +330,25 @@ describe("telemetry capability UI", () => {
     expect(used).toContain("background-color:");
   });
 
-  test("scales pit crew semantic pedal inputs from 0–255 to percentages", () => {
+  test("renders canonical pit crew pedal ratios as percentages", () => {
     const markup = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
         { client: new QueryClient() },
         createElement(LiveTelemetry, {
           mode: "pitcrew",
-          view: liveView("iracing", { inputs: { throttle: 64, brake: 32, gear: 3 } }),
+          view: liveView("iracing", { inputs: { throttle: 0.25, brake: 0.125, gear: 3 } }),
         }),
       ),
     );
 
-    expect(markup).toContain("width:25.098039215686274%");
-    expect(markup).toContain("width:12.549019607843137%");
-    expect(markup).not.toContain("width:6400%");
-    expect(markup).not.toContain("width:3200%");
+    expect(markup).toContain("width:25%");
+    expect(markup).toContain("width:12.5%");
+    expect(markup).not.toContain("width:2500%");
+    expect(markup).not.toContain("width:1250%");
   });
 
-  test("renders ACC and F1 pit fuel through simulator metadata", () => {
+  test("renders ACC and F1 pit fuel through canonical fuel semantics", () => {
     const accMarkup = renderToStaticMarkup(
       createElement(PitEstimate, {
         view: fakeAccSemanticFixture.view,
@@ -362,12 +362,12 @@ describe("telemetry capability UI", () => {
       }),
     );
 
-    expect(fakeAccSemanticFixture.view.fuel.capacity).toBe(120);
+    expect(fakeAccSemanticFixture.view.fuel.capacityL).toBe(120);
     expect(accMarkup).not.toContain("Fuel capacity unavailable");
     expect(accMarkup).toContain(`width:${(fakeAccPacket.Fuel / fakeAccPacket.FuelCapacity) * 100}%`);
-    expect(fakeF1SemanticFixture.view.fuel.amount).toBeGreaterThan(0);
-    expect(fakeF1SemanticFixture.view.fuel.amount).toBeLessThanOrEqual(1);
-    expect(f1Markup).toContain("39%");
+    expect(fakeF1SemanticFixture.view.fuel.remainingVolumeL).toBeGreaterThan(0);
+    expect(fakeF1SemanticFixture.view.fuel.remainingFraction).toBeLessThanOrEqual(1);
+    expect(f1Markup).toContain(`width:${fakeF1Packet.Fuel * 100}%`);
     expect(f1Markup).not.toContain("4250%");
   });
 
@@ -674,7 +674,7 @@ describe("telemetry capability UI", () => {
       createElement(AnalyseDynamicsPanel, {
         frame: semanticFrame({
           "motion.speed": 30,
-          "inputs.steer": 0,
+          "inputs.steering": 0,
           "tires.wheel-rotation-speed": [100, 101, 102, 103],
           "tires.tire-combined-slip": [0, 0, 0, 0],
           "tires.tire-slip-ratio": [0, 0, 0, 0],
@@ -699,9 +699,9 @@ describe("telemetry capability UI", () => {
         createElement(MetricsPanel, {
           frame: semanticFrame({
             "motion.speed": 30,
-            "inputs.accel": 128,
+            "inputs.throttle": 128 / 255,
             "inputs.brake": 0,
-            "inputs.steer": 0,
+            "inputs.steering": 0,
             "inputs.gear": 3,
             "engine.current-engine-rpm": 4_000,
             "tires.normalized-tire-slip-angle": [0.1, 0.1, 0.1, 0.1],

@@ -23,7 +23,10 @@ export function PitEstimate({ view, pit }: PitEstimateProps) {
   const analysis = resolveAnalysisTelemetry(adapter);
   const wears = view.tires.wear ? [view.tires.wear.fl, view.tires.wear.fr, view.tires.wear.rl, view.tires.wear.rr] : [];
   const healthAvailable = hasTireHealthDataSemantic(wears, analysis.tireHealth);
-  const fuel = view.fuel.amount === undefined ? undefined : getFuelDisplaySemantic(view.fuel.amount, view.fuel.capacity, telemetryModel.fuel);
+  const fuel =
+    view.fuel.remainingVolumeL === undefined && view.fuel.remainingFraction === undefined
+      ? undefined
+      : getFuelDisplaySemantic(view.fuel);
   const fuelPct = fuel?.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
   const isFuelCritical = fuel === undefined ? false : fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
   const isFuelWarning = fuel === undefined ? false : !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);

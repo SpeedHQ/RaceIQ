@@ -56,6 +56,7 @@ export function drawTrackCanvas(
   segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>,
   followCar = false,
   boundaries?: BoundaryData | null,
+
   telX: (x: number) => number = (x) => x,
   hideOutline = false,
   showSegmentMarkers = true,

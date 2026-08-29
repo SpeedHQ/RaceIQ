@@ -131,7 +131,7 @@ export function CarScene({
     packetRef.current = frame;
   });
   const carGroupRef = useRef<THREE.Group>(null);
-  const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
+  const prevTimeRef = useRef(semanticNumber(frame, "session.timestamp") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
 
@@ -170,8 +170,8 @@ export function CarScene({
 
   // Compute tire wear rate (/s) — smoothed with EMA
   useEffect(() => {
-    const dt = (semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0 - prevTimeRef.current) / 1000;
-    prevTimeRef.current = semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0;
+    const dt = (semanticNumber(frame, "session.timestamp") ?? 0 - prevTimeRef.current) / 1000;
+    prevTimeRef.current = semanticNumber(frame, "session.timestamp") ?? 0;
     const currentWear = [wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)];
     if (dt > 0 && dt < 1) {
       setWearRatesVal((prev) => {
@@ -186,7 +186,7 @@ export function CarScene({
     prevWear.current = currentWear;
   });
 
-  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steer") ?? 0);
+  const steerRad = steeringAngleRadians(semanticNumber(frame, "inputs.steering") ?? 0);
 
   // All games: fronts rotate by the normalized Steer input scaled to a
   // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading

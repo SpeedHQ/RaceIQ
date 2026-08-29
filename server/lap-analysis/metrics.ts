@@ -347,8 +347,10 @@ function round2(n: number): number {
  * Fuel used over a lap, in litres. Prefers the parser-provided per-lap fuel field
  * (ACC & AC-Evo both populate `acc.fuelPerLap`, litres) — the game's own rolling
  * estimate, read from the last frame that reports a positive value (most complete
- * at lap end). Falls back to the Δ of remaining fuel across the lap's frames
- * (first − last; `Fuel` is litres-remaining for ACC/AC-Evo).
+ * at lap end). Otherwise derives litres from the game's `Fuel` representation:
+ * ACC, AC Evo, and iRacing report litres directly, while F1 reports a fraction
+ * that must be multiplied by the packet's litre capacity. Forza also reports a
+ * fraction, but exposes no capacity contract, so it cannot produce this metric.
  *
  * Returns undefined when neither source is usable — including legacy laps with no
  * stored telemetry — so the caller omits the metric instead of reporting 0.
@@ -356,21 +358,47 @@ function round2(n: number): number {
 export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined {
   if (packets.length < 2) return undefined;
 
+  const gameId = packets[0].gameId;
+
   // Prefer the game-computed per-lap fuel field, latest positive reading.
-  for (let i = packets.length - 1; i >= 0; i--) {
-    const f = packets[i].acc?.fuelPerLap;
-    if (typeof f === "number" && Number.isFinite(f) && f > 0) return round2(f);
+  if (gameId === "acc" || gameId === "ac-evo") {
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const f = packets[i].acc?.fuelPerLap;
+      if (typeof f === "number" && Number.isFinite(f) && f > 0) return round2(f);
+    }
   }
 
-  // Fallback: fuel burned = remaining at lap start − remaining at lap end.
   const first = packets[0].Fuel;
   const last = packets[packets.length - 1].Fuel;
-  if (typeof first === "number" && typeof last === "number") {
-    const delta = first - last;
-    // Guard against noise/refuels: a real GT lap burns a few litres, never
-    // negative and never a full tank.
-    if (delta > 0 && delta < 100) return round2(delta);
+  if (!Number.isFinite(first) || !Number.isFinite(last)) return undefined;
+
+  const delta = first - last;
+  if (delta <= 0) return undefined;
+
+  let liters: number;
+  switch (gameId) {
+    case "acc":
+    case "ac-evo":
+    case "iracing":
+      liters = delta;
+      break;
+    case "f1-2025": {
+      const capacity = packets.find(
+        (packet) => Number.isFinite(packet.FuelCapacity) && (packet.FuelCapacity ?? 0) > 0,
+      )?.FuelCapacity;
+      if (typeof capacity !== "number") return undefined;
+      liters = delta * capacity;
+      break;
+    }
+    case "fm-2023":
+      return undefined;
+    default:
+      return undefined;
   }
+
+  // Guard against noise/refuels: a real lap burns a few litres, never
+  // negative and never a full tank.
+  if (liters > 0 && liters < 100) return round2(liters);
 
   return undefined;
 }

@@ -17,7 +17,7 @@ test("semantic replay requests every Analyse display dependency", () => {
     "brakes.brake-bias",
     "fuel.ers-deployed",
     "fuel.ers-harvested",
-    "fuel.fuel-capacity",
+    "fuel.capacity",
     "identity.car-ordinal",
     "motion.pitch",
     "motion.roll",
