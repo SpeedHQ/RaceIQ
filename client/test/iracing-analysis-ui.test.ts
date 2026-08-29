@@ -7,7 +7,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
+import { pathForwardOffsets, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
@@ -69,6 +69,29 @@ describe("iRacing analysis track marker", () => {
     expect(directions[3]).toEqual([0, 1]);
     expect(directions[4]).toEqual([0, 1]);
     expect(pathForwardOffsets([{ x: 4, z: 2 }, { x: 4, z: 2 }])).toEqual([null, null]);
+  });
+});
+
+describe("iRacing analysis semantic direction", () => {
+  const pathDirection: [number, number] = [1, 0];
+
+  test("prefers fresh valid semantic yaw over path tangent", () => {
+    const result = resolveFrameDirection(
+      { values: { "motion.yaw": Math.PI / 2 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "fresh" } },
+      pathDirection,
+    );
+    expect(result?.[0]).toBeCloseTo(1);
+    expect(result?.[1]).toBeCloseTo(0);
+  });
+
+  test("falls back to path tangent for missing, invalid, or stale yaw", () => {
+    for (const frame of [
+      { values: {}, states: {}, freshness: {} },
+      { values: { "motion.yaw": 0 }, states: { "motion.yaw": "error" }, freshness: {} },
+      { values: { "motion.yaw": 0 }, states: { "motion.yaw": "ok" }, freshness: { "motion.yaw": "stale" } },
+    ]) {
+      expect(resolveFrameDirection(frame, pathDirection)).toEqual(pathDirection);
+    }
   });
 });
 

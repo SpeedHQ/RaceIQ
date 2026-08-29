@@ -22,7 +22,12 @@ export interface MotecImportSuccess {
   routePrefix: string;
   laps: MotecImportedLap[];
   meta: { driver: string; venue: string; vehicleId: string; [k: string]: unknown };
+  missingChannels: readonly string[];
   limitations: readonly string[];
+}
+
+export function formatMotecMissingChannels(channels: readonly string[]): string {
+  return channels.length > 0 ? channels.join(", ") : "none";
 }
 
 export function formatMotecLapTime(seconds: number | null | undefined): string {
@@ -151,8 +156,12 @@ export function MotecImportModal({
                 </li>
               ))}
             </ul>
+            <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
+              Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
+            </p>
             <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
               <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
+              <p className="mb-2">Missing source channels: <span className="font-mono">{formatMotecMissingChannels(result.missingChannels)}</span></p>
               <ul className="list-disc space-y-1 pl-4">
                 {result.limitations.map((l) => (
                   <li key={l}>{l}</li>

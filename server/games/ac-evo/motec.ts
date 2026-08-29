@@ -91,10 +91,12 @@ const MIN_LAP_SECONDS = 30;
 
 /** Honest, user-facing list of what an import cannot carry. Surfaced by the route. */
 export const MOTEC_IMPORT_LIMITATIONS = [
-  "The racing line is dead-reckoned from speed and yaw rate, not logged — it is lap-relative and drifts, so treat it as shape, not survey geometry.",
-  "Steering is normalised against an assumed 240° lock — MoTeC does not export the car's steering lock.",
-  "Suspension and wheel-speed channels are logged by MoTeC at 200 Hz and are resampled down to 60 Hz.",
-  "Sector times are recomputed from track geometry, not read from the log.",
+  "Absolute vehicle position and heading are unavailable in this export; RaceIQ reconstructs them, so orientation and racing-line geometry are approximate.",
+  "Without absolute yaw, heading-based slip-angle calculations and reliable oversteer/understeer analysis are unavailable for comparison.",
+  "Steering-lock value is unavailable; steering is normalised against an assumed 240° lock.",
+  "Sector timing channels are unavailable; sector times are recomputed from track geometry.",
+  "Channels recorded below 60 Hz may miss rapid changes; channels recorded above 60 Hz are downsampled to 60 Hz, reducing high-frequency detail.",
+  "Native RaceIQ racing lines are approximate too; MoTeC imports add uncertainty where values must be reconstructed rather than directly recorded.",
 ] as const;
 
 /** Channel-name candidates, in preference order. MoTeC exporters vary. */
@@ -205,6 +207,10 @@ const G = 9.80665;
  * Heading is held instead — a car this slow contributes almost no arc anyway.
  */
 const MIN_SPEED_FOR_CURVATURE_MS = 3;
+function wrapRadians(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
 
 /**
  * Reconstruct a track path by integrating heading from yaw rate and position
@@ -294,6 +300,18 @@ function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, tr
   }
   const length = cumulative[cumulative.length - 1]!;
   if (!(length > 0)) return;
+
+  let startHeading: number | undefined;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i]!.x - outline[i - 1]!.x;
+    const dz = outline[i]!.z - outline[i - 1]!.z;
+    if (Math.hypot(dx, dz) > 1e-6) {
+      startHeading = Math.atan2(dx, dz);
+      break;
+    }
+  }
+  if (startHeading === undefined) return;
+
   for (let i = 0; i < path.x.length; i++) {
     const distance = Math.min(length, Math.max(0, lapDistanceM[i]!));
     let segment = 1;
@@ -304,8 +322,8 @@ function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, tr
     const t = span > 0 ? (distance - cumulative[segment - 1]!) / span : 0;
     path.x[i] = start.x + (end.x - start.x) * t;
     path.z[i] = start.z + (end.z - start.z) * t;
+    path.heading[i] = wrapRadians(path.heading[i]! + startHeading);
     const heading = Math.atan2(end.x - start.x, end.z - start.z);
-    path.heading[i] = heading;
     const speed = Math.hypot(path.vx[i]!, path.vz[i]!);
     path.vx[i] = Math.sin(heading) * speed;
     path.vz[i] = Math.cos(heading) * speed;

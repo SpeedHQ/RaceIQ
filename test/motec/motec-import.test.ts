@@ -295,16 +295,33 @@ describe("synthesizeAcEvoCapture", () => {
     expect(maxThrottle).toBe(255); // full throttle → 255
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
   });
-  test("normalized reconstructed heading agrees with normalized world velocity", () => {
+  test("preserves integrated body yaw while projecting velocity onto track", () => {
     const packets = parseFrames(capture.bin);
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
-    const moving = packets.filter((packet) => Math.hypot(packet.VelocityX, packet.VelocityZ) > 1);
-    expect(moving.some((packet) => Math.abs(packet.Yaw) > 0.01)).toBe(true);
-    for (const packet of moving.filter((_, index) => index % 10 === 0)) {
-      const expected = Math.atan2(packet.VelocityX, packet.VelocityZ);
-      const difference = Math.atan2(Math.sin(packet.Yaw - expected), Math.cos(packet.Yaw - expected));
-      expect(Math.abs(difference)).toBeLessThan(0.003);
+
+    const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    let yawSamples = 0;
+    let velocitySamples = 0;
+    for (let i = 1; i < packets.length; i++) {
+      const previous = packets[i - 1]!;
+      const packet = packets[i]!;
+      if (packet.LapNumber !== previous.LapNumber) continue;
+
+      const expectedYawDelta = -packet.AngularVelocityY / MOTEC_SYNTH_HZ;
+      const actualYawDelta = wrap(packet.Yaw - previous.Yaw);
+      expect(actualYawDelta).toBeCloseTo(expectedYawDelta, 5);
+      yawSamples++;
+
+      const dx = packet.PositionX - previous.PositionX;
+      const dz = packet.PositionZ - previous.PositionZ;
+      if (Math.hypot(dx, dz) <= 1e-6 || Math.hypot(packet.VelocityX, packet.VelocityZ) <= 1) continue;
+      const directionDelta = Math.atan2(dx, dz);
+      const velocityDirection = Math.atan2(packet.VelocityX, packet.VelocityZ);
+      expect(Math.abs(wrap(velocityDirection - directionDelta))).toBeLessThan(0.1);
+      velocitySamples++;
     }
+    expect(yawSamples).toBeGreaterThan(0);
+    expect(velocitySamples).toBeGreaterThan(0);
   });
 
   test("maps MoTeC steering and forward wheel rotation into AC Evo handedness", () => {
