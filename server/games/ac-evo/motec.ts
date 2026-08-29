@@ -283,7 +283,7 @@ export function deadReckonPath(
   return { x, z, vx, vz, heading: headings, yawFromLateralG: !hasYaw };
 }
 
-function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, lapIndexOf: Int32Array, trackOrdinal: number): void {
+function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, trackOrdinal: number): void {
   const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
   if (!outline || outline.length < 3) return;
   const cumulative = new Float64Array(outline.length);
@@ -294,7 +294,6 @@ function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, la
   }
   const length = cumulative[cumulative.length - 1]!;
   if (!(length > 0)) return;
-  const origin = outline[0]!;
   for (let i = 0; i < path.x.length; i++) {
     const distance = Math.min(length, Math.max(0, lapDistanceM[i]!));
     let segment = 1;
@@ -303,17 +302,13 @@ function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, la
     const end = outline[segment]!;
     const span = cumulative[segment]! - cumulative[segment - 1]!;
     const t = span > 0 ? (distance - cumulative[segment - 1]!) / span : 0;
-    path.x[i] = start.x + (end.x - start.x) * t - origin.x;
-    path.z[i] = start.z + (end.z - start.z) * t - origin.z;
+    path.x[i] = start.x + (end.x - start.x) * t;
+    path.z[i] = start.z + (end.z - start.z) * t;
     const heading = Math.atan2(end.x - start.x, end.z - start.z);
     path.heading[i] = heading;
     const speed = Math.hypot(path.vx[i]!, path.vz[i]!);
     path.vx[i] = Math.sin(heading) * speed;
     path.vz[i] = Math.cos(heading) * speed;
-    if (i > 0 && lapIndexOf[i] !== lapIndexOf[i - 1]) {
-      path.x[i] = 0;
-      path.z[i] = 0;
-    }
   }
 }
 
@@ -526,7 +521,7 @@ export function synthesizeAcEvoCapture(
   if (lapLengthM === 0) lapLengthM = lapDistM[frames - 1] ?? 0;
 
   const path = deadReckonPath(speedKmh, yawRate, gLat, lapIndexOf, dt, yawCh?.unit ?? "");
-  alignPathToTrack(path, lapDistM, lapIndexOf, carTrack.trackOrdinal);
+  alignPathToTrack(path, lapDistM, carTrack.trackOrdinal);
 
   // --- static page: constant for the whole capture ---
   const staticBuf = Buffer.alloc(STATIC_EVO.SIZE);
@@ -579,8 +574,8 @@ export function synthesizeAcEvoCapture(
     // World-frame velocity, kept consistent with the dead-reckoned path so the
     // parser's player-slot correlation (which matches velocity against
     // coordinate deltas) sees a coherent car.
-    physics.writeFloatLE(-path.vx[i]!, PHYSICS.velocityX.offset);
-    physics.writeFloatLE(path.heading[i]!, PHYSICS.heading.offset);
+    physics.writeFloatLE(path.vx[i]!, PHYSICS.velocityX.offset);
+    physics.writeFloatLE(-path.heading[i]!, PHYSICS.heading.offset);
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);
@@ -642,7 +637,7 @@ export function synthesizeAcEvoCapture(
     // Player car occupies slot 0; `active_cars` is 1 so the parser's slot
     // calibration only ever probes that slot.
     const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
-    graphics.writeFloatLE(-path.x[i]!, coordBase);
+    graphics.writeFloatLE(path.x[i]!, coordBase);
     graphics.writeFloatLE(0, coordBase + 4);
     graphics.writeFloatLE(path.z[i]!, coordBase + 8);
 

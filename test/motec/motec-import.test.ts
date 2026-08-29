@@ -21,6 +21,7 @@ import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
+import { flipPoints } from "../../shared/racing/tracks/coords";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
@@ -354,14 +355,13 @@ describe("synthesizeAcEvoCapture", () => {
   test("normalizes synthesized coordinates into native AC Evo track space", () => {
     const packets = parseFrames(capture.bin);
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
-    const outline = getTrackOutlineByOrdinal(5, "ac-evo")!;
-    const origin = outline[0]!;
+    const outline = flipPoints(getTrackOutlineByOrdinal(5, "ac-evo")!);
     const packet = packets[2000]!;
     let nearest = Infinity;
     for (const point of outline) {
       nearest = Math.min(nearest, Math.hypot(
-        point.x - origin.x - packet.PositionX,
-        point.z - origin.z - packet.PositionZ,
+        point.x - packet.PositionX,
+        point.z - packet.PositionZ,
       ));
     }
     expect(nearest).toBeLessThan(2);
