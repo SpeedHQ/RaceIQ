@@ -67,6 +67,14 @@ export function synthesizeAccCapture(log: LdLog, beacons: number[], override?: M
     physics.writeFloatLE(prepared.tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(prepared.abs[i]!, PHYSICS.abs.offset);
     physics.writeFloatLE(prepared.clutch[i]!, PHYSICS.clutch.offset);
+    physics.writeFloatLE(Number.NaN, PHYSICS.brakeBias.offset);
+    for (const field of [
+      PHYSICS.wheelSlipFL, PHYSICS.wheelSlipFR, PHYSICS.wheelSlipRL, PHYSICS.wheelSlipRR,
+      PHYSICS.slipRatioFL, PHYSICS.slipRatioFR, PHYSICS.slipRatioRL, PHYSICS.slipRatioRR,
+      PHYSICS.slipAngleFL, PHYSICS.slipAngleFR, PHYSICS.slipAngleRL, PHYSICS.slipAngleRR,
+    ]) {
+      physics.writeFloatLE(Number.NaN, field.offset);
+    }
     for (let c = 0; c < 4; c++) {
       const wheel = ["FL", "FR", "RL", "RR"][c]!;
       const p = PHYSICS[`tyrePressure${wheel}` as keyof typeof PHYSICS] as { offset: number };
@@ -113,5 +121,5 @@ export function synthesizeAccCapture(log: LdLog, beacons: number[], override?: M
   }
   const parts: Buffer[] = [encodeMetaFrame(records.length)];
   for (const record of records) parts.push(encodeFrameLength(record.length), record);
-  return { bin: Buffer.concat(parts), frameCount: records.length, lapCount: prepared.windows.length, carTrack, missingChannels: prepared.missingChannels, yawFromLateralG: prepared.path.yawFromLateralG };
+  return { bin: Buffer.concat(parts), frameCount: records.length, lapCount: prepared.windows.length, carTrack, missingChannels: prepared.missingChannels, sampleRates: log.channels.map((channel) => ({ name: channel.name, hz: channel.effectiveFreq })), yawFromLateralG: prepared.path.yawFromLateralG };
 }

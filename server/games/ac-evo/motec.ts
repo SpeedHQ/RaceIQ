@@ -92,7 +92,9 @@ const MIN_LAP_SECONDS = 30;
 /** Honest, user-facing list of what an import cannot carry. Surfaced by the route. */
 export const MOTEC_IMPORT_LIMITATIONS = [
   "Absolute vehicle position and heading are unavailable in this export; RaceIQ reconstructs them, so orientation and racing-line geometry are approximate.",
+  "Rotation: native recordings provide source Yaw; this MoTeC export provides only ROTY yaw rate, so RaceIQ cannot recover absolute body heading and uses reconstructed/path-based orientation.",
   "Without absolute yaw, heading-based slip-angle calculations and reliable oversteer/understeer analysis are unavailable for comparison.",
+  "Dependent analytics and displays are disabled when required channels are missing, rather than filled with unreliable estimates.",
   "Steering-lock value is unavailable; steering is normalised against an assumed 240° lock.",
   "Sector timing channels are unavailable; sector times are recomputed from track geometry.",
   "Channels recorded below 60 Hz may miss rapid changes; channels recorded above 60 Hz are downsampled to 60 Hz, reducing high-frequency detail.",
@@ -597,6 +599,14 @@ export function synthesizeAcEvoCapture(
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);
+    physics.writeFloatLE(Number.NaN, PHYSICS.brakeBias.offset);
+    for (const field of [
+      PHYSICS.wheelSlipFL, PHYSICS.wheelSlipFR, PHYSICS.wheelSlipRL, PHYSICS.wheelSlipRR,
+      PHYSICS.slipRatioFL, PHYSICS.slipRatioFR, PHYSICS.slipRatioRL, PHYSICS.slipRatioRR,
+      PHYSICS.slipAngleFL, PHYSICS.slipAngleFR, PHYSICS.slipAngleRL, PHYSICS.slipAngleRR,
+    ]) {
+      physics.writeFloatLE(Number.NaN, field.offset);
+    }
 
     const corner = [
       { press: PHYSICS.tyrePressureFL, core: PHYSICS.tyreCoreFL, temp: PHYSICS.tyreTempFL, brake: PHYSICS.brakeTempFL, susp: PHYSICS.suspTravelFL, rot: PHYSICS.wheelRotFL },
@@ -683,6 +693,7 @@ export function synthesizeAcEvoCapture(
     lapCount: windows.length,
     carTrack,
     missingChannels,
+    sampleRates: log.channels.map((channel) => ({ name: channel.name, hz: channel.effectiveFreq })),
     yawFromLateralG: path.yawFromLateralG,
   };
 }

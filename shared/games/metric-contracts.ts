@@ -1,9 +1,11 @@
 import type { GameId } from "./ids";
+import type { AnalysisTelemetryMetric, AnalysisTelemetryModel, GameAdapter } from "./types";
 import type {
   TelemetryCatalogData,
   TelemetryVariableDefinition,
 } from "../telemetry/catalog/contracts";
 import type { TelemetryVariableId } from "../telemetry/catalog/generated/telemetry-catalog.types";
+import { resolveAnalysisTelemetry } from "../racing/analysis/telemetry-capabilities";
 
 export type SemanticValueBinding = {
   kind: "value";
@@ -172,4 +174,32 @@ export function requiredSemanticIds(
     if (spec.source !== "unavailable") add(spec.binding);
   }
   return [...ids];
+}
+
+export interface UnavailableAnalysisFeature {
+  feature: keyof AnalysisTelemetryModel;
+  missingSemanticIds: readonly TelemetryVariableId[];
+}
+
+function requiredIds(binding: SemanticMetricBinding): readonly TelemetryVariableId[] {
+  if (binding.kind === "value") return [binding.semanticId];
+  if (binding.kind === "group") return binding.required;
+  return binding.requires;
+}
+
+
+export function unavailableAnalysisFeatures(
+  adapter: GameAdapter,
+  availableSemanticIds: ReadonlySet<string>,
+): UnavailableAnalysisFeature[] {
+  const analysis = resolveAnalysisTelemetry(adapter);
+  const unavailable: UnavailableAnalysisFeature[] = [];
+  for (const [feature, metric] of Object.entries(analysis) as Array<
+    [keyof AnalysisTelemetryModel, AnalysisTelemetryMetric]
+  >) {
+    if (metric.source === "unavailable" || !metric.binding) continue;
+    const missingSemanticIds = requiredIds(metric.binding).filter((id) => !availableSemanticIds.has(id));
+    if (missingSemanticIds.length > 0) unavailable.push({ feature, missingSemanticIds });
+  }
+  return unavailable;
 }

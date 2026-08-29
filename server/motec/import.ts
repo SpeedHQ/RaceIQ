@@ -34,8 +34,19 @@ import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { getGame } from "../../shared/games/registry";
+import {
+  unavailableAnalysisFeatures,
+  type UnavailableAnalysisFeature,
+} from "../../shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+import { groupsById } from "../../shared/telemetry/catalog/query";
 import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
+import { resolveTelemetryReplay } from "../telemetry/replay";
+import { getServerGame } from "../games/registry";
+import { iterateSessionFrameRecords } from "../session-capture/framing";
 import { unlink } from "node:fs/promises";
 
 export { MOTEC_SESSION_SOURCE };
@@ -57,7 +68,9 @@ export interface MotecImportResult {
     time: string;
     duration: number;
   };
-  missingChannels: string[];
+  capabilities: Array<{ semanticId: string; label: string; group: string; available: boolean }>;
+  unavailableFeatures: UnavailableAnalysisFeature[];
+  sampleRates: Array<{ name: string; hz: number }>;
   yawFromLateralG: boolean;
   limitations: readonly string[];
 }
@@ -95,11 +108,49 @@ export async function importMotec(
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = ldxBytes ? parseLdxBeacons(ldxBytes.toString("utf8")) : [];
-
   const capture = target.synthesize(log, beacons, {
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
+  const adapter = getGame(target.gameId);
+  const semanticIds = TELEMETRY_CATALOG.variables.map((variable) => variable.id);
+  const serverGame = getServerGame(target.gameId);
+  const parserState = serverGame.createParserState();
+  const samplePackets: TelemetryPacket[] = [];
+  for (const { frame } of iterateSessionFrameRecords(capture.bin)) {
+    const packet = serverGame.tryParse(frame, parserState);
+    if (packet) samplePackets.push(packet);
+    if (samplePackets.length === 2) break;
+  }
+  const semanticReplay = resolveTelemetryReplay(
+    0,
+    {
+      id: 0,
+      sessionId: 0,
+      createdAt: new Date().toISOString(),
+      gameId: target.gameId,
+      rawFile: null,
+      rawByteOffset: null,
+      rawFrameCount: null,
+    },
+    samplePackets,
+    semanticIds,
+  );
+  const availableSemanticIds = new Set<string>();
+  for (const envelope of semanticReplay.envelopes) {
+    for (const value of envelope.values) {
+      if (value.state === "ok") availableSemanticIds.add(value.semanticId);
+    }
+  }
+  const capabilities = TELEMETRY_CATALOG.variables
+    .map((variable) => ({
+      semanticId: variable.id,
+      label: variable.label,
+      group: groupsById.get(variable.parentId)?.label ?? variable.parentId,
+      available: availableSemanticIds.has(variable.id),
+    }))
+    .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+  const unavailableFeatures = unavailableAnalysisFeatures(adapter, availableSemanticIds);
   const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
   let imported: { packetCount: number; laps: ImportedLap[] };
   try {
@@ -123,6 +174,7 @@ export async function importMotec(
     }
   }
 
+
   return {
     gameId: target.gameId,
     laps,
@@ -137,7 +189,9 @@ export async function importMotec(
       time: log.time,
       duration: log.duration,
     },
-    missingChannels: capture.missingChannels,
+    sampleRates: capture.sampleRates,
+    capabilities,
+    unavailableFeatures,
     yawFromLateralG: capture.yawFromLateralG,
     limitations: target.limitations,
   };

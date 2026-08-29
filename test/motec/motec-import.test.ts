@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { initGameAdapters } from "../../shared/games/init";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getServerGame } from "../../server/games/registry";
 import { parseLd, findChannel } from "../../server/motec/ld";
@@ -400,6 +401,20 @@ describe("importMotec end to end", () => {
     expect(result.laps.length).toBeGreaterThanOrEqual(2);
     expect(result.packetCount).toBeGreaterThan(0);
     expect(result.meta.venue).toBe("spa");
+    expect(result.unavailableFeatures).toEqual(expect.arrayContaining([
+      { feature: "balance", missingSemanticIds: ["tires.tire-slip-angle"] },
+      { feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] },
+    ]));
+    expect(result.capabilities).toHaveLength(TELEMETRY_CATALOG.variables.length);
+    expect(result.capabilities).toEqual(expect.arrayContaining([
+      { semanticId: "inputs.accel", label: "Accel", group: "Driver inputs", available: true },
+      { semanticId: "inputs.brake", label: "Brake", group: "Driver inputs", available: true },
+      { semanticId: "inputs.steer", label: "Steer", group: "Driver inputs", available: true },
+      { semanticId: "inputs.gear", label: "Gear", group: "Driver inputs", available: true },
+      { semanticId: "motion.speed", label: "Speed", group: "Vehicle motion", available: true },
+      { semanticId: "engine.current-engine-rpm", label: "Current Engine RPM", group: "Engine", available: true },
+      { semanticId: "brakes.brake-bias", label: "Front brake bias", group: "Brakes", available: false },
+    ]));
 
     for (const lap of result.laps) {
       expect(lap.lapTime).toBeGreaterThan(115);

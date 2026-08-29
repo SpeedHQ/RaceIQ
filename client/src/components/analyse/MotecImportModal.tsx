@@ -22,19 +22,112 @@ export interface MotecImportSuccess {
   routePrefix: string;
   laps: MotecImportedLap[];
   meta: { driver: string; venue: string; vehicleId: string; [k: string]: unknown };
-  missingChannels: readonly string[];
+  capabilities: readonly {
+    semanticId: string;
+    label: string;
+    group: string;
+    available: boolean;
+  }[];
+  unavailableFeatures: readonly { feature: string; missingSemanticIds: readonly string[] }[];
   limitations: readonly string[];
 }
 
-export function formatMotecMissingChannels(channels: readonly string[]): string {
-  return channels.length > 0 ? channels.join(", ") : "none";
+
+const FEATURE_LABELS: Readonly<Record<string, string>> = {
+  brakeBias: "Brake Bias",
+  gForce: "G Force",
+  gripDemand: "Grip Ask",
+  slipAngle: "Slip Angle",
+  slipRatio: "Slip Ratio",
+  tireHealth: "Tire Health",
+  tirePressure: "Tire Pressure",
+  tireTemperature: "Tire Temperature",
+  tireWearRate: "Tire Wear Rate",
+  wheelRotation: "Wheel Rotation",
+  suspensionCompressionBias: "Suspension Compression Bias",
+  suspensionTravel: "Suspension",
+};
+
+function featureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] ?? feature.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
 }
+
+
+export function formatUnavailableFeatures(
+  features: readonly { feature: string; missingSemanticIds: readonly string[] }[],
+): string[] {
+  return features.map(({ feature, missingSemanticIds }) =>
+    `${featureLabel(feature)} — missing ${missingSemanticIds.join(", ")}`
+  );
+}
+
+
 
 export function formatMotecLapTime(seconds: number | null | undefined): string {
   if (seconds == null || seconds <= 0) return "—";
   const mm = Math.floor(seconds / 60);
   const ss = (seconds % 60).toFixed(3).padStart(6, "0");
   return `${mm}:${ss}`;
+}
+
+export function MotecImportNote({ result, onClose }: { result: MotecImportSuccess; onClose: () => void }) {
+  const groups = new Map<string, MotecImportSuccess["capabilities"][number][]>();
+  for (const capability of result.capabilities) {
+    const entries = groups.get(capability.group) ?? [];
+    entries.push(capability);
+    groups.set(capability.group, entries);
+  }
+
+  return (
+    <div className="mt-4 space-y-3 text-xs text-app-text-dim">
+      <p className="text-app-text">
+        Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
+        <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
+        {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
+      </p>
+      <ul className="space-y-1 font-mono tabular-nums">
+        {result.laps.map((lap) => (
+          <li key={lap.lapId}>Lap {lap.lapNumber} — {formatMotecLapTime(lap.lapTime)}</li>
+        ))}
+      </ul>
+      <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
+        Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
+      </p>
+      <div className="max-h-[55vh] overflow-y-auto rounded border border-status-warning/30 bg-status-warning/5 p-3">
+        <div className="mb-2 font-semibold text-status-warning">What this data can and can't tell you</div>
+        <ul className="mb-4 list-disc space-y-1 pl-4">
+          {result.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+        </ul>
+        <div className="mb-2 font-semibold text-app-text">Canonical channels</div>
+        <div className="space-y-4">
+          {[...groups].map(([group, capabilities]) => (
+            <section key={group}>
+              <h3 className="mb-1 font-semibold text-app-text">{group}</h3>
+              <ul className="space-y-1 font-mono">
+                {capabilities.map((capability) => (
+                  <li key={capability.semanticId} className="flex items-baseline justify-between gap-4">
+                    <span>{capability.label} <span className="text-app-text-dim">({capability.semanticId})</span></span>
+                    <span className={capability.available ? "text-status-success" : "text-app-text-dim"}>
+                      {capability.available ? "Available" : "Unavailable"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <div className="mt-4 mb-1 font-semibold text-app-text">Disabled features</div>
+        {result.unavailableFeatures.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-4 font-mono">
+            {formatUnavailableFeatures(result.unavailableFeatures).map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        ) : <p className="font-mono">none</p>}
+      </div>
+      <div className="flex justify-end">
+        <Button variant="app-outline" size="app-md" onClick={onClose}>Done</Button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -143,37 +236,7 @@ export function MotecImportModal({
         </DialogHeader>
 
         {result ? (
-          <div className="mt-4 space-y-3 text-xs text-app-text-dim">
-            <p className="text-app-text">
-              Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
-              <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
-              {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
-            </p>
-            <ul className="space-y-1 font-mono tabular-nums">
-              {result.laps.map((l) => (
-                <li key={l.lapId}>
-                  Lap {l.lapNumber} — {formatMotecLapTime(l.lapTime)}
-                </li>
-              ))}
-            </ul>
-            <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
-              Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
-            </p>
-            <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
-              <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
-              <p className="mb-2">Missing source channels: <span className="font-mono">{formatMotecMissingChannels(result.missingChannels)}</span></p>
-              <ul className="list-disc space-y-1 pl-4">
-                {result.limitations.map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex justify-end">
-              <Button variant="app-outline" size="app-md" onClick={onClose}>
-                Done
-              </Button>
-            </div>
-          </div>
+          <MotecImportNote result={result} onClose={onClose} />
         ) : (
           <div className="mt-4 space-y-4 text-xs">
             {!fixedTarget && !initialGameId && (
