@@ -436,7 +436,13 @@ export function synthesizeAcEvoCapture(
   const brakeTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.brakeTemp(c)), frames, dt));
   const tyrePress = CORNERS.map((c) => resample(pick(log, CHANNELS.tyrePress(c)), frames, dt));
   const tyreTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.tyreTemp(c)), frames, dt));
-  const suspTravel = CORNERS.map((c) => resample(pick(log, CHANNELS.suspTravel(c)), frames, dt));
+  const suspTravelChannels = CORNERS.map((c) => pick(log, CHANNELS.suspTravel(c)));
+  const suspTravel = suspTravelChannels.map((channel) => {
+    const values = resample(channel, frames, dt);
+    return /^(mm|millimet(er|re)s?)$/i.test(channel?.unit?.trim() ?? "")
+      ? values.map((value) => value / 1000)
+      : values;
+  });
   const wheelSpeed = CORNERS.map((c) => resample(pick(log, CHANNELS.wheelSpeed(c)), frames, dt));
 
   const carTrack = resolveMotecCarTrack(log, override);
@@ -555,7 +561,7 @@ export function synthesizeAcEvoCapture(
       physics.writeFloatLE(tyreTemp[c]![i]!, corner[c]!.temp.offset);
       physics.writeFloatLE(brakeTemp[c]![i]!, corner[c]!.brake.offset);
       physics.writeFloatLE(suspTravel[c]![i]!, corner[c]!.susp.offset);
-      physics.writeFloatLE(-wheelSpeed[c]![i]!, corner[c]!.rot.offset);
+      physics.writeFloatLE(wheelSpeed[c]![i]!, corner[c]!.rot.offset);
     }
 
     const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);

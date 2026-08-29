@@ -305,12 +305,12 @@ describe("synthesizeAcEvoCapture", () => {
     }
   });
 
-  test("maps MoTeC steering and wheel rotation into AC Evo handedness", () => {
+  test("maps MoTeC steering and forward wheel rotation into AC Evo handedness", () => {
     const packets = parseFrames(capture.bin);
     const moving = packets.find((packet) => packet.Speed > 1 && Math.abs(packet.Steer) > 1);
     expect(moving).toBeDefined();
     expect(moving!.Steer).toBeLessThan(0);
-    expect(moving!.WheelRotationSpeedFL).toBeLessThan(0);
+    expect(moving!.WheelRotationSpeedFL).toBeGreaterThan(0);
   });
 
   test("lap timing resets at each beacon and reports the completed lap time", () => {
