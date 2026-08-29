@@ -190,6 +190,8 @@ export interface DeadReckonedPath {
   /** World-frame velocity components, metres/second. */
   vx: Float64Array;
   vz: Float64Array;
+  /** Lap-relative heading, radians, measured from +Z toward +X. */
+  heading: Float64Array;
   /** True when yaw came from lateral G rather than a real `ROTY` channel. */
   yawFromLateralG: boolean;
 }
@@ -230,6 +232,7 @@ export function deadReckonPath(
   const z = new Float64Array(frames);
   const vx = new Float64Array(frames);
   const vz = new Float64Array(frames);
+  const headings = new Float64Array(frames);
 
   const hasYaw = peakAbs(yawRate) > 0;
   // MoTeC writes yaw rate as either rad/s or deg/s depending on exporter.
@@ -258,6 +261,7 @@ export function deadReckonPath(
         : 0;
 
     if (!isLapStart) heading += omega * dt;
+    headings[i] = heading;
 
     // Heading is measured from +Z toward +X, matching the adapter's
     // "standard-xyz" convention where the map plots X across and Z along.
@@ -275,7 +279,7 @@ export function deadReckonPath(
   }
 
   closeLapLoops(x, z, lapIndexOf);
-  return { x, z, vx, vz, yawFromLateralG: !hasYaw };
+  return { x, z, vx, vz, heading: headings, yawFromLateralG: !hasYaw };
 }
 
 /**
@@ -534,6 +538,7 @@ export function synthesizeAcEvoCapture(
     // parser's player-slot correlation (which matches velocity against
     // coordinate deltas) sees a coherent car.
     physics.writeFloatLE(path.vx[i]!, PHYSICS.velocityX.offset);
+    physics.writeFloatLE(path.heading[i]!, PHYSICS.heading.offset);
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);

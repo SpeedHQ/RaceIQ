@@ -6,11 +6,11 @@ import { getServerGame } from "../../server/games/registry";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";
 import {
-  deadReckonPath,
   lapWindows,
 } from "../../server/motec/kunos-synthesis";
 import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
 import {
+  deadReckonPath,
   resolveMotecCarTrack,
   synthesizeAcEvoCapture,
 } from "../../server/games/ac-evo/motec";
@@ -108,6 +108,10 @@ describe("MoTeC .ldx beacons", () => {
     expect(parseLdxBeacons(buildLdx([60, 120.5]))).toEqual([60, 120.5]);
   });
 
+  test("reads scientific-notation marker times", () => {
+    expect(parseLdxBeacons('<MarkerGroup Name="Beacons"><Marker Time="1.43637e+08"/></MarkerGroup>')).toEqual([143.637]);
+  });
+
   test("an empty beacon group is a single stint, not an error", () => {
     expect(parseLdxBeacons(buildLdx([]))).toEqual([]);
   });
@@ -170,6 +174,22 @@ describe("deadReckonPath", () => {
     const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s");
     expect(path.x[60]).toBe(0);
     expect(path.z[60]).toBe(0);
+  });
+
+  test("stores integrated heading and resets it at each lap", () => {
+    const frames = 120;
+    const speed = new Float64Array(frames).fill(100);
+    const yaw = new Float64Array(frames).fill(0.5);
+    const gLat = new Float64Array(frames);
+    const lapIndex = new Int32Array(frames);
+    for (let i = 0; i < 60; i++) lapIndex[i] = 0;
+    for (let i = 60; i < frames; i++) lapIndex[i] = 1;
+
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s");
+    expect(path.heading[0]).toBe(0);
+    expect(path.heading[30]).toBeGreaterThan(0);
+    expect(path.heading[60]).toBe(0);
+    expect(path.heading[90]).toBeGreaterThan(0);
   });
 
   test("falls back to lateral G when ROTY is absent", () => {
@@ -266,10 +286,19 @@ describe("synthesizeAcEvoCapture", () => {
     const topSpeed = Math.max(...packets.map((p) => p.Speed));
     expect(topSpeed).toBeCloseTo(50, 0);
 
+
     const maxThrottle = Math.max(...packets.map((p) => p.Accel));
     const maxBrake = Math.max(...packets.map((p) => p.Brake));
     expect(maxThrottle).toBe(255); // full throttle → 255
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
+  });
+  test("round-trips reconstructed heading with world velocity", () => {
+    const packets = parseFrames(capture.bin);
+    const moving = packets.filter((packet) => Math.hypot(packet.VelocityX, packet.VelocityZ) > 1);
+    expect(new Set(moving.map((packet) => packet.Yaw.toFixed(4))).size).toBeGreaterThan(1);
+    for (const packet of moving.slice(0, 20)) {
+      expect(packet.Yaw).toBeCloseTo(Math.atan2(packet.VelocityX, packet.VelocityZ), 3);
+    }
   });
 
   test("lap timing resets at each beacon and reports the completed lap time", () => {
