@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   assertGameMetricContracts,
   assertSemanticBinding,
-  unavailableAnalysisFeatures,
 } from "../../shared/games/metric-contracts";
 import { KNOWN_GAME_IDS } from "../../shared/games/ids";
 import { initGameAdapters } from "../../shared/games/init";
@@ -119,24 +118,5 @@ describe("semantic metric bindings", () => {
         TELEMETRY_CATALOG,
       ),
     ).not.toThrow();
-  });
-
-  test("reports disabled features from missing canonical requirements", () => {
-    const adapter = getGame("ac-evo");
-    const available = new Set([
-      "motion.speed",
-      "motion.acceleration-x",
-      "motion.acceleration-z",
-      "motion.angular-velocity-y",
-      "inputs.steer",
-      "tires.wheel-rotation-speed",
-    ]);
-
-    expect(unavailableAnalysisFeatures(adapter, available)).toEqual(expect.arrayContaining([
-      { feature: "balance", missingSemanticIds: ["tires.tire-slip-angle"] },
-      { feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] },
-      { feature: "gripDemand", missingSemanticIds: ["tires.tire-slip-angle"] },
-      { feature: "slipAngle", missingSemanticIds: ["tires.tire-slip-angle"] },
-    ]));
   });
 });

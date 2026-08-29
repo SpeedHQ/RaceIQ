@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { DEFAULT_TOGGLES } from "../src/lib/wireframe-data";
 import { buildDemoFixture } from "../../scripts/telemetry/generate-demo-fixture";
 import { buildLoadTrail } from "../src/components/wireframe/CarScene";
-import { DEMO_CAR } from "../src/data/car-models";
+
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 function frame(index: number): SemanticAnalysisFrame {
@@ -28,10 +28,6 @@ test("bounds welcome load trail work for long telemetry recordings", () => {
 
 test("enables input lines in default wireframe view", () => {
   expect(DEFAULT_TOGGLES.inputs).toBe(true);
-});
-
-test("keeps fallback demo body in canonical vehicle frame", () => {
-  expect(DEMO_CAR.glbRotationY ?? 0).toBe(0);
 });
 
 test("generates canonical pedal and tire channels for demo packets", () => {

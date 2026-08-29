@@ -6,7 +6,7 @@ import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
-import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFramesForTest } from "../../../server/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
 import { getAccCarName } from "../../../shared/racing/cars/acc"
@@ -187,7 +187,7 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     }
     expect(rawPackets.length).toBe(N);
 
-    const normalized = parseRawLapFramesFromBuffer(raw, startOffset, N, "acc", ACC_SESSION_BIN);
+    const normalized = await parseRawLapFramesForTest(ACC_SESSION_BIN, startOffset, N, "acc");
     expect(normalized.length).toBe(N);
 
     for (let i = 0; i < N; i++) {

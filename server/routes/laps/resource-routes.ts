@@ -13,7 +13,6 @@ import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
 import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
-import { loadSessionCapture } from "../../session-capture/source-loader";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
@@ -243,16 +242,12 @@ export const resourceRoutes = new Hono()
     if (!row) return c.json({ error: "Lap not found" }, 404);
     if (!row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
 
-    let bytes: Uint8Array;
-    try {
-      bytes = await loadSessionCapture({
-        rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-        carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
-      });
-    } catch {
-      return c.json({ error: "Raw capture file is missing on disk" }, 410);
+    const file = Bun.file(row.rawFile);
+    if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    if (!row.rawFile.endsWith(".gz")) {
+      bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
     }
-    bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
 
     const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
     const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
@@ -265,7 +260,7 @@ export const resourceRoutes = new Hono()
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
     c.header("Content-Length", String(bytes.byteLength));
-    return c.body(bytes.slice().buffer as ArrayBuffer);
+    return c.body(bytes);
   })
 
   .patch("/api/laps/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {

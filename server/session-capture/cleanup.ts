@@ -2,7 +2,7 @@
  * Session file cleanup for startup and scheduled maintenance.
  *
  * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
- * `.bin`, `.bin.gz`, and `.motec.zip` captures not referenced by `sessions.rawFile`.
+ * `.bin` / `.bin.gz` captures not referenced by `sessions.rawFile`.
  */
 import { readdir, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -59,7 +59,7 @@ export async function listSessionCaptureFiles(): Promise<string[]> {
       continue;
     }
     for (const file of await readdir(dirPath)) {
-      if (file.endsWith(".bin") || file.endsWith(".bin.gz") || file.endsWith(".motec.zip")) {
+      if (file.endsWith(".bin") || file.endsWith(".bin.gz")) {
         captureFiles.push(join(dirPath, file));
       }
     }

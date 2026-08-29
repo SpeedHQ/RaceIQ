@@ -346,7 +346,6 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
-        gameId={gameId}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),

@@ -43,10 +43,6 @@ export async function updateSession(
 export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
-export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
-  await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();
-}
-
 
 
 export async function updateSessionRawFile(
@@ -118,7 +114,8 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .from(sessions)
     .where(
       and(
-        sql`${sessions.rawFile} LIKE '%.bin'`,
+        sql`${sessions.rawFile} IS NOT NULL`,
+        sql`${sessions.rawFile} NOT LIKE '%.gz'`,
         sql`${sessions.createdAt} < ${cutoff}`
       )
     )

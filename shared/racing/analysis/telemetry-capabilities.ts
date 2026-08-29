@@ -7,7 +7,6 @@ import type {
 
 export const DEFAULT_ANALYSIS_TELEMETRY: AnalysisTelemetryModel = {
   balance: { source: "unavailable", reason: "missing-model" },
-  brakeBias: { source: "unavailable", reason: "source-limitation" },
   gForce: { source: "unavailable", reason: "missing-model" },
   gripDemand: { source: "unavailable", reason: "source-limitation" },
   traction: { source: "unavailable", reason: "source-limitation" },

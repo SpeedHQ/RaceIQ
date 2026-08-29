@@ -18,7 +18,6 @@
 import { zipSync, unzipSync } from "fflate";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
-import { loadSessionCapture } from "../session-capture/source-loader";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import {
@@ -31,6 +30,7 @@ import {
   advanceSessionFrames,
   encodeMetaFrame,
   gzipBufferSync,
+  gunzipBufferSync,
   readFrameStreamStart,
   sessionFrameAt,
 } from "../session-capture/framing";
@@ -90,13 +90,12 @@ function encodeManifestFile(manifest: LapsZipManifest): Uint8Array {
  * Read capture bytes from disk and decompress gzip raw files.
  * Returns null when the file is missing or unreadable.
  */
-async function readCapture(row: RawLapRow): Promise<Buffer | null> {
+async function readCapture(rawFile: string): Promise<Buffer | null> {
   try {
-    if (!row.rawFile) return null;
-    return await loadSessionCapture({
-      rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-      carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
-    });
+    const file = Bun.file(rawFile);
+    if (!(await file.exists())) return null;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    return rawFile.endsWith(".gz") ? gunzipBufferSync(bytes) : bytes;
   } catch {
     return null;
   }
@@ -217,7 +216,8 @@ export async function buildLapsZip(
     const usable = usableRawLaps(rows);
     if (usable.length === 0) continue;
 
-    const buf = await readCapture(usable[0]);
+    const rawFile = usable[0].rawFile as string;
+    const buf = await readCapture(rawFile);
     if (!buf) continue; // capture gone from disk — nothing to export for this session
 
     const first = usable[0];

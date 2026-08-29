@@ -26,7 +26,6 @@ interface AnalyseSemanticFrame {
   values: SemanticAnalysisFrame["values"];
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
 }
 const emptyLaps: LapMeta[] = [];
 
@@ -45,7 +44,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId(search.lap ?? null);
   }, [routeSelectionKey]);
   const { data: allLaps = emptyLaps } = useLapsQuery();
-  const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
   const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
     () =>
@@ -55,14 +53,13 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
         values: semanticValues(envelope.values),
         states: Object.fromEntries(envelope.values.filter((entry) => entry.state).map((entry) => [entry.semanticId, entry.state])),
         freshness: Object.fromEntries(envelope.values.filter((entry) => entry.freshness).map((entry) => [entry.semanticId, entry.freshness])),
-        source: selectedLap?.source ?? null,
       })) ?? [],
-    [semanticReplay, selectedLap?.source],
+    [semanticReplay],
   );
   const telemetry = semanticFrames;
   const displayTelemetry = semanticFrames;
+  const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
   const lapLoading = semanticLoading;
-
   const parseError = semanticError instanceof Error && "parseError" in semanticError ? String((semanticError as Error & { parseError?: unknown }).parseError ?? "") : null;
   const lapError = parseError ? null : semanticError;
   useEffect(() => {

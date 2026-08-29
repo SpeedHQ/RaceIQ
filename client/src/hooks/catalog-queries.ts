@@ -10,7 +10,7 @@ import { queryKeys } from "./query-keys";
 export function useTracksForGame(gameId: GameId | null) {
   return useQuery({
     queryKey: ["tracks", gameId ?? null],
-    queryFn: async () => rpcJson<{ ordinal: number; name: string; variant?: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    queryFn: async () => rpcJson<{ ordinal: number; name: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
     enabled: !!gameId,
     staleTime: Number.POSITIVE_INFINITY,
   });
@@ -38,8 +38,7 @@ export function useCarsFromEndpoint(endpoint: string | null) {
     queryFn: async () => {
       const res = await fetch(endpoint!);
       if (!res.ok) throw new Error(`Failed to load cars (${res.status})`);
-      const cars = (await res.json()) as { ordinal?: number; id?: number; name: string; class?: string }[];
-      return cars.map((car) => ({ ordinal: car.ordinal ?? car.id!, name: car.name, class: car.class }));
+      return (await res.json()) as { ordinal: number; name: string; class?: string }[];
     },
     enabled: !!endpoint,
     staleTime: Number.POSITIVE_INFINITY,

@@ -153,6 +153,7 @@ export function CarScene({
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
   const bodyRoll = (rightAvg - leftAvg) * 0.1;
+
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
@@ -160,7 +161,6 @@ export function CarScene({
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
-
   useFrame(() => {
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
@@ -472,7 +472,7 @@ export function CarScene({
             </mesh>
           </>
         )}
-        </group>
+      </group>
 
       {/* Track outline (center line) */}
       {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}

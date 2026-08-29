@@ -5,7 +5,6 @@ export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
   states: Readonly<Record<string, string | undefined>>;
   freshness: Readonly<Record<string, string | undefined>>;
-  source?: "motec" | null;
 }
 
 export interface SemanticValueEntry {

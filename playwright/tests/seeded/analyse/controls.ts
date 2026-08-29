@@ -1,7 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { setAnalyseFrame } from "../../support/seeded/analyse";
 
-type SemanticFrame = { values: Record<string, unknown> };
 export async function assertLapSelectors(page: Page, expectedLapNumber?: number): Promise<void> {
   for (const placeholder of ["Search tracks...", "Search cars..."]) {
     const selector = page.getByRole("combobox", { name: placeholder });
@@ -19,57 +17,19 @@ export async function assertTuneSelector(page: Page): Promise<void> {
   if (await tuneSelector.count()) await expect(tuneSelector).toBeVisible();
 }
 
-export async function exercisePlaybackControls(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
+export async function exercisePlaybackControls(page: Page): Promise<void> {
   const slider = page.getByRole("slider", { name: "Lap timeline" });
   await expect(slider).toHaveAttribute("aria-valuenow", "0");
-  let startFrame = -1;
-  for (let i = 30; i + 120 < semanticFrames.length; i++) {
-    const speeds = new Set(
-      semanticFrames
-        .slice(i, i + 120)
-        .map((frame) => frame.values["motion.speed"])
-        .filter((value): value is number => typeof value === "number" && Number.isFinite(value))
-        .map((value) => Math.round(value)),
-    );
-    if (speeds.size >= 10) {
-      startFrame = i;
-      break;
-    }
-  }
-  if (startFrame < 0) throw new Error("Seeded Analyse fixture lacks 120-frame motion.speed variation window");
-  await expect.poll(() => page.evaluate(() => typeof (window as typeof window & { __setFrame?: unknown }).__setFrame), { timeout: 30_000 }).toBe("function");
-  await setAnalyseFrame(page, startFrame);
-  await page.getByRole("tab", { name: "3D", exact: true }).click();
-  const oneX = page.getByRole("button", { name: "1x", exact: true });
-  if (await oneX.getAttribute("aria-pressed") !== "true") await oneX.click();
-
-  await page.evaluate(() => {
-    const panel = Array.from(document.querySelectorAll('[role="tabpanel"]')).find((element) => element.textContent?.includes("Metrics at Cursor"));
-    const grid = panel?.querySelector(".grid");
-    if (!grid) throw new Error("Analyse Data metric grid unavailable");
-    let mutations = 0;
-    new MutationObserver((records) => { mutations += records.length; }).observe(grid, { childList: true, subtree: true, characterData: true });
-    (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations = () => mutations;
-  });
-  await page.getByTitle("Play (Space)").click();
-  await page.waitForTimeout(2000);
-  await page.getByTitle("Pause (Space)").click({ force: true });
-  const pausedFrame = Number(await slider.getAttribute("aria-valuenow"));
-  expect(await page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
-  expect(pausedFrame).toBeGreaterThan(startFrame);
-  const speedRow = page.getByText("Speed", { exact: true }).last().locator("..");
-  const speedText = await speedRow.innerText();
-  const expectedSpeed = semanticFrames[pausedFrame]?.values["motion.speed"];
-  expect(typeof expectedSpeed).toBe("number");
-  const displayedSpeed = /km\/h/i.test(speedText) ? (expectedSpeed as number) * 3.6 : (expectedSpeed as number) * 2.23694;
-  expect(speedText).toContain(String(Math.round(displayedSpeed)));
-
   for (const speed of [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5]) {
     const speedButton = page.getByRole("button", { name: `${speed}x`, exact: true });
     await speedButton.click();
     await expect(speedButton).toHaveAttribute("aria-pressed", "true");
   }
   await page.getByRole("button", { name: "2x", exact: true }).click();
+
+  await page.getByTitle("Play (Space)").click();
+  await expect.poll(() => slider.getAttribute("aria-valuenow"), { timeout: 10_000 }).not.toBe("0");
+  await page.getByTitle("Pause (Space)").click();
   const beforeKeyboardStep = Number(await slider.getAttribute("aria-valuenow"));
   await slider.press("ArrowRight");
   await expect.poll(async () => Number(await slider.getAttribute("aria-valuenow"))).toBeGreaterThan(beforeKeyboardStep);

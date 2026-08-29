@@ -8,8 +8,8 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip, detectLapsZip } from "../../laps/archive";
 import { importSessionBin, detectGameIdFromBuffer } from "../../session-capture/import-capture";
 import { cancelStagedIbt, commitStagedIbt, IbtImportError, stageIbtUpload } from "../../games/iracing/import-ibt";
-import { importMotec } from "../../motec/import";
-import { resolveMotecTarget, getMotecTargets, initMotecTargets, type MotecTarget } from "../../motec/targets";
+import { importMotec, resolveMotecTarget } from "../../motec/import";
+import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 export const transferRoutes = new Hono()
@@ -143,16 +143,11 @@ export const transferRoutes = new Hono()
       return c.json({ error: "Expected a MoTeC .ld file" }, 400);
     }
 
-    const gameIdRaw = form?.get("gameId");
-    if (typeof gameIdRaw !== "string" || gameIdRaw.trim() === "") {
-      return c.json({ error: "gameId is required" }, 400);
-    }
-
     // The sidecar carries the lap beacons. Without it the log imports as a
     // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
-    const ldxBytes = sidecar instanceof File ? Buffer.from(await sidecar.arrayBuffer()) : undefined;
+    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
 
     // Car and track are the user's call, not the log header's — a log filed
@@ -171,12 +166,14 @@ export const transferRoutes = new Hono()
     }
 
     // Which sim exported the log. Resolved up front so an unsupported game is a
-    // 400 naming the problem, not a 500 from deep inside the transcoder.
-    let target: MotecTarget;
+    // 400 naming the problem, not a 500 from deep inside the transcoder — and
+    // so the ordinals above are read against the right game's roster.
+    const gameIdRaw = form?.get("gameId");
+    let target: ReturnType<typeof resolveMotecTarget>;
     try {
-      target = resolveMotecTarget(gameIdRaw);
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
+    } catch (err: any) {
+      return c.json({ error: String(err?.message ?? err) }, 400);
     }
 
     // laps.tune_id is a real FK, so an id that doesn't exist would surface as a
@@ -189,7 +186,7 @@ export const transferRoutes = new Hono()
     }
 
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxBytes, {
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
         gameId: target.gameId,
         carOrdinal,
         trackOrdinal,

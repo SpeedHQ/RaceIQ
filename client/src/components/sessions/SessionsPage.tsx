@@ -205,7 +205,6 @@ export function SessionsPage() {
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
         <SessionImportModal
-          gameId={gameId}
           onClose={() => setImportOpen(false)}
           onImported={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions });

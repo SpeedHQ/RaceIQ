@@ -38,11 +38,9 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
 
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
-  const flip = needsTrackFlip(gameId);
-  const displayTrackOutline = outline && flip ? flipPoints(outline) : outline;
-  const displayOutline: Point[] = !showTrace ? (displayTrackOutline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (displayTrackOutline ?? []);
-  const drawingReferenceOutline = displayTrackOutline !== null && displayOutline === displayTrackOutline;
+  const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
   if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
+  const flip = needsTrackFlip(gameId);
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
@@ -112,7 +110,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
   ctx.moveTo(sx, sy);
   for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-  if (drawingReferenceOutline) ctx.lineTo(sx, sy);
+  if (outline) ctx.lineTo(sx, sy);
   ctx.stroke();
 
   if (raceLine) {
@@ -210,7 +208,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.lineWidth = 2;
     ctx.moveTo(sx, sy);
     for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-    if (drawingReferenceOutline) ctx.lineTo(sx, sy);
+    if (outline) ctx.lineTo(sx, sy);
     ctx.stroke();
   }
 

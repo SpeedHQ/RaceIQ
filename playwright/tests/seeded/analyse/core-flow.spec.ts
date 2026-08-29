@@ -10,9 +10,6 @@ import { exportImportAndDelete } from "./lifecycle";
 test("Analyse supports selection, playback, notes, export, import, and delete cancellation", async ({ page, request }) => {
   test.setTimeout(180_000);
   const browserErrors = collectBrowserErrors(page);
-  await page.addInitScript(() => {
-    (window as unknown as Record<string, unknown>).__recording = true;
-  });
   const initialLap = await getSeededLapTarget(request, "fm-2023");
   const alternateSeededLap = await getAlternateSeededLap(request, initialLap);
   const sessionsBefore = await gameRows<SessionMeta>(request, "sessions");
@@ -34,14 +31,6 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
   expect(selectedLapId).toBeGreaterThan(0);
   const selectedLap = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id === selectedLapId);
   if (!selectedLap) throw new Error(`Selected lap ${selectedLapId} not found`);
-  const semanticResponse = await request.get(`/api/laps/${selectedLapId}/semantic-telemetry`, { headers: { "X-Game-Id": "fm-2023" } });
-  expect(semanticResponse.ok(), "selected lap semantic replay response").toBe(true);
-  const semanticReplay = (await semanticResponse.json()) as {
-    envelopes: Array<{ values: Array<{ semanticId: string; value: unknown }> }>;
-  };
-  const semanticFrames = semanticReplay.envelopes.map((envelope) => ({
-    values: Object.fromEntries(envelope.values.map(({ semanticId, value }) => [semanticId, value])),
-  }));
   const originalTuneId = selectedLap.tuneId ?? null;
   let tuneChanged = false;
   await assertLapSelectors(page, selectedLap.lapNumber);
@@ -60,7 +49,7 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
     }
   }
 
-  await exercisePlaybackControls(page, semanticFrames);
+  await exercisePlaybackControls(page);
   await exerciseInsightsAndMap(page);
   await exercise3dGuide(page);
   await exerciseAiSetup(page);

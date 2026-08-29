@@ -10,9 +10,9 @@
  * silently. The failure mode is a plausible-looking lap, not an error.
  *
  * So the set of importable games is exactly the set of transcoders someone has
- * written and checked against a real export from that game. Today that is AC
- * Evo and ACC. The registry exists so the second one is an entry rather than
- * an excavation: nothing outside this file — no route, no component — names a
+ * written and checked against a real export from that game. Today that is one
+ * (AC Evo). The registry exists so the second one is an entry rather than an
+ * excavation: nothing outside this file — no route, no component — names a
  * game.
  *
  * ## Adding a game
@@ -21,7 +21,7 @@
  *    function and a limitations list, modelled on `server/games/ac-evo/motec.ts`.
  * 2. Add the target to the registry in {@link initMotecTargets}.
  * 3. Nothing else. The import route validates against the registry and the
- *    client surfaces only the selected game's matching target.
+ *    client dialog renders a game picker on its own once there is more than one.
  *
  * Do NOT register a game whose export has not actually been inspected. An
  * unverified mapping is worse than an unsupported one, because the user cannot
@@ -37,9 +37,8 @@ import type {
 } from "./types";
 import {
   MOTEC_IMPORT_LIMITATIONS,
-} from "./kunos-synthesis";
-import { synthesizeAccCapture } from "../games/acc/motec";
-import { synthesizeAcEvoCapture } from "../games/ac-evo/motec";
+  synthesizeAcEvoCapture,
+} from "../games/ac-evo/motec";
 
 /**
  * Transcodes a parsed log into a session capture for one game.
@@ -86,40 +85,31 @@ export function tryGetMotecTarget(gameId: string): MotecTarget | undefined {
 }
 
 /**
- * Resolve targets only through explicit game identity at call sites.
+ * The game an import lands in when the caller names none.
+ *
+ * Only defined while exactly one transcoder exists — with a single choice the
+ * dialog shows no picker and sends no gameId, and inventing a default is the
+ * whole point. The moment a second game is registered this returns undefined
+ * and the route demands an explicit choice, because guessing which sim a `.ld`
+ * came from is precisely the mistake this module exists to prevent.
  */
+export function getDefaultMotecTarget(): MotecTarget | undefined {
+  return targets.size === 1 ? targets.values().next().value : undefined;
+}
 
 let initialised = false;
 
 export function initMotecTargets(): void {
   if (initialised) return;
   initialised = true;
-  const acEvo = getGame("ac-evo");
-  const acc = getGame("acc");
+  const game = getGame("ac-evo");
 
-  targets.set("acc", {
-    gameId: "acc",
-    displayName: acc.displayName,
-    routePrefix: acc.routePrefix,
-    carsEndpoint: "/api/acc/cars",
-    limitations: MOTEC_IMPORT_LIMITATIONS,
-    synthesize: synthesizeAccCapture,
-  });
   targets.set("ac-evo", {
     gameId: "ac-evo",
-    displayName: acEvo.displayName,
-    routePrefix: acEvo.routePrefix,
+    displayName: game.displayName,
+    routePrefix: game.routePrefix,
     carsEndpoint: "/api/ac-evo/cars",
     limitations: MOTEC_IMPORT_LIMITATIONS,
     synthesize: synthesizeAcEvoCapture,
   });
-}
-/**
- * Resolve explicitly selected game transcoder.
- */
-export function resolveMotecTarget(gameId: string): MotecTarget {
-  initMotecTargets();
-  const target = tryGetMotecTarget(gameId);
-  if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
-  return target;
 }
