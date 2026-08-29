@@ -62,6 +62,7 @@ import { getAcEvoTrackByName,
 getAcEvoTrackBySetupFolder,
 getAcEvoTracks, } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { findChannel, type LdChannel, type LdLog } from "../../motec/ld";
+import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
 import type {
   MotecCarTrack,
   MotecCarTrackOverride,
@@ -282,6 +283,40 @@ export function deadReckonPath(
   return { x, z, vx, vz, heading: headings, yawFromLateralG: !hasYaw };
 }
 
+function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, lapIndexOf: Int32Array, trackOrdinal: number): void {
+  const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
+  if (!outline || outline.length < 3) return;
+  const cumulative = new Float64Array(outline.length);
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i]!.x - outline[i - 1]!.x;
+    const dz = outline[i]!.z - outline[i - 1]!.z;
+    cumulative[i] = cumulative[i - 1]! + Math.hypot(dx, dz);
+  }
+  const length = cumulative[cumulative.length - 1]!;
+  if (!(length > 0)) return;
+  const origin = outline[0]!;
+  for (let i = 0; i < path.x.length; i++) {
+    const distance = Math.min(length, Math.max(0, lapDistanceM[i]!));
+    let segment = 1;
+    while (segment < cumulative.length - 1 && cumulative[segment]! < distance) segment++;
+    const start = outline[segment - 1]!;
+    const end = outline[segment]!;
+    const span = cumulative[segment]! - cumulative[segment - 1]!;
+    const t = span > 0 ? (distance - cumulative[segment - 1]!) / span : 0;
+    path.x[i] = start.x + (end.x - start.x) * t - origin.x;
+    path.z[i] = start.z + (end.z - start.z) * t - origin.z;
+    const heading = Math.atan2(end.x - start.x, end.z - start.z);
+    path.heading[i] = heading;
+    const speed = Math.hypot(path.vx[i]!, path.vz[i]!);
+    path.vx[i] = Math.sin(heading) * speed;
+    path.vz[i] = Math.cos(heading) * speed;
+    if (i > 0 && lapIndexOf[i] !== lapIndexOf[i - 1]) {
+      path.x[i] = 0;
+      path.z[i] = 0;
+    }
+  }
+}
+
 /**
  * Force each completed lap's path to return to its own start.
  *
@@ -491,6 +526,7 @@ export function synthesizeAcEvoCapture(
   if (lapLengthM === 0) lapLengthM = lapDistM[frames - 1] ?? 0;
 
   const path = deadReckonPath(speedKmh, yawRate, gLat, lapIndexOf, dt, yawCh?.unit ?? "");
+  alignPathToTrack(path, lapDistM, lapIndexOf, carTrack.trackOrdinal);
 
   // --- static page: constant for the whole capture ---
   const staticBuf = Buffer.alloc(STATIC_EVO.SIZE);
