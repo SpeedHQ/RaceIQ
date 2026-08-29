@@ -2,11 +2,12 @@ import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import { deleteSession } from "../db/session-queries";
+import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
+
 
 
 export interface ImportedLap {
@@ -35,10 +36,14 @@ export class ImportCaptureAdapter implements DbAdapter {
     number,
     { carOrdinal: number; trackOrdinal: number }
   >();
+  private readonly _sessionSource?: string;
 
-  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {}) {
+
+  constructor(options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership; sessionSource?: string } = {}) {
     this._inner = new RealDbAdapter(options);
+    this._sessionSource = options.sessionSource;
   }
+
 
   async insertSession(
     carOrdinal: number,
@@ -58,7 +63,9 @@ export class ImportCaptureAdapter implements DbAdapter {
     );
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
+    if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
+
   }
 
   insertLap(
@@ -158,26 +165,60 @@ async function rollbackImport(
 }
 
 type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
+/** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
+export class ImportSourceOffsetTracker implements SessionRecorderAdapter {
+  private activeState = false;
+  private started = false;
+  private offset = 0;
+  private currentEpoch = 0;
+  private readonly sourcePath: string;
 
-interface ImportSessionFramesOptions {
+  constructor(sourcePath: string) {
+    this.sourcePath = sourcePath;
+  }
+
+  get active(): boolean { return this.activeState; }
+  get path(): string | null { return this.activeState ? this.sourcePath : null; }
+  get epoch(): number { return this.currentEpoch; }
+  start(_gameId: GameId): void {
+    if (this.started) throw new Error("Import source cannot be started more than once");
+    this.started = true;
+    this.activeState = true;
+    this.offset = 0;
+    this.currentEpoch++;
+  }
+  writeMetaFrame(): void { if (this.activeState) this.offset = 12; }
+  writeRecord(frame: Buffer): void { if (this.activeState) this.offset += 4 + frame.length; }
+  getCurrentByteOffset(): number { return this.activeState ? this.offset : 0; }
+  flush(): void {}
+  async stop(): Promise<void> { this.activeState = false; }
+}
+
+
+export interface ImportSessionOptions {
   /** Roll back the imported session and capture when no complete lap exists. */
   requireLaps?: boolean;
   /** Opt out of background profile generation for offline imports such as seeds. */
   notifyDriverProfile?: boolean;
   /** Ownership classification applied to every created session. */
   ownership?: SessionOwnership;
+  /** Recorder used to persist the source representation. */
+  recorder?: SessionRecorderAdapter;
+  /** Source marker stamped on created sessions before reconciliation. */
+  sessionSource?: string;
 }
+
 
 /**
  * Feed any canonical raw-frame stream through an isolated parser + pipeline.
- * The live telemetry pipeline recorder writes the imported source back out as RaceIQ's
- * standard session `.bin`, so replay/export/reprocessing work identically no
- * matter which source format supplied the frames.
+ * The pipeline recorder persists the source representation supplied by the caller,
+ * while parser and lap detection operate on canonical frames in memory.
  */
 export async function importSessionFrames(
   frames: SessionFrameSource,
   gameId: GameId,
-  options: ImportSessionFramesOptions = {},
+  options: ImportSessionOptions = {},
+
 ): Promise<{
   packetCount: number;
   laps: ImportedLap[];
@@ -188,9 +229,11 @@ export async function importSessionFrames(
   const db = new ImportCaptureAdapter({
     notifyDriverProfile: options.notifyDriverProfile,
     ownership: options.ownership,
+    sessionSource: options.sessionSource,
   });
   const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
+    recorder: options.recorder,
   });
 
   let packetCount = 0;

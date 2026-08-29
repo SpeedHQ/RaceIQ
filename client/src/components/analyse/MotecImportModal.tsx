@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
-import { OwnershipChoice } from "../import/OwnershipChoice";
 import type { GameId } from "../../../../shared/games/ids";
-import { useCarsFromEndpoint, useMotecTargets, useTracksForGame } from "../../hooks/catalog-queries";
+import { OwnershipChoice } from "../import/OwnershipChoice";
+import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
+import type { MotecTargetInfo } from "../../hooks/catalog-queries";
 import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -21,15 +22,112 @@ export interface MotecImportSuccess {
   routePrefix: string;
   laps: MotecImportedLap[];
   meta: { driver: string; venue: string; vehicleId: string; [k: string]: unknown };
+  capabilities: readonly {
+    semanticId: string;
+    label: string;
+    group: string;
+    available: boolean;
+  }[];
+  unavailableFeatures: readonly { feature: string; missingSemanticIds: readonly string[] }[];
   limitations: readonly string[];
 }
 
-function fmtLapTime(ms: number | null | undefined): string {
-  if (ms == null || ms <= 0) return "—";
-  const totalSec = ms / 1000;
-  const mm = Math.floor(totalSec / 60);
-  const ss = (totalSec % 60).toFixed(3).padStart(6, "0");
+
+const FEATURE_LABELS: Readonly<Record<string, string>> = {
+  brakeBias: "Brake Bias",
+  gForce: "G Force",
+  gripDemand: "Grip Ask",
+  slipAngle: "Slip Angle",
+  slipRatio: "Slip Ratio",
+  tireHealth: "Tire Health",
+  tirePressure: "Tire Pressure",
+  tireTemperature: "Tire Temperature",
+  tireWearRate: "Tire Wear Rate",
+  wheelRotation: "Wheel Rotation",
+  suspensionCompressionBias: "Suspension Compression Bias",
+  suspensionTravel: "Suspension",
+};
+
+function featureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] ?? feature.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
+}
+
+
+export function formatUnavailableFeatures(
+  features: readonly { feature: string; missingSemanticIds: readonly string[] }[],
+): string[] {
+  return features.map(({ feature, missingSemanticIds }) =>
+    `${featureLabel(feature)} — missing ${missingSemanticIds.join(", ")}`
+  );
+}
+
+
+
+export function formatMotecLapTime(seconds: number | null | undefined): string {
+  if (seconds == null || seconds <= 0) return "—";
+  const mm = Math.floor(seconds / 60);
+  const ss = (seconds % 60).toFixed(3).padStart(6, "0");
   return `${mm}:${ss}`;
+}
+
+export function MotecImportNote({ result, onClose }: { result: MotecImportSuccess; onClose: () => void }) {
+  const groups = new Map<string, MotecImportSuccess["capabilities"][number][]>();
+  for (const capability of result.capabilities) {
+    const entries = groups.get(capability.group) ?? [];
+    entries.push(capability);
+    groups.set(capability.group, entries);
+  }
+
+  return (
+    <div className="mt-4 space-y-3 text-xs text-app-text-dim">
+      <p className="text-app-text">
+        Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
+        <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
+        {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
+      </p>
+      <ul className="space-y-1 font-mono tabular-nums">
+        {result.laps.map((lap) => (
+          <li key={lap.lapId}>Lap {lap.lapNumber} — {formatMotecLapTime(lap.lapTime)}</li>
+        ))}
+      </ul>
+      <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
+        Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
+      </p>
+      <div className="max-h-[55vh] overflow-y-auto rounded border border-status-warning/30 bg-status-warning/5 p-3">
+        <div className="mb-2 font-semibold text-status-warning">What this data can and can't tell you</div>
+        <ul className="mb-4 list-disc space-y-1 pl-4">
+          {result.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+        </ul>
+        <div className="mb-2 font-semibold text-app-text">Canonical channels</div>
+        <div className="space-y-4">
+          {[...groups].map(([group, capabilities]) => (
+            <section key={group}>
+              <h3 className="mb-1 font-semibold text-app-text">{group}</h3>
+              <ul className="space-y-1 font-mono">
+                {capabilities.map((capability) => (
+                  <li key={capability.semanticId} className="flex items-baseline justify-between gap-4">
+                    <span>{capability.label} <span className="text-app-text-dim">({capability.semanticId})</span></span>
+                    <span className={capability.available ? "text-status-success" : "text-app-text-dim"}>
+                      {capability.available ? "Available" : "Unavailable"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <div className="mt-4 mb-1 font-semibold text-app-text">Disabled features</div>
+        {result.unavailableFeatures.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-4 font-mono">
+            {formatUnavailableFeatures(result.unavailableFeatures).map((warning) => <li key={warning}>{warning}</li>)}
+          </ul>
+        ) : <p className="font-mono">none</p>}
+      </div>
+      <div className="flex justify-end">
+        <Button variant="app-outline" size="app-md" onClick={onClose}>Done</Button>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -45,19 +143,27 @@ function fmtLapTime(ms: number | null | undefined): string {
  * one unsplit stint, which is the right answer for a standalone hotlap export
  * but wrong for a full session, hence the inline note rather than a hard
  * requirement.
- *
- * The game is asked of the server (`/api/motec/targets`) — a `.ld` names no
- * sim, and each one's exporter scales channels differently, so which game the
- * log came from is the user's call among the transcoders that exist. While
- * there is only one the picker stays hidden and the dialog states the
- * assumption instead.
+ * The game is selected explicitly when this modal is opened outside Analyse.
+ * When Analyse supplies a target, its route game remains authoritative.
  */
-export function MotecImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (r: MotecImportSuccess) => void }) {
-  const ldRef = useRef<HTMLInputElement>(null);
-  const ldxRef = useRef<HTMLInputElement>(null);
-  const [ld, setLd] = useState<File | null>(null);
+export function MotecImportModal({
+  target: fixedTarget,
+  initialGameId,
+  initialLd,
+  onClose,
+  onImported,
+}: {
+  target?: MotecTargetInfo;
+  initialGameId?: GameId | null;
+  initialLd?: File | null;
+  onClose: () => void;
+  onImported?: (r: MotecImportSuccess) => void;
+}) {
+  const { data: targets = [] } = useMotecTargets();
+  const [selectedGameId, setSelectedGameId] = useState<GameId | "">(fixedTarget?.gameId ?? initialGameId ?? "");
+  const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
+  const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
-  const [gameId, setGameId] = useState<GameId | "">("");
   const [carOrdinal, setCarOrdinal] = useState("");
   const [trackOrdinal, setTrackOrdinal] = useState("");
   const [tuneId, setTuneId] = useState("");
@@ -66,18 +172,20 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
-  const { data: targets = [] } = useMotecTargets();
-  // Single target = no decision to make; auto-select so the picker can stay
-  // hidden until a second transcoder lands.
-  const effectiveGameId: GameId | "" = gameId || (targets.length === 1 ? targets[0].gameId : "");
-  const target = targets.find((t) => t.gameId === effectiveGameId) ?? null;
+  useEffect(() => {
+    setCarOrdinal("");
+    setTrackOrdinal("");
+    setTuneId("");
+  }, [target?.gameId]);
 
   const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
-  const { data: tracks = [] } = useTracksForGame(effectiveGameId || null);
-  const { data: tunes = [] } = useUserTunes(effectiveGameId || undefined);
+  const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
+  const { data: tunes = [] } = useUserTunes(target?.gameId);
+  const ldRef = useRef<HTMLInputElement>(null);
+  const ldxRef = useRef<HTMLInputElement>(null);
 
   const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.ordinal), label: c.name, group: c.class })), [cars]);
-  const trackOptions = useMemo(() => [...tracks].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.name })), [tracks]);
+  const trackOptions = useMemo(() => [...tracks].sort((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.variant ? `${t.name} (${t.variant})` : t.name })), [tracks]);
   // Only setups for the chosen car can apply to these laps; before a car is
   // picked there is nothing sensible to offer, so the list stays empty.
   const tuneOptions = useMemo(() => {
@@ -87,17 +195,17 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
       .map((t) => ({ value: String(t.id), label: t.name }));
   }, [tunes, carOrdinal]);
 
-  const canSubmit = !!ld && !!effectiveGameId && !!carOrdinal && !!trackOrdinal && !busy;
+  const canSubmit = !!target && !!ld && !!carOrdinal && !!trackOrdinal && !busy;
 
   async function submit() {
-    if (!ld || !effectiveGameId || !carOrdinal || !trackOrdinal) return;
+    if (!target || !ld || !carOrdinal || !trackOrdinal) return;
     setBusy(true);
     setError(null);
     try {
       const body = new FormData();
       body.append("file", ld);
       if (ldx) body.append("ldx", ldx);
-      body.append("gameId", effectiveGameId);
+      body.append("gameId", target.gameId);
       body.append("carOrdinal", carOrdinal);
       body.append("trackOrdinal", trackOrdinal);
       if (tuneId) body.append("tuneId", tuneId);
@@ -122,65 +230,34 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
         <DialogHeader>
           <DialogTitle variant="import">Import MoTeC log</DialogTitle>
         </DialogHeader>
 
         {result ? (
-          <div className="mt-4 space-y-3 text-xs text-app-text-dim">
-            <p className="text-app-text">
-              Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
-              <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
-              {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
-            </p>
-            <ul className="space-y-1 font-mono tabular-nums">
-              {result.laps.map((l) => (
-                <li key={l.lapId}>
-                  Lap {l.lapNumber} — {fmtLapTime(l.lapTime)}
-                </li>
-              ))}
-            </ul>
-            <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
-              <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
-              <ul className="list-disc space-y-1 pl-4">
-                {result.limitations.map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex justify-end">
-              <Button variant="app-outline" size="app-md" onClick={onClose}>
-                Done
-              </Button>
-            </div>
-          </div>
+          <MotecImportNote result={result} onClose={onClose} />
         ) : (
           <div className="mt-4 space-y-4 text-xs">
-            {targets.length > 1 ? (
+            {!fixedTarget && !initialGameId && (
               <div className="block text-app-text-dim">
                 Game
                 <SearchSelect
-                  value={effectiveGameId}
-                  onChange={(v) => {
-                    setGameId(v as GameId);
-                    // Car/track/setup ordinals are per-game; carrying them
-                    // across would file the log against another sim's track.
-                    setCarOrdinal("");
-                    setTrackOrdinal("");
-                    setTuneId("");
-                  }}
-                  options={targets.map((t) => ({ value: t.gameId, label: t.displayName }))}
-                  placeholder="Which sim exported this log?"
+                  value={selectedGameId}
+                  onChange={(value) => setSelectedGameId(value as GameId)}
+                  options={targets.map((item) => ({ value: item.gameId, label: item.displayName }))}
+                  placeholder="Choose game..."
                   className="mt-1"
                 />
               </div>
-            ) : (
-              <p className="text-app-text-dim">
-                Filed as <span className="text-app-text">{target?.displayName ?? "…"}</span> — the channel mapping is only verified against that game's export, so logs from other sims would import
-                wrong rather than fail.
-              </p>
             )}
+            <p className="text-app-text-dim">
+              {target ? (
+                <>Filed as <span className="text-app-text">{target.displayName}</span> — use a log exported by this game; another sim’s channels can import with the wrong meaning instead of failing.</>
+              ) : (
+                "Choose supported game to load its car and track catalogs."
+              )}
+            </p>
 
             <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
 

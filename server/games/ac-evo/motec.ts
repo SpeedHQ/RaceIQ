@@ -16,26 +16,17 @@
  *
  * So this file's whole job is: MoTeC channel arrays → AC Evo pages.
  *
- * ## Position, which MoTeC does not log directly
+ * Position reconstruction
  *
- * A MoTeC AC Evo export has no world-position channels — no `CAR_COORD_*`, no
- * GPS — but the track map does not need them: it renders the per-packet
- * `PositionX/PositionZ` path, and that path can be dead-reckoned from speed and
- * yaw rate. This is exactly how MoTeC i2 draws its own track maps.
+ * MoTeC does not log absolute vehicle position or heading. We integrate speed
+ * along measured yaw (or lateral-G fallback), reset each lap to a local frame,
+ * then rigidly place each reconstructed lap at the AC Evo start/finish line.
+ * Geometry stays metre-space and lap-specific; only laps bounded by two real
+ * beacons receive loop closure correction.
  *
- * {@link deadReckonPath} integrates heading from yaw rate (`ROTY`, or lateral G
- * over speed when `ROTY` is absent) and advances position along it. The result
- * is genuinely lap-specific — a lap carrying more speed through a corner traces
- * a visibly different arc — so line-spread and lap-comparison stay meaningful
- * rather than showing every lap on one identical synthetic line.
- *
- * The frame is reset to the origin at each lap start, so laps overlay each other
- * instead of marching away as integration drift accumulates across a stint. The
- * geometry is therefore lap-relative and approximate: good for comparing shapes,
- * not a survey of the circuit. Sessions carry a `motec` source flag so the UI can
- * say so. See {@link MOTEC_IMPORT_LIMITATIONS}.
- *
- * ## Steering
+ * {@link deadReckonPath} provides local geometry, while synthesis applies the
+ * rigid track-space placement. This preserves differences in speed and
+ * curvature between laps instead of replacing every trace with the centreline.
  *
  * MoTeC logs `STEERANGLE` in degrees of wheel rotation and does not export the
  * car's steering lock, while AC Evo's physics page carries a normalised -1..1.
@@ -45,6 +36,7 @@
  * would silently rescale each import by how much lock that particular stint
  * happened to use.
  */
+
 
 import {
   ACEVO_CAR_LOCATION,
@@ -62,6 +54,7 @@ import { getAcEvoTrackByName,
 getAcEvoTrackBySetupFolder,
 getAcEvoTracks, } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { findChannel, type LdChannel, type LdLog } from "../../motec/ld";
+import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
 import type {
   MotecCarTrack,
   MotecCarTrackOverride,
@@ -90,10 +83,14 @@ const MIN_LAP_SECONDS = 30;
 
 /** Honest, user-facing list of what an import cannot carry. Surfaced by the route. */
 export const MOTEC_IMPORT_LIMITATIONS = [
-  "The racing line is dead-reckoned from speed and yaw rate, not logged — it is lap-relative and drifts, so treat it as shape, not survey geometry.",
-  "Steering is normalised against an assumed 240° lock — MoTeC does not export the car's steering lock.",
-  "Suspension and wheel-speed channels are logged by MoTeC at 200 Hz and are resampled down to 60 Hz.",
-  "Sector times are recomputed from track geometry, not read from the log.",
+  "Absolute vehicle position and heading are unavailable in this export; RaceIQ reconstructs them, so orientation and racing-line geometry are approximate.",
+  "Rotation: native recordings provide source Yaw; this MoTeC export provides only ROTY yaw rate, so RaceIQ cannot recover absolute body heading and uses reconstructed/path-based orientation.",
+  "Without absolute yaw, heading-based slip-angle calculations and reliable oversteer/understeer analysis are unavailable for comparison.",
+  "Dependent analytics and displays are disabled when required channels are missing, rather than filled with unreliable estimates.",
+  "Steering-lock value is unavailable; steering is normalised against an assumed 240° lock.",
+  "Sector timing channels are unavailable; sector times are recomputed from track geometry.",
+  "Channels recorded below 60 Hz may miss rapid changes; channels recorded above 60 Hz are downsampled to 60 Hz, reducing high-frequency detail.",
+  "Native RaceIQ racing lines are approximate too; MoTeC imports add uncertainty where values must be reconstructed rather than directly recorded.",
 ] as const;
 
 /** Channel-name candidates, in preference order. MoTeC exporters vary. */
@@ -190,6 +187,8 @@ export interface DeadReckonedPath {
   /** World-frame velocity components, metres/second. */
   vx: Float64Array;
   vz: Float64Array;
+  /** Lap-relative heading, radians, measured from +Z toward +X. */
+  heading: Float64Array;
   /** True when yaw came from lateral G rather than a real `ROTY` channel. */
   yawFromLateralG: boolean;
 }
@@ -202,20 +201,89 @@ const G = 9.80665;
  * Heading is held instead — a car this slow contributes almost no arc anyway.
  */
 const MIN_SPEED_FOR_CURVATURE_MS = 3;
+function wrapRadians(angle: number): number {
+  return Math.atan2(Math.sin(angle), Math.cos(angle));
+}
+
+const FULL_LAP_TURN_RAD = 2 * Math.PI;
+const MAX_CLOSED_LAP_ERROR_RAD = Math.PI / 2;
+
+function yawRateAt(channel: LdChannel, time: number, toRadians: number): number {
+  const position = Math.max(0, time * channel.effectiveFreq);
+  const lower = Math.min(channel.samples.length - 1, Math.floor(position));
+  const upper = Math.min(channel.samples.length - 1, lower + 1);
+  const fraction = position - Math.floor(position);
+  const a = channel.samples[lower] ?? 0;
+  const b = channel.samples[upper] ?? a;
+  return (a + (b - a) * fraction) * toRadians;
+}
+
+function integrateYawRate(
+  channel: LdChannel,
+  start: number,
+  end: number,
+  toRadians: number,
+  bias: number,
+): number {
+  if (!(end > start)) return 0;
+  const frequency = channel.effectiveFreq;
+  let time = start;
+  let rate = yawRateAt(channel, time, toRadians) - bias;
+  let angle = 0;
+  while (time < end) {
+    const nextSampleTime = (Math.floor(time * frequency + 1e-9) + 1) / frequency;
+    const nextTime = Math.min(end, nextSampleTime);
+    const nextRate = yawRateAt(channel, nextTime, toRadians) - bias;
+    angle += (rate + nextRate) * 0.5 * (nextTime - time);
+    time = nextTime;
+    rate = nextRate;
+  }
+  return angle;
+}
 
 /**
- * Reconstruct a track path by integrating heading from yaw rate and position
- * along that heading.
- *
- * Heading starts at zero and the origin resets on every lap boundary, so each
- * lap is expressed in its own frame anchored at the start/finish line. That is
- * what makes two laps overlay: absolute orientation is unknowable from this data
- * anyway, and letting drift accumulate across a whole stint would walk later
- * laps off the map.
- *
- * `ROTY` is preferred. When it is missing, yaw rate is recovered from the
- * lateral-G trace as `ω = a_lat·g / v`, which is the standard steady-state
- * relation and is how a track map can be built from a G-trace alone.
+ * Integrate native ROTY samples before resampling the accumulated angle.
+ * Closure bias is removed only for windows bounded by two real beacons.
+ */
+export function reconstructYawHeading(
+  channel: LdChannel,
+  frames: number,
+  dt: number,
+  windows: ReadonlyArray<readonly [number, number]>,
+  closedLapMask: Uint8Array,
+): Float64Array {
+  const heading = new Float64Array(frames);
+  if (channel.samples.length === 0 || !(channel.effectiveFreq > 0) || windows.length === 0) return heading;
+  const toRadians = /deg|°/i.test(channel.unit) ? Math.PI / 180 : 1;
+  const biases = windows.map(([start, end], index) => {
+    if (!closedLapMask[index] || !(end > start)) return 0;
+    const rawTurn = integrateYawRate(channel, start, end, toRadians, 0);
+    if (Math.abs(Math.abs(rawTurn) - FULL_LAP_TURN_RAD) > MAX_CLOSED_LAP_ERROR_RAD) return 0;
+    const expectedTurn = Math.sign(rawTurn) * FULL_LAP_TURN_RAD;
+    return (rawTurn - expectedTurn) / (end - start);
+  });
+
+  let windowIndex = 0;
+  let previousTime = windows[0]![0];
+  let accumulated = 0;
+  for (let i = 0; i < frames; i++) {
+    const time = i * dt;
+    while (windowIndex < windows.length - 1 && time >= windows[windowIndex]![1]) {
+      windowIndex++;
+      previousTime = windows[windowIndex]![0];
+      accumulated = 0;
+    }
+    accumulated += integrateYawRate(channel, previousTime, time, toRadians, biases[windowIndex]!);
+    heading[i] = accumulated;
+    previousTime = time;
+  }
+  return heading;
+}
+
+
+/**
+ * Reconstruct a lap-local track path from speed and yaw rate.
+ * World placement is applied later as one rigid transform per lap.
  */
 export function deadReckonPath(
   speedKmh: Float64Array,
@@ -224,25 +292,23 @@ export function deadReckonPath(
   lapIndexOf: Int32Array,
   dt: number,
   yawUnit: string,
+  reconstructedHeading: Float64Array | undefined,
+  closedLapMask: Uint8Array,
 ): DeadReckonedPath {
   const frames = speedKmh.length;
   const x = new Float64Array(frames);
   const z = new Float64Array(frames);
   const vx = new Float64Array(frames);
   const vz = new Float64Array(frames);
+  const headings = new Float64Array(frames);
 
-  const hasYaw = peakAbs(yawRate) > 0;
-  // MoTeC writes yaw rate as either rad/s or deg/s depending on exporter.
+  const hasYaw = reconstructedHeading !== undefined || peakAbs(yawRate) > 0;
   const yawToRad = /deg|°/i.test(yawUnit) ? Math.PI / 180 : 1;
 
   let heading = 0;
   let px = 0;
   let pz = 0;
   for (let i = 0; i < frames; i++) {
-    // Every lap starts at the origin pointing the same way, including the very
-    // first. The first frame of a lap must therefore be stored *before* any
-    // advance, or laps would each begin one step off in a different direction
-    // and no longer overlay exactly.
     const isLapStart = i === 0 || lapIndexOf[i] !== lapIndexOf[i - 1];
     if (isLapStart) {
       heading = 0;
@@ -257,10 +323,10 @@ export function deadReckonPath(
         ? (gLat[i]! * G) / v
         : 0;
 
-    if (!isLapStart) heading += omega * dt;
+    if (reconstructedHeading) heading = reconstructedHeading[i]!;
+    else if (!isLapStart) heading += omega * dt;
+    headings[i] = heading;
 
-    // Heading is measured from +Z toward +X, matching the adapter's
-    // "standard-xyz" convention where the map plots X across and Z along.
     const cx = Math.sin(heading) * v;
     const cz = Math.cos(heading) * v;
     if (!isLapStart) {
@@ -274,28 +340,67 @@ export function deadReckonPath(
     z[i] = pz;
   }
 
-  closeLapLoops(x, z, lapIndexOf);
-  return { x, z, vx, vz, yawFromLateralG: !hasYaw };
+  closeLapLoops(x, z, lapIndexOf, closedLapMask);
+  return { x, z, vx, vz, heading: headings, yawFromLateralG: !hasYaw };
 }
 
+function alignPathToTrack(
+  path: DeadReckonedPath,
+  lapIndexOf: Int32Array,
+  trackOrdinal: number,
+  anchorLeadingAtEnd: boolean,
+): void {
+  const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
+  if (!outline || outline.length < 2) return;
+  const startFinish = outline[0]!;
+  let startFinishHeading: number | undefined;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i]!.x - outline[i - 1]!.x;
+    const dz = outline[i]!.z - outline[i - 1]!.z;
+    if (Math.hypot(dx, dz) > 1e-6) {
+      startFinishHeading = Math.atan2(dx, dz);
+      break;
+    }
+  }
+  if (startFinishHeading === undefined) return;
+
+  const frames = path.x.length;
+  let lapStart = 0;
+  for (let i = 1; i <= frames; i++) {
+    if (i < frames && lapIndexOf[i] === lapIndexOf[lapStart]) continue;
+    const lapEnd = i - 1;
+    const leading = lapStart === 0 && anchorLeadingAtEnd;
+    const anchor = leading ? lapEnd : lapStart;
+    const rotation = startFinishHeading - path.heading[anchor]!;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const anchorX = path.x[anchor]!;
+    const anchorZ = path.z[anchor]!;
+    for (let j = lapStart; j <= lapEnd; j++) {
+      const dx = path.x[j]! - anchorX;
+      const dz = path.z[j]! - anchorZ;
+      path.x[j] = startFinish.x + dx * cos + dz * sin;
+      path.z[j] = startFinish.z - dx * sin + dz * cos;
+      const vx = path.vx[j]!;
+      const vz = path.vz[j]!;
+      path.vx[j] = vx * cos + vz * sin;
+      path.vz[j] = -vx * sin + vz * cos;
+      path.heading[j] = wrapRadians(path.heading[j]! + rotation);
+    }
+    lapStart = i;
+  }
+}
 /**
- * Force each completed lap's path to return to its own start.
- *
- * Integrated heading accumulates error, so a reconstructed lap of a closed
- * circuit ends some distance from where it began. Spreading that closure error
- * back over the lap as a linear ramp is the standard correction: it removes the
- * accumulated bias with the least distortion per sample, and it matters
- * practically because `assessLapRecording` rejects a lap whose start and end
- * positions are far apart — uncorrected drift would mark every imported lap
- * invalid.
- *
- * The final lap is left alone: a partial out-lap is not expected to close, and
- * forcing it to would bend a legitimately open path into a fake loop.
+ * Spread closure error only across laps explicitly bounded by two beacons.
  */
-function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array): void {
+function closeLapLoops(
+  x: Float64Array,
+  z: Float64Array,
+  lapIndexOf: Int32Array,
+  closedLapMask: Uint8Array,
+): void {
   const frames = x.length;
   if (frames === 0) return;
-  const lastLap = lapIndexOf[frames - 1]!;
 
   let start = 0;
   for (let i = 1; i <= frames; i++) {
@@ -304,7 +409,8 @@ function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array)
 
     const end = i - 1;
     const span = end - start;
-    if (lapIndexOf[start]! !== lastLap && span > 0) {
+    const lap = lapIndexOf[start]!;
+    if (closedLapMask[lap] && span > 0) {
       const errX = x[end]! - x[start]!;
       const errZ = z[end]! - z[start]!;
       for (let j = start; j <= end; j++) {
@@ -432,12 +538,22 @@ export function synthesizeAcEvoCapture(
   const brakeTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.brakeTemp(c)), frames, dt));
   const tyrePress = CORNERS.map((c) => resample(pick(log, CHANNELS.tyrePress(c)), frames, dt));
   const tyreTemp = CORNERS.map((c) => resample(pick(log, CHANNELS.tyreTemp(c)), frames, dt));
-  const suspTravel = CORNERS.map((c) => resample(pick(log, CHANNELS.suspTravel(c)), frames, dt));
+  const suspTravelChannels = CORNERS.map((c) => pick(log, CHANNELS.suspTravel(c)));
+  const suspTravel = suspTravelChannels.map((channel) => {
+    const values = resample(channel, frames, dt);
+    return /^(mm|millimet(er|re)s?)$/i.test(channel?.unit?.trim() ?? "")
+      ? values.map((value) => value / 1000)
+      : values;
+  });
   const wheelSpeed = CORNERS.map((c) => resample(pick(log, CHANNELS.wheelSpeed(c)), frames, dt));
 
   const carTrack = resolveMotecCarTrack(log, override);
   const windows = lapWindows(beacons, duration);
-
+  const closedLapMask = new Uint8Array(windows.length);
+  for (let index = 1; index < windows.length - 1; index++) closedLapMask[index] = 1;
+  const reconstructedHeading = yawCh
+    ? reconstructYawHeading(yawCh, frames, dt, windows, closedLapMask)
+    : undefined;
   // --- distance, integrated from speed ---
   // Two different quantities, and conflating them breaks lap detection:
   //
@@ -480,7 +596,17 @@ export function synthesizeAcEvoCapture(
   }
   if (lapLengthM === 0) lapLengthM = lapDistM[frames - 1] ?? 0;
 
-  const path = deadReckonPath(speedKmh, yawRate, gLat, lapIndexOf, dt, yawCh?.unit ?? "");
+  const path = deadReckonPath(
+    speedKmh,
+    yawRate,
+    gLat,
+    lapIndexOf,
+    dt,
+    yawCh?.unit ?? "",
+    reconstructedHeading,
+    closedLapMask,
+  );
+  alignPathToTrack(path, lapIndexOf, carTrack.trackOrdinal, windows.length > 1);
 
   // --- static page: constant for the whole capture ---
   const staticBuf = Buffer.alloc(STATIC_EVO.SIZE);
@@ -523,7 +649,7 @@ export function synthesizeAcEvoCapture(
     physics.writeInt32LE(Math.max(0, Math.round(gear[i]!) + 1), PHYSICS.gear.offset);
     physics.writeInt32LE(Math.round(rpm[i]!), PHYSICS.rpms.offset);
     physics.writeFloatLE(
-      Math.max(-1, Math.min(1, steerDeg[i]! / STEER_LOCK_DEG)),
+      Math.max(-1, Math.min(1, -steerDeg[i]! / STEER_LOCK_DEG)),
       PHYSICS.steerAngle.offset,
     );
     physics.writeFloatLE(speedKmh[i]!, PHYSICS.speedKmh.offset);
@@ -534,9 +660,18 @@ export function synthesizeAcEvoCapture(
     // parser's player-slot correlation (which matches velocity against
     // coordinate deltas) sees a coherent car.
     physics.writeFloatLE(path.vx[i]!, PHYSICS.velocityX.offset);
+    physics.writeFloatLE(-path.heading[i]!, PHYSICS.heading.offset);
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);
+    physics.writeFloatLE(Number.NaN, PHYSICS.brakeBias.offset);
+    for (const field of [
+      PHYSICS.wheelSlipFL, PHYSICS.wheelSlipFR, PHYSICS.wheelSlipRL, PHYSICS.wheelSlipRR,
+      PHYSICS.slipRatioFL, PHYSICS.slipRatioFR, PHYSICS.slipRatioRL, PHYSICS.slipRatioRR,
+      PHYSICS.slipAngleFL, PHYSICS.slipAngleFR, PHYSICS.slipAngleRL, PHYSICS.slipAngleRR,
+    ]) {
+      physics.writeFloatLE(Number.NaN, field.offset);
+    }
 
     const corner = [
       { press: PHYSICS.tyrePressureFL, core: PHYSICS.tyreCoreFL, temp: PHYSICS.tyreTempFL, brake: PHYSICS.brakeTempFL, susp: PHYSICS.suspTravelFL, rot: PHYSICS.wheelRotFL },
@@ -623,6 +758,7 @@ export function synthesizeAcEvoCapture(
     lapCount: windows.length,
     carTrack,
     missingChannels,
+    sampleRates: log.channels.map((channel) => ({ name: channel.name, hz: channel.effectiveFreq })),
     yawFromLateralG: path.yawFromLateralG,
   };
 }

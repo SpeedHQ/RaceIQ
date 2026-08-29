@@ -37,6 +37,10 @@ function mergeStaticModelMeshes(root: THREE.Object3D): THREE.BufferGeometry | nu
   return merged;
 }
 
+export function canonicalModelYawAlignment(modelPath: string): number {
+  return modelPath === "/models/f1_2025_mclaren_mcl39.glb" ? Math.PI / 2 : 0;
+}
+
 export function CarBody({
   solid,
   carModel,
@@ -51,6 +55,7 @@ export function CarBody({
   mergeMeshes?: boolean;
 }) {
   const { scene } = useGLTF(carModel.modelPath);
+  const yawAlignment = canonicalModelYawAlignment(carModel.modelPath);
 
   const { model, modelMaterial, modelGeometry } = useMemo(() => {
     const clone = scene.clone(true);
@@ -114,10 +119,9 @@ export function CarBody({
     }
 
     const off = center.multiplyScalar(-s);
-    // When model is rotated, model-local X becomes sideways — only apply offset if no rotation
-    if (!carModel.glbRotationY) off.x += modelOffsetX;
+    if (yawAlignment === 0) off.x += modelOffsetX;
     return { scale: s, offset: off };
-  }, [scene, carModel, modelOffsetX]);
+  }, [scene, carModel, modelOffsetX, yawAlignment]);
 
   const [highlightedMesh, setHighlightedMesh] = useState<string | null>(null);
 
@@ -183,7 +187,7 @@ export function CarBody({
   );
 
   return (
-    <group rotation={[0, carModel.glbRotationY ?? 0, 0]}>
+    <group rotation={[0, yawAlignment, 0]}>
       <group scale={autoScale} position={[offset.x, offset.y + 0.25 + (carModel.glbOffsetY ?? 0), offset.z + (carModel.glbOffsetZ ?? 0)]}>
         {/* oxlint-disable-next-line a11y/noStaticElementInteractions: react-three primitive handles scene interaction rather than DOM interaction */}
         <primitive object={model} onDoubleClick={handleDoubleClick} dispose={null} />

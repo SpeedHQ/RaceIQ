@@ -160,40 +160,40 @@ jobs:
           - name: fresh
             server_set: fresh
             projects: --project=fresh-install --project=mobile-device --project=tablet-device
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
           - name: tunes
             server_set: tunes
             projects: --project=tunes
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
           - name: tunes-unseeded
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
+            runs_on: '["whitesmith-windows-x64", "2VCPU", "10G"]'
           - name: seeded-shard-1
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 1/5
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-2
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 2/5
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-3
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 3/5
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-4
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 4/5
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-5
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
             shard: 5/5
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled
