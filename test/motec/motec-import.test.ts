@@ -12,6 +12,7 @@ import {
 import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
 import {
   deadReckonPath,
+  reconstructYawHeading,
   resolveMotecCarTrack,
   synthesizeAcEvoCapture,
 } from "../../server/games/ac-evo/motec";
@@ -157,7 +158,7 @@ describe("deadReckonPath", () => {
     const lapIndex = new Int32Array(frames);
     for (let i = 0; i < frames; i++) lapIndex[i] = i < frames / 2 ? 0 : 1;
 
-    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s");
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s", undefined, Uint8Array.from([1, 0]));
 
     // Lap 0 returns to its origin.
     const endOfLap0 = frames / 2 - 1;
@@ -175,7 +176,7 @@ describe("deadReckonPath", () => {
     const lapIndex = new Int32Array(frames);
     for (let i = 0; i < frames; i++) lapIndex[i] = i < 60 ? 0 : 1;
 
-    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s");
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s", undefined, Uint8Array.from([1, 0]));
     expect(path.x[60]).toBe(0);
     expect(path.z[60]).toBe(0);
   });
@@ -189,12 +190,72 @@ describe("deadReckonPath", () => {
     for (let i = 0; i < 60; i++) lapIndex[i] = 0;
     for (let i = 60; i < frames; i++) lapIndex[i] = 1;
 
-    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s");
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s", undefined, Uint8Array.from([1, 0]));
     expect(path.heading[0]).toBe(0);
     expect(path.heading[30]).toBeGreaterThan(0);
     expect(path.heading[60]).toBe(0);
     expect(path.heading[90]).toBeGreaterThan(0);
   });
+
+  test("trapezoid-integrates native ROTY samples before synthesis resampling", () => {
+    const channel = {
+      name: "ROTY",
+      shortName: "ROTY",
+      unit: "rad/s",
+      declaredFreq: 1,
+      effectiveFreq: 1,
+      samples: Float64Array.from([0, 2, 0]),
+    };
+
+    const heading = reconstructYawHeading(channel, 4, 0.5, [[0, 2]], Uint8Array.from([0]));
+
+    expect(Array.from(heading)).toEqual([0, 0.25, 1, 1.75]);
+  });
+
+  test("removes closed-lap ROTY bias without changing local rotation shape", () => {
+    const duration = 4;
+    const bias = 0.1;
+    const channel = {
+      name: "ROTY",
+      shortName: "ROTY",
+      unit: "rad/s",
+      declaredFreq: 2,
+      effectiveFreq: 2,
+      samples: new Float64Array(duration * 2 + 1).fill((2 * Math.PI) / duration + bias),
+    };
+
+    const heading = reconstructYawHeading(channel, duration * 4, 0.25, [[0, duration]], Uint8Array.from([1]));
+
+    expect(heading[8]).toBeCloseTo(Math.PI, 10);
+    expect(heading[15]).toBeCloseTo((2 * Math.PI * 3.75) / duration, 10);
+  });
+  test("retains measured turn for an open window", () => {
+    const channel = {
+      name: "ROTY",
+      shortName: "ROTY",
+      unit: "rad/s",
+      declaredFreq: 1,
+      effectiveFreq: 1,
+      samples: new Float64Array([1, 1, 1]),
+    };
+    const heading = reconstructYawHeading(channel, 5, 0.5, [[0, 2]], Uint8Array.from([0]));
+    expect(heading[4]).toBeCloseTo(2, 10);
+  });
+
+  test("closes only windows explicitly bounded by two beacons", () => {
+    const framesPerLap = 20;
+    const frames = framesPerLap * 3;
+    const speed = new Float64Array(frames).fill(36);
+    const yaw = new Float64Array(frames).fill(0.2);
+    const gLat = new Float64Array(frames);
+    const lapIndex = new Int32Array(frames);
+    for (let i = 0; i < frames; i++) lapIndex[i] = Math.floor(i / framesPerLap);
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "rad/s", undefined, Uint8Array.from([0, 1, 0]));
+    expect(Math.hypot(path.x[framesPerLap - 1]!, path.z[framesPerLap - 1]!)).toBeGreaterThan(0.1);
+    expect(Math.hypot(path.x[framesPerLap * 2 - 1]!, path.z[framesPerLap * 2 - 1]!)).toBeLessThan(0.1);
+    expect(Math.hypot(path.x[frames - 1]!, path.z[frames - 1]!)).toBeGreaterThan(0.1);
+  });
+
 
   test("falls back to lateral G when ROTY is absent", () => {
     const frames = 300;
@@ -203,7 +264,7 @@ describe("deadReckonPath", () => {
     const gLat = new Float64Array(frames).fill(1.0);
     const lapIndex = new Int32Array(frames);
 
-    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "");
+    const path = deadReckonPath(speed, yaw, gLat, lapIndex, dt, "", undefined, Uint8Array.from([0]));
     expect(path.yawFromLateralG).toBe(true);
     // A sustained 1 g at 20 m/s must curve the path, not run it straight.
     expect(Math.abs(path.x[frames - 1]!)).toBeGreaterThan(1);
@@ -296,7 +357,7 @@ describe("synthesizeAcEvoCapture", () => {
     expect(maxThrottle).toBe(255); // full throttle → 255
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
   });
-  test("preserves integrated body yaw while projecting velocity onto track", () => {
+  test("preserves smooth ROTY rotation while projecting velocity onto track", () => {
     const packets = parseFrames(capture.bin);
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
 
@@ -310,7 +371,7 @@ describe("synthesizeAcEvoCapture", () => {
 
       const expectedYawDelta = -packet.AngularVelocityY / MOTEC_SYNTH_HZ;
       const actualYawDelta = wrap(packet.Yaw - previous.Yaw);
-      expect(actualYawDelta).toBeCloseTo(expectedYawDelta, 5);
+      expect(Math.abs(wrap(actualYawDelta - expectedYawDelta))).toBeLessThanOrEqual(0.01001);
       yawSamples++;
 
       const dx = packet.PositionX - previous.PositionX;
@@ -370,19 +431,21 @@ describe("synthesizeAcEvoCapture", () => {
     expect(moved.length).toBeGreaterThan(packets.length * 0.9);
   });
 
-  test("normalizes synthesized coordinates into native AC Evo track space", () => {
+  test("anchors open windows at beacon-side start/finish without snapping geometry", () => {
     const packets = parseFrames(capture.bin);
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
     const outline = flipPoints(getTrackOutlineByOrdinal(5, "ac-evo")!);
-    const packet = packets[2000]!;
-    let nearest = Infinity;
-    for (const point of outline) {
-      nearest = Math.min(nearest, Math.hypot(
-        point.x - packet.PositionX,
-        point.z - packet.PositionZ,
-      ));
-    }
-    expect(nearest).toBeLessThan(2);
+    const lapLength = 120 * MOTEC_SYNTH_HZ;
+    const leadingEnd = packets[lapLength - 1]!;
+    const nextStart = packets[lapLength]!;
+    expect(leadingEnd.PositionX).toBeCloseTo(outline[0]!.x, 3);
+    expect(leadingEnd.PositionZ).toBeCloseTo(outline[0]!.z, 3);
+    expect(nextStart.PositionX).toBeCloseTo(outline[0]!.x, 3);
+    expect(nextStart.PositionZ).toBeCloseTo(outline[0]!.z, 3);
+    expect(Math.hypot(
+      packets[Math.floor(lapLength / 2)]!.PositionX - outline[0]!.x,
+      packets[Math.floor(lapLength / 2)]!.PositionZ - outline[0]!.z,
+    )).toBeGreaterThan(100);
   });
 
   test("a log with no beacons imports as one stint", () => {

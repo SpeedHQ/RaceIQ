@@ -16,26 +16,17 @@
  *
  * So this file's whole job is: MoTeC channel arrays → AC Evo pages.
  *
- * ## Position, which MoTeC does not log directly
+ * Position reconstruction
  *
- * A MoTeC AC Evo export has no world-position channels — no `CAR_COORD_*`, no
- * GPS — but the track map does not need them: it renders the per-packet
- * `PositionX/PositionZ` path, and that path can be dead-reckoned from speed and
- * yaw rate. This is exactly how MoTeC i2 draws its own track maps.
+ * MoTeC does not log absolute vehicle position or heading. We integrate speed
+ * along measured yaw (or lateral-G fallback), reset each lap to a local frame,
+ * then rigidly place each reconstructed lap at the AC Evo start/finish line.
+ * Geometry stays metre-space and lap-specific; only laps bounded by two real
+ * beacons receive loop closure correction.
  *
- * {@link deadReckonPath} integrates heading from yaw rate (`ROTY`, or lateral G
- * over speed when `ROTY` is absent) and advances position along it. The result
- * is genuinely lap-specific — a lap carrying more speed through a corner traces
- * a visibly different arc — so line-spread and lap-comparison stay meaningful
- * rather than showing every lap on one identical synthetic line.
- *
- * The frame is reset to the origin at each lap start, so laps overlay each other
- * instead of marching away as integration drift accumulates across a stint. The
- * geometry is therefore lap-relative and approximate: good for comparing shapes,
- * not a survey of the circuit. Sessions carry a `motec` source flag so the UI can
- * say so. See {@link MOTEC_IMPORT_LIMITATIONS}.
- *
- * ## Steering
+ * {@link deadReckonPath} provides local geometry, while synthesis applies the
+ * rigid track-space placement. This preserves differences in speed and
+ * curvature between laps instead of replacing every trace with the centreline.
  *
  * MoTeC logs `STEERANGLE` in degrees of wheel rotation and does not export the
  * car's steering lock, while AC Evo's physics page carries a normalised -1..1.
@@ -45,6 +36,7 @@
  * would silently rescale each import by how much lock that particular stint
  * happened to use.
  */
+
 
 import {
   ACEVO_CAR_LOCATION,
@@ -213,20 +205,85 @@ function wrapRadians(angle: number): number {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
+const FULL_LAP_TURN_RAD = 2 * Math.PI;
+const MAX_CLOSED_LAP_ERROR_RAD = Math.PI / 2;
+
+function yawRateAt(channel: LdChannel, time: number, toRadians: number): number {
+  const position = Math.max(0, time * channel.effectiveFreq);
+  const lower = Math.min(channel.samples.length - 1, Math.floor(position));
+  const upper = Math.min(channel.samples.length - 1, lower + 1);
+  const fraction = position - Math.floor(position);
+  const a = channel.samples[lower] ?? 0;
+  const b = channel.samples[upper] ?? a;
+  return (a + (b - a) * fraction) * toRadians;
+}
+
+function integrateYawRate(
+  channel: LdChannel,
+  start: number,
+  end: number,
+  toRadians: number,
+  bias: number,
+): number {
+  if (!(end > start)) return 0;
+  const frequency = channel.effectiveFreq;
+  let time = start;
+  let rate = yawRateAt(channel, time, toRadians) - bias;
+  let angle = 0;
+  while (time < end) {
+    const nextSampleTime = (Math.floor(time * frequency + 1e-9) + 1) / frequency;
+    const nextTime = Math.min(end, nextSampleTime);
+    const nextRate = yawRateAt(channel, nextTime, toRadians) - bias;
+    angle += (rate + nextRate) * 0.5 * (nextTime - time);
+    time = nextTime;
+    rate = nextRate;
+  }
+  return angle;
+}
 
 /**
- * Reconstruct a track path by integrating heading from yaw rate and position
- * along that heading.
- *
- * Heading starts at zero and the origin resets on every lap boundary, so each
- * lap is expressed in its own frame anchored at the start/finish line. That is
- * what makes two laps overlay: absolute orientation is unknowable from this data
- * anyway, and letting drift accumulate across a whole stint would walk later
- * laps off the map.
- *
- * `ROTY` is preferred. When it is missing, yaw rate is recovered from the
- * lateral-G trace as `ω = a_lat·g / v`, which is the standard steady-state
- * relation and is how a track map can be built from a G-trace alone.
+ * Integrate native ROTY samples before resampling the accumulated angle.
+ * Closure bias is removed only for windows bounded by two real beacons.
+ */
+export function reconstructYawHeading(
+  channel: LdChannel,
+  frames: number,
+  dt: number,
+  windows: ReadonlyArray<readonly [number, number]>,
+  closedLapMask: Uint8Array,
+): Float64Array {
+  const heading = new Float64Array(frames);
+  if (channel.samples.length === 0 || !(channel.effectiveFreq > 0) || windows.length === 0) return heading;
+  const toRadians = /deg|°/i.test(channel.unit) ? Math.PI / 180 : 1;
+  const biases = windows.map(([start, end], index) => {
+    if (!closedLapMask[index] || !(end > start)) return 0;
+    const rawTurn = integrateYawRate(channel, start, end, toRadians, 0);
+    if (Math.abs(Math.abs(rawTurn) - FULL_LAP_TURN_RAD) > MAX_CLOSED_LAP_ERROR_RAD) return 0;
+    const expectedTurn = Math.sign(rawTurn) * FULL_LAP_TURN_RAD;
+    return (rawTurn - expectedTurn) / (end - start);
+  });
+
+  let windowIndex = 0;
+  let previousTime = windows[0]![0];
+  let accumulated = 0;
+  for (let i = 0; i < frames; i++) {
+    const time = i * dt;
+    while (windowIndex < windows.length - 1 && time >= windows[windowIndex]![1]) {
+      windowIndex++;
+      previousTime = windows[windowIndex]![0];
+      accumulated = 0;
+    }
+    accumulated += integrateYawRate(channel, previousTime, time, toRadians, biases[windowIndex]!);
+    heading[i] = accumulated;
+    previousTime = time;
+  }
+  return heading;
+}
+
+
+/**
+ * Reconstruct a lap-local track path from speed and yaw rate.
+ * World placement is applied later as one rigid transform per lap.
  */
 export function deadReckonPath(
   speedKmh: Float64Array,
@@ -235,6 +292,8 @@ export function deadReckonPath(
   lapIndexOf: Int32Array,
   dt: number,
   yawUnit: string,
+  reconstructedHeading: Float64Array | undefined,
+  closedLapMask: Uint8Array,
 ): DeadReckonedPath {
   const frames = speedKmh.length;
   const x = new Float64Array(frames);
@@ -243,18 +302,13 @@ export function deadReckonPath(
   const vz = new Float64Array(frames);
   const headings = new Float64Array(frames);
 
-  const hasYaw = peakAbs(yawRate) > 0;
-  // MoTeC writes yaw rate as either rad/s or deg/s depending on exporter.
+  const hasYaw = reconstructedHeading !== undefined || peakAbs(yawRate) > 0;
   const yawToRad = /deg|°/i.test(yawUnit) ? Math.PI / 180 : 1;
 
   let heading = 0;
   let px = 0;
   let pz = 0;
   for (let i = 0; i < frames; i++) {
-    // Every lap starts at the origin pointing the same way, including the very
-    // first. The first frame of a lap must therefore be stored *before* any
-    // advance, or laps would each begin one step off in a different direction
-    // and no longer overlay exactly.
     const isLapStart = i === 0 || lapIndexOf[i] !== lapIndexOf[i - 1];
     if (isLapStart) {
       heading = 0;
@@ -269,11 +323,10 @@ export function deadReckonPath(
         ? (gLat[i]! * G) / v
         : 0;
 
-    if (!isLapStart) heading += omega * dt;
+    if (reconstructedHeading) heading = reconstructedHeading[i]!;
+    else if (!isLapStart) heading += omega * dt;
     headings[i] = heading;
 
-    // Heading is measured from +Z toward +X, matching the adapter's
-    // "standard-xyz" convention where the map plots X across and Z along.
     const cx = Math.sin(heading) * v;
     const cz = Math.cos(heading) * v;
     if (!isLapStart) {
@@ -287,69 +340,67 @@ export function deadReckonPath(
     z[i] = pz;
   }
 
-  closeLapLoops(x, z, lapIndexOf);
+  closeLapLoops(x, z, lapIndexOf, closedLapMask);
   return { x, z, vx, vz, heading: headings, yawFromLateralG: !hasYaw };
 }
 
-function alignPathToTrack(path: DeadReckonedPath, lapDistanceM: Float64Array, trackOrdinal: number): void {
+function alignPathToTrack(
+  path: DeadReckonedPath,
+  lapIndexOf: Int32Array,
+  trackOrdinal: number,
+  anchorLeadingAtEnd: boolean,
+): void {
   const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
-  if (!outline || outline.length < 3) return;
-  const cumulative = new Float64Array(outline.length);
-  for (let i = 1; i < outline.length; i++) {
-    const dx = outline[i]!.x - outline[i - 1]!.x;
-    const dz = outline[i]!.z - outline[i - 1]!.z;
-    cumulative[i] = cumulative[i - 1]! + Math.hypot(dx, dz);
-  }
-  const length = cumulative[cumulative.length - 1]!;
-  if (!(length > 0)) return;
-
-  let startHeading: number | undefined;
+  if (!outline || outline.length < 2) return;
+  const startFinish = outline[0]!;
+  let startFinishHeading: number | undefined;
   for (let i = 1; i < outline.length; i++) {
     const dx = outline[i]!.x - outline[i - 1]!.x;
     const dz = outline[i]!.z - outline[i - 1]!.z;
     if (Math.hypot(dx, dz) > 1e-6) {
-      startHeading = Math.atan2(dx, dz);
+      startFinishHeading = Math.atan2(dx, dz);
       break;
     }
   }
-  if (startHeading === undefined) return;
+  if (startFinishHeading === undefined) return;
 
-  for (let i = 0; i < path.x.length; i++) {
-    const distance = Math.min(length, Math.max(0, lapDistanceM[i]!));
-    let segment = 1;
-    while (segment < cumulative.length - 1 && cumulative[segment]! < distance) segment++;
-    const start = outline[segment - 1]!;
-    const end = outline[segment]!;
-    const span = cumulative[segment]! - cumulative[segment - 1]!;
-    const t = span > 0 ? (distance - cumulative[segment - 1]!) / span : 0;
-    path.x[i] = start.x + (end.x - start.x) * t;
-    path.z[i] = start.z + (end.z - start.z) * t;
-    path.heading[i] = wrapRadians(path.heading[i]! + startHeading);
-    const heading = Math.atan2(end.x - start.x, end.z - start.z);
-    const speed = Math.hypot(path.vx[i]!, path.vz[i]!);
-    path.vx[i] = Math.sin(heading) * speed;
-    path.vz[i] = Math.cos(heading) * speed;
+  const frames = path.x.length;
+  let lapStart = 0;
+  for (let i = 1; i <= frames; i++) {
+    if (i < frames && lapIndexOf[i] === lapIndexOf[lapStart]) continue;
+    const lapEnd = i - 1;
+    const leading = lapStart === 0 && anchorLeadingAtEnd;
+    const anchor = leading ? lapEnd : lapStart;
+    const rotation = startFinishHeading - path.heading[anchor]!;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const anchorX = path.x[anchor]!;
+    const anchorZ = path.z[anchor]!;
+    for (let j = lapStart; j <= lapEnd; j++) {
+      const dx = path.x[j]! - anchorX;
+      const dz = path.z[j]! - anchorZ;
+      path.x[j] = startFinish.x + dx * cos + dz * sin;
+      path.z[j] = startFinish.z - dx * sin + dz * cos;
+      const vx = path.vx[j]!;
+      const vz = path.vz[j]!;
+      path.vx[j] = vx * cos + vz * sin;
+      path.vz[j] = -vx * sin + vz * cos;
+      path.heading[j] = wrapRadians(path.heading[j]! + rotation);
+    }
+    lapStart = i;
   }
 }
-
 /**
- * Force each completed lap's path to return to its own start.
- *
- * Integrated heading accumulates error, so a reconstructed lap of a closed
- * circuit ends some distance from where it began. Spreading that closure error
- * back over the lap as a linear ramp is the standard correction: it removes the
- * accumulated bias with the least distortion per sample, and it matters
- * practically because `assessLapRecording` rejects a lap whose start and end
- * positions are far apart — uncorrected drift would mark every imported lap
- * invalid.
- *
- * The final lap is left alone: a partial out-lap is not expected to close, and
- * forcing it to would bend a legitimately open path into a fake loop.
+ * Spread closure error only across laps explicitly bounded by two beacons.
  */
-function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array): void {
+function closeLapLoops(
+  x: Float64Array,
+  z: Float64Array,
+  lapIndexOf: Int32Array,
+  closedLapMask: Uint8Array,
+): void {
   const frames = x.length;
   if (frames === 0) return;
-  const lastLap = lapIndexOf[frames - 1]!;
 
   let start = 0;
   for (let i = 1; i <= frames; i++) {
@@ -358,7 +409,8 @@ function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array)
 
     const end = i - 1;
     const span = end - start;
-    if (lapIndexOf[start]! !== lastLap && span > 0) {
+    const lap = lapIndexOf[start]!;
+    if (closedLapMask[lap] && span > 0) {
       const errX = x[end]! - x[start]!;
       const errZ = z[end]! - z[start]!;
       for (let j = start; j <= end; j++) {
@@ -497,7 +549,11 @@ export function synthesizeAcEvoCapture(
 
   const carTrack = resolveMotecCarTrack(log, override);
   const windows = lapWindows(beacons, duration);
-
+  const closedLapMask = new Uint8Array(windows.length);
+  for (let index = 1; index < windows.length - 1; index++) closedLapMask[index] = 1;
+  const reconstructedHeading = yawCh
+    ? reconstructYawHeading(yawCh, frames, dt, windows, closedLapMask)
+    : undefined;
   // --- distance, integrated from speed ---
   // Two different quantities, and conflating them breaks lap detection:
   //
@@ -540,8 +596,17 @@ export function synthesizeAcEvoCapture(
   }
   if (lapLengthM === 0) lapLengthM = lapDistM[frames - 1] ?? 0;
 
-  const path = deadReckonPath(speedKmh, yawRate, gLat, lapIndexOf, dt, yawCh?.unit ?? "");
-  alignPathToTrack(path, lapDistM, carTrack.trackOrdinal);
+  const path = deadReckonPath(
+    speedKmh,
+    yawRate,
+    gLat,
+    lapIndexOf,
+    dt,
+    yawCh?.unit ?? "",
+    reconstructedHeading,
+    closedLapMask,
+  );
+  alignPathToTrack(path, lapIndexOf, carTrack.trackOrdinal, windows.length > 1);
 
   // --- static page: constant for the whole capture ---
   const staticBuf = Buffer.alloc(STATIC_EVO.SIZE);
