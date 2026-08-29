@@ -579,8 +579,8 @@ export function synthesizeAcEvoCapture(
     // World-frame velocity, kept consistent with the dead-reckoned path so the
     // parser's player-slot correlation (which matches velocity against
     // coordinate deltas) sees a coherent car.
-    physics.writeFloatLE(path.vx[i]!, PHYSICS.velocityX.offset);
-    physics.writeFloatLE(-path.heading[i]!, PHYSICS.heading.offset);
+    physics.writeFloatLE(-path.vx[i]!, PHYSICS.velocityX.offset);
+    physics.writeFloatLE(path.heading[i]!, PHYSICS.heading.offset);
     physics.writeFloatLE(path.vz[i]!, PHYSICS.velocityZ.offset);
     physics.writeFloatLE(tc[i]!, PHYSICS.tc.offset);
     physics.writeFloatLE(abs[i]!, PHYSICS.abs.offset);
@@ -642,7 +642,7 @@ export function synthesizeAcEvoCapture(
     // Player car occupies slot 0; `active_cars` is 1 so the parser's slot
     // calibration only ever probes that slot.
     const coordBase = GRAPHICS_EVO.car_coordinates_base.offset;
-    graphics.writeFloatLE(path.x[i]!, coordBase);
+    graphics.writeFloatLE(-path.x[i]!, coordBase);
     graphics.writeFloatLE(0, coordBase + 4);
     graphics.writeFloatLE(path.z[i]!, coordBase + 8);
 
