@@ -35,14 +35,14 @@ test("renders unavailable features above limitations and canonical channels", ()
         { semanticId: "brakes.brake-bias", label: "Front brake bias", group: "Brakes", available: false },
       ],
       unavailableFeatures: [{ feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] }],
-      limitations: ["Racing line is estimated from speed and rotation, not recorded directly."],
+      limitations: ["Racing line is estimated from speed and lateral G force because MoTeC does not record track position. Yaw rate controls car direction and is only used for the line if lateral G is unavailable. The estimate may drift."],
     },
     onClose: () => {},
   }));
 
   expect(markup).toContain("Features unavailable due to lack of data channels");
-  expect(markup.indexOf("Features unavailable due to lack of data channels")).toBeLessThan(markup.indexOf("Racing line is estimated from speed and rotation, not recorded directly."));
-  expect(markup.indexOf("Racing line is estimated from speed and rotation, not recorded directly.")).toBeLessThan(markup.indexOf("Canonical channels"));
+  expect(markup.indexOf("Racing line is estimated from speed and lateral G force because MoTeC does not record track position. Yaw rate controls car direction and is only used for the line if lateral G is unavailable. The estimate may drift.")).toBeGreaterThan(-1);
+  expect(markup.indexOf("Racing line is estimated from speed and lateral G force because MoTeC does not record track position. Yaw rate controls car direction and is only used for the line if lateral G is unavailable. The estimate may drift.")).toBeLessThan(markup.indexOf("Canonical channels"));
   expect(markup).toContain("overflow-y-auto");
   expect(markup).toContain("Current Engine RPM");
   expect(markup).toContain("✓");
