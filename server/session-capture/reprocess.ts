@@ -5,7 +5,8 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/games/ids";
-import { loadSessionCapture } from "./source-loader";
+import { loadSessionSource } from "./source-loader";
+import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
@@ -62,29 +63,26 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
-  const buf = await loadSessionCapture({
+  const loaded = await loadSessionSource({
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
-
-  const frameStreamStart = readFrameStreamStart(buf);
-
-  // Replay all frames through a capturing lap detector
   const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({
-    db: capturingDb,
-    bypassPacketRateFilter: true,
-  });
-  const parserState = serverGame.createParserState?.() ?? null;
-
-  for (const { offset, frame } of iterateSessionFrameRecords(
-    buf,
-    frameStreamStart,
-    { skipMetaFrames: true, allowEmptyFrames: true },
-  )) {
-    const packet = serverGame.tryParse(frame, parserState);
-    if (packet) {
-      await detector.feed(packet, offset);
+  const detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  if (loaded.kind === "packets") {
+    for (let index = 0; index < loaded.packets.length; index++) {
+      const offset = loaded.offsetEncoding === "packet-index"
+        ? index
+        : packetIndexToLegacyMotecOffset(gameId, index);
+      await detector.feed(loaded.packets[index], offset);
+    }
+  } else {
+    const buf = loaded.buffer;
+    const frameStreamStart = readFrameStreamStart(buf);
+    const parserState = serverGame.createParserState?.() ?? null;
+    for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, { skipMetaFrames: true, allowEmptyFrames: true })) {
+      const packet = serverGame.tryParse(frame, parserState);
+      if (packet) await detector.feed(packet, offset);
     }
   }
 
