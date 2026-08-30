@@ -8,7 +8,7 @@ import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { loadSessionSource, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
-
+import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
 // packet to pick a tighter estimate is precise enough for an eviction budget
@@ -221,6 +221,14 @@ export class LapParseError extends Error {
 export function clearRawFileCacheForTest(): void { clearSourceCaptureCache(); }
 
 type ReplayGame = ReturnType<typeof getServerGame>;
+function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-index" | "legacy-bin-byte-offset"): number {
+  return encoding === "legacy-bin-byte-offset" ? legacyMotecOffsetToPacketIndex(gameId, offset) : offset;
+}
+
+function freshReplayPacket(packet: TelemetryPacket): TelemetryPacket {
+  return { ...packet };
+}
+
 
 function normalizeReplayPacket(packet: TelemetryPacket, game: ReplayGame): void {
   normalizeTelemetryPacket(packet, game.coordSystem === "standard-xyz", game.runtime.normSuspensionTravelMm);
@@ -267,7 +275,7 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
   if (loaded.kind === "packets") {
-    const packets = loaded.packets;
+    const packets = loaded.packets.map(freshReplayPacket);
     for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
     return packets;
   }
@@ -287,7 +295,8 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
 export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
   const loaded = await loadSessionSource(source);
   if (loaded.kind === "packets") {
-    const packets = loaded.packets.slice(rawByteOffset, rawByteOffset + rawFrameCount + 1);
+    const start = packetIndexForOffset(source.gameId, rawByteOffset, loaded.offsetEncoding);
+    const packets = loaded.packets.slice(start, start + rawFrameCount + 1).map(freshReplayPacket);
     for (const packet of packets) normalizeReplayPacket(packet, getServerGame(source.gameId));
     if (packets.length > rawFrameCount) packets.pop();
     return packets;
@@ -491,8 +500,7 @@ export const parseSessionLapsBatchedForTest = parseSessionLapsBatched;
  * prefix from file start.
  *
  * Returns a Map keyed by lap id for laps it resolved. Laps whose stored offset
- * can't be located in the frame stream are omitted — the caller falls back to
- * the per-lap path for those.
+ * can't be located in the frame stream are omitted — caller falls back per-lap.
  */
 export async function parseSessionLapsBatched(source: SessionCaptureSource, lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[]): Promise<Map<number, TelemetryPacket[]>> {
   const out = new Map<number, TelemetryPacket[]>();
@@ -501,7 +509,8 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   const loaded = await loadSessionSource(source);
   if (loaded.kind === "packets") {
     for (const meta of lapMetas) {
-      const packets = loaded.packets.slice(meta.rawByteOffset, meta.rawByteOffset + meta.rawFrameCount + 1);
+      const start = packetIndexForOffset(source.gameId, meta.rawByteOffset, loaded.offsetEncoding);
+      const packets = loaded.packets.slice(start, start + meta.rawFrameCount + 1).map(freshReplayPacket);
       for (const packet of packets) normalizeReplayPacket(packet, serverGame);
       if (packets.length > meta.rawFrameCount) packets.pop();
       if (packets.length > 0) out.set(meta.id, packets);
