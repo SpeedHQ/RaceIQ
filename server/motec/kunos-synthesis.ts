@@ -7,7 +7,6 @@ const MIN_LAP_SECONDS = 30;
 const G = 9.80665;
 const MIN_SPEED_FOR_CURVATURE_MS = 3;
 const FULL_LAP_TURN_RAD = Math.PI * 2;
-const MAX_CLOSED_LAP_ERROR_RAD = Math.PI / 3;
 
 export const MOTEC_CHANNELS = {
   speed: ["SPEED", "GROUND_SPEED", "Ground Speed"],
