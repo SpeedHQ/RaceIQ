@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "barber-motorsports-park/short-b",
+  "name": "Short B",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 100,
+      "confirmation": null
+    }
+  ]
+}

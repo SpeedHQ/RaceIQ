@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "id": "hockenheimring/national",
+  "name": "National",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 251,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "hockenheim-s",
+    "track": "hockenheim",
+    "layout": "national",
+    "layoutName": "National",
+    "name": "Hockenheimring",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Nordkurve",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Sachskurve",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "Südkurve",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0348
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0348,
+          "endFrac": 0.0955
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0955,
+          "endFrac": 0.1823
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1823,
+          "endFrac": 0.2428
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2428,
+          "endFrac": 0.2918
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2918,
+          "endFrac": 0.405
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.405,
+          "endFrac": 0.4984
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.4984,
+          "endFrac": 0.5491
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.5491,
+          "endFrac": 0.6019
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.6019,
+          "endFrac": 0.6456
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6456,
+          "endFrac": 0.7452
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7452,
+          "endFrac": 0.8153
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.8153,
+          "endFrac": 0.8436
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.8436,
+          "endFrac": 0.8654
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8654,
+          "endFrac": 0.9671
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9671,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

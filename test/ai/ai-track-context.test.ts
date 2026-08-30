@@ -120,6 +120,10 @@ describe("analyst prompt carries the curated track data", () => {
     // The same string the track map renders — not a bare "Eau Rouge/Raidillon".
     expect(prompt).toContain("Eau Rouge/Raidillon (2-4)");
   });
+  test("does not expose raw SVG map coordinates", () => {
+    expect(prompt).not.toContain("<svg");
+    expect(prompt).not.toContain("viewBox");
+  });
   test("omits the Forza export for F1 prompts", () => {
     expect(prompt).not.toContain("=== Forza Motorsport Lap Export ===");
   });

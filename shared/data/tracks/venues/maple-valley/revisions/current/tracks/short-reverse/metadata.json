@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "id": "maple-valley/short-reverse",
+  "name": "Short Reverse",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 70,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "maple-valley-sr",
+    "track": "maple-valley",
+    "layout": "short-reverse",
+    "layoutName": "Short Reverse",
+    "name": "Maple Valley",
+    "source": "derived from track geometry (no official corner names)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "t1",
+          "startFrac": 0,
+          "endFrac": 0.2118
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2118,
+          "endFrac": 0.3437
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3437,
+          "endFrac": 0.4663
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4663,
+          "endFrac": 0.5705
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5705,
+          "endFrac": 0.9186
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.9186,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

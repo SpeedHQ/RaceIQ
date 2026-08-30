@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/mullenbachschleife",
+  "name": "Müllenbachschleife",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 261,
+      "confirmation": null
+    }
+  ]
+}

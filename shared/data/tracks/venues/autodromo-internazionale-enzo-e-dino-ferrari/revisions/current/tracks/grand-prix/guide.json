@@ -1,0 +1,100 @@
+{
+  "id": "imola",
+  "locale": "en",
+  "character": "Historic 4.9km circuit, narrow and technical with limited overtaking. Undulating, flowing, and punishing mistakes with little runoff. Precision and curb management are key.",
+  "sources": "https://www.formula1.com/en/racing/2026/emilia-romagna/circuit official F1 circuit guide; Tamburello/Villeneuve/Tosa/Rivazza naming long-established",
+  "corners": [
+    {
+      "key": "variante-tamburello",
+      "name": "Variante Tamburello",
+      "numbers": [
+        2,
+        3,
+        4
+      ],
+      "type": "medium-speed left-right chicane (T2-T4)",
+      "technique": "Brake from 6th to 2nd gear, late apex T2, use sausage kerbs carefully. T4 kink should be flat with correct line",
+      "trap": "Running wide out of the chicane makes T4 impossible to take flat"
+    },
+    {
+      "key": "villeneuve",
+      "name": "Villeneuve",
+      "numbers": [
+        5,
+        6
+      ],
+      "type": "left-right chicane (T5-T6)",
+      "technique": "Hard braking, precise through both apexes. Use inside kerbs but avoid sausages",
+      "trap": "Too aggressive over kerbs triggers TC intervention and snap oversteer"
+    },
+    {
+      "key": "tosa",
+      "name": "Tosa",
+      "numbers": [
+        7
+      ],
+      "type": "slow left hairpin (T7)",
+      "technique": "Brake after 50m board, 2nd gear, mid-to-late apex. Trail brake heavily, get on power early as exit opens",
+      "trap": "Early apex prevents early throttle application"
+    },
+    {
+      "key": "piratella",
+      "name": "Piratella",
+      "numbers": [
+        9
+      ],
+      "type": "fast uphill right (T9)",
+      "technique": "Near-flat or light braking, use the elevation to your advantage. Commitment rewarded",
+      "trap": "Lifting kills momentum through the fast section that follows"
+    },
+    {
+      "key": "acque-minerali",
+      "name": "Acque Minerali",
+      "numbers": [
+        11,
+        12
+      ],
+      "type": "technical right-right-left sequence (T10-T13)",
+      "technique": "Brake at 50m board for T11, 3rd gear, clip inside. Quick throttle blip between apexes to settle car, then commit to T12-T13",
+      "trap": "Aggressive turn-in while braking causes rear rotation; need smooth weight transfer"
+    },
+    {
+      "key": "variante-alta",
+      "name": "Variante Alta",
+      "numbers": [
+        14,
+        15
+      ],
+      "type": "left-right chicane (T14-T15)",
+      "technique": "Hard braking, carry speed to late apex. Critical exit feeds Rivazza approach",
+      "trap": "Compromising exit speed by over-driving the entry"
+    },
+    {
+      "key": "rivazza-1",
+      "name": "Rivazza 1",
+      "numbers": [
+        17,
+        18
+      ],
+      "type": "fast downhill left (T17)",
+      "technique": "Brave entry, trail brake to apex, use camber for grip",
+      "trap": "Braking too early wastes the downhill advantage"
+    },
+    {
+      "key": "rivazza-2",
+      "name": "Rivazza 2",
+      "numbers": [
+        17,
+        18
+      ],
+      "type": "medium-speed left (T18)",
+      "technique": "Late apex, progressive throttle. Exit speed feeds start/finish straight",
+      "trap": "Early apex = wheelspin on exit = slow pit straight"
+    }
+  ],
+  "priorityCorners": [
+    "tosa",
+    "acque-minerali",
+    "rivazza-2"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "charlotte-motor-speedway/dirt-road",
+  "name": "Dirt Road",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 587,
+      "confirmation": null
+    }
+  ]
+}

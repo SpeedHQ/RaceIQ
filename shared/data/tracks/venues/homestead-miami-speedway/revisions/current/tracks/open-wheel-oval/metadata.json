@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "homestead-miami-speedway/open-wheel-oval",
+  "name": "Open Wheel Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 362,
+      "confirmation": null
+    }
+  ]
+}

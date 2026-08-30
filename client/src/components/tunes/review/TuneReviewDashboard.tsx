@@ -12,7 +12,9 @@ import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentVersion } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
+import { useTrackSectorBoundaries } from "@/hooks/track-queries";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshot } from "./tire-snapshot";
@@ -23,6 +25,7 @@ import { TrackFocusView } from "../track-focus/TrackFocusView";
 interface TuneReviewDashboardProps {
   gameId: ExperimentGameId;
   trackName?: string;
+  trackOrdinal?: number | null;
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
@@ -51,16 +54,23 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * spine" layout: the session's sectors are the organising columns (time + where on
  * track), then the lap's detected issues, tyre state, and the Setup Engineer
  * recommendation. Everything is reconstructed from the selected lap's stored
- * telemetry — no live stream.
+ * telemetry. Empty reviews can still show authored or live sector boundaries.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, trackOrdinal, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
-
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
   const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
   const trackTab = search.trackTab ?? "consistency";
+  const { data: trackSectorBounds } = useTrackSectorBoundaries(focusLap ? undefined : (trackOrdinal ?? undefined), gameId);
+  const liveSectorStarts = useTelemetryStore((state) => {
+    if (focusLap) return null;
+    const view = state.telemetryView;
+    if (view?.simulator !== gameId || view.identity.trackOrdinal !== trackOrdinal) return null;
+    return state.sectors?.sectorStarts ?? null;
+  });
+  const emptySectorStarts = liveSectorStarts ?? trackSectorBounds?.sectorStarts;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,7 +91,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
   const telemetry = useMemo(() => semanticSamples(gameId, lapTel?.envelopes), [gameId, lapTel]);
-  const sectorTimes = lapTel?.sectorTimes ? { times: lapTel.sectorTimes, boundaryIndices: lapTel.sectorStarts ?? [] } : null;
+  const sectorTimes = lapTel?.sectorTimes ? { times: lapTel.sectorTimes, boundaryIndices: lapTel.sectorBoundaryIndices ?? [] } : null;
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
@@ -172,7 +182,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   // overview skeleton — same spine layout, placeholder times/maps — so the page
   // reads as the review dashboard rather than a bare "no laps" message.
   if (!focusLap) {
-    return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
+    return <ReviewOverviewSkeleton trackName={trackName} sectorStarts={emptySectorStarts} onBack={onBack} />;
   }
 
   const isOverview = view !== "track" && sectorIndex == null;

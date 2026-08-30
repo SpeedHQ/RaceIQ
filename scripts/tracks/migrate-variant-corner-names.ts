@@ -1,11 +1,11 @@
 /**
  * Propagate corner names from a named parent layout to its unnamed variants.
  *
- *   before  shared/data/tracks/meta/silverstone.json    T9 "Copse"
- *           shared/data/tracks/meta/silverstone-s.json  T1 <unnamed>
- *   after   shared/data/tracks/meta/silverstone-s.json  T1 "Copse"
+ *   before  silverstone registry roster    T9 "Copse"
+ *           silverstone-s registry roster  T1 <unnamed>
+ *   after   silverstone-s registry roster  T1 "Copse"
  *
- * Variants of the same circuit share `track` in their facts file, so a
+ * Variants of the same circuit share `track` in their registry facts, so a
  * variant's turn 1 is very often a parent turn under a different number. The
  * only reliable link between the two is physical position: both layouts have
  * geometry (segment start/end fractions) over a centerline, so a corner's apex
@@ -23,13 +23,14 @@
  *
  * Dry run by default; pass --write to apply.
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "../../shared/platform/runtime/data-paths"
+import { KNOWN_GAME_IDS } from "../../shared/games/ids";
+import { SHARED_DIR } from "../../shared/platform/runtime/data-paths";
 import type { CornerFact, TrackFacts } from "../../shared/racing/tracks/facts";
 import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
+import { listTrackFactSlugs, loadTrackFacts, loadTrackGeometryForGame, saveTrackFacts } from "../../shared/racing/tracks/storage/meta";
 
-const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");
 
 /** Max apex separation for a name to carry across layouts. */
@@ -37,23 +38,9 @@ const MAX_APEX_DIST_M = 25;
 
 type Point = [number, number];
 
-/** Games that ship their own per-layout geometry, in preference order. */
+/** Games that may carry per-layout geometry, in preference order. */
 function candidateGames(): string[] {
-  return readdirSync(TRACKS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && !["meta", "tumftm"].includes(d.name))
-    .map((d) => d.name);
-}
-
-function loadFacts(slug: string): TrackFacts | null {
-  const p = resolve(META_DIR, `${slug}.json`);
-  if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, "utf-8")) as TrackFacts;
-}
-
-function loadGeometry(slug: string, game: string): TrackGeometry | null {
-  const p = resolve(TRACKS_DIR, game, `${slug}-segments.json`);
-  if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, "utf-8")) as TrackGeometry;
+  return [...KNOWN_GAME_IDS];
 }
 
 /** Centerlines are named `<slug>-centerline.csv` or `<slug>-<ordinal>-centerline.csv`. */
@@ -101,8 +88,8 @@ const games = candidateGames();
 
 // Group layouts by physical circuit.
 const groups = new Map<string, TrackFacts[]>();
-for (const f of readdirSync(META_DIR).filter((x) => x.endsWith(".json"))) {
-  const facts = loadFacts(f.replace(".json", ""));
+for (const slug of listTrackFactSlugs()) {
+  const facts = loadTrackFacts(slug);
   if (facts?.track) groups.set(facts.track, [...(groups.get(facts.track) ?? []), facts]);
 }
 
@@ -122,29 +109,15 @@ for (const [_track, layouts] of [...groups].sort()) {
     if (!missing.length) continue;
 
     // Both layouts must have geometry in the same game to be comparable.
-    const game = games.find(
-      (g) =>
-        loadGeometry(donor.slug, g) &&
-        loadGeometry(recipient.slug, g) &&
-        loadCenterline(donor.slug, g) &&
-        loadCenterline(recipient.slug, g),
-    );
+    const game = games.find((g) => loadTrackGeometryForGame(donor.slug, g) && loadTrackGeometryForGame(recipient.slug, g) && loadCenterline(donor.slug, g) && loadCenterline(recipient.slug, g));
     if (!game) {
       console.log(`${recipient.slug.padEnd(22)} skip — no shared game geometry with ${donor.slug}`);
       continue;
     }
 
-    const dApex = apexes(donor, loadGeometry(donor.slug, game)!, loadCenterline(donor.slug, game)!);
-    const rApex = apexes(
-      recipient,
-      loadGeometry(recipient.slug, game)!,
-      loadCenterline(recipient.slug, game)!,
-    );
-    const donorName = new Map(
-      (donor.corners ?? [])
-        .filter((c) => (c.name ?? "").trim())
-        .map((c) => [c.number, c.name!.trim()]),
-    );
+    const dApex = apexes(donor, loadTrackGeometryForGame(donor.slug, game)!, loadCenterline(donor.slug, game)!);
+    const rApex = apexes(recipient, loadTrackGeometryForGame(recipient.slug, game)!, loadCenterline(recipient.slug, game)!);
+    const donorName = new Map((donor.corners ?? []).filter((c) => (c.name ?? "").trim()).map((c) => [c.number, c.name!.trim()]));
 
     // Score every candidate pairing, then greedily take the closest first so
     // each donor corner is consumed exactly once.
@@ -177,21 +150,12 @@ for (const [_track, layouts] of [...groups].sort()) {
 
     if (applied.length) {
       totalApplied += applied.length;
-      console.log(
-        `${recipient.slug.padEnd(22)} +${String(applied.length).padStart(2)} from ${donor.slug} [${game}]`,
-      );
+      console.log(`${recipient.slug.padEnd(22)} +${String(applied.length).padStart(2)} from ${donor.slug} [${game}]`);
       for (const a of applied) console.log(`    ${a}`);
-      if (write) {
-        writeFileSync(
-          resolve(META_DIR, `${recipient.slug}.json`),
-          `${JSON.stringify(recipient, null, 2)}\n`,
-        );
-      }
+      if (write) saveTrackFacts(recipient.slug, recipient);
     }
   }
 }
 
-console.log(
-  `\n${write ? "applied" : "would apply"} ${totalApplied} names; ${totalRejected} candidate pairings rejected as ambiguous`,
-);
+console.log(`\n${write ? "applied" : "would apply"} ${totalApplied} names; ${totalRejected} candidate pairings rejected as ambiguous`);
 if (!write) console.log("dry run — pass --write to apply");

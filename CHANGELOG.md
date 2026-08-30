@@ -17,6 +17,7 @@
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 
 ### Fixes
+- Keep source-defined sector layouts aligned across the app, load authored track sectors before any lap exists, and apply native layouts as soon as the simulator publishes them
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
 - Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
@@ -97,6 +98,9 @@
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
+- Migrate static track data into canonical venue, revision, and layout registry assets while keeping imagery packs in regular Git
+- Read track configuration, identity, geometry, hints, and guides through the canonical registry while preserving existing behavior
+- Load iRacing track maps from bundled canonical SVG layers without external requests or writable caches
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Replace first-party Zustand stores with TanStack Store and add development-only unified TanStack Devtools panels
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases

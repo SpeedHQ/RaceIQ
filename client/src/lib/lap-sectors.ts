@@ -13,6 +13,7 @@ export function bestSectorLapIds(laps: readonly IdentifiedSectorTimes[], sectorC
   const bestLapNumbers = Array<number>(sectorCount).fill(Infinity);
 
   for (const lap of laps) {
+    if (lap.sectorTimes?.length !== sectorCount) continue;
     for (let index = 0; index < sectorCount; index++) {
       const time = lap.sectorTimes?.[index] ?? 0;
       if (time <= 0) continue;

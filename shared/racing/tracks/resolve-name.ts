@@ -1,12 +1,22 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { tryGetGame } from "@shared/games/registry";
-import { SHARED_DIR, USER_TRACKS_DIR } from "@shared/platform/runtime/data-paths";
 import { getAccSharedTrackName } from "./catalogs/acc";
 import { getAcEvoSharedTrackName } from "./catalogs/ac-evo";
 import { getF1TrackInfo } from "./catalogs/f1";
 import { getFmBundledTrackName, getFmTrackName } from "./catalogs/fm";
 import { getIRacingSharedTrackName } from "./catalogs/iracing";
+import { GameIdSchema, type GameId } from "../../games/ids";
+import {
+  bundledGeometryPath,
+  bundledSharedGeometryPath,
+  getTrackAssetIdentity,
+  sharedAccGeometrySlug,
+  usesAccGeometryFallback,
+  type GeometryAssetKind,
+  type TrackAssetIdentity,
+} from "./storage/assets";
+import { getTrackRegistryIndexes } from "./registry";
+import { parseCanonicalTrackId } from "./configuration";
 
 export interface TrackPoint {
   x: number;
@@ -34,9 +44,29 @@ function readDataFile(filePath: string): string | null {
     return null;
   }
 }
+function configuredTrackName(ordinal: number, gameId: string | undefined): string | null {
+  const parsedGameId = GameIdSchema.safeParse(gameId);
+  if (!parsedGameId.success) return null;
+  const indexes = getTrackRegistryIndexes();
+  const assignment = indexes.assignmentsByGame.get(parsedGameId.data)?.get(ordinal);
+  if (!assignment?.confirmation?.confirmedAt || !assignment.confirmation.confirmedBy) return null;
+  const layout = indexes.layoutsById.get(assignment.layoutId);
+  if (!layout) throw new Error(`Track registry layout is missing for ${assignment.layoutId}`);
+  const { venuePath } = parseCanonicalTrackId(layout.id);
+  const paths = venuePath.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"));
+  const names = paths.map((path) => {
+    const venue = indexes.venuesById.get(path);
+    if (!venue) throw new Error(`Track registry venue hierarchy is incomplete for ${venuePath}`);
+    return venue.name;
+  });
+  return [...names, layout.name].join(" — ");
+}
 
-/** Resolve display name through registered game adapter, then Forza fallback. */
+
+/** Resolve confirmed canonical identity first, then registered game catalog. */
 export function resolveTrackName(ordinal: number, gameId?: string): string {
+  const canonical = configuredTrackName(ordinal, gameId);
+  if (canonical) return canonical;
   const adapter = gameId ? tryGetGame(gameId) : undefined;
   return adapter?.getTrackName(ordinal) ?? getFmTrackName(ordinal);
 }
@@ -59,30 +89,35 @@ export function computedAverageFileName(gameId: string, ordinal: number): string
   return name ? `${name}-computed-average` : `${ordinal}-computed-average`;
 }
 
-export function bundledTrackDir(gameId: string): string {
-  return resolve(SHARED_DIR, "tracks", gameId);
-}
-
-export function toBundledPath(gameId: string, relativePath: string): string | null {
-  const normalized = relativePath.startsWith("extracted/")
-    ? relativePath.slice("extracted/".length)
-    : relativePath;
-  const match = normalized.match(/^(\w+)-(\d+)\.(json|csv)$/);
-  if (!match) return normalized;
-  const name = getBundledTrackName(gameId, Number.parseInt(match[2], 10));
-  if (!name) return null;
-  const kind = match[1] === "recorded" ? "centerline" : match[1];
-  return `${name}-${kind}.${match[3]}`;
-}
-
-export function readUserOrBundled(gameId: string, relativePath: string): string | null {
-  const userResult = readDataFile(resolve(USER_TRACKS_DIR, gameId, relativePath));
-  if (userResult !== null) return userResult;
-  const bundledPath = toBundledPath(gameId, relativePath);
-  return bundledPath ? readDataFile(resolve(bundledTrackDir(gameId), bundledPath)) : null;
-}
 
 const bundledPointCache = new Map<string, TrackPoint[] | null>();
+
+
+function exactAccGeometryPath(identity: TrackAssetIdentity, kind: GeometryAssetKind): string {
+  return bundledGeometryPath({ ...identity, gameId: "acc" as GameId }, kind);
+}
+
+function bundledPointContent(
+  identity: TrackAssetIdentity,
+  suffix: "centerline" | "raceline",
+): string | null {
+  const exact = readDataFile(bundledGeometryPath(identity, suffix));
+  if (exact) return exact;
+
+  const accSlug = sharedAccGeometrySlug(identity);
+  if (accSlug) {
+    const shared = bundledSharedGeometryPath(identity, "acc", accSlug, suffix);
+    return shared ? readDataFile(shared) : null;
+  }
+  const fallbackSlug = identity.factsSlug;
+  if (fallbackSlug && usesAccGeometryFallback(identity, fallbackSlug)) {
+    const accExact = readDataFile(exactAccGeometryPath(identity, suffix));
+    if (accExact) return accExact;
+    const shared = bundledSharedGeometryPath(identity, "acc", fallbackSlug, suffix);
+    return shared ? readDataFile(shared) : null;
+  }
+  return null;
+}
 
 export function loadBundledPointCsv(
   ordinal: number,
@@ -93,16 +128,13 @@ export function loadBundledPointCsv(
   const cached = bundledPointCache.get(key);
   if (cached !== undefined) return cached;
 
-  const name = getBundledTrackName(gameId, ordinal);
-  if (!name) {
+  const identity = getTrackAssetIdentity(gameId, ordinal);
+  if (!identity) {
     bundledPointCache.set(key, null);
     return null;
   }
 
-  let content = readDataFile(resolve(bundledTrackDir(gameId), `${name}-${suffix}.csv`));
-  if (!content && gameId === "ac-evo") {
-    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-${suffix}.csv`));
-  }
+  const content = bundledPointContent(identity, suffix);
   if (!content) {
     bundledPointCache.set(key, null);
     return null;

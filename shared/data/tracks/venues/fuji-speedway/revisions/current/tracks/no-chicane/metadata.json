@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "fuji-speedway/no-chicane",
+  "name": "No Chicane",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 445,
+      "confirmation": null
+    }
+  ]
+}

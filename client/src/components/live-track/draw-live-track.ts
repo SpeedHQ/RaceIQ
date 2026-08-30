@@ -1,4 +1,5 @@
 import type { TuneIssue } from "@shared/racing/tuning/issues";
+import { sectorIndexAtFraction } from "@shared/racing/tracks/sectors";
 import type { MutableRefObject, RefObject } from "react";
 import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
@@ -24,7 +25,7 @@ export function drawLiveTrack({
   noOutline,
   isRecorded,
   startYaw,
-  sectors,
+  sectorStarts,
   boundaries,
   issues,
   liveTraceRef,
@@ -37,7 +38,7 @@ export function drawLiveTrack({
   noOutline: boolean;
   isRecorded: boolean;
   startYaw: number | null;
-  sectors: { s1End: number; s2End: number } | null;
+  sectorStarts: number[] | null;
   boundaries: TrackBoundaryData | null;
   issues?: TuneIssue[];
   liveTraceRef: MutableRefObject<Point[]>;
@@ -168,7 +169,7 @@ export function drawLiveTrack({
 
   const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
 
-  if (isLiveTrace || !sectors) {
+  if (isLiveTrace || !sectorStarts) {
     // No sectors: draw uniform outline
     ctx.beginPath();
     ctx.strokeStyle = isLiveTrace ? "color-mix(in srgb, var(--app-accent) 25%, var(--app-surface))" : "var(--track-outline)";
@@ -201,27 +202,19 @@ export function drawLiveTrack({
   } else {
     // Sector-colored track using the theme-owned ordered identities.
     const sectorColors = SECTOR_COLOR_VARS;
-    const sectorBgColors = sectorColors.slice(0, 3).map((color) => `color-mix(in srgb, ${color} 25%, var(--app-surface))`);
+    const sectorBgColors = sectorStarts.map((_, index) => `color-mix(in srgb, ${sectorColors[index % sectorColors.length]} 25%, var(--app-surface))`);
     const n = displayOutline.length;
-    const s1Idx = Math.round(sectors.s1End * (n - 1));
-    const s2Idx = Math.round(sectors.s2End * (n - 1));
-
-    function getSectorForIdx(i: number): number {
-      if (i < s1Idx) return 0;
-      if (i < s2Idx) return 1;
-      return 2;
-    }
 
     // Draw dark background pass
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 5;
-    let currentSector = getSectorForIdx(0);
+    let currentSector = sectorIndexAtFraction(sectorStarts, 0);
     ctx.beginPath();
     ctx.strokeStyle = sectorBgColors[currentSector];
     ctx.moveTo(sx, sy);
     for (let i = 1; i < n; i++) {
-      const sec = getSectorForIdx(i);
+      const sec = sectorIndexAtFraction(sectorStarts, i / (n - 1));
       const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
       if (isJump(i)) {
         ctx.stroke();
@@ -245,24 +238,24 @@ export function drawLiveTrack({
 
     // Draw bright sector line on top
     ctx.lineWidth = 2.5;
-    currentSector = getSectorForIdx(0);
+    currentSector = sectorIndexAtFraction(sectorStarts, 0);
     ctx.beginPath();
-    ctx.strokeStyle = sectorColors[currentSector];
+    ctx.strokeStyle = sectorColors[currentSector % sectorColors.length];
     ctx.moveTo(sx, sy);
     for (let i = 1; i < n; i++) {
-      const sec = getSectorForIdx(i);
+      const sec = sectorIndexAtFraction(sectorStarts, i / (n - 1));
       const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
       if (isJump(i)) {
         ctx.stroke();
         ctx.beginPath();
-        ctx.strokeStyle = sectorColors[sec];
+        ctx.strokeStyle = sectorColors[sec % sectorColors.length];
         ctx.moveTo(px, py);
       } else if (sec !== currentSector) {
         ctx.lineTo(px, py);
         ctx.stroke();
         currentSector = sec;
         ctx.beginPath();
-        ctx.strokeStyle = sectorColors[currentSector];
+        ctx.strokeStyle = sectorColors[currentSector % sectorColors.length];
         ctx.moveTo(px, py);
       } else {
         ctx.lineTo(px, py);
@@ -340,8 +333,8 @@ export function drawLiveTrack({
   }
 
   // Sector boundary markers on the outline
-  if (!isLiveTrace && sectors && displayOutline.length > 10) {
-    const sectorFracs = [sectors.s1End, sectors.s2End];
+  if (!isLiveTrace && sectorStarts && displayOutline.length > 10) {
+    const sectorFracs = sectorStarts.slice(1);
 
     for (let si = 0; si < sectorFracs.length; si++) {
       const idx = Math.round(sectorFracs[si] * (displayOutline.length - 1));
@@ -364,7 +357,7 @@ export function drawLiveTrack({
         ctx.beginPath();
         ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
         ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
-        ctx.strokeStyle = SECTOR_COLOR_VARS[si];
+        ctx.strokeStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -372,7 +365,7 @@ export function drawLiveTrack({
       // Small dot at sector boundary
       ctx.beginPath();
       ctx.arc(mx, my, 3, 0, Math.PI * 2);
-      ctx.fillStyle = SECTOR_COLOR_VARS[si];
+      ctx.fillStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
       ctx.fill();
       ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1;

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "daytona-international-speedway/2008/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 29,
+      "confirmation": null
+    }
+  ]
+}

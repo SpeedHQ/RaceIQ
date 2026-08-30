@@ -1,5 +1,5 @@
 /**
- * Copies shared/data CSV/JSON contents directly into dist/data and preserves
+ * Copies shared data required at runtime directly into dist/data and preserves
  * other shared umbrella names beneath dist/data. Used by production builds so
  * compiled code sees the same logical data roots as source code.
  *
@@ -23,30 +23,34 @@ function copyFile(src: string, dest: string) {
   count++;
 }
 
-function copyDir(srcDir: string, destDir: string, filter?: (name: string) => boolean) {
+function copyDir(srcDir: string, destDir: string, filter?: (sourcePath: string) => boolean) {
   try {
     const entries = readdirSync(srcDir, { withFileTypes: true });
     for (const entry of entries) {
+      const sourcePath = path.join(srcDir, entry.name);
       if (entry.isDirectory()) {
-        copyDir(path.join(srcDir, entry.name), path.join(destDir, entry.name), filter);
-      } else if (!filter || filter(entry.name)) {
-        copyFile(path.join(srcDir, entry.name), path.join(destDir, entry.name));
+        copyDir(sourcePath, path.join(destDir, entry.name), filter);
+      } else if (!filter || filter(sourcePath)) {
+        copyFile(sourcePath, path.join(destDir, entry.name));
       }
     }
   } catch {}
 }
 
-// Static data umbrella is the compiled data root; other shared umbrellas keep
-// their names so game catalogs and generated telemetry remain addressable.
+// Static data umbrella is compiled data root. Track packaging is path-aware:
+// generated registry plus canonical geometry, imagery, and guides only.
 const sharedDir = path.join(ROOT, "shared");
-copyDir(path.join(sharedDir, "data"), DIST, (name) => name.endsWith(".csv") || name.endsWith(".json"));
+const staticDataRoot = path.join(sharedDir, "data");
+copyDir(staticDataRoot, DIST, (sourcePath) => {
+  const components = path.relative(staticDataRoot, sourcePath).split(path.sep);
+  if (components[0] !== "tracks") return sourcePath.endsWith(".csv") || sourcePath.endsWith(".json");
+  if (components.length === 2 && components[1] === "registry.json") return true;
+  if (components[1] !== "venues") return false;
+  return components.includes("geometry") || components.includes("imagery") || components.at(-1) === "guide.json";
+});
 for (const entry of readdirSync(sharedDir, { withFileTypes: true })) {
   if (!entry.isDirectory() || entry.name === "data") continue;
-  copyDir(
-    path.join(sharedDir, entry.name),
-    path.join(DIST, entry.name),
-    (name) => name.endsWith(".csv") || name.endsWith(".json"),
-  );
+  copyDir(path.join(sharedDir, entry.name), path.join(DIST, entry.name), (sourcePath) => sourcePath.endsWith(".csv") || sourcePath.endsWith(".json"));
 }
 
 console.log(`Copied ${count} data files → ${DIST}`);

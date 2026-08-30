@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mid-ohio-sports-car-course/alt-oval",
+  "name": "Alt Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 157,
+      "confirmation": null
+    }
+  ]
+}

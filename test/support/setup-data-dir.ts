@@ -9,88 +9,103 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { cpSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
+
+function prepareIsolatedTrackRegistryDir(testDataDir: string): void {
+  const tracksSource = resolve(import.meta.dir, "../..", "shared", "data", "tracks");
+  const trackRegistryDir = resolve(testDataDir, "track-registry");
+  rmSync(trackRegistryDir, { recursive: true, force: true });
+  cpSync(resolve(tracksSource, "venues"), resolve(trackRegistryDir, "venues"), {
+    recursive: true,
+    filter: (source) => statSync(source).isDirectory() || ["venue.json", "revision.json", "metadata.json"].includes(basename(source)),
+  });
+  cpSync(resolve(tracksSource, "registry.json"), resolve(trackRegistryDir, "registry.json"));
+  cpSync(resolve(tracksSource, "registry-report.json"), resolve(trackRegistryDir, "registry-report.json"));
+  process.env.RACEIQ_TRACK_REGISTRY_DIR = trackRegistryDir;
+}
 
 async function setupDataDir() {
   const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
-for (const line of releaseEnvironment.split(/\r?\n/)) {
-  const separator = line.indexOf("=");
-  if (separator < 1) continue;
-  const name = line.slice(0, separator);
-  if (name !== "RACEIQ_FEATURE_F1_EXPERIMENTS" && name !== "RACEIQ_FEATURE_IRACING_ADAPTER") continue;
-  process.env[name] = line.slice(separator + 1);
-}
-
-const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
-process.env.RACEIQ_TEST_MODE = "1";
-
-if (!process.env.DATA_DIR) {
-  process.env.DATA_DIR = TEST_DATA_DIR;
-}
-
-if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
-  throw new Error("Test database DATA_DIR must not point at the real user data directory.");
-}
-
-mkdirSync(process.env.DATA_DIR, { recursive: true });
-for (const suffix of ["", "-wal", "-shm"]) {
-  try {
-    rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), {
-      force: true,
-      maxRetries: 20,
-      retryDelay: 100,
-    });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+  for (const line of releaseEnvironment.split(/\r?\n/)) {
+    const separator = line.indexOf("=");
+    if (separator < 1) continue;
+    const name = line.slice(0, separator);
+    if (name !== "RACEIQ_FEATURE_F1_EXPERIMENTS" && name !== "RACEIQ_FEATURE_IRACING_ADAPTER") continue;
+    process.env[name] = line.slice(separator + 1);
   }
-}
-if (resolve(process.env.DATA_DIR) === TEST_DATA_DIR) {
-  // Start each default test run from valid settings, even after an interrupted
-  // test left behind an intentionally invalid fixture value.
-  writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
-}
 
-/**
- * Run DB setup (PRAGMAs, migrations, backfills) exactly once, before any suite
- * loads. This import MUST stay dynamic and MUST stay below the DATA_DIR
- * assignment above — server/db/index.ts resolves its data directory at import
- * time, so hoisting it to a static import would bind the real user DB path.
- *
- * Bun awaits the preload module, so suites only start once the DB is ready.
- * This is the one place a top-level await on DB setup is safe: it is a single
- * controlled entry point, not something every importer of `db` pays for.
- */
-const { initDb } = await import("../../server/db/index");
-await initDb();
 
-/**
- * Global teardown. `bun test` runs every suite in ONE process, and the libsql
- * client / pipeline maintenance interval are module-level singletons shared by
- * all of them. Closing either from a per-suite `afterAll` yanks the DB out from
- * under every file that runs later (with an in-memory DB that means the schema
- * itself disappears). So it happens exactly once, here, after the whole run —
- * otherwise those handles keep the process alive and the runner appears to hang
- * on whichever suite happened to finish last.
- *
- * Imports are dynamic and failure-tolerant: a run that never touched these
- * modules has nothing to tear down and must not pay to load them.
- */
-afterAll(async () => {
-  try {
-    const { stopMaintenanceTasks } = await import("../../server/telemetry/live-pipeline");
-    stopMaintenanceTasks();
-  } catch {
-    // pipeline never loaded — nothing to stop
+  const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
+  process.env.RACEIQ_TEST_MODE = "1";
+  prepareIsolatedTrackRegistryDir(TEST_DATA_DIR);
+
+  if (!process.env.DATA_DIR) {
+    process.env.DATA_DIR = TEST_DATA_DIR;
   }
-  try {
-    const { client } = await import("../../server/db/index");
-    client.close();
-  } catch {
-    // db never loaded — nothing to close
+
+  if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
+    throw new Error("Test database DATA_DIR must not point at the real user data directory.");
   }
-});
+
+  mkdirSync(process.env.DATA_DIR, { recursive: true });
+  for (const suffix of ["", "-wal", "-shm"]) {
+    try {
+      rmSync(resolve(process.env.DATA_DIR, `test.db${suffix}`), {
+        force: true,
+        maxRetries: 20,
+        retryDelay: 100,
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
+    }
+  }
+  if (resolve(process.env.DATA_DIR) === TEST_DATA_DIR) {
+    // Start each default test run from valid settings, even after an interrupted
+    // test left behind an intentionally invalid fixture value.
+    writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
+  }
+
+  /**
+   * Run DB setup (PRAGMAs, migrations, backfills) exactly once, before any suite
+   * loads. This import MUST stay dynamic and MUST stay below the DATA_DIR
+   * assignment above — server/db/index.ts resolves its data directory at import
+   * time, so hoisting it to a static import would bind the real user DB path.
+   *
+   * Bun awaits the preload module, so suites only start once the DB is ready.
+   * This is the one place a top-level await on DB setup is safe: it is a single
+   * controlled entry point, not something every importer of `db` pays for.
+   */
+  const { initDb } = await import("../../server/db/index");
+  await initDb();
+
+  /**
+   * Global teardown. `bun test` runs every suite in ONE process, and the libsql
+   * client / pipeline maintenance interval are module-level singletons shared by
+   * all of them. Closing either from a per-suite `afterAll` yanks the DB out from
+   * under every file that runs later (with an in-memory DB that means the schema
+   * itself disappears). So it happens exactly once, here, after the whole run —
+   * otherwise those handles keep the process alive and the runner appears to hang
+   * on whichever suite happened to finish last.
+   *
+   * Imports are dynamic and failure-tolerant: a run that never touched these
+   * modules has nothing to tear down and must not pay to load them.
+   */
+  afterAll(async () => {
+    try {
+      const { stopMaintenanceTasks } = await import("../../server/telemetry/live-pipeline");
+      stopMaintenanceTasks();
+    } catch {
+      // pipeline never loaded — nothing to stop
+    }
+    try {
+      const { client } = await import("../../server/db/index");
+      client.close();
+    } catch {
+      // db never loaded — nothing to close
+    }
+  });
 }
 
 if (process.env.RACEIQ_UNIT_TESTS !== "1") await setupDataDir();

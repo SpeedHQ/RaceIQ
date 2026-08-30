@@ -11,7 +11,7 @@ type TrackDebugCanvasProps = {
   curbs: TrackCurb[] | null;
   flipX: boolean;
   displaySectors?: TrackSectors | null;
-  sectorBounds?: { s1End: number; s2End: number } | null;
+  sectorStarts?: number[] | null;
   editingSegments?: boolean;
   editingSectors?: boolean;
   trackLengthKm?: number;
@@ -26,7 +26,7 @@ export function TrackDebugCanvas({
   curbs,
   flipX,
   displaySectors,
-  sectorBounds,
+  sectorStarts,
   editingSegments,
   editingSectors,
   trackLengthKm,
@@ -299,11 +299,9 @@ export function TrackDebugCanvas({
       }
       ctx.setLineDash([]);
       ctx.lineWidth = 2.5;
-    } else if (overlayMode === "sectors" && sectorBounds) {
+    } else if (overlayMode === "sectors" && sectorStarts) {
       const n = centerPts.length;
-      const s1 = Math.floor(sectorBounds.s1End * n);
-      const s2 = Math.floor(sectorBounds.s2End * n);
-      const sectorBoundaries = [0, s1, s2, n - 1];
+      const sectorBoundaries = [...sectorStarts.map((fraction) => Math.floor(fraction * n)), n - 1];
       for (let sectorIndex = 0; sectorIndex < sectorBoundaries.length - 1; sectorIndex++) {
         const from = sectorBoundaries[sectorIndex];
         const to = sectorBoundaries[sectorIndex + 1];
@@ -315,7 +313,7 @@ export function TrackDebugCanvas({
           const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
           ctx.lineTo(px, py);
         }
-        ctx.strokeStyle = SECTOR_COLOR_VARS[sectorIndex];
+        ctx.strokeStyle = SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length];
         ctx.lineWidth = 4;
         ctx.globalAlpha = 0.65;
         ctx.stroke();
@@ -374,7 +372,7 @@ export function TrackDebugCanvas({
       ctx.fillRect(340, legendY - 5, 14, 2);
       ctx.fillText("Pit lane", 358, legendY);
     }
-  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors]);
+  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorStarts, overlayMode, editingSegments, editingSectors]);
 
   return (
     <div className="bg-app-bg rounded-lg border border-app-border relative min-h-0">
@@ -421,7 +419,7 @@ export function TrackDebugCanvas({
             {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(1)}x`}
           </Button>
         )}
-        {(displaySectors || sectorBounds) && (
+        {(displaySectors || sectorStarts) && (
           <>
             <div className="h-px" />
             <Button

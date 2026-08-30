@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "slinger-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 500,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "silverstone-racing-circuit/2008/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 41,
+      "confirmation": null
+    }
+  ]
+}

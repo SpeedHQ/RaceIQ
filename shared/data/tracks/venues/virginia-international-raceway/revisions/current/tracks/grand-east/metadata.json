@@ -1,0 +1,293 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/grand-east",
+  "name": "Grand East",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 996,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "vir-ge",
+    "track": "vir",
+    "layout": "grand-east",
+    "layoutName": "Grand East",
+    "name": "Virginia International Raceway",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Horseshoe",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "NASCAR Bend",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Left Hook",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 17,
+        "name": "South Bend",
+        "direction": "left"
+      },
+      {
+        "number": 18,
+        "name": "Oak Tree",
+        "direction": "right"
+      },
+      {
+        "number": 19,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 20,
+        "name": "Roller Coaster",
+        "direction": "right"
+      },
+      {
+        "number": 21,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 22,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 23,
+        "name": "Hog Pen",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s23",
+          "startFrac": 0,
+          "endFrac": 0.0341
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0341,
+          "endFrac": 0.0818
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0818,
+          "endFrac": 0.1059
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1059,
+          "endFrac": 0.1485
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1485,
+          "endFrac": 0.1687
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1687,
+          "endFrac": 0.1991
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1991,
+          "endFrac": 0.2211
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2211,
+          "endFrac": 0.2539
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2539,
+          "endFrac": 0.3006
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3006,
+          "endFrac": 0.323
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.323,
+          "endFrac": 0.3449
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.3449,
+          "endFrac": 0.3597
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.3597,
+          "endFrac": 0.3666
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.3666,
+          "endFrac": 0.3741
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.3741,
+          "endFrac": 0.3903
+        },
+        {
+          "key": "s12",
+          "startFrac": 0.3903,
+          "endFrac": 0.411
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.411,
+          "endFrac": 0.4432
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.4432,
+          "endFrac": 0.4518
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.4518,
+          "endFrac": 0.4811
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.4811,
+          "endFrac": 0.544
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.544,
+          "endFrac": 0.5777
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.5777,
+          "endFrac": 0.5978
+        },
+        {
+          "key": "t18",
+          "startFrac": 0.5978,
+          "endFrac": 0.6368
+        },
+        {
+          "key": "s18",
+          "startFrac": 0.6368,
+          "endFrac": 0.786
+        },
+        {
+          "key": "t19",
+          "startFrac": 0.786,
+          "endFrac": 0.8214
+        },
+        {
+          "key": "t20",
+          "startFrac": 0.8214,
+          "endFrac": 0.8361
+        },
+        {
+          "key": "t21",
+          "startFrac": 0.8361,
+          "endFrac": 0.8631
+        },
+        {
+          "key": "t22",
+          "startFrac": 0.8631,
+          "endFrac": 0.8804
+        },
+        {
+          "key": "t23",
+          "startFrac": 0.8804,
+          "endFrac": 0.9229
+        },
+        {
+          "key": "s23",
+          "startFrac": 0.9229,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

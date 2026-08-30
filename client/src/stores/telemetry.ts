@@ -198,29 +198,56 @@ export interface TelemetryActions extends StoreActionMap {
   setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
   setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  beginReprocess: (total: number) => void; completeReprocess: () => void; failReprocess: (message: string) => void; dismissReprocess: () => void; incrementReprocessProgress: () => void;
-  setDevState: (state: unknown) => void; toggleDevStatePause: () => void;
+  beginReprocess: (total: number) => void;
+  completeReprocess: () => void;
+  failReprocess: (message: string) => void;
+  dismissReprocess: () => void;
+  incrementReprocessProgress: () => void;
+  setDevState: (state: unknown) => void;
+  toggleDevStatePause: () => void;
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
 export const telemetryStore = createStore(initialTelemetryState, (store): TelemetryActions => ({
-  setConnected: (connected) => store.setState((prev) => connected && prev.updateProgress?.stage === "reconnecting"
-    ? { ...prev, connected, updateProgress: { stage: "complete", percent: 100 }, updateAvailable: null }
-    : { ...prev, connected }),
+  setConnected: (connected) =>
+    store.setState((prev) =>
+      connected && prev.updateProgress?.stage === "reconnecting" ? { ...prev, connected, updateProgress: { stage: "complete", percent: 100 }, updateAvailable: null } : { ...prev, connected },
+    ),
   setSectors: (sectors) => store.setState((prev) => ({ ...prev, sectors })),
   setPit: (pit) => store.setState((prev) => ({ ...prev, pit })),
   setSessionLaps: (sessionLaps) => store.setState((prev) => ({ ...prev, sessionLaps })),
   setLiveIssues: (liveIssues) => store.setState((prev) => ({ ...prev, liveIssues })),
   addLapIssues: (entry) => store.setState((prev) => ({ ...prev, lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20) })),
-  setTelemetrySchema: (telemetrySchema) => store.setState((prev) => prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
-    ? { ...prev, telemetrySchema }
-    : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null }),
-  setTelemetryFrame: (telemetryFrame) => store.setState((prev) => ({ ...prev, telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null })),
+  setTelemetrySchema: (telemetrySchema) =>
+    store.setState((prev) =>
+      prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
+        ? { ...prev, telemetrySchema }
+        : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null, sectors: null, pit: null, liveIssues: [] },
+    ),
+  setTelemetryFrame: (telemetryFrame) =>
+    store.setState((prev) => {
+      const context = telemetryFrame.context ?? {};
+      const sectors = context.sectors;
+      if (sectors && prev.sectors?.sectorStarts.length === sectors.sectorStarts.length && sectors.sectorStarts.every((start, index) => start === prev.sectors!.sectorStarts[index])) {
+        sectors.sectorStarts = prev.sectors.sectorStarts;
+      }
+      return {
+        ...prev,
+        telemetryFrame,
+        telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView) : prev.telemetryView,
+        sectors: sectors ?? null,
+        pit: context.pit ?? null,
+        liveIssues: context.liveIssues ? [...context.liveIssues] : [],
+      };
+    }),
+  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
-  setServerStatus: (status) => store.setState((prev) => status
-    ? { ...prev, serverStatus: status, udpPps: status.udpPps, isRaceOn: status.isRaceOn, lastUdpAt: status.udpPps > 0 ? Date.now() : prev.lastUdpAt }
-    : { ...prev, serverStatus: null, udpPps: 0, isRaceOn: false }),
+  setServerStatus: (status) =>
+    store.setState((prev) =>
+      status
+        ? { ...prev, serverStatus: status, udpPps: status.udpPps, isRaceOn: status.isRaceOn, lastUdpAt: status.udpPps > 0 ? Date.now() : prev.lastUdpAt }
+        : { ...prev, serverStatus: null, udpPps: 0, isRaceOn: false },
+    ),
   setUpdateAvailable: (version) => store.setState((prev) => ({ ...prev, updateAvailable: version })),
   setStaleRaceResults: (data) => store.setState((prev) => ({ ...prev, staleRaceResults: data })),
   setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
@@ -233,7 +260,10 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   incrementReprocessProgress: () => store.setState((prev) => ({ ...prev, reprocessState: advanceReprocess(prev.reprocessState) })),
   setUpdateProgress: (progress) => store.setState((prev) => ({ ...prev, updateProgress: progress })),
   setVersionInfo: (info) => store.setState((prev) => ({ ...prev, versionInfo: info })),
-  setDevState: (state) => { if (store.get().devStatePaused) return; store.setState((prev) => ({ ...prev, devState: state })); },
+  setDevState: (state) => {
+    if (store.get().devStatePaused) return;
+    store.setState((prev) => ({ ...prev, devState: state }));
+  },
   toggleDevStatePause: () => store.setState((prev) => ({ ...prev, devStatePaused: !prev.devStatePaused })),
   setDisplayUnits: (unit, temperatureUnit) => store.setState((prev) => ({ ...prev, unitSystem: unit, temperatureUnit })),
 }));

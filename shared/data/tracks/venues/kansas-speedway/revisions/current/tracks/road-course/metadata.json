@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "kansas-speedway/road-course",
+  "name": "Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 215,
+      "confirmation": null
+    }
+  ]
+}

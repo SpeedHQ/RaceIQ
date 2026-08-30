@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="a" data-name="Short - Turns" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .b {
+        font-size: 24px;
+      }
+
+      .b, .c {
+        fill: #fff;
+        font-family: ArialMT, Arial;
+      }
+
+      .c {
+        font-size: 36px;
+      }
+    </style>
+  </defs>
+  <text class="c" transform="translate(300.1 348.81)"><tspan x="0" y="0">1</tspan></text>
+  <text class="b" transform="translate(201.95 375.23)"><tspan x="0" y="0">San Donato</tspan></text>
+  <text class="c" transform="translate(490.46 257.5)"><tspan x="0" y="0">2</tspan></text>
+  <text class="b" transform="translate(474.09 284.19)"><tspan x="0" y="0">Luco</tspan></text>
+  <text class="c" transform="translate(611.8 258.39)"><tspan x="0" y="0">3</tspan></text>
+  <text class="b" transform="translate(584.45 285.07)"><tspan x="0" y="0">Poggio</tspan><tspan x="4.01" y="28.8">Secco</tspan></text>
+  <text class="c" transform="translate(909.84 329.9)"><tspan x="0" y="0">4</tspan></text>
+  <text class="c" transform="translate(1009.48 364.3)"><tspan x="0" y="0">5</tspan></text>
+  <text class="c" transform="translate(1230.48 512.35)"><tspan x="0" y="0">6</tspan></text>
+  <text class="c" transform="translate(1234.64 651.82)"><tspan x="0" y="0">7</tspan></text>
+  <text class="b" transform="translate(871.42 391.47)"><tspan x="0" y="0">Materassi</tspan></text>
+  <text class="b" transform="translate(1153.65 540)"><tspan x="0" y="0">Casanova</tspan></text>
+  <text class="b" transform="translate(996.04 270.44)"><tspan x="0" y="0">Borgo</tspan><tspan x="-42.7" y="28.8">San Loreenzo</tspan></text>
+</svg>

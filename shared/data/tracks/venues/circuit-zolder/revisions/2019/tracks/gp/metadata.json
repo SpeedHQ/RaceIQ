@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "circuit-zolder/2019/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 12,
+      "confirmation": null
+    }
+  ]
+}

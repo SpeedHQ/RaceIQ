@@ -1,0 +1,66 @@
+{
+  "id": "vir",
+  "locale": "en",
+  "character": "3.27-mile (5.26km) undulating Virginia road course regarded as one of America's most technical circuits. The uphill Climbing Esses and the downhill Roller Coaster complex are the signature sections; a clean run through the Climbing Esses sets up the rest of the lap.",
+  "sources": "https://hotlaprentals.com/articles/virginia-international-raceway-vir-complete-track-guide-master-americas-most-versatile-racing-circuit ; https://www.tarheelbmwcca.org/virnorthhotlap.pdf — Climbing Esses/Oak Tree/Roller Coaster/Hog Pen verified",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "heavy-braking right-hander off the front straight",
+      "technique": "Brake hard, late apex",
+      "trap": "Over-braking and losing momentum into the following section"
+    },
+    {
+      "key": "climbing-esses",
+      "name": "Climbing Esses",
+      "numbers": [
+        7,
+        8,
+        9
+      ],
+      "type": "uphill left-right-left sequence (Turns 7-9) taken at high entry speed",
+      "technique": "Commit through the blind crests, smooth steering, let the car settle over each crest",
+      "trap": "Braking or lifting mid-sequence unsettles the car on the elevation changes"
+    },
+    {
+      "key": "oak-tree",
+      "name": "Oak Tree",
+      "numbers": [
+        11,
+        12
+      ],
+      "type": "high-speed right-hander (Turn 12)",
+      "technique": "Late braking, full commitment",
+      "trap": "Hesitation here scrubs significant speed"
+    },
+    {
+      "key": "roller-coaster",
+      "name": "Roller Coaster",
+      "numbers": [
+        14
+      ],
+      "type": "downhill compression sequence (Turns 13-15) with three pronounced humps",
+      "technique": "Stay smooth and committed as the car goes light over each hump",
+      "trap": "Excess speed or a poor line here risks significant airtime"
+    },
+    {
+      "key": "hog-pen",
+      "name": "Hog Pen",
+      "numbers": [
+        17
+      ],
+      "type": "tight chicane (Turns 16-17) before the front straight",
+      "technique": "Hard, precise braking, quick direction change",
+      "trap": "Carrying too much speed in and running out of track on exit"
+    }
+  ],
+  "priorityCorners": [
+    "climbing-esses",
+    "oak-tree",
+    "hog-pen"
+  ]
+}

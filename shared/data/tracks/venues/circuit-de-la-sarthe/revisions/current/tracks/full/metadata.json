@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "id": "circuit-de-la-sarthe/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 100,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 268,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "le-mans",
+    "track": "le-mans",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Circuit de la Sarthe",
+    "source": "Official landmark names, sequential numbering of detected corners",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Dunlop Curve",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Dunlop Chicane",
+        "direction": "left",
+        "group": "Dunlop Chicane"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right",
+        "group": "Dunlop Chicane"
+      },
+      {
+        "number": 4,
+        "name": "Esses de la Forêt",
+        "direction": "right",
+        "group": "Esses de la Forêt"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left",
+        "group": "Esses de la Forêt"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right",
+        "group": "Esses de la Forêt"
+      },
+      {
+        "number": 7,
+        "name": "Tertre Rouge",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Mulsanne Chicane 1",
+        "direction": "right",
+        "group": "Mulsanne Chicane 1"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left",
+        "group": "Mulsanne Chicane 1"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right",
+        "group": "Mulsanne Chicane 1"
+      },
+      {
+        "number": 11,
+        "name": "Mulsanne Chicane 2",
+        "direction": "left",
+        "group": "Mulsanne Chicane 2"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "right",
+        "group": "Mulsanne Chicane 2"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "left",
+        "group": "Mulsanne Chicane 2"
+      },
+      {
+        "number": 14,
+        "name": "Mulsanne Corner",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 16,
+        "name": "Indianapolis",
+        "direction": "left"
+      },
+      {
+        "number": 17,
+        "name": "Arnage",
+        "direction": "right"
+      },
+      {
+        "number": 18,
+        "name": "Porsche Curves",
+        "direction": "right",
+        "group": "Porsche Curves"
+      },
+      {
+        "number": 19,
+        "name": "",
+        "direction": "left",
+        "group": "Porsche Curves"
+      },
+      {
+        "number": 20,
+        "name": "",
+        "direction": "left",
+        "group": "Porsche Curves"
+      },
+      {
+        "number": 21,
+        "name": "",
+        "direction": "right",
+        "group": "Porsche Curves"
+      },
+      {
+        "number": 22,
+        "name": "",
+        "direction": "left",
+        "group": "Porsche Curves"
+      },
+      {
+        "number": 23,
+        "name": "Ford Chicane 1",
+        "direction": "left",
+        "group": "Ford Chicane 1"
+      },
+      {
+        "number": 24,
+        "name": "",
+        "direction": "right",
+        "group": "Ford Chicane 1"
+      },
+      {
+        "number": 25,
+        "name": "Ford Chicane 2",
+        "direction": "left",
+        "group": "Ford Chicane 2"
+      },
+      {
+        "number": 26,
+        "name": "",
+        "direction": "right",
+        "group": "Ford Chicane 2"
+      }
+    ],
+    "straights": [
+      {
+        "after": 7,
+        "name": "Mulsanne Straight"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.33,
+        "s2End": 0.66,
+        "source": "hand-researched"
+      },
+      "segments": [
+        {
+          "key": "s26",
+          "startFrac": 0,
+          "endFrac": 0.0334
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0334,
+          "endFrac": 0.0554
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0554,
+          "endFrac": 0.0641
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.0641,
+          "endFrac": 0.077
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.077,
+          "endFrac": 0.101
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.101,
+          "endFrac": 0.1131
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.1131,
+          "endFrac": 0.1291
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.1291,
+          "endFrac": 0.1479
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.1479,
+          "endFrac": 0.2848
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.2848,
+          "endFrac": 0.2993
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.2993,
+          "endFrac": 0.3076
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.3076,
+          "endFrac": 0.3195
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.3195,
+          "endFrac": 0.429
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.429,
+          "endFrac": 0.4442
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.4442,
+          "endFrac": 0.4515
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.4515,
+          "endFrac": 0.4634
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.4634,
+          "endFrac": 0.556
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.556,
+          "endFrac": 0.5748
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.5748,
+          "endFrac": 0.6962
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.6962,
+          "endFrac": 0.7149
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.7149,
+          "endFrac": 0.7349
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.7349,
+          "endFrac": 0.7527
+        },
+        {
+          "key": "s17",
+          "startFrac": 0.7527,
+          "endFrac": 0.8264
+        },
+        {
+          "key": "t18",
+          "startFrac": 0.8264,
+          "endFrac": 0.8567
+        },
+        {
+          "key": "t19",
+          "startFrac": 0.8567,
+          "endFrac": 0.873
+        },
+        {
+          "key": "t20",
+          "startFrac": 0.873,
+          "endFrac": 0.8855
+        },
+        {
+          "key": "t21",
+          "startFrac": 0.8855,
+          "endFrac": 0.9073
+        },
+        {
+          "key": "t22",
+          "startFrac": 0.9073,
+          "endFrac": 0.9219
+        },
+        {
+          "key": "s22",
+          "startFrac": 0.9219,
+          "endFrac": 0.9614
+        },
+        {
+          "key": "t23",
+          "startFrac": 0.9614,
+          "endFrac": 0.9747
+        },
+        {
+          "key": "t24",
+          "startFrac": 0.9747,
+          "endFrac": 0.9809
+        },
+        {
+          "key": "t25",
+          "startFrac": 0.9809,
+          "endFrac": 0.9856
+        },
+        {
+          "key": "t26",
+          "startFrac": 0.9856,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

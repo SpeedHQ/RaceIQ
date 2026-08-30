@@ -13,7 +13,6 @@ export type SessionNames = {
 export type SessionLapTableProps = {
   session: SessionMeta;
   laps: LapMeta[];
-  sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;

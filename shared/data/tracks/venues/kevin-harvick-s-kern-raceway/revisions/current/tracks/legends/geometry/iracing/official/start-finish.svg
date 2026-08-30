@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Legends_-_Start_Finish" data-name="Legends - Start/Finish" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+  </defs>
+  <g id="Start_Finish_Line" data-name="Start / Finish Line">
+    <rect class="cls-1" x="1070.92" y="624.58" width="7.2" height="50.38" transform="translate(5.96 -9.76) rotate(.52)"/>
+    <polygon class="cls-1" points="1115.39 611.45 1043.88 594.95 1060.09 609.83 1043.03 623.73 1115.39 611.45"/>
+  </g>
+</svg>

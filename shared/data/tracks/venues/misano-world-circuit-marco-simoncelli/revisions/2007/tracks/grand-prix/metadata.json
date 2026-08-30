@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/2007/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 502,
+      "confirmation": null
+    }
+  ]
+}

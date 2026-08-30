@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "fairbury-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 344,
+      "confirmation": null
+    }
+  ]
+}

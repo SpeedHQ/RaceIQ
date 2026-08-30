@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "knockhill-racing-circuit/rallycross",
+  "name": "Rallycross",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 427,
+      "confirmation": null
+    }
+  ]
+}

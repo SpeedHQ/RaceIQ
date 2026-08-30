@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "tsukuba-circuit/1000-full-reverse",
+  "name": "1000 Full Reverse",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 333,
+      "confirmation": null
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "autodromo-internazionale-enzo-e-dino-ferrari/moto",
+  "name": "Moto",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 267,
+      "confirmation": null
+    }
+  ]
+}

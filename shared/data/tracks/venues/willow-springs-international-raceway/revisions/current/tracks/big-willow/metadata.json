@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "willow-springs-international-raceway/big-willow",
+  "name": "Big Willow",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 481,
+      "confirmation": null
+    }
+  ]
+}

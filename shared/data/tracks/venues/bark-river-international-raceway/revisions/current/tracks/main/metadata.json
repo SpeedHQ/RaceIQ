@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "bark-river-international-raceway/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 396,
+      "confirmation": null
+    }
+  ]
+}

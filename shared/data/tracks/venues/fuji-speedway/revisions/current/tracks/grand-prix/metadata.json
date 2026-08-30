@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "id": "fuji-speedway/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 18,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 444,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "fuji",
+    "track": "fuji",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Fuji Speedway",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3333333333333333,
+        "s2End": 0.6666666666666666
+      },
+      "segments": [
+        {
+          "key": "s9",
+          "startFrac": 0,
+          "endFrac": 0.1275
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1275,
+          "endFrac": 0.1934
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1934,
+          "endFrac": 0.2462
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.2462,
+          "endFrac": 0.3148
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.3148,
+          "endFrac": 0.4219
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.4219,
+          "endFrac": 0.4767
+        },
+        {
+          "key": "s4",
+          "startFrac": 0.4767,
+          "endFrac": 0.5874
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.5874,
+          "endFrac": 0.6327
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.6327,
+          "endFrac": 0.6615
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.6615,
+          "endFrac": 0.7192
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7192,
+          "endFrac": 0.7785
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7785,
+          "endFrac": 0.839
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.839,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

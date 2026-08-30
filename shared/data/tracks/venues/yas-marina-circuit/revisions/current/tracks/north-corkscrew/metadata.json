@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "id": "yas-marina-circuit/north-corkscrew",
+  "name": "North Corkscrew",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 513,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "yas-marina-nc",
+    "track": "yas-marina",
+    "layout": "north-corkscrew",
+    "layoutName": "North Corkscrew",
+    "name": "Yas Marina Circuit",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s9",
+          "startFrac": 0,
+          "endFrac": 0.0576
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0576,
+          "endFrac": 0.1811
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1811,
+          "endFrac": 0.2662
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2662,
+          "endFrac": 0.3688
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.3688,
+          "endFrac": 0.408
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.408,
+          "endFrac": 0.4402
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4402,
+          "endFrac": 0.4794
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4794,
+          "endFrac": 0.5374
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5374,
+          "endFrac": 0.7329
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7329,
+          "endFrac": 0.8591
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.8591,
+          "endFrac": 0.9371
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.9371,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

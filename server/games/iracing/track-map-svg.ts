@@ -12,6 +12,7 @@ export interface IRacingMapLabel extends IRacingMapPoint {
 export interface IRacingSvgTrackMap {
   points: IRacingMapPoint[];
   labels: IRacingMapLabel[];
+  pitRoad: IRacingMapPoint[][];
 }
 
 /**
@@ -596,6 +597,13 @@ export function parseIRacingTurnLabels(svg: string): IRacingMapLabel[] {
   }
   return labels;
 }
+/** Parse every drawable pit-road contour into RaceIQ display coordinates. */
+export function parseIRacingPitRoadSvg(svg: string): IRacingMapPoint[][] {
+  return allContours(svg)
+    .filter((contour) => contour.length >= 2)
+    .map((contour) => contour.map((point) => ({ x: -point.x, z: point.y })));
+}
+
 
 /**
  * Convert iRacing's filled SVG track ribbon into a centerline. The two longest
@@ -606,6 +614,7 @@ export function parseIRacingActiveSvg(
   activeSvg: string,
   startFinishSvg?: string | null,
   turnsSvg?: string | null,
+  pitRoadSvg?: string | null,
 ): IRacingSvgTrackMap | null {
   const contours = allContours(activeSvg)
     .filter((points) => points.length >= 4)
@@ -649,11 +658,23 @@ export function parseIRacingActiveSvg(
   ) {
     centerline = [centerline[0], ...centerline.slice(1).reverse()];
   }
+  const orderedLabels = [
+    ...rawLabels
+      .filter((label) => /^\d+$/.test(label.text))
+      .sort(
+        (a, b) =>
+          nearestPointIndex(centerline, [{ x: -a.x, y: a.z }]) -
+          nearestPointIndex(centerline, [{ x: -b.x, y: b.z }]),
+      ),
+    ...rawLabels.filter((label) => !/^\d+$/.test(label.text)),
+  ];
+
 
   return {
     // RaceIQ's canvases mirror X when converting world coordinates to screen
     // pixels. Negating SVG X here preserves iRacing's published orientation.
     points: centerline.map((point) => ({ x: -point.x, z: point.y })),
-    labels: rawLabels,
+    labels: orderedLabels,
+    pitRoad: pitRoadSvg ? parseIRacingPitRoadSvg(pitRoadSvg) : [],
   };
 }

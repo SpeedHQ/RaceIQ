@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "auto-club-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 225,
+      "confirmation": null
+    }
+  ]
+}

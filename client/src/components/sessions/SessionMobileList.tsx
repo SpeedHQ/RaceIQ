@@ -26,7 +26,6 @@ export type SessionMobileListProps = {
   toggleSessionSelection: (id: number, event: SessionSelectionEvent) => void;
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
-  sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
   toggleLapSort: (key: LapSortKey) => void;
@@ -52,7 +51,6 @@ export function SessionMobileList({
   toggleSessionSelection,
   selectedLaps,
   toggleLapSelection,
-  sectorCount,
   lapSortKey,
   lapSortDir,
   toggleLapSort,
@@ -155,7 +153,6 @@ export function SessionMobileList({
                   <SessionLapTable
                     session={session}
                     laps={sessionLaps}
-                    sectorCount={sectorCount}
                     lapSortKey={lapSortKey}
                     lapSortDir={lapSortDir}
                     toggleLapSort={toggleLapSort}

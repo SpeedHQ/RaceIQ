@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "auto-club-speedway/interior",
+  "name": "Interior",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 228,
+      "confirmation": null
+    }
+  ]
+}

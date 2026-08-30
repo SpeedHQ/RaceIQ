@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "acc",
+      "trackOrdinal": 5,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 4,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 501,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "misano",
+    "track": "misano",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Misano World Circuit Marco Simoncelli",
+    "source": "Official Misano circuit map",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Variante del Parco",
+        "direction": "right",
+        "group": "Variante del Parco"
+      },
+      {
+        "number": 2,
+        "name": "Variante del Parco",
+        "direction": "left",
+        "group": "Variante del Parco"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 7,
+        "name": "Quercia",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "Curvone",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "acc": {
+      "sectors": {
+        "s1End": 0.2218,
+        "s2End": 0.5468,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s11",
+          "startFrac": 0,
+          "endFrac": 0.0301
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0301,
+          "endFrac": 0.0799
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.0799,
+          "endFrac": 0.1028
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1028,
+          "endFrac": 0.1647
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1647,
+          "endFrac": 0.2218
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2218,
+          "endFrac": 0.262
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.262,
+          "endFrac": 0.3557
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3557,
+          "endFrac": 0.4302
+        },
+        {
+          "key": "s6",
+          "startFrac": 0.4302,
+          "endFrac": 0.4687
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4687,
+          "endFrac": 0.5468
+        },
+        {
+          "key": "s7",
+          "startFrac": 0.5468,
+          "endFrac": 0.7259
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.7259,
+          "endFrac": 0.7975
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.7975,
+          "endFrac": 0.833
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.833,
+          "endFrac": 0.8937
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.8937,
+          "endFrac": 0.9531
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.9531,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

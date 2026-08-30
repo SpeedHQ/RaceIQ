@@ -5,29 +5,21 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../../shared/racing/tracks/curation/coverage";
-import { fileHash, loadVerified, verifiedKey, verifyState } from "../../shared/racing/tracks/curation/verified";
+import { loadVerified, registryDataHash, verifiedKey, verifyState } from "../../shared/racing/tracks/curation/verified";
 import type { GameId } from "../../shared/games/ids";
-import {
-  COVERAGE_END,
-  COVERAGE_START,
-  CURATION_DOC,
-  DETAIL_END,
-  DETAIL_START,
-  parseVerifyTarget,
-  spliceCoverage,
-  spliceDetail,
-} from "../../scripts/tracks/track-coverage";
+import { COVERAGE_END, COVERAGE_START, CURATION_DOC, DETAIL_END, DETAIL_START, parseVerifyTarget, spliceCoverage, spliceDetail } from "../../scripts/tracks/track-coverage";
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 
-/** Split a ledger key back into the (kind, slug, gameId) it was built from. */
+/** Split a logical ledger key back into registry row identity. */
 function keyParts(key: string): { kind: "meta" | "segments"; slug: string; gameId?: GameId } {
-  const [, , , dir = "", file = ""] = key.split("/");
-  return dir === "meta"
-    ? { kind: "meta", slug: file.replace(/\.json$/, "") }
-    : { kind: "segments", slug: file.replace(/-segments\.json$/, ""), gameId: dir as GameId };
+  const meta = /^meta:(.+)$/.exec(key);
+  if (meta) return { kind: "meta", slug: meta[1] };
+  const segments = /^segments:([^/]+)\/(.+)$/.exec(key);
+  if (!segments) throw new Error(`Invalid verification key ${key}`);
+  return { kind: "segments", gameId: segments[1] as GameId, slug: segments[2] };
 }
 
 describe("track curation coverage", () => {
@@ -92,22 +84,23 @@ describe("track curation coverage", () => {
 describe("verification ledger", () => {
   const ledger = loadVerified();
 
-  test("every signature points at a file that still exists", () => {
+  test("every signature points at registry rows that still exist", () => {
     for (const key of Object.keys(ledger)) {
-      expect(existsSync(resolve(REPO_ROOT, key)), `${key} signed but the file is gone`).toBe(true);
-    }
-  });
-
-  test("keys are repo-relative paths under shared/data/tracks", () => {
-    for (const key of Object.keys(ledger)) {
-      expect(key, `${key} is not a shared/data/tracks path`).toMatch(/^shared\/data\/tracks\/[\w-]+\/[\w-]+\.json$/);
-    }
-  });
-
-  test("a stamped hash matches the file, otherwise the entry reads stale", () => {
-    for (const [key, entry] of Object.entries(ledger)) {
-      const live = fileHash(resolve(REPO_ROOT, key));
       const { kind, slug, gameId } = keyParts(key);
+      expect(registryDataHash(kind, slug, gameId), `${key} signed but registry rows are gone`).not.toBeNull();
+    }
+  });
+
+  test("keys use logical registry identities", () => {
+    for (const key of Object.keys(ledger)) {
+      expect(key).toMatch(/^(meta:[\w-]+|segments:[\w-]+\/[\w-]+)$/);
+    }
+  });
+
+  test("a stamped hash matches registry rows, otherwise entry reads stale", () => {
+    for (const [key, entry] of Object.entries(ledger)) {
+      const { kind, slug, gameId } = keyParts(key);
+      const live = registryDataHash(kind, slug, gameId);
       expect(verifyState(ledger, kind, slug, gameId)).toBe(entry.hash === live ? "verified" : "stale");
     }
   });

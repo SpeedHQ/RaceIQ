@@ -1,0 +1,448 @@
+{
+  "version": 1,
+  "id": "nurburgring/gp",
+  "name": "GP",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 33,
+      "confirmation": null
+    },
+    {
+      "gameId": "acc",
+      "trackOrdinal": 7,
+      "confirmation": null
+    },
+    {
+      "gameId": "ac-evo",
+      "trackOrdinal": 1,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 250,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "nurburgring",
+    "track": "nurburgring",
+    "layout": "gp",
+    "layoutName": "GP",
+    "name": "Nürburgring",
+    "source": "Landmark corner names, sequential numbering of detected corners",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Castrol-S",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Mercedes Arena",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "Dunlop-Kehre",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "Michael-Schumacher-S",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "NGK-Schikane",
+        "direction": "left",
+        "group": "NGK-Schikane"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right",
+        "group": "NGK-Schikane"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3387,
+        "s2End": 0.6363,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0446
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0446,
+          "endFrac": 0.1006
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1006,
+          "endFrac": 0.178
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.178,
+          "endFrac": 0.206
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.206,
+          "endFrac": 0.2432
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2432,
+          "endFrac": 0.2994
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2994,
+          "endFrac": 0.3387
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.3387,
+          "endFrac": 0.3911
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3911,
+          "endFrac": 0.4728
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.4728,
+          "endFrac": 0.5233
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5233,
+          "endFrac": 0.5548
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.5548,
+          "endFrac": 0.5828
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.5828,
+          "endFrac": 0.6363
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6363,
+          "endFrac": 0.6851
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.6851,
+          "endFrac": 0.7075
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7075,
+          "endFrac": 0.7664
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.7664,
+          "endFrac": 0.8006
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8006,
+          "endFrac": 0.836
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.836,
+          "endFrac": 0.8636
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.8636,
+          "endFrac": 0.925
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.925,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "sectors": {
+        "s1End": 0.3812,
+        "s2End": 0.6831,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0909
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0909,
+          "endFrac": 0.1402
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1402,
+          "endFrac": 0.2222
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2222,
+          "endFrac": 0.2538
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2538,
+          "endFrac": 0.2894
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2894,
+          "endFrac": 0.3467
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3467,
+          "endFrac": 0.3812
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.3812,
+          "endFrac": 0.4394
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4394,
+          "endFrac": 0.5164
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5164,
+          "endFrac": 0.5666
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5666,
+          "endFrac": 0.5952
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.5952,
+          "endFrac": 0.6259
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6259,
+          "endFrac": 0.6831
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6831,
+          "endFrac": 0.7493
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7493,
+          "endFrac": 0.8243
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.8243,
+          "endFrac": 0.8539
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8539,
+          "endFrac": 0.8914
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8914,
+          "endFrac": 0.9186
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.9186,
+          "endFrac": 0.9684
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9684,
+          "endFrac": 1
+        }
+      ]
+    },
+    "ac-evo": {
+      "sectors": {
+        "s1End": 0.3823,
+        "s2End": 0.6852,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s14",
+          "startFrac": 0,
+          "endFrac": 0.0927
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0927,
+          "endFrac": 0.1458
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.1458,
+          "endFrac": 0.1766
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1766,
+          "endFrac": 0.2222
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.2222,
+          "endFrac": 0.2572
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2572,
+          "endFrac": 0.2871
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2871,
+          "endFrac": 0.3482
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3482,
+          "endFrac": 0.3823
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.3823,
+          "endFrac": 0.442
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.442,
+          "endFrac": 0.5154
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5154,
+          "endFrac": 0.5739
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5739,
+          "endFrac": 0.6061
+        },
+        {
+          "key": "s8",
+          "startFrac": 0.6061,
+          "endFrac": 0.6281
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6281,
+          "endFrac": 0.6852
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6852,
+          "endFrac": 0.7534
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.7534,
+          "endFrac": 0.8178
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.8178,
+          "endFrac": 0.8496
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.8496,
+          "endFrac": 0.8942
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.8942,
+          "endFrac": 0.9247
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.9247,
+          "endFrac": 0.9703
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.9703,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

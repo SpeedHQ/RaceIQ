@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/grand-west",
+  "name": "Grand West",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 995,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "vir-gw",
+    "track": "vir",
+    "layout": "grand-west",
+    "layoutName": "Grand West",
+    "name": "Virginia International Raceway",
+    "source": "derived from track geometry (layout variant, sequential numbering)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Horseshoe",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "NASCAR Bend",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Left Hook",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Climbing Esses",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "South Bend",
+        "direction": "left"
+      },
+      {
+        "number": 10,
+        "name": "Oak Tree",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 14,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 15,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 16,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 17,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 18,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 19,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 20,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 21,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 22,
+        "name": "",
+        "direction": "right"
+      },
+      {
+        "number": 23,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 24,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 25,
+        "name": "Hog Pen",
+        "direction": "right"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "segments": [
+        {
+          "key": "s25",
+          "startFrac": 0,
+          "endFrac": 0.0332
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0332,
+          "endFrac": 0.0796
+        },
+        {
+          "key": "s1",
+          "startFrac": 0.0796,
+          "endFrac": 0.1031
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1031,
+          "endFrac": 0.1446
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1446,
+          "endFrac": 0.1643
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.1643,
+          "endFrac": 0.1939
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.1939,
+          "endFrac": 0.2153
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.2153,
+          "endFrac": 0.2762
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.2762,
+          "endFrac": 0.3083
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3083,
+          "endFrac": 0.3229
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.3229,
+          "endFrac": 0.3483
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.3483,
+          "endFrac": 0.3808
+        },
+        {
+          "key": "s9",
+          "startFrac": 0.3808,
+          "endFrac": 0.3999
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.3999,
+          "endFrac": 0.4383
+        },
+        {
+          "key": "s10",
+          "startFrac": 0.4383,
+          "endFrac": 0.5413
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.5413,
+          "endFrac": 0.5913
+        },
+        {
+          "key": "s11",
+          "startFrac": 0.5913,
+          "endFrac": 0.6118
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6118,
+          "endFrac": 0.6433
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.6433,
+          "endFrac": 0.6518
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.6518,
+          "endFrac": 0.6827
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.6827,
+          "endFrac": 0.706
+        },
+        {
+          "key": "t16",
+          "startFrac": 0.706,
+          "endFrac": 0.714
+        },
+        {
+          "key": "t17",
+          "startFrac": 0.714,
+          "endFrac": 0.7208
+        },
+        {
+          "key": "t18",
+          "startFrac": 0.7208,
+          "endFrac": 0.7481
+        },
+        {
+          "key": "t19",
+          "startFrac": 0.7481,
+          "endFrac": 0.7633
+        },
+        {
+          "key": "t20",
+          "startFrac": 0.7633,
+          "endFrac": 0.7815
+        },
+        {
+          "key": "t21",
+          "startFrac": 0.7815,
+          "endFrac": 0.8164
+        },
+        {
+          "key": "t22",
+          "startFrac": 0.8164,
+          "endFrac": 0.8404
+        },
+        {
+          "key": "t23",
+          "startFrac": 0.8404,
+          "endFrac": 0.8668
+        },
+        {
+          "key": "t24",
+          "startFrac": 0.8668,
+          "endFrac": 0.8836
+        },
+        {
+          "key": "t25",
+          "startFrac": 0.8836,
+          "endFrac": 0.925
+        },
+        {
+          "key": "s25",
+          "startFrac": 0.925,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "shell-v-power-motorsport-park-at-the-bend/west-plus-circuit",
+  "name": "West Plus Circuit",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 544,
+      "confirmation": null
+    }
+  ]
+}

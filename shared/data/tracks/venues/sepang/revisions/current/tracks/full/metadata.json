@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "sepang/full",
+  "name": "Full",
+  "assignments": [],
+  "facts": {
+    "slug": "sepang",
+    "track": "sepang",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Sepang International Circuit",
+    "corners": []
+  }
+}

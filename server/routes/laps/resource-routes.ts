@@ -25,40 +25,42 @@ import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
-  return [...new Set([
-    ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
-    "engine.current-engine-rpm",
-    "inputs.gear",
-    "inputs.accel",
-    "inputs.brake",
-    "inputs.steer",
-    "motion.speed",
-    "motion.acceleration-x",
-    "motion.angular-velocity-y",
-    "motion.pitch",
-    "motion.roll",
-    "motion.position-x",
-    "motion.position-z",
-    "motion.yaw",
-    "timing.current-lap",
-    "timing.current-race-time",
-    "timing.distance-traveled",
-    "timing.lap-fraction",
-    "aero.drs-active",
-    "weather.air-temp",
-    "fuel.ers-store-energy",
-    "fuel.ers-deploy-mode",
-    "brakes.brake-bias",
-    "fuel.ers-deployed",
-    "fuel.ers-harvested",
-    "fuel.fuel-capacity",
-    "identity.car-ordinal",
-    "identity.player-track-surface",
-    "tires.tire-radius",
-  ])];
+  return [
+    ...new Set([
+      ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
+      "engine.current-engine-rpm",
+      "inputs.gear",
+      "inputs.accel",
+      "inputs.brake",
+      "inputs.steer",
+      "motion.speed",
+      "motion.acceleration-x",
+      "motion.angular-velocity-y",
+      "motion.pitch",
+      "motion.roll",
+      "motion.position-x",
+      "motion.position-z",
+      "motion.yaw",
+      "timing.current-lap",
+      "timing.current-race-time",
+      "timing.distance-traveled",
+      "timing.lap-fraction",
+      "aero.drs-active",
+      "weather.air-temp",
+      "fuel.ers-store-energy",
+      "fuel.ers-deploy-mode",
+      "brakes.brake-bias",
+      "fuel.ers-deployed",
+      "fuel.ers-harvested",
+      "fuel.fuel-capacity",
+      "identity.car-ordinal",
+      "identity.player-track-surface",
+      "tires.tire-radius",
+    ]),
+  ];
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
-  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
+  timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : (timestamp.milliseconds ?? 0);
 const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
@@ -81,6 +83,7 @@ export const resourceRoutes = new Hono()
           requestedSemanticIds: [],
           sectorTimes: lap.sectorTimes ?? null,
           sectorStarts: null,
+          sectorBoundaryIndices: null,
           insights: [],
           parseError: lap.parseError,
           envelopes: [],
@@ -88,12 +91,37 @@ export const resourceRoutes = new Hono()
       }
       const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
       if (!replay) return c.json({ error: "Lap not found" }, 404);
-      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const game = getGame(lap.gameId);
+      let sectorStarts: number[] | null = null;
+      let sectorBoundaryIndices: number[] | null = null;
+      if (game.nativeSectors && game.getNativeSectorLayout) {
+        const timeline = computeNativeSectorTimeline(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
+        sectorStarts = timeline?.sectorStarts ?? null;
+        sectorBoundaryIndices = timeline?.boundaryIndices ?? null;
+      } else if (lap.trackOrdinal != null && lap.telemetry.length >= 2) {
+        const sectors = resolveTrack(lap.gameId, lap.trackOrdinal).sectors;
+        sectorStarts = [0, sectors.s1End, sectors.s2End];
+        const firstDistance = lap.telemetry[0].DistanceTraveled;
+        const lapDistance = lap.telemetry.at(-1)!.DistanceTraveled - firstDistance;
+        if (lapDistance > 0) {
+          const indices: number[] = [];
+          let nextBoundary = 1;
+          for (let index = 0; index < lap.telemetry.length && nextBoundary < sectorStarts.length; index++) {
+            const fraction = (lap.telemetry[index].DistanceTraveled - firstDistance) / lapDistance;
+            while (nextBoundary < sectorStarts.length && fraction >= sectorStarts[nextBoundary]) {
+              indices.push(index);
+              nextBoundary++;
+            }
+          }
+          if (indices.length === sectorStarts.length - 1) sectorBoundaryIndices = indices;
+        }
+      }
       return c.json({
         lapId: replay.lapId,
         requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: lap.sectorTimes ?? null,
-        sectorStarts: nativeLayout?.starts ?? null,
+        sectorStarts,
+        sectorBoundaryIndices,
         insights: analyzeLap(lap.telemetry, lap.gameId),
         parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
@@ -168,11 +196,7 @@ export const resourceRoutes = new Hono()
       const lapDist = lastDist - firstDist;
 
       if (game.nativeSectors && game.getNativeSectorLayout) {
-        const nativeTimeline = computeNativeSectorTimeline(
-          packets,
-          lap.lapTime,
-          game.getNativeSectorLayout,
-        );
+        const nativeTimeline = computeNativeSectorTimeline(packets, lap.lapTime, game.getNativeSectorLayout);
         if (nativeTimeline && lapDist > 0) {
           sectorTimes = {
             ...nativeTimeline,
@@ -269,30 +293,25 @@ export const resourceRoutes = new Hono()
     return c.json({ ok: true });
   })
 
-  .post(
-    "/api/laps/:id/experiment-excluded",
-    zValidator("param", IdParamSchema),
-    zValidator("json", z.object({ excluded: z.boolean() })),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const { excluded } = c.req.valid("json");
-      const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
-      if (!ok) return c.json({ error: "Lap not found" }, 404);
+  .post("/api/laps/:id/experiment-excluded", zValidator("param", IdParamSchema), zValidator("json", z.object({ excluded: z.boolean() })), async (c) => {
+    const { id } = c.req.valid("param");
+    const { excluded } = c.req.valid("json");
+    const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
+    if (!ok) return c.json({ error: "Lap not found" }, 404);
 
-      // Best-effort: an action-log write failure must not fail the request —
-      // the lap flag is already committed. Only log when the lap is linked
-      // to a tuning session (laps outside a tuning session have nothing to undo into).
-      if (experimentId != null) {
-        try {
-          await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
-        } catch (err: any) {
-          console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
-        }
+    // Best-effort: an action-log write failure must not fail the request —
+    // the lap flag is already committed. Only log when the lap is linked
+    // to a tuning session (laps outside a tuning session have nothing to undo into).
+    if (experimentId != null) {
+      try {
+        await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
+      } catch (err: any) {
+        console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
       }
+    }
 
-      return c.json({ ok: true, lapId: id, excluded });
-    },
-  )
+    return c.json({ ok: true, lapId: id, excluded });
+  })
 
   .post("/api/laps/:id/recheck", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
@@ -305,12 +324,7 @@ export const resourceRoutes = new Hono()
     const packets = lap.telemetry;
     let sectors: number[] | null = null;
     if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
-      sectors = await computeLapSectors(
-        lap.trackOrdinal,
-        lap.gameId as GameId,
-        packets,
-        lap.lapTime,
-      );
+      sectors = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, packets, lap.lapTime);
     }
 
     await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);

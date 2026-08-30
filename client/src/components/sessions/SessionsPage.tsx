@@ -8,7 +8,6 @@ import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
 import { exportLapsZip } from "@/lib/lap-export";
-import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
@@ -25,7 +24,6 @@ export function SessionsPage() {
   const { data: allLaps = [] } = useLaps();
   const queryClient = useQueryClient();
   useDeleteLap();
-  const sectorCount = Math.max(3, storedLapsSectorCount(allLaps));
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -248,7 +246,6 @@ export function SessionsPage() {
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
-        sectorCount={sectorCount}
         lapSortKey={lapSortKey}
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}
@@ -278,7 +275,6 @@ export function SessionsPage() {
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
-        sectorCount={sectorCount}
         lapSortKey={lapSortKey}
         lapSortDir={lapSortDir}
         toggleLapSort={toggleLapSort}

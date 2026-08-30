@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "indianapolis-motor-speedway/2009/bike",
+  "name": "Bike",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 135,
+      "confirmation": null
+    }
+  ]
+}

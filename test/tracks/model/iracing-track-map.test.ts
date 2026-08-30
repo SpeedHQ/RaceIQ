@@ -4,8 +4,8 @@ import {
   parseIRacingActiveSvg,
   parseIRacingTurnLabels,
 } from "../../../server/games/iracing/track-map-svg";
-import { getIRacingSharedTrackName,
-getIRacingTrack, } from "../../../shared/racing/tracks/catalogs/iracing"
+import { getIRacingSvgTrackMap } from "../../../server/games/iracing/track-map";
+import { getIRacingSharedTrackName, getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 
@@ -29,6 +29,12 @@ const turnsSvg = `
     <text transform="matrix(1 0 0 1 92 10)">1</text>
     <text transform="matrix(1 0 0 1 92 90)">2</text>
     <text transform="matrix(1 0 0 1 50 106)">Main Straight</text>
+  </svg>
+`;
+
+const pitRoadSvg = `
+  <svg viewBox="0 0 100 100">
+    <path d="M10,20 L30,20 L30,25 L10,25 z"/>
   </svg>
 `;
 
@@ -56,6 +62,7 @@ describe("iRacing official SVG track maps", () => {
       activeSvg,
       startFinishSvg,
       turnsSvg,
+      pitRoadSvg,
     );
 
     expect(map).not.toBeNull();
@@ -67,12 +74,17 @@ describe("iRacing official SVG track maps", () => {
       "2",
       "Main Straight",
     ]);
+    expect(map!.pitRoad[0]).toContainEqual({ x: -10, z: 20 });
 
     const turn1 = map!.labels.find((label) => label.text === "1")!;
     const turn2 = map!.labels.find((label) => label.text === "2")!;
     expect(nearestIndex(map!.points, turn1)).toBeLessThan(
       nearestIndex(map!.points, turn2),
     );
+  });
+
+  test("accepts an explicitly empty pit-road layer", () => {
+    expect(parseIRacingActiveSvg(activeSvg, startFinishSvg, turnsSvg, "<svg />")!.pitRoad).toEqual([]);
   });
 
   test("reads matrix-positioned official turn names", () => {
@@ -130,5 +142,16 @@ describe("iRacing official SVG track maps", () => {
     expect(
       roadAmerica.some((segment) => segment.name === "Canada Corner"),
     ).toBe(true);
+  });
+
+  test("shares parsed map cache across retired aliases of one physical layout", async () => {
+    const [original, school, current] = await Promise.all([
+      getIRacingSvgTrackMap(47),
+      getIRacingSvgTrackMap(158),
+      getIRacingSvgTrackMap(586),
+    ]);
+    expect(original).not.toBeNull();
+    expect(school).toBe(original);
+    expect(current).toBe(original);
   });
 });

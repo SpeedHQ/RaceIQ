@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "barber-motorsports-park/main",
+  "name": "Main",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 46,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 585,
+      "confirmation": null
+    }
+  ]
+}

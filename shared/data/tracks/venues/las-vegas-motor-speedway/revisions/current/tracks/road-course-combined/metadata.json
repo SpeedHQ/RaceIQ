@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "las-vegas-motor-speedway/road-course-combined",
+  "name": "Road Course Combined",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 114,
+      "confirmation": null
+    }
+  ]
+}

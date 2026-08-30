@@ -1,5 +1,7 @@
 export interface LiveSectorData {
   sectorCount: number;
+  /** Ordered source-defined sector starts, available before lap completion. */
+  sectorStarts: number[];
   currentSector: number;
   currentSectorTime: number;
   currentTimes: number[];

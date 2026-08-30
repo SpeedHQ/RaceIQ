@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "rockingham-speedway/infield-road-course",
+  "name": "Infield Road Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 205,
+      "confirmation": null
+    }
+  ]
+}

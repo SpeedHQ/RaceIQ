@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "road-atlanta/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 128,
+      "confirmation": null
+    }
+  ]
+}

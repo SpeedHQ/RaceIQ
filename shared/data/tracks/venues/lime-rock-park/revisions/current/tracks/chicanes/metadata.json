@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "lime-rock-park/chicanes",
+  "name": "Chicanes",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 354,
+      "confirmation": null
+    }
+  ]
+}

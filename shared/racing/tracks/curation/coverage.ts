@@ -1,17 +1,16 @@
 /**
- * Curation coverage: how many of each game's tracks carry a hand-authored
- * corner roster (`shared/data/tracks/meta/<slug>.json` with a non-empty `corners`
- * array), out of every track that game ships a centerline for.
+ * Curation coverage: how many of each game's tracks carry a non-empty,
+ * hand-authored corner roster in bundled registry, out of every track that
+ * game ships a centerline for.
  *
  * This is the "how much real curation exists" number, NOT "how many tracks have
- * a segments file" — the fallback detector writes geometry for essentially every
- * centerline, so counting geometry files would always read ~100% and measure
- * nothing. See CLAUDE.md → "Track Segments: curated geometry is the source of
- * truth".
+ * geometry row" — fallback detector writes geometry for essentially every
+ * centerline, so counting geometry would always read ~100% and measure
+ * nothing. See `docs/contributing/track-curation.md`.
  *
- * The rendered table is committed in CLAUDE.md and asserted by
- * test/track-coverage.test.ts, so curating a track forces the stat to be
- * refreshed (`bun run tracks:coverage --write`).
+ * Rendered tables are committed there and asserted by
+ * `test/tracks/track-coverage.test.ts`, so curating a track forces refresh with
+ * `bun run tracks:coverage --write`.
  */
 
 import { listAllCenterlines, listCuratedSlugs } from "./generate";
@@ -37,7 +36,7 @@ const GAME_ORDER: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo"];
  *
  * Forza embeds the in-game track ordinal in the filename
  * (`brands-hatch-860-centerline.csv`), and that ordinal is not part of the slug
- * the meta roster is keyed by. Every other game names the file after the slug.
+ * registry facts are keyed by. Every other game names file after slug.
  */
 export function canonicalSlug(gameId: GameId, centerlineSlug: string): string {
   return gameId === "fm-2023" ? centerlineSlug.replace(/-\d+$/, "") : centerlineSlug;
@@ -46,11 +45,11 @@ export function canonicalSlug(gameId: GameId, centerlineSlug: string): string {
 /** One track's state within one game — the per-track detail behind a `CoverageRow`. */
 export interface TrackCoverage {
   slug: string;
-  /** Hand-authored roster exists (`meta/<slug>.json` with corners). Shared across games. */
+  /** Hand-authored registry roster exists with corners. Shared across games. */
   curated: boolean;
   /** Signature state of the shared roster. */
   meta: VerifyState;
-  /** Signature state of *this game's* geometry file. */
+  /** Signature state of this game's geometry rows. */
   segments: VerifyState;
 }
 
@@ -61,11 +60,11 @@ export interface CoverageRow {
   total: number;
   /** Slugs this game ships that have no hand-authored roster, sorted. */
   uncurated: string[];
-  /** Roster (`meta/<slug>.json`) signed off by a human and unchanged since. */
+  /** Shared roster signed off by a human and unchanged since. */
   metaVerified: number;
   /** Roster signed off but edited since — signature no longer counts. */
   metaStale: number;
-  /** Per-game geometry (`<slug>-segments.json`) signed off and unchanged since. */
+  /** Per-game geometry rows signed off and unchanged since. */
   segmentsVerified: number;
   /** Geometry signed off but regenerated since — signature no longer counts. */
   segmentsStale: number;
@@ -93,8 +92,7 @@ export function curatedCoverage(): CoverageRow[] {
     const slugs = [...(perGame.get(gameId) ?? [])].sort();
     if (slugs.length === 0) continue;
     const uncurated = slugs.filter((s) => !curated.has(s));
-    const count = (kind: "meta" | "segments", want: string) =>
-      slugs.filter((s) => verifyState(ledger, kind, s, gameId) === want).length;
+    const count = (kind: "meta" | "segments", want: string) => slugs.filter((s) => verifyState(ledger, kind, s, gameId) === want).length;
     rows.push({
       gameId,
       label: GAME_LABELS[gameId],
@@ -122,10 +120,10 @@ function cell(n: number, total: number, stale = 0): string {
   return `${n}/${total} (${pct}%)${stale > 0 ? ` +${stale} stale` : ""}`;
 }
 
-/** Markdown table body committed into CLAUDE.md between the coverage markers. */
+/** Markdown summary table committed between coverage markers. */
 export function renderCoverageTable(rows: CoverageRow[] = curatedCoverage()): string {
   const lines = [
-    "| Game | Tracks | Curated roster | Meta human-verified | Segments human-verified | Not yet curated |",
+    "| Game | Tracks | Curated roster | Facts human-verified | Geometry human-verified | Not yet curated |",
     "|------|--------|----------------|---------------------|-------------------------|-----------------|",
   ];
   for (const r of rows) {
@@ -137,9 +135,20 @@ export function renderCoverageTable(rows: CoverageRow[] = curatedCoverage()): st
   const sum = (pick: (r: CoverageRow) => number) => rows.reduce((n, r) => n + pick(r), 0);
   const total = sum((r) => r.total);
   lines.push(
-    `| **Total** | **${total}** | **${cell(sum((r) => r.curated), total)}** | ` +
-      `**${cell(sum((r) => r.metaVerified), total, sum((r) => r.metaStale))}** | ` +
-      `**${cell(sum((r) => r.segmentsVerified), total, sum((r) => r.segmentsStale))}** | |`,
+    `| **Total** | **${total}** | **${cell(
+      sum((r) => r.curated),
+      total,
+    )}** | ` +
+      `**${cell(
+        sum((r) => r.metaVerified),
+        total,
+        sum((r) => r.metaStale),
+      )}** | ` +
+      `**${cell(
+        sum((r) => r.segmentsVerified),
+        total,
+        sum((r) => r.segmentsStale),
+      )}** | |`,
   );
   return lines.join("\n");
 }
@@ -153,10 +162,10 @@ function mark(state: VerifyState): string {
  * Per-game, per-track detail — one table per game, committed into
  * docs/contributing/track-curation.md between the detail markers.
  *
- * Geometry is per game because each title digitises its own centerline: the
- * same circuit's corners land at different distances (and sometimes a different
- * corner count) per game, so a roster can be shared while geometry cannot. That
- * is why the Segments column is signed off per game and Meta is not.
+ * Geometry is per game because each title digitises its own centerline: same
+ * circuit's corners land at different distances, and sometimes different
+ * corner counts, per game. Roster remains shared. Geometry verification is
+ * therefore per game; facts verification is not.
  */
 export function renderDetailTables(rows: CoverageRow[] = curatedCoverage()): string {
   const out: string[] = [];
@@ -164,10 +173,9 @@ export function renderDetailTables(rows: CoverageRow[] = curatedCoverage()): str
     out.push(
       `#### ${r.label}`,
       "",
-      `${cell(r.curated, r.total)} curated · ${cell(r.metaVerified, r.total, r.metaStale)} meta-verified · ` +
-        `${cell(r.segmentsVerified, r.total, r.segmentsStale)} segments-verified`,
+      `${cell(r.curated, r.total)} curated · ${cell(r.metaVerified, r.total, r.metaStale)} facts-verified · ` + `${cell(r.segmentsVerified, r.total, r.segmentsStale)} geometry-verified`,
       "",
-      "| Track | Curated roster | Meta verified | Segments verified |",
+      "| Track | Curated roster | Facts verified | Geometry verified |",
       "|-------|----------------|---------------|-------------------|",
     );
     for (const t of r.tracks) {

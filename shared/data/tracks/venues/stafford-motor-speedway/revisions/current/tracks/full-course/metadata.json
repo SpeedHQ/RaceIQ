@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "stafford-motor-speedway/full-course",
+  "name": "Full Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 11,
+      "confirmation": null
+    }
+  ]
+}

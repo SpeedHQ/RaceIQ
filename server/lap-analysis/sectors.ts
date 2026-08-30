@@ -12,12 +12,19 @@ export interface NativeSectorTimeline {
 
 type IRacingSectorTimeline = NativeSectorTimeline;
 
-function computeDistanceSectorTimes(
-  packets: TelemetryPacket[],
-  lapTime: number,
-  s1End: number,
-  s2End: number,
-): number[] | null {
+/** Native sector starts must be fractions beginning at lap origin. */
+export function isValidNativeSectorStarts(starts: readonly number[] | undefined): starts is number[] {
+  return (
+    !!starts &&
+    starts.length >= 2 &&
+    Number.isFinite(starts[0]) &&
+    starts[0] >= 0 &&
+    starts[0] < 1e-6 &&
+    starts.every((value, index) => Number.isFinite(value) && value >= 0 && value < 1 && (index === 0 || value > starts[index - 1]))
+  );
+}
+
+function computeDistanceSectorTimes(packets: TelemetryPacket[], lapTime: number, s1End: number, s2End: number): number[] | null {
   const startDist = packets[0].DistanceTraveled;
   const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
   if (lapDist < 100) return null;
@@ -45,33 +52,20 @@ function computeDistanceSectorTimes(
 export function computeNativeSectorTimeline(
   packets: TelemetryPacket[],
   lapTime: number,
-  getLayout: (packet: TelemetryPacket) => {
-    starts: number[];
-    lapFraction?: number;
-  } | undefined,
+  getLayout: (packet: TelemetryPacket) =>
+    | {
+        starts: number[];
+        lapFraction?: number;
+      }
+    | undefined,
 ): NativeSectorTimeline | null {
   const layouts = packets.map(getLayout);
   const starts = layouts.find((layout) => layout?.starts.length)?.starts;
-  if (
-    !starts ||
-    starts.length < 2 ||
-    !Number.isFinite(starts[0]) ||
-    starts[0] < 0 ||
-    starts[0] >= 1e-6 ||
-    starts.some(
-      (value, index) =>
-        !Number.isFinite(value) ||
-        value < 0 ||
-        value >= 1 ||
-        (index > 0 && value <= starts[index - 1]),
-    )
-  ) {
+  if (!isValidNativeSectorStarts(starts)) {
     return null;
   }
 
-  const boundaryIndices = starts.slice(1).map((boundary) =>
-    layouts.findIndex((layout) => (layout?.lapFraction ?? -1) >= boundary),
-  );
+  const boundaryIndices = starts.slice(1).map((boundary) => layouts.findIndex((layout) => (layout?.lapFraction ?? -1) >= boundary));
   if (boundaryIndices.some((index) => index <= 0)) return null;
 
   const startTime = packets[0].CurrentLap;
@@ -97,10 +91,7 @@ export function computeNativeSectorTimeline(
  * Resolve iRacing sectors exclusively from SplitTimeInfo carried in the native
  * source frames. A missing or malformed SDK layout deliberately returns null.
  */
-export function computeIRacingSectorTimeline(
-  packets: TelemetryPacket[],
-  lapTime: number,
-): IRacingSectorTimeline | null {
+export function computeIRacingSectorTimeline(packets: TelemetryPacket[], lapTime: number): IRacingSectorTimeline | null {
   return computeNativeSectorTimeline(packets, lapTime, (packet) => {
     const starts = packet.iracing?.sectorStarts;
     if (!starts?.length) return undefined;
@@ -118,23 +109,13 @@ export function computeIRacingSectorTimeline(
  * @param accLiveSectors Optional ACC live-tracked sector times (captured during the lap).
  *                       Pass undefined for non-ACC games or when not yet tracked.
  */
-export async function computeLapSectors(
-  trackOrdinal: number,
-  gameId: GameId,
-  packets: TelemetryPacket[],
-  lapTime: number,
-  accLiveSectors?: { s1: number; s2: number },
-): Promise<number[] | null> {
+export async function computeLapSectors(trackOrdinal: number, gameId: GameId, packets: TelemetryPacket[], lapTime: number, accLiveSectors?: { s1: number; s2: number }): Promise<number[] | null> {
   if (packets.length < 50) return null;
 
   const game = getGame(gameId);
   if (game.nativeSectors) {
     if (!game.getNativeSectorLayout) return null;
-    const timeline = computeNativeSectorTimeline(
-      packets,
-      lapTime,
-      game.getNativeSectorLayout,
-    );
+    const timeline = computeNativeSectorTimeline(packets, lapTime, game.getNativeSectorLayout);
     if (!timeline) return null;
     return timeline.times;
   }
@@ -147,7 +128,8 @@ export async function computeLapSectors(
   // the authority on its own split points and sync, and guessing from
   // position can produce wildly wrong sectors, especially on tracks where the
   // three sectors aren't 1/3 : 1/3 : 1/3 of the lap distance.
-  let s1 = 0, s2 = 0;
+  let s1 = 0,
+    s2 = 0;
   if (gameId === "f1-2025") {
     // The F1 2025 LapData packet exposes LapNumber for every packet in the
     // lap buffer. Every packet also carries a snapshot of the

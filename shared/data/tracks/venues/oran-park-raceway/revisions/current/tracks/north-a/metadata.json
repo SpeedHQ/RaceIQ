@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "oran-park-raceway/north-a",
+  "name": "North A",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 209,
+      "confirmation": null
+    }
+  ]
+}

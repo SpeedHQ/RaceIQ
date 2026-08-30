@@ -88,17 +88,19 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     const distances = semanticFrames.map((frame) => frame.values["timing.distance-traveled"]).filter((value): value is number => typeof value === "number");
     const firstDist = distances[0] ?? 0;
     const lapDist = (distances.at(-1) ?? 0) - firstDist;
-    const rawSectors = sectorsRaw && typeof sectorsRaw === "object" ? (sectorsRaw as { s1End?: number; s2End?: number }) : null;
-    const starts = semanticReplay.sectorStarts ?? (rawSectors?.s1End != null && rawSectors.s2End != null ? [0, rawSectors.s1End, rawSectors.s2End] : null);
+    const starts = semanticReplay.sectorStarts ?? sectorsRaw?.sectorStarts ?? (sectorsRaw?.s1End != null && sectorsRaw.s2End != null ? [0, sectorsRaw.s1End, sectorsRaw.s2End] : null);
     if (!starts?.length) return null;
     const times = semanticReplay.sectorTimes ?? [];
     return { sectorStarts: starts, sectorCount: starts.length, firstDist, lapDist, times };
   }, [semanticReplay, semanticFrames, sectorsRaw]);
   const sectors = useMemo(() => {
-    if (getGame(gameId).nativeSectors) return sectorData ? ({ sectorStarts: sectorData.sectorStarts, sectorCount: sectorData.sectorCount } satisfies SectorBoundaries) : null;
-    if (!sectorsRaw || typeof sectorsRaw !== "object") return null;
-    const s = sectorsRaw as { s1End?: number; s2End?: number };
-    return s.s1End != null && s.s2End != null ? ({ sectorStarts: [0, s.s1End, s.s2End], sectorCount: 3 } satisfies SectorBoundaries) : null;
+    if (getGame(gameId).nativeSectors) {
+      const starts = sectorData?.sectorStarts ?? sectorsRaw?.sectorStarts;
+      return starts ? ({ sectorStarts: starts, sectorCount: starts.length } satisfies SectorBoundaries) : null;
+    }
+    if (!sectorsRaw) return null;
+    const starts = sectorsRaw.sectorStarts ?? (sectorsRaw.s1End != null && sectorsRaw.s2End != null ? [0, sectorsRaw.s1End, sectorsRaw.s2End] : null);
+    return starts ? ({ sectorStarts: starts, sectorCount: starts.length } satisfies SectorBoundaries) : null;
   }, [gameId, sectorData, sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
@@ -160,10 +162,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   useEffect(() => {
     const pendingKey = pendingRouteSelectionKey.current;
     if (pendingKey != null) {
-      const routeMatchesState =
-        selectedTrack === (search.track ?? null) &&
-        selectedCar === (search.car ?? null) &&
-        selectedLapId === (search.lap ?? null);
+      const routeMatchesState = selectedTrack === (search.track ?? null) && selectedCar === (search.car ?? null) && selectedLapId === (search.lap ?? null);
       if (!routeMatchesState) return;
       pendingRouteSelectionKey.current = null;
       return;

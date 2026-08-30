@@ -14,7 +14,7 @@ export function TrackDebugPanel({
   outline,
   flipX = false,
   displaySectors,
-  sectorBounds,
+  sectorStarts,
   editingSegments,
   editingSectors,
   trackLengthKm,
@@ -26,7 +26,7 @@ export function TrackDebugPanel({
   outline: Point[] | null;
   flipX?: boolean;
   displaySectors?: TrackSectors | null;
-  sectorBounds?: { s1End: number; s2End: number } | null;
+  sectorStarts?: number[] | null;
   editingSegments?: boolean;
   editingSectors?: boolean;
   trackLengthKm?: number;
@@ -70,7 +70,7 @@ export function TrackDebugPanel({
         curbs={curbs}
         flipX={flipX}
         displaySectors={displaySectors}
-        sectorBounds={sectorBounds}
+        sectorStarts={sectorStarts}
         editingSegments={editingSegments}
         editingSectors={editingSectors}
         trackLengthKm={trackLengthKm}

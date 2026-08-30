@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "north-wilkesboro-speedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 562,
+      "confirmation": null
+    }
+  ]
+}

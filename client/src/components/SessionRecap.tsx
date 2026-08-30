@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
+import type { TrackSectorBoundaries } from "../../../shared/racing/tracks/sectors";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack } from "../lib/canvas/draw-track";
@@ -19,7 +20,7 @@ export type TrackOutlineData =
       source?: string;
     }
   | { x: number; z: number }[];
-export type TrackSectorBounds = { s1End: number; s2End: number } | null;
+export type TrackSectorBounds = TrackSectorBoundaries | null;
 
 type SectorStatus = "record" | "session-best" | "lost";
 
@@ -64,10 +65,11 @@ function SectorTrackMap({
       return status ? SECTOR_COLORS[status] : NEUTRAL_SECTOR_COLOR;
     });
   }, [sectors]);
-  const sectorStarts = useMemo(
-    () => (sourceStarts?.length === sectors.length ? sourceStarts : sectors.length === 3 && bounds ? [0, bounds.s1End, bounds.s2End] : null),
-    [sourceStarts, sectors.length, bounds],
-  );
+  const sectorStarts = useMemo(() => {
+    if (sourceStarts?.length === sectors.length) return sourceStarts;
+    if (bounds?.sectorStarts?.length === sectors.length) return bounds.sectorStarts;
+    return sectors.length === 3 && bounds?.s1End != null && bounds.s2End != null ? [0, bounds.s1End, bounds.s2End] : null;
+  }, [sourceStarts, sectors.length, bounds]);
   const canDraw = !!points && points.length >= 3 && !!sectorStarts;
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -1,65 +1,72 @@
 /**
  * Import F1 track outlines from TUMFTM/racetrack-database.
  * Downloads centerline + widths, normalizes orientation, computes edges,
- * saves to shared/data/tracks/tumftm/.
+ * saves shared source geometry at each canonical root venue.
  *
  * Run: bun run scripts/games/f1-2025/import-tracks.ts
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
-
-const REPO_ROOT = resolve(import.meta.dir, "../../..");
-const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/tumftm");
-
-if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { bundledSharedGeometryPath, findTrackAssetIdentities } from "../../../shared/racing/tracks/storage/assets";
 
 const BASE = "https://raw.githubusercontent.com/TUMFTM/racetrack-database/master/tracks";
 
 // Map from our track file names to TUMFTM file names
 const TRACKS: Record<string, string> = {
-  "melbourne": "Melbourne",
-  "shanghai": "Shanghai",
-  "sakhir": "Sakhir",
-  "catalunya": "Catalunya",
-  "montreal": "Montreal",
-  "silverstone": "Silverstone",
-  "budapest": "Budapest",
-  "spa": "Spa",
-  "monza": "Monza",
-  "suzuka": "Suzuka",
+  melbourne: "Melbourne",
+  shanghai: "Shanghai",
+  sakhir: "Sakhir",
+  catalunya: "Catalunya",
+  montreal: "Montreal",
+  silverstone: "Silverstone",
+  budapest: "Budapest",
+  spa: "Spa",
+  monza: "Monza",
+  suzuka: "Suzuka",
   "yas-marina": "YasMarina",
-  "austin": "Austin",
-  "interlagos": "SaoPaulo",
-  "spielberg": "Spielberg",
-  "zandvoort": "Zandvoort",
-  "nurburgring": "Nuerburgring",
+  austin: "Austin",
+  interlagos: "SaoPaulo",
+  spielberg: "Spielberg",
+  zandvoort: "Zandvoort",
+  nurburgring: "Nuerburgring",
   "mexico-city": "MexicoCity",
-  "sochi": "Sochi",
-  "sepang": "Sepang",
+  sochi: "Sochi",
+  sepang: "Sepang",
   "brands-hatch": "BrandsHatch",
-  "indianapolis": "IMS",
-  "hockenheim": "Hockenheim",
+  indianapolis: "IMS",
+  hockenheim: "Hockenheim",
 };
 
-interface Point { x: number; z: number; }
-interface CenterPoint extends Point { wRight: number; wLeft: number; }
+interface Point {
+  x: number;
+  z: number;
+}
+interface CenterPoint extends Point {
+  wRight: number;
+  wLeft: number;
+}
 
 // ── Normalization ─────────────────────────────────────────────────────────
 
 /** Center points at origin. */
 function center(pts: Point[]): Point[] {
-  let cx = 0, cz = 0;
-  for (const p of pts) { cx += p.x; cz += p.z; }
-  cx /= pts.length; cz /= pts.length;
-  return pts.map(p => ({ x: p.x - cx, z: p.z - cz }));
+  let cx = 0,
+    cz = 0;
+  for (const p of pts) {
+    cx += p.x;
+    cz += p.z;
+  }
+  cx /= pts.length;
+  cz /= pts.length;
+  return pts.map((p) => ({ x: p.x - cx, z: p.z - cz }));
 }
 
 /** Rotate all points by angle (radians). */
 function rotate(pts: Point[], angle: number): Point[] {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
-  return pts.map(p => ({
+  return pts.map((p) => ({
     x: p.x * cos - p.z * sin,
     z: p.x * sin + p.z * cos,
   }));
@@ -69,7 +76,8 @@ function rotate(pts: Point[], angle: number): Point[] {
 function startHeading(pts: Point[]): number {
   // Average direction over first ~2% of points for stability
   const n = Math.max(2, Math.floor(pts.length * 0.02));
-  let dx = 0, dz = 0;
+  let dx = 0,
+    dz = 0;
   for (let i = 0; i < n; i++) {
     const next = pts[(i + 1) % pts.length];
     dx += next.x - pts[i].x;
@@ -121,16 +129,21 @@ function normalizeCenterline(pts: CenterPoint[]): CenterPoint[] {
   const data = [pts[0], ...pts.slice(1).reverse()];
 
   // Center
-  let cx = 0, cz = 0;
-  for (const p of data) { cx += p.x; cz += p.z; }
-  cx /= data.length; cz /= data.length;
-  const centered = data.map(p => ({ ...p, x: p.x - cx, z: p.z - cz }));
+  let cx = 0,
+    cz = 0;
+  for (const p of data) {
+    cx += p.x;
+    cz += p.z;
+  }
+  cx /= data.length;
+  cz /= data.length;
+  const centered = data.map((p) => ({ ...p, x: p.x - cx, z: p.z - cz }));
 
   // Rotate so start/finish heads right (+X)
   const heading = startHeading(centered);
   const cos = Math.cos(-heading);
   const sin = Math.sin(-heading);
-  const rotated = centered.map(p => ({
+  const rotated = centered.map((p) => ({
     ...p,
     x: p.x * cos - p.z * sin,
     z: p.x * sin + p.z * cos,
@@ -141,9 +154,7 @@ function normalizeCenterline(pts: CenterPoint[]): CenterPoint[] {
 
 // ── Edge Computation ──────────────────────────────────────────────────────
 
-function computeEdges(
-  centerline: CenterPoint[]
-): { left: Point[]; right: Point[]; center: Point[] } {
+function computeEdges(centerline: CenterPoint[]): { left: Point[]; right: Point[]; center: Point[] } {
   const n = centerline.length;
   const left: Point[] = [];
   const right: Point[] = [];
@@ -172,12 +183,20 @@ function computeEdges(
 }
 
 function pointsToCsv(points: Point[]): string {
-  return `x,z\n${points.map(p => `${p.x.toFixed(4)},${p.z.toFixed(4)}`).join("\n")}`;
+  return `x,z\n${points.map((p) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`).join("\n")}`;
 }
 
 // ── Import ────────────────────────────────────────────────────────────────
 
 async function importTrack(name: string, tumftmName: string): Promise<boolean> {
+  const identity = findTrackAssetIdentities(name)[0];
+  const centerlinePath = identity && bundledSharedGeometryPath(identity, "tumftm", name, "centerline");
+  const boundariesPath = identity && bundledSharedGeometryPath(identity, "tumftm", name, "boundaries");
+  if (!identity || !centerlinePath || !boundariesPath) {
+    console.log(`[${name}] No canonical registry assignment, skipping`);
+    return false;
+  }
+  mkdirSync(dirname(centerlinePath), { recursive: true });
   const url = `${BASE}/${tumftmName}.csv`;
   console.log(`[${name}] Fetching ${url}...`);
 
@@ -188,7 +207,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
   }
 
   const text = await res.text();
-  const lines = text.split("\n").filter(l => l.trim() && !l.startsWith("#"));
+  const lines = text.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
 
   const raw: CenterPoint[] = [];
   for (const line of lines) {
@@ -211,19 +230,19 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
   const centerline = normalizeCenterline(raw);
 
   // Save centerline
-  const centerCsv = pointsToCsv(centerline.map(p => ({ x: p.x, z: p.z })));
-  writeFileSync(resolve(OUT_DIR, `${name}-centerline.csv`), centerCsv);
+  const centerCsv = pointsToCsv(centerline.map((p) => ({ x: p.x, z: p.z })));
+  writeFileSync(centerlinePath, centerCsv);
 
   // Compute and save edges
   const { left, right, center: ctr } = computeEdges(centerline);
   const boundaryData = {
-    leftEdge: left.map(p => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
-    rightEdge: right.map(p => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
-    centerLine: ctr.map(p => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
+    leftEdge: left.map((p) => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
+    rightEdge: right.map((p) => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
+    centerLine: ctr.map((p) => ({ x: +p.x.toFixed(4), z: +p.z.toFixed(4) })),
     pitLane: null,
     coordSystem: "normalized",
   };
-  writeFileSync(resolve(OUT_DIR, `${name}-boundaries.json`), JSON.stringify(boundaryData));
+  writeFileSync(boundariesPath, JSON.stringify(boundaryData));
 
   console.log(`[${name}] Saved: ${centerline.length} center pts, ${left.length} edge pts`);
   return true;
@@ -235,7 +254,8 @@ async function main() {
 
   for (const [name, tumftmName] of Object.entries(TRACKS)) {
     const ok = await importTrack(name, tumftmName);
-    if (ok) success++; else failed++;
+    if (ok) success++;
+    else failed++;
   }
 
   console.log(`\nDone: ${success} tracks imported, ${failed} not available`);

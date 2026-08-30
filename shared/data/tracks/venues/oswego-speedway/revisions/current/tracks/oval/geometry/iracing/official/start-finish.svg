@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="EXAMPLE_-_Start_Finish" data-name="EXAMPLE - Start/Finish" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #d82520;
+        stroke-width: 0px;
+      }
+    </style>
+    <symbol id="Start_Finish_Line" data-name="Start / Finish Line" viewBox="0 0 10 70">
+      <rect class="cls-1" width="10" height="70"/>
+    </symbol>
+    <symbol id="Track_Direction" data-name="Track Direction" viewBox="0 0 100 40">
+      <polygon class="cls-1" points="100 20 0 0 23.13 20 0 40 100 20"/>
+    </symbol>
+  </defs>
+  <use width="100" height="40" transform="translate(742.6 171.44) rotate(-180) scale(.73)" xlink:href="#Track_Direction"/>
+  <use width="10" height="70" transform="translate(706.21 182.33) scale(.83 1.29)" xlink:href="#Start_Finish_Line"/>
+</svg>

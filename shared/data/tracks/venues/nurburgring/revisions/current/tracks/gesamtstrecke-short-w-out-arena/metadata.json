@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nurburgring/gesamtstrecke-short-w-out-arena",
+  "name": "Gesamtstrecke Short w/out Arena",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 263,
+      "confirmation": null
+    }
+  ]
+}

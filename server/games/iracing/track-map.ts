@@ -1,133 +1,103 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, resolve } from "node:path";
-import { getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing"
-import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths"
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
-import {
-  parseIRacingActiveSvg,
-  type IRacingSvgTrackMap,
-} from "./track-map-svg";
+import { SHARED_DIR } from "../../../shared/platform/runtime/data-paths";
+import { canonicalTrackAssetPathComponents, parseCanonicalTrackId } from "../../../shared/racing/tracks/configuration";
+import { getTrackRegistryIndexes, type TrackRegistryReadModel } from "../../../shared/racing/tracks/registry";
+import { parseIRacingActiveSvg, type IRacingSvgTrackMap } from "./track-map-svg";
 
-interface CachedMapFile extends IRacingSvgTrackMap {
-  version: 1;
-  mapUrl: string;
-}
+type TrackAssignment = TrackRegistryReadModel["assignments"][number];
 
-const MAP_CACHE_VERSION = 1;
-const FETCH_TIMEOUT_MS = 4_000;
-const PUBLIC_MAP_PREFIX =
-  "https://members-assets.iracing.com/public/track-maps/";
-const memoryCache = new Map<number, Promise<IRacingSvgTrackMap | null>>();
+const completedMaps = new Map<string, IRacingSvgTrackMap>();
+const pendingMaps = new Map<string, Promise<IRacingSvgTrackMap>>();
+const missingOrdinals = new Set<number>();
 
-function cachePath(ordinal: number): string {
-  return resolve(
-    USER_TRACKS_DIR,
+async function loadMap(assignment: TrackAssignment): Promise<IRacingSvgTrackMap> {
+
+  const { venuePath, layoutSlug } = parseCanonicalTrackId(assignment.layoutId);
+  const layerDirectory = resolve(
+    SHARED_DIR,
+    "tracks",
+    ...canonicalTrackAssetPathComponents(venuePath, layoutSlug),
+    "geometry",
     "iracing",
-    "official-svg",
-    `${ordinal}.json`,
+    "official",
   );
-}
-
-function readCachedMap(
-  ordinal: number,
-  mapUrl: string,
-): IRacingSvgTrackMap | null {
-  const path = cachePath(ordinal);
-  if (!existsSync(path)) return null;
+  let layers: [string, string, string, string];
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8")) as CachedMapFile;
-    return parsed.version === MAP_CACHE_VERSION &&
-      parsed.mapUrl === mapUrl &&
-      Array.isArray(parsed.points) &&
-      parsed.points.length >= 20
-      ? { points: parsed.points, labels: parsed.labels ?? [] }
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedMap(
-  ordinal: number,
-  mapUrl: string,
-  map: IRacingSvgTrackMap,
-): void {
-  const path = cachePath(ordinal);
-  try {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(
-      path,
-      JSON.stringify({
-        version: MAP_CACHE_VERSION,
-        mapUrl,
-        ...map,
-      } satisfies CachedMapFile),
-    );
+    layers = await Promise.all(
+      ["active.svg", "start-finish.svg", "turns.svg", "pit-road.svg"].map((filename) => readFile(resolve(layerDirectory, filename), "utf8")),
+    ) as [string, string, string, string];
   } catch (error) {
-    console.warn(
-      `[iRacing Map] Could not cache track ${ordinal}:`,
-      error,
-    );
+    throw new Error(`Missing bundled iRacing SVG map layer for track ${assignment.trackOrdinal} (${assignment.layoutId})`, { cause: error });
   }
-}
 
-async function fetchSvg(url: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "RaceIQ iRacing track map" },
-      signal: controller.signal,
-    });
-    return response.ok ? response.text() : null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function loadMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
-  const track = getIRacingTrack(ordinal);
-  const mapUrl = track?.mapUrl ?? "";
-  if (!mapUrl.startsWith(PUBLIC_MAP_PREFIX)) return null;
-
-  const cached = readCachedMap(ordinal, mapUrl);
-  if (cached) return cached;
-
-  const layerUrl = (name: string) =>
-    new URL(name, mapUrl).href;
-  const [activeSvg, startFinishSvg, turnsSvg] = await Promise.all([
-    fetchSvg(mapUrl),
-    fetchSvg(layerUrl("start-finish.svg")),
-    fetchSvg(layerUrl("turns.svg")),
-  ]);
-  if (!activeSvg) return null;
-  const map = parseIRacingActiveSvg(
-    activeSvg,
-    startFinishSvg,
-    turnsSvg,
-  );
-  if (map) writeCachedMap(ordinal, mapUrl, map);
+  const map = parseIRacingActiveSvg(...layers);
+  if (!map) throw new Error(`Invalid bundled iRacing active.svg for track ${assignment.trackOrdinal} (${assignment.layoutId})`);
   return map;
 }
 
-/** Resolve and memoize one exact iRacing layout's official SVG map. */
-export function getIRacingSvgTrackMap(
-  ordinal: number,
-): Promise<IRacingSvgTrackMap | null> {
-  const existing = memoryCache.get(ordinal);
+/** Resolve one exact iRacing layout from bundled SVG layers and memoize its parsed map. */
+export function getIRacingSvgTrackMap(ordinal: number): Promise<IRacingSvgTrackMap | null> {
+  if (missingOrdinals.has(ordinal)) return Promise.resolve(null);
+  const assignment = getTrackRegistryIndexes().assignmentsByGame.get("iracing")?.get(ordinal);
+  if (!assignment) {
+    missingOrdinals.add(ordinal);
+    return Promise.resolve(null);
+  }
+
+  const completed = completedMaps.get(assignment.layoutId);
+  if (completed) return Promise.resolve(completed);
+  const existing = pendingMaps.get(assignment.layoutId);
   if (existing) return existing;
-  const pending = loadMap(ordinal);
-  memoryCache.set(ordinal, pending);
-  pending.then((map) => {
-    // Do not pin transient network failures for the lifetime of the server.
-    if (!map) memoryCache.delete(ordinal);
-  });
+
+  const pending = loadMap(assignment).then(
+    (map) => {
+      completedMaps.set(assignment.layoutId, map);
+      pendingMaps.delete(assignment.layoutId);
+      return map;
+    },
+    (error) => {
+      pendingMaps.delete(assignment.layoutId);
+      throw error;
+    },
+  );
+  pendingMaps.set(assignment.layoutId, pending);
   return pending;
+}
+
+function nearestPointIndex(points: readonly { x: number; z: number }[], target: { x: number; z: number }): number {
+  let nearest = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < points.length; index += 1) {
+    const distance = (points[index]!.x - target.x) ** 2 + (points[index]!.z - target.z) ** 2;
+    if (distance < bestDistance) {
+      nearest = index;
+      bestDistance = distance;
+    }
+  }
+  return nearest;
+}
+
+/** Validate every assigned iRacing layout and all four bundled SVG layers. */
+export async function assertBundledIRacingSvgTrackMaps(): Promise<number> {
+  const assignments = [...(getTrackRegistryIndexes().assignmentsByGame.get("iracing")?.values() ?? [])];
+  for (const assignment of assignments) {
+    const map = await getIRacingSvgTrackMap(assignment.trackOrdinal);
+    if (!map || map.points.length !== 512) throw new Error(`Invalid bundled iRacing centerline for ${assignment.layoutId}`);
+    const coordinates = [...map.points, ...map.labels, ...map.pitRoad.flat()];
+    if (coordinates.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.z))) {
+      throw new Error(`Non-finite bundled iRacing map coordinate for ${assignment.layoutId}`);
+    }
+    if (map.pitRoad.some((contour) => contour.length < 2)) {
+      throw new Error(`Unusable bundled iRacing pit-road geometry for ${assignment.layoutId}`);
+    }
+    const turnPositions = map.labels
+      .filter((label) => /^\d+$/.test(label.text))
+      .map((label) => nearestPointIndex(map.points, label));
+    if (turnPositions.some((position, index) => index > 0 && position < turnPositions[index - 1]!)) {
+      throw new Error(`Unordered bundled iRacing turn labels for ${assignment.layoutId}`);
+    }
+  }
+  return assignments.length;
 }

@@ -1,0 +1,199 @@
+{
+  "version": 1,
+  "id": "autodromo-jose-carlos-pace/grand-prix",
+  "name": "Grand Prix",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 16,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 212,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "interlagos",
+    "track": "interlagos",
+    "layout": "gp",
+    "layoutName": "Grand Prix",
+    "name": "Autodromo Jose Carlos Pace",
+    "source": "Official F1 track map / FIA circuit guide (4.309 km GP layout); directions verified against F1 2025 centerline geometry",
+    "corners": [
+      {
+        "number": 1,
+        "name": "Senna S",
+        "direction": "left",
+        "group": "Senna S"
+      },
+      {
+        "number": 2,
+        "name": "",
+        "direction": "right",
+        "group": "Senna S"
+      },
+      {
+        "number": 3,
+        "name": "Curva do Sol",
+        "direction": "left"
+      },
+      {
+        "number": 4,
+        "name": "Descida do Lago",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 6,
+        "name": "Ferradura",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Laranja",
+        "direction": "right"
+      },
+      {
+        "number": 8,
+        "name": "Pinheirinho",
+        "direction": "left"
+      },
+      {
+        "number": 9,
+        "name": "Bico de Pato",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Mergulho",
+        "direction": "left"
+      },
+      {
+        "number": 11,
+        "name": "Juncão",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "",
+        "direction": "left"
+      },
+      {
+        "number": 13,
+        "covers": [
+          14,
+          15
+        ],
+        "name": "Arquibancadas",
+        "direction": "left"
+      }
+    ],
+    "straights": [
+      {
+        "after": 3,
+        "name": "Reta Oposta"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.239,
+        "s2End": 0.59
+      },
+      "segments": [
+        {
+          "key": "s13",
+          "startFrac": 0,
+          "endFrac": 0.0475
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.0475,
+          "endFrac": 0.1006
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1006,
+          "endFrac": 0.1189
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1189,
+          "endFrac": 0.198
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.198,
+          "endFrac": 0.2927
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2927,
+          "endFrac": 0.3526
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.3526,
+          "endFrac": 0.412
+        },
+        {
+          "key": "s5",
+          "startFrac": 0.412,
+          "endFrac": 0.4363
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.4363,
+          "endFrac": 0.5304
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.5304,
+          "endFrac": 0.5623
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.5623,
+          "endFrac": 0.6045
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.6045,
+          "endFrac": 0.6665
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.6665,
+          "endFrac": 0.737
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.737,
+          "endFrac": 0.7805
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.7805,
+          "endFrac": 0.8236
+        },
+        {
+          "key": "t13-14-15",
+          "startFrac": 0.8236,
+          "endFrac": 0.8871
+        },
+        {
+          "key": "s13",
+          "startFrac": 0.8871,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

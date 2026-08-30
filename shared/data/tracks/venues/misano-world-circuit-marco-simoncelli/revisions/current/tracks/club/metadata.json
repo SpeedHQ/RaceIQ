@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "misano-world-circuit-marco-simoncelli/club",
+  "name": "Club",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 504,
+      "confirmation": null
+    }
+  ]
+}

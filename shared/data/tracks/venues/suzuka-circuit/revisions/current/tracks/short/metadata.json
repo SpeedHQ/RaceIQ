@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "suzuka-circuit/short",
+  "name": "Short",
+  "assignments": [
+    {
+      "gameId": "f1-2025",
+      "trackOrdinal": 24,
+      "confirmation": null
+    }
+  ]
+}

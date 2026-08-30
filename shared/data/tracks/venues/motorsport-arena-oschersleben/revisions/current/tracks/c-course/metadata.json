@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "motorsport-arena-oschersleben/c-course",
+  "name": "C Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 456,
+      "confirmation": null
+    }
+  ]
+}

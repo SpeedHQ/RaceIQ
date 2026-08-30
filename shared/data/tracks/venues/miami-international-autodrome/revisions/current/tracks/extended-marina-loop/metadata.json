@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "miami-international-autodrome/extended-marina-loop",
+  "name": "Extended Marina Loop",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 538,
+      "confirmation": null
+    }
+  ]
+}

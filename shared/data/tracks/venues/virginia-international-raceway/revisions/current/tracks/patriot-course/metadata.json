@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "virginia-international-raceway/patriot-course",
+  "name": "Patriot Course",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 469,
+      "confirmation": null
+    }
+  ]
+}

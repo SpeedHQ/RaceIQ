@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "sebring-international-raceway/modified",
+  "name": "Modified",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 96,
+      "confirmation": null
+    }
+  ]
+}

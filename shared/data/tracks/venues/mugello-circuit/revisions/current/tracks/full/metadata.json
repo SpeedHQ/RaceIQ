@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "id": "mugello-circuit/full",
+  "name": "Full",
+  "assignments": [
+    {
+      "gameId": "fm-2023",
+      "trackOrdinal": 35,
+      "confirmation": null
+    },
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 498,
+      "confirmation": null
+    }
+  ],
+  "facts": {
+    "slug": "mugello",
+    "track": "mugello",
+    "layout": "full",
+    "layoutName": "Full",
+    "name": "Mugello Circuit",
+    "source": "Official circuit map (15 turns)",
+    "corners": [
+      {
+        "number": 1,
+        "name": "San Donato",
+        "direction": "right"
+      },
+      {
+        "number": 2,
+        "name": "Luco",
+        "direction": "left"
+      },
+      {
+        "number": 3,
+        "name": "Poggio Secco",
+        "direction": "right"
+      },
+      {
+        "number": 4,
+        "name": "Materassi",
+        "direction": "left"
+      },
+      {
+        "number": 5,
+        "name": "Borgo San Lorenzo",
+        "direction": "right"
+      },
+      {
+        "number": 6,
+        "name": "Casanova",
+        "direction": "right"
+      },
+      {
+        "number": 7,
+        "name": "Savelli",
+        "direction": "left"
+      },
+      {
+        "number": 8,
+        "name": "Arrabbiata 1",
+        "direction": "right"
+      },
+      {
+        "number": 9,
+        "name": "Arrabbiata 2",
+        "direction": "right"
+      },
+      {
+        "number": 10,
+        "name": "Scarperia",
+        "direction": "right"
+      },
+      {
+        "number": 11,
+        "name": "Palagio",
+        "direction": "left"
+      },
+      {
+        "number": 12,
+        "name": "Correntaio",
+        "direction": "right"
+      },
+      {
+        "number": 13,
+        "name": "Biondetti 1",
+        "direction": "left"
+      },
+      {
+        "number": 14,
+        "name": "Biondetti 2",
+        "direction": "right"
+      },
+      {
+        "number": 15,
+        "name": "Bucine",
+        "direction": "left"
+      }
+    ]
+  },
+  "geometryByGame": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.3424,
+        "s2End": 0.595,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "key": "s15",
+          "startFrac": 0,
+          "endFrac": 0.1013
+        },
+        {
+          "key": "t1",
+          "startFrac": 0.1013,
+          "endFrac": 0.1674
+        },
+        {
+          "key": "t2",
+          "startFrac": 0.1674,
+          "endFrac": 0.1957
+        },
+        {
+          "key": "t3",
+          "startFrac": 0.1957,
+          "endFrac": 0.2354
+        },
+        {
+          "key": "s3",
+          "startFrac": 0.2354,
+          "endFrac": 0.2553
+        },
+        {
+          "key": "t4",
+          "startFrac": 0.2553,
+          "endFrac": 0.2976
+        },
+        {
+          "key": "t5",
+          "startFrac": 0.2976,
+          "endFrac": 0.3424
+        },
+        {
+          "key": "t6",
+          "startFrac": 0.3424,
+          "endFrac": 0.3862
+        },
+        {
+          "key": "t7",
+          "startFrac": 0.3862,
+          "endFrac": 0.4318
+        },
+        {
+          "key": "t8",
+          "startFrac": 0.4318,
+          "endFrac": 0.4926
+        },
+        {
+          "key": "t9",
+          "startFrac": 0.4926,
+          "endFrac": 0.5498
+        },
+        {
+          "key": "t10",
+          "startFrac": 0.5498,
+          "endFrac": 0.595
+        },
+        {
+          "key": "t11",
+          "startFrac": 0.595,
+          "endFrac": 0.6472
+        },
+        {
+          "key": "t12",
+          "startFrac": 0.6472,
+          "endFrac": 0.7303
+        },
+        {
+          "key": "t13",
+          "startFrac": 0.7303,
+          "endFrac": 0.7533
+        },
+        {
+          "key": "t14",
+          "startFrac": 0.7533,
+          "endFrac": 0.7802
+        },
+        {
+          "key": "s14",
+          "startFrac": 0.7802,
+          "endFrac": 0.8119
+        },
+        {
+          "key": "t15",
+          "startFrac": 0.8119,
+          "endFrac": 0.9025
+        },
+        {
+          "key": "s15",
+          "startFrac": 0.9025,
+          "endFrac": 1
+        }
+      ]
+    }
+  }
+}

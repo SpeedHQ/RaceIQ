@@ -20,6 +20,11 @@ export const GameIdQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
 });
 
+/** Required `?gameId=` query param for game-scoped geometry routes. */
+export const RequiredGameIdQuerySchema = z.object({
+  gameId: GameIdSchema,
+});
+
 const parseIntParam = (name: "id" | "versionId") =>
   z
     .string()

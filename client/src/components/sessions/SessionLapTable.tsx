@@ -7,7 +7,7 @@ import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/A
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/hooks/query-keys";
 import { exportLapsZip } from "@/lib/lap-export";
-import { bestSectorLapIds } from "@/lib/lap-sectors";
+import { bestSectorLapIds, storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameRoute } from "@/stores/game";
@@ -17,11 +17,12 @@ import type { SessionLapTableProps } from "./types";
 
 type ContextMenu = { x: number; y: number; lapId: number } | null;
 
-export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: SessionLapTableProps) {
+export function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: SessionLapTableProps) {
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
+  const sectorCount = storedLapsSectorCount(laps);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const bestSectorLaps = useMemo(
     () =>

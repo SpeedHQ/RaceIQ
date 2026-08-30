@@ -11,20 +11,23 @@ import type { LiveSectorData } from "../../shared/racing/live/types";
 import { getGame } from "../../shared/games/registry";
 import type { GameAdapter } from "../../shared/games/types";
 import { resolveTrack } from "../tracks/info";
-import {
-  interpolateMonotonic,
-  sectorFromDistanceFraction,
-} from "./tracker-math";
+import { interpolateMonotonic, sectorFromDistanceFraction } from "./tracker-math";
 
 interface SectorBounds {
   starts: number[];
   trackLength: number;
 }
 
+export interface LiveSectorLayout {
+  gameId: GameId;
+  trackOrdinal: number;
+  starts: number[];
+  trackLength: number;
+}
 /** Reference lap distance-time curve for interpolation-based delta. */
 interface ReferenceLap {
   distances: Float64Array; // per-lap distance (meters from lap start)
-  times: Float64Array;     // elapsed time at each distance point
+  times: Float64Array; // elapsed time at each distance point
   lapTime: number;
 }
 
@@ -98,7 +101,9 @@ export class SectorTracker {
     };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
+    console.log(
+      `[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`,
+    );
   }
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
@@ -106,13 +111,7 @@ export class SectorTracker {
     const nativeLayout = this.currentGame?.getNativeSectorLayout?.(packet);
     if (this.currentGame?.nativeSectors) {
       const starts = nativeLayout?.starts;
-      if (
-        starts &&
-        starts.length >= 2 &&
-        Number.isFinite(starts[0]) &&
-        starts[0] >= 0 &&
-        starts[0] < 1e-6
-      ) {
+      if (starts && starts.length >= 2 && Number.isFinite(starts[0]) && starts[0] >= 0 && starts[0] < 1e-6) {
         const trackLength = nativeLayout?.trackLengthM ?? 0;
         this.setNativeSectorLayout(starts, trackLength);
         if (this.lapDistTotal <= 0 && trackLength > 0) {
@@ -145,19 +144,11 @@ export class SectorTracker {
 
     // Lap boundary: LapNumber increment (any, including 0→1) OR CurrentLap reset
     if (packet.LapNumber > this.lastLap || currentLapReset) {
-      const hasCompletedSectors =
-        this.currentTimes
-          .slice(0, this.sectorCount - 1)
-          .every((time) => time > 0);
+      const hasCompletedSectors = this.currentTimes.slice(0, this.sectorCount - 1).every((time) => time > 0);
       if (hasCompletedSectors) {
         this.lastTimes = [...this.currentTimes];
-        const completedTime = this.currentTimes
-          .slice(0, this.sectorCount - 1)
-          .reduce((sum, time) => sum + time, 0);
-        this.lastTimes[this.sectorCount - 1] = Math.max(
-          0,
-          packet.LastLap - completedTime,
-        );
+        const completedTime = this.currentTimes.slice(0, this.sectorCount - 1).reduce((sum, time) => sum + time, 0);
+        this.lastTimes[this.sectorCount - 1] = Math.max(0, packet.LastLap - completedTime);
         // bestTimes only updated from valid laps (via updateRefLap / seeding)
       }
 
@@ -191,15 +182,9 @@ export class SectorTracker {
     } else {
       // Native sector starts are fractions and their telemetry supplies the
       // matching lap fraction directly. Other games derive it from distance.
-      const frac = this.currentGame?.nativeSectors
-        ? nativeLayout?.lapFraction
-        : this.lapDistTotal > 0
-          ? (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal
-          : undefined;
+      const frac = this.currentGame?.nativeSectors ? nativeLayout?.lapFraction : this.lapDistTotal > 0 ? (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal : undefined;
 
-      const expectedSector = frac === undefined
-        ? this.currentSector
-        : sectorFromDistanceFraction(this.bounds.starts, frac);
+      const expectedSector = frac === undefined ? this.currentSector : sectorFromDistanceFraction(this.bounds.starts, frac);
 
       this.advanceSector(expectedSector, packet.CurrentLap);
     }
@@ -214,11 +199,7 @@ export class SectorTracker {
     if (this.refLap && packet.CurrentLap > 0) {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
       if (lapDist > 0) {
-        const refTime = interpolateMonotonic(
-          this.refLap.times,
-          this.refLap.distances,
-          lapDist,
-        );
+        const refTime = interpolateMonotonic(this.refLap.times, this.refLap.distances, lapDist);
         if (refTime !== null && refTime >= 0) {
           deltaToBest = packet.CurrentLap - refTime;
           estimatedLap = this.refLap.lapTime + deltaToBest;
@@ -226,17 +207,16 @@ export class SectorTracker {
       }
     }
 
-    const deltaToLast = estimatedLap > 0 && this.lastLapTime > 0
-      ? estimatedLap - this.lastLapTime
-      : 0;
+    const deltaToLast = estimatedLap > 0 && this.lastLapTime > 0 ? estimatedLap - this.lastLapTime : 0;
 
     return {
       sectorCount: this.sectorCount,
+      sectorStarts: this.bounds.starts,
       currentSector: this.currentSector,
       currentSectorTime,
       currentTimes: [...this.currentTimes],
       lastTimes: [...this.lastTimes],
-      bestTimes: this.bestTimes.map(t => t === Infinity ? 0 : t),
+      bestTimes: this.bestTimes.map((t) => (t === Infinity ? 0 : t)),
       lastLapTime: this.lastLapTime,
       bestLapTime: this.bestLapTime === Infinity ? 0 : this.bestLapTime,
       estimatedLap,
@@ -272,16 +252,9 @@ export class SectorTracker {
     this.currentSector = nextSector;
   }
 
-  private setNativeSectorLayout(
-    starts: readonly number[],
-    trackLength: number,
-  ): void {
-    const changed =
-      !this.bounds ||
-      this.bounds.starts.length !== starts.length ||
-      starts.some((start, index) => start !== this.bounds!.starts[index]);
-    const resolvedTrackLength =
-      trackLength > 0 ? trackLength : (this.bounds?.trackLength ?? 0);
+  private setNativeSectorLayout(starts: readonly number[], trackLength: number): void {
+    const changed = !this.bounds || this.bounds.starts.length !== starts.length || starts.some((start, index) => start !== this.bounds!.starts[index]);
+    const resolvedTrackLength = trackLength > 0 ? trackLength : (this.bounds?.trackLength ?? 0);
     this.bounds = { starts: [...starts], trackLength: resolvedTrackLength };
     if (!changed) return;
 
@@ -292,11 +265,7 @@ export class SectorTracker {
   }
 
   /** Update reference lap and bests from a just-completed valid live lap. */
-  updateRefLap(
-    packets: TelemetryPacket[],
-    lapTime: number,
-    sectors?: number[] | null,
-  ): void {
+  updateRefLap(packets: TelemetryPacket[], lapTime: number, sectors?: number[] | null): void {
     if (lapTime < this.bestLapTime) this.bestLapTime = lapTime;
     if (sectors) {
       if (this.currentGame?.nativeSectors) {
@@ -322,6 +291,17 @@ export class SectorTracker {
     };
     this.lapDistTotal = opts.trackLength;
     this.initialized = false;
+  }
+
+  /** Active source layout, available as soon as telemetry publishes its boundaries. */
+  getLayout(): LiveSectorLayout | null {
+    if (!this.bounds || !this.currentGameId || this.currentTrackOrdinal < 0) return null;
+    return {
+      gameId: this.currentGameId,
+      trackOrdinal: this.currentTrackOrdinal,
+      starts: [...this.bounds.starts],
+      trackLength: this.bounds.trackLength,
+    };
   }
 
   /** Expose track length to telemetry consumers. */

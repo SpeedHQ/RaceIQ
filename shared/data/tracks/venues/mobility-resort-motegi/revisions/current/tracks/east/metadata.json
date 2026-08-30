@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "mobility-resort-motegi/east",
+  "name": "East",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 196,
+      "confirmation": null
+    }
+  ]
+}

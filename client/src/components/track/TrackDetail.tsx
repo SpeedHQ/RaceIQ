@@ -1,4 +1,5 @@
 import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
+import type { TrackSectorBoundaries } from "@shared/racing/tracks/sectors";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
@@ -14,6 +15,7 @@ import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
@@ -44,6 +46,11 @@ export function TrackDetail({
 }) {
   const gameId = useGameId();
   const gid = gameId ?? undefined;
+  const liveSectorStarts = useTelemetryStore((state) => {
+    const view = state.telemetryView;
+    if (view?.simulator !== gameId || view.identity.trackOrdinal !== track.ordinal) return null;
+    return state.sectors?.sectorStarts ?? null;
+  });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
@@ -62,6 +69,7 @@ export function TrackDetail({
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
   const [sectorBounds, setSectorBounds] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [sectorStarts, setSectorStarts] = useState<number[] | null>(null);
   const [editingSectors, setEditingSectors] = useState(false);
   const [editS1, setEditS1] = useState(33.3);
   const [editS2, setEditS2] = useState(66.6);
@@ -123,11 +131,9 @@ export function TrackDetail({
         client.api["track-sectors"][":ordinal"]
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
-        client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
-          .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
+        client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as TrackSectorBoundaries | null),
       ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: track.hasOutline && !!gameId,
+    enabled: !!gameId,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -144,8 +150,13 @@ export function TrackDetail({
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
-    if (boundsData?.s1End) setSectorBounds(boundsData);
-  }, [trackMapData]);
+    setSectorStarts(liveSectorStarts ?? boundsData?.sectorStarts ?? null);
+    if (typeof boundsData?.s1End === "number" && typeof boundsData.s2End === "number") {
+      setSectorBounds({ s1End: boundsData.s1End, s2End: boundsData.s2End });
+    } else {
+      setSectorBounds(null);
+    }
+  }, [trackMapData, liveSectorStarts]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
@@ -166,13 +177,13 @@ export function TrackDetail({
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
     const showSectors = editingSectors || mapDisplayMode === "sectors";
-    const sectorBoundsForDraw = editingSectors ? { starts: [0, editS1 / 100, editS2 / 100] } : sectorBounds ? { starts: [0, sectorBounds.s1End, sectorBounds.s2End] } : undefined;
+    const sectorBoundsForDraw = editingSectors ? { starts: [0, editS1 / 100, editS2 / 100] } : sectorStarts ? { starts: sectorStarts } : undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     // While editing, every turn of a complex gets its own label so the row
     // being edited is identifiable on the map; otherwise the complex is
     // labelled once under its group name.
     drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorStarts, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -353,7 +364,7 @@ export function TrackDetail({
               outline={outline}
               flipX={flipX}
               displaySectors={displaySectors}
-              sectorBounds={editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : sectorBounds}
+              sectorStarts={editingSectors ? [0, editS1 / 100, editS2 / 100] : sectorStarts}
               editingSegments={editing}
               editingSectors={editingSectors}
               trackLengthKm={track.lengthKm}
@@ -364,13 +375,13 @@ export function TrackDetail({
           </div>
           <TrackDebugSidebar
             track={track}
-            gameId={gameId}
             displaySectors={displaySectors}
             segSource={segSource}
             editing={editing}
             editSegments={editSegments}
             saving={saving}
             sectorBounds={sectorBounds}
+            sectorStarts={sectorStarts}
             editingSectors={editingSectors}
             editS1={editS1}
             editS2={editS2}
@@ -399,7 +410,7 @@ export function TrackDetail({
                 {/* Info summary left of map, same shape as the laps leaderboard */}
                 {activeTab === "info" && (
                   <div className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
-                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
+                    <TrackInfoPanel track={track} sectors={displaySectors} sectorStarts={sectorStarts} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
                   </div>
                 )}
 
@@ -418,7 +429,7 @@ export function TrackDetail({
                   setPan={setPan}
                   zoom={zoom}
                   setZoom={setZoom}
-                  sectorBounds={sectorBounds}
+                  sectorStarts={sectorStarts}
                   displaySectors={displaySectors}
                   mapDisplayMode={mapDisplayMode}
                   setMapDisplayMode={setMapDisplayMode}
@@ -453,7 +464,7 @@ export function TrackDetail({
               <div className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
                 {/* Info tab — guide + segments read full width under the map */}
                 {activeTab === "info" && (
-                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
+                  <TrackInfoPanel track={track} sectors={displaySectors} sectorStarts={sectorStarts} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
                 )}
 
                 {activeTab === "laps" && (

@@ -1,0 +1,85 @@
+{
+  "id": "austin",
+  "locale": "en",
+  "character": "Purpose-built circuit blending characteristics of famous corners worldwide — a steep uphill first corner, a flowing esses section inspired by Silverstone, and a long back straight into a hairpin.",
+  "sources": "https://www.formula1.com/en/racing/2026/united-states/circuit official F1 circuit guide (numbered-turn convention)",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "steep uphill hairpin",
+      "technique": "Brake hard on the blind uphill approach, commit to the apex without full visibility of the exit",
+      "trap": "Misjudging the uphill braking distance and running wide"
+    },
+    {
+      "key": "esses-turns-2-9",
+      "name": "Esses (Turns 2-9)",
+      "numbers": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "type": "fast, flowing left-right sequence",
+      "technique": "Rhythm and smooth inputs through the direction changes, carry maximum speed",
+      "trap": "Over-driving any single apex disrupts the whole sequence"
+    },
+    {
+      "key": "turn-11",
+      "name": "Turn 11",
+      "numbers": [
+        11
+      ],
+      "type": "heavy-braking corner onto the back straight",
+      "technique": "Prioritise a clean exit to maximise speed down the following long straight",
+      "trap": "Compromised exit costs time over the entire back straight"
+    },
+    {
+      "key": "turn-12",
+      "name": "Turn 12",
+      "numbers": [
+        12
+      ],
+      "type": "tight hairpin at the end of the back straight",
+      "technique": "Hard braking from top speed, late apex, patient throttle on exit",
+      "trap": "Locking the front from the high braking speed"
+    },
+    {
+      "key": "turn-15-18",
+      "name": "Turn 15-18",
+      "numbers": [
+        15,
+        16,
+        17,
+        18
+      ],
+      "type": "technical, tightening final-sector sequence",
+      "technique": "Patient, precise inputs through the tightening radius",
+      "trap": "Carrying too much speed into the sequence and running out of track"
+    },
+    {
+      "key": "turn-19-20",
+      "name": "Turn 19-20",
+      "numbers": [
+        19,
+        20
+      ],
+      "type": "final corners onto the pit straight",
+      "technique": "Late apex, clean exit is critical for the run to the line",
+      "trap": "Poor exit here costs time down the entire pit straight"
+    }
+  ],
+  "priorityCorners": [
+    "turn-1",
+    "turn-11",
+    "turn-12",
+    "turn-19-20"
+  ]
+}

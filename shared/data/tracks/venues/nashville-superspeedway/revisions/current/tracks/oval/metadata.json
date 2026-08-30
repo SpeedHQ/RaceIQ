@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "nashville-superspeedway/oval",
+  "name": "Oval",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 400,
+      "confirmation": null
+    }
+  ]
+}

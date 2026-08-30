@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "irwindale-speedway/figure-eight-jump",
+  "name": "Figure Eight Jump",
+  "assignments": [
+    {
+      "gameId": "iracing",
+      "trackOrdinal": 388,
+      "confirmation": null
+    }
+  ]
+}
