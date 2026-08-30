@@ -13,16 +13,14 @@ export interface MotecCarTrackOverride {
   trackOrdinal?: number;
 }
 
-export interface SynthesizeResult {
-  /** Session `.bin` bytes: 12-byte meta frame, then `[u32 len][frame]` records. */
-  bin: Buffer;
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+
+export interface MotecConversionResult {
+  packets: TelemetryPacket[];
   frameCount: number;
   lapCount: number;
   carTrack: MotecCarTrack;
-  /** Channels the transcoder looked for and did not find. */
   missingChannels: string[];
-  /** Effective source sample rates, for explaining resampling and gaps. */
   sampleRates: Array<{ name: string; hz: number }>;
-  /** True when the path was reconstructed from lateral G because `ROTY` was absent. */
   yawFromLateralG: boolean;
 }

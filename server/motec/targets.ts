@@ -32,49 +32,41 @@ import type { GameId } from "../../shared/games/ids";
 import { getGame } from "@shared/games/registry";
 import type { LdLog } from "./ld";
 import type {
+  MotecCarTrack,
   MotecCarTrackOverride,
-  SynthesizeResult,
+  MotecConversionResult,
 } from "./types";
+import { MOTEC_IMPORT_LIMITATIONS } from "./kunos-synthesis";
 import {
-  MOTEC_IMPORT_LIMITATIONS,
-} from "./kunos-synthesis";
-import { synthesizeAccCapture } from "../games/acc/motec";
-import { synthesizeAcEvoCapture } from "../games/ac-evo/motec";
+  convertAccMotecToPackets,
+  resolveAccMotecCarTrack,
+} from "../games/acc/motec";
+import {
+  convertAcEvoMotecToPackets,
+  resolveMotecCarTrack as resolveAcEvoMotecCarTrack,
+} from "../games/ac-evo/motec";
 
-/**
- * Transcodes a parsed log into a session capture for one game.
- *
- * Same shape as `synthesizeAcEvoCapture` — the capture is fed to that game's
- * ordinary import pipeline, so imported laps are built by the same lap
- * detector, sector timer and metrics code as recorded ones.
- */
-type MotecSynthesizer = (
+type MotecConverter = (
   log: LdLog,
   beacons: number[],
-  override?: MotecCarTrackOverride,
-) => SynthesizeResult;
+  carTrack: MotecCarTrack,
+) => MotecConversionResult;
 
 export interface MotecTarget {
   gameId: GameId;
-  /** Game name for the picker. Resolved from the game adapter, not restated. */
   displayName: string;
   routePrefix: string;
-  /**
-   * Where the client fetches this game's car roster. Pointed at rather than
-   * duplicated here so per-game extras — AC Evo injects cars discovered from
-   * live telemetry — keep working. Must return `{ ordinal, name, class? }[]`.
-   */
   carsEndpoint: string;
-  /**
-   * What this transcoder cannot recover from a log, in the user's words. Shown
-   * after an import: every mapping loses something, and saying so is the
-   * difference between a known gap and a bug report.
-   */
   limitations: readonly string[];
-  synthesize: MotecSynthesizer;
+  convert: MotecConverter;
+  resolveCarTrack: (
+    log: LdLog,
+    override?: MotecCarTrackOverride,
+  ) => MotecCarTrack;
 }
 
 const targets = new Map<GameId, MotecTarget>();
+
 
 /** All importable games, in registration order. */
 export function getMotecTargets(): MotecTarget[] {
@@ -103,7 +95,8 @@ export function initMotecTargets(): void {
     routePrefix: acc.routePrefix,
     carsEndpoint: "/api/acc/cars",
     limitations: MOTEC_IMPORT_LIMITATIONS,
-    synthesize: synthesizeAccCapture,
+    convert: convertAccMotecToPackets,
+    resolveCarTrack: resolveAccMotecCarTrack,
   });
   targets.set("ac-evo", {
     gameId: "ac-evo",
@@ -111,7 +104,8 @@ export function initMotecTargets(): void {
     routePrefix: acEvo.routePrefix,
     carsEndpoint: "/api/ac-evo/cars",
     limitations: MOTEC_IMPORT_LIMITATIONS,
-    synthesize: synthesizeAcEvoCapture,
+    convert: convertAcEvoMotecToPackets,
+    resolveCarTrack: resolveAcEvoMotecCarTrack,
   });
 }
 /**

@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../shared/games/init";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { initServerGameAdapters } from "../../server/games/init";
-import { getServerGame } from "../../server/games/registry";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";
 import {
@@ -13,8 +12,6 @@ import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
 import {
   deadReckonPath,
   reconstructYawHeading,
-  resolveMotecCarTrack,
-  synthesizeAcEvoCapture,
 } from "../../server/games/ac-evo/motec";
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
@@ -25,7 +22,6 @@ import { eq, isNull } from "drizzle-orm";
 import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
 import { flipPoints } from "../../shared/racing/tracks/coords";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 
 initGameAdapters();
@@ -40,29 +36,6 @@ describe("MoTeC target registry", () => {
   });
 });
 
-/** Walk the session-capture framing the transcoder emits. */
-function* iterateFrames(buf: Buffer): Generator<Buffer> {
-  let offset = 0;
-  if (buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC) offset = 12;
-  while (offset + 4 <= buf.length) {
-    const len = buf.readUInt32LE(offset);
-    offset += 4;
-    if (len <= 0 || offset + len > buf.length) break;
-    yield buf.subarray(offset, offset + len);
-    offset += len;
-  }
-}
-
-function parseFrames(bin: Buffer) {
-  const game = getServerGame("ac-evo");
-  const state = game.createParserState?.() ?? null;
-  const packets = [];
-  for (const frame of iterateFrames(bin)) {
-    const packet = game.tryParse(frame, state);
-    if (packet) packets.push(packet);
-  }
-  return packets;
-}
 
 describe("MoTeC .ld reader", () => {
   test("round-trips header fields and channel samples", () => {
@@ -278,7 +251,7 @@ describe("resolveMotecCarTrack", () => {
       venue: "spa",
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
-    const resolved = resolveMotecCarTrack(parseLd(bytes));
+    const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
     expect(resolved.trackOrdinal).toBeGreaterThanOrEqual(0);
     expect(resolved.trackName.length).toBeGreaterThan(0);
   });
@@ -291,11 +264,11 @@ describe("resolveMotecCarTrack", () => {
       venue: "spa",
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
-    const header = resolveMotecCarTrack(parseLd(bytes));
+    const header = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
     const monza = getAcEvoTrackByName("monza")!;
     expect(monza.id).not.toBe(header.trackOrdinal);
 
-    const overridden = resolveMotecCarTrack(parseLd(bytes), {
+    const overridden = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes), {
       carOrdinal: 0,
       trackOrdinal: monza.id,
     });
@@ -308,7 +281,7 @@ describe("resolveMotecCarTrack", () => {
       venue: "monza",
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
-    const resolved = resolveMotecCarTrack(parseLd(bytes), {});
+    const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes), {});
     expect(resolved.trackOrdinal).toBe(getAcEvoTrackByName("monza")!.id);
   });
 
@@ -318,17 +291,18 @@ describe("resolveMotecCarTrack", () => {
       venue: "spa",
       channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
     });
-    const resolved = resolveMotecCarTrack(parseLd(bytes));
+    const resolved = resolveMotecTarget("ac-evo").resolveCarTrack(parseLd(bytes));
     expect(resolved.carOrdinal).toBe(-1);
     // The raw string survives so the lap detector can register it as discovered.
     expect(resolved.carModel).toBe("not_a_real_car");
   });
 });
 
-describe("synthesizeAcEvoCapture", () => {
+describe("convertAcEvoMotecToPackets", () => {
   const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
   const log = parseLd(buildLd(spec));
-  const capture = synthesizeAcEvoCapture(log, beacons);
+  const target = resolveMotecTarget("ac-evo");
+  const capture = target.convert(log, beacons, target.resolveCarTrack(log));
 
   test("emits frames at the synthesis rate for the log's duration", () => {
     expect(capture.frameCount).toBe(Math.floor(log.duration * MOTEC_SYNTH_HZ));
@@ -340,13 +314,13 @@ describe("synthesizeAcEvoCapture", () => {
   });
 
   test("frames parse back through the real AC Evo adapter", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     expect(packets.length).toBe(capture.frameCount);
     expect(packets[0]!.gameId).toBe("ac-evo");
   });
 
   test("speed and pedal traces survive the round trip", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     // Flat-out sections were written at 180 km/h = 50 m/s.
     const topSpeed = Math.max(...packets.map((p) => p.Speed));
     expect(topSpeed).toBeCloseTo(50, 0);
@@ -358,7 +332,7 @@ describe("synthesizeAcEvoCapture", () => {
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
   });
   test("preserves smooth ROTY rotation while projecting velocity onto track", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
 
     const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -387,7 +361,7 @@ describe("synthesizeAcEvoCapture", () => {
   });
 
   test("maps MoTeC steering and forward wheel rotation into AC Evo handedness", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     const moving = packets.find((packet) => packet.Speed > 1 && Math.abs(packet.Steer) > 1);
     expect(moving).toBeDefined();
     expect(moving!.Steer).toBeLessThan(0);
@@ -395,7 +369,7 @@ describe("synthesizeAcEvoCapture", () => {
   });
 
   test("lap timing resets at each beacon and reports the completed lap time", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     // CurrentLap climbs to ~120s then resets.
     const peak = Math.max(...packets.map((p) => p.CurrentLap));
     expect(peak).toBeGreaterThan(115);
@@ -414,7 +388,7 @@ describe("synthesizeAcEvoCapture", () => {
     // DistanceTraveled as a session restart and throws away the lap buffer. A
     // per-lap distance reset here means no lap is ever emitted — only the final
     // flush survives. Guards the session-cumulative `current_km` contract.
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     let worstDrop = 0;
     for (let i = 1; i < packets.length; i++) {
       worstDrop = Math.min(worstDrop, packets[i]!.DistanceTraveled - packets[i - 1]!.DistanceTraveled);
@@ -426,13 +400,13 @@ describe("synthesizeAcEvoCapture", () => {
   });
 
   test("produces a racing line rather than a dead trace at the origin", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     const moved = packets.filter((p) => p.PositionX !== 0 || p.PositionZ !== 0);
     expect(moved.length).toBeGreaterThan(packets.length * 0.9);
   });
 
   test("anchors open windows at beacon-side start/finish without snapping geometry", () => {
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
     const outline = flipPoints(getTrackOutlineByOrdinal(5, "ac-evo")!);
     const lapLength = 120 * MOTEC_SYNTH_HZ;
@@ -449,7 +423,7 @@ describe("synthesizeAcEvoCapture", () => {
   });
 
   test("a log with no beacons imports as one stint", () => {
-    const single = synthesizeAcEvoCapture(log, []);
+    const single = target.convert(log, [], target.resolveCarTrack(log));
     expect(single.lapCount).toBe(1);
   });
 });

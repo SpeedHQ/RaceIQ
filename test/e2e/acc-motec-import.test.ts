@@ -13,7 +13,7 @@ import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { importMotec } from "../../server/motec/import";
-import { synthesizeAccCapture } from "../../server/games/acc/motec";
+import { resolveMotecTarget } from "../../server/motec/targets";
 
 const FIXTURE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
@@ -83,12 +83,12 @@ describe("ACC MoTeC real recording", () => {
   });
 
   test("round-trips real samples through ACC adapter", () => {
-    const capture = synthesizeAccCapture(log, beacons, { carOrdinal: 33, trackOrdinal: 8 });
+    const capture = resolveMotecTarget("acc").convert(log, beacons, { carOrdinal: 33, trackOrdinal: 8 });
     expect(capture.frameCount).toBe(6164);
     expect(capture.lapCount).toBe(1);
     expect(capture.missingChannels).toEqual([]);
     expect(capture.yawFromLateralG).toBe(false);
-    const packets = parseFrames(capture.bin);
+    const packets = capture.packets;
     expect(packets).toHaveLength(6164);
     for (const packet of packets) {
       expect(packet.gameId).toBe("acc");
