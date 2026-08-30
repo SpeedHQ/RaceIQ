@@ -6,13 +6,11 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";
 import {
+  MOTEC_SYNTH_HZ,
   lapWindows,
-} from "../../server/motec/kunos-synthesis";
-import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
-import {
   deadReckonPath,
   reconstructYawHeading,
-} from "../../server/games/ac-evo/motec";
+} from "../../server/motec/kunos-synthesis";
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
 import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "../../server/motec/targets";

@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing";
 import { unzipSync } from "fflate";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { getServerGame } from "../../server/games/registry";
 import { parseLd, findChannel } from "../../server/motec/ld";
 import { parseLdxBeacons } from "../../server/motec/ldx";
 import { db } from "../../server/db";
@@ -32,26 +30,6 @@ function loadAccFixture(): AccFixture {
   };
 }
 
-function* iterateFrames(bin: Buffer): Generator<Buffer> {
-  let offset = bin.readUInt32LE(0) === META_FRAME_MAGIC ? 12 : 0;
-  while (offset + 4 <= bin.length) {
-    const length = bin.readUInt32LE(offset);
-    offset += 4;
-    if (length <= 0 || offset + length > bin.length) break;
-    yield bin.subarray(offset, offset + length);
-    offset += length;
-  }
-}
-
-function parseFrames(bin: Buffer) {
-  const game = getServerGame("acc");
-  const packets = [];
-  for (const frame of iterateFrames(bin)) {
-    const packet = game.tryParse(frame, game.createParserState?.() ?? null);
-    if (packet) packets.push(packet);
-  }
-  return packets;
-}
 
 initGameAdapters();
 initServerGameAdapters();
@@ -83,7 +61,8 @@ describe("ACC MoTeC real recording", () => {
   });
 
   test("round-trips real samples through ACC adapter", () => {
-    const capture = resolveMotecTarget("acc").convert(log, beacons, { carOrdinal: 33, trackOrdinal: 8 });
+    const carTrack = resolveMotecTarget("acc").resolveCarTrack(log, { carOrdinal: 33, trackOrdinal: 8 });
+    const capture = resolveMotecTarget("acc").convert(log, beacons, carTrack);
     expect(capture.frameCount).toBe(6164);
     expect(capture.lapCount).toBe(1);
     expect(capture.missingChannels).toEqual([]);
