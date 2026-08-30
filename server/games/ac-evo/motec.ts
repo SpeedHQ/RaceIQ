@@ -1,6 +1,6 @@
 import type { LdLog } from "../../motec/ld";
 import type { MotecCarTrack } from "../../motec/types";
-import { prepareKunosMotecCapture, MOTEC_SYNTH_HZ, MOTEC_STEER_LOCK_DEG } from "../../motec/kunos-synthesis";
+import { prepareKunosMotecCapture, MOTEC_STEER_LOCK_DEG } from "../../motec/kunos-synthesis";
 import type { MotecConversionResult } from "../../motec/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 

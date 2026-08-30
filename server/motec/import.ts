@@ -23,9 +23,6 @@
  * is an entry there.
  */
 
-import { db } from "../db";
-import { laps as laps_ } from "../db/schema";
-import { eq } from "drizzle-orm";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { importSessionPackets, ImportSourceRecorder, type ImportedLap } from "../session-capture/import-pipeline";
 import { parseLd } from "./ld";
@@ -33,7 +30,6 @@ import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
@@ -45,7 +41,6 @@ import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
 import { resolveTelemetryReplay } from "../telemetry/replay";
 import { getServerGame } from "../games/registry";
-import { iterateSessionFrameRecords } from "../session-capture/framing";
 import { unlink } from "node:fs/promises";
 
 export { MOTEC_SESSION_SOURCE };
@@ -107,6 +102,8 @@ export async function importMotec(
   const log = parseLd(ldBytes);
   const beacons = parseLdxBeacons(ldxBytes.toString("utf8"));
   const carTrack = target.resolveCarTrack(log, { carOrdinal: options.carOrdinal, trackOrdinal: options.trackOrdinal });
+  const adapter = getServerGame(target.gameId);
+  const semanticIds = analyseSemanticIds(adapter);
   const conversion = target.convert(log, beacons, carTrack);
   const samplePackets = conversion.packets.slice(0, 2);
   const semanticReplay = resolveTelemetryReplay(
