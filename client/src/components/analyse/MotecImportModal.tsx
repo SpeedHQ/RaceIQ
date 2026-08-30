@@ -79,51 +79,61 @@ export function MotecImportNote({ result, onClose }: { result: MotecImportSucces
   }
 
   return (
-    <div className="mt-4 space-y-3 text-xs text-app-text-dim">
-      <p className="text-app-text">
-        Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
-        <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
-        {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
-      </p>
-      <ul className="space-y-1 font-mono tabular-nums">
-        {result.laps.map((lap) => (
-          <li key={lap.lapId}>Lap {lap.lapNumber} — {formatMotecLapTime(lap.lapTime)}</li>
-        ))}
-      </ul>
-      <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
-        Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
-      </p>
-      <div className="max-h-[55vh] overflow-y-auto rounded border border-status-warning/30 bg-status-warning/5 p-3">
-        <div className="mb-2 font-semibold text-status-warning">What this data can and can't tell you</div>
-        <ul className="mb-4 list-disc space-y-1 pl-4">
-          {result.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
-        </ul>
-        <div className="mb-2 font-semibold text-app-text">Canonical channels</div>
-        <div className="space-y-4">
-          {[...groups].map(([group, capabilities]) => (
-            <section key={group}>
-              <h3 className="mb-1 font-semibold text-app-text">{group}</h3>
-              <ul className="space-y-1 font-mono">
-                {capabilities.map((capability) => (
-                  <li key={capability.semanticId} className="flex items-baseline justify-between gap-4">
-                    <span>{capability.label} <span className="text-app-text-dim">({capability.semanticId})</span></span>
-                    <span className={capability.available ? "text-status-success" : "text-app-text-dim"}>
-                      {capability.available ? "Available" : "Unavailable"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+    <div className="mt-4 flex min-h-0 flex-1 flex-col text-xs text-app-text-dim">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+        <p className="text-app-text">
+          Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"} from{" "}
+          <span className="text-app-text">{result.meta.venue || "unknown venue"}</span>
+          {result.meta.driver ? ` — ${result.meta.driver}` : ""}.
+        </p>
+        <ul className="space-y-1 font-mono tabular-nums">
+          {result.laps.map((lap) => (
+            <li key={lap.lapId}>Lap {lap.lapNumber} — {formatMotecLapTime(lap.lapTime)}</li>
           ))}
+        </ul>
+        <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
+          Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
+        </p>
+        <div className="rounded border border-app-border bg-app-surface-alt p-3">
+          <div className="mb-2 font-semibold text-app-text">Features unavailable due to lack of data channels</div>
+          {result.unavailableFeatures.length > 0 ? (
+            <ul className="grid gap-x-6 gap-y-1 pl-4 font-mono md:grid-cols-2">
+              {formatUnavailableFeatures(result.unavailableFeatures).map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          ) : <p className="font-mono text-app-text-dim">none</p>}
         </div>
-        <div className="mt-4 mb-1 font-semibold text-app-text">Disabled features</div>
-        {result.unavailableFeatures.length > 0 ? (
-          <ul className="list-disc space-y-1 pl-4 font-mono">
-            {formatUnavailableFeatures(result.unavailableFeatures).map((warning) => <li key={warning}>{warning}</li>)}
+        <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
+          <div className="mb-2 font-semibold text-status-warning">What this data can and can't tell you</div>
+          <ul className="mb-4 list-disc space-y-1 pl-4">
+            {result.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
           </ul>
-        ) : <p className="font-mono">none</p>}
+          <div className="mb-2 font-semibold text-app-text">Canonical channels</div>
+          <div className="space-y-4">
+            {[...groups].map(([group, capabilities]) => (
+              <section key={group}>
+                <h3 className="mb-1 font-semibold text-app-text">{group}</h3>
+                <ul className="space-y-1 font-mono">
+                  {capabilities.map((capability) => (
+                    <li key={capability.semanticId} className="flex items-baseline justify-between gap-4">
+                      <span className="flex items-baseline gap-1.5">
+                        <span
+                          className={capability.available ? "text-status-success" : "text-app-text-dim"}
+                          aria-label={capability.available ? "Available" : "Unavailable"}
+                          title={capability.available ? "Available" : "Unavailable"}
+                        >
+                          {capability.available ? "✓" : "×"}
+                        </span>
+                        <span>{capability.label} <span className="text-app-text-dim">({capability.semanticId})</span></span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="flex justify-end">
+      <div className="flex shrink-0 justify-end border-t border-app-border bg-app-surface pt-3">
         <Button variant="app-outline" size="app-md" onClick={onClose}>Done</Button>
       </div>
     </div>
@@ -150,12 +160,22 @@ export function MotecImportModal({
   target: fixedTarget,
   initialGameId,
   initialLd,
+  initialLdName,
+  initialLdxName,
+  stagedToken,
+  ownership: controlledOwnership,
+  onOwnershipChange,
   onClose,
   onImported,
 }: {
   target?: MotecTargetInfo;
   initialGameId?: GameId | null;
   initialLd?: File | null;
+  initialLdName?: string;
+  initialLdxName?: string;
+  stagedToken?: string;
+  ownership?: SessionOwnership;
+  onOwnershipChange?: (value: SessionOwnership) => void;
   onClose: () => void;
   onImported?: (r: MotecImportSuccess) => void;
 }) {
@@ -169,7 +189,9 @@ export function MotecImportModal({
   const [tuneId, setTuneId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ownership, setOwnership] = useState<SessionOwnership>("mine");
+  const [localOwnership, setLocalOwnership] = useState<SessionOwnership>("mine");
+  const ownership = controlledOwnership ?? localOwnership;
+  const handleOwnershipChange = onOwnershipChange ?? setLocalOwnership;
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
 
   useEffect(() => {
@@ -195,16 +217,21 @@ export function MotecImportModal({
       .map((t) => ({ value: String(t.id), label: t.name }));
   }, [tunes, carOrdinal]);
 
-  const canSubmit = !!target && !!ld && !!carOrdinal && !!trackOrdinal && !busy;
+  const isArchive = ld?.name.toLowerCase().endsWith(".zip") ?? false;
+  const canSubmit = !!target && (!!stagedToken || !!ld) && (!!stagedToken || !!ldx) && !!carOrdinal && !!trackOrdinal && !busy;
 
   async function submit() {
-    if (!target || !ld || !carOrdinal || !trackOrdinal) return;
+    if (!target || (!ld && !stagedToken) || (!ldx && !stagedToken) || !carOrdinal || !trackOrdinal) return;
     setBusy(true);
     setError(null);
     try {
       const body = new FormData();
-      body.append("file", ld);
-      if (ldx) body.append("ldx", ldx);
+      if (stagedToken) {
+        body.append("motecToken", stagedToken);
+      } else {
+        body.append("file", ld!);
+        body.append("ldx", ldx!);
+      }
       body.append("gameId", target.gameId);
       body.append("carOrdinal", carOrdinal);
       body.append("trackOrdinal", trackOrdinal);
@@ -230,7 +257,7 @@ export function MotecImportModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="flex min-h-0 flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle variant="import">Import MoTeC log</DialogTitle>
         </DialogHeader>
@@ -259,25 +286,25 @@ export function MotecImportModal({
               )}
             </p>
 
-            <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
+            <OwnershipChoice value={ownership} onChange={handleOwnershipChange} disabled={busy} />
 
             {/* Files */}
             <div className="space-y-2">
-              <input ref={ldRef} type="file" accept=".ld" className="hidden" onChange={(e) => setLd(e.target.files?.[0] ?? null)} />
+              <input ref={ldRef} type="file" accept=".ld,.zip" className="hidden" onChange={(e) => setLd(e.target.files?.[0] ?? null)} />
               <input ref={ldxRef} type="file" accept=".ldx" className="hidden" onChange={(e) => setLdx(e.target.files?.[0] ?? null)} />
               <div className="flex items-center gap-2">
                 <Button variant="app-outline" size="app-md" onClick={() => ldRef.current?.click()}>
-                  Choose .ld
+                  Choose .ld or archive
                 </Button>
-                <span className="truncate text-app-text-dim">{ld?.name ?? "No log selected"}</span>
+                <span className="truncate text-app-text-dim">{ld?.name ?? initialLdName ?? "No log selected"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="app-outline" size="app-md" onClick={() => ldxRef.current?.click()}>
                   Choose .ldx
                 </Button>
-                <span className="truncate text-app-text-dim">{ldx?.name ?? "Optional — carries the lap beacons"}</span>
+                <span className="truncate text-app-text-dim">{ldx?.name ?? initialLdxName ?? (isArchive ? "Included in archive" : "Required — carries the lap beacons")}</span>
               </div>
-              {ld && !ldx && <p className="text-app-text-muted">Without the .ldx sidecar the log imports as a single unsplit stint.</p>}
+              {ld && !ldx && !isArchive && !stagedToken && <p className="text-app-text-muted">Select the .ldx signal file before importing.</p>}
             </div>
 
             {/* Car / track / setup */}

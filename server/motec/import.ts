@@ -37,6 +37,7 @@ import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getGame } from "../../shared/games/registry";
 import {
+  analyseSemanticIds,
   unavailableAnalysisFeatures,
   type UnavailableAnalysisFeature,
 } from "../../shared/games/metric-contracts";
@@ -96,15 +97,14 @@ export interface MotecImportOptions {
 }
 
 /**
- * Import a MoTeC `.ld` log, optionally with its `.ldx` sidecar.
- *
- * Without the sidecar the log is treated as one unsplit stint.
+ * Import a MoTeC `.ld` log with its required `.ldx` signal sidecar.
  */
 export async function importMotec(
   ldBytes: Buffer,
   ldxBytes: Buffer | undefined,
   options: MotecImportOptions,
 ): Promise<MotecImportResult> {
+  if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
   const beacons = ldxBytes ? parseLdxBeacons(ldxBytes.toString("utf8")) : [];
@@ -113,7 +113,7 @@ export async function importMotec(
     trackOrdinal: options?.trackOrdinal,
   });
   const adapter = getGame(target.gameId);
-  const semanticIds = TELEMETRY_CATALOG.variables.map((variable) => variable.id);
+  const semanticIds = analyseSemanticIds(adapter);
   const serverGame = getServerGame(target.gameId);
   const parserState = serverGame.createParserState();
   const samplePackets: TelemetryPacket[] = [];
@@ -142,7 +142,9 @@ export async function importMotec(
       if (value.state === "ok") availableSemanticIds.add(value.semanticId);
     }
   }
-  const capabilities = TELEMETRY_CATALOG.variables
+  const capabilities = semanticIds
+    .map((semanticId) => TELEMETRY_CATALOG.variables.find((variable) => variable.id === semanticId))
+    .filter((variable): variable is (typeof TELEMETRY_CATALOG.variables)[number] => variable !== undefined)
     .map((variable) => ({
       semanticId: variable.id,
       label: variable.label,

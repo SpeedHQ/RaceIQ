@@ -19,6 +19,7 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
+import { MotecBadge } from "../sessions/MotecBadge";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
@@ -153,9 +154,12 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
           {selectedLapId != null && (
-            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-            </span>
+            <>
+              <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+              </span>
+              {selectedLap?.source === "motec" && <MotecBadge />}
+            </>
           )}
         </div>
 

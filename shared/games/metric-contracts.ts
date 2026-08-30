@@ -175,6 +175,47 @@ export function requiredSemanticIds(
   }
   return [...ids];
 }
+const ANALYSE_BASE_SEMANTIC_IDS = [
+  "engine.current-engine-rpm",
+  "inputs.gear",
+  "inputs.accel",
+  "inputs.brake",
+  "inputs.steer",
+  "motion.speed",
+  "motion.acceleration-x",
+  "motion.angular-velocity-y",
+  "motion.pitch",
+  "motion.roll",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.yaw",
+  "timing.current-lap",
+  "timing.current-race-time",
+  "timing.distance-traveled",
+  "timing.lap-fraction",
+  "aero.drs-active",
+  "weather.air-temp",
+  "fuel.ers-store-energy",
+  "fuel.ers-deploy-mode",
+  "brakes.brake-bias",
+  "fuel.ers-deployed",
+  "fuel.ers-harvested",
+  "fuel.fuel-capacity",
+  "identity.car-ordinal",
+  "identity.player-track-surface",
+  "tires.tire-radius",
+] as const satisfies readonly TelemetryVariableId[];
+
+/** Semantic channels consumed by Analyse for one game's adapter. */
+export function analyseSemanticIds(
+  adapter: import("./types").GameAdapter,
+): readonly TelemetryVariableId[] {
+  return [...new Set([
+    ...ANALYSE_BASE_SEMANTIC_IDS,
+    ...requiredSemanticIds(adapter),
+  ])];
+}
+
 
 export interface UnavailableAnalysisFeature {
   feature: keyof AnalysisTelemetryModel;

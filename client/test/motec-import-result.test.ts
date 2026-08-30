@@ -20,7 +20,7 @@ test("formats disabled features from missing canonical requirements", () => {
   ]);
 });
 
-test("renders limitations before a vertically scrollable canonical channel checklist", () => {
+test("renders unavailable features above limitations and canonical channels", () => {
   const MotecImportNote = Reflect.get(motecImportResult, "MotecImportNote");
   expect(typeof MotecImportNote).toBe("function");
   const markup = renderToStaticMarkup(createElement(MotecImportNote, {
@@ -34,16 +34,19 @@ test("renders limitations before a vertically scrollable canonical channel check
         { semanticId: "engine.current-engine-rpm", label: "Current Engine RPM", group: "Engine", available: true },
         { semanticId: "brakes.brake-bias", label: "Front brake bias", group: "Brakes", available: false },
       ],
-      unavailableFeatures: [],
-      limitations: ["Racing line is dead-reckoned."],
+      unavailableFeatures: [{ feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] }],
+      limitations: ["Racing line is estimated from speed and rotation, not recorded directly."],
     },
     onClose: () => {},
   }));
 
-  expect(markup.indexOf("Racing line is dead-reckoned.")).toBeLessThan(markup.indexOf("Canonical channels"));
+  expect(markup).toContain("Features unavailable due to lack of data channels");
+  expect(markup.indexOf("Features unavailable due to lack of data channels")).toBeLessThan(markup.indexOf("Racing line is estimated from speed and rotation, not recorded directly."));
+  expect(markup.indexOf("Racing line is estimated from speed and rotation, not recorded directly.")).toBeLessThan(markup.indexOf("Canonical channels"));
   expect(markup).toContain("overflow-y-auto");
   expect(markup).toContain("Current Engine RPM");
-  expect(markup).toContain("Available");
-  expect(markup).toContain("Front brake bias");
-  expect(markup).toContain("Unavailable");
+  expect(markup).toContain("✓");
+  expect(markup).toContain("×");
+  expect(markup).toContain('aria-label="Available"');
+  expect(markup).toContain('aria-label="Unavailable"');
 });

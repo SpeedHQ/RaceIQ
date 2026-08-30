@@ -468,7 +468,7 @@ describe("importMotec end to end", () => {
       { feature: "balance", missingSemanticIds: ["tires.tire-slip-angle"] },
       { feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] },
     ]));
-    expect(result.capabilities).toHaveLength(TELEMETRY_CATALOG.variables.length);
+    expect(result.capabilities.length).toBeLessThan(TELEMETRY_CATALOG.variables.length);
     expect(result.capabilities).toEqual(expect.arrayContaining([
       { semanticId: "inputs.accel", label: "Accel", group: "Driver inputs", available: true },
       { semanticId: "inputs.brake", label: "Brake", group: "Driver inputs", available: true },
@@ -477,6 +477,10 @@ describe("importMotec end to end", () => {
       { semanticId: "motion.speed", label: "Speed", group: "Vehicle motion", available: true },
       { semanticId: "engine.current-engine-rpm", label: "Current Engine RPM", group: "Engine", available: true },
       { semanticId: "brakes.brake-bias", label: "Front brake bias", group: "Brakes", available: false },
+    ]));
+    expect(result.capabilities).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ semanticId: "weather.air-temp" }),
+      expect.objectContaining({ semanticId: "setup.tires.starting-pressure" }),
     ]));
 
     for (const lap of result.laps) {

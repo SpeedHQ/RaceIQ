@@ -30,7 +30,7 @@ export const MOTEC_CHANNELS = {
 export const MOTEC_CORNERS = ["LF", "RF", "LR", "RR"] as const;
 
 export const MOTEC_IMPORT_LIMITATIONS = [
-  "The racing line is dead-reckoned from speed and yaw rate, not logged — it is lap-relative and drifts, so treat it as shape, not survey geometry.",
+  "Racing line is drawn from an estimated path: speed is integrated using logged yaw rate, with lateral G force as the fallback when yaw is unavailable. It can drift, so use it to compare lap shape — not exact track position.",
   "Steering is normalised against an assumed 240° lock — MoTeC does not export the car's steering lock.",
   "Suspension and wheel-speed channels are logged by MoTeC at 200 Hz and are resampled down to 60 Hz.",
   "Sector times are recomputed from track geometry, not read from the log.",

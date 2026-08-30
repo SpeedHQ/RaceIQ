@@ -11,6 +11,7 @@ import { parseLdxBeacons } from "../../server/motec/ldx";
 import { db } from "../../server/db";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
+import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { importMotec } from "../../server/motec/import";
 import { synthesizeAccCapture } from "../../server/games/acc/motec";
 
@@ -123,5 +124,33 @@ describe("ACC MoTeC real recording", () => {
     const [session] = await db.select().from(sessions).where(eq(sessions.id, result.laps[0]!.sessionId));
     expect(session?.gameId).toBe("acc");
     expect(session?.source).toBe("motec");
+  });
+
+  test("rejects MoTeC imports without the signal sidecar", async () => {
+    await expect(importMotec(fixture.ld, undefined, {
+      gameId: "acc",
+      carOrdinal: 33,
+      trackOrdinal: 8,
+    })).rejects.toThrow("MoTeC .ldx signal file is required");
+  });
+
+  test("stages and imports an ACC MoTeC archive through the transfer route", async () => {
+    const stageForm = new FormData();
+    stageForm.append("file", new File([readFileSync(FIXTURE)], "Barcelona-992-MoTeC.zip"));
+    const stagedResponse = await transferRoutes.request("/api/laps/stage-motec", { method: "POST", body: stageForm });
+    expect(stagedResponse.status).toBe(200);
+    const staged = await stagedResponse.json() as { token: string; ldName: string; ldxName: string };
+    expect(staged.ldName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ld");
+    expect(staged.ldxName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ldx");
+
+    const form = new FormData();
+    form.append("motecToken", staged.token);
+    form.append("gameId", "acc");
+    form.append("carOrdinal", "33");
+    form.append("trackOrdinal", "8");
+    form.append("ownership", "mine");
+    const response = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, gameId: "acc", imported: 1, packetCount: 6164 });
   });
 });
