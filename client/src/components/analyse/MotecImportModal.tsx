@@ -33,33 +33,6 @@ export interface MotecImportSuccess {
 }
 
 
-const FEATURE_LABELS: Readonly<Record<string, string>> = {
-  brakeBias: "Brake Bias",
-  gForce: "G Force",
-  gripDemand: "Grip Ask",
-  slipAngle: "Slip Angle",
-  slipRatio: "Slip Ratio",
-  tireHealth: "Tire Health",
-  tirePressure: "Tire Pressure",
-  tireTemperature: "Tire Temperature",
-  tireWearRate: "Tire Wear Rate",
-  wheelRotation: "Wheel Rotation",
-  suspensionCompressionBias: "Suspension Compression Bias",
-  suspensionTravel: "Suspension",
-};
-
-function featureLabel(feature: string): string {
-  return FEATURE_LABELS[feature] ?? feature.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
-}
-
-
-export function formatUnavailableFeatures(
-  features: readonly { feature: string; missingSemanticIds: readonly string[] }[],
-): string[] {
-  return features.map(({ feature, missingSemanticIds }) =>
-    `${featureLabel(feature)} — missing ${missingSemanticIds.join(", ")}`
-  );
-}
 
 
 
@@ -94,14 +67,6 @@ export function MotecImportNote({ result, onClose }: { result: MotecImportSucces
         <p className="rounded border border-app-border bg-app-surface-alt p-3 text-app-text">
           Use MoTeC imports primarily for approximate racing-line shape and user-input comparison, not as a full substitute for native RaceIQ telemetry.
         </p>
-        <div className="rounded border border-app-border bg-app-surface-alt p-3">
-          <div className="mb-2 font-semibold text-app-text">Features unavailable due to lack of data channels</div>
-          {result.unavailableFeatures.length > 0 ? (
-            <ul className="grid gap-x-6 gap-y-1 pl-4 font-mono md:grid-cols-2">
-              {formatUnavailableFeatures(result.unavailableFeatures).map((warning) => <li key={warning}>{warning}</li>)}
-            </ul>
-          ) : <p className="font-mono text-app-text-dim">none</p>}
-        </div>
         <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
           <div className="mb-2 font-semibold text-status-warning">What this data can and can't tell you</div>
           <ul className="mb-4 list-disc space-y-1 pl-4">

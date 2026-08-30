@@ -1,10 +1,11 @@
 import type { GameId } from "./ids";
-import type { AnalysisTelemetryMetric, AnalysisTelemetryModel, GameAdapter } from "./types";
+import type { AnalysisTelemetryModel, GameAdapter } from "./types";
 import type {
   TelemetryCatalogData,
   TelemetryVariableDefinition,
 } from "../telemetry/catalog/contracts";
 import type { TelemetryVariableId } from "../telemetry/catalog/generated/telemetry-catalog.types";
+import { TELEMETRY_CATALOG } from "../telemetry/catalog/data";
 import { resolveAnalysisTelemetry } from "../racing/analysis/telemetry-capabilities";
 
 export type SemanticValueBinding = {
@@ -233,14 +234,44 @@ export function unavailableAnalysisFeatures(
   adapter: GameAdapter,
   availableSemanticIds: ReadonlySet<string>,
 ): UnavailableAnalysisFeature[] {
-  const analysis = resolveAnalysisTelemetry(adapter);
-  const unavailable: UnavailableAnalysisFeature[] = [];
-  for (const [feature, metric] of Object.entries(analysis) as Array<
-    [keyof AnalysisTelemetryModel, AnalysisTelemetryMetric]
-  >) {
-    if (metric.source === "unavailable" || !metric.binding) continue;
-    const missingSemanticIds = requiredIds(metric.binding).filter((id) => !availableSemanticIds.has(id));
-    if (missingSemanticIds.length > 0) unavailable.push({ feature, missingSemanticIds });
+  const analysisKeys = new Set(Object.keys(resolveAnalysisTelemetry(adapter)));
+  return unavailableAnalyseFeatures(adapter, availableSemanticIds)
+    .filter(({ feature }) => analysisKeys.has(feature))
+    .map(({ feature, missingSemanticIds }) => ({ feature: feature as keyof AnalysisTelemetryModel, missingSemanticIds }));
+}
+export interface UnavailableAnalyseFeature {
+  feature: string;
+  label: string;
+  missingSemanticIds: readonly TelemetryVariableId[];
+}
+
+function titleCaseFeature(feature: string): string {
+  return feature.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
+}
+
+/** Resolve every Analyse-visible adapter feature from canonical frame availability. */
+export function unavailableAnalyseFeatures(
+  adapter: GameAdapter,
+  availableSemanticIds: ReadonlySet<string>,
+): UnavailableAnalyseFeature[] {
+  const features = new Map<string, { label: string; binding?: SemanticMetricBinding }>();
+  const add = (feature: string, spec: { binding?: SemanticMetricBinding; source?: string }) => {
+    if (spec.source === "unavailable" || spec.binding) {
+      const binding = spec.binding;
+      const catalogLabel = binding?.kind === "value"
+        ? TELEMETRY_CATALOG.variables.find((variable) => variable.id === binding.semanticId)?.label
+        : undefined;
+      features.set(feature, { label: catalogLabel ?? titleCaseFeature(feature), binding });
+    }
+  };
+  for (const [feature, spec] of Object.entries(adapter.telemetry)) {
+    if (spec && typeof spec === "object" && "binding" in spec) add(feature, spec);
   }
-  return unavailable;
+  for (const [feature, spec] of Object.entries(adapter.telemetry.analysis ?? {})) add(feature, spec);
+
+  return [...features].flatMap(([feature, { label, binding }]) => {
+    if (!binding) return [{ feature, label, missingSemanticIds: [] }];
+    const missingSemanticIds = requiredIds(binding).filter((id) => !availableSemanticIds.has(id));
+    return missingSemanticIds.length > 0 ? [{ feature, label, missingSemanticIds }] : [];
+  });
 }

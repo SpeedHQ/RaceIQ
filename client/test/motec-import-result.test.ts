@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { formatMotecLapTime, formatUnavailableFeatures } from "../src/components/analyse/MotecImportModal";
+import { formatMotecLapTime } from "../src/components/analyse/MotecImportModal";
 import * as motecImportResult from "../src/components/analyse/MotecImportModal";
 
 test("formats imported lap times as seconds", () => {
@@ -10,17 +10,8 @@ test("formats imported lap times as seconds", () => {
 });
 
 
-test("formats disabled features from missing canonical requirements", () => {
-  expect(formatUnavailableFeatures([
-    { feature: "balance", missingSemanticIds: ["tires.tire-slip-angle"] },
-    { feature: "brakeBias", missingSemanticIds: ["brakes.brake-bias"] },
-  ])).toEqual([
-    "Balance — missing tires.tire-slip-angle",
-    "Brake Bias — missing brakes.brake-bias",
-  ]);
-});
 
-test("renders unavailable features above limitations and canonical channels", () => {
+test("renders limitations and canonical channels", () => {
   const MotecImportNote = Reflect.get(motecImportResult, "MotecImportNote");
   expect(typeof MotecImportNote).toBe("function");
   const markup = renderToStaticMarkup(createElement(MotecImportNote, {
@@ -40,7 +31,7 @@ test("renders unavailable features above limitations and canonical channels", ()
     onClose: () => {},
   }));
 
-  expect(markup).toContain("Features unavailable due to lack of data channels");
+  expect(markup).not.toContain("Features unavailable due to lack of data channels");
   expect(markup.indexOf("Racing line is estimated from speed and lateral G force because MoTeC does not record track position. Yaw rate controls car direction and is only used for the line if lateral G is unavailable. The estimate may drift.")).toBeGreaterThan(-1);
   expect(markup.indexOf("Racing line is estimated from speed and lateral G force because MoTeC does not record track position. Yaw rate controls car direction and is only used for the line if lateral G is unavailable. The estimate may drift.")).toBeLessThan(markup.indexOf("Canonical channels"));
   expect(markup).toContain("overflow-y-auto");

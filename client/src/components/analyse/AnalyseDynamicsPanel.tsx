@@ -46,7 +46,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const slipAngles = bindingOf(slipAngleMetric) && frame.states["tires.tire-slip-angle"] !== "missing"
     ? resolveWheelMetric(frame, bindingOf(slipAngleMetric)!)
     : [null, null, null, null];
-  const slipRatios = slipRatioMetric.source === "unavailable" || frame.states["tires.tire-slip-ratio"] === "missing"
+  const slipRatios = slipRatioMetric.source === "unavailable" || frame.source === "motec" || frame.states["tires.tire-slip-ratio"] === "missing"
     ? [null, null, null, null]
     : states.map((state) => state?.slipRatio ?? null);
   const grip = resolveGripDemand(frame, analysis.gripDemand);
