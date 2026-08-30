@@ -36,7 +36,7 @@ jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on:
-      - whitesmith-windows-x64
+      - mars-windows-x64
       - 4VCPU
       - 15G
     env:
