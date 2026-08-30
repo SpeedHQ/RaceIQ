@@ -9,6 +9,24 @@ const LD_ENTRY = "session.ld";
 const LDX_ENTRY = "session.ldx";
 const MANIFEST_ENTRY = "manifest.json";
 export const MOTEC_SOURCE_SUFFIX = ".motec.zip";
+import { PHYSICS as ACC_PHYSICS, GRAPHICS as ACC_GRAPHICS, STATIC as ACC_STATIC } from "../games/acc/structs";
+import { PHYSICS as EVO_PHYSICS, GRAPHICS_EVO as EVO_GRAPHICS, STATIC_EVO as EVO_STATIC } from "../games/ac-evo/structs";
+export function motecLegacyRecordLength(gameId: GameId): number {
+  const sizes = gameId === "acc"
+    ? [ACC_PHYSICS.SIZE, ACC_GRAPHICS.SIZE, ACC_STATIC.SIZE]
+    : [EVO_PHYSICS.SIZE, EVO_GRAPHICS.SIZE, EVO_STATIC.SIZE];
+  return 4 + 24 + sizes[0] + sizes[1] + sizes[2];
+}
+export function legacyMotecOffsetToPacketIndex(gameId: GameId, rawByteOffset: number): number {
+  const length = motecLegacyRecordLength(gameId);
+  if (rawByteOffset < 12 || (rawByteOffset - 12) % length !== 0) {
+    throw new Error(`Legacy MoTeC raw offset ${rawByteOffset} is not aligned for ${gameId}`);
+  }
+  return (rawByteOffset - 12) / length;
+}
+export function packetIndexToLegacyMotecOffset(gameId: GameId, index: number): number {
+  return 12 + index * motecLegacyRecordLength(gameId);
+}
 export function encodeMotecSourceArchive(
   ldBytes: Uint8Array,
   ldxBytes?: Uint8Array,
