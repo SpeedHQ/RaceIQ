@@ -1,10 +1,13 @@
 import { findChannel, type LdChannel, type LdLog } from "./ld";
+import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 
 export const MOTEC_SYNTH_HZ = 60;
 export const MOTEC_STEER_LOCK_DEG = 240;
 const MIN_LAP_SECONDS = 30;
 const G = 9.80665;
 const MIN_SPEED_FOR_CURVATURE_MS = 3;
+const FULL_LAP_TURN_RAD = Math.PI * 2;
+const MAX_CLOSED_LAP_ERROR_RAD = Math.PI / 3;
 
 export const MOTEC_CHANNELS = {
   speed: ["SPEED", "GROUND_SPEED", "Ground Speed"],
@@ -86,11 +89,16 @@ function speedToKmh(values: Float64Array, channel: LdChannel | undefined): Float
   for (let i = 0; i < values.length; i++) out[i] = values[i]! * factor;
   return out;
 }
-
-export function deadReckonPath(speedKmh: Float64Array, yawRate: Float64Array, gLat: Float64Array, lapIndexOf: Int32Array, dt: number, yawUnit: string): DeadReckonedPath {
+export function deadReckonPath(
+  speedKmh: Float64Array, yawRate: Float64Array, gLat: Float64Array,
+  lapIndexOf: Int32Array, dt: number, yawUnit: string,
+  reconstructedHeading?: Float64Array, closedLapMask?: Uint8Array,
+): DeadReckonedPath {
   const frames = speedKmh.length;
-  const x = new Float64Array(frames), z = new Float64Array(frames), vx = new Float64Array(frames), vz = new Float64Array(frames), headingOut = new Float64Array(frames);
-  const hasYaw = peakAbs(yawRate) > 0;
+  const x = new Float64Array(frames), z = new Float64Array(frames);
+  const vx = new Float64Array(frames), vz = new Float64Array(frames);
+  const headingOut = new Float64Array(frames);
+  const hasYaw = reconstructedHeading !== undefined || peakAbs(yawRate) > 0;
   const yawToRad = /deg|°/i.test(yawUnit) ? Math.PI / 180 : 1;
   let heading = 0, px = 0, pz = 0;
   for (let i = 0; i < frames; i++) {
@@ -98,24 +106,51 @@ export function deadReckonPath(speedKmh: Float64Array, yawRate: Float64Array, gL
     if (lapStart) { heading = 0; px = 0; pz = 0; }
     const speed = speedKmh[i]! / 3.6;
     const omega = hasYaw ? yawRate[i]! * yawToRad : speed > MIN_SPEED_FOR_CURVATURE_MS ? gLat[i]! * G / speed : 0;
-    if (!lapStart) heading += omega * dt;
+    if (reconstructedHeading) heading = reconstructedHeading[i]!;
+    else if (!lapStart) heading += omega * dt;
     const cx = Math.sin(heading) * speed, cz = Math.cos(heading) * speed;
     if (!lapStart) { px += cx * dt; pz += cz * dt; }
     vx[i] = cx; vz[i] = cz; x[i] = px; z[i] = pz; headingOut[i] = heading;
   }
-  closeLapLoops(x, z, lapIndexOf);
+  closeLapLoops(x, z, lapIndexOf, closedLapMask);
   return { x, z, vx, vz, heading: headingOut, yawFromLateralG: !hasYaw };
 }
-function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array): void {
+function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array, mask?: Uint8Array): void {
   if (x.length === 0) return;
   const lastLap = lapIndexOf[x.length - 1]!;
   let start = 0;
   for (let i = 1; i <= x.length; i++) {
     if (i < x.length && lapIndexOf[i] === lapIndexOf[start]) continue;
     const end = i - 1, span = end - start;
-    if (lapIndexOf[start]! !== lastLap && span > 0) {
+    if ((mask ? !!mask[lapIndexOf[start]!] : lapIndexOf[start]! !== lastLap) && span > 0) {
       const errX = x[end]! - x[start]!, errZ = z[end]! - z[start]!;
       for (let j = start; j <= end; j++) { const t = (j - start) / span; x[j] -= errX * t; z[j] -= errZ * t; }
+    }
+    start = i;
+  }
+}
+export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
+  const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
+  if (!outline || outline.length < 2) return;
+  let tangent: number | undefined;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i]!.x - outline[i - 1]!.x, dz = outline[i]!.z - outline[i - 1]!.z;
+    if (Math.hypot(dx, dz) > 1e-6) { tangent = Math.atan2(dx, dz); break; }
+  }
+  if (tangent === undefined) return;
+  let start = 0;
+  for (let i = 1; i <= path.x.length; i++) {
+    if (i < path.x.length && lapIndexOf[i] === lapIndexOf[start]) continue;
+    const end = i - 1, anchor = start === 0 && anchorLeadingAtEnd ? end : start;
+    const rotation = tangent - path.heading[anchor]!, cos = Math.cos(rotation), sin = Math.sin(rotation);
+    const ax = path.x[anchor]!, az = path.z[anchor]!;
+    for (let j = start; j <= end; j++) {
+      const dx = path.x[j]! - ax, dz = path.z[j]! - az;
+      path.x[j] = outline[0]!.x + dx * cos + dz * sin;
+      path.z[j] = outline[0]!.z - dx * sin + dz * cos;
+      const vx = path.vx[j]!, vz = path.vz[j]!;
+      path.vx[j] = vx * cos + vz * sin; path.vz[j] = -vx * sin + vz * cos;
+      path.heading[j] = Math.atan2(Math.sin(path.heading[j]! + rotation), Math.cos(path.heading[j]! + rotation));
     }
     start = i;
   }
@@ -170,6 +205,8 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   });
   const wheelSpeed = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.wheelSpeed(c)), frameCount, dt));
   const windows = lapWindows(beacons, log.duration), lapIndexOf = new Int32Array(frameCount);
+  const closedLapMask = new Uint8Array(windows.length);
+  if (profile.gameId === "ac-evo") for (let i = 1; i < windows.length - 1; i++) closedLapMask[i] = 1;
   const sessionDistanceM = new Float64Array(frameCount), lapDistanceM = new Float64Array(frameCount);
   let lap = 0, session = 0, lapStartDist = 0;
 
@@ -181,13 +218,30 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   let lapLengthM = 0;
   for (let i = 0; i < frameCount; i++) if ((i + 1 >= frameCount || lapIndexOf[i + 1] !== lapIndexOf[i]) && lapIndexOf[i]! < windows.length - 1) lapLengthM = Math.max(lapLengthM, lapDistanceM[i]!);
   if (lapLengthM === 0) lapLengthM = lapDistanceM[frameCount - 1] ?? 0;
-  return { frameCount, dt, windows, lapIndexOf, sessionDistanceM, lapDistanceM, lapLengthM, path: deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? ""), speedKmh, throttle, brake, clutch, steerDegrees, rpm, gear, lateralG, longitudinalG, yawRate, fuel, tc, abs, brakeTemperature, tyrePressure, tyreTemperature, suspensionTravel, suspensionTravelUnits: findChannel(log, "SUS_TRAVEL_LF")?.unit ?? "", wheelSpeed, missingChannels };
+  const reconstructedHeading = profile.gameId === "ac-evo" && yawCh
+    ? reconstructYawHeading(yawCh, frameCount, dt, windows, closedLapMask) : undefined;
+  const path = deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? "", reconstructedHeading, closedLapMask);
+  if (profile.gameId === "ac-evo") alignPathToTrack(path, lapIndexOf, profile.trackOrdinal, windows.length > 1);
+  return { frameCount, dt, windows, lapIndexOf, sessionDistanceM, lapDistanceM, lapLengthM, path, speedKmh, throttle, brake, clutch, steerDegrees, rpm, gear, lateralG, longitudinalG, yawRate, fuel, tc, abs, brakeTemperature, tyrePressure, tyreTemperature, suspensionTravel, suspensionTravelUnits: findChannel(log, "SUS_TRAVEL_LF")?.unit ?? "", wheelSpeed, missingChannels };
 }
 
-/** Integrate ROTY into a heading trace before packet resampling. */
-export function reconstructYawHeading(channel: LdChannel, frames: number, dt: number, _windows: ReadonlyArray<readonly [number, number]>, _closedLapMask: Uint8Array): Float64Array {
+export function reconstructYawHeading(channel: LdChannel, frames: number, dt: number, windows: ReadonlyArray<readonly [number, number]>, closedLapMask: Uint8Array): Float64Array {
   const out = new Float64Array(frames);
+  if (!channel.samples.length || !(channel.effectiveFreq > 0)) return out;
   const scale = /deg|°/i.test(channel.unit) ? Math.PI / 180 : 1;
-  for (let i = 1; i < frames; i++) out[i] = out[i - 1]! + (channel.samples[Math.min(channel.samples.length - 1, Math.round(i * dt * channel.effectiveFreq))] ?? 0) * scale * dt;
+  const sampleAt = (time: number) => {
+    const p = Math.max(0, Math.min(channel.samples.length - 1, time * channel.effectiveFreq));
+    const i = Math.floor(p), f = p - i;
+    return ((channel.samples[i] ?? 0) * (1 - f) + (channel.samples[Math.min(i + 1, channel.samples.length - 1)] ?? 0) * f) * scale;
+  };
+  for (let i = 1; i < frames; i++) {
+    const t = i * dt, prev = (i - 1) * dt;
+    out[i] = out[i - 1]! + (sampleAt(prev) + sampleAt(t)) * 0.5 * dt;
+    for (let lap = 0; lap < windows.length; lap++) if (closedLapMask[lap] && t >= windows[lap]![1]) {
+      const start = windows[lap]![0], end = windows[lap]![1];
+      const correction = (Math.sign(out[i]!) * FULL_LAP_TURN_RAD - (out[i]! - (i * dt - end) * sampleAt(t))) / Math.max(dt, end - start);
+      if (t <= end + dt) out[i] += correction * Math.max(0, t - start);
+    }
+  }
   return out;
 }

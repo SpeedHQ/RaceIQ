@@ -1,5 +1,6 @@
 import { existsSync, unlinkSync } from "node:fs";
 import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
@@ -166,10 +167,9 @@ async function rollbackImport(
 
 type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
-export class ImportSourceOffsetTracker implements SessionRecorderAdapter {
+export class ImportSourceRecorder implements SessionRecorderAdapter {
   private activeState = false;
   private started = false;
-  private offset = 0;
   private currentEpoch = 0;
   private readonly sourcePath: string;
 
@@ -184,12 +184,11 @@ export class ImportSourceOffsetTracker implements SessionRecorderAdapter {
     if (this.started) throw new Error("Import source cannot be started more than once");
     this.started = true;
     this.activeState = true;
-    this.offset = 0;
     this.currentEpoch++;
   }
-  writeMetaFrame(): void { if (this.activeState) this.offset = 12; }
-  writeRecord(frame: Buffer): void { if (this.activeState) this.offset += 4 + frame.length; }
-  getCurrentByteOffset(): number { return this.activeState ? this.offset : 0; }
+  writeMetaFrame(): void {}
+  writeRecord(_frame: Buffer): void {}
+  getCurrentByteOffset(): number { return 0; }
   flush(): void {}
   async stop(): Promise<void> { this.activeState = false; }
 }
@@ -281,5 +280,31 @@ export async function importSessionFrames(
     laps: db.laps,
     sessionIds: [...db.sessionIds],
   };
+}
+export async function importSessionPackets(
+  packets: Iterable<TelemetryPacket> | AsyncIterable<TelemetryPacket>,
+  gameId: GameId,
+  options: ImportSessionOptions = {},
+): Promise<{ packetCount: number; laps: ImportedLap[]; sessionIds: number[] }> {
+  const db = new ImportCaptureAdapter({ notifyDriverProfile: options.notifyDriverProfile, ownership: options.ownership, sessionSource: options.sessionSource });
+  const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), { bypassPacketRateFilter: true, recorder: options.recorder });
+  let packetCount = 0;
+  let failure: unknown;
+  try {
+    for await (const packet of packets) {
+      await pipeline.processPacket(packet, { rawOffset: packetCount });
+      packetCount++;
+    }
+    await pipeline.flushIncompleteLap();
+    await db.waitForPendingLapWrites();
+  } catch (error) { failure = error; }
+  finally {
+    try { await pipeline.flushSessionRecorder(); } catch (error) { failure ??= error; }
+  }
+  if (failure) return rollbackImport(db, failure);
+  if (options.requireLaps && db.laps.length === 0) return rollbackImport(db, new Error("No complete, importable laps were found"));
+  try { for (const sessionId of db.sessionIds) await reconcileSessionResult(sessionId, gameId); }
+  catch (error) { return rollbackImport(db, error); }
+  return { packetCount, laps: db.laps, sessionIds: [...db.sessionIds] };
 }
 

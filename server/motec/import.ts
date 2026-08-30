@@ -27,15 +27,13 @@ import { db } from "../db";
 import { laps as laps_ } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
-import { importSessionBin } from "../session-capture/import-capture";
-import { ImportSourceOffsetTracker, type ImportedLap } from "../session-capture/import-pipeline";
+import { importSessionPackets, ImportSourceRecorder, type ImportedLap } from "../session-capture/import-pipeline";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { getGame } from "../../shared/games/registry";
 import {
   analyseSemanticIds,
   unavailableAnalysisFeatures,
@@ -107,21 +105,10 @@ export async function importMotec(
   if (!ldxBytes) throw new Error("MoTeC .ldx signal file is required");
   const target = resolveMotecTarget(options.gameId);
   const log = parseLd(ldBytes);
-  const beacons = ldxBytes ? parseLdxBeacons(ldxBytes.toString("utf8")) : [];
-  const capture = target.synthesize(log, beacons, {
-    carOrdinal: options?.carOrdinal,
-    trackOrdinal: options?.trackOrdinal,
-  });
-  const adapter = getGame(target.gameId);
-  const semanticIds = analyseSemanticIds(adapter);
-  const serverGame = getServerGame(target.gameId);
-  const parserState = serverGame.createParserState();
-  const samplePackets: TelemetryPacket[] = [];
-  for (const { frame } of iterateSessionFrameRecords(capture.bin)) {
-    const packet = serverGame.tryParse(frame, parserState);
-    if (packet) samplePackets.push(packet);
-    if (samplePackets.length === 2) break;
-  }
+  const beacons = parseLdxBeacons(ldxBytes.toString("utf8"));
+  const carTrack = target.resolveCarTrack(log, { carOrdinal: options.carOrdinal, trackOrdinal: options.trackOrdinal });
+  const conversion = target.convert(log, beacons, carTrack);
+  const samplePackets = conversion.packets.slice(0, 2);
   const semanticReplay = resolveTelemetryReplay(
     0,
     {
@@ -156,9 +143,9 @@ export async function importMotec(
   const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
   let imported: { packetCount: number; laps: ImportedLap[] };
   try {
-    imported = await importSessionBin(capture.bin, target.gameId, {
+    imported = await importSessionPackets(conversion.packets, target.gameId, {
       ownership: options?.ownership,
-      recorder: new ImportSourceOffsetTracker(sourcePath),
+      recorder: new ImportSourceRecorder(sourcePath),
       sessionSource: MOTEC_SESSION_SOURCE,
       requireLaps: true,
     });
@@ -168,21 +155,13 @@ export async function importMotec(
   }
   const { packetCount, laps } = imported;
 
-  // The pipeline resolves a lap's tune from the live tune assignment, which an
-  // import has no business touching, so the chosen setup is applied afterwards.
-  if (options?.tuneId !== undefined) {
-    for (const lap of laps) {
-      await db.update(laps_).set({ tuneId: options.tuneId }).where(eq(laps_.id, lap.lapId));
-    }
-  }
-
 
   return {
     gameId: target.gameId,
     laps,
     packetCount,
-    lapCount: capture.lapCount,
-    carTrack: capture.carTrack,
+    lapCount: conversion.lapCount,
+    carTrack,
     meta: {
       driver: log.driver,
       venue: log.venue,
@@ -191,10 +170,10 @@ export async function importMotec(
       time: log.time,
       duration: log.duration,
     },
-    sampleRates: capture.sampleRates,
+    sampleRates: conversion.sampleRates,
     capabilities,
     unavailableFeatures,
-    yawFromLateralG: capture.yawFromLateralG,
+    yawFromLateralG: conversion.yawFromLateralG,
     limitations: target.limitations,
   };
 }
