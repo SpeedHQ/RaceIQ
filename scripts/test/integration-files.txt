@@ -115,7 +115,7 @@ test/live-strategy/sector-tracker.test.ts
 test/motec/import-staging.test.ts
 test/motec/motec-import.test.ts
 test/motec/motec-replay.test.ts
-test/e2e/acc-motec-import.test.ts
+test/e2e/motec-import.test.ts
 test/motec/motec-viz.test.ts
 test/race-results/race-results-authority.test.ts
 test/race-results/race-results-derive.test.ts
