@@ -134,7 +134,7 @@ export function lapWindows(beacons: number[], duration: number): Array<[number, 
   return windows;
 }
 
-export function prepareKunosMotecCapture(log: LdLog, beacons: number[]): PreparedKunosMotecCapture {
+export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile: { gameId: "acc" | "ac-evo"; trackOrdinal: number } = { gameId: "acc", trackOrdinal: -1 }): PreparedKunosMotecCapture {
   const dt = 1 / MOTEC_SYNTH_HZ;
   if (!(log.duration > 0)) throw new Error("MoTeC log has no usable duration");
   const frameCount = Math.max(1, Math.floor(log.duration * MOTEC_SYNTH_HZ));
