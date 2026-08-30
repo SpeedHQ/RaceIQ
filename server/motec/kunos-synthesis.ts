@@ -144,13 +144,16 @@ export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array,
     const rotation = tangent - path.heading[anchor]!, cos = Math.cos(rotation), sin = Math.sin(rotation);
     const ax = path.x[anchor]!, az = path.z[anchor]!;
     for (let j = start; j <= end; j++) {
+      const vx = path.vx[j]!;
+      const vz = path.vz[j]!;
       const dx = path.x[j]! - ax, dz = path.z[j]! - az;
       path.x[j] = outline[0]!.x + dx * cos + dz * sin;
       path.z[j] = outline[0]!.z - dx * sin + dz * cos;
-      const vx = path.vx[j]!, vz = path.vz[j]!;
-      path.vx[j] = vx * cos + vz * sin; path.vz[j] = -vx * sin + vz * cos;
+      path.vx[j] = vx * cos + vz * sin;
+      path.vz[j] = -vx * sin + vz * cos;
       path.heading[j] = Math.atan2(Math.sin(path.heading[j]! + rotation), Math.cos(path.heading[j]! + rotation));
     }
+
     start = i;
   }
 }
