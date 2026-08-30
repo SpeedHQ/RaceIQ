@@ -498,8 +498,18 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   const out = new Map<number, TelemetryPacket[]>();
   if (lapMetas.length === 0) return out;
   const serverGame = getServerGame(source.gameId);
+  const loaded = await loadSessionSource(source);
+  if (loaded.kind === "packets") {
+    for (const meta of lapMetas) {
+      const packets = loaded.packets.slice(meta.rawByteOffset, meta.rawByteOffset + meta.rawFrameCount + 1);
+      for (const packet of packets) normalizeReplayPacket(packet, serverGame);
+      if (packets.length > meta.rawFrameCount) packets.pop();
+      if (packets.length > 0) out.set(meta.id, packets);
+    }
+    return out;
+  }
   const state = serverGame.createParserState?.() ?? null;
-  const buf = await loadSessionCapture(source);
+  const buf = loaded.buffer;
 
   const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
   const firstOffset = metas[0].rawByteOffset;
