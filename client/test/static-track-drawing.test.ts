@@ -4,6 +4,7 @@ import { needsTrackFlip } from "../../shared/racing/tracks/coords";
 import { initGameAdapters } from "../../shared/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
 import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { drawPitLines } from "../src/lib/canvas/draw-track";
 
 initGameAdapters();
 test("returns no transform when replay has no drawable track points", () => {
@@ -123,6 +124,73 @@ test("draws throttle input traces in the throttle channel color", () => {
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
+});
+
+test("draws separate solid pit-road and pit-exit lines", () => {
+  const strokes: Array<{ color: string; points: number; curves: number; width: number; alpha: number }> = [];
+  let points = 0;
+  let curves = 0;
+  const context = {
+    strokeStyle: "",
+    globalAlpha: 1,
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    save() {},
+    restore() {},
+    beginPath() {
+      points = 0;
+      curves = 0;
+    },
+    moveTo() {
+      points++;
+    },
+    lineTo() {
+      points++;
+    },
+    bezierCurveTo() {
+      points++;
+      curves++;
+    },
+    stroke() {
+      strokes.push({
+        color: this.strokeStyle,
+        points,
+        curves,
+        width: this.lineWidth,
+        alpha: this.globalAlpha,
+      });
+    },
+  } as unknown as CanvasRenderingContext2D;
+
+  drawPitLines(
+    context,
+    [
+      {
+        kind: "pit-road",
+        points: [
+          { x: 0, z: 0 },
+          { x: 1, z: 1 },
+          { x: 2, z: 1 },
+        ],
+      },
+      {
+        kind: "merge-line",
+        points: [
+          { x: 3, z: 2 },
+          { x: 4, z: 2 },
+        ],
+      },
+    ],
+    (x, z) => [x, z],
+  );
+
+  expect(strokes).toEqual([
+    { color: "var(--track-pit-road)", points: 3, curves: 2, width: 3, alpha: 0.85 },
+    { color: "var(--track-pit-exit)", points: 2, curves: 0, width: 3, alpha: 0.85 },
+  ]);
+  expect(context.lineCap).toBe("round");
+  expect(context.lineJoin).toBe("round");
 });
 
 type PathCommand = { kind: "moveTo" | "lineTo" | "arc"; values: number[] } | { kind: "closePath"; values: [] };

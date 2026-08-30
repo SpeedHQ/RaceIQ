@@ -14,6 +14,18 @@ export interface IRacingCatalogTrack {
   category: string;
   path: string;
   mapUrl: string;
+  pitMapUrl: string;
+  startFinishMapUrl: string;
+  turnsMapUrl: string;
+  cornersPerLap: number;
+  pitRoadSpeedLimitMph: number | null;
+  numberPitStalls: number;
+  maxCars: number;
+  nightLighting: boolean;
+  rainEnabled: boolean;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
 }
 
 const tracks = readFileSync(resolve(GAMES_DIR, "iracing/tracks.csv"), "utf-8")
@@ -24,6 +36,12 @@ const tracks = readFileSync(resolve(GAMES_DIR, "iracing/tracks.csv"), "utf-8")
     const fields = parseCsvLine(line);
     const ordinal = Number(fields[0]);
     const lengthKm = Number(fields[5]);
+    const cornersPerLap = Number(fields[13]);
+    const pitRoadSpeedLimitMph = fields[14]?.trim() ? Number(fields[14]) : null;
+    const numberPitStalls = Number(fields[15]);
+    const maxCars = Number(fields[16]);
+    const latitude = Number(fields[19]);
+    const longitude = Number(fields[20]);
     return Number.isInteger(ordinal) && fields[1]?.trim()
       ? {
           ordinal,
@@ -36,6 +54,21 @@ const tracks = readFileSync(resolve(GAMES_DIR, "iracing/tracks.csv"), "utf-8")
           category: fields[7]?.trim() ?? "",
           path: fields[8]?.trim() ?? "",
           mapUrl: fields[9]?.trim() ?? "",
+          pitMapUrl: fields[10]?.trim() ?? "",
+          startFinishMapUrl: fields[11]?.trim() ?? "",
+          turnsMapUrl: fields[12]?.trim() ?? "",
+          cornersPerLap: Number.isFinite(cornersPerLap) ? cornersPerLap : 0,
+          pitRoadSpeedLimitMph:
+            pitRoadSpeedLimitMph !== null && Number.isFinite(pitRoadSpeedLimitMph)
+              ? pitRoadSpeedLimitMph
+              : null,
+          numberPitStalls: Number.isFinite(numberPitStalls) ? numberPitStalls : 0,
+          maxCars: Number.isFinite(maxCars) ? maxCars : 0,
+          nightLighting: fields[17] === "true",
+          rainEnabled: fields[18] === "true",
+          latitude: Number.isFinite(latitude) ? latitude : 0,
+          longitude: Number.isFinite(longitude) ? longitude : 0,
+          timeZone: fields[21]?.trim() ?? "",
         }
       : null;
   })
@@ -70,9 +103,26 @@ export function getIRacingTrackOrdinalByName(name: string): number | undefined {
   if (!needle) return undefined;
   const exact = tracks.find((track) =>
     [`${track.name} ${track.variant}`, track.path]
-      .some((candidate) => normalized(candidate) === needle));
+      .some((candidate) => normalized(candidate) === needle),
+  );
   if (exact) return exact.ordinal;
 
   const byTrackName = tracks.filter((track) => normalized(track.name) === needle);
   return byTrackName.length === 1 ? byTrackName[0].ordinal : undefined;
+}
+
+/**
+ * Physical racing direction for oval layouts. iRacing's oval catalogue is
+ * counter-clockwise except configurations explicitly named right-turning.
+ */
+export function getIRacingOvalDirection(
+  ordinal: number,
+): "left" | "right" | undefined {
+  const track = getIRacingTrack(ordinal);
+  if (!track?.category.endsWith("oval")) return undefined;
+  return /\bright(?:\s|-)*turning\b/i.test(
+    `${track.name} ${track.variant}`,
+  )
+    ? "right"
+    : "left";
 }
