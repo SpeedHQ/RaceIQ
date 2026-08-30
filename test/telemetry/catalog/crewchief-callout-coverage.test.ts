@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { CREWCHIEF_AUTOMATIC_EVENTS, CREWCHIEF_CALLOUT_SEMANTIC_IDS, CREWCHIEF_SEMANTIC_GROUPS } from "../../../shared/telemetry/live/crewchief-callout-contract";
-import { CREWCHIEF_COVERAGE, CREWCHIEF_EVENT_GROUPS } from "../../../scripts/catalog/crewchief-callout-coverage";
+import { CREWCHIEF_AUTOMATIC_EVENTS, CREWCHIEF_CALLOUT_SEMANTIC_IDS, CREWCHIEF_EVENT_GROUPS, CREWCHIEF_REFERENCE, CREWCHIEF_SEMANTIC_GROUPS } from "../../../shared/telemetry/live/crewchief-callout-contract";
+import { CREWCHIEF_COVERAGE } from "../../../shared/telemetry/live/crewchief-coverage";
 
 describe("CrewChief callout coverage", () => {
-  test("contains exactly 24 automatic events and Spotter separately", () => {
+  test("contains exact pinned event contract", () => {
+    expect(CREWCHIEF_REFERENCE).toEqual({ host: "gitlab.com", project: "mr_belowski/CrewChiefV4", commit: "97dc39c219b94de1099242fb8a5958869083603c" });
     expect(CREWCHIEF_AUTOMATIC_EVENTS).toHaveLength(24);
     expect(Object.keys(CREWCHIEF_EVENT_GROUPS)).toHaveLength(25);
     expect(CREWCHIEF_EVENT_GROUPS.Spotter).toEqual(["SESSION_TIMING", "OPPONENT", "SPATIAL_SPOTTER", "PITS_STRATEGY"]);
@@ -27,7 +28,7 @@ describe("CrewChief callout coverage", () => {
           expect(entry.semanticId).toBe(semanticId);
           expect(entry.crewChiefSources.length).toBeGreaterThan(0);
           expect(entry.raceIqSources.length).toBeGreaterThan(0);
-          expect(entry.crewChiefSources.every((source) => source.commit === "147d31f8a5db26d238b59c7d9837b99c0ac78dab")).toBe(true);
+          expect(entry.crewChiefSources.every((source) => source.host === "gitlab.com" && source.commit === CREWCHIEF_REFERENCE.commit)).toBe(true);
         } else {
           expect(entry.reasonCode.length).toBeGreaterThan(0);
           expect(entry.reason.length).toBeGreaterThan(0);

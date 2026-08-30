@@ -240,3 +240,8 @@ test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
 test/runtime/update-github.integration.test.ts
+test/live-strategy/crewchief-triggers/car-health-conditions-triggers.test.ts
+test/live-strategy/crewchief-triggers/catalog.test.ts
+test/live-strategy/crewchief-triggers/race-control-strategy-triggers.test.ts
+test/live-strategy/crewchief-triggers/session-triggers.test.ts
+test/live-strategy/crewchief-triggers/timing-opponent-triggers.test.ts

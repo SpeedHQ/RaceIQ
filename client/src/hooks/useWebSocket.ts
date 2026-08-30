@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
-import { isLiveEngineerCalloutMessageV2, isLiveEngineerVoiceLineMessageV2 } from "../../../shared/racing/live/engineer-contracts";
+import { isLiveEngineerCalloutMessageV3, isLiveEngineerVoiceLineMessageV3 } from "../../../shared/racing/live/engineer-contracts";
 import type { ServerStatus, VersionInfo } from "../stores/telemetry";
 import { telemetryStore } from "../stores/telemetry";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
@@ -98,8 +98,8 @@ export function useWebSocket() {
         try {
           const data = JSON.parse(event.data) as Record<string, unknown>;
           const liveStore = useLiveEngineerStore.getState();
-          if (isLiveEngineerCalloutMessageV2(data)) liveStore.receiveCallout(data);
-          else if (isLiveEngineerVoiceLineMessageV2(data)) liveStore.receiveVoiceLine(data);
+          if (isLiveEngineerCalloutMessageV3(data)) liveStore.receiveCallout(data);
+          else if (isLiveEngineerVoiceLineMessageV3(data)) liveStore.receiveVoiceLine(data);
           else if (data.type === "status") telemetryStore.actions.setServerStatus(data as unknown as ServerStatus);
           else if (data.type === "update-available") { telemetryStore.actions.setUpdateAvailable(data.version as string); startVersionRequest(); }
           else if (data.type === "update-progress") telemetryStore.actions.setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });

@@ -41,13 +41,9 @@ export function liveEngineerPaceRequiredSemanticIds(gameId: GameId): readonly st
   return isLiveEngineerGameId(gameId) ? LIVE_ENGINEER_PACE_REQUIRED[gameId] : [];
 }
 
-
-const LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS: Record<GameId, readonly string[]> = {
-  "fm-2023": [],
+const LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS: Record<(typeof LIVE_ENGINEER_GAME_IDS)[number], readonly string[]> = {
   acc: ["identity.player-car-index", "session.session-state", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "motion.competitor.position-x", "motion.competitor.position-z", "motion.competitor.speed", "race.competitor.pit-status"],
-  "ac-evo": [],
   iracing: ["identity.car-left-right"],
-  "f1-2025": ["motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags", "race.competitor.car-index", "race.competitor.connected", "race.competitor.position-x", "race.competitor.position-z", "race.competitor.speed"],
 };
 
 export function liveEngineerRequiredSemanticIds(gameId: GameId): readonly string[] {

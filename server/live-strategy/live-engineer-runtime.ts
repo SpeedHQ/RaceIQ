@@ -45,7 +45,8 @@ export class LiveEngineerRuntime {
     if (this.currentSession !== undefined && (candidate.sessionId !== this.currentSession || candidate.timelineEpoch !== this.currentEpoch)) return make("wrong-session");
     if (this.semantic.has(candidate.candidateId)) return make("semantic-duplicate");
     const last = this.cooldown.get(candidate.cooldownGroup);
-    const bypassFastest = candidate.renderParameters.relation === "fastest-in-class" && !this.fastestBypassUsed.has(candidate.cooldownGroup);
+    const render = candidate.renderParameters;
+    const bypassFastest = "relation" in render && render.relation === "fastest-in-class" && !this.fastestBypassUsed.has(candidate.cooldownGroup);
     if (last !== undefined && now - last < this.cooldownMs && !bypassFastest) return make("cooldown-active");
     if (bypassFastest) this.fastestBypassUsed.add(candidate.cooldownGroup);
     this.semantic.add(candidate.candidateId); this.queue.push(candidate); this.queue.sort((a, b) => RANK[a.priority] - RANK[b.priority] || a.sourceSequence - b.sourceSequence);

@@ -49,6 +49,9 @@ export class AccBroadcastState {
       this.carUpdatedAt.set(message.carIndex, this.now());
     }
   }
+  hasEntry(carIndex: number): boolean {
+    return this.entries.has(carIndex);
+  }
   setPlayerCarIndex(carIndex: number): void {
     if (Number.isInteger(carIndex) && carIndex >= 0) this.playerCarIndex = carIndex;
   }

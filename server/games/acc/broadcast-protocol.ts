@@ -151,3 +151,10 @@ export function encodeAccBroadcastRegistration(
   writeString(bytes, commandPassword);
   return Uint8Array.from(bytes);
 }
+export function encodeAccBroadcastEntryListRequest(connectionId: number): Uint8Array {
+  const buffer = new ArrayBuffer(5);
+  const bytes = new Uint8Array(buffer);
+  bytes[0] = 10;
+  new DataView(buffer).setInt32(1, connectionId, true);
+  return bytes;
+}

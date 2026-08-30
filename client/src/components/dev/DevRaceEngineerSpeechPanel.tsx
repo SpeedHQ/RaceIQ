@@ -2,30 +2,21 @@ import { useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { useDevSpeechAudio, type SpeechClip } from "./DevSpeechAudio";
 import { formatLiveEngineerDeltaText } from "../../../../shared/racing/live/time-text";
+import fullLineCatalog from "../../../../shared/racing/live/full-lines.json";
 
 const relations = ["fastest-in-class", "setting-race-pace", "within-class-pace", "off-class-pace", "outlier-lap"] as const;
-const sentenceExamples = [
-  { kind: "pace", id: "fastest-class", relation: "fastest-in-class", scope: "class", label: "Fastest in class." },
-  { kind: "pace", id: "fastest-overall", relation: "fastest-in-class", scope: "overall", label: "Fastest overall." },
-  { kind: "pace", id: "setting-race-pace", relation: "setting-race-pace", scope: "class", label: "You are setting the current race pace." },
-  { kind: "pace", id: "within-class-pace", relation: "within-class-pace", scope: "class", label: "You are point three seconds from class pace." },
-  { kind: "pace", id: "within-overall-pace", relation: "within-class-pace", scope: "overall", label: "You are point three seconds from overall pace." },
-  { kind: "pace", id: "off-class-pace", relation: "off-class-pace", scope: "class", label: "You are point three seconds off class pace." },
-  { kind: "pace", id: "off-overall-pace", relation: "off-class-pace", scope: "overall", label: "You are point three seconds off overall pace." },
-  { kind: "pace", id: "outlier-class", relation: "outlier-lap", scope: "class", label: "That lap is point three seconds off class pace." },
-  { kind: "pace", id: "outlier-overall", relation: "outlier-lap", scope: "overall", label: "That lap is point three seconds off overall pace." },
-  { kind: "opponent-lap-pace", id: "opponent-faster-last-lap", label: "Opponent was point three seconds faster last lap." },
-  { kind: "opponent-lap-pace", id: "driver-faster-last-lap", label: "You were point three seconds faster last lap." },
-  { kind: "preview-line", id: "tires-cold", label: "Tires are cold. Be careful." },
-  { kind: "preview-line", id: "tires-optimal", label: "Tires are optimal." },
-  { kind: "preview-line", id: "pit-this-lap", label: "Pit this lap." },
-  { kind: "lap-time", id: "lap-time", label: "Your lap was one minute thirty two point four one seven." },
-  { kind: "preview-line", id: "pit-pit-pit", label: "Pit pit pit." },
-] as const;
+type SentenceExample =
+  | { kind: "pace"; id: string; relation: (typeof relations)[number]; scope: "class" | "overall"; label: string }
+  | { kind: "opponent-lap-pace" | "preview-line" | "lap-time"; id: string; label: string };
+const sentenceExamples = fullLineCatalog
+  .filter((line) => line.kind !== "spotter")
+  .map((line) => ({ kind: line.kind, id: line.lineId, relation: line.relation, scope: line.scope, label: line.spokenText })) as readonly SentenceExample[];
 const groupLabel = (segmentId: string): string => {
   if (segmentId.startsWith("phrase.exact")) return "Exact response";
   if (segmentId.startsWith("phrase.scope") || segmentId === "phrase.from" || segmentId === "phrase.off") return "Context";
   if (segmentId.startsWith("unit.")) return "Timing units";
+  if (segmentId === "race-engineer.flag-change" || (segmentId.startsWith("race-engineer.") && segmentId.endsWith("-flag"))) return "Flags";
+  if (segmentId.startsWith("race-engineer.damage-")) return "Damage";
   return "Pace phrases";
 };
 type RenderedPace = { segmentIds?: string[]; voiceLine?: { segmentIds?: string[] }; text?: string; [key: string]: unknown };
@@ -120,7 +111,7 @@ export function DevRaceEngineerSpeechPanel() {
     const side = activeScenarioStates.includes("three-wide-left") ? "left" : activeScenarioStates.includes("three-wide-right") ? "right" : null;
     const special = scenarioVoiceText(activeScenarioStates);
     const rendered = special
-      ? { text: special.text, segmentIds: [] }
+      ? { text: special.text, segmentIds: special.state === "lap-invalidated" ? ["race-engineer.lap-invalidated"] : [] }
       : side
         ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: `three-wide-${side}`, overlapCount: 2 }) })).json() as RenderedPace
         : activeScenarioStates.includes("cross-finish")
@@ -130,7 +121,8 @@ export function DevRaceEngineerSpeechPanel() {
     setScenarioOutput(rendered.text ?? "No voice line emitted.");
     setScenarioDecision(special ? `${scenarioStates.find((item) => item.id === special.state)?.label} wins priority` : side ? `Three-wide ${side} wins priority over lap boundary` : activeScenarioStates.includes("cross-finish") ? "Lap boundary selected" : `${engineState} pace candidate selected`);
     const segmentIds = segmentIdsFor(rendered);
-    if (special) await audio.playText(`scenario-${special.state}`, special.text);
+    if (special?.state === "lap-invalidated") await audio.playQwenClip(`scenario-${special.state}`, "race-engineer.lap-invalidated");
+    else if (special) await audio.playText(`scenario-${special.state}`, special.text);
     else if (segmentIds?.length) await audio.playSegments(`scenario-${side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
     setEngineBusy(false);
   };
@@ -146,7 +138,7 @@ export function DevRaceEngineerSpeechPanel() {
       ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "lap-time", lapTimeMs: 92_417 }) })).json() as RenderedPace
       : example.kind === "opponent-lap-pace"
         ? await (await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "opponent-lap-pace", deltaMs: example.id === "opponent-faster-last-lap" ? 300 : -300 }) })).json() as RenderedPace
-        : await renderPace(example.relation, example.scope);
+        : await renderPace((example as Extract<SentenceExample, { kind: "pace" }>).relation, (example as Extract<SentenceExample, { kind: "pace" }>).scope);
     audio.setResult(rendered);
     if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
     const segmentIds = segmentIdsFor(rendered);
@@ -165,7 +157,7 @@ export function DevRaceEngineerSpeechPanel() {
     <div className="mt-6 flex flex-wrap items-end gap-2"><select aria-label="Relation" value={relation} onChange={(event) => setRelation(event.target.value as (typeof relations)[number])}>{relations.map((item) => <option key={item}>{item}</option>)}</select><select aria-label="Voice mode" value={voiceMode} onChange={(event) => setVoiceMode(event.target.value as "automatic" | "exact-response") }><option value="automatic">Automatic</option><option value="exact-response">Exact pace</option></select><label className="flex flex-col gap-1 text-xs text-app-text-muted">Sample delta (ms)<input aria-label="Sample delta (ms)" type="number" min="1" step="100" value={sampleDeltaMs} onChange={(event) => setSampleDeltaMs(Math.max(1, Number(event.target.value) || 1))} className="h-9 w-32 rounded border border-app-border bg-app-surface px-2 text-sm text-app-text" /><span>{sampleDeltaText(sampleDeltaMs)}</span></label><Button onClick={() => void previewPace()}>Preview pace</Button><Button onClick={audio.stop}>Stop</Button></div>
     <p className="mt-3 text-xs text-app-text-muted">{audio.catalog ? `${audio.visibleLines.length} Qwen clips · ${audio.catalog.model ?? "Qwen"} · validation ${audio.catalog.validation ? "passed" : "pending"} · ${audio.catalog.fullLines.length} Qwen full lines` : "Loading Qwen audio catalog…"}</p>
     <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-    <section className="mt-6 space-y-5"><div><h3 className="font-semibold">Sentences</h3><p className="mt-1 text-xs text-app-text-muted">Complete examples sent to drivers, including lap-time deltas.</p><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sentenceExamples.map((example) => <div key={example.id} className="flex items-center justify-between gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div><div className="font-medium">{renderedSentenceText[example.id] ?? example.label.replace("point three seconds", sampleDeltaText(sampleDeltaMs))}</div><div className="mt-1 text-xs text-app-text-muted">{example.kind === "lap-time" ? "completed lap time · sample 1:32.417" : example.kind === "opponent-lap-pace" ? "opponent lap pace · sample delta 0.300s" : example.kind === "preview-line" ? "dev preview line" : `${example.relation} · sample delta ${sampleDeltaText(sampleDeltaMs)}`}</div></div><Button variant="app-outline" size="app-sm" aria-label={`Play Qwen sentence: ${example.label}`} onClick={() => void playSentence(example)}>Play Qwen</Button></div>)}</div></div>
+    <section className="mt-6 space-y-5"><div><h3 className="font-semibold">Sentences</h3><p className="mt-1 text-xs text-app-text-muted">Complete examples sent to drivers, including lap-time deltas.</p><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{sentenceExamples.map((example) => <div key={example.id} className="flex items-center justify-between gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div><div className="font-medium">{renderedSentenceText[example.id] ?? example.label.replace("point three seconds", sampleDeltaText(sampleDeltaMs))}</div><div className="mt-1 text-xs text-app-text-muted">{example.kind === "lap-time" ? "completed lap time · sample 1:32.417" : example.kind === "opponent-lap-pace" ? "opponent lap pace · sample delta 0.300s" : example.kind === "preview-line" ? "dev preview line" : `${"relation" in example ? example.relation : ""} · sample delta ${sampleDeltaText(sampleDeltaMs)}`}</div></div><Button variant="app-outline" size="app-sm" aria-label={`Play Qwen sentence: ${example.label}`} onClick={() => void playSentence(example)}>Play Qwen</Button></div>)}</div></div>
       <div><h3 className="font-semibold">Individual Qwen clips</h3><p className="mt-1 text-xs text-app-text-muted">Atomic Qwen voice clips used to build complete sentences.</p><div className="mt-3 space-y-5">{groups.map(([label, clips]) => <div key={label}><h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-text-muted">{label}</h4><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{clips.map((clip) => <div key={clip.segmentId} className="flex items-center gap-3 rounded border border-app-border bg-app-surface-alt p-3"><div className="min-w-0 flex-1"><div className="font-medium truncate">{clip.spokenText || clip.segmentId}</div><div className="mt-1 text-xs text-app-text-muted">{clip.segmentId} · {clip.durationMs} ms</div></div><Button variant="app-outline" size="icon-sm" aria-label={`Play Qwen clip: ${clip.spokenText || clip.segmentId}`} onClick={() => void audio.playQwenClip(`qwen-clip-${clip.segmentId}`, clip.segmentId)}><span aria-hidden="true">Q</span></Button></div>)}</div></div>)}</div></div>
     </section>
       {audio.result && <aside className="order-first h-fit self-start rounded border border-app-border bg-app-surface-alt p-4 lg:sticky lg:top-4 lg:order-last lg:max-h-[calc(100vh-2rem)] lg:overflow-auto"><h3 className="font-semibold">Render JSON</h3><pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(audio.result, null, 2)}</pre></aside>}

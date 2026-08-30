@@ -1,5 +1,5 @@
-const QWEN_CATALOG_URL = "/audio/live-engineer/qwen-v1/manifest.json";
-const QWEN_CATALOG_VERSION = "live-engineer-qwen-v1";
+const QWEN_CATALOG_URL = "/audio/live-engineer/qwen-v2/manifest.json";
+const QWEN_CATALOG_VERSION = "live-engineer-qwen-v2";
 export const DEFAULT_JOIN_GAP_MS = -10;
 export const DEFAULT_RADIO_FILTER = { lowCutHz: 250, highCutHz: 3000 } as const;
 export const DEFAULT_RADIO_COMPRESSOR = { thresholdDb: -24, ratio: 6 } as const;
@@ -212,7 +212,7 @@ export class LiveEngineerAudioPlayer {
   private load(segment: CatalogSegment): Promise<AudioBuffer> {
     let promise = this.buffers.get(segment.segmentId);
     if (!promise) {
-      const url = `/audio/live-engineer/qwen-v1/${segment.path}`;
+      const url = `/audio/live-engineer/qwen-v2/${segment.path}`;
       promise = this.fetchImpl(url).then(async (response) => {
         if (!response.ok) throw new LiveEngineerAudioError("asset-missing", `Audio asset missing: ${segment.segmentId}`);
         const bytes = new Uint8Array(await response.arrayBuffer());

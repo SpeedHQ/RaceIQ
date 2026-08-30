@@ -1,20 +1,21 @@
-import type { GameId } from "../../shared/games/ids";
-import { isLiveEngineerGameId } from "../../shared/telemetry/live/semantics";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
+import { isLiveEngineerGameId } from "../../shared/telemetry/live/semantics";
+import type { CrewChiefTriggerBatchV1, CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
 import { extractLiveEngineerSemanticInput } from "./live-engineer-semantic-input";
 import {
   createLiveEngineerVoiceLine as createVoiceLine,
-  type LiveEngineerCalloutMessageV2,
-  type LiveEngineerDeliveryStatusV2,
-  type LiveEngineerVoiceLineMessageV2,
-  type LiveEngineerVoiceRequestV2,
-  type OpponentPaceCalloutMessageV2,
-  type SpotterCalloutMessageV2,
+  type LiveEngineerCalloutMessageV3,
+  type LiveEngineerDeliveryStatusV3,
+  type LiveEngineerVoiceLineMessageV3,
+  type LiveEngineerVoiceRequestV3,
+  type OpponentPaceCalloutMessageV3,
+  type SpotterCalloutMessageV3,
+  type RaceEngineerCalloutMessageV3,
 } from "../../shared/racing/live/engineer-contracts";
 import { OpponentPaceTracker, type OpponentLapFactV1, type PlayerLapForPaceV1 } from "./opponent-pace-tracker";
 import { LiveEngineerRuntime, type LiveEngineerRuntimeCandidate } from "./live-engineer-runtime";
-import { renderOpponentPace, renderSpotter } from "./live-engineer-renderer";
+import { renderOpponentPace, renderSpotter, renderCrewChiefEvent } from "./live-engineer-renderer";
 import { SpotterTracker } from "./spotter-tracker";
 
 export type LiveEngineerVoiceLineOptions =
@@ -22,7 +23,7 @@ export type LiveEngineerVoiceLineOptions =
   | { mode: "exact-response"; requestId: string };
 
 export interface LiveEngineerVoiceEngineOptions {
-  emit: (message: LiveEngineerCalloutMessageV2 | LiveEngineerVoiceLineMessageV2) => void;
+  emit: (message: LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3) => void;
 }
 
 
@@ -41,21 +42,23 @@ const arrayOf = <T>(value: unknown): readonly T[] | null => Array.isArray(value)
 const observedMs = (timestamp: LiveResolvedSemanticFrame["observedAt"]): number => "milliseconds" in timestamp ? timestamp.milliseconds : Number(timestamp.nanoseconds / 1_000_000n);
 
 export function createLiveEngineerVoiceLine(
-  callout: LiveEngineerCalloutMessageV2,
+  callout: LiveEngineerCalloutMessageV3,
   segmentIds: readonly string[],
   options: LiveEngineerVoiceLineOptions,
-): LiveEngineerVoiceLineMessageV2 {
+): LiveEngineerVoiceLineMessageV3 {
   return createVoiceLine(callout, segmentIds, options);
 }
 
 export class LiveEngineerVoiceEngine {
+  readonly triggerDiagnostics: CrewChiefTriggerEventV1[] = [];
   private readonly emitMessage: LiveEngineerVoiceEngineOptions["emit"];
   private readonly tracker = new OpponentPaceTracker();
   private readonly spotter = new SpotterTracker();
   private readonly runtime = new LiveEngineerRuntime({ maxQueue: 3, now: () => this.runtimeClockMs });
   private runtimeClockMs = 0;
-  private readonly decisions = new Map<string, OpponentPaceCalloutMessageV2>();
-  private readonly diagnostics = new Map<string, LiveEngineerDeliveryStatusV2["status"]>();
+  private readonly decisions = new Map<string, OpponentPaceCalloutMessageV3>();
+  private readonly diagnostics = new Map<string, LiveEngineerDeliveryStatusV3["status"]>();
+  private readonly triggerEvents = new Map<string, CrewChiefTriggerEventV1>();
   private latest: LiveResolvedSemanticFrame | null = null;
   private slots = new Map<string, number>();
   private streamKey = "";
@@ -65,32 +68,64 @@ export class LiveEngineerVoiceEngine {
   private playerLapInvalid = false;
   private previousLapPaceAvailable = false;
   private readonly previousCompetitorLaps = new Map<string, number>();
-
   constructor(options: LiveEngineerVoiceEngineOptions) {
     this.emitMessage = options.emit;
   }
 
-  consume(frame: LiveResolvedSemanticFrame): void {
+  consume(input: LiveResolvedSemanticFrame | CrewChiefTriggerBatchV1): void {
+    const batch = "events" in input ? input as CrewChiefTriggerBatchV1 : undefined;
+    const frame = batch ? batch.semanticFrame : input as LiveResolvedSemanticFrame;
+    if (!frame || (batch ? !isLiveEngineerGameId(batch.context.simulator) : !isLiveEngineerGameId(frame.simulator))) return;
     const key = `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}`;
-    if (key !== this.streamKey) {
+    const targetEpoch = batch?.timelineEpoch ?? (key === this.streamKey ? this.timelineEpoch : this.timelineEpoch + 1);
+    if (key !== this.streamKey || targetEpoch !== this.timelineEpoch) {
       this.reset();
       this.streamKey = key;
-      this.timelineEpoch += 1;
+      this.timelineEpoch = targetEpoch;
       this.tracker.reset(this.timelineEpoch);
       this.runtime.reset(String(frame.sessionId ?? ""), this.timelineEpoch);
     }
-    if (!isLiveEngineerGameId(frame.simulator)) return;
+    if (batch) {
+      this.triggerDiagnostics.push(...batch.events);
+      if (this.triggerDiagnostics.length > 64) this.triggerDiagnostics.splice(0, this.triggerDiagnostics.length - 64);
+    }
+    this.runtimeClockMs = observedMs(frame.observedAt);
+    const batchSelection = !!batch;
+    if (batch) {
+      for (const event of batch.events) {
+        const candidate: LiveEngineerRuntimeCandidate = {
+          candidateId: event.triggerId, actionKey: event.eventKey, cooldownGroup: `race-engineer:${event.family}:${event.eventKey}`, sourceFactIds: [...event.evidenceSemanticIds], policyVersion: "race-engineer-v3",
+          renderParameters: { triggerFamily: event.family, eventKey: event.eventKey, payload: event.payload, source: event.source },
+          sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: event.severity === "critical" ? "high" : event.severity === "warning" ? "normal" : "low", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 12_000,
+        };
+        if (this.runtime.submit(candidate).reason === "selected") {
+          this.triggerEvents.set(event.triggerId, event);
+          while (this.triggerEvents.size > 64) this.triggerEvents.delete(this.triggerEvents.keys().next().value!);
+        }
+      }
+      const selected = this.runtime.selectNext(this.runtimeClockMs);
+      if (selected) {
+        const parameters = selected.renderParameters;
+        if ("relation" in parameters) {
+          this.emitCandidate(selected, frame);
+        } else {
+          const event = this.triggerEvents.get(selected.candidateId);
+          this.triggerEvents.delete(selected.candidateId);
+          const rendered = event ? renderCrewChiefEvent(event, { voiceMode: "automatic" }) : null;
+          if (event && rendered) {
+            const callout: RaceEngineerCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${event.triggerId}/race-engineer-v3`, candidateId: event.triggerId, family: "race-engineer", sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: selected.priority, createdSessionTimeMs: selected.createdSessionTimeMs, expiresSessionTimeMs: selected.expiresSessionTimeMs, render: { renderingVersion: "crewchief-v1", text: rendered.text, textKey: event.eventKey, parameters } };
+            this.emitMessage(callout);
+            this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+          }
+        }
+      }
+    }
     const semanticInput = extractLiveEngineerSemanticInput(frame);
     const values = new Map(semanticInput.values);
     if (!this.slots.size) this.slots = new Map(frame.ids.map((id, index) => [id, index]));
-    this.runtimeClockMs = observedMs(frame.observedAt);
     this.latest = frame;
-    if (frame.simulator === "iracing") {
-      const nativeIndex = this.slots.get("identity.car-left-right");
-      const native = nativeIndex === undefined ? undefined : frame.values[nativeIndex];
-      if (native?.state === "ok" && finite(native.value)) this.emitSpotterEvents(this.spotter.updateNative({ sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: frame.sequence, sessionTimeMs: this.runtimeClockMs, carLeftRight: Math.trunc(native.value) }), frame);
-    }
     if (frame.simulator === "acc") this.processACCSpotter(frame);
+    else if (frame.simulator === "iracing") this.processIRacingSpotter(frame);
     const caution = OPTIONAL_CONTEXT.some((id) => {
       const resolved = values.get(id);
       return resolved?.state === "ok" && isCautionStatus(id, resolved.value);
@@ -126,12 +161,12 @@ export class LiveEngineerVoiceEngine {
       candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
     };
     this.runtime.submit(runtimeCandidate);
-    const selected = this.runtime.selectNext(observedMs(frame.observedAt));
+    const selected = batchSelection ? null : this.runtime.selectNext(observedMs(frame.observedAt));
     if (!selected) return;
     this.emitCandidate(selected, frame);
   }
 
-  handle(message: LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2): LiveEngineerVoiceLineMessageV2 | void {
+  handle(message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3): LiveEngineerVoiceLineMessageV3 | void {
     if (message.type === "live-engineer-delivery-status") {
       const previous = this.diagnostics.get(message.deliveryId);
       if (previous && ["completed", "failed", "muted", "preempted", "unsupported"].includes(previous)) return;
@@ -152,6 +187,8 @@ export class LiveEngineerVoiceEngine {
     this.spotter.reset();
     this.decisions.clear();
     this.diagnostics.clear();
+    this.triggerEvents.clear();
+    this.triggerDiagnostics.length = 0;
     this.latest = null;
     this.slots.clear();
     this.armed = false;
@@ -171,21 +208,17 @@ export class LiveEngineerVoiceEngine {
     const times = arrayOf<number>(values.get("timing.competitor.last-lap-time")!.value);
     const valids = arrayOf<unknown>(values.get("timing.competitor.last-lap-valid")?.value);
     const connected = arrayOf<unknown>(values.get("race.competitor.connected")?.value);
-    const surfaces = arrayOf<unknown>(values.get("race.competitor.track-location")?.value);
-    const all = [indexes, ids, names, classes, classNames, laps, pits, times, ...(frame.simulator === "acc" ? [connected] : [surfaces])];
+    const all = [indexes, ids, names, classes, classNames, laps, pits, times, valids, connected];
     if (all.some((list) => !list || list.length !== indexes?.length || list.length > 64)) return;
     for (let i = 0; i < indexes!.length; i += 1) {
       const index = indexes![i];
       const lap = laps![i];
       const time = times![i];
       const inPit = isPitStatus(pits![i]);
-      const nativeValid = frame.simulator === "acc" && valids ? boolish(valids[i]) === true : false;
-      const surface = surfaces?.[i];
-      const conservativeValid = frame.simulator === "iracing" && surface === "track" && !inPit;
-      const valid = nativeValid || conservativeValid;
-      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || (frame.simulator === "acc" && connected![i] !== true) || typeof classes![i] !== "string") continue;
+      const valid = boolish(valids![i]) === true;
+      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || connected![i] !== true || typeof classes![i] !== "string") continue;
       const participantId = String(ids![i] ?? index);
-      const fact: OpponentLapFactV1 = { factId: `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}/${index}/${lap}`, gameId: frame.simulator as GameId, sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, participantId, participantName: String(names![i] ?? participantId), classId: String(classes![i]), className: String(classNames![i] ?? classes![i]), lapNumber: lap, lapTimeMs: Math.round(time * 1000), valid: true, inPit: false, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, sourceQuality: nativeValid ? "native-validity" : "conservative-inference" };
+      const fact: OpponentLapFactV1 = { factId: `acc/${frame.sessionId ?? "none"}/${frame.streamId}/${index}/${lap}`, gameId: "acc", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, participantId, participantName: String(names![i] ?? participantId), classId: String(classes![i]), className: String(classNames![i] ?? classes![i]), lapNumber: lap, lapTimeMs: Math.round(time * 1000), valid: true, inPit: false, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, sourceQuality: "native-validity" };
       const previous = this.previousCompetitorLaps.get(participantId);
       this.previousCompetitorLaps.set(participantId, lap);
       if (previous !== undefined && lap <= previous) continue;
@@ -248,19 +281,38 @@ export class LiveEngineerVoiceEngine {
 
 
 
+  private processIRacingSpotter(frame: LiveResolvedSemanticFrame): void {
+    const index = this.slots.get("identity.car-left-right");
+    const value = index === undefined ? undefined : frame.values[index];
+    if (value?.state !== "ok" || !finite(value.value)) {
+      this.spotter.reset();
+      return;
+    }
+    const events = this.spotter.updateNative({
+      sessionId: String(frame.sessionId ?? ""),
+      timelineEpoch: this.timelineEpoch,
+      sourceSequence: frame.sequence,
+      sessionTimeMs: this.runtimeClockMs,
+      carLeftRight: value.value,
+    });
+    this.emitSpotterEvents(events, frame);
+  }
+
   private emitSpotterEvents(events: readonly { state: Exclude<import("../../shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
     for (const event of events) {
       const rendered = renderSpotter(event.state);
       const candidateId = `${frame.sessionId ?? "none"}/${this.timelineEpoch}/${event.sourceSequence}/${event.state}/${event.opponentIds.join(",")}`;
-      const callout: SpotterCalloutMessageV2 = { type: "live-engineer-callout", protocolVersion: 2, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: event.sourceSequence, priority: "high", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 2_000, render: { renderingVersion: "spotter-v1", textKey: rendered.textKey as SpotterCalloutMessageV2["render"]["textKey"], parameters: { state: event.state, side: event.side, overlapCount: event.overlapCount } } };
+      const callout: SpotterCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: event.sourceSequence, priority: "high", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 2_000, render: { renderingVersion: "spotter-v1", textKey: rendered.textKey as SpotterCalloutMessageV3["render"]["textKey"], parameters: { state: event.state, overlapCount: event.opponentIds.length } } };
       this.emitMessage(callout);
       this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
     }
   }
 
   private emitCandidate(candidate: LiveEngineerRuntimeCandidate, frame: LiveResolvedSemanticFrame): void {
-    const rendered = renderOpponentPace(candidate.renderParameters);
-    const callout: OpponentPaceCalloutMessageV2 = { type: "live-engineer-callout", protocolVersion: 2, decisionId: `${candidate.candidateId}/opponent-pace-v1`, candidateId: candidate.candidateId, family: "opponent-pace", sessionId: candidate.sessionId, timelineEpoch: candidate.timelineEpoch, sourceSequence: candidate.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000, render: { renderingVersion: "opponent-pace-v1", textKey: rendered.textKey as OpponentPaceCalloutMessageV2["render"]["textKey"], parameters: candidate.renderParameters } };
+    const parameters = candidate.renderParameters;
+    if (!("relation" in parameters)) return;
+    const rendered = renderOpponentPace(parameters);
+    const callout: OpponentPaceCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${candidate.candidateId}/opponent-pace-v1`, candidateId: candidate.candidateId, family: "opponent-pace", sessionId: candidate.sessionId, timelineEpoch: candidate.timelineEpoch, sourceSequence: candidate.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000, render: { renderingVersion: "opponent-pace-v1", textKey: rendered.textKey as OpponentPaceCalloutMessageV3["render"]["textKey"], parameters } };
     this.decisions.set(callout.decisionId, callout);
     while (this.decisions.size > 64) this.decisions.delete(this.decisions.keys().next().value!);
     this.emitMessage(callout);
@@ -270,7 +322,7 @@ export class LiveEngineerVoiceEngine {
   private currentContextEligible(): boolean {
     if (!this.latest) return false;
     const values = this.latest.values;
-    const ids = this.latest.simulator === "iracing" ? ["race.on-pit-road", "race.safety-car-status", "race.flag-status", "session.session-flags"] : ["race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags"];
+    const ids = ["race.pit-status", "race.safety-car-status", "race.flag-status", "session.session-flags"];
     for (const id of ids) {
       const index = this.slots.get(id);
       const value = index === undefined ? undefined : values[index];

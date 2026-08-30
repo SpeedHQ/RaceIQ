@@ -559,6 +559,139 @@
       "path": "clip__phrase__same-pace-last-lap.wav",
       "sha256": "1d190920365630de3bab778ef7a5fe464dba09b9110a905194f6643f3a014fa2",
       "durationMs": 2000
+    },
+    {
+      "segmentId": "race-engineer.position-changed",
+      "spokenText": "Position changed.",
+      "path": "clip__race-engineer__position-changed.wav",
+      "sha256": "3fb4c14cf5ac97167913381e9dc9c573a2a9b70848d82ca0e2ee96d27449bd2d",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "race-engineer.pre-lights",
+      "spokenText": "Get ready for the start.",
+      "path": "clip__race-engineer__pre-lights.wav",
+      "sha256": "8bd19160017f071d1415c991ea20ae8c9e1a0f072260620f40640ce49c4863a3",
+      "durationMs": 880
+    },
+    {
+      "segmentId": "race-engineer.green-flag",
+      "spokenText": "Green flag.",
+      "path": "clip__race-engineer__green-flag.wav",
+      "sha256": "7e02db65e6acbfea37076a672942ccf7500510c88aa25d258a2459a92552d66d",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.lap-completed",
+      "spokenText": "Lap completed.",
+      "path": "clip__race-engineer__lap-completed.wav",
+      "sha256": "61c45513e4a32e7464a64fd337af7439c9b0ccf03823b9b36939296ca195bb83",
+      "durationMs": 1200
+    },
+    {
+      "segmentId": "race-engineer.opponent-lap-completed",
+      "spokenText": "Opponent lap completed.",
+      "path": "clip__race-engineer__opponent-lap-completed.wav",
+      "sha256": "c4861d14c9fcc7f341df6f6ffd3b96a838d334bfd6553007ba80b5cbd6209787",
+      "durationMs": 1600
+    },
+    {
+      "segmentId": "race-engineer.multiclass-traffic",
+      "spokenText": "Multiclass traffic ahead.",
+      "path": "clip__race-engineer__multiclass-traffic.wav",
+      "sha256": "cf6e36497c4ba17c1a2df0251af527217a667c56cd0af85995d03c698fb68cbc",
+      "durationMs": 1520
+    },
+    {
+      "segmentId": "race-engineer.penalty-issued",
+      "spokenText": "Penalty issued.",
+      "path": "clip__race-engineer__penalty-issued.wav",
+      "sha256": "6ae11bb848ee0f0b0d76fb6af68d759b7b2aeb803f1734e7fb362e7408edbef9",
+      "durationMs": 1600
+    },
+    {
+      "segmentId": "race-engineer.pit-entry",
+      "spokenText": "Pit entry.",
+      "path": "clip__race-engineer__pit-entry.wav",
+      "sha256": "30c8917c5527613be5349b423f3048a153a5018cd3d5048521bf3f836ab77772",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.pit-exit",
+      "spokenText": "Pit exit.",
+      "path": "clip__race-engineer__pit-exit.wav",
+      "sha256": "000587ac181d38630f3ecf2f990b9bda5855412a2df2c45558a142a00d693859",
+      "durationMs": 640
+    },
+    {
+      "segmentId": "race-engineer.fuel-low",
+      "spokenText": "Fuel is low.",
+      "path": "clip__race-engineer__fuel-low.wav",
+      "sha256": "320669164784780cde84ff178b7d87468e341a69477632decb8c764b43e95417",
+      "durationMs": 800
+    },
+    {
+      "segmentId": "race-engineer.fuel-critical",
+      "spokenText": "Fuel is critical.",
+      "path": "clip__race-engineer__fuel-critical.wav",
+      "sha256": "e0c0c42078ce6dce29796645825ad463e3c5f34a4f998701a304e2de2a3b7dc8",
+      "durationMs": 1040
+    },
+    {
+      "segmentId": "race-engineer.flag-change",
+      "spokenText": "Flag changed.",
+      "path": "clip__race-engineer__flag-change.wav",
+      "sha256": "a015d7a1f3c3bce5cc57dc779a5fd4730d7d414e7fa9133a0c3de79d73c62084",
+      "durationMs": 720
+    },
+    {
+      "segmentId": "race-engineer.tyres-cold",
+      "spokenText": "Tires are cold.",
+      "path": "clip__race-engineer__tyres-cold.wav",
+      "sha256": "b202a84af3657bb224a75be5789f5bc4130c28217079a9d8e81cc3120614f950",
+      "durationMs": 960
+    },
+    {
+      "segmentId": "race-engineer.tyres-hot",
+      "spokenText": "Tires are hot.",
+      "path": "clip__race-engineer__tyres-hot.wav",
+      "sha256": "a588c0f589d07559e97b0b4833864e21b0d7abc42cd6279da1045f649bababce",
+      "durationMs": 1120
+    },
+    {
+      "segmentId": "race-engineer.tyres-cooking",
+      "spokenText": "Tires are overheating.",
+      "path": "clip__race-engineer__tyres-cooking.wav",
+      "sha256": "6299bf5f1804ac1cc41f96d5a4c9f750d16397284c17c5fa729ab4fa91dded83",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.water-temperature-hot",
+      "spokenText": "Water temperature is high.",
+      "path": "clip__race-engineer__water-temperature-hot.wav",
+      "sha256": "eb5cfa50e9f1b90d00fdef9611a29c609b563949e667f3b2cca5da636a56fe49",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.water-temperature-clear",
+      "spokenText": "Water temperature is clear.",
+      "path": "clip__race-engineer__water-temperature-clear.wav",
+      "sha256": "39c013d079d30a5528647688f9e8ebd8f31dd0432ff2562f66ece574e141c1f1",
+      "durationMs": 1280
+    },
+    {
+      "segmentId": "race-engineer.damage-reported",
+      "spokenText": "Damage reported.",
+      "path": "clip__race-engineer__damage-reported.wav",
+      "sha256": "77f3dc3513592cdd5f4614c73177c6106420e02b037f6621b7078a4b849aeb83",
+      "durationMs": 1360
+    },
+    {
+      "segmentId": "race-engineer.rain-changed",
+      "spokenText": "Rain conditions changed.",
+      "path": "clip__race-engineer__rain-changed.wav",
+      "sha256": "702f41ce13fe9468bc25a7d3423899d6f4f6828499fbb4874d4006c95af770bf",
+      "durationMs": 1520
     }
   ],
   "referenceAudio": "scripts/live-engineer/voices/Aussie-short.flac"

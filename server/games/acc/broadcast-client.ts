@@ -1,5 +1,5 @@
 import dgram from "node:dgram";
-import { encodeAccBroadcastRegistration, parseAccBroadcastMessage } from "./broadcast-protocol";
+import { encodeAccBroadcastEntryListRequest, encodeAccBroadcastRegistration, parseAccBroadcastMessage } from "./broadcast-protocol";
 import { accBroadcastState, AccBroadcastState } from "./broadcast-state";
 
 type DatagramSocket = {
@@ -16,6 +16,7 @@ export interface AccBroadcastClientOptions {
   connectionPassword?: string;
   commandPassword?: string;
   realtimeIntervalMs?: number;
+  now?: () => number;
   state?: AccBroadcastState;
   socketFactory?: () => DatagramSocket;
 }
@@ -25,6 +26,8 @@ export class AccBroadcastClient {
   private socket: DatagramSocket | null = null;
   private connectPromise: Promise<void> | null = null;
   private registered = false;
+  private registrationConnectionId: number | null = null;
+  private lastEntryListRequestAt = -Infinity;
   private generation = 0;
   private stopped = false;
 
@@ -36,6 +39,7 @@ export class AccBroadcastClient {
       connectionPassword: options.connectionPassword ?? process.env.ACC_BROADCAST_PASSWORD ?? "",
       commandPassword: options.commandPassword ?? process.env.ACC_BROADCAST_COMMAND_PASSWORD ?? "",
       realtimeIntervalMs: options.realtimeIntervalMs ?? 100,
+      now: options.now ?? Date.now,
       state: options.state,
       socketFactory: options.socketFactory,
     };
@@ -60,8 +64,15 @@ export class AccBroadcastClient {
       const message = parseAccBroadcastMessage(payload);
       if (!message) return;
       if (message.type === "registration-result") {
-        if (message.success && this.socket === socket && this.generation === generation) this.registered = true;
+        if (!message.success || this.registered || this.socket !== socket || this.generation !== generation) return;
+        this.registered = true;
+        this.registrationConnectionId = message.connectionId;
+        this.lastEntryListRequestAt = -Infinity;
+        this.sendEntryListRequest(socket, generation);
         return;
+      }
+      if (message.type === "realtime-car-update" && !state.hasEntry(message.carIndex)) {
+        this.requestEntryListIfReady(socket, generation);
       }
       state.apply(message);
     });
@@ -72,6 +83,8 @@ export class AccBroadcastClient {
       if (this.socket !== socket) return;
       this.socket = null;
       this.registered = false;
+      this.registrationConnectionId = null;
+      this.lastEntryListRequestAt = -Infinity;
       if (!this.stopped) this.generation += 1;
     });
     const connect = new Promise<void>((resolve) => socket.connect(this.options.port, this.options.host, resolve));
@@ -91,6 +104,17 @@ export class AccBroadcastClient {
   private sendRegistration(socket: DatagramSocket): void {
     socket.send(encodeAccBroadcastRegistration(this.options.displayName, this.options.connectionPassword, this.options.realtimeIntervalMs, this.options.commandPassword));
   }
+  private sendEntryListRequest(socket: DatagramSocket, generation: number): void {
+    if (!this.registered || this.socket !== socket || this.generation !== generation || this.registrationConnectionId === null) return;
+    this.lastEntryListRequestAt = this.options.now();
+    socket.send(encodeAccBroadcastEntryListRequest(this.registrationConnectionId));
+  }
+
+  private requestEntryListIfReady(socket: DatagramSocket, generation: number): void {
+    if (this.options.now() - this.lastEntryListRequestAt < 1_000) return;
+    this.sendEntryListRequest(socket, generation);
+  }
+
 
   async stop(): Promise<void> {
     this.stopped = true;
@@ -98,6 +122,8 @@ export class AccBroadcastClient {
     const socket = this.socket;
     this.socket = null;
     this.registered = false;
+    this.registrationConnectionId = null;
+    this.lastEntryListRequestAt = -Infinity;
     (this.options.state ?? accBroadcastState).reset();
     if (!socket) return;
     await new Promise<void>((resolve) => socket.close(resolve));

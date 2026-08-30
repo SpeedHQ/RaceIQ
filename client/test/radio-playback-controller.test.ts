@@ -5,6 +5,16 @@ import { LiveEngineerPlaybackSession } from "../src/lib/live-engineer-playback-s
 
 const line: LiveEngineerVoiceLineMessageV2 = { type: "live-engineer-voice-line", protocolVersion: 2, deliveryId: "delivery-1", decisionId: "decision-1", family: "spotter", mode: "automatic", priority: "high", sourceSequence: 1, catalogVersion: "v1", segmentIds: ["spotter.car-left"] };
 
+test("expired V3 voice line does not start audio and reports terminal expiry", () => {
+  const statuses: string[] = [];
+  let plays = 0;
+  const audio = { play: async () => { plays += 1; }, stop: () => {}, setVolume: () => {} };
+  const session = new LiveEngineerPlaybackSession(audio, { enqueueControl: (message) => statuses.push(`${message.status}:${message.reason ?? ""}`), finishVoiceLine: () => {}, setPlayback: () => {} });
+  session.start({ ...line, protocolVersion: 3, sessionId: "session-1", timelineEpoch: 4, createdSessionTimeMs: 1200, expiresSessionTimeMs: 2200 } as never, true, 0.8, 2300);
+  expect(plays).toBe(0);
+  expect(statuses).toContain("failed:expired");
+});
+
 test("volume changes update gain without restarting unresolved playback", async () => {
   let resolve!: () => void;
   const statuses: string[] = [];

@@ -22,11 +22,11 @@ import {
   type DevTelemetrySubscriptionMessageV1,
 } from "../../shared/telemetry/live/contracts";
 import {
-  isLiveEngineerVoiceRequestV2,
-  isLiveEngineerDeliveryStatusV2,
-  type LiveEngineerVoiceRequestV2,
-  type LiveEngineerDeliveryStatusV2,
-  type LiveEngineerVoiceLineMessageV2,
+  isLiveEngineerVoiceRequestV3,
+  isLiveEngineerDeliveryStatusV3,
+  type LiveEngineerVoiceRequestV3,
+  type LiveEngineerDeliveryStatusV3,
+  type LiveEngineerVoiceLineMessageV3,
 } from "../../shared/racing/live/engineer-contracts";
 
 export interface WSData {
@@ -99,8 +99,8 @@ export class WebSocketManager {
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
   }
-  private _liveEngineerMessageHandler: ((message: LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV2 | void) | null = null;
-  setLiveEngineerMessageHandler(handler: ((message: LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV2 | void) | null): void {
+  private _liveEngineerMessageHandler: ((message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV3 | void) | null = null;
+  setLiveEngineerMessageHandler(handler: ((message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3, ws: ServerWebSocket<WSData>) => LiveEngineerVoiceLineMessageV3 | void) | null): void {
     this._liveEngineerMessageHandler = handler;
   }
 
@@ -214,6 +214,11 @@ export class WebSocketManager {
   broadcastNotification(payload: Record<string, unknown>): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
+    if (payload.type === "live-engineer-voice-line") {
+      const client = this.clients.values().next().value;
+      if (client) { try { client.send(json); } catch {} }
+      return;
+    }
     for (const client of this.clients) {
       try { client.send(json); } catch {}
     }
@@ -236,7 +241,7 @@ export class WebSocketManager {
   handleMessage(ws: ServerWebSocket<WSData>, message: string | Buffer): void {
     let parsed: unknown;
     try { parsed = JSON.parse(typeof message === "string" ? message : message.toString()); } catch { parsed = null; }
-    if (isLiveEngineerVoiceRequestV2(parsed) || isLiveEngineerDeliveryStatusV2(parsed)) {
+    if (isLiveEngineerVoiceRequestV3(parsed) || isLiveEngineerDeliveryStatusV3(parsed)) {
       const result = this._liveEngineerMessageHandler?.(parsed, ws);
       if (result) ws.send(JSON.stringify(result));
       return;

@@ -25,7 +25,10 @@ import { reconcileSessionResult } from "../race-results/reconcile";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { LiveEngineerVoiceEngine } from "../live-strategy/live-engineer-voice-engine";
-import type { LiveEngineerVoiceRequestV2, LiveEngineerDeliveryStatusV2 } from "../../shared/racing/live/engineer-contracts";
+import { CrewChiefTriggerCatalog } from "../live-strategy/crewchief-triggers/catalog";
+import type { LiveEngineerVoiceRequestV3, LiveEngineerDeliveryStatusV3 } from "../../shared/racing/live/engineer-contracts";
+import { isLiveSpotterEngineerEnabled, releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+const LIVE_ENGINEER_FLAGS = releaseFeatureFlags({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS });
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -41,7 +44,8 @@ export class LiveTelemetryPipeline {
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
-  private projector = new LiveTelemetryProjector();
+  private readonly _engineerEnabled: boolean | ((gameId: GameId) => boolean);
+  private projector: LiveTelemetryProjector;
   private _sessionLaps: LapMeta[] = [];
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
@@ -51,6 +55,7 @@ export class LiveTelemetryPipeline {
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _timelineEpoch = 0;
   private _voiceEngine: LiveEngineerVoiceEngine;
+  private _triggerCatalog = new CrewChiefTriggerCatalog();
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
@@ -89,10 +94,13 @@ export class LiveTelemetryPipeline {
       bypassPacketRateFilter?: boolean;
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
+      liveSpotterEngineerEnabled?: boolean | ((gameId: GameId) => boolean);
       recorder?: SessionRecorderAdapter;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
+    this._engineerEnabled = options?.liveSpotterEngineerEnabled ?? false;
+    this.projector = new LiveTelemetryProjector({ engineerEnabled: this._engineerEnabled });
     this.db = db;
     this.ws = ws;
     this.recorder = options?.recorder ?? new RealSessionRecorderAdapter();
@@ -163,7 +171,7 @@ export class LiveTelemetryPipeline {
     });
     if (session) await this._reconcileRecordedSession(session);
   }
-  handleLiveEngineerMessage(message: LiveEngineerVoiceRequestV2 | LiveEngineerDeliveryStatusV2) {
+  handleLiveEngineerMessage(message: LiveEngineerVoiceRequestV3 | LiveEngineerDeliveryStatusV3) {
     return this._voiceEngine.handle(message);
   }
 
@@ -198,11 +206,12 @@ export class LiveTelemetryPipeline {
           });
         }
 
+        const adapter = getServerGame(session.gameId);
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         this._timelineEpoch += 1;
         this._voiceEngine.reset();
-        const adapter = getServerGame(session.gameId);
+        this._triggerCatalog.reset();
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         if (!this._skipHistorySeeding) {
           await this.pitTracker.seedFromHistory(
@@ -438,7 +447,8 @@ export class LiveTelemetryPipeline {
       receivedAtMs: Date.now(),
     });
     this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
-    this._voiceEngine.consume(projection.semanticFrame);
+    const engineerEnabled = typeof this._engineerEnabled === "function" ? this._engineerEnabled(packet.gameId as GameId) : this._engineerEnabled;
+    if (engineerEnabled) this._voiceEngine.consume(this._triggerCatalog.consume(projection.semanticFrame));
 
     if (!this._skipDevState) {
       this.ws.broadcastDevState({
@@ -472,6 +482,7 @@ const _defaultWs: WsAdapter = {
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
+  liveSpotterEngineerEnabled: (gameId: GameId) => isLiveSpotterEngineerEnabled(LIVE_ENGINEER_FLAGS, gameId),
   onSessionFinalized: async (sessionId, gameId) => {
     try {
       await reconcileSessionResult(sessionId, gameId);

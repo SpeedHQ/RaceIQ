@@ -1,11 +1,13 @@
 import type { TelemetryVariableId } from "../catalog/generated/telemetry-catalog.types";
 
 export const CREWCHIEF_REFERENCE = {
+  host: "gitlab.com",
   project: "mr_belowski/CrewChiefV4",
-  commit: "147d31f8a5db26d238b59c7d9837b99c0ac78dab",
+  commit: "97dc39c219b94de1099242fb8a5958869083603c",
 } as const;
 
 export type CrewChiefSourceRef = {
+  host: typeof CREWCHIEF_REFERENCE.host;
   project: typeof CREWCHIEF_REFERENCE.project;
   commit: typeof CREWCHIEF_REFERENCE.commit;
   path: string;
@@ -51,7 +53,7 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
     "race.player-class-position",
   ),
   OPPONENT: ids(
-    "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name", "race.competitor.car-class-id",
+    "identity.player-car-class-id", "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name", "race.competitor.car-class-id",
     "race.competitor.car-class-name", "race.competitor.class-position", "race.competitor.position", "race.competitor.laps-complete",
     "race.competitor.pit-status", "race.competitor.connected", "race.competitor.track-location", "race.competitor.track-surface-material",
     "timing.competitor.current-lap-number", "timing.competitor.current-lap-time", "timing.competitor.last-lap-time",
@@ -106,15 +108,54 @@ export const CREWCHIEF_AUTOMATIC_EVENTS = [
 ] as const;
 
 export type CrewChiefAutomaticEvent = (typeof CREWCHIEF_AUTOMATIC_EVENTS)[number];
+export type CrewChiefEventFamily = CrewChiefAutomaticEvent | "Spotter";
 export const CREWCHIEF_CALLOUT_SEMANTIC_IDS = Object.freeze(
   [...new Set(Object.values(CREWCHIEF_SEMANTIC_GROUPS).flat())],
 ) as readonly TelemetryVariableId[];
+export const CREWCHIEF_EVENT_GROUPS = {
+  Spotter: ["SESSION_TIMING", "OPPONENT", "SPATIAL_SPOTTER", "PITS_STRATEGY"],
+  Position: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  LapCounter: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY", "CONDITIONS"],
+  Timings: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "CONDITIONS", "TYRES_BRAKES"],
+  LapTimes: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "CONDITIONS", "TYRES_BRAKES"],
+  Opponents: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "CONDITIONS", "TYRES_BRAKES"],
+  Penalties: ["SESSION_TIMING", "FLAGS_PENALTIES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  PitStops: ["SESSION_TIMING", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY", "TYRES_BRAKES"],
+  Fuel: ["SESSION_TIMING", "ENERGY", "PITS_STRATEGY", "CONDITIONS", "SPATIAL_SPOTTER"],
+  Battery: ["SESSION_TIMING", "ENERGY", "PITS_STRATEGY", "CONDITIONS", "SPATIAL_SPOTTER"],
+  WatchedOpponents: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "CONDITIONS", "TYRES_BRAKES"],
+  Strategy: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY", "TYRES_BRAKES", "CONDITIONS", "OVERTAKING_AIDS", "SPATIAL_SPOTTER"],
+  PushNow: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY", "TYRES_BRAKES", "CONDITIONS", "OVERTAKING_AIDS", "SPATIAL_SPOTTER"],
+  RaceTime: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "ENERGY"],
+  TyreMonitor: ["SESSION_TIMING", "TYRES_BRAKES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  EngineMonitor: ["SESSION_TIMING", "DAMAGE_ENGINE", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  DamageReporting: ["SESSION_TIMING", "DAMAGE_ENGINE", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  FlagsMonitor: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  ConditionsMonitor: ["SESSION_TIMING", "CONDITIONS"],
+  OvertakingAidsMonitor: ["SESSION_TIMING", "OPPONENT", "PITS_STRATEGY", "OVERTAKING_AIDS"],
+  FrozenOrderMonitor: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  Ratings: ["SESSION_TIMING", "OPPONENT", "FLAGS_PENALTIES", "DRIVER_TEAM_RATINGS"],
+  MulticlassWarnings: ["SESSION_TIMING", "OPPONENT", "PITS_STRATEGY", "SPATIAL_SPOTTER"],
+  DriverSwaps: ["SESSION_TIMING", "PITS_STRATEGY", "DRIVER_TEAM_RATINGS"],
+  SessionEndMessages: ["SESSION_TIMING"],
+} as const;
 
 export const CREWCHIEF_EVENT_SOURCES: Record<string, readonly CrewChiefSourceRef[]> = Object.fromEntries(
-  ["CrewChief.cs::createListOfAllEvents", ...CREWCHIEF_AUTOMATIC_EVENTS].map((symbol) => [symbol, [{
-    project: CREWCHIEF_REFERENCE.project,
-    commit: CREWCHIEF_REFERENCE.commit,
-    path: symbol === "CrewChief.cs::createListOfAllEvents" ? "CrewChiefV4/CrewChief.cs" : `CrewChiefV4/Events/${symbol}.cs`,
-    symbols: [symbol],
-  }]])
+  ["CrewChief.cs::createListOfAllEvents", ...CREWCHIEF_AUTOMATIC_EVENTS].map((family) => {
+    const isFactory = family === "CrewChief.cs::createListOfAllEvents";
+    return [family, [{
+      host: CREWCHIEF_REFERENCE.host,
+      project: CREWCHIEF_REFERENCE.project,
+      commit: CREWCHIEF_REFERENCE.commit,
+      path: isFactory ? "CrewChiefV4/CrewChief.cs" : `CrewChiefV4/Events/${family}.cs`,
+      symbols: [isFactory ? "createListOfAllEvents" : family === "SessionEndMessages" ? "trigger" : "triggerInternal"],
+    }]];
+  }),
 );
+CREWCHIEF_EVENT_SOURCES.Spotter = [{
+  host: CREWCHIEF_REFERENCE.host,
+  project: CREWCHIEF_REFERENCE.project,
+  commit: CREWCHIEF_REFERENCE.commit,
+  path: "CrewChiefV4/Events/Spotter.cs",
+  symbols: ["trigger"],
+}];

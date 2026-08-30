@@ -3,7 +3,7 @@ import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import type { CompiledTelemetryResolver, ResolvedValue, TelemetryFrameView, TelemetryTimestamp, SemanticSlot } from "../../shared/telemetry/resolver/contracts";
-import { liveEngineerRequiredSemanticIds, liveSemanticIds } from "../../shared/telemetry/live/semantics";
+import { isLiveEngineerGameId, liveEngineerRequiredSemanticIds, liveSemanticIds } from "../../shared/telemetry/live/semantics";
 import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "../../shared/telemetry/live/crewchief-callout-contract";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
@@ -19,10 +19,13 @@ export interface LiveResolvedSemanticFrame {
   ids: readonly string[];
   values: readonly ResolvedValue<unknown>[];
 }
+export interface LiveTelemetryProjectorOptions { engineerSemanticIds?: readonly string[]; engineerEnabled?: boolean | ((gameId: GameId) => boolean); }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; semanticFrame: LiveResolvedSemanticFrame; }
 const hash = (parts: readonly string[]) => createHash("sha256").update(parts.join("\0")).digest("hex").slice(0, 32);
 
 export class LiveTelemetryProjector {
+  private readonly options: LiveTelemetryProjectorOptions;
+  constructor(options: LiveTelemetryProjectorOptions = {}) { this.options = options; }
   private resolver: CompiledTelemetryResolver<TelemetryPacket> | null = null;
   private view: TelemetryFrameView<TelemetryPacket> | undefined;
   private gameId: GameId | null = null;
@@ -47,8 +50,9 @@ export class LiveTelemetryProjector {
     const observedAt = { domain: timestampDomain, milliseconds: observedMs } as const;
     const observation = { timestamp: observedAt, updateSequence: BigInt(this.sequence + 1) };
     this.view = resolver.createFrameView(input.packet, observation, this.view);
+    const engineerEnabled = isLiveEngineerGameId(gameId) && (this.options.engineerSemanticIds !== undefined || (typeof this.options.engineerEnabled === "function" ? this.options.engineerEnabled(gameId) : this.options.engineerEnabled ?? true));
+    const engineerResolved = engineerEnabled ? this.view.resolveMany(this.engineerSlots, this.engineerValues) : [];
     const publicResolved = this.view.resolveMany(this.publicSlots, this.publicValues);
-    const engineerResolved = this.view.resolveMany(this.engineerSlots, this.engineerValues);
     const states: Record<number, "missing" | "stale" | "invalid" | "not-applicable" | "error"> = {};
     const freshness: Record<number, "stale" | "unknown"> = {};
     publicResolved.forEach((value, index) => {
@@ -69,18 +73,19 @@ export class LiveTelemetryProjector {
     };
   }
 
-  reset(): void { this.resolver = null; this.view = undefined; this.gameId = null; this.sessionId = null; this.schema = undefined; this.sequence = -1; this.streamId = ""; this.publicIds = []; this.publicSlots = []; this.engineerIds = []; this.engineerSlots = []; this.publicValues = []; this.engineerValues = []; }
-
   private startStream(gameId: GameId, sessionId: number | null): void {
     this.gameId = gameId; this.sessionId = sessionId; this.sequence = -1; this.view = undefined;
     this.publicIds = liveSemanticIds(gameId);
-    this.engineerIds = liveEngineerRequiredSemanticIds(gameId);
-    const compiledIds = [...new Set([...this.publicIds, ...this.engineerIds, ...CREWCHIEF_CALLOUT_SEMANTIC_IDS])];
+    const engineerSupported = isLiveEngineerGameId(gameId);
+    this.engineerIds = engineerSupported
+      ? (this.options.engineerSemanticIds ? [...this.options.engineerSemanticIds] : [...new Set([...liveEngineerRequiredSemanticIds(gameId), ...CREWCHIEF_CALLOUT_SEMANTIC_IDS])])
+      : [];
+    const enabled = engineerSupported && (this.options.engineerSemanticIds !== undefined || (typeof this.options.engineerEnabled === "function" ? this.options.engineerEnabled(gameId) : this.options.engineerEnabled ?? true));
+    if (!enabled) this.engineerIds = [];
+    const compiledIds = [...new Set([...this.publicIds, ...this.engineerIds])];
     this.resolver = compileTelemetryResolver({ simulator: gameId, requested: compiledIds.map((semanticId) => ({ semanticId })) });
-    this.publicSlots = this.publicIds.map((semanticId) => this.resolver!.slot(semanticId));
-    this.engineerSlots = this.engineerIds.map((semanticId) => this.resolver!.slot(semanticId));
-    this.publicValues = new Array(this.publicIds.length);
-    this.engineerValues = new Array(this.engineerIds.length);
+    this.publicSlots = this.publicIds.map((semanticId) => this.resolver!.slot(semanticId)); this.engineerSlots = this.engineerIds.map((semanticId) => this.resolver!.slot(semanticId));
+    this.publicValues = new Array(this.publicIds.length); this.engineerValues = new Array(this.engineerIds.length);
     const schemaId = hash(["live", "1", gameId, this.resolver.catalogVersion, this.resolver.catalogHash, this.resolver.schemaVersion, this.resolver.parserVersion, this.resolver.resolverVersion, this.resolver.derivationVersion, ...this.publicIds]);
     this.schema = encodeLiveSchema(this.publicIds.map((semanticId) => ({ semanticId, unit: null, mappingStatus: "unavailable", schemaVersion: this.resolver!.schemaVersion, limitations: [] })), { schemaId, simulator: gameId, catalogVersion: this.resolver.catalogVersion, catalogHash: this.resolver.catalogHash, catalogSchemaVersion: this.resolver.schemaVersion, parserVersion: this.resolver.parserVersion, resolverVersion: this.resolver.resolverVersion, derivationVersion: this.resolver.derivationVersion });
     this.streamId = hash(["stream", gameId, sessionId === null ? "none" : String(sessionId), schemaId]);
