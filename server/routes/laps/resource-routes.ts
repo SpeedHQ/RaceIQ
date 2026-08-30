@@ -13,7 +13,7 @@ import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
 import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
-import { loadSessionCapture } from "../../session-capture/source-loader";
+import { loadSessionSource } from "../../session-capture/source-loader";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
@@ -215,10 +215,14 @@ export const resourceRoutes = new Hono()
 
     let bytes: Uint8Array;
     try {
-      bytes = await loadSessionCapture({
+      const loaded = await loadSessionSource({
         rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
         carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
       });
+      if (loaded.kind === "packets") {
+        return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+      }
+      bytes = loaded.buffer;
     } catch {
       return c.json({ error: "Raw capture file is missing on disk" }, 410);
     }
