@@ -96,6 +96,10 @@
 
 ![setups](setups.png)
 
+### track detail guide
+
+![track detail guide](track-detail-guide.png)
+
 ### tracks
 
 ![tracks](tracks.png)
