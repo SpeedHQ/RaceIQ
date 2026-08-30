@@ -38,6 +38,7 @@ export const MOTEC_IMPORT_LIMITATIONS = [
 
 export interface DeadReckonedPath {
   x: Float64Array; z: Float64Array; vx: Float64Array; vz: Float64Array;
+  heading: Float64Array;
   yawFromLateralG: boolean;
 }
 
@@ -88,7 +89,7 @@ function speedToKmh(values: Float64Array, channel: LdChannel | undefined): Float
 
 export function deadReckonPath(speedKmh: Float64Array, yawRate: Float64Array, gLat: Float64Array, lapIndexOf: Int32Array, dt: number, yawUnit: string): DeadReckonedPath {
   const frames = speedKmh.length;
-  const x = new Float64Array(frames), z = new Float64Array(frames), vx = new Float64Array(frames), vz = new Float64Array(frames);
+  const x = new Float64Array(frames), z = new Float64Array(frames), vx = new Float64Array(frames), vz = new Float64Array(frames), headingOut = new Float64Array(frames);
   const hasYaw = peakAbs(yawRate) > 0;
   const yawToRad = /deg|°/i.test(yawUnit) ? Math.PI / 180 : 1;
   let heading = 0, px = 0, pz = 0;
@@ -100,10 +101,10 @@ export function deadReckonPath(speedKmh: Float64Array, yawRate: Float64Array, gL
     if (!lapStart) heading += omega * dt;
     const cx = Math.sin(heading) * speed, cz = Math.cos(heading) * speed;
     if (!lapStart) { px += cx * dt; pz += cz * dt; }
-    vx[i] = cx; vz[i] = cz; x[i] = px; z[i] = pz;
+    vx[i] = cx; vz[i] = cz; x[i] = px; z[i] = pz; headingOut[i] = heading;
   }
   closeLapLoops(x, z, lapIndexOf);
-  return { x, z, vx, vz, yawFromLateralG: !hasYaw };
+  return { x, z, vx, vz, heading: headingOut, yawFromLateralG: !hasYaw };
 }
 function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array): void {
   if (x.length === 0) return;
@@ -151,16 +152,27 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   const lateralG = resample(take(MOTEC_CHANNELS.gLat), frameCount, dt);
   const longitudinalG = resample(take(MOTEC_CHANNELS.gLon), frameCount, dt);
   const yawCh = pick(log, MOTEC_CHANNELS.yawRate), yawRate = resample(yawCh, frameCount, dt);
+  const tc = resample(pick(log, MOTEC_CHANNELS.tc), frameCount, dt);
+  const abs = resample(pick(log, MOTEC_CHANNELS.abs), frameCount, dt);
   const fuel = resample(pick(log, MOTEC_CHANNELS.fuel), frameCount, dt);
-  const tc = resample(pick(log, MOTEC_CHANNELS.tc), frameCount, dt), abs = resample(pick(log, MOTEC_CHANNELS.abs), frameCount, dt);
   const brakeTemperature = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.brakeTemp(c)), frameCount, dt));
   const tyrePressure = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.tyrePress(c)), frameCount, dt));
   const tyreTemperature = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.tyreTemp(c)), frameCount, dt));
-  const suspensionTravel = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.suspTravel(c)), frameCount, dt));
+  const suspensionTravel = MOTEC_CORNERS.map((c) => {
+    const values = resample(pick(log, MOTEC_CHANNELS.suspTravel(c)), frameCount, dt);
+    const unit = findChannel(log, `SUS_TRAVEL_${c}`)?.unit ?? "";
+    if (/^(mm|millimet(er|re)s?)$/i.test(unit.trim())) for (let i = 0; i < values.length; i++) values[i] /= 1000;
+    if (profile.gameId === "ac-evo") {
+      let mean = 0; for (const value of values) mean += value; mean /= Math.max(1, values.length);
+      for (let i = 0; i < values.length; i++) values[i] -= mean;
+    }
+    return values;
+  });
   const wheelSpeed = MOTEC_CORNERS.map((c) => resample(pick(log, MOTEC_CHANNELS.wheelSpeed(c)), frameCount, dt));
   const windows = lapWindows(beacons, log.duration), lapIndexOf = new Int32Array(frameCount);
   const sessionDistanceM = new Float64Array(frameCount), lapDistanceM = new Float64Array(frameCount);
   let lap = 0, session = 0, lapStartDist = 0;
+
   for (let i = 0; i < frameCount; i++) {
     while (lap < windows.length - 1 && i * dt >= windows[lap]![1]) { lap++; lapStartDist = session; }
     if (i > 0) session += speedKmh[i]! / 3.6 * dt;
@@ -170,4 +182,12 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   for (let i = 0; i < frameCount; i++) if ((i + 1 >= frameCount || lapIndexOf[i + 1] !== lapIndexOf[i]) && lapIndexOf[i]! < windows.length - 1) lapLengthM = Math.max(lapLengthM, lapDistanceM[i]!);
   if (lapLengthM === 0) lapLengthM = lapDistanceM[frameCount - 1] ?? 0;
   return { frameCount, dt, windows, lapIndexOf, sessionDistanceM, lapDistanceM, lapLengthM, path: deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? ""), speedKmh, throttle, brake, clutch, steerDegrees, rpm, gear, lateralG, longitudinalG, yawRate, fuel, tc, abs, brakeTemperature, tyrePressure, tyreTemperature, suspensionTravel, suspensionTravelUnits: findChannel(log, "SUS_TRAVEL_LF")?.unit ?? "", wheelSpeed, missingChannels };
+}
+
+/** Integrate ROTY into a heading trace before packet resampling. */
+export function reconstructYawHeading(channel: LdChannel, frames: number, dt: number, _windows: ReadonlyArray<readonly [number, number]>, _closedLapMask: Uint8Array): Float64Array {
+  const out = new Float64Array(frames);
+  const scale = /deg|°/i.test(channel.unit) ? Math.PI / 180 : 1;
+  for (let i = 1; i < frames; i++) out[i] = out[i - 1]! + (channel.samples[Math.min(channel.samples.length - 1, Math.round(i * dt * channel.effectiveFreq))] ?? 0) * scale * dt;
+  return out;
 }
