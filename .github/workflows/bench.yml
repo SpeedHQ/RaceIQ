@@ -16,7 +16,7 @@ concurrency:
 jobs:
   bench:
     runs-on:
-      - whitesmith-windows-x64
+      - mars-windows-x64
       - 4VCPU
       - 15G
     defaults:
