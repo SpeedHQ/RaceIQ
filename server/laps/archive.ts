@@ -208,6 +208,9 @@ export async function buildLapsZip(
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
   const sessions = selectedLapsBySession(allRows, wanted);
+  if (sessions.size === 0) {
+    throw new Error("No laps matched");
+  }
   if ([...sessions.values()].some((rows) => rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip")))) {
     throw new Error("MoTeC sessions use canonical packets and have no BIN capture");
   }
