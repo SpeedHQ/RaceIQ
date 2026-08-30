@@ -330,7 +330,7 @@ describe("convertAcEvoMotecToPackets", () => {
     expect(maxBrake).toBeGreaterThan(100); // 0.5 brake → ~127
   });
   test("preserves smooth ROTY rotation while projecting velocity onto track", () => {
-    const packets = capture.packets;
+    const packets = capture.packets.map((packet) => ({ ...packet }));
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
 
     const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -404,7 +404,7 @@ describe("convertAcEvoMotecToPackets", () => {
   });
 
   test("anchors open windows at beacon-side start/finish without snapping geometry", () => {
-    const packets = capture.packets;
+    const packets = capture.packets.map((packet) => ({ ...packet }));
     for (const packet of packets) normalizeTelemetryPacket(packet, true);
     const outline = flipPoints(getTrackOutlineByOrdinal(5, "ac-evo")!);
     const lapLength = 120 * MOTEC_SYNTH_HZ;
