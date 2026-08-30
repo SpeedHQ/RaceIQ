@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { analyseSemanticIds } from "../../../../shared/games/metric-contracts";
 import { getGame } from "../../../../shared/games/registry";
 import { TELEMETRY_CATALOG } from "../../../../shared/telemetry/catalog/data";
@@ -170,9 +170,8 @@ export function MotecImportNote({ result, onClose }: { result: MotecImportSucces
  * optional — not knowing it costs a label and nothing else.
  *
  * The `.ldx` sidecar carries lap beacons and is required beside a standalone
- * `.ld` upload. A `.zip` upload carries both files and can be submitted
- * directly without a staging round trip.
- * The game is selected explicitly when this modal is opened outside Analyse.
+ * `.ld` upload. A `.zip` upload is staged into a temporary directory first;
+ * the extracted `.ld` and `.ldx` names are shown before import.
  * When Analyse supplies a target, its route game remains authoritative.
  */
 export function MotecImportModal({
@@ -203,6 +202,9 @@ export function MotecImportModal({
   const target = fixedTarget ?? targets.find((item) => item.gameId === selectedGameId);
   const [ld, setLd] = useState<File | null>(initialLd ?? null);
   const [ldx, setLdx] = useState<File | null>(null);
+  const [archiveToken, setArchiveToken] = useState(stagedToken ?? "");
+  const [archiveNames, setArchiveNames] = useState({ ld: initialLdName ?? "", ldx: initialLdxName ?? "" });
+  const [archiveStatus, setArchiveStatus] = useState<"idle" | "extracting" | "ready" | "error">(stagedToken ? "ready" : "idle");
   const [carOrdinal, setCarOrdinal] = useState("");
   const [trackOrdinal, setTrackOrdinal] = useState("");
   const [tuneId, setTuneId] = useState("");
@@ -212,13 +214,86 @@ export function MotecImportModal({
   const ownership = controlledOwnership ?? localOwnership;
   const handleOwnershipChange = onOwnershipChange ?? setLocalOwnership;
   const [result, setResult] = useState<MotecImportSuccess | null>(null);
-
-
+  const stagedTokenRef = useRef(archiveToken);
+  const archiveRequestRef = useRef(0);
+  const initialArchiveStartedRef = useRef(false);
   const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
   const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
   const { data: tunes = [] } = useUserTunes(target?.gameId);
   const ldRef = useRef<HTMLInputElement>(null);
   const ldxRef = useRef<HTMLInputElement>(null);
+
+  async function cancelStagedToken(token: string) {
+    if (!token) return;
+    await fetch("/api/laps/cancel-motec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    }).catch(() => undefined);
+  }
+
+  async function stageArchive(file: File) {
+    const requestId = ++archiveRequestRef.current;
+    const previousToken = stagedTokenRef.current;
+    stagedTokenRef.current = "";
+    setArchiveToken("");
+    setArchiveNames({ ld: "", ldx: "" });
+    setArchiveStatus("extracting");
+    setError(null);
+    await cancelStagedToken(previousToken);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/laps/stage-motec", { method: "POST", body });
+      const data = await response.json().catch(() => null) as { token?: string; ldName?: string; ldxName?: string; error?: string } | null;
+      if (!response.ok || !data?.token || !data.ldName || !data.ldxName) {
+        throw new Error(data?.error ?? `Archive extraction failed (${response.status})`);
+      }
+      if (requestId !== archiveRequestRef.current) {
+        await cancelStagedToken(data.token);
+        return;
+      }
+      stagedTokenRef.current = data.token;
+      setArchiveToken(data.token);
+      setArchiveNames({ ld: data.ldName, ldx: data.ldxName });
+      setArchiveStatus("ready");
+    } catch (cause) {
+      if (requestId !== archiveRequestRef.current) return;
+      setArchiveStatus("error");
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  }
+  function chooseLd(file: File | null) {
+    setLd(file);
+    setLdx(null);
+    if (file?.name.toLowerCase().endsWith(".zip")) {
+      void stageArchive(file);
+    } else {
+      const token = stagedTokenRef.current;
+      stagedTokenRef.current = "";
+      setArchiveToken("");
+      setArchiveNames({ ld: "", ldx: "" });
+      setArchiveStatus("idle");
+      void cancelStagedToken(token);
+    }
+  }
+
+  useEffect(() => {
+    if (!initialLd || !initialLd.name.toLowerCase().endsWith(".zip") || initialArchiveStartedRef.current) return;
+    initialArchiveStartedRef.current = true;
+    void stageArchive(initialLd);
+    return () => {
+      const token = stagedTokenRef.current;
+      stagedTokenRef.current = "";
+      void cancelStagedToken(token);
+    };
+  }, [initialLd]);
+
+  useEffect(() => () => {
+    const token = stagedTokenRef.current;
+    void cancelStagedToken(token);
+  }, []);
+
 
   const chooseGame = (value: string) => {
     setSelectedGameId(value as GameId);
@@ -239,16 +314,16 @@ export function MotecImportModal({
   }, [tunes, carOrdinal]);
 
   const isArchive = ld?.name.toLowerCase().endsWith(".zip") ?? false;
-  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, stagedToken) && !!carOrdinal && !!trackOrdinal && !busy;
+  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carOrdinal && !!trackOrdinal && !busy;
 
   async function submit() {
-    if (!target || !hasCompleteMotecSource(ld, ldx, stagedToken) || !carOrdinal || !trackOrdinal) return;
+    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carOrdinal || !trackOrdinal) return;
     setBusy(true);
     setError(null);
     try {
       const body = new FormData();
-      if (stagedToken) {
-        body.append("motecToken", stagedToken);
+      if (archiveToken) {
+        body.append("motecToken", archiveToken);
       } else {
         body.append("file", ld!);
         if (ldx) body.append("ldx", ldx);
@@ -311,21 +386,26 @@ export function MotecImportModal({
 
             {/* Files */}
             <div className="space-y-2">
-              <input ref={ldRef} type="file" accept=".ld,.zip" className="hidden" onChange={(e) => setLd(e.target.files?.[0] ?? null)} />
+              <input ref={ldRef} type="file" accept=".ld,.zip" className="hidden" onChange={(e) => chooseLd(e.target.files?.[0] ?? null)} />
               <input ref={ldxRef} type="file" accept=".ldx" className="hidden" onChange={(e) => setLdx(e.target.files?.[0] ?? null)} />
               <div className="flex items-center gap-2">
-                <Button variant="app-outline" size="app-md" onClick={() => ldRef.current?.click()}>
+                <Button variant="app-outline" size="app-md" onClick={() => ldRef.current?.click()} disabled={busy || archiveStatus === "extracting"}>
                   Choose .ld or archive
                 </Button>
-                <span className="truncate text-app-text-dim">{ld?.name ?? initialLdName ?? "No log selected"}</span>
+                <span className="truncate text-app-text-dim">{isArchive ? archiveNames.ld || ld?.name : ld?.name ?? initialLdName ?? "No log selected"}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="app-outline" size="app-md" onClick={() => ldxRef.current?.click()}>
+                <Button variant="app-outline" size="app-md" onClick={() => ldxRef.current?.click()} disabled={busy || isArchive}>
                   Choose .ldx
                 </Button>
-                <span className="truncate text-app-text-dim">{ldx?.name ?? initialLdxName ?? (isArchive ? "Included in archive" : "Required — carries the lap beacons")}</span>
+                <span className="truncate text-app-text-dim">{isArchive ? archiveNames.ldx || "Waiting for archive extraction…" : ldx?.name ?? initialLdxName ?? "Required — carries the lap beacons"}</span>
               </div>
-              {ld && !ldx && !isArchive && !stagedToken && <p className="text-app-text-muted">Select the .ldx signal file before importing.</p>}
+              {(archiveStatus === "extracting" || archiveStatus === "error") && (
+                <p className={archiveStatus === "error" ? "text-status-danger" : "text-app-text-muted"}>
+                  {archiveStatus === "extracting" ? "Extracting archive to temporary storage…" : "Archive extraction failed."}
+                </p>
+              )}
+              {ld && !ldx && !isArchive && !archiveToken && <p className="text-app-text-muted">Select the .ldx signal file before importing.</p>}
             </div>
 
             {/* Car / track / setup */}

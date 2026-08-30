@@ -5,7 +5,7 @@ import { frictionCircleUtil, steerBalanceFromSignals, wheelDynamicsFrame } from 
 
 export interface SemanticMetricFrame {
   readonly values: Readonly<Record<string, unknown>>;
-  readonly states?: Readonly<Record<string, string>>;
+  readonly states?: Readonly<Record<string, string | undefined>>;
 }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);

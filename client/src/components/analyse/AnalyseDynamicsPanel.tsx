@@ -36,8 +36,6 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const speed = number(frame, "motion.speed") ?? 0;
   const speedFactor = Math.max(0.3, Math.min(1, (speed * 2.23694) / 80));
-  const accelerationX = number(frame, "motion.acceleration-x");
-  const accelerationZ = number(frame, "motion.acceleration-z");
   const bindingOf = (metric: ReturnType<typeof resolveAnalysisTelemetry>[keyof ReturnType<typeof resolveAnalysisTelemetry>]) =>
     metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
   const slipAngleMetric = analysis.slipAngle;
@@ -63,8 +61,6 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const surfaceValue = number(frame, "identity.player-track-surface");
   const puddle = values(frame, "tires.wheel-in-puddle-depth");
   const surfaceBinding = analysis.surface.source !== "unavailable" ? analysis.surface.binding : undefined;
-  const lateralG = analysis.gForce.source !== "unavailable" && accelerationX != null ? -accelerationX / 9.81 : null;
-  const longitudinalG = analysis.gForce.source !== "unavailable" && accelerationZ != null ? -accelerationZ / 9.81 : null;
   const unavailable = <span className="text-app-text-dim">—</span>;
   const angleColor = (value: number) => severityRangeColor(Math.abs(value * 180 / Math.PI), [4 / speedFactor, 8 / speedFactor, 14 / speedFactor]);
   const C = (value: string, color: string) => <span style={{ color }}>{value}</span>;

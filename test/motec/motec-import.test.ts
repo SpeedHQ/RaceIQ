@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
@@ -14,6 +15,7 @@ import {
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
 import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "../../server/motec/targets";
+import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { db } from "../../server/db";
 import { laps as lapsTable, sessions, tunes } from "../../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
@@ -21,6 +23,7 @@ import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo"
 import { flipPoints } from "../../shared/racing/tracks/coords";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
+const MOTEC_ARCHIVE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -569,6 +572,27 @@ describe("importMotec end to end", () => {
       expect(row?.tuneId).toBeNull();
     }
   }, 30_000);
+  test("stages and imports a MoTeC archive through shared transfer route", async () => {
+    const stageForm = new FormData();
+    stageForm.append("file", new File([readFileSync(MOTEC_ARCHIVE)], "Barcelona-992-MoTeC.zip"));
+    const stagedResponse = await transferRoutes.request("/api/laps/stage-motec", { method: "POST", body: stageForm });
+    expect(stagedResponse.status).toBe(200);
+    const staged = await stagedResponse.json() as { token: string; ldName: string; ldxName: string };
+    expect(staged.ldName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ld");
+    expect(staged.ldxName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ldx");
+
+    const form = new FormData();
+    form.append("motecToken", staged.token);
+    form.append("gameId", "acc");
+    form.append("carOrdinal", "33");
+    form.append("trackOrdinal", "8");
+    form.append("ownership", "mine");
+    const response = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, gameId: "acc", imported: 1, packetCount: 6164 });
+    const replay = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
+    expect(replay.status).toBe(410);
+  });
 
   test("live-recorded sessions keep a null source", async () => {
     // Guards the flag's meaning: it marks the exception, not every session.

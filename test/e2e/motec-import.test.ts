@@ -9,7 +9,6 @@ import { parseLdxBeacons } from "../../server/motec/ldx";
 import { db } from "../../server/db";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
-import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { importMotec } from "../../server/motec/import";
 import { resolveMotecTarget } from "../../server/motec/targets";
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
@@ -37,7 +36,7 @@ function loadAccFixture(): AccFixture {
 initGameAdapters();
 initServerGameAdapters();
 
-describe("ACC MoTeC real recording", () => {
+describe("MoTeC real recording", () => {
   const fixture = loadAccFixture();
   const log = parseLd(fixture.ld);
   const beacons = parseLdxBeacons(fixture.ldx.toString("utf8"));
@@ -63,7 +62,7 @@ describe("ACC MoTeC real recording", () => {
     expect(findChannel(log, "SUS_TRAVEL_LF")?.unit).toBe("mm");
   });
 
-  test("round-trips real samples through ACC adapter", () => {
+  test("round-trips real samples through the game adapter", () => {
     const carTrack = resolveMotecTarget("acc").resolveCarTrack(log, { carOrdinal: 33, trackOrdinal: 8 });
     const capture = resolveMotecTarget("acc").convert(log, beacons, carTrack);
     expect(capture.frameCount).toBe(6164);
@@ -148,7 +147,7 @@ describe("ACC MoTeC real recording", () => {
     expect(Math.max(...deviations)).toBeLessThan(30);
   });
 
-  test("imports one ACC lap under MoTeC source", async () => {
+  test("imports one lap under MoTeC source", async () => {
     const result = await importMotec(fixture.ld, fixture.ldx, {
       gameId: "acc",
       carOrdinal: 33,
@@ -172,23 +171,4 @@ describe("ACC MoTeC real recording", () => {
     })).rejects.toThrow("MoTeC .ldx signal file is required");
   });
 
-  test("stages and imports an ACC MoTeC archive through the transfer route", async () => {
-    const stageForm = new FormData();
-    stageForm.append("file", new File([readFileSync(FIXTURE)], "Barcelona-992-MoTeC.zip"));
-    const stagedResponse = await transferRoutes.request("/api/laps/stage-motec", { method: "POST", body: stageForm });
-    expect(stagedResponse.status).toBe(200);
-    const staged = await stagedResponse.json() as { token: string; ldName: string; ldxName: string };
-    expect(staged.ldName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ld");
-    expect(staged.ldxName).toBe("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ldx");
-
-    const form = new FormData();
-    form.append("motecToken", staged.token);
-    form.append("gameId", "acc");
-    form.append("carOrdinal", "33");
-    form.append("trackOrdinal", "8");
-    form.append("ownership", "mine");
-    const response = await transferRoutes.request("/api/laps/import-motec", { method: "POST", body: form });
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ ok: true, gameId: "acc", imported: 1, packetCount: 6164 });
-  });
 });
