@@ -128,8 +128,8 @@ function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array,
     start = i;
   }
 }
-export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
-  const outline = getTrackOutlineByOrdinal(trackOrdinal, "ac-evo");
+export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, gameId: "acc" | "ac-evo", trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
+  const outline = getTrackOutlineByOrdinal(trackOrdinal, gameId);
   if (!outline || outline.length < 2) return;
   let tangent: number | undefined;
   for (let i = 1; i < outline.length; i++) {
@@ -223,7 +223,7 @@ export function prepareKunosMotecCapture(log: LdLog, beacons: number[], profile:
   const reconstructedHeading = profile.gameId === "ac-evo" && yawCh
     ? reconstructYawHeading(yawCh, frameCount, dt, windows, closedLapMask) : undefined;
   const path = deadReckonPath(speedKmh, yawRate, lateralG, lapIndexOf, dt, yawCh?.unit ?? "", reconstructedHeading, closedLapMask);
-  if (profile.gameId === "ac-evo") alignPathToTrack(path, lapIndexOf, profile.trackOrdinal, windows.length > 1);
+  alignPathToTrack(path, lapIndexOf, profile.gameId, profile.trackOrdinal, windows.length > 1);
   return { frameCount, dt, windows, lapIndexOf, sessionDistanceM, lapDistanceM, lapLengthM, path, speedKmh, throttle, brake, clutch, steerDegrees, rpm, gear, lateralG, longitudinalG, yawRate, fuel, tc, abs, brakeTemperature, tyrePressure, tyreTemperature, suspensionTravel, suspensionTravelUnits: findChannel(log, "SUS_TRAVEL_LF")?.unit ?? "", wheelSpeed, missingChannels };
 }
 

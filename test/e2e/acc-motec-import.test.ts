@@ -12,6 +12,9 @@ import { eq } from "drizzle-orm";
 import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { importMotec } from "../../server/motec/import";
 import { resolveMotecTarget } from "../../server/motec/targets";
+import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
+import { MOTEC_STEER_LOCK_DEG, MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
+import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 
 const FIXTURE = "test/artifacts/motec/acc-barcelona-porsche-992.zip";
 
@@ -69,6 +72,30 @@ describe("ACC MoTeC real recording", () => {
     expect(capture.yawFromLateralG).toBe(false);
     const packets = capture.packets;
     expect(packets).toHaveLength(6164);
+    expect(packets[0]!.acc?.tireRadius).toEqual([0, 0, 0, 0]);
+    expect(packets[0]!.acc?.absVibrations).toBe(0);
+    const normalizedPackets = packets.map((packet) => ({ ...packet }));
+    for (const packet of normalizedPackets) normalizeTelemetryPacket(packet, true);
+    const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+    let yawSamples = 0;
+    let maxAbsYaw = 0;
+    for (let i = 0; i < normalizedPackets.length; i++) {
+      const packet = normalizedPackets[i]!;
+      maxAbsYaw = Math.max(maxAbsYaw, Math.abs(packet.Yaw));
+      if (i === 0) continue;
+      const previous = normalizedPackets[i - 1]!;
+      if (packet.LapNumber !== previous.LapNumber) continue;
+      const expectedYawDelta = -packet.AngularVelocityY / MOTEC_SYNTH_HZ;
+      const actualYawDelta = wrap(packet.Yaw - previous.Yaw);
+      expect(Math.abs(wrap(actualYawDelta - expectedYawDelta))).toBeLessThanOrEqual(0.01001);
+      const horizontalSpeed = Math.hypot(packet.VelocityX, packet.VelocityZ);
+      if (horizontalSpeed <= 1) continue;
+      const velocityDirection = Math.atan2(packet.VelocityX, packet.VelocityZ);
+      expect(Math.abs(wrap(packet.Yaw - velocityDirection))).toBeLessThan(0.1);
+      yawSamples++;
+    }
+    expect(yawSamples).toBeGreaterThan(0);
+    expect(maxAbsYaw).toBeGreaterThan(0.1);
     for (const packet of packets) {
       expect(packet.gameId).toBe("acc");
       expect(packet.CarOrdinal).toBe(33);
@@ -84,9 +111,41 @@ describe("ACC MoTeC real recording", () => {
       expect(packet.Brake).toBe(Math.round(brake * 2.55));
       expect(packet.CurrentEngineRpm).toBe(Math.round(findChannel(log, "RPMS")!.samples[Math.round(frameIndex / 60 * findChannel(log, "RPMS")!.effectiveFreq)]!));
       expect(packet.Gear).toBe(Math.round(findChannel(log, "GEAR")!.samples[Math.round(frameIndex / 60 * findChannel(log, "GEAR")!.effectiveFreq)]!));
+      const steer = findChannel(log, "STEERANGLE")!.samples[Math.round(frameIndex / 60 * findChannel(log, "STEERANGLE")!.effectiveFreq)]!;
+      const expectedSteer = Math.round(Math.max(-1, Math.min(1, -steer / MOTEC_STEER_LOCK_DEG)) * 127) || 0;
+      expect(packet.Steer).toBeCloseTo(expectedSteer, 10);
       const suspension = findChannel(log, "SUS_TRAVEL_LF")!.samples[Math.round(frameIndex / 60 * findChannel(log, "SUS_TRAVEL_LF")!.effectiveFreq)]!;
       expect(packet.SuspensionTravelMFL).toBeCloseTo(suspension / 1000, 5);
     }
+
+    const outline = getTrackOutlineByOrdinal(8, "acc");
+    expect(outline).not.toBeNull();
+    expect(packets[0]!.PositionX).toBeCloseTo(outline![0]!.x, 3);
+    expect(packets[0]!.PositionZ).toBeCloseTo(outline![0]!.z, 3);
+
+    let pathLengthM = 0;
+    for (let i = 1; i < packets.length; i++) {
+      pathLengthM += Math.hypot(
+        packets[i]!.PositionX - packets[i - 1]!.PositionX,
+        packets[i]!.PositionZ - packets[i - 1]!.PositionZ,
+      );
+    }
+    expect(pathLengthM).toBeGreaterThan(4_000);
+
+    const deviations: number[] = [];
+    for (let i = 0; i < packets.length; i += 10) {
+      let nearest = Infinity;
+      for (const point of outline!) {
+        nearest = Math.min(nearest, Math.hypot(
+          packets[i]!.PositionX - point.x,
+          packets[i]!.PositionZ - point.z,
+        ));
+      }
+      deviations.push(nearest);
+    }
+    const meanDeviationM = deviations.reduce((sum, deviation) => sum + deviation, 0) / deviations.length;
+    expect(meanDeviationM).toBeLessThan(10);
+    expect(Math.max(...deviations)).toBeLessThan(30);
   });
 
   test("imports one ACC lap under MoTeC source", async () => {

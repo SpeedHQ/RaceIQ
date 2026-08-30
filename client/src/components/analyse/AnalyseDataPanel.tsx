@@ -2,7 +2,7 @@ import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../../../shared/games/ids";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Info } from "lucide-react";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
@@ -10,6 +10,7 @@ import type { SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { AnalyseDynamicsPanel } from "./AnalyseDynamicsPanel";
 import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
@@ -38,18 +39,32 @@ const wheels = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => 
   const value = frame.values[id];
   return Array.isArray(value) ? value.slice(0, 4).map((entry) => typeof entry === "number" && Number.isFinite(entry) ? entry : null) : [null, null, null, null];
 };
-
-function UnavailableFeaturesPanel({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
-  const available = new Set(Object.entries(frame.states).filter(([, state]) => state === "ok").map(([id]) => id));
+function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
+  const [open, setOpen] = useState(false);
+  const available = new Set<string>();
+  for (const [id, state] of Object.entries(frame.states)) if (state === "ok") available.add(id);
   const features = unavailableAnalyseFeatures(getGame(gameId), available);
   if (features.length === 0) return null;
-  return <section className="mb-3 rounded border border-app-border bg-app-surface-alt p-2 text-xs">
-    <h4 className="mb-1 font-semibold text-app-text-muted">Unavailable in Analyse</h4>
-    <ul className="grid gap-x-4 gap-y-0.5 font-mono text-app-text-dim md:grid-cols-2">
-      {features.map(({ feature, label, missingSemanticIds }) => <li key={feature}>{label}{missingSemanticIds.length > 0 ? ` — missing ${missingSemanticIds.join(", ")}` : ""}</li>)}
-    </ul>
-  </section>;
+  return <>
+    <button type="button" aria-label="Unavailable features in Analyse" onClick={() => setOpen(true)} className="text-app-text-dim outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+      <Info className="size-3 cursor-pointer" aria-hidden="true" />
+    </button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent size="lg" layout="scrollable" overlayClassName="bg-app-bg/60">
+        <DialogHeader>
+          <DialogTitle className="text-app-heading font-semibold">Unavailable in Analyse</DialogTitle>
+        </DialogHeader>
+        <ul className="space-y-3 text-app-detail text-app-text-secondary">
+          {features.map(({ feature, label, missingSemanticIds }) => <li key={feature}>
+            <span className="font-medium">{label}</span>
+            {missingSemanticIds.length > 0 && <span className="mt-0.5 block break-words font-mono text-app-caption text-app-text-muted">Missing {missingSemanticIds.join(", ")}</span>}
+          </li>)}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  </>;
 }
+
 
 export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits> }): string {
   const game = getGame(gameId);
@@ -105,7 +120,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
   }, [currentFrame, gameId, units]);
   return <Tabs value={sidebarTab} onValueChange={(value) => { if (value === "live" || value === "insights") onSidebarTabChange(value); }} className="flex h-[34rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface/50 @5xl/workspace:h-full @5xl/workspace:w-[clamp(18rem,30cqw,22rem)] @5xl/workspace:border-t-0 @5xl/workspace:border-l">
     <TabsList variant="underline" className="w-full shrink-0"><TabsTrigger value="live" className="flex-1">{m.analyse_tab_data()}</TabsTrigger><TabsTrigger value="insights" className="flex-1">{m.analyse_tab_insights()}{lapInsights.length > 0 && <span className="ml-1 rounded-full bg-app-border-input px-1.5 text-app-micro text-app-text">{lapInsights.length}</span>}</TabsTrigger></TabsList>
-    <TabsContent value="live" className="flex min-h-0 flex-1 flex-col"><div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1"><h3 className="mb-0 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_metrics_at_cursor()}</h3>{currentFrame && <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">{copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}</Button>}</div><div className="min-h-0 flex-1 overflow-y-auto p-3">{currentFrame && <><MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} /><UnavailableFeaturesPanel frame={currentFrame} gameId={gameId} /></>}{currentFrame && <><div className="mt-3 mb-2 border-t border-app-border pt-2"><h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3></div><AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} /><AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} /><AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />{getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}</>}</div></TabsContent>
+    <TabsContent value="live" className="flex min-h-0 flex-1 flex-col"><div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1"><h3 className="mb-0 flex items-center gap-1 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_metrics_at_cursor()}{currentFrame && <UnavailableFeaturesTooltip frame={currentFrame} gameId={gameId} />}</h3>{currentFrame && <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">{copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}</Button>}</div><div className="min-h-0 flex-1 overflow-y-auto p-3">{currentFrame && <MetricsPanel frame={currentFrame} startFuel={startFuel} gameId={gameId} />}{currentFrame && <><div className="mt-3 mb-2 border-t border-app-border pt-2"><h3 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_section_dynamics()}</h3></div><AnalyseDynamicsPanel frame={currentFrame} gameId={gameId} units={units} /><AnalyseTireWheelsPanel frame={currentFrame} gameId={gameId} units={units} wearRate={wearRate} /><AnalyseSuspensionPanel frame={currentFrame} gameId={gameId} />{getGame(gameId).telemetry.ers && <AnalyseF1ErsPanel frame={currentFrame} />}</>}</div></TabsContent>
     <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3"><InsightPanel insights={lapInsights} onJumpToFrame={onJumpToFrame} /></TabsContent>
   </Tabs>;
 }
