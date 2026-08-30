@@ -7,7 +7,7 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionCapture, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { loadSessionSource, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
@@ -262,30 +262,37 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
   if (!session?.rawFile) return [];
-  const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
-  const buf = await loadSessionCapture({
+  const loaded = await loadSessionSource({
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
+  if (loaded.kind === "packets") {
+    const packets = loaded.packets;
+    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
+    return packets;
+  }
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
   let offset = 12;
   while (offset + 4 <= buf.length) {
     const frameLen = buf.readUInt32LE(offset); offset += 4;
     if (frameLen <= 0 || offset + frameLen > buf.length) break;
     const sourceFrame = buf.subarray(offset, offset + frameLen); offset += frameLen;
-    try {
-      const packet = serverGame.tryParse(sourceFrame, state);
-      if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame); packets.push(packet);
-    } catch {}
+    try { const packet = serverGame.tryParse(sourceFrame, state); if (packet) { normalizeReplayPacket(packet, serverGame); packets.push(packet); } } catch {}
   }
   return packets;
 }
-
 export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
-  const buf = await loadSessionCapture(source);
-  return parseRawLapFramesFromBuffer(buf, rawByteOffset, rawFrameCount, source.gameId, source.rawFile);
+  const loaded = await loadSessionSource(source);
+  if (loaded.kind === "packets") {
+    const packets = loaded.packets.slice(rawByteOffset, rawByteOffset + rawFrameCount + 1);
+    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(source.gameId));
+    if (packets.length > rawFrameCount) packets.pop();
+    return packets;
+  }
+  return parseRawLapFramesFromBuffer(loaded.buffer, rawByteOffset, rawFrameCount, source.gameId, source.rawFile);
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
