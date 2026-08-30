@@ -25,6 +25,7 @@
 
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { importSessionPackets, ImportSourceRecorder, type ImportedLap } from "../session-capture/import-pipeline";
+import { updateLapTune } from "../db/tune-queries";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
 import type { MotecCarTrack } from "./types";
@@ -151,7 +152,9 @@ export async function importMotec(
     throw error;
   }
   const { packetCount, laps } = imported;
-
+  if (options.tuneId !== undefined) {
+    for (const lap of laps) await updateLapTune(lap.lapId, options.tuneId);
+  }
 
   return {
     gameId: target.gameId,

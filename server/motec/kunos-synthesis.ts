@@ -233,14 +233,21 @@ export function reconstructYawHeading(channel: LdChannel, frames: number, dt: nu
     const i = Math.floor(p), f = p - i;
     return ((channel.samples[i] ?? 0) * (1 - f) + (channel.samples[Math.min(i + 1, channel.samples.length - 1)] ?? 0) * f) * scale;
   };
+  const biasByLap = windows.map(([start, end], lap) => {
+    if (!closedLapMask[lap] || end <= start) return 0;
+    let integral = 0;
+    const steps = Math.max(1, Math.round((end - start) / dt));
+    for (let j = 0; j < steps; j++) {
+      const a = start + j * dt, b = Math.min(end, a + dt);
+      integral += (sampleAt(a) + sampleAt(b)) * 0.5 * (b - a);
+    }
+    return (integral - Math.sign(integral || 1) * FULL_LAP_TURN_RAD) / (end - start);
+  });
   for (let i = 1; i < frames; i++) {
     const t = i * dt, prev = (i - 1) * dt;
-    out[i] = out[i - 1]! + (sampleAt(prev) + sampleAt(t)) * 0.5 * dt;
-    for (let lap = 0; lap < windows.length; lap++) if (closedLapMask[lap] && t >= windows[lap]![1]) {
-      const start = windows[lap]![0], end = windows[lap]![1];
-      const correction = (Math.sign(out[i]!) * FULL_LAP_TURN_RAD - (out[i]! - (i * dt - end) * sampleAt(t))) / Math.max(dt, end - start);
-      if (t <= end + dt) out[i] += correction * Math.max(0, t - start);
-    }
+    let bias = 0;
+    for (let lap = 0; lap < windows.length; lap++) if (t >= windows[lap]![0] && t <= windows[lap]![1]) bias = biasByLap[lap] ?? 0;
+    out[i] = out[i - 1]! + ((sampleAt(prev) - bias) + (sampleAt(t) - bias)) * 0.5 * dt;
   }
   return out;
 }
