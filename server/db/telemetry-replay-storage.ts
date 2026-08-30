@@ -249,6 +249,24 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   });
 }
 
+function replayCanonicalLap(
+  sourcePackets: TelemetryPacket[],
+  start: number,
+  frameCount: number,
+  game: ReplayGame,
+): TelemetryPacket[] {
+  const packets = sourcePackets
+    .slice(start, start + frameCount)
+    .map(freshReplayPacket);
+  for (const packet of packets) normalizeReplayPacket(packet, game);
+
+  const trailingSource = sourcePackets[start + frameCount];
+  const trailing = trailingSource ? freshReplayPacket(trailingSource) : null;
+  if (trailing) normalizeReplayPacket(trailing, game);
+  appendDelayedFinishPacket(packets, trailing, game);
+  return packets;
+}
+
 /** Return stored raw input path for race-result provenance hashing. */
 export async function getSessionRawFile(sessionId: number, gameId: GameId): Promise<string | null> {
   const session = await db
@@ -296,10 +314,12 @@ export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOff
   const loaded = await loadSessionSource(source);
   if (loaded.kind === "packets") {
     const start = packetIndexForOffset(source.gameId, rawByteOffset, loaded.offsetEncoding);
-    const packets = loaded.packets.slice(start, start + rawFrameCount + 1).map(freshReplayPacket);
-    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(source.gameId));
-    if (packets.length > rawFrameCount) packets.pop();
-    return packets;
+    return replayCanonicalLap(
+      loaded.packets,
+      start,
+      rawFrameCount,
+      getServerGame(source.gameId),
+    );
   }
   return parseRawLapFramesFromBuffer(loaded.buffer, rawByteOffset, rawFrameCount, source.gameId, source.rawFile);
 }
@@ -510,9 +530,12 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   if (loaded.kind === "packets") {
     for (const meta of lapMetas) {
       const start = packetIndexForOffset(source.gameId, meta.rawByteOffset, loaded.offsetEncoding);
-      const packets = loaded.packets.slice(start, start + meta.rawFrameCount + 1).map(freshReplayPacket);
-      for (const packet of packets) normalizeReplayPacket(packet, serverGame);
-      if (packets.length > meta.rawFrameCount) packets.pop();
+      const packets = replayCanonicalLap(
+        loaded.packets,
+        start,
+        meta.rawFrameCount,
+        serverGame,
+      );
       if (packets.length > 0) out.set(meta.id, packets);
     }
     return out;

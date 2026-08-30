@@ -42,7 +42,6 @@ import { resolveMotecTarget } from "./targets";
 import { persistMotecSourceArchive } from "./source-archive";
 import { resolveTelemetryReplay } from "../telemetry/replay";
 import { getServerGame } from "../games/registry";
-import { unlink } from "node:fs/promises";
 
 export { MOTEC_SESSION_SOURCE };
 
@@ -139,22 +138,24 @@ export async function importMotec(
     .sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
   const unavailableFeatures = unavailableAnalysisFeatures(adapter, availableSemanticIds);
   const sourcePath = await persistMotecSourceArchive(options.gameId, ldBytes, ldxBytes);
-  let imported: { packetCount: number; laps: ImportedLap[] };
-  try {
-    imported = await importSessionPackets(conversion.packets, target.gameId, {
-      ownership: options?.ownership,
+  const { packetCount, laps } = await importSessionPackets(
+    conversion.packets,
+    target.gameId,
+    {
+      ownership: options.ownership,
       recorder: new ImportSourceRecorder(sourcePath),
       sessionSource: MOTEC_SESSION_SOURCE,
+      rollbackFiles: [sourcePath],
       requireLaps: true,
-    });
-  } catch (error) {
-    await unlink(sourcePath).catch(() => {});
-    throw error;
-  }
-  const { packetCount, laps } = imported;
-  if (options.tuneId !== undefined) {
-    for (const lap of laps) await updateLapTune(lap.lapId, options.tuneId);
-  }
+      ...(options.tuneId === undefined ? {} : {
+        onImportedLaps: async (importedLaps: readonly ImportedLap[]) => {
+          for (const lap of importedLaps) {
+            await updateLapTune(lap.lapId, options.tuneId!);
+          }
+        },
+      }),
+    },
+  );
 
   return {
     gameId: target.gameId,

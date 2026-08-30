@@ -41,6 +41,7 @@ test/client/wireframe-utils.test.ts
 test/db/database-path.test.ts
 test/db/db-seed.test.ts
 test/db/lap-ownership.test.ts
+test/db/lap-read-batching.test.ts
 test/db/migrations/migration-regression.test.ts
 test/db/migrations/migrations.test.ts
 test/db/migrations/runner-idempotence.test.ts
@@ -111,7 +112,9 @@ test/live-strategy/f1-2025-session-sectors.test.ts
 test/live-strategy/pit-cycle.test.ts
 test/live-strategy/pit-tracker.test.ts
 test/live-strategy/sector-tracker.test.ts
+test/motec/import-staging.test.ts
 test/motec/motec-import.test.ts
+test/motec/motec-replay.test.ts
 test/e2e/acc-motec-import.test.ts
 test/motec/motec-viz.test.ts
 test/race-results/race-results-authority.test.ts

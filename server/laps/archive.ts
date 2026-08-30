@@ -15,7 +15,8 @@
  *   manifest.json                              — describes every entry
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
-import { zipSync, unzipSync } from "fflate";
+import { zipSync } from "fflate";
+import { LAPS_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { loadSessionCapture } from "../session-capture/source-loader";
@@ -132,7 +133,7 @@ export interface LapsZipDetection {
 
 /** Inspect archive contents without importing any captures. */
 export function detectLapsZip(zipData: Uint8Array): LapsZipDetection {
-  const files = unzipSync(zipData);
+  const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
   const names = fileNamesForZip(files);
   const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();
@@ -333,7 +334,7 @@ export interface ImportZipResult {
  * you the laps twice, same as the single-file `.bin` import.
  */
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
-  const files = unzipSync(zipData);
+  const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
 
   const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();

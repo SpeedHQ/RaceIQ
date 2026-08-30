@@ -154,7 +154,7 @@ describe("db:seed", () => {
     expect(initial.compare_analyses).toBe(1);
     expect(seededRelationships(dataDir)).toEqual({
       experimentGames: ["f1-2025"],
-      f1ExperimentLaps: 5,
+      f1ExperimentLaps: 4,
       nonForzaTunedLaps: 0,
       crossGameComparisons: 0,
     });

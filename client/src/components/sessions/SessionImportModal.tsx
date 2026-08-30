@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 type DetectedFormat = "zip" | "bin" | "ibt" | "motec" | "unknown";
-type DetectionResult = { format: DetectedFormat; supported: boolean; gameIds: string[]; captureCount: number; message: string | null; motecToken?: string; ldName?: string; ldxName?: string };
+type DetectionResult = { format: DetectedFormat; supported: boolean; gameIds: string[]; captureCount: number; message: string | null };
 
 type ImportResult = {
   imported: number;
@@ -38,15 +38,12 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
   const [file, setFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
   const [detecting, setDetecting] = useState(false);
-  const [extracting, setExtracting] = useState(false);
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   async function chooseFile(nextFile: File | null) {
-    const previousToken = detected?.motecToken;
-    if (previousToken) void fetch("/api/laps/cancel-motec", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: previousToken }) });
     setFile(nextFile);
     setDetected(null);
     setError(null);
@@ -65,25 +62,13 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
       if (!data || !("format" in data)) throw new Error("Detection response was invalid");
       const detection = data as DetectionResult;
       setDetected(detection);
-      if (detection.format === "motec" && nextFile.name.toLowerCase().endsWith(".zip")) {
-        setExtracting(true);
-        const stageBody = new FormData();
-        stageBody.append("file", nextFile);
-        const stageResponse = await fetch("/api/laps/stage-motec", { method: "POST", body: stageBody });
-        const staged = await stageResponse.json().catch(() => null) as { token?: string; ldName?: string; ldxName?: string; error?: string } | null;
-        if (!stageResponse.ok || !staged?.token) throw new Error(staged?.error ?? `MoTeC extraction failed (${stageResponse.status})`);
-        setDetected({ ...detection, motecToken: staged.token, ldName: staged.ldName, ldxName: staged.ldxName });
-      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setDetecting(false);
-      setExtracting(false);
     }
   }
   function closeImport() {
-    const token = detected?.motecToken;
-    if (token) void fetch("/api/laps/cancel-motec", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
     onClose();
   }
   async function importFile() {
@@ -114,14 +99,11 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
   }
 
   const canImport = !!file && !!detected?.supported && (detected.format === "zip" || detected.format === "bin") && !busy;
-  if (detected?.format === "motec" && file && (!file.name.toLowerCase().endsWith(".zip") || !!detected.motecToken)) {
+  if (detected?.format === "motec" && file) {
     return (
       <MotecImportModal
         initialGameId={gameId}
-        initialLd={file.name.toLowerCase().endsWith(".zip") ? null : file}
-        initialLdName={detected.ldName}
-        initialLdxName={detected.ldxName}
-        stagedToken={detected.motecToken}
+        initialLd={file}
         ownership={ownership}
         onOwnershipChange={setOwnership}
         onClose={closeImport}
@@ -158,9 +140,7 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
               </div>
               {file && (
                 <div className="rounded border border-app-border bg-app-surface-alt/40 p-3 text-app-text-dim">
-                  {extracting ? (
-                    <span className="flex items-center gap-2"><span className="inline-block size-2 animate-pulse rounded-full bg-app-accent" />MoTeC archive detected — extracting…</span>
-                  ) : detecting ? (
+                  {detecting ? (
                     <span>Reading file contents…</span>
                   ) : detected ? (
                     <>

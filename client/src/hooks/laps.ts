@@ -94,8 +94,9 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       if (!gameId) throw new Error("Missing game context");
       const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
       const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
-      if (!res.ok) {
-        const error = new Error(body?.error ?? res.statusText) as SemanticTelemetryError;
+      if (!res.ok || body?.parseError) {
+        const message = body?.parseError ?? body?.error ?? res.statusText;
+        const error = new Error(message) as SemanticTelemetryError;
         error.parseError = body?.parseError;
         throw error;
       }

@@ -439,6 +439,7 @@ export async function getLapsByIds(
       let group = bySession.get(row.rawFile);
       if (!group) {
         group = { source: row.source, gameId: row.gameId as GameId, carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal, metas: [] };
+        bySession.set(row.rawFile, group);
       }
       group.metas.push({ id: row.id, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount });
     }

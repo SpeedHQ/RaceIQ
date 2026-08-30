@@ -1,7 +1,10 @@
 import { getAccCarByModel, getAccCarName } from "../../../shared/racing/cars/acc";
 import { getAccTrackByName, getAccTrackBySetupFolder, getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { prepareKunosMotecCapture, MOTEC_IMPORT_LIMITATIONS, MOTEC_STEER_LOCK_DEG } from "../../motec/kunos-synthesis";
+import {
+  convertPreparedKunosMotecPackets,
+  type KunosMotecPacketProfile,
+} from "../../motec/kunos-packets";
+import { prepareKunosMotecCapture, MOTEC_IMPORT_LIMITATIONS } from "../../motec/kunos-synthesis";
 import type { LdLog } from "../../motec/ld";
 import type { MotecCarTrack, MotecCarTrackOverride, MotecConversionResult } from "../../motec/types";
 
@@ -11,15 +14,37 @@ export function resolveAccMotecCarTrack(log: LdLog, override?: MotecCarTrackOver
   return { carOrdinal: car?.id ?? -1, trackOrdinal: track?.id ?? -1, carModel: car?.name ?? log.vehicleId, trackName: track?.name ?? log.venue };
 }
 export { MOTEC_IMPORT_LIMITATIONS };
-const n = (v: number) => Number.isFinite(v) ? v : 0;
+const ACC_MOTEC_PACKET_PROFILE = {
+  gameId: "acc",
+  drivetrainType: 0,
+  currentRaceTime: "session",
+  tireCompound: "",
+  detailedTireTemperatures: false,
+  brakePadWear: 0,
+  currentSectorIndex: 0,
+  trackGripStatus: "",
+  includeUnknownCarModel: false,
+} satisfies KunosMotecPacketProfile;
 export function convertAccMotecToPackets(log: LdLog, beacons: number[], carTrack: MotecCarTrack): MotecConversionResult {
-  const p = prepareKunosMotecCapture(log, beacons, { gameId: "acc", trackOrdinal: carTrack.trackOrdinal });
-  const packets: TelemetryPacket[] = new Array(p.frameCount); let best = 0;
-  for (let i = 0; i < p.frameCount; i++) {
-    const lap = p.lapIndexOf[i]!, start = p.windows[lap]![0], last = lap > 0 ? Math.round((p.windows[lap - 1]![1] - p.windows[lap - 1]![0]) * 1000) : 0;
-    if (last > 0 && (!best || last < best)) best = last;
-    const t = i * p.dt, s = p.path;
-    packets[i] = { gameId: "acc", IsRaceOn: 1, TimestampMS: Date.now(), EngineMaxRpm: 0, EngineIdleRpm: 0, CurrentEngineRpm: n(p.rpm[i]!), AccelerationX: n(p.lateralG[i]!) * 9.80665, AccelerationY: 0, AccelerationZ: n(p.longitudinalG[i]!) * 9.80665, VelocityX: n(s.vx[i]!), VelocityY: 0, VelocityZ: n(s.vz[i]!), AngularVelocityX: 0, AngularVelocityY: n(p.yawRate[i]!), AngularVelocityZ: 0, Yaw: n(-s.heading[i]!), Pitch: 0, Roll: 0, NormSuspensionTravelFL: 0, NormSuspensionTravelFR: 0, NormSuspensionTravelRL: 0, NormSuspensionTravelRR: 0, TireSlipRatioFL: NaN, TireSlipRatioFR: NaN, TireSlipRatioRL: NaN, TireSlipRatioRR: NaN, WheelRotationSpeedFL: n(p.wheelSpeed[0]![i]!), WheelRotationSpeedFR: n(p.wheelSpeed[1]![i]!), WheelRotationSpeedRL: n(p.wheelSpeed[2]![i]!), WheelRotationSpeedRR: n(p.wheelSpeed[3]![i]!), WheelOnRumbleStripFL: 0, WheelOnRumbleStripFR: 0, WheelOnRumbleStripRL: 0, WheelOnRumbleStripRR: 0, WheelInPuddleDepthFL: 0, WheelInPuddleDepthFR: 0, WheelInPuddleDepthRL: 0, WheelInPuddleDepthRR: 0, SurfaceRumbleFL_2: 0, SurfaceRumbleFR_2: 0, SurfaceRumbleRL_2: 0, SurfaceRumbleRR_2: 0, TireSlipCombinedFL_2: 0, TireTempFL: n(p.tyreTemperature[0]![i]!), TireTempFR: n(p.tyreTemperature[1]![i]!), TireTempRL: n(p.tyreTemperature[2]![i]!), TireTempRR: n(p.tyreTemperature[3]![i]!), Boost: 0, Fuel: n(p.fuel[i]!), DistanceTraveled: n(p.sessionDistanceM[i]!), BestLap: best, LastLap: last, CurrentLap: (t - start), CurrentRaceTime: t, LapNumber: lap + 1, RacePosition: 1, Accel: Math.round(n(p.throttle[i]!) * 255), Brake: Math.round(n(p.brake[i]!) * 255), Clutch: Math.round(n(p.clutch[i]!) * 255), HandBrake: 0, Gear: Math.round(n(p.gear[i]!)), Steer: Math.round(Math.max(-1, Math.min(1, -n(p.steerDegrees[i]!) / MOTEC_STEER_LOCK_DEG)) * 127), NormDrivingLine: 0, NormAIBrakeDiff: 0, TireWearFL: -1, TireWearFR: -1, TireWearRL: -1, TireWearRR: -1, SurfaceRumbleFL: 0, SurfaceRumbleFR: 0, SurfaceRumbleRL: 0, SurfaceRumbleRR: 0, TireSlipAngleFL: NaN, TireSlipAngleFR: NaN, TireSlipAngleRL: NaN, TireSlipAngleRR: NaN, TireCombinedSlipFL: NaN, TireCombinedSlipFR: NaN, TireCombinedSlipRL: NaN, TireCombinedSlipRR: NaN, SuspensionTravelMFL: n(p.suspensionTravel[0]![i]!), SuspensionTravelMFR: n(p.suspensionTravel[1]![i]!), SuspensionTravelMRL: n(p.suspensionTravel[2]![i]!), SuspensionTravelMRR: n(p.suspensionTravel[3]![i]!), CarOrdinal: carTrack.carOrdinal, CarClass: 0, CarPerformanceIndex: 0, DrivetrainType: 0, NumCylinders: 0, PositionX: n(s.x[i]!), PositionY: 0, PositionZ: n(s.z[i]!), Speed: n(p.speedKmh[i]!) / 3.6, Power: 0, Torque: 0, TrackOrdinal: carTrack.trackOrdinal, acc: { tireCompound: "", tireCoreTemp: [0,0,0,0], tireInnerTemp: [0,0,0,0], tireOuterTemp: [0,0,0,0], tireCamber: [0,0,0,0], tireContactHeading: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]], brakePadCompound: 0, brakePadWear: [0,0,0,0], tc: n(p.tc[i]!), tcCut: 0, abs: n(p.abs[i]!), engineMap: 0, brakeBias: NaN, tcIntervention: 0, absIntervention: 0, tcRaw: 0, absRaw: 0, slipVibrations: 0, rainIntensity: 0, trackGripStatus: "", windSpeed: 0, windDirection: 0, flagStatus: "", drsAvailable: false, drsEnabled: false, pitStatus: "", isValidLap: true, fuelPerLap: 0, currentSectorIndex: 0, lastSectorTime: 0, carDamage: {front:0,rear:0,left:0,right:0,centre:0}, tireRadius: [0,0,0,0], absVibrations: 0 } };
-  }
-  return { packets, frameCount: p.frameCount, lapCount: p.windows.length, carTrack, missingChannels: p.missingChannels, sampleRates: log.channels.map(c => ({name:c.name,hz:c.effectiveFreq})), yawFromLateralG: p.path.yawFromLateralG };
+  const prepared = prepareKunosMotecCapture(log, beacons, {
+    gameId: "acc",
+    trackOrdinal: carTrack.trackOrdinal,
+  });
+  const packets = convertPreparedKunosMotecPackets(
+    prepared,
+    carTrack,
+    ACC_MOTEC_PACKET_PROFILE,
+  );
+  return {
+    packets,
+    frameCount: prepared.frameCount,
+    lapCount: prepared.windows.length,
+    carTrack,
+    missingChannels: prepared.missingChannels,
+    sampleRates: log.channels.map((channel) => ({
+      name: channel.name,
+      hz: channel.effectiveFreq,
+    })),
+    yawFromLateralG: prepared.path.yawFromLateralG,
+  };
 }

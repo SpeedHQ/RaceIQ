@@ -317,6 +317,37 @@ describe("convertAcEvoMotecToPackets", () => {
     expect(packets[0]!.gameId).toBe("ac-evo");
   });
 
+  test("emits a complete canonical TelemetryPacket", () => {
+    const packet = capture.packets[0]!;
+
+    expect(packet.IsRaceOn).toBe(1);
+    expect(typeof packet.NormSuspensionTravelFL).toBe("number");
+    expect(packet.RacePosition).toBe(1);
+    expect(packet.HandBrake).toBe(0);
+    expect(packet.NormDrivingLine).toBe(0);
+    expect(packet.TireWearFL).toBe(-1);
+    expect(packet.SurfaceRumbleFL).toBe(0);
+    expect(Number.isNaN(packet.TireSlipAngleFL)).toBe(true);
+    expect(Number.isNaN(packet.TireCombinedSlipFL)).toBe(true);
+    expect(packet.acc?.tireContactHeading).toEqual([
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ]);
+    expect(packet.acc).toMatchObject({
+      engineMap: 0,
+      tcRaw: 0,
+      absRaw: 0,
+      slipVibrations: 0,
+      absVibrations: 0,
+      flagStatus: "",
+      pitStatus: "",
+      fuelPerLap: 0,
+    });
+    expect(Number.isNaN(packet.acc?.brakeBias)).toBe(true);
+  });
+
   test("speed and pedal traces survive the round trip", () => {
     const packets = capture.packets;
     // Flat-out sections were written at 180 km/h = 50 m/s.
@@ -423,6 +454,22 @@ describe("convertAcEvoMotecToPackets", () => {
   test("a log with no beacons imports as one stint", () => {
     const single = target.convert(log, [], target.resolveCarTrack(log));
     expect(single.lapCount).toBe(1);
+  });
+});
+
+describe("convertAccMotecToPackets", () => {
+  const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+  const log = parseLd(buildLd(spec));
+  const target = resolveMotecTarget("acc");
+  const capture = target.convert(log, beacons, target.resolveCarTrack(log));
+
+  test("reports completed and best lap times in canonical seconds", () => {
+    const firstPacketOfLapTwo = capture.packets.find((packet) => packet.LapNumber === 2);
+
+    expect(firstPacketOfLapTwo).toBeDefined();
+    expect(firstPacketOfLapTwo!.LastLap).toBeCloseTo(120, 3);
+    expect(firstPacketOfLapTwo!.BestLap).toBeCloseTo(120, 3);
+    expect(firstPacketOfLapTwo!.CurrentLap).toBe(0);
   });
 });
 

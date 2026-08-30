@@ -457,6 +457,22 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("20mm");
     expect(markup).toContain(">—</span>");
   });
+  test("hides balance and slip ratio when canonical channels are invalid", () => {
+    const frame = {
+      ...semanticFrame({
+        "motion.speed": 30,
+        "motion.acceleration-x": -9.81,
+        "motion.angular-velocity-y": 0.6,
+        "tires.wheel-rotation-speed": [100, 100, 100, 100],
+        "tires.tire-slip-ratio": null,
+        "tires.tire-slip-angle": null,
+      }),
+      states: { "tires.tire-slip-ratio": "invalid", "tires.tire-slip-angle": "invalid" },
+    };
+    const markup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame, gameId: "acc", units: parityUnits }));
+    expect(markup).toMatch(/Balance[\s\S]*>—</);
+    expect(markup).toMatch(/Ratio[\s\S]*>—</);
+  });
 
   test("converts Forza tire values from their recorded Fahrenheit unit", () => {
     const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;

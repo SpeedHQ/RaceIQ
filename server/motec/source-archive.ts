@@ -1,9 +1,11 @@
 import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { unzipSync, zipSync } from "fflate";
+import { zipSync } from "fflate";
+import { MOTEC_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { GameId } from "../../shared/games/ids";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { timestampForFilename } from "../session-capture/filename";
 
 const LD_ENTRY = "session.ld";
 const LDX_ENTRY = "session.ldx";
@@ -45,7 +47,7 @@ export function decodeMotecSourceArchive(bytes: Uint8Array): {
   ldxBytes?: Buffer;
   offsetEncoding: MotecOffsetEncoding;
 } {
-  const entries = unzipSync(bytes);
+  const entries = unzipBounded(bytes, MOTEC_ZIP_LIMITS);
   const ldBytes = entries[LD_ENTRY];
   if (ldBytes === undefined) {
     throw new Error("Invalid MoTeC source archive: missing session.ld");
@@ -83,7 +85,7 @@ export async function persistMotecSourceArchive(
 
   const archivePath = join(
     directory,
-    `${new Date().toISOString()}-${randomUUID()}${MOTEC_SOURCE_SUFFIX}`,
+    `${timestampForFilename()}-${randomUUID()}${MOTEC_SOURCE_SUFFIX}`,
   );
   const temporaryPath = `${archivePath}.tmp-${randomUUID()}`;
   try {
