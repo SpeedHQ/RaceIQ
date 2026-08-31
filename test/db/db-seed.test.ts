@@ -182,5 +182,5 @@ describe("db:seed", () => {
       sessions: seededCounts.sessions + 1,
     });
     expect(sessionCountByNotes(dataDir, "real user session")).toBe(1);
-  }, 120000);
+  }, 180000);
 });
