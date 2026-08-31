@@ -11,6 +11,7 @@ import {
   lapWindows,
   deadReckonPath,
   reconstructYawHeading,
+  alignPathToTrack,
 } from "../../server/motec/kunos-synthesis";
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
@@ -242,6 +243,64 @@ describe("deadReckonPath", () => {
     expect(path.yawFromLateralG).toBe(true);
     // A sustained 1 g at 20 m/s must curve the path, not run it straight.
     expect(Math.abs(path.x[frames - 1]!)).toBeGreaterThan(1);
+  });
+});
+describe("alignPathToTrack", () => {
+  test("fits each lap window with its own similarity transform", () => {
+    const outline = getTrackOutlineByOrdinal(5, "ac-evo")!;
+    const sourceOutline = outline.slice(0, -1);
+    const transforms = [
+      { scale: 1.35, rotation: 0.22, tx: 400, tz: -250 },
+      { scale: 0.72, rotation: -0.31, tx: -600, tz: 900 },
+    ];
+    const points: Array<{ x: number; z: number }> = [];
+    const headings: number[] = [];
+    const velocities: Array<{ x: number; z: number }> = [];
+    const lapIndexOf = new Int32Array(sourceOutline.length * transforms.length);
+
+    for (let lap = 0; lap < transforms.length; lap++) {
+      const transform = transforms[lap]!;
+      const cos = Math.cos(transform.rotation), sin = Math.sin(transform.rotation);
+      const sourceLap = sourceOutline.map((point) => ({
+        x: transform.scale * (cos * point.x - sin * point.z) + transform.tx,
+        z: transform.scale * (sin * point.x + cos * point.z) + transform.tz,
+      }));
+      for (let i = 0; i < sourceLap.length; i++) {
+        const point = sourceLap[i]!, next = sourceLap[(i + 1) % sourceLap.length]!;
+        const dx = next.x - point.x, dz = next.z - point.z;
+        points.push(point);
+        headings.push(Math.atan2(dx, dz));
+        velocities.push({ x: dx, z: dz });
+        lapIndexOf[lap * sourceLap.length + i] = lap;
+      }
+    }
+
+    const path = {
+      x: Float64Array.from(points, (point) => point.x),
+      z: Float64Array.from(points, (point) => point.z),
+      vx: Float64Array.from(velocities, (velocity) => velocity.x),
+      vz: Float64Array.from(velocities, (velocity) => velocity.z),
+      heading: Float64Array.from(headings),
+      yawFromLateralG: false,
+    };
+    alignPathToTrack(path, lapIndexOf, "ac-evo", 5, true);
+
+    for (let lap = 0; lap < transforms.length; lap++) {
+      const start = lap * sourceOutline.length;
+      let maximumDistance = 0;
+      for (let i = 0; i < sourceOutline.length; i++) {
+        const point = { x: path.x[start + i]!, z: path.z[start + i]! };
+        maximumDistance = Math.max(maximumDistance, Math.min(...outline.map((candidate) => Math.hypot(point.x - candidate.x, point.z - candidate.z))));
+        const next = { x: path.x[start + (i + 1) % sourceOutline.length]!, z: path.z[start + (i + 1) % sourceOutline.length]! };
+        const expectedHeading = Math.atan2(next.x - point.x, next.z - point.z);
+        const headingError = Math.atan2(Math.sin(path.heading[start + i]! - expectedHeading), Math.cos(path.heading[start + i]! - expectedHeading));
+        const velocityHeading = Math.atan2(path.vx[start + i]!, path.vz[start + i]!);
+        const velocityError = Math.atan2(Math.sin(velocityHeading - expectedHeading), Math.cos(velocityHeading - expectedHeading));
+        expect(Math.abs(headingError)).toBeLessThan(0.01);
+        expect(Math.abs(velocityError)).toBeLessThan(0.01);
+      }
+      expect(maximumDistance).toBeLessThan(2);
+    }
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   calibrateFromPositions,
   computeStaticAlignment,
+  fitLapToTrack,
   feedCalibrationPosition,
   getCalibrationComparison,
   getCalibrationStatus,
@@ -129,6 +130,26 @@ describe("calibration progress sampling", () => {
     expect(transform.rotation).toBeCloseTo(0, 2);
     expect(transform.tx).toBeCloseTo(0, 0);
     expect(transform.tz).toBeCloseTo(0, 0);
+  });
+  test("fits a lap that starts at a cyclic track offset", () => {
+    const outline = stadium(400);
+    const offset = 73;
+    const scale = 1.25;
+    const rotation = 0.35;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const positions = Array.from({ length: 180 }, (_, i) => {
+      const point = outline[(offset + i * 2) % (outline.length - 1)]!;
+      return {
+        x: scale * (cos * point.x - sin * point.z) + 400,
+        z: scale * (sin * point.x + cos * point.z) - 200,
+      };
+    });
+
+    const result = fitLapToTrack(positions, outline);
+
+    expect(result).not.toBeNull();
+    expect(result!.rmse).toBeLessThan(5);
   });
 
   test("freezes accepted transform for remaining session laps", () => {

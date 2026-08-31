@@ -615,6 +615,54 @@ export function calibrateFromPositions(
   calibrations.set(trackOrdinal, state);
   return true;
 }
+export interface LapFitResult {
+  transform: Transform;
+  rmse: number;
+  points: number;
+}
+
+/**
+ * Fit an ordered lap to a closed track outline.
+ *
+ * Unlike live calibration, the lap may begin anywhere on the circuit. The
+ * source is sampled by its own driven arc length and the target is searched
+ * across cyclic outline offsets before robust Procrustes fitting.
+ */
+export function fitLapToTrack(
+  positions: Point[],
+  outline: Point[],
+): LapFitResult | null {
+  if (!hasUsableOutline(outline)) return null;
+  const source = collectSpatiallyDistinct(positions.filter(point =>
+    Number.isFinite(point.x) && Number.isFinite(point.z) &&
+    !(point.x === 0 && point.z === 0)
+  ), MIN_POINT_SEPARATION_SQ);
+  if (source.length < MIN_CALIBRATION_POINTS) return null;
+
+  const sampleCount = Math.min(300, source.length, outline.length);
+  const sourceArc = normalizedArcLengths(source);
+  const targetArc = normalizedArcLengths(outline);
+  const sourceSamples = sampleByArc(source, sourceArc, sampleCount);
+  let best: LapFitResult | null = null;
+  const offsetSteps = STATIC_ALIGNMENT_OFFSET_STEPS * 4;
+  for (let offsetIndex = 0; offsetIndex < offsetSteps; offsetIndex++) {
+    const offset = offsetIndex / offsetSteps;
+    const targetSamples = sampleByArc(outline, targetArc, sampleCount, offset);
+    const pairs = sourceSamples.map((point, index) => ({
+      source: point,
+      target: targetSamples[index]!,
+      targetProgress: index / sampleCount + offset,
+    }));
+    const fitted = fitPairs(pairs);
+    const squaredError = fitted.active.reduce((sum, pair) =>
+      sum + squaredDistance(applyTransform(pair.source, fitted.transform), pair.target), 0);
+    const rmse = Math.sqrt(squaredError / fitted.active.length);
+    if (!best || rmse < best.rmse) {
+      best = { transform: fitted.transform, rmse, points: fitted.active.length };
+    }
+  }
+  return best;
+}
 
 
 /**

@@ -1,4 +1,5 @@
 import { findChannel, type LdChannel, type LdLog } from "./ld";
+import { fitLapToTrack } from "../tracks/calibration";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 
 export const MOTEC_SYNTH_HZ = 60;
@@ -128,32 +129,58 @@ function closeLapLoops(x: Float64Array, z: Float64Array, lapIndexOf: Int32Array,
     start = i;
   }
 }
-export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, gameId: "acc" | "ac-evo", trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
-  const outline = getTrackOutlineByOrdinal(trackOrdinal, gameId);
-  if (!outline || outline.length < 2) return;
+function applyPathTransform(path: DeadReckonedPath, start: number, endExclusive: number, transform: { scale: number; rotation: number; tx: number; tz: number }): void {
+  const { scale, rotation, tx, tz } = transform;
+  const cos = Math.cos(rotation), sin = Math.sin(rotation);
+  for (let i = start; i < endExclusive; i++) {
+    const x = path.x[i]!, z = path.z[i]!;
+    const vx = path.vx[i]!, vz = path.vz[i]!;
+    path.x[i] = scale * (cos * x - sin * z) + tx;
+    path.z[i] = scale * (sin * x + cos * z) + tz;
+    path.vx[i] = scale * (cos * vx - sin * vz);
+    path.vz[i] = scale * (sin * vx + cos * vz);
+    path.heading[i] = Math.atan2(Math.sin(path.heading[i]! - rotation), Math.cos(path.heading[i]! - rotation));
+  }
+}
+
+function alignPathWindowToTrack(path: DeadReckonedPath, start: number, endExclusive: number, outline: ReadonlyArray<{ x: number; z: number }>, anchorAtEnd: boolean): void {
+  const anchor = anchorAtEnd ? endExclusive - 1 : start;
   let tangent: number | undefined;
   for (let i = 1; i < outline.length; i++) {
-    const dx = outline[i]!.x - outline[i - 1]!.x, dz = outline[i]!.z - outline[i - 1]!.z;
-    if (Math.hypot(dx, dz) > 1e-6) { tangent = Math.atan2(dx, dz); break; }
+    const outlineDx = outline[i]!.x - outline[i - 1]!.x, outlineDz = outline[i]!.z - outline[i - 1]!.z;
+    if (Math.hypot(outlineDx, outlineDz) > 1e-6) { tangent = Math.atan2(outlineDx, outlineDz); break; }
   }
   if (tangent === undefined) return;
+  const rotation = tangent - path.heading[anchor]!, cos = Math.cos(rotation), sin = Math.sin(rotation);
+  const ax = path.x[anchor]!, az = path.z[anchor]!;
+  for (let i = start; i < endExclusive; i++) {
+    const vx = path.vx[i]!;
+    const vz = path.vz[i]!;
+    const dx = path.x[i]! - ax, dz = path.z[i]! - az;
+    path.x[i] = outline[0]!.x + dx * cos + dz * sin;
+    path.z[i] = outline[0]!.z - dx * sin + dz * cos;
+    path.vx[i] = vx * cos + vz * sin;
+    path.vz[i] = -vx * sin + vz * cos;
+    path.heading[i] = Math.atan2(Math.sin(path.heading[i]! + rotation), Math.cos(path.heading[i]! + rotation));
+  }
+}
+
+export function alignPathToTrack(path: DeadReckonedPath, lapIndexOf: Int32Array, gameId: "acc" | "ac-evo", trackOrdinal: number, anchorLeadingAtEnd: boolean): void {
+  const outline = getTrackOutlineByOrdinal(trackOrdinal, gameId);
+  if (!outline || outline.length < 2 || path.x.length === 0) return;
   let start = 0;
   for (let i = 1; i <= path.x.length; i++) {
     if (i < path.x.length && lapIndexOf[i] === lapIndexOf[start]) continue;
-    const end = i - 1, anchor = start === 0 && anchorLeadingAtEnd ? end : start;
-    const rotation = tangent - path.heading[anchor]!, cos = Math.cos(rotation), sin = Math.sin(rotation);
-    const ax = path.x[anchor]!, az = path.z[anchor]!;
-    for (let j = start; j <= end; j++) {
-      const vx = path.vx[j]!;
-      const vz = path.vz[j]!;
-      const dx = path.x[j]! - ax, dz = path.z[j]! - az;
-      path.x[j] = outline[0]!.x + dx * cos + dz * sin;
-      path.z[j] = outline[0]!.z - dx * sin + dz * cos;
-      path.vx[j] = vx * cos + vz * sin;
-      path.vz[j] = -vx * sin + vz * cos;
-      path.heading[j] = Math.atan2(Math.sin(path.heading[j]! + rotation), Math.cos(path.heading[j]! + rotation));
+    const endExclusive = i;
+    const fit = fitLapToTrack(
+      Array.from({ length: endExclusive - start }, (_, index) => ({ x: path.x[start + index]!, z: path.z[start + index]! })),
+      outline,
+    );
+    if (fit && fit.rmse < 150 && fit.transform.scale > 0 && fit.transform.scale <= 10) {
+      applyPathTransform(path, start, endExclusive, fit.transform);
+    } else {
+      alignPathWindowToTrack(path, start, endExclusive, outline, start === 0 && anchorLeadingAtEnd);
     }
-
     start = i;
   }
 }
