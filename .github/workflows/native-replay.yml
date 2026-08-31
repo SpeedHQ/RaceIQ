@@ -24,7 +24,10 @@ concurrency:
 
 jobs:
   replay:
-    runs-on: blacksmith-4vcpu-windows-2025
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     steps:
       - uses: actions/checkout@v7
 

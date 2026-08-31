@@ -27,7 +27,9 @@ Existing Mars-backed jobs and reusable Playwright inputs remain unchanged. No ap
 2. Inspect each affected job for `container`, shell, package-manager, path, and command assumptions that conflict with Windows.
 3. Make the smallest workflow-only adjustments needed to keep each job executable on Mars Windows.
 4. Leave already-Mars jobs untouched.
-5. Confirm no active workflow retains a Blacksmith runner reference.
+5. Add an explicit `skip_tests` boolean input to the release workflow's manual dispatch trigger, defaulting to `false`.
+6. When `skip_tests` is enabled, skip release Playwright jobs while allowing `draft-release` to run after a successful build. Keep the default path test-enabled and expose the skip in the workflow summary.
+7. Confirm no active workflow retains a Blacksmith runner reference.
 
 ## Error handling and compatibility
 

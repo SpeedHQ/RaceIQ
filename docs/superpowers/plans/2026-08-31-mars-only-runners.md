@@ -51,7 +51,7 @@ Change `compute-version`, `draft-release`, and `finalize` to `mars-windows-x64`.
 Under `on.workflow_dispatch.inputs`, add:
 
 ```yaml
-skip-tests:
+skip_tests:
   description: "Skip release Playwright tests after local verification"
   required: false
   type: boolean
@@ -60,9 +60,9 @@ skip-tests:
 
 - [ ] **Step 4: Make release test dependency conditional**
 
-Set `playwright-test.if` to `${{ github.event_name == 'workflow_dispatch' && !inputs.skip-tests }}`. Change `draft-release.needs` to `[compute-version, build, playwright-test]` and its job condition to `${{ github.event_name == 'workflow_dispatch' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}` so a successful build can draft a release when tests are explicitly skipped, while failed tests still block it.
+Set `playwright-test.if` to `${{ github.event_name == 'workflow_dispatch' && !inputs.skip_tests }}`. Change `draft-release.needs` to `[compute-version, build, playwright-test]` and its job condition to `${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}` so a successful build can draft a release when tests are explicitly skipped, while failed tests still block it.
 
-Add a summary step to `build` or `draft-release` that writes whether Playwright ran or was skipped based on `${{ inputs.skip-tests }}`.
+Add a summary step to `build` or `draft-release` that writes whether Playwright ran or was skipped based on `${{ inputs.skip_tests }}`.
 
 - [ ] **Step 5: Validate affected YAML expressions**
 
