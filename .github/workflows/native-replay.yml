@@ -53,7 +53,7 @@ jobs:
 
       - name: Record capture blocker in run summary
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           @"
           ## Native capture status

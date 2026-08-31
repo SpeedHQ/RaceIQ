@@ -66,7 +66,7 @@ jobs:
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        shell: pwsh
+        shell: powershell
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -111,7 +111,7 @@ jobs:
       - name: Collect diffs
         id: collect
         working-directory: client
-        shell: pwsh
+        shell: powershell
         run: |
           $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
           New-Item -ItemType Directory -Force -Path $out | Out-Null

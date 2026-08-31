@@ -73,7 +73,7 @@ jobs:
         if: inputs.delivery == 'commit'
         env:
           TARGET_REF: ${{ inputs.target_ref }}
-        shell: pwsh
+        shell: powershell
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

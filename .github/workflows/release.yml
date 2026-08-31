@@ -66,11 +66,11 @@ jobs:
         run: bun install
 
       - name: Generate release note artifact
-        shell: pwsh
+        shell: powershell
         run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Build client
-        shell: pwsh
+        shell: powershell
         run: |
           Push-Location client
           bun install
@@ -78,18 +78,18 @@ jobs:
           Pop-Location
 
       - name: Prepare dist
-        shell: pwsh
+        shell: powershell
         run: New-Item -ItemType Directory -Force dist | Out-Null
 
       - name: Copy client assets
-        shell: pwsh
+        shell: powershell
         run: Copy-Item -Recurse -Force client/dist dist/public
 
       - name: Copy shared data
         run: bun scripts/build/copy-shared-data.ts
 
       - name: Compile server binary
-        shell: pwsh
+        shell: powershell
         run: |
           $env:NODE_ENV = "production"
           bun build --compile --target=bun-windows-x64 `
@@ -104,14 +104,14 @@ jobs:
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)
-        shell: pwsh
+        shell: powershell
         run: |
           $rcedit = "$env:TEMP\rcedit.exe"
           Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rcedit
           & $rcedit dist\raceiq.exe --set-version-string "ProductName" "RaceIQ" --set-version-string "InternalName" "RaceIQ"
 
       - name: Copy libsql native addon
-        shell: pwsh
+        shell: powershell
         run: |
           New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
           Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
@@ -124,7 +124,7 @@ jobs:
           retention-days: 1
 
       - name: Install Inno Setup
-        shell: pwsh
+        shell: powershell
         run: |
           $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\innosetup.exe"
@@ -148,7 +148,7 @@ jobs:
           path: releasenote.md
 
       - name: Summarize release test mode
-        shell: pwsh
+        shell: powershell
         run: |
           if ("${{ inputs.skip_tests }}" -eq "true") {
             "## Release test mode`n`nPlaywright tests skipped by manual dispatch input after local verification." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
