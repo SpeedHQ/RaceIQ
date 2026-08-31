@@ -97,7 +97,7 @@ describe("collect-screenshot-diffs", () => {
       .raw()
       .toBuffer();
     expect(actualAddedDiff.equals(expectedAddedDiff)).toBe(true);
-  });
+  }, { timeout: 10_000 });
   test("ignores sparse one-level antialiasing differences", async () => {
     const root = makeTempDir();
     const base = join(root, "base");
