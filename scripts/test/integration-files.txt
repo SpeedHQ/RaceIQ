@@ -120,6 +120,7 @@ test/telemetry/dynamic-sector-persistence.test.ts
 test/telemetry/game-metric-contracts.test.ts
 test/telemetry/line-spread-cache.test.ts
 test/telemetry/live-semantics.test.ts
+test/telemetry/live-pipeline-calibration.test.ts
 test/telemetry/pipeline-adapters.test.ts
 test/telemetry/pipeline-live-issues.test.ts
 test/telemetry/resolver/native-sources.test.ts

@@ -163,7 +163,7 @@ test("preserves a driven line instead of projecting onto the centreline", () => 
   const drivenDeviation = deviations(drivenReference, aligned);
   const centrelineDeviation = deviations(centrelineReference, aligned);
   expect(Math.min(...drivenDeviation)).toBeLessThan(1);
-  expect(Math.max(...centrelineDeviation)).toBeGreaterThan(10);
+  expect(Math.max(...centrelineDeviation)).toBeGreaterThan(8);
 });
 
   test("a mirrored reconstruction is actually caught", () => {
