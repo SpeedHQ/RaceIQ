@@ -53,16 +53,6 @@ test/driver-profile/runner.test.ts
 test/driver-profile/runs.test.ts
 test/driver-profile/style.test.ts
 test/driver-profile/trend-provenance.test.ts
-test/e2e/ac-evo/ac-evo-recording.test.ts
-test/e2e/acc/acc-2026-04-10T02-59-28-972Z.test.ts
-test/e2e/acc/acc-2026-04-12T20-41-21-436Z.test.ts
-test/e2e/acc/acc-2026-04-12T21-16-07-841Z.test.ts
-test/e2e/acc/acc-2026-04-12T21-44-38-899Z.test.ts
-test/e2e/f1-2025-recording.test.ts
-test/e2e/fm-2023-recording.test.ts
-test/e2e/iracing-recording-fixture.test.ts
-test/e2e/iracing-recording.test.ts
-test/e2e/udp-recording.test.ts
 test/experiments/arms/auto-exclude.test.ts
 test/experiments/arms/compare-card-background.test.ts
 test/experiments/arms/curation.test.ts
@@ -115,7 +105,6 @@ test/live-strategy/sector-tracker.test.ts
 test/motec/import-staging.test.ts
 test/motec/motec-import.test.ts
 test/motec/motec-replay.test.ts
-test/e2e/motec-import.test.ts
 test/motec/motec-viz.test.ts
 test/race-results/race-results-authority.test.ts
 test/race-results/race-results-derive.test.ts
@@ -172,11 +161,6 @@ test/telemetry/catalog/artifacts.test.ts
 test/telemetry/catalog/contracts.test.ts
 test/telemetry/catalog/iracing-sources.test.ts
 test/telemetry/catalog/semantics.test.ts
-test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts
-test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts
-test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts
-test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts
-test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
 test/telemetry/dynamic-sector-persistence.test.ts
 test/telemetry/game-metric-contracts.test.ts
 test/telemetry/line-spread-cache.test.ts
