@@ -22,7 +22,6 @@ export interface CarModelEnrichment {
   glbOffsetX?: number;
   glbOffsetY?: number;
   glbOffsetZ?: number;
-  glbRotationY?: number;
   solidHiddenMeshes?: number[];
 }
 
@@ -49,7 +48,6 @@ export const F1_CAR: CarModelEnrichment & { hasModel: true } = {
   rearTireWidth: 0.405, // 405mm rear tire width
   glbOffsetY: -0.12, // lower model to sit on ground plane
   glbOffsetZ: 0.28, // nudge model forward to align tires with wireframe wheels
-  glbRotationY: Math.PI / 2, // rotate 90° to align with wireframe axes
   hasModel: true,
 };
 

@@ -210,16 +210,9 @@ export abstract class KunosLapDetector implements ILapDetector {
     this._lapFrameCount = 0;
 
     const quality = assessLapRecording(packets, lapTime);
-    let isValid = forcedInvalidReason ? false : quality.valid;
-    let invalidReason = forcedInvalidReason ?? quality.reason;
-
-    if (isValid) {
-      const pitReason = classifyPitCycleLap(packets);
-      if (pitReason) {
-        isValid = false;
-        invalidReason = pitReason;
-      }
-    }
+    const pitReason = classifyPitCycleLap(packets);
+    let isValid = !forcedInvalidReason && !pitReason && quality.valid;
+    let invalidReason = forcedInvalidReason ?? pitReason ?? quality.reason;
 
     if (isValid) {
       const cutReason = this.classifyTrackLimits(packets);

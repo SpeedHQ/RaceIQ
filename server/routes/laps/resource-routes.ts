@@ -7,12 +7,13 @@ import { z } from "zod";
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
-import { requiredSemanticIds } from "../../../shared/games/metric-contracts";
+import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
 import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { loadSessionSource } from "../../session-capture/source-loader";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
@@ -25,37 +26,7 @@ import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(): readonly string[] {
-  return [...new Set([
-    ...getAllGames().flatMap((adapter) => requiredSemanticIds(adapter)),
-    "engine.current-engine-rpm",
-    "inputs.gear",
-    "inputs.accel",
-    "inputs.brake",
-    "inputs.steer",
-    "motion.speed",
-    "motion.acceleration-x",
-    "motion.angular-velocity-y",
-    "motion.pitch",
-    "motion.roll",
-    "motion.position-x",
-    "motion.position-z",
-    "motion.yaw",
-    "timing.current-lap",
-    "timing.current-race-time",
-    "timing.distance-traveled",
-    "timing.lap-fraction",
-    "aero.drs-active",
-    "weather.air-temp",
-    "fuel.ers-store-energy",
-    "fuel.ers-deploy-mode",
-    "brakes.brake-bias",
-    "fuel.ers-deployed",
-    "fuel.ers-harvested",
-    "fuel.fuel-capacity",
-    "identity.car-ordinal",
-    "identity.player-track-surface",
-    "tires.tire-radius",
-  ])];
+  return [...new Set(getAllGames().flatMap((adapter) => analyseSemanticIds(adapter)))];
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
@@ -242,12 +213,20 @@ export const resourceRoutes = new Hono()
     if (!row) return c.json({ error: "Lap not found" }, 404);
     if (!row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
 
-    const file = Bun.file(row.rawFile);
-    if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
-    let bytes = new Uint8Array(await file.arrayBuffer());
-    if (!row.rawFile.endsWith(".gz")) {
-      bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
+    let bytes: Uint8Array;
+    try {
+      const loaded = await loadSessionSource({
+        rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
+        carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
+      });
+      if (loaded.kind === "packets") {
+        return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
+      }
+      bytes = loaded.buffer;
+    } catch {
+      return c.json({ error: "Raw capture file is missing on disk" }, 410);
     }
+    bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
 
     const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
     const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
@@ -260,7 +239,7 @@ export const resourceRoutes = new Hono()
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
     c.header("Content-Length", String(bytes.byteLength));
-    return c.body(bytes);
+    return c.body(bytes.slice().buffer as ArrayBuffer);
   })
 
   .patch("/api/laps/:id/notes", zValidator("param", IdParamSchema), zValidator("json", z.object({ notes: z.string().nullable() })), async (c) => {
