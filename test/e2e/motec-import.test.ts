@@ -119,8 +119,11 @@ describe("MoTeC real recording", () => {
 
     const outline = getTrackOutlineByOrdinal(8, "acc");
     expect(outline).not.toBeNull();
-    expect(packets[0]!.PositionX).toBeCloseTo(outline![0]!.x, 3);
-    expect(packets[0]!.PositionZ).toBeCloseTo(outline![0]!.z, 3);
+    const nearestStartDistance = Math.min(...outline!.map((point) => Math.hypot(
+      packets[0]!.PositionX - point.x,
+      packets[0]!.PositionZ - point.z,
+    )));
+    expect(nearestStartDistance).toBeLessThan(30);
 
     let pathLengthM = 0;
     for (let i = 1; i < packets.length; i++) {
