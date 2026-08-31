@@ -41,20 +41,22 @@ jobs:
 
       - name: Compute new version
         id: bump
-        shell: bash
+        shell: pwsh
         run: |
-          CURRENT=$(node -p "require('./package.json').version")
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-
-          case "${{ inputs.bump }}" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          NEW="${MAJOR}.${MINOR}.${PATCH}"
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "::notice::Version bump: $CURRENT → $NEW (${{ inputs.bump }})"
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $current = $pkg.version
+          $parts = $current.Split('.')
+          $major = [int]$parts[0]
+          $minor = [int]$parts[1]
+          $patch = [int]$parts[2]
+          switch ("${{ inputs.bump }}") {
+            "major" { $major++; $minor = 0; $patch = 0 }
+            "minor" { $minor++; $patch = 0 }
+            "patch" { $patch++ }
+          }
+          $new = "$major.$minor.$patch"
+          "version=$new" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "::notice::Version bump: $current -> $new (${{ inputs.bump }})"
 
   build:
     if: github.event_name == 'workflow_dispatch'
@@ -69,50 +71,52 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: Set version in package.json
-        shell: bash
+        shell: pwsh
         run: |
-          VERSION=${{ needs.compute-version.outputs.version }}
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${VERSION}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
+          $version = "${{ needs.compute-version.outputs.version }}"
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = $version
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json
 
       - name: Install dependencies
         run: bun install
 
       - name: Generate release note artifact
-        shell: bash
+        shell: pwsh
         run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Build client
-        run: cd client && bun install && bun run build
+        shell: pwsh
+        run: |
+          Push-Location client
+          bun install
+          bun run build
+          Pop-Location
 
       - name: Prepare dist
-        shell: bash
-        run: mkdir -p dist
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force dist | Out-Null
 
       - name: Copy client assets
-        shell: bash
-        run: cp -r client/dist dist/public
+        shell: pwsh
+        run: Copy-Item -Recurse -Force client/dist dist/public
 
       - name: Copy shared data
         run: bun scripts/build/copy-shared-data.ts
 
       - name: Compile server binary
-        shell: bash
+        shell: pwsh
         run: |
-          VERSION=${{ needs.compute-version.outputs.version }}
-          NODE_ENV=production bun build --compile --target=bun-windows-x64 \
-            --windows-icon=assets/raceiq.ico \
-            --windows-title=RaceIQ \
-            --windows-publisher=SpeedHQ \
-            --windows-description="RaceIQ" \
-            --windows-version=${VERSION} \
-            --define 'process.env.NODE_ENV="production"' \
-            --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' \
-            --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' \
+          $env:NODE_ENV = "production"
+          bun build --compile --target=bun-windows-x64 `
+            --windows-icon=assets/raceiq.ico `
+            --windows-title=RaceIQ `
+            --windows-publisher=SpeedHQ `
+            --windows-description="RaceIQ" `
+            --windows-version="${{ needs.compute-version.outputs.version }}" `
+            --define 'process.env.NODE_ENV="production"' `
+            --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' `
+            --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' `
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)
@@ -123,11 +127,10 @@ jobs:
           & $rcedit dist\raceiq.exe --set-version-string "ProductName" "RaceIQ" --set-version-string "InternalName" "RaceIQ"
 
       - name: Copy libsql native addon
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p dist/node_modules/@libsql/win32-x64-msvc
-          cp node_modules/@libsql/win32-x64-msvc/index.node dist/node_modules/@libsql/win32-x64-msvc/
-          cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+          New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
+          Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
 
       - name: Upload dist artifact (for E2E test)
         uses: actions/upload-artifact@v7
@@ -274,25 +277,20 @@ jobs:
 
 
       - name: Roll over changelog
-        shell: bash
+        shell: pwsh
         run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          PUBLISHED_AT="${{ github.event.release.published_at }}"
-          bun scripts/release/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
-
+          $tag = "${{ github.event.release.tag_name }}"
+          $version = $tag.Substring(1)
+          bun scripts/release/rollover-changelog.ts $version "${{ github.event.release.published_at }}"
 
       - name: Update version in package.json
-        shell: bash
+        shell: pwsh
         run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${VERSION}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
+          $tag = "${{ github.event.release.tag_name }}"
+          $version = $tag.Substring(1)
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = $version
+          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json
 
       - name: Commit version bump
         run: |
