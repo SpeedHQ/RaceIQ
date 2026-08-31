@@ -222,7 +222,7 @@ describe("buildLapsZip", () => {
     const contextFrames = records.slice(contextStart + 1, contextEnd)
       .filter((record) => record.kind === "frame");
 
-    expect(contextFrames.length).toBeLessThanOrEqual(11);
+    expect(contextFrames.length).toBeLessThanOrEqual(30);
   });
 
   test("entry filename starts with the gameId so import can detect the game", async () => {

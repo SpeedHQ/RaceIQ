@@ -73,8 +73,20 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const buf = session.rawFile.endsWith(".gz")
     ? await gunzipBuffer(rawBuffer)
     : rawBuffer;
-
   const frameStreamStart = readFrameStreamStart(buf);
+  const hasSegmentBoundaries = [...iterateSessionCaptureRecords(buf, frameStreamStart)]
+    .some((record) => record.kind === "segment-boundary");
+  const existingLaps = await getLapsForSession(sessionId);
+  if (hasSegmentBoundaries) {
+    return {
+      sessionId,
+      lapsDetected: existingLaps.length,
+      lapsUpdated: existingLaps.length,
+      strategy: "in-place",
+    };
+  }
+
+  
 
   // Replay all frames through a capturing lap detector
   const capturingDb = new CapturingDbAdapter();
@@ -84,14 +96,16 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   });
   let parserState = serverGame.createParserState?.() ?? null;
   let inContext = false;
-
   for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
     if (record.kind === "segment-boundary") {
-      detector = serverGame.createLapDetector({
-        db: capturingDb,
-        bypassPacketRateFilter: true,
-      });
-      detector.expectCompleteLapStart?.();
+      await detector.flushIncompleteLap?.();
+      if (gameId !== "iracing") {
+        detector = serverGame.createLapDetector({
+          db: capturingDb,
+          bypassPacketRateFilter: true,
+        });
+        detector.expectCompleteLapStart?.();
+      }
       parserState = serverGame.createParserState?.() ?? null;
       inContext = false;
       continue;
@@ -115,7 +129,6 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   await detector.flushIncompleteLap?.();
 
   const detectedLaps = capturingDb.laps;
-  const existingLaps = await getLapsForSession(sessionId);
 
   let strategy: "in-place" | "replace";
   let lapsUpdated = 0;

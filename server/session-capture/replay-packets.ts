@@ -122,6 +122,21 @@ function readAcEvoPackets(recordingPath: string): RecordedTelemetry {
 }
 
 function readIRacingPackets(recordingPath: string): RecordedTelemetry {
+  const bytes = decompressIfGzipSync(readFileSync(recordingPath));
+  const records = [...iterateSessionCaptureRecords(bytes)];
+  if (records.some((record) =>
+    record.kind === "segment-boundary" ||
+    record.kind === "segment-context" ||
+    record.kind === "segment-context-end"
+  )) {
+    const framed = readFramedPackets("iracing", recordingPath);
+    const first = framed[0]?.iracing;
+    return {
+      packets: framed,
+      carModel: first?.carName ?? null,
+      trackName: first?.trackName ?? null,
+    };
+  }
   const game = getServerGame("iracing");
   const parserState = game.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];

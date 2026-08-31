@@ -391,7 +391,7 @@ export class LiveTelemetryPipeline {
     if (sourceFrame && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (this._pendingSessionContextFrames.length > 0) {
         for (const contextFrame of this._pendingSessionContextFrames) {
-          this.recorder.writeRecord(contextFrame);
+          this.recorder.writeRawCaptureBytes(contextFrame);
         }
         this._pendingSessionContextFrames = [];
       }
@@ -472,7 +472,7 @@ export class LiveTelemetryPipeline {
       encodeSegmentContextEndFrame(),
     ]);
     if (this.recorder.active) {
-      this.recorder.writeRecord(contextRecord);
+      this.recorder.writeRawCaptureBytes(contextRecord);
       return;
     }
     this._pendingSessionContextFrames.push(contextRecord);

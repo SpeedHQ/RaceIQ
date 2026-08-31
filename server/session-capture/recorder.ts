@@ -80,6 +80,15 @@ export class SessionRecorder {
     this._byteOffset += 4 + buf.length;
   }
 
+  /** Append bytes that already contain capture framing and update file offset. */
+  writeRawCaptureBytes(buf: Buffer): void {
+    if (!this._active) return;
+    if (!this._file) this._openAndWriteMeta();
+    if (!this._file) return;
+    this._file.write(buf);
+    this._byteOffset += buf.length;
+  }
+
   /** Append a tagged segment boundary without affecting telemetry count. */
   writeSegmentBoundary(): void {
     if (!this._active || !this._file) return;

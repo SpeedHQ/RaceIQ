@@ -46,7 +46,6 @@ import {
   type IRacingSourceFrame,
 } from "../games/iracing/source-frame";
 import { parseF1Header } from "../games/f1-2025/f1-wire";
-import type { GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
 export const LAPS_ZIP_VERSION = 3;
@@ -203,19 +202,13 @@ function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
     );
   if (!selected) return [];
   const sessionUID = parseF1Header(selected.frame).sessionUID;
-  const latestByPacket = new Map<number, (typeof records)[number]>();
-  for (const record of records) {
-    const header = parseF1Header(record.frame);
-    if (header.sessionUID === sessionUID) latestByPacket.set(header.packetId, record);
-  }
   return records
-    .filter((record) => latestByPacket.get(parseF1Header(record.frame).packetId) === record)
+    .filter((record) => parseF1Header(record.frame).sessionUID === sessionUID)
     .map((record) => Buffer.concat([
       encodeFrameLength(record.frame.length),
       record.frame,
     ]));
 }
-
 function iracingSegmentEnd(
   buf: Buffer,
   start: number,
@@ -225,7 +218,6 @@ function iracingSegmentEnd(
   const state = createIRacingSourceDecoderState();
   const prefixFrame = sessionPrefix ? sessionFrameAt(sessionPrefix, 0) : null;
   if (prefixFrame) decodeIRacingSourceFrame(prefixFrame, state);
-
   let end = start;
   let seen = 0;
   let staleLastLap: number | undefined;
@@ -236,17 +228,19 @@ function iracingSegmentEnd(
     end = record.offset + 4 + record.frame.length;
     const lastLap = decoded?.values.LapLastLapTime;
     if (seen <= frameCount && typeof lastLap === "number") staleLastLap = lastLap;
-    if (
-      seen > frameCount &&
-      typeof lastLap === "number" &&
-      lastLap > 0 &&
-      staleLastLap !== undefined &&
-      Math.abs(lastLap - staleLastLap) > 0.000_1
-    ) {
-      return end;
-    }
+    if (seen > frameCount && typeof lastLap === "number" && lastLap > 0 && staleLastLap !== undefined && Math.abs(lastLap - staleLastLap) > 0.000_1) return end;
   }
   return end;
+}
+function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
+  return [...iterateSessionCaptureRecords(buf)]
+    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+      record.kind === "frame" && record.offset < beforeOffset,
+    )
+    .map((record) => Buffer.concat([
+      encodeFrameLength(record.frame.length),
+      record.frame,
+    ]));
 }
 
 function slugify(s: string): string {
@@ -278,15 +272,17 @@ export async function buildLapsZip(
     const segments: Buffer[] = [];
     for (const row of usable) {
       const start = row.rawByteOffset as number;
-      if (start >= buf.length) continue;
       const frameCount = row.rawFrameCount as number;
+      if (start >= buf.length) continue;
       const prefix =
         first.gameId === "iracing"
           ? buildIRacingContextRecord(buf, start)
           : null;
       const context = first.gameId === "f1-2025"
         ? buildF1ContextRecords(buf, start)
-        : [];
+        : first.gameId === "ac-evo"
+          ? buildParserContextRecords(buf, start)
+          : [];
       const end = first.gameId === "iracing"
         ? iracingSegmentEnd(buf, start, frameCount, prefix)
         : advanceSessionFrames(buf, start, frameCount + 1);
