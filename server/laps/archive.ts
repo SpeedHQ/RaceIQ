@@ -46,6 +46,7 @@ import {
   type IRacingSourceFrame,
 } from "../games/iracing/source-frame";
 import { parseF1Header } from "../games/f1-2025/f1-wire";
+import type { GameId } from "@shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
 export const LAPS_ZIP_VERSION = 3;
@@ -192,22 +193,23 @@ function buildIRacingContextRecord(
   return Buffer.concat([encodeFrameLength(context.length), context]);
 }
 function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
-  const records = [...iterateSessionCaptureRecords(buf)]
-    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
-      record.kind === "frame" && record.offset < beforeOffset,
-    );
   const selected = [...iterateSessionCaptureRecords(buf, beforeOffset)]
     .find((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
       record.kind === "frame",
     );
   if (!selected) return [];
   const sessionUID = parseF1Header(selected.frame).sessionUID;
-  return records
-    .filter((record) => parseF1Header(record.frame).sessionUID === sessionUID)
-    .map((record) => Buffer.concat([
+  const records: Buffer[] = [];
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind !== "frame") continue;
+    if (parseF1Header(record.frame).sessionUID !== sessionUID) continue;
+    records.push(Buffer.concat([
       encodeFrameLength(record.frame.length),
       record.frame,
     ]));
+  }
+  return records;
 }
 function iracingSegmentEnd(
   buf: Buffer,

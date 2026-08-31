@@ -117,6 +117,7 @@ export interface SessionRecorderAdapter {
   readonly active: boolean;
   readonly path: string | null;
   readonly epoch: number;
+  start(gameId: GameId): void;
   writeMetaFrame(): void;
   writeRecord(buf: Buffer): void;
   writeRawCaptureBytes(buf: Buffer): void;

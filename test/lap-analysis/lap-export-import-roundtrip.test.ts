@@ -266,6 +266,22 @@ describe("lap export → import round-trip (real capture)", () => {
       expect((await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"]))?.envelopes.length).toBeGreaterThan(0);
     }
 
+    const batchMetas = importedRows.map((lap) => ({
+      id: lap.id,
+      rawByteOffset: lap.rawByteOffset!,
+      rawFrameCount: lap.rawFrameCount!,
+    }));
+    const batch = await parseSessionLapsBatched(importedRawFile, batchMetas, "iracing");
+    for (const meta of batchMetas) {
+      const individual = await parseRawLapFrames(
+        importedRawFile,
+        meta.rawByteOffset,
+        meta.rawFrameCount,
+        "iracing",
+      );
+      expect(batch.get(meta.id)).toEqual(individual);
+    }
+
     await reprocessSession(importedSid);
     const reprocessed = await db.select().from(laps).where(eq(laps.sessionId, importedSid)).all();
     expect(reprocessed.map((lap) => lap.lapNumber).sort((a, b) => a - b)).toEqual(selectedNumbers);
