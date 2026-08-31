@@ -4,9 +4,9 @@
  * Usage:
  *   bun scripts/iracing/generate-seed-fixture.ts <recording.ibt>
  *
- * The selected window starts at lap 412 so replay persists lap 413 before the
- * lap 414 pit entry, lap 415 service/exit, and clean laps 416-417. Every native
- * 60 Hz SDK tick is retained; only this five-lap pit-stop window is committed.
+ * The selected window starts at lap 413, retains the lap 414 pit entry and lap
+ * 415 service/exit, and ends after lap 417's native timer rollover. Ten samples
+ * per second preserve telemetry shape while keeping the committed fixture small.
  * Source frames use schema v2 intentionally: IBT SessionInfo contains driver
  * identities, which do not belong in a committed test artifact.
  */
@@ -29,9 +29,10 @@ import {
   type IRacingSessionSnapshot,
 } from "../../server/games/iracing/source-frame";
 
-const FIRST_LAP = 412;
+const FIRST_LAP = 413;
 const PIT_LAP = 415;
 const LAST_LAP = 417;
+const TARGET_TICK_RATE = 10;
 const TIMING_ROLLOVER_SECONDS = 5;
 const ANONYMOUS_SESSION_ID = 123;
 const ANONYMOUS_SUBSESSION_ID = 456;
@@ -63,6 +64,7 @@ async function generateFixture(sourcePath: string): Promise<void> {
   let selectedStartRecord: number | null = null;
   let selectedEndRecord: number | null = null;
   let firstRolloverTime: number | null = null;
+  let previousLap: number | null = null;
   let previousPit: boolean | null = null;
   let pitFrames = 0;
   let sawPitExit = false;
@@ -71,6 +73,14 @@ async function generateFixture(sourcePath: string): Promise<void> {
     const rawPath = recorder.start(tempDir);
     try {
       reader.start();
+      const tickRate = reader.metadata?.tickRate;
+      if (!tickRate || !Number.isFinite(tickRate)) {
+        throw new Error("IBT source has no valid tick rate");
+      }
+      const frameStride = Math.max(
+        1,
+        Math.round(tickRate / TARGET_TICK_RATE),
+      );
 
       for (;;) {
         const snapshot = reader.readLatest();
@@ -84,6 +94,7 @@ async function generateFixture(sourcePath: string): Promise<void> {
 
         if (selectedStartRecord === null) {
           if (lap !== FIRST_LAP) {
+            previousLap = lap;
             previousPit = onPitRoad;
             continue;
           }
@@ -114,14 +125,22 @@ async function generateFixture(sourcePath: string): Promise<void> {
 
         if (lap === PIT_LAP && onPitRoad) pitFrames++;
         if (previousPit === true && !onPitRoad) sawPitExit = true;
-        recorder.writeFrame(
-          encoder.encode({
-            schemaVersion: 2,
-            session,
-            values: snapshot.values,
-          }),
-        );
-        selectedEndRecord = record;
+        const keepFrame =
+          recorder.frameCount === 0 ||
+          (record - selectedStartRecord) % frameStride === 0 ||
+          lap !== previousLap ||
+          onPitRoad !== previousPit;
+        if (keepFrame) {
+          recorder.writeFrame(
+            encoder.encode({
+              schemaVersion: 2,
+              session,
+              values: snapshot.values,
+            }),
+          );
+          selectedEndRecord = record;
+        }
+        previousLap = lap;
         previousPit = onPitRoad;
       }
 

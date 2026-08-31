@@ -235,6 +235,53 @@ function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: b
   return { ...harness, ...result };
 }
 
+test("keeps telemetry traces open while closing reference outlines", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const resolvedPositions = [{ x: 1, z: 1 }, { x: 2, z: 2 }, { x: 3, z: 3 }, { x: 4, z: 4 }];
+    const trace = createDrawingHarness();
+    drawStaticTrack({
+      canvas: trace.canvas,
+      bufferCanvas: trace.canvas,
+      telemetry: [],
+      gameId: "acc",
+      resolvedPositions,
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const traceStroke = trace.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
+    expect(traceStroke.commands.filter((command) => command.kind === "moveTo")).toHaveLength(1);
+    expect(traceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(resolvedPositions.length - 1);
+
+    const reference = createDrawingHarness();
+    drawStaticTrack({
+      canvas: reference.canvas,
+      bufferCanvas: reference.canvas,
+      telemetry: [],
+      gameId: "acc",
+      resolvedPositions: [],
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const referenceStroke = reference.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
+    expect(referenceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(outlineFixture.length);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+
 test("draws input, segment, and racing-line overlays together", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });

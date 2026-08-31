@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { IRACING_MAX_SOURCE_FRAME_SIZE } from "./source-frame";
+import { timestampForFilename } from "../../session-capture/filename";
 export const IRACING_DUMP_MAGIC = Buffer.from("IRIQDMP\0", "ascii");
 export const IRACING_DUMP_VERSION = 2;
 
@@ -57,7 +58,7 @@ export class IRacingRecorder {
       mkdirSync(outDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const timestamp = timestampForFilename();
     const filename = `iracing-${timestamp}.bin`;
     this._path = resolve(outDir, filename);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -18,6 +18,7 @@ export const acEvoAdapter: GameAdapter = {
         confidence: "high",
         binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] },
       },
+      brakeBias: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "brakes.brake-bias" } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: {
         source: "derived",
