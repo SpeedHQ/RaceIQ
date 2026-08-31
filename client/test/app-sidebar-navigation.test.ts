@@ -18,6 +18,10 @@ describe("sidebar game navigation", () => {
     expect(replaceGameRoutePrefix("/acc/experiments/afafwfaw", "acc", "fm23")).toBe("/fm23/experiments");
   });
 
+  test("redirects analyse to sessions when switching games", () => {
+    expect(replaceGameRoutePrefix("/acc/analyse", "acc", "fm23")).toBe("/fm23/sessions");
+  });
+
   test("uses caller-provided route prefix instead of game ID", () => {
     expect(replaceGameRoutePrefix("/acc/sessions", "acc", "f125")).toBe("/f125/sessions");
   });

@@ -6,5 +6,5 @@ export function replaceGameRoutePrefix(pathname: string, currentRoutePrefix: str
   if (pathname === currentPathPrefix) return `/${nextRoutePrefix}`;
   if (!pathname.startsWith(`${currentPathPrefix}/`)) return pathname;
   const pageRoot = pathname.slice(currentPathPrefix.length).split("/")[1];
-  return pageRoot ? `/${nextRoutePrefix}/${pageRoot}` : `/${nextRoutePrefix}`;
+  return pageRoot === "analyse" ? `/${nextRoutePrefix}/sessions` : pageRoot ? `/${nextRoutePrefix}/${pageRoot}` : `/${nextRoutePrefix}`;
 }
