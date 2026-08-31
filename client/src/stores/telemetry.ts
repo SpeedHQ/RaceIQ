@@ -23,6 +23,10 @@ export interface DisplaySettings {
   renderFpsCap: number;
   /** Max in-memory parsed-lap cache, in megabytes. */
   cacheMaxMB: number;
+  radioSpotterEnabled: boolean;
+  radioRaceEngineerEnabled: boolean;
+  radioTextCalloutsEnabled: boolean;
+  radioVolume: number;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -60,6 +64,10 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wsRefreshRate: "60",
   renderFpsCap: 60,
   cacheMaxMB: 256,
+  radioSpotterEnabled: false,
+  radioRaceEngineerEnabled: false,
+  radioTextCalloutsEnabled: true,
+  radioVolume: 0.8,
   language: "en",
 };
 

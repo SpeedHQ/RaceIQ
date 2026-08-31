@@ -131,6 +131,17 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, feature: "setups" },
   { segment: "raw", label: m.tab_raw, icon: Binary, feature: "raw" },
 ];
+const DEV_LINKS: ReadonlyArray<{ icon: LucideIcon; label: string; segment: string }> = [
+  { segment: "state", label: "State", icon: Code2 },
+  { segment: "telemetry", label: "Native Telemetry", icon: Gauge },
+  { segment: "speech", label: "Speech", icon: MessagesSquare },
+  { segment: "e2e", label: "E2E Recordings", icon: History },
+  { segment: "import", label: "Import Dump", icon: Binary },
+];
+const DEV_SPEECH_LINKS = [
+  { segment: "spotter", label: "Spotter" },
+  { segment: "race-engineer", label: "Race Engineer" },
+] as const;
 
 const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
   "fm-2023": "/forza-logo.svg",
@@ -155,6 +166,8 @@ export function AppSidebar({
   updateVersion,
 }: AppSidebarProps): ReactElement {
   const location = useLocation();
+  const isDevRoute = location.pathname === "/dev" || location.pathname.startsWith("/dev/");
+  const isSpeechRoute = location.pathname.startsWith("/dev/speech/");
   const navigate = useNavigate();
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -305,14 +318,27 @@ export function AppSidebar({
           </>
         )}
 
-        {activeGame && (
+        {isDevRoute ? (
+          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+            {DEV_LINKS.map((link) => (
+              <div key={link.segment}>
+                <SidebarLink collapsed={showCollapsed} icon={link.icon} label={link.label} to={`/dev/${link.segment}`} onClick={onClose} />
+                {link.segment === "speech" && isSpeechRoute && (
+                  <div className={showCollapsed ? "" : "pl-4"}>
+                    {DEV_SPEECH_LINKS.map((speechLink) => <SidebarLink key={speechLink.segment} collapsed={showCollapsed} icon={MessagesSquare} label={speechLink.label} to={`/dev/speech/${speechLink.segment}`} onClick={onClose} />)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : activeGame ? (
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
             <SidebarLink collapsed={showCollapsed} exact icon={House} label={m.nav_dashboard()} to={`/${activeGame.routePrefix}`} onClick={onClose} />
             {visibleFeatures.map((feature) => (
               <SidebarLink key={feature.segment} collapsed={showCollapsed} icon={feature.icon} label={feature.label()} to={`/${activeGame.routePrefix}/${feature.segment}`} onClick={onClose} />
             ))}
           </div>
-        )}
+        ) : null}
 
         <div className="mt-auto border-t border-app-border p-2">
           <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_portable()} to="/portable" onClick={onClose} />
@@ -320,7 +346,6 @@ export function AppSidebar({
           {updateAvailable && (
             <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>
               <RefreshCw className="size-4 text-app-accent" />
-              <span className={showCollapsed ? "sr-only" : "truncate"}>{updateLabel}</span>
             </SidebarAction>
           )}
           <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>

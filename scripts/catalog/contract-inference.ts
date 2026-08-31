@@ -163,7 +163,7 @@ export function valueTypeFor(
 ): ValueType {
   return variable.shape === "structured"
     ? "structured"
-    : scalarValueTypeFor(variable, sourceVariables);
+    : variable.valueType ?? scalarValueTypeFor(variable, sourceVariables);
 }
 
 export function structuredSchemaFor(
@@ -245,7 +245,7 @@ export function structuredSchemaFor(
             },
           ];
   }
-  const scalarType = scalarValueTypeFor(variable, sourceVariables);
+  const scalarType = variable.id === "race.competitor.pit-status" ? "string" : scalarValueTypeFor(variable, sourceVariables);
   const enumDomain = ENUM_DOMAINS[variable.id];
   const valueType =
     scalarType === "enum" && !enumDomain

@@ -96,7 +96,6 @@ export function SoundSection() {
             setSoundVolumeState(v);
             setSoundVolume(v);
           }}
-          className="w-64 accent-app-accent"
         />
       </div>
       <div>

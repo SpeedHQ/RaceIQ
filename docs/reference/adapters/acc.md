@@ -1,6 +1,6 @@
 # Assetto Corsa Competizione adapter
 
-RaceIQ reads ACC through local Windows shared memory. RaceIQ and ACC must run on the same machine; ACC does not use RaceIQ's UDP listener.
+RaceIQ reads ACC through local Windows shared memory and the ACC Broadcasting Network Protocol. Shared memory remains the player telemetry source; the registered UDP client supplies competitor facts for live voice triggers. RaceIQ and ACC must run on the same machine.
 
 ## Source contract
 
@@ -12,17 +12,27 @@ RaceIQ reads ACC through local Windows shared memory. RaceIQ and ACC must run on
 
 The graphics parser accepts the 1,320-byte legacy base layout and reads extended fields only when available. Raw offsets and vendor definitions belong in the [ACC v1.8.12 specification](../external/acc/acc-shared-memory-v1.8.12.pdf); `server/games/acc/structs.ts` is RaceIQ's executable layout.
 
+## Broadcasting Network Protocol
+
+`AccBroadcastClient` registers protocol version 4 with ACC at `127.0.0.1:9000`. Override the endpoint or passwords with `ACC_BROADCAST_HOST`, `ACC_BROADCAST_PORT`, `ACC_BROADCAST_PASSWORD`, and `ACC_BROADCAST_COMMAND_PASSWORD`.
+
+The client parses realtime updates and entry-list messages, joins them by ACC `carIndex`, and attaches the runtime-only competitor snapshot to `packet.acc`. The semantic resolver then exposes competitor identity, class, lap count, pit/location, world position, speed, last-lap time, and validity to the existing live engineer engine.
+
+UDP state is not written into `ACCP` recordings. Missing or incomplete broadcast data disables ACC voice candidates without suppressing shared-memory telemetry.
+
 ## Read and parse flow
 
 ```text
 Windows mappings
   -> BufferedAccMemoryReader
+
   -> TripletAssembler
   -> StatusCheckProcessor
   -> parseAccBuffers
   -> packTriplet("ACCP")
   -> Pipeline.processPacket
 ```
+In parallel, `AccBroadcastClient` receives ACC UDP datagrams, `AccBroadcastState` joins entry-list identity with realtime car updates, and `ParsingProcessor` copies the latest snapshot into the normalized packet before `Pipeline.processPacket`.
 
 `server/index.ts` checks for the ACC process every two seconds and starts or stops `AccSharedMemoryReader` with the game. `BufferedAccMemoryReader` polls the pages at their native cadences and retries unavailable mappings every ten seconds. `TripletAssembler` snapshots the latest complete triplet on a 10 ms timer.
 
@@ -58,7 +68,7 @@ The packed bytes enter the common session recorder. Replay and import call the s
 
 ## Boundaries
 
-- Shared memory is Windows-local; network forwarding is not implemented.
+- Shared memory is Windows-local; ACC Broadcasting Protocol uses a separate localhost UDP registration.
 - Graphics and physics pages update independently. A packed triplet is a snapshot of the latest page values, not an atomic simulator transaction.
 - ACC reports `completedLaps` late. Lap detection uses the current-lap timer reset instead of treating that counter as the boundary. See [Lap detection](../../architecture/lap-detection.md).
 - ACC SDK reserves physics `tyreWear[4]` fields but marks them unused. RaceIQ reports tire wear and degradation unavailable instead of treating zero placeholders as fresh tyres.
@@ -74,3 +84,6 @@ The packed bytes enter the common session recorder. Replay and import call the s
 - `server/games/acc/parser.ts` — source normalization
 - `server/games/kunos/pack-triplet.ts` — packed replay frame
 - `server/games/acc/lap-detector.ts` — ACC policy over shared Kunos lap lifecycle
+- `server/games/acc/broadcast-protocol.ts` — protocol v4 binary encoding/decoding
+- `server/games/acc/broadcast-client.ts` — UDP registration and receive lifecycle
+- `server/games/acc/broadcast-state.ts` — entry-list/realtime join and semantic snapshot
