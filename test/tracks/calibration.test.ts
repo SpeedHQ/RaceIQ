@@ -113,6 +113,48 @@ describe("calibration progress sampling", () => {
     }
     expect(getCalibrationStatus(9111).pointsCollected).toBe(100);
   });
+  test("rejects spatially degenerate live evidence", () => {
+    const outline = circle();
+    for (let i = 0; i < 100; i++) {
+      feedCalibrationPosition(9122, { x: 40, z: 40 }, 1, outline, (i + 0.5) / 100);
+    }
+    feedCalibrationPosition(9122, { x: 40, z: 40 }, 2, outline, 0);
+
+    const status = getCalibrationStatus(9122);
+    expect(status.calibrated).toBe(false);
+    expect(status.collecting).toBe(true);
+  });
+
+  test("waits for a complete stadium lap before calibrating", () => {
+    const outline = stadium();
+    for (let i = 0; i <= 80; i++) {
+      const progress = 0.1 + i / 100;
+      const point = outline[Math.floor(progress * (outline.length - 1))]!;
+      feedCalibrationPosition(9123, point, 1, outline, progress);
+    }
+    feedCalibrationPosition(9123, outline[0]!, 2, outline, 0);
+
+    const partialStatus = getCalibrationStatus(9123);
+    expect(partialStatus.calibrated).toBe(false);
+    expect(partialStatus.collecting).toBe(true);
+    expect(partialStatus.transform).toBeNull();
+
+    for (let i = 0; i < 100; i++) {
+      const progress = i / 100;
+      const point = outline[Math.floor(progress * (outline.length - 1))]!;
+      feedCalibrationPosition(9123, point, 2, outline, progress);
+    }
+    feedCalibrationPosition(9123, outline[0]!, 3, outline, 0);
+
+    const completeStatus = getCalibrationStatus(9123);
+    expect(completeStatus.calibrated).toBe(true);
+    expect(completeStatus.transform).not.toBeNull();
+    expect(completeStatus.transform!.scale).toBeCloseTo(1, 2);
+    expect(completeStatus.transform!.rotation).toBeCloseTo(0, 2);
+    expect(completeStatus.transform!.tx).toBeCloseTo(0, 0);
+    expect(completeStatus.transform!.tz).toBeCloseTo(0, 0);
+  });
+
 
   test("fits geometry when game progress drifts from outline arc distance", () => {
     const outline = stadium();
@@ -165,7 +207,7 @@ describe("calibration progress sampling", () => {
     feedCalibrationPosition(9118, outline[0]!, 3, outline, 0);
     expect(getCalibrationStatus(9118).transform).toEqual(accepted);
   });
-  test("pairs sparse progress bins at their actual outline fractions", () => {
+  test("waits for complete lap before fitting sparse progress bins", () => {
     const outline = circle(1200);
     for (let i = 0; i < 60; i++) {
       const progress = 0.1 + i * 0.01;
@@ -173,11 +215,10 @@ describe("calibration progress sampling", () => {
       feedCalibrationPosition(9114, point, 1, outline, progress);
     }
     feedCalibrationPosition(9114, outline[0]!, 2, outline, 0);
-    const transform = getCalibrationStatus(9114).transform!;
-    expect(transform.scale).toBeCloseTo(1, 2);
-    expect(transform.rotation).toBeCloseTo(0, 1);
-    expect(transform.tx).toBeCloseTo(0, 0);
-    expect(transform.tz).toBeCloseTo(0, 0);
+    const status = getCalibrationStatus(9114);
+    expect(status.calibrated).toBe(false);
+    expect(status.collecting).toBe(true);
+    expect(status.transform).toBeNull();
   });
 
 

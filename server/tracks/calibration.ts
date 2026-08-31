@@ -120,6 +120,27 @@ function collectSpatiallyDistinct(points: Point[], minSeparationSq: number): Poi
   }
   return filtered;
 }
+function hasEnoughSpatialCoverage(samples: readonly CalibrationSample[]): boolean {
+  return collectSpatiallyDistinct(samples.map(sample => sample.point), MIN_POINT_SEPARATION_SQ).length >= MIN_CALIBRATION_POINTS;
+}
+
+function hasClosedLapCoverage(samples: readonly CalibrationSample[]): boolean {
+  const progressByLap = new Map<number, { min: number; max: number }>();
+  for (const sample of samples) {
+    const coverage = progressByLap.get(sample.lapNumber);
+    if (coverage) {
+      coverage.min = Math.min(coverage.min, sample.progress);
+      coverage.max = Math.max(coverage.max, sample.progress);
+    } else {
+      progressByLap.set(sample.lapNumber, { min: sample.progress, max: sample.progress });
+    }
+  }
+  const minimumProgress = 2 / PROGRESS_BIN_COUNT;
+  const maximumProgress = 1 - minimumProgress;
+  return [...progressByLap.values()].some(coverage =>
+    coverage.min <= minimumProgress && coverage.max >= maximumProgress);
+}
+
 
 function squaredDistance(a: Point, b: Point): number {
   const dx = a.x - b.x;
@@ -569,7 +590,6 @@ export function feedCalibrationPosition(
   // Trigger calibration at lap boundary without discarding session evidence.
   if (lapNumber > state.lastLap && state.sourcePoints.length > MIN_CALIBRATION_POINTS) {
     calibrate(trackOrdinal, outline, boundary);
-    state.collecting = false;
   }
   state.lastLap = Math.max(state.lastLap, lapNumber);
 }
@@ -581,7 +601,9 @@ function calibrate(trackOrdinal: number, outline: Point[], boundary?: TrackBound
   const state = calibrations.get(trackOrdinal);
   if (!state || state.transform) return;
   const samples = state.samplesByBin.filter((sample): sample is CalibrationSample => sample !== null);
-  if (samples.length < MIN_CALIBRATION_POINTS) return;
+  if (samples.length < MIN_CALIBRATION_POINTS ||
+      !hasEnoughSpatialCoverage(samples) ||
+      !hasClosedLapCoverage(samples)) return;
   const result = buildAlignmentTransform(samples, outline, boundary);
   state.transform = result.transform;
   recordCalibration(state, samples, result);
@@ -670,12 +692,14 @@ export function fitLapToTrack(
  */
 export function getCalibrationStatus(trackOrdinal: number): {
   calibrated: boolean;
+  collecting: boolean;
   pointsCollected: number;
   transform: Transform | null;
 } {
   const state = calibrations.get(trackOrdinal);
   return {
     calibrated: state?.transform != null,
+    collecting: state?.collecting ?? false,
     pointsCollected: state?.sourcePoints.length ?? 0,
     transform: state?.transform ?? null,
   };
