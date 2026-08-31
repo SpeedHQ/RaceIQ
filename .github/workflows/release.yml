@@ -38,6 +38,8 @@ jobs:
       version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
@@ -222,6 +224,9 @@ jobs:
       - 4VCPU
       - 15G
     steps:
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
@@ -230,15 +235,9 @@ jobs:
       - name: Delete existing draft for this tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="v${{ needs.compute-version.outputs.version }}"
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases --jq ".[] | select(.tag_name == \"$TAG\" and .draft) | .id" 2>/dev/null || true)
-          if [ -n "$RELEASE_ID" ]; then
-            echo "Deleting existing draft release $RELEASE_ID for $TAG"
-            gh api -X DELETE repos/${{ github.repository }}/releases/$RELEASE_ID
-            # Also delete the tag so softprops can recreate it
-            git push origin :refs/tags/$TAG 2>/dev/null || true
-          fi
+          RELEASE_TAG: v${{ needs.compute-version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: bun scripts/ci/delete-draft-release.ts
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
