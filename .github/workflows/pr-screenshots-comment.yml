@@ -24,7 +24,10 @@ permissions:
 jobs:
   comment:
     if: github.event.workflow_run.event == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.pull_requests[0].draft != true)
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     env:
       REPO: ${{ github.repository }}
       PREVIEW_BRANCH: pr-previews
@@ -41,6 +44,7 @@ jobs:
 
       - name: Read PR number and detect changes
         id: meta
+        shell: bash
         run: |
           pr=$(cat pr-preview/pr-number.txt)
           base_ref=$(cat pr-preview/base-ref.txt)
@@ -57,6 +61,7 @@ jobs:
         id: publish
         env:
           PR: ${{ steps.meta.outputs.pr }}
+        shell: bash
         run: |
           subdir="pr-${PR}/${RUN_ID}"
           remote="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
@@ -82,8 +87,7 @@ jobs:
         if: steps.meta.outputs.changed == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
-          SUBDIR: ${{ steps.publish.outputs.subdir }}
-          BASE_REF: ${{ steps.meta.outputs.base-ref }}
+        shell: bash
         run: |
           marker='<!-- app-screenshot-diff -->'
           base="https://raw.githubusercontent.com/${REPO}/${PREVIEW_BRANCH}/${SUBDIR}"
@@ -124,9 +128,7 @@ jobs:
 
       - name: Label PR as a UI change
         if: steps.meta.outputs.changed == 'true'
-        env:
-          PR: ${{ steps.meta.outputs.pr }}
-          LABEL: "ui change"
+        shell: bash
         run: |
           # No repo is checked out in this job, so gh needs an explicit --repo.
           gh label create "$LABEL" --repo "$REPO" --color FFC0CB --description "Pull request changes rendered dashboard UI" 2>/dev/null || true

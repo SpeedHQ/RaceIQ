@@ -6,12 +6,14 @@ Remove Blacksmith runner usage from RaceIQ CI and release workflows. Every affec
 
 ## Scope
 
-Update these workflows:
-
+- `.github/workflows/bench-comment.yml`
 - `.github/workflows/native-replay.yml`
 - `.github/workflows/pr-snapshots.yml`
+- `.github/workflows/pr-screenshots-comment.yml`
+- `.github/workflows/pr-screenshots.yml`
 - `.github/workflows/release.yml`
 - `.github/workflows/update-baselines.yml`
+- `.github/workflows/update-screenshots.yml`
 
 Existing Mars-backed jobs and reusable Playwright inputs remain unchanged. No application code, test behavior, job ordering, artifact names, or permissions change.
 
