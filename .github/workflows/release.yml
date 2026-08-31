@@ -101,6 +101,9 @@ jobs:
             --define 'process.env.NODE_ENV="production"' `
             --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' `
             --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' `
+            --external @mastra/duckdb `
+            --external @duckdb/node-api `
+            --external @duckdb/node-bindings `
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)
