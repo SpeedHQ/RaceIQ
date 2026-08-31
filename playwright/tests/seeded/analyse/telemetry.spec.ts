@@ -14,10 +14,10 @@ const COMMON_DYNAMIC_FIELDS = [
   { label: "Steer", sourceField: "Steer", minimumRange: 2 },
 ] as const satisfies readonly { label: string; sourceField: keyof TelemetryPacket; minimumRange: number }[];
 const GAME_METRIC_ROWS = {
-  "fm-2023": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }],
+  "fm-2023": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }],
   "f1-2025": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
   acc: [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
-  "ac-evo": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL" }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
+  "ac-evo": [{ label: "Grip Ask", sourceField: "TireCombinedSlipFL", vary: false }, { label: "Angle", sourceField: "TireSlipAngleFL" }, { label: "Travel", sourceField: "SuspensionTravelMFL" }],
   iracing: [{ label: "Travel", sourceField: "SuspensionTravelMFL", vary: false }],
 } as const satisfies Record<string, readonly { label: string; sourceField: keyof TelemetryPacket; vary?: boolean }[]>;
 
