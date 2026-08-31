@@ -1,3 +1,4 @@
+test/runtime/http-server.test.ts
 # Shared-state integration tests
 test/ai/ai-track-context.test.ts
 test/ai/chat/chat-export.test.ts

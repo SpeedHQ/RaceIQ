@@ -19,8 +19,12 @@ export async function getSeededLapTarget(request: APIRequestContext, gameId: Gam
   const listResponse = await request.get(`/api/laps?gameId=${gameId}`);
   expect(listResponse.ok(), `${gameId} seeded lap list`).toBe(true);
   const laps = (await listResponse.json()) as SeededLapListItem[];
-  const selected = laps.find((lap) => lap.isValid);
-  expect(selected, `${gameId} needs one valid seeded lap`).toBeDefined();
+  // Some checked-in recordings intentionally contain only invalid complete
+  // laps. They still provide the telemetry needed by route/UI coverage.
+  const selected =
+    laps.find((lap) => lap.isValid) ??
+    laps.filter((lap) => lap.lapTime > 10).sort((a, b) => b.lapNumber - a.lapNumber || b.id - a.id)[0];
+  expect(selected, `${gameId} needs one usable seeded lap`).toBeDefined();
   const telemetryResponse = await request.get(`/api/laps/${selected!.id}`, { headers: { "X-Game-Id": gameId } });
   expect(telemetryResponse.ok(), `${gameId} seeded lap telemetry`).toBe(true);
   const payload = (await telemetryResponse.json()) as { telemetry?: TelemetryPacket[] };

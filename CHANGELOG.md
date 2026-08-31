@@ -18,6 +18,7 @@
 - Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
+- Anchor Analyse segment and sector overlays to canonical track centerlines instead of recorded replay paths
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
 - Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
