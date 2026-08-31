@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { gzipSync } from "node:zlib";
 import { LiveTelemetryPipeline } from "../../server/telemetry/live-pipeline";
 import { NullDbAdapter, NullWsAdapter, type SessionRecorderAdapter } from "../../server/telemetry/pipeline-ports";
-import { iterateSessionCaptureRecords } from "../../server/session-capture/framing";
+import { decompressIfGzipSync, iterateSessionCaptureRecords } from "../../server/session-capture/framing";
 
 class RecordingRecorder implements SessionRecorderAdapter {
   readonly writes: Buffer[] = [];
@@ -38,5 +39,13 @@ describe("session context recording", () => {
       "frame",
       "segment-context-end",
     ]);
+  });
+});
+
+describe("capture decompression", () => {
+  test("rejects gzip output larger than the configured limit", () => {
+    const compressed = gzipSync(Buffer.alloc(1_024));
+
+    expect(() => decompressIfGzipSync(compressed, 32)).toThrow();
   });
 });

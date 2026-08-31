@@ -549,8 +549,21 @@ export async function parseSessionLapsBatched(rawFile: string, lapMetas: { id: n
 
   const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
   const records = [...iterateSessionCaptureRecords(buf)];
-  const ordinary = records.filter((r): r is Extract<typeof r, { kind: "frame" }> => r.kind === "frame");
-  const offsetToIdx = new Map(ordinary.map((r, i) => [r.offset, i]));
+  const offsetToIdx = new Map<number, number>();
+  let indexingContext = false;
+  let replayFrameCount = 0;
+  for (const record of records) {
+    if (record.kind === "segment-boundary") {
+      indexingContext = false;
+    } else if (record.kind === "segment-context") {
+      indexingContext = true;
+    } else if (record.kind === "segment-context-end") {
+      indexingContext = false;
+    } else if (!indexingContext) {
+      offsetToIdx.set(record.offset, replayFrameCount);
+      replayFrameCount++;
+    }
+  }
   const resolved: { id: number; startIdx: number; frameCount: number }[] = [];
   let maxIdx = -1;
   for (const meta of metas) {
@@ -561,7 +574,7 @@ export async function parseSessionLapsBatched(rawFile: string, lapMetas: { id: n
   }
   if (resolved.length === 0) return out;
 
-  const lastFrame = Math.min(maxIdx, ordinary.length - 1);
+  const lastFrame = Math.min(maxIdx, replayFrameCount - 1);
   const parsed: (TelemetryPacket | null)[] = new Array(lastFrame + 1).fill(null);
   let state = serverGame.createParserState?.() ?? null;
   let ordinaryIndex = 0;

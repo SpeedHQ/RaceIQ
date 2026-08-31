@@ -1,5 +1,6 @@
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
+import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "../archive/bounded-unzip";
 
 export const META_FRAME_MAGIC = 0xffffffff;
 const META_FRAME_PAYLOAD_BYTES = 4;
@@ -114,6 +115,21 @@ export function advanceSessionFrames(bytes: Buffer, offset: number, count: numbe
 export function isGzip(bytes: Uint8Array): boolean { return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b; }
 export function gzipBufferSync(bytes: Buffer): Buffer { return gzipSync(bytes); }
 export async function gzipBuffer(bytes: Buffer): Promise<Buffer> { return gzipAsync(bytes); }
-export function gunzipBufferSync(bytes: Buffer): Buffer { return gunzipSync(bytes); }
-export async function gunzipBuffer(bytes: Buffer): Promise<Buffer> { return gunzipAsync(bytes); }
-export function decompressIfGzipSync(bytes: Buffer): Buffer { return isGzip(bytes) ? gunzipBufferSync(bytes) : bytes; }
+export function gunzipBufferSync(
+  bytes: Buffer,
+  maxOutputLength = MAX_DECOMPRESSED_CAPTURE_BYTES,
+): Buffer {
+  return gunzipSync(bytes, { maxOutputLength });
+}
+export async function gunzipBuffer(
+  bytes: Buffer,
+  maxOutputLength = MAX_DECOMPRESSED_CAPTURE_BYTES,
+): Promise<Buffer> {
+  return gunzipAsync(bytes, { maxOutputLength });
+}
+export function decompressIfGzipSync(
+  bytes: Buffer,
+  maxOutputLength = MAX_DECOMPRESSED_CAPTURE_BYTES,
+): Buffer {
+  return isGzip(bytes) ? gunzipBufferSync(bytes, maxOutputLength) : bytes;
+}
