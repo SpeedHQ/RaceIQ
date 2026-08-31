@@ -15,3 +15,11 @@ test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts
 test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
+test/games/ac-evo/ac-evo-mid-session.test.ts
+test/games/iracing/iracing-ibt-import.test.ts
+test/games/shared/semantic-replay-native.test.ts
+test/lap-analysis/lap-detector-ac.test.ts
+test/lap-analysis/lap-export-import-roundtrip.test.ts
+test/live-strategy/f1-2025-session-sectors.test.ts
+test/motec/motec-replay.test.ts
+test/telemetry/telemetry-fidelity.test.ts
