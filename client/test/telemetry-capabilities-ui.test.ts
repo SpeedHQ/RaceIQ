@@ -457,6 +457,22 @@ describe("telemetry capability UI", () => {
     expect(markup).toContain("20mm");
     expect(markup).toContain(">—</span>");
   });
+  test("hides balance and slip ratio when canonical channels are invalid", () => {
+    const frame = {
+      ...semanticFrame({
+        "motion.speed": 30,
+        "motion.acceleration-x": -9.81,
+        "motion.angular-velocity-y": 0.6,
+        "tires.wheel-rotation-speed": [100, 100, 100, 100],
+        "tires.tire-slip-ratio": null,
+        "tires.tire-slip-angle": null,
+      }),
+      states: { "tires.tire-slip-ratio": "invalid", "tires.tire-slip-angle": "invalid" },
+    };
+    const markup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame, gameId: "acc", units: parityUnits }));
+    expect(markup).toMatch(/Balance[\s\S]*>—</);
+    expect(markup).toMatch(/Ratio[\s\S]*>—</);
+  });
 
   test("converts Forza tire values from their recorded Fahrenheit unit", () => {
     const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;
@@ -576,8 +592,8 @@ describe("telemetry capability UI", () => {
     );
     expect(markup.indexOf("Brake")).toBeLessThan(markup.indexOf("Steer"));
     expect(markup.indexOf("Slip")).toBeLessThan(markup.indexOf("Wheels"));
-    expect(markup.indexOf("Wheels")).toBeLessThan(markup.indexOf("Suspension"));
-    expect(markup.indexOf("Suspension")).toBeLessThan(markup.indexOf("DRS / ERS"));
+    expect(markup.indexOf("Wheels")).toBeLessThan(markup.lastIndexOf("Suspension"));
+    expect(markup.lastIndexOf("Suspension")).toBeLessThan(markup.indexOf("DRS / ERS"));
     expect((markup.match(/Grip Ask/g) ?? []).length).toBe(1);
     expect(markup).toContain(">8%</span>");
     expect(markup).not.toContain(">84%</span>");
@@ -595,7 +611,7 @@ describe("telemetry capability UI", () => {
     expect(markup.match(/>—</g) ?? []).toHaveLength(2);
   });
 
-  test("renders every supported ACC and AC Evo panel value without placeholders", () => {
+  test("renders supported panel values and unavailable dialog trigger", () => {
     for (const gameId of ["acc", "ac-evo"] as const) {
       const markup = renderToStaticMarkup(
         createElement(
@@ -617,10 +633,12 @@ describe("telemetry capability UI", () => {
 
       expect(markup, gameId).toContain("60.0%F");
       expect(markup, gameId).toContain("Rotation /s");
-      expect(markup, gameId).toContain("Wear /s");
+      if (gameId === "ac-evo") expect(markup, gameId).toContain("Wear /s");
       expect(markup, gameId).toContain("500°C");
       expect(markup, gameId).toContain("24.0 psi");
-      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(0);
+      expect(markup, gameId).not.toContain("Unavailable in Analyse");
+      expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
+      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 4 : 0);
     }
   });
 

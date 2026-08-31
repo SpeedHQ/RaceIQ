@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { formatSessionType } from "./helpers";
 import { NoteCell } from "./NoteCell";
+import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
@@ -142,6 +143,7 @@ export function SessionDesktopTable({
                           {new Date(session.createdAt).toLocaleDateString()}{" "}
                           <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
+                        {session.source === "motec" && <MotecBadge />}
                         <Button
                           variant="app-outline"
                           size="app-sm"

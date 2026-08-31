@@ -2,7 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
+import type { GameId } from "../../../../shared/games/ids";
 import { formatLapTime } from "../../lib/format";
+import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -17,9 +19,11 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { DataGuideModal } from "./DataGuideModal";
 import { MotecImportModal } from "./MotecImportModal";
+import { MotecBadge } from "../sessions/MotecBadge";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
+  gameId: GameId;
   // Selection state
   selectedTrack: number | null;
   selectedCar: number | null;
@@ -58,6 +62,7 @@ interface Props {
 }
 
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
+  gameId,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -92,6 +97,8 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [motecOpen, setMotecOpen] = useState(false);
+  const { data: targets } = useMotecTargets();
+  const motecTarget: MotecTargetInfo | undefined = targets?.find((target) => target.gameId === gameId);
   const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -147,9 +154,12 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
           {selectedLapId != null && (
-            <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-              {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-            </span>
+            <>
+              <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
+                {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
+              </span>
+              {selectedLap?.source === "motec" && <MotecBadge />}
+            </>
           )}
         </div>
 
@@ -274,7 +284,11 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                 key: "import-motec",
                 label: "Import MoTeC log",
                 icon: <Upload className="size-3.5" />,
-                onClick: () => setMotecOpen(true),
+                onClick: () => {
+                  if (motecTarget) setMotecOpen(true);
+                },
+                disabled: !motecTarget,
+                title: motecTarget ? undefined : "MoTeC import is not supported for this game yet.",
               },
             ]}
           />
@@ -315,12 +329,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         </Dialog>
       )}
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
-      {motecOpen && (
+      {motecOpen && motecTarget && (
         <MotecImportModal
+          target={motecTarget}
           onClose={() => setMotecOpen(false)}
-          // The imported laps land under AC Evo, which may not be the game
-          // whose page we're on — invalidate broadly so they show up when the
-          // user navigates there rather than only after a reload.
           onImported={() => {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });

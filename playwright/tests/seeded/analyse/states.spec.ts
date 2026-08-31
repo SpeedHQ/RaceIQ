@@ -33,7 +33,7 @@ test("Analyse exposes loading and parse-error states", async ({ page, request })
     });
   });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Failed to parse lap telemetry", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("seeded-e2e parse failure", { exact: true })).toBeVisible({ timeout: 30_000 });
   expect(browserErrors.errors, "unexpected browser errors in Analyse states").toEqual([]);
 });
 

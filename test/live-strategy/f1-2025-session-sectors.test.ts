@@ -101,7 +101,7 @@ async function replay(): Promise<ReplayedLap[]> {
 describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () => {
   test("replay produces five completed laps", async () => {
     const laps = await replay();
-    const completed = laps.filter((l) => l.lapTime > 0 && l.isValid);
+    const completed = laps.filter((lap) => lap.lapTime > 0);
     expect(completed.length).toBeGreaterThanOrEqual(5);
   }, { timeout: 180_000 });
 

@@ -24,6 +24,7 @@
     "test:shards": "bun scripts/test/check-shards.ts",
     "test:unit": "bun scripts/test/run-suite.ts unit",
     "test:integration": "bun scripts/test/run-suite.ts integration",
+    "test:e2e:recordings": "bun scripts/test/run-suite.ts e2e",
     "test": "bun run test:unit && bun run test:integration",
     "typecheck": "bun run --cwd client i18n:compile && bunx tsc --build client/tsconfig.json --pretty false && bunx tsc --project tsconfig.json --noEmit",
     "typecheck:scripts": "bunx tsc --project scripts/tsconfig.json",

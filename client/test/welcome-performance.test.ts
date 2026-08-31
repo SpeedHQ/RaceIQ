@@ -2,7 +2,8 @@ import { expect, test } from "bun:test";
 import { DEFAULT_TOGGLES } from "../src/lib/wireframe-data";
 import { buildDemoFixture } from "../../scripts/telemetry/generate-demo-fixture";
 import { buildLoadTrail } from "../src/components/wireframe/CarScene";
-
+import { canonicalModelYawAlignment } from "../src/components/wireframe/CarBody";
+import { DEMO_CAR, F1_CAR, type CarModelEnrichment } from "../src/data/car-models";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 function frame(index: number): SemanticAnalysisFrame {
@@ -19,6 +20,13 @@ function frame(index: number): SemanticAnalysisFrame {
   };
 }
 
+const invalidConsumerOrientation: CarModelEnrichment = {
+  ...DEMO_CAR,
+  // @ts-expect-error Vehicle yaw belongs to renderer-owned model alignment, not consumer configuration.
+  glbRotationY: Math.PI,
+};
+void invalidConsumerOrientation;
+
 test("bounds welcome load trail work for long telemetry recordings", () => {
   const telemetry = Array.from({ length: 14_000 }, (_, index) => frame(index));
   const trail = buildLoadTrail(telemetry, telemetry.length - 1, { min: 0, max: 100 }, 1, 1, 1);
@@ -28,6 +36,16 @@ test("bounds welcome load trail work for long telemetry recordings", () => {
 
 test("enables input lines in default wireframe view", () => {
   expect(DEFAULT_TOGGLES.inputs).toBe(true);
+});
+
+test("does not expose consumer model yaw overrides", () => {
+  expect("glbRotationY" in DEMO_CAR).toBe(false);
+  expect("glbRotationY" in F1_CAR).toBe(false);
+});
+
+test("owns bundled model alignment outside consumer configuration", () => {
+  expect(canonicalModelYawAlignment(DEMO_CAR.modelPath)).toBe(0);
+  expect(canonicalModelYawAlignment(F1_CAR.modelPath)).toBe(Math.PI / 2);
 });
 
 test("generates canonical pedal and tire channels for demo packets", () => {
