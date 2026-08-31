@@ -14,7 +14,8 @@ import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { parseRawLapFramesForTest, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
+import { loadSessionCapture } from "../../../server/session-capture/source-loader";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -65,10 +66,12 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
     const sample = laps.slice(0, 6);
     const metas = sample.map((l, i) => ({ id: i + 1, rawByteOffset: l.rawByteOffset, rawFrameCount: l.rawFrameCount }));
 
-    const batch = await parseSessionLapsBatchedForTest(FIXTURE, metas, "ac-evo");
+    const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+    const canonical = await loadSessionCapture(source);
+    const batch = await parseSessionLapsBatchedForTest(source, metas);
 
     for (const meta of metas) {
-      const perLap = await parseRawLapFramesForTest(FIXTURE, meta.rawByteOffset, meta.rawFrameCount, "ac-evo");
+      const perLap = parseRawLapFramesFromBuffer(canonical, meta.rawByteOffset, meta.rawFrameCount, "ac-evo", FIXTURE);
       const batched = batch.get(meta.id);
       expect(batched).toBeDefined();
       expect(batched!.length).toBe(perLap.length);

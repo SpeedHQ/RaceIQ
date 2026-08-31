@@ -26,6 +26,7 @@ import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
 import { SessionRecorder } from "../session-capture/recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
+import { timestampForFilename } from "../session-capture/filename";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {
   return {
@@ -311,7 +312,7 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
 
   start(gameId: GameId): void {
     const dataDir = resolveDataDir();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const timestamp = timestampForFilename();
     const sessionDir = resolve(dataDir, "sessions", gameId);
     mkdirSync(sessionDir, { recursive: true });
     const filePath = resolve(sessionDir, `${timestamp}.bin`);
