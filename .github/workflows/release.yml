@@ -41,22 +41,9 @@ jobs:
 
       - name: Compute new version
         id: bump
-        shell: pwsh
-        run: |
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $current = $pkg.version
-          $parts = $current.Split('.')
-          $major = [int]$parts[0]
-          $minor = [int]$parts[1]
-          $patch = [int]$parts[2]
-          switch ("${{ inputs.bump }}") {
-            "major" { $major++; $minor = 0; $patch = 0 }
-            "minor" { $minor++; $patch = 0 }
-            "patch" { $patch++ }
-          }
-          $new = "$major.$minor.$patch"
-          "version=$new" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "::notice::Version bump: $current -> $new (${{ inputs.bump }})"
+        env:
+          RELEASE_BUMP: ${{ inputs.bump }}
+        run: bun scripts/ci/compute-release-version.ts
 
   build:
     if: github.event_name == 'workflow_dispatch'
@@ -69,14 +56,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
-
       - name: Set version in package.json
-        shell: pwsh
-        run: |
-          $version = "${{ needs.compute-version.outputs.version }}"
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $pkg.version = $version
-          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json
+        run: bun scripts/ci/update-release-version.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Install dependencies
         run: bun install
@@ -277,20 +258,10 @@ jobs:
 
 
       - name: Roll over changelog
-        shell: pwsh
-        run: |
-          $tag = "${{ github.event.release.tag_name }}"
-          $version = $tag.Substring(1)
-          bun scripts/release/rollover-changelog.ts $version "${{ github.event.release.published_at }}"
+        run: bun scripts/release/rollover-changelog.ts "${{ github.event.release.tag_name }}" "${{ github.event.release.published_at }}"
 
       - name: Update version in package.json
-        shell: pwsh
-        run: |
-          $tag = "${{ github.event.release.tag_name }}"
-          $version = $tag.Substring(1)
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $pkg.version = $version
-          $pkg | ConvertTo-Json -Depth 100 | Set-Content package.json
+        run: bun scripts/ci/update-release-version.ts "${{ github.event.release.tag_name }}"
 
       - name: Commit version bump
         run: |

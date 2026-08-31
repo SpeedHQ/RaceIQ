@@ -44,92 +44,28 @@ jobs:
 
       - name: Read PR number and detect changes
         id: meta
-        shell: bash
-        run: |
-          pr=$(cat pr-preview/pr-number.txt)
-          base_ref=$(cat pr-preview/base-ref.txt)
-          echo "pr=$pr" >> "$GITHUB_OUTPUT"
-          echo "base-ref=$base_ref" >> "$GITHUB_OUTPUT"
-          if ls pr-preview/*-after.png >/dev/null 2>&1; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          PR: ${{ github.event.workflow_run.pull_requests[0].number || '' }}
+        run: bun scripts/ci/read-pr-screenshot-meta.ts
 
       - name: Publish preview images to pr-previews branch
         if: steps.meta.outputs.changed == 'true'
         id: publish
         env:
           PR: ${{ steps.meta.outputs.pr }}
-        shell: bash
-        run: |
-          subdir="pr-${PR}/${RUN_ID}"
-          remote="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-          rm -rf preview-repo
-          if git clone --depth 1 --single-branch --branch "$PREVIEW_BRANCH" "$remote" preview-repo 2>/dev/null; then
-            cd preview-repo
-          else
-            git clone --depth 1 "$remote" preview-repo
-            cd preview-repo
-            git checkout --orphan "$PREVIEW_BRANCH"
-            git rm -rf . >/dev/null 2>&1 || true
-          fi
-          mkdir -p "$subdir"
-          cp ../pr-preview/*-before.png ../pr-preview/*-after.png ../pr-preview/*-diff.png "$subdir"/ 2>/dev/null || true
-          git add "$subdir"
-          git -c user.name="github-actions[bot]" \
-              -c user.email="github-actions[bot]@users.noreply.github.com" \
-              commit -m "preview: PR #${PR} dashboard screenshots (run ${RUN_ID})"
-          git push origin "$PREVIEW_BRANCH"
-          echo "subdir=$subdir" >> "$GITHUB_OUTPUT"
+        run: bun scripts/ci/publish-pr-screenshots.ts
 
       - name: Compose and post sticky comment
         if: steps.meta.outputs.changed == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
-        shell: bash
-        run: |
-          marker='<!-- app-screenshot-diff -->'
-          base="https://raw.githubusercontent.com/${REPO}/${PREVIEW_BRANCH}/${SUBDIR}"
-          {
-            echo "$marker"
-            echo "## 🖼️ App UI changes"
-            echo
-            printf 'Current PR screenshots compared with `%s`. Storybook render-vs-committed-baseline failures are listed separately from committed PR-baseline-vs-base changes.\n' "$BASE_REF"
-            echo
-            for after in pr-preview/*-after.png; do
-              name=$(basename "$after" -after.png)
-              if [[ "$name" == *"--"* ]]; then
-                status=${name%%--*}
-                label=${name#*--}
-                label=${label//--/ /}
-              else
-                status=changed
-                label=$name
-              fi
-              status_label="${status^}"
-              echo "### ${status_label}: ${label}"
-              echo
-              echo "| Before | After | Diff |"
-              echo "| --- | --- | --- |"
-              echo "| ![before](${base}/${name}-before.png) | ![after](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |"
-              echo
-            done
-            printf '<sub>Rendered from Storybook and responsive app screenshot tests against `%s`.</sub>\n' "$BASE_REF"
-          } > body.md
-
-          # Replace previous UI-diff reports so each PR has one current comment.
-          gh api --paginate "repos/${REPO}/issues/${PR}/comments" \
-            --jq '.[] | select(.body | contains("<!-- app-screenshot-diff -->")) | .id' |
-            while read -r comment_id; do
-              gh api --method DELETE "repos/${REPO}/issues/comments/${comment_id}"
-            done
-          gh api "repos/${REPO}/issues/${PR}/comments" -F body=@body.md
+          SUBDIR: ${{ steps.publish.outputs.subdir }}
+          BASE_REF: ${{ steps.meta.outputs.base-ref }}
+        run: bun scripts/ci/comment-pr-screenshots.ts
 
       - name: Label PR as a UI change
         if: steps.meta.outputs.changed == 'true'
-        shell: bash
-        run: |
-          # No repo is checked out in this job, so gh needs an explicit --repo.
-          gh label create "$LABEL" --repo "$REPO" --color FFC0CB --description "Pull request changes rendered dashboard UI" 2>/dev/null || true
-          gh pr edit "$PR" --repo "$REPO" --add-label "$LABEL"
+        env:
+          PR: ${{ steps.meta.outputs.pr }}
+          LABEL: "ui change"
+        run: bun scripts/ci/label-pr-ui-change.ts
