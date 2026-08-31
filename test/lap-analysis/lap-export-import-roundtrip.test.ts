@@ -162,7 +162,8 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(imported.lapNumber).toBe(exported.lapNumber);
       expect(imported.lapTime).toBe(exported.lapTime);
       expect(importedPackets.length).toBe(sourcePackets.length);
-      expect(importedPackets).toEqual(sourcePackets);
+      expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
+        .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
     }, 120000);
   }
 

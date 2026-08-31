@@ -142,6 +142,14 @@ export class LapDetectorIRacing implements ILapDetector {
     await this.detector.flushStaleLap();
   }
 
+  async flushIncompleteLap(): Promise<void> {
+    if (this.deferred.length === 0) return;
+    const lapTime = this.staleLastLap > 0
+      ? this.staleLastLap
+      : this.deferred[0]?.packet.LastLap ?? 0;
+    if (lapTime > 0) await this.releaseDeferred(lapTime);
+    else this.deferred = [];
+  }
   async finalizeCurrentSession(): Promise<void> {
     this.deferred = [];
     this.pendingUnexpectedLap = null;

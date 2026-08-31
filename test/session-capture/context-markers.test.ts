@@ -10,7 +10,10 @@ class RecordingRecorder implements SessionRecorderAdapter {
   readonly epoch = 0;
   start(): void {}
   writeMetaFrame(): void {}
-  writeRecord(frame: Buffer): void { this.writes.push(Buffer.from(frame)); }
+  writeRecord(frame: Buffer): void {
+    this.writes.push(Buffer.concat([Buffer.from([frame.length, 0, 0, 0]), Buffer.from(frame)]));
+  }
+  writeRawCaptureBytes(bytes: Buffer): void { this.writes.push(Buffer.from(bytes)); }
   writeSegmentBoundary(): void {}
   getCurrentByteOffset(): number { return 0; }
   flush(): void {}
