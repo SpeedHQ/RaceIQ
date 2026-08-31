@@ -48,6 +48,8 @@ jobs:
         id: bump
         env:
           RELEASE_BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: bun scripts/ci/compute-release-version.ts
 
   build:
