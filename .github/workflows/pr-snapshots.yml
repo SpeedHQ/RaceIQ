@@ -36,9 +36,10 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-4vcpu-ubuntu-2204
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.0-jammy
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -61,35 +62,30 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Mark workspace safe for git (container runs as root)
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Merge pull request base into the PR head
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
+        shell: powershell
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-          fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
-          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
-            git fetch --no-tags origin "$BASE_SHA"
-            fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
-          fi
-          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
-            echo "Fetched base commit $fetched_base_sha does not match $BASE_SHA" >&2
-            exit 1
-          fi
-          git merge --no-edit "$BASE_SHA"
+          git fetch --no-tags origin "refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
+          $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            git fetch --no-tags origin $env:BASE_SHA
+            $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
+          }
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            throw "Fetched base commit $fetchedBaseSha does not match $env:BASE_SHA"
+          }
+          git merge --no-edit $env:BASE_SHA
+
 
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
-
-      - name: Install unzip (required by setup-bun in the container)
-        run: apt-get update && apt-get install -y --no-install-recommends unzip
+        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -115,37 +111,41 @@ jobs:
       - name: Collect diffs
         id: collect
         working-directory: client
-        shell: bash
+        shell: powershell
         run: |
-          out="$GITHUB_WORKSPACE/pr-preview"
-          mkdir -p "$out"
-          echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
-          echo "${{ steps.pull-request.outputs.base-ref }}" > "$out/base-ref.txt"
+          $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          "${{ github.event.pull_request.number || inputs.pr }}" | Out-File (Join-Path $out "pr-number.txt") -Encoding utf8
+          "${{ steps.pull-request.outputs.base-ref }}" | Out-File (Join-Path $out "base-ref.txt") -Encoding utf8
 
-          results="src/stories/__snapshots__/results"
-          if [ -d "$results" ]; then
-            while IFS= read -r diff; do
-              dir=$(dirname "$diff")
-              name=$(basename "$diff")
-              name=${name%-diff.png}
-              cp "$dir/$name-expected.png" "$out/changed--render-vs-committed-pr-baseline--$name-before.png" 2>/dev/null || continue
-              cp "$dir/$name-actual.png"   "$out/changed--render-vs-committed-pr-baseline--$name-after.png"  2>/dev/null || continue
-              cp "$dir/$name-diff.png"     "$out/changed--render-vs-committed-pr-baseline--$name-diff.png"   2>/dev/null || continue
-              echo "changed rendered snapshot: $name"
-            done < <(find "$results" -name '*-diff.png')
-          fi
+          $results = Join-Path (Get-Location) "src/stories/__snapshots__/results"
+          if (Test-Path $results) {
+            Get-ChildItem -Path $results -Filter "*-diff.png" -File -Recurse | ForEach-Object {
+              $dir = $_.DirectoryName
+              $name = $_.BaseName.Substring(0, $_.BaseName.Length - "-diff".Length)
+              $before = Join-Path $dir "$name-expected.png"
+              $after = Join-Path $dir "$name-actual.png"
+              $diff = Join-Path $dir "$name-diff.png"
+              if ((Test-Path $before) -and (Test-Path $after) -and (Test-Path $diff)) {
+                Copy-Item $before (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-before.png")
+                Copy-Item $after (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-after.png")
+                Copy-Item $diff (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-diff.png")
+                Write-Host "changed rendered snapshot: $name"
+              }
+            }
+          }
 
-          bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
-            --base "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__" \
-            --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
-            --out "$out" \
+          bun "$env:GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" `
+            --base "$env:RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__" `
+            --current "$env:GITHUB_WORKSPACE/client/src/stories/__snapshots__" `
+            --out "$out" `
             --prefix committed-pr-baseline-vs-base
 
-          if compgen -G "$out/*-after.png" >/dev/null; then
-            echo "changed=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=0" >> "$GITHUB_OUTPUT"
-          fi
+          if (Get-ChildItem -Path $out -Filter "*-after.png" -File -ErrorAction SilentlyContinue) {
+            "changed=1" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            "changed=0" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
