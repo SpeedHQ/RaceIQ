@@ -84,17 +84,18 @@ for (const model of modelIds) {
     for (let repeat = 1; repeat <= REPEAT_COUNT; repeat++) {
       const started = performance.now();
       let output = "";
+      let generationLatencyMs: number | undefined;
       try {
         const response = await agent.generate(testCase.input);
+        generationLatencyMs = performance.now() - started;
         output = response.text ?? "";
-        const latencyMs = performance.now() - started;
         if (!output) throw new Error("empty model response");
         const scores = await Promise.all(scorers.map((scorer) => scoreOutput(scorer, output, testCase.groundTruth)));
-        observations.push({ modelId: model, caseId: testCase.id, agent: testCase.agent, repeat, latencyMs, output, scores });
+        observations.push({ modelId: model, caseId: testCase.id, agent: testCase.agent, repeat, latencyMs: generationLatencyMs, output, scores });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const stage = output ? "scoring" : "generation";
-        failures.push({ modelId: model, caseId: testCase.id, repeat, stage, message, latencyMs: performance.now() - started, ...(output ? { output } : {}) });
+        failures.push({ modelId: model, caseId: testCase.id, repeat, stage, message, ...(generationLatencyMs !== undefined ? { latencyMs: generationLatencyMs } : { latencyMs: performance.now() - started }), ...(output ? { output } : {}) });
       }
     }
   }
