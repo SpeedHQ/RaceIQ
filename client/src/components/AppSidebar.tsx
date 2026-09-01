@@ -196,7 +196,8 @@ export function AppSidebar({
     const game = getAllGames().find((candidate) => candidate.id === gameId);
     if (!game || !activeGame) return;
     setGameSelectOpen(false);
-    void navigate({ to: replaceGameRoutePrefix(location.pathname, activeGame.routePrefix, game.routePrefix) });
+    const supportedPageRoots = FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(game.routePrefix, feature.feature)).map((feature) => feature.segment);
+    void navigate({ to: replaceGameRoutePrefix(location.pathname, activeGame.routePrefix, game.routePrefix, supportedPageRoots) });
   };
 
   const handleSettings = () => {
