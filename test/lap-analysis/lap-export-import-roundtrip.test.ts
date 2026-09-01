@@ -106,5 +106,9 @@ describe("lap export → import round-trip (real capture)", () => {
     const got = result.laps.map((l) => Math.round(l.lapTime * 1000)).sort((a, b) => a - b);
     const want = exportable.map((r) => Math.round(r.lapTime * 1000)).sort((a, b) => a - b);
     expect(got).toEqual(want);
+    const importedRows = await db.select().from(laps).where(inArray(laps.id, result.laps.map((l) => l.lapId))).all();
+    expect(importedRows).toHaveLength(result.laps.length);
+    expect(importedRows.every((l) => l.rawFrameCount !== null && l.rawFrameCount > 0)).toBe(true);
+    expect(importedRows.map((l) => l.isValid).sort()).toEqual(exportable.map((l) => l.isValid).sort());
   }, 120000);
 });

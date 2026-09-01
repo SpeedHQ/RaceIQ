@@ -709,6 +709,24 @@ describe("telemetry capability UI", () => {
     const iracing = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: semanticFrame({ "identity.player-track-surface": 1 }), gameId: "iracing", units: parityUnits }));
     expect(iracing.indexOf("Pit stall")).toBeLessThan(iracing.indexOf("Slip"));
   });
+  test("renders Forza angle from normalized slip-angle binding", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AnalyseDynamicsPanel, {
+        frame: {
+          values: {
+            "motion.speed": 30,
+            "tires.tire-slip-ratio": [0, 0, 0, 0],
+            "tires.normalized-tire-slip-angle": [0.1, 0.1, 0.1, 0.1],
+          },
+          states: { "tires.tire-slip-angle": "missing" },
+          freshness: {},
+        },
+        gameId: "fm-2023",
+        units: parityUnits,
+      }),
+    );
+    expect(markup).toContain("5.7°");
+  });
   test("keeps dynamics metrics out of compact cursor summary", () => {
     const markup = renderToStaticMarkup(
       createElement(

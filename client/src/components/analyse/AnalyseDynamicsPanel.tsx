@@ -41,8 +41,10 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const slipAngleMetric = analysis.slipAngle;
   const slipRatioMetric = analysis.slipRatio;
   const states = resolveWheelStates(frame, analysis.traction);
-  const slipAngles = bindingOf(slipAngleMetric) && frame.states["tires.tire-slip-angle"] !== "missing"
-    ? resolveWheelMetric(frame, bindingOf(slipAngleMetric)!)
+  const slipAngleBinding = bindingOf(slipAngleMetric);
+  const slipAngleId = slipAngleBinding?.semanticId;
+  const slipAngles = slipAngleBinding && slipAngleId && frame.states[slipAngleId] !== "missing"
+    ? resolveWheelMetric(frame, slipAngleBinding)
     : [null, null, null, null];
   const rawSlipRatios = frame.values["tires.tire-slip-ratio"];
   const slipRatioState = frame.states["tires.tire-slip-ratio"];
