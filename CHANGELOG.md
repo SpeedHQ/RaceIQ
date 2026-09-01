@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Features
+
+### Fixes
+- Start RaceIQ successfully after installing a Windows release
+
+### Internal
+
+## v0.15.0 - 2026-09-01
+
 ### Breaking
 
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
