@@ -4,6 +4,7 @@
 
 ### Fixes
 - Start RaceIQ successfully after installing a Windows release
+- Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
 
 ### Internal
 
