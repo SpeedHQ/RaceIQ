@@ -12,7 +12,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
-
+import type { BoundMastraModel } from "../model";
 const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
 
 export function resolveEvalModelId(): string {
@@ -27,22 +27,25 @@ const EVAL_LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing 
 
 Be specific and concrete. Cite numbers where helpful. Refer to the driver as "you". Use the units provided in the prompt.`;
 
-export function buildEvalLapAnalystAgent(): Agent {
-  const modelId = resolveEvalModelId();
+export function buildEvalLapAnalystAgent(
+  model: BoundMastraModel = resolveEvalModelId(),
+): Agent {
   return new Agent({
     id: "eval-lap-analyst",
     name: "Eval Lap Analyst",
     instructions: EVAL_LAP_ANALYST_INSTRUCTIONS,
-    model: () => modelId,
+    model,
   });
 }
 
-export function buildEvalCompareEngineerAgent(unit: "metric" | "imperial" = "metric"): Agent {
-  const modelId = resolveEvalModelId();
+export function buildEvalCompareEngineerAgent(
+  unit: "metric" | "imperial" = "metric",
+  model: BoundMastraModel = resolveEvalModelId(),
+): Agent {
   return new Agent({
     id: "eval-compare-engineer",
     name: "Eval Compare Engineer",
     instructions: compareEngineerPersona(unit),
-    model: () => modelId,
+    model,
   });
 }
