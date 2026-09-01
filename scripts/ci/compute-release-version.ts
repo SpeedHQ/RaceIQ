@@ -1,12 +1,11 @@
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync } from "node:fs";
+import { computeNextReleaseVersion, type Bump } from "./release-version";
 
 const bump = process.env.RELEASE_BUMP;
 const repo = process.env.REPO;
 const token = process.env.GH_TOKEN;
 if (!bump || !repo || !token) throw new Error("RELEASE_BUMP, REPO, and GH_TOKEN are required");
-const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
-const parts = pkg.version.split(".").map(Number);
-if (parts.length !== 3 || parts.some(Number.isNaN)) throw new Error(`Invalid package version: ${pkg.version}`);
+if (bump !== "major" && bump !== "minor" && bump !== "patch") throw new Error(`Unknown bump: ${bump}`);
 const releasedTags: string[] = [];
 for (let page = 1; ; page++) {
   const response = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`, {
@@ -17,15 +16,6 @@ for (let page = 1; ; page++) {
   releasedTags.push(...releases.filter((release) => !release.draft).map((release) => release.tag_name));
   if (releases.length < 100) break;
 }
-const releasedVersions = new Set(releasedTags.filter((tag) => tag.startsWith("v")).map((tag) => tag.slice(1)));
-const increment = () => {
-  if (bump === "major") { parts[0]++; parts[1] = 0; parts[2] = 0; }
-  else if (bump === "minor") { parts[1]++; parts[2] = 0; }
-  else if (bump === "patch") parts[2]++;
-  else throw new Error(`Unknown bump: ${bump}`);
-};
-increment();
-while (releasedVersions.has(parts.join("."))) increment();
-const version = parts.join(".");
+const version = computeNextReleaseVersion(releasedTags, bump as Bump);
 appendFileSync(process.env.GITHUB_OUTPUT!, `version=${version}\n`);
-console.log(`Version bump: ${pkg.version} -> ${version} (${bump}); unused released version selected`);
+console.log(`Version bump from latest release tag -> ${version} (${bump}); unused released version selected`);
