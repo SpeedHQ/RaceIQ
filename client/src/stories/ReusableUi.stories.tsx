@@ -96,6 +96,9 @@ function SearchMultiSelectDemo() {
     />
   );
 }
+const AVATAR_IMAGE_SRC =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%234f46e5'/%3E%3Ccircle cx='16' cy='12' r='6' fill='white'/%3E%3Cpath d='M5 30c0-6.075 4.925-11 11-11s11 4.925 11 11' fill='white'/%3E%3C/svg%3E";
+
 
 
 function PanelSectionHeaderDemo() {
@@ -497,7 +500,7 @@ export const AvatarVariants: Story = {
     <div className="grid gap-5">
       <div className="flex items-center gap-3">
         <Avatar size="sm">
-          <AvatarImage src="data:image/png;base64,not-a-valid-image" alt="Missing driver avatar" />
+          <AvatarImage src={AVATAR_IMAGE_SRC} alt="Driver avatar" />
           <AvatarFallback>AC</AvatarFallback>
           <AvatarBadge data-testid="avatar-online-badge" aria-label="Online" />
         </Avatar>
@@ -522,7 +525,8 @@ export const AvatarVariants: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getAllByText("AC")).toHaveLength(2);
+    await expect(canvas.getByRole("img", { name: "Driver avatar" })).toHaveAttribute("src", AVATAR_IMAGE_SRC);
+    await expect(canvas.getAllByText("AC")).toHaveLength(1);
     await expect(canvas.getByTestId("avatar-online-badge")).toBeInTheDocument();
     await expect(canvas.getByText("+3")).toBeVisible();
     await expect(canvas.getByTestId("avatar-group")).toHaveAttribute("data-slot", "avatar-group");
