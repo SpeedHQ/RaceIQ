@@ -226,6 +226,7 @@ jobs:
       - 4VCPU
       - 15G
     steps:
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
