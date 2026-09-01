@@ -105,9 +105,6 @@ jobs:
             --define 'process.env.NODE_ENV="production"' `
             --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' `
             --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' `
-            --external @mastra/duckdb `
-            --external @duckdb/node-api `
-            --external @duckdb/node-bindings `
             server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Patch PE version info (ProductName)
@@ -122,6 +119,33 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
           Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+
+      - name: Smoke test server startup
+        shell: powershell
+        run: |
+          $server = Start-Process -FilePath (Resolve-Path "dist/raceiq.exe") -WorkingDirectory (Resolve-Path "dist") -PassThru
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              if ($server.HasExited) {
+                throw "RaceIQ exited during startup with code $($server.ExitCode)"
+              }
+              try {
+                Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:3117/" | Out-Null
+                $ready = $true
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $ready) {
+              throw "RaceIQ did not listen on port 3117 within 30 seconds"
+            }
+          } finally {
+            if (-not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
 
       - name: Upload dist artifact (for E2E test)
         uses: actions/upload-artifact@v7
