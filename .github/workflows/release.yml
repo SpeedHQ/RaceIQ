@@ -247,9 +247,7 @@ jobs:
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
-          files: |
-            artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
-            artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
+          files: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
           body_path: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
           draft: true
 
