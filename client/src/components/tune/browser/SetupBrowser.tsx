@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
@@ -107,12 +108,12 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {s.label}
           </Button>
         ))}
-        <input
+        <AppInput
           type="text"
           value={author}
           placeholder={m.setup_search_author()}
           onChange={(e) => pickAuthor(e.target.value)}
-          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+          className="text-app-compact w-40"
         />
         {props.onRefresh && (
           <Button
