@@ -57,7 +57,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
         size="lg"
         showCloseButton={false}
         overlayClassName="bg-app-bg/60"
-        className="@container/data-guide flex min-h-0 max-h-[85vh] max-w-[560px] flex-col overflow-hidden p-0"
+        className="@container/data-guide flex min-h-0 max-h-[85vh] max-w-[560px] flex-col gap-0 overflow-hidden p-0"
       >
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-3">
           <DialogTitle id="analyse-data-guide-title" className="text-sm font-semibold text-app-text">

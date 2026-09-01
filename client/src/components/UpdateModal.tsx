@@ -83,7 +83,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open && !isUpdating) onClose(); }}>
-      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto bg-app-bg p-0">
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto gap-0 bg-app-bg p-0">
         {/* Header */}
         <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-4">
           <DialogTitle id="update-modal-title" className="text-sm font-semibold text-app-text">

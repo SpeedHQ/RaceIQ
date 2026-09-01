@@ -97,7 +97,7 @@ const getLabel: Record<string, () => string> = {
 export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[80vh] overflow-y-auto p-0">
+      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[80vh] overflow-y-auto gap-0 p-0">
         <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-3">
           <DialogTitle id="f1-setup-title" className="text-sm font-semibold text-app-text">
             {m.f1setupmodal_section_car_setup()}
