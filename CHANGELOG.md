@@ -3,8 +3,14 @@
 ### Features
 
 ### Fixes
-- Start RaceIQ successfully after installing a Windows release
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+
+### Internal
+
+## v0.15.1 - 2026-09-01
+
+### Fixes
+- Start RaceIQ successfully after installing a Windows release
 
 ### Internal
 
