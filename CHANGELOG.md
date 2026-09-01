@@ -1,9 +1,9 @@
 ## Unreleased
 
 ### Features
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 
 ### Fixes
-- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 
 ### Internal
 
