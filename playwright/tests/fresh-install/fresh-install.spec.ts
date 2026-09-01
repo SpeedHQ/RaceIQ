@@ -150,7 +150,7 @@ test.describe
       await gameSelect.hover();
       await expect(page.getByRole("listbox")).toBeVisible();
       await page.getByRole("option", { name: "F1 2025" }).click();
-      await expect(page).toHaveURL(/\/f125$/);
+      await expect(page).toHaveURL(/\/f125\/sessions$/);
       await expect(navigation.getByRole("link", { name: "Experiments" })).toBeVisible();
 
       await page.reload({ waitUntil: "domcontentloaded" });

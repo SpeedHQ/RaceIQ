@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
