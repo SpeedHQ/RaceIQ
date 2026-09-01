@@ -35,7 +35,7 @@
     "test:ai": "bun test test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/quality/ai-baseline.ts",
     "ai:model-eval": "bun scripts/quality/model-eval.ts",
-    "bench": "bun scripts/quality/process-bench.ts",
+    "bench": "bun test/benchmarks/pipeline.bench.ts",
     "bench:replay-io": "bun scripts/quality/replay-io-bench.ts",
     "extract:tracks": "bun scripts/games/fm-2023/extract-tracks.ts && bun scripts/games/f1-2025/extract-tracks.ts",
     "extract:tracks:forza": "bun scripts/games/fm-2023/extract-tracks.ts",
