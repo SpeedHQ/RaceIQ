@@ -101,7 +101,32 @@ const AVATAR_IMAGE_SRC =
 
 
 
+function ControlledCollapsibleDemo() {
+  const [expanded, setExpanded] = useState(true);
+  const [telemetryExpanded, setTelemetryExpanded] = useState(false);
+
+  return (
+    <div className="grid w-full max-w-md gap-3">
+      <Collapsible open={expanded} onOpenChange={setExpanded} className="rounded border border-app-border p-3">
+        <CollapsibleTrigger className="font-medium">Expanded setup details</CollapsibleTrigger>
+        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Expanded setup content.</CollapsibleContent>
+      </Collapsible>
+      <Collapsible
+        open={telemetryExpanded}
+        onOpenChange={setTelemetryExpanded}
+        className="rounded border border-app-border p-3"
+      >
+        <CollapsibleTrigger className="font-medium">Collapsed telemetry details</CollapsibleTrigger>
+        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Collapsed telemetry content.</CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
+
 function PanelSectionHeaderDemo() {
+  const [expanded, setExpanded] = useState(true);
+  const [telemetryExpanded, setTelemetryExpanded] = useState(false);
+
   return (
     <div className="grid gap-4">
       <PanelSectionHeader title="Static section">
@@ -109,8 +134,8 @@ function PanelSectionHeaderDemo() {
           Ready
         </Badge>
       </PanelSectionHeader>
-      <PanelSectionHeader title="Expanded telemetry" collapsed={false} onToggle={() => {}} />
-      <PanelSectionHeader title="Collapsed telemetry" collapsed onToggle={() => {}} />
+      <PanelSectionHeader title="Expanded telemetry" collapsed={!expanded} onToggle={() => setExpanded((current) => !current)} />
+      <PanelSectionHeader title="Collapsed telemetry" collapsed={!telemetryExpanded} onToggle={() => setTelemetryExpanded((current) => !current)} />
     </div>
   );
 }
@@ -534,18 +559,7 @@ export const AvatarVariants: Story = {
 };
 
 export const CollapsibleStates: Story = {
-  render: () => (
-    <div className="grid w-full max-w-md gap-3">
-      <Collapsible open className="rounded border border-app-border p-3">
-        <CollapsibleTrigger className="font-medium">Expanded setup details</CollapsibleTrigger>
-        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Expanded setup content.</CollapsibleContent>
-      </Collapsible>
-      <Collapsible open={false} className="rounded border border-app-border p-3">
-        <CollapsibleTrigger className="font-medium">Collapsed telemetry details</CollapsibleTrigger>
-        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Collapsed telemetry content.</CollapsibleContent>
-      </Collapsible>
-    </div>
-  ),
+  render: () => <ControlledCollapsibleDemo />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const expandedTrigger = canvas.getByRole("button", { name: "Expanded setup details" });
@@ -554,6 +568,16 @@ export const CollapsibleStates: Story = {
     await expect(canvas.getByText("Expanded setup content.")).toBeVisible();
     await expect(collapsedTrigger).toHaveAttribute("aria-expanded", "false");
     await expect(canvas.getByText("Collapsed telemetry content.")).not.toBeVisible();
+
+    await userEvent.click(collapsedTrigger);
+    await expect(collapsedTrigger).toHaveAttribute("aria-expanded", "true");
+    await expect(canvas.getByText("Collapsed telemetry content.")).toBeVisible();
+    await userEvent.click(collapsedTrigger);
+    await expect(collapsedTrigger).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(expandedTrigger);
+    await expect(expandedTrigger).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(expandedTrigger);
+    await expect(expandedTrigger).toHaveAttribute("aria-expanded", "true");
   },
 };
 
@@ -640,6 +664,17 @@ export const PanelSectionHeaderStates: Story = {
     await expect(canvas.getByText("Static section")).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Collapse Expanded telemetry" })).toHaveAttribute("aria-expanded", "true");
     await expect(canvas.getByRole("button", { name: "Expand Collapsed telemetry" })).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(canvas.getByRole("button", { name: "Collapse Expanded telemetry" }));
+    await expect(canvas.getByRole("button", { name: "Expand Expanded telemetry" })).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(canvas.getByRole("button", { name: "Expand Expanded telemetry" }));
+    await expect(canvas.getByRole("button", { name: "Collapse Expanded telemetry" })).toHaveAttribute("aria-expanded", "true");
+
+    await userEvent.click(canvas.getByRole("button", { name: "Expand Collapsed telemetry" }));
+    await expect(canvas.getByRole("button", { name: "Collapse Collapsed telemetry" })).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(canvas.getByRole("button", { name: "Collapse Collapsed telemetry" }));
+    await expect(canvas.getByRole("button", { name: "Expand Collapsed telemetry" })).toHaveAttribute("aria-expanded", "false");
+    (document.activeElement as HTMLElement | null)?.blur();
   },
 };
 
