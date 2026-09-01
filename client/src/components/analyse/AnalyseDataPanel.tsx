@@ -47,9 +47,9 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
   const features = unavailableAnalyseFeatures(getGame(gameId), available);
   if (features.length === 0) return null;
   return <>
-    <button type="button" aria-label="Unavailable features in Analyse" onClick={() => setOpen(true)} className="text-app-text-dim outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+    <Button variant="plain" size="content" type="button" aria-label="Unavailable features in Analyse" onClick={() => setOpen(true)} className="text-app-text-dim outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
       <Info className="size-3 cursor-pointer" aria-hidden="true" />
-    </button>
+    </Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent size="lg" layout="scrollable" overlayClassName="bg-app-bg/60">
         <DialogHeader>
@@ -69,9 +69,9 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
 function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" aria-label="MoTeC import info" onClick={() => setOpen(true)} className="text-status-warning outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+    <Button variant="plain" size="content" type="button" aria-label="MoTeC import info" onClick={() => setOpen(true)} className="text-status-warning outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
       <Info className="size-3 cursor-pointer" aria-hidden="true" />
-    </button>
+    </Button>
     {open && <MotecMetricInfoModal frame={frame} gameId={gameId} onClose={() => setOpen(false)} />}
   </>;
 }
