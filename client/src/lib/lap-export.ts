@@ -30,8 +30,9 @@ export function buildExportCsv(telemetry: ReadonlyArray<Record<string, unknown>>
   return csv;
 }
 
-/** Trigger a browser download for a binary response, honouring Content-Disposition. */
-export async function downloadResponse(res: Response, fallbackName: string): Promise<void> {
+type DownloadResponse = Pick<Response, "headers" | "blob">;
+
+export async function downloadResponse(res: DownloadResponse, fallbackName: string): Promise<void> {
   const blob = await res.blob();
   const cd = res.headers.get("Content-Disposition") ?? "";
   const filename = cd.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackName;
