@@ -64,6 +64,9 @@ describe("lap telemetry cache (byte-budget LRU)", () => {
   test("estimateBytes is larger for ACC packets than base", () => {
     expect(cache.estimateBytes(stubAcc(1, 100))).toBeGreaterThan(cache.estimateBytes(stub(1, 100)));
   });
+  test("charges F1 packets at 12000 bytes each", () => {
+    expect(cache.estimateBytes(stubF1(1, 100))).toBe(1_200_000);
+  });
 
   test("evicts oldest entry when total bytes exceed budget", () => {
     const oneEntryBytes = cache.estimateBytes(stub(1, 1000));

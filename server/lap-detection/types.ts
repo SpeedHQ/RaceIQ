@@ -38,6 +38,8 @@ export interface LapDetectorOptions {
   callbacks?: LapDetectorCallbacks;
   /** Bypass an implementation's packet-rate guard when supported (used in tests). */
   bypassPacketRateFilter?: boolean;
+  /** Game-owned policy for retaining parsed packets in lap buffers. */
+  retainParsedPacket?: (packet: TelemetryPacket) => boolean;
 }
 
 /** Common interface implemented by all lap detector variants. */

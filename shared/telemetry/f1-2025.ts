@@ -24,6 +24,8 @@ export interface F1GridEntry {
 }
 
 export interface F1ExtendedData {
+  /** Original F1 UDP packet type that produced this merged snapshot. */
+  sourcePacketId?: number;
   drsAllowed: boolean;
   drsActivated: boolean;
   drsZoneApproaching: boolean;

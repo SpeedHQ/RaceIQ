@@ -68,7 +68,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
   const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  const detector = serverGame.createLapDetector({
+    db: capturingDb,
+    bypassPacketRateFilter: true,
+    retainParsedPacket: serverGame.retainParsedPacket,
+  });
   if (loaded.kind === "packets") {
     for (let index = 0; index < loaded.packets.length; index++) {
       const offset = loaded.offsetEncoding === "packet-index"

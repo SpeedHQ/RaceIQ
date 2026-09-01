@@ -7,15 +7,10 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { loadSessionSource, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { iterateSessionCaptureFrames, loadSessionSource, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { readFrameStreamStart } from "../session-capture/framing";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
-// Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
-// plus optional game-specific extensions (f1/acc/setup). Sniffing the first
-// packet to pick a tighter estimate is precise enough for an eviction budget
-// that the user controls in settings.
-const BYTES_PER_PACKET_BASE = 500;
-const BYTES_PER_PACKET_F1 = 1100;
-const BYTES_PER_PACKET_ACC = 800;
+import { estimateTelemetryPacketsBytes } from "../telemetry/memory-estimate";
 
 const DEFAULT_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
@@ -49,10 +44,7 @@ function comparisonKey(idA: number, idB: number): string {
 }
 
 function estimateBytes(packets: TelemetryPacket[]): number {
-  if (packets.length === 0) return 0;
-  const sample = packets[0] as TelemetryPacket & { f1?: unknown; acc?: unknown };
-  const per = sample.f1 ? BYTES_PER_PACKET_F1 : sample.acc ? BYTES_PER_PACKET_ACC : BYTES_PER_PACKET_BASE;
-  return packets.length * per;
+  return estimateTelemetryPacketsBytes(packets);
 }
 
 function touch(key: string, entry: CacheEntry): void {
@@ -255,10 +247,13 @@ function replayCanonicalLap(
   frameCount: number,
   game: ReplayGame,
 ): TelemetryPacket[] {
-  const packets = sourcePackets
-    .slice(start, start + frameCount)
-    .map(freshReplayPacket);
-  for (const packet of packets) normalizeReplayPacket(packet, game);
+  const retain = game.retainParsedPacket ?? (() => true);
+  const packets: TelemetryPacket[] = [];
+  for (const sourcePacket of sourcePackets.slice(start, start + frameCount)) {
+    const packet = freshReplayPacket(sourcePacket);
+    normalizeReplayPacket(packet, game);
+    if (retain(packet)) packets.push(packet);
+  }
 
   const trailingSource = sourcePackets[start + frameCount];
   const trailing = trailingSource ? freshReplayPacket(trailingSource) : null;
@@ -292,36 +287,86 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
-  if (loaded.kind === "packets") {
-    const packets = loaded.packets.map(freshReplayPacket);
-    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
-    return packets;
-  }
   const serverGame = getServerGame(gameId);
+  const retain = serverGame.retainParsedPacket ?? (() => true);
+  if (loaded.kind === "packets") {
+    return loaded.packets.map(freshReplayPacket).filter((packet) => {
+      normalizeReplayPacket(packet, serverGame);
+      return retain(packet);
+    });
+  }
   const state = serverGame.createParserState?.() ?? null;
   const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
-  let offset = 12;
+  let offset = readFrameStreamStart(buf);
   while (offset + 4 <= buf.length) {
     const frameLen = buf.readUInt32LE(offset); offset += 4;
     if (frameLen <= 0 || offset + frameLen > buf.length) break;
     const sourceFrame = buf.subarray(offset, offset + frameLen); offset += frameLen;
-    try { const packet = serverGame.tryParse(sourceFrame, state); if (packet) { normalizeReplayPacket(packet, serverGame); packets.push(packet); } } catch {}
+    try {
+      const packet = serverGame.tryParse(sourceFrame, state);
+      if (packet) {
+        normalizeReplayPacket(packet, serverGame);
+        if (retain(packet)) packets.push(packet);
+      }
+    } catch {}
   }
   return packets;
 }
-export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
-  const loaded = await loadSessionSource(source);
-  if (loaded.kind === "packets") {
-    const start = packetIndexForOffset(source.gameId, rawByteOffset, loaded.offsetEncoding);
-    return replayCanonicalLap(
-      loaded.packets,
-      start,
-      rawFrameCount,
-      getServerGame(source.gameId),
-    );
+async function parseRawLapFramesFromSource(
+  source: SessionCaptureSource,
+  rawByteOffset: number,
+  rawFrameCount: number,
+): Promise<TelemetryPacket[]> {
+  const serverGame = getServerGame(source.gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const retain = serverGame.retainParsedPacket ?? (() => true);
+  const packets: TelemetryPacket[] = [];
+  let started = false;
+  let parsedCount = 0;
+  for await (const record of iterateSessionCaptureFrames(source)) {
+    if (!started) {
+      if (record.offset < rawByteOffset) {
+        try { serverGame.tryParse(record.frame, state); } catch {}
+        continue;
+      }
+      if (record.offset !== rawByteOffset) break;
+      started = true;
+    }
+    try {
+      const packet = serverGame.tryParse(record.frame, state);
+      if (!packet) continue;
+      normalizeReplayPacket(packet, serverGame);
+      if (parsedCount < rawFrameCount) {
+        if (retain(packet)) packets.push(packet);
+        parsedCount++;
+      } else {
+        appendDelayedFinishPacket(packets, packet, serverGame);
+        break;
+      }
+    } catch {}
   }
-  return parseRawLapFramesFromBuffer(loaded.buffer, rawByteOffset, rawFrameCount, source.gameId, source.rawFile);
+  if (packets.length === 0 && rawFrameCount > 0) {
+    throw new LapParseError(`Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${source.gameId})`, {
+      rawFile: source.rawFile,
+      rawByteOffset,
+      rawFrameCount,
+      fileSize: 0,
+      framesParsed: 0,
+      reason: "no-packets-parsed",
+    });
+  }
+  return packets;
+}
+
+export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOffset: number, rawFrameCount: number): Promise<TelemetryPacket[]> {
+  if (source.rawFile.endsWith(".motec.zip")) {
+    const loaded = await loadSessionSource(source);
+    if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
+    const start = packetIndexForOffset(source.gameId, rawByteOffset, loaded.offsetEncoding);
+    return replayCanonicalLap(loaded.packets, start, rawFrameCount, getServerGame(source.gameId));
+  }
+  return parseRawLapFramesFromSource(source, rawByteOffset, rawFrameCount);
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
@@ -345,8 +390,8 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
   // Warm up stateful parsers (F1) by replaying frames from the start of the
   // file. Without this the accumulator starts empty mid-file and drops the
   // first ~1s of lap telemetry waiting for every sub-packet type to arrive.
-  // Start at 12 to skip the meta frame.
-  let warmupOffset = 12;
+  // Start after an optional metadata frame.
+  let warmupOffset = readFrameStreamStart(buf);
   while (warmupOffset < rawByteOffset && warmupOffset + 4 <= buf.length) {
     const wLen = buf.readUInt32LE(warmupOffset);
     if (wLen <= 0 || warmupOffset + 4 + wLen > buf.length) break;
@@ -406,11 +451,8 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
       if (!packet) continue;
       normalizeReplayPacket(packet, serverGame);
       if (i < rawFrameCount) {
-        packets.push(packet);
+        if ((serverGame.retainParsedPacket ?? (() => true))(packet)) packets.push(packet);
       } else {
-        // Extra trailing frame = the next-lap trigger. It carries real
-        // speed/throttle/etc. values for the finish-line crossing, but its
-        // CurrentLap has already reset for the new lap.
         appendDelayedFinishPacket(packets, packet, serverGame);
       }
     } catch (err) {
@@ -480,8 +522,6 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
   return {
     id: row.id,
     sessionId: row.sessionId,
-    createdAt: row.createdAt,
-    gameId: row.gameId as GameId,
     rawFile: row.rawFile,
     rawByteOffset: row.rawByteOffset,
     rawFrameCount: row.rawFrameCount,
@@ -504,6 +544,54 @@ export async function getLapReplaySource(id: number): Promise<LapReplaySource | 
  */
 
 export const parseRawLapFramesForTest = parseRawLapFrames;
+async function parseSessionLapsBatchedFromSource(
+  source: SessionCaptureSource,
+  lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[],
+): Promise<Map<number, TelemetryPacket[]>> {
+  const out = new Map<number, TelemetryPacket[]>();
+  const game = getServerGame(source.gameId);
+  const state = game.createParserState?.() ?? null;
+  const retain = game.retainParsedPacket ?? (() => true);
+  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
+  const active: Array<{
+    meta: (typeof metas)[number];
+    packets: TelemetryPacket[];
+    remaining: number;
+    trailing: boolean;
+  }> = [];
+  let nextMeta = 0;
+  for await (const record of iterateSessionCaptureFrames(source)) {
+    while (nextMeta < metas.length && metas[nextMeta].rawByteOffset < record.offset) nextMeta++;
+    while (nextMeta < metas.length && metas[nextMeta].rawByteOffset === record.offset) {
+      const meta = metas[nextMeta++];
+      active.push({ meta, packets: [], remaining: meta.rawFrameCount, trailing: false });
+    }
+    if (nextMeta === metas.length && active.length === 0) break;
+
+    let packet: TelemetryPacket | null = null;
+    try {
+      packet = game.tryParse(record.frame, state);
+      if (packet) normalizeReplayPacket(packet, game);
+    } catch {}
+    for (const lap of active) {
+      if (lap.remaining > 0) {
+        if (packet && retain(packet)) lap.packets.push(packet);
+        lap.remaining--;
+      } else if (!lap.trailing) {
+        appendDelayedFinishPacket(lap.packets, packet, game);
+        lap.trailing = true;
+      }
+    }
+    for (let i = active.length - 1; i >= 0; i--) {
+      const lap = active[i];
+      if (lap.remaining === 0 && lap.trailing) {
+        if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
+        active.splice(i, 1);
+      }
+    }
+  }
+  return out;
+}
 
 /** Test-only export so integration tests can drive the batch decoder directly. */
 
@@ -523,105 +611,20 @@ export const parseSessionLapsBatchedForTest = parseSessionLapsBatched;
  * can't be located in the frame stream are omitted — caller falls back per-lap.
  */
 export async function parseSessionLapsBatched(source: SessionCaptureSource, lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[]): Promise<Map<number, TelemetryPacket[]>> {
-  const out = new Map<number, TelemetryPacket[]>();
-  if (lapMetas.length === 0) return out;
+  if (lapMetas.length === 0) return new Map();
+  if (!source.rawFile.endsWith(".motec.zip")) {
+    return parseSessionLapsBatchedFromSource(source, lapMetas);
+  }
   const serverGame = getServerGame(source.gameId);
   const loaded = await loadSessionSource(source);
+  const out = new Map<number, TelemetryPacket[]>();
   if (loaded.kind === "packets") {
     for (const meta of lapMetas) {
       const start = packetIndexForOffset(source.gameId, meta.rawByteOffset, loaded.offsetEncoding);
-      const packets = replayCanonicalLap(
-        loaded.packets,
-        start,
-        meta.rawFrameCount,
-        serverGame,
-      );
+      const packets = replayCanonicalLap(loaded.packets, start, meta.rawFrameCount, serverGame);
       if (packets.length > 0) out.set(meta.id, packets);
     }
     return out;
   }
-  const state = serverGame.createParserState?.() ?? null;
-  const buf = loaded.buffer;
-
-  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
-  const firstOffset = metas[0].rawByteOffset;
-  if (firstOffset >= buf.length) return out; // all past EOF — fall back per-lap
-
-  // Warm up the parser state by replaying frames from the start of the file up
-  // to the first requested lap (start at 12 to skip the meta frame). Same
-  // best-effort replay parseRawLapFrames does, done ONCE for the whole batch.
-  let offset = 12;
-  while (offset < firstOffset && offset + 4 <= buf.length) {
-    const wLen = buf.readUInt32LE(offset);
-    if (wLen <= 0 || offset + 4 + wLen > buf.length) break;
-    const wBuf = buf.subarray(offset + 4, offset + 4 + wLen);
-    offset += 4 + wLen;
-    try {
-      serverGame.tryParse(wBuf, state);
-    } catch {
-      /* warmup best-effort */
-    }
-  }
-
-  // Boundary walk from the first lap to EOF: record each frame's start offset so
-  // stored lap offsets map to frame indices. No parsing here — just length
-  // headers, so this is cheap even for a long session file.
-  const frameStarts: number[] = [];
-  const offsetToIdx = new Map<number, number>();
-  let cursor = firstOffset;
-  while (cursor + 4 <= buf.length) {
-    const len = buf.readUInt32LE(cursor);
-    if (len <= 0 || cursor + 4 + len > buf.length) break;
-    offsetToIdx.set(cursor, frameStarts.length);
-    frameStarts.push(cursor);
-    cursor += 4 + len;
-  }
-
-  // Resolve each lap to a frame index range; the last lap bounds how far we parse.
-  const resolved: { id: number; startIdx: number; frameCount: number }[] = [];
-  let maxIdx = -1;
-  for (const meta of metas) {
-    const startIdx = offsetToIdx.get(meta.rawByteOffset);
-    if (startIdx === undefined) continue; // unaligned — caller falls back
-    resolved.push({ id: meta.id, startIdx, frameCount: meta.rawFrameCount });
-    // +1 for the trailing finish frame (see parseRawLapFrames' readCount).
-    maxIdx = Math.max(maxIdx, startIdx + meta.rawFrameCount);
-  }
-  if (resolved.length === 0) return out;
-
-  // Parse frames [0 .. maxIdx] once each, applying the same normalization as
-  // parseRawLapFrames. `parsed[i]` is null when tryParse returns nothing (e.g. a
-  // stateful accumulator still assembling a packet).
-  const lastFrame = Math.min(maxIdx, frameStarts.length - 1);
-  const parsed: (TelemetryPacket | null)[] = new Array(lastFrame + 1).fill(null);
-  for (let i = 0; i <= lastFrame; i++) {
-    const start = frameStarts[i];
-    const len = buf.readUInt32LE(start);
-    const sourceFrame = buf.subarray(start + 4, start + 4 + len);
-    try {
-      const packet = serverGame.tryParse(sourceFrame, state);
-      if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
-      parsed[i] = packet;
-    } catch {
-      /* single bad frame — skip, matches per-lap tolerance */
-    }
-  }
-
-  // Slice per lap: its packets are the non-null parses among its rawFrameCount
-  // frames, plus the synthesized finish packet from the trailing frame.
-  for (const lap of resolved) {
-    const end = lap.startIdx + lap.frameCount; // exclusive; index of trailing frame
-    const packets: TelemetryPacket[] = [];
-    for (let i = lap.startIdx; i < end && i < parsed.length; i++) {
-      const p = parsed[i];
-      if (p) packets.push(p);
-    }
-    // Trailing frame = next-lap trigger; synthesize a finish packet using the
-    // same adapter policy as the individual decoder.
-    appendDelayedFinishPacket(packets, parsed[end], serverGame);
-    if (packets.length > 0) out.set(lap.id, packets);
-  }
-
   return out;
 }

@@ -71,6 +71,7 @@ export class F1StateAccumulator {
     this.session = null;
     this.participants = [];
     this.driverHistory = new Map();
+    this.driverLapSectors = new Map();
     this.playerCarIndex = 0;
   }
 
@@ -80,6 +81,7 @@ export class F1StateAccumulator {
    * Each emission reflects the latest merged state from all sources.
    */
   feed(header: F1Header, buf: Buffer): TelemetryPacket | null {
+    if (!(Object.values(F1_PACKET_IDS) as number[]).includes(header.packetId)) return null;
     if (header.sessionUID !== this.sessionUID) {
       this.reset();
       this.sessionUID = header.sessionUID;
@@ -216,8 +218,16 @@ export class F1StateAccumulator {
         grid[i].gapToCarAhead = grid[i].gapToLeader - grid[i - 1].gapToLeader;
       }
     }
+    const playerLapSectors = this.driverLapSectors.get(this.playerCarIndex);
+    const currentLap = ld.currentLapNum;
+    const lapSectors: Record<number, F1LapSectorData> = {};
+    for (const lapNumber of [currentLap - 1, currentLap]) {
+      const sectors = playerLapSectors?.get(lapNumber);
+      if (sectors) lapSectors[lapNumber] = sectors;
+    }
 
     const f1: F1ExtendedData = {
+      sourcePacketId: header.packetId,
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
       drsZoneApproaching: false, // TODO: from motion extra data
@@ -240,10 +250,7 @@ export class F1StateAccumulator {
       lastS1: this.driverHistory.get(this.playerCarIndex)?.lastS1 ?? 0,
       lastS2: this.driverHistory.get(this.playerCarIndex)?.lastS2 ?? 0,
       lastS3: this.driverHistory.get(this.playerCarIndex)?.lastS3 ?? 0,
-      // Per-lap completed sector times from SessionHistory, keyed by lap
-      // number (1-indexed). Let downstream code look up the authoritative
-      // split for a specific lap rather than the fragile "last" pointer.
-      lapSectors: Object.fromEntries(this.driverLapSectors.get(this.playerCarIndex) ?? []),
+      lapSectors,
       brakeTempFL: ct.brakeTempFL,
       brakeTempFR: ct.brakeTempFR,
       brakeTempRL: ct.brakeTempRL,
