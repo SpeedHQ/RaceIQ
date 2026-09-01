@@ -3,7 +3,7 @@
 ### Features
 
 ### Fixes
-- Start RaceIQ successfully after installing a Windows release
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 
 ### Internal
 
