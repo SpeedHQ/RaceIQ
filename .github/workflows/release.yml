@@ -95,19 +95,7 @@ jobs:
         run: bun scripts/build/copy-shared-data.ts
 
       - name: Compile server binary
-        shell: powershell
-        run: |
-          $env:NODE_ENV = "production"
-          bun build --compile --target=bun-windows-x64 `
-            --windows-icon=assets/raceiq.ico `
-            --windows-title=RaceIQ `
-            --windows-publisher=SpeedHQ `
-            --windows-description="RaceIQ" `
-            --windows-version="${{ needs.compute-version.outputs.version }}" `
-            --define 'process.env.NODE_ENV="production"' `
-            --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' `
-            --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' `
-            server/bootstrap.ts --outfile dist/raceiq.exe
+        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         shell: powershell
