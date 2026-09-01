@@ -16,7 +16,9 @@
  * that isn't there, usually a server running older code than the UI — is
  * replaced by a parse error that points nowhere.
  */
-export async function errorFromResponse(res: Response): Promise<Error> {
+type ErrorResponse = Pick<Response, "status" | "statusText" | "text">;
+
+export async function errorFromResponse(res: ErrorResponse): Promise<Error> {
   const body = await res.text().catch(() => "");
   if (body.trimStart().startsWith("{")) {
     try {

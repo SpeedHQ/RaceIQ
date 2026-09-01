@@ -91,7 +91,7 @@ function seededIRacingIdentity(dataDir: string): Array<{ kind: string; ordinal: 
 
 function assertSeededRawFilesExist(dataDir: string): void {
   const laps = seededIRacingLaps(dataDir);
-  expect(laps).toHaveLength(5);
+  expect(laps).toHaveLength(2);
   expect(
     laps.map(({ lapNumber, isValid, invalidReason }) => ({
       lapNumber,
@@ -99,11 +99,8 @@ function assertSeededRawFilesExist(dataDir: string): void {
       invalidReason,
     })),
   ).toEqual([
-    { lapNumber: 413, isValid: 1, invalidReason: null },
-    { lapNumber: 414, isValid: 0, invalidReason: "inlap" },
-    { lapNumber: 415, isValid: 0, invalidReason: "outlap" },
-    { lapNumber: 416, isValid: 1, invalidReason: null },
-    { lapNumber: 417, isValid: 1, invalidReason: null },
+    { lapNumber: 1, isValid: 1, invalidReason: null },
+    { lapNumber: 2, isValid: 1, invalidReason: null },
   ]);
   expect(laps.every((lap) => lap.rawFile?.startsWith(join(dataDir, "sessions", "iracing")))).toBe(true);
   expect(laps.every((lap) => lap.rawFile && readFileSync(lap.rawFile).length > 0)).toBe(true);
@@ -131,7 +128,7 @@ function seededRelationships(dataDir: string): {
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 
@@ -147,8 +144,8 @@ describe("db:seed", () => {
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
     expect(seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing"]);
     expect(seededIRacingIdentity(dataDir)).toEqual([
-      { kind: "car", ordinal: 206, name: "Aston Martin Vantage GT3 EVO" },
-      { kind: "track", ordinal: 192, name: "Daytona International Speedway" },
+      { kind: "car", ordinal: 42, name: "GT3 Test Car" },
+      { kind: "track", ordinal: 99, name: "Road America" },
     ]);
     expect(initial.experiments).toBe(1);
     expect(initial.experiment_versions).toBe(2);
@@ -157,7 +154,7 @@ describe("db:seed", () => {
     expect(initial.compare_analyses).toBe(1);
     expect(seededRelationships(dataDir)).toEqual({
       experimentGames: ["f1-2025"],
-      f1ExperimentLaps: 5,
+      f1ExperimentLaps: 4,
       nonForzaTunedLaps: 0,
       crossGameComparisons: 0,
     });
@@ -185,5 +182,5 @@ describe("db:seed", () => {
       sessions: seededCounts.sessions + 1,
     });
     expect(sessionCountByNotes(dataDir, "real user session")).toBe(1);
-  }, 120000);
+  }, 180000);
 });

@@ -15,9 +15,11 @@
  *   manifest.json                              — describes every entry
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
-import { zipSync, unzipSync } from "fflate";
+import { zipSync } from "fflate";
+import { LAPS_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
+import { loadSessionCapture } from "../session-capture/source-loader";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import {
@@ -34,7 +36,6 @@ import {
   encodeSegmentContextEndFrame,
   encodeSegmentContextFrame,
   gzipBufferSync,
-  gunzipBufferSync,
   iterateSessionCaptureRecords,
   type SessionCaptureRecord,
   sessionFrameAt,
@@ -101,12 +102,13 @@ function encodeManifestFile(manifest: LapsZipManifest): Uint8Array {
  * Read capture bytes from disk and decompress gzip raw files.
  * Returns null when the file is missing or unreadable.
  */
-async function readCapture(rawFile: string): Promise<Buffer | null> {
+async function readCapture(row: RawLapRow): Promise<Buffer | null> {
   try {
-    const file = Bun.file(rawFile);
-    if (!(await file.exists())) return null;
-    const bytes = Buffer.from(await file.arrayBuffer());
-    return rawFile.endsWith(".gz") ? gunzipBufferSync(bytes) : bytes;
+    if (!row.rawFile) return null;
+    return await loadSessionCapture({
+      rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
+      carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
+    });
   } catch {
     return null;
   }
@@ -142,7 +144,7 @@ export interface LapsZipDetection {
 
 /** Inspect archive contents without importing any captures. */
 export function detectLapsZip(zipData: Uint8Array): LapsZipDetection {
-  const files = unzipSync(zipData);
+  const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
   const names = fileNamesForZip(files);
   const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();
@@ -259,7 +261,12 @@ export async function buildLapsZip(
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
   const sessions = selectedLapsBySession(allRows, wanted);
-  if (sessions.size === 0) throw new Error("No laps matched the requested ids");
+  if (sessions.size === 0) {
+    throw new Error("No laps matched");
+  }
+  if ([...sessions.values()].some((rows) => rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip")))) {
+    throw new Error("MoTeC sessions use canonical packets and have no BIN capture");
+  }
 
   const files: Record<string, Uint8Array> = {};
   const entries: ManifestEntry[] = [];
@@ -269,7 +276,7 @@ export async function buildLapsZip(
     );
     if (usable.length === 0) continue;
     const first = usable[0]!;
-    const buf = await readCapture(first.rawFile as string);
+    const buf = await readCapture(first);
     if (!buf) continue;
     const segments: Buffer[] = [];
     for (const row of usable) {
@@ -346,7 +353,7 @@ export interface ImportZipResult {
  * you the laps twice, same as the single-file `.bin` import.
  */
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
-  const files = unzipSync(zipData);
+  const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
 
   const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();

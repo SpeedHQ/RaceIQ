@@ -11,6 +11,11 @@ on:
           - patch
           - minor
           - major
+      skip_tests:
+        description: "Skip release Playwright tests after local verification"
+        required: false
+        type: boolean
+        default: false
   release:
     types: [published]
 
@@ -25,98 +30,112 @@ jobs:
   # --- Triggered by manual dispatch: compute version, build, create draft ---
   compute-version:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
 
       - name: Compute new version
         id: bump
-        shell: bash
-        run: |
-          CURRENT=$(node -p "require('./package.json').version")
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-
-          case "${{ inputs.bump }}" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          NEW="${MAJOR}.${MINOR}.${PATCH}"
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "::notice::Version bump: $CURRENT → $NEW (${{ inputs.bump }})"
+        env:
+          RELEASE_BUMP: ${{ inputs.bump }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: bun scripts/ci/compute-release-version.ts
 
   build:
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
-    runs-on: blacksmith-2vcpu-windows-2025
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     steps:
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
-
+        with:
+          bun-version: 1.4
       - name: Set version in package.json
-        shell: bash
-        run: |
-          VERSION=${{ needs.compute-version.outputs.version }}
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${VERSION}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
+        run: bun scripts/ci/update-release-version.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Install dependencies
         run: bun install
 
       - name: Generate release note artifact
-        shell: bash
+        shell: powershell
         run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Build client
-        run: cd client && bun install && bun run build
+        shell: powershell
+        run: |
+          Push-Location client
+          bun install
+          bun run build
+          Pop-Location
 
       - name: Prepare dist
-        shell: bash
-        run: mkdir -p dist
+        shell: powershell
+        run: New-Item -ItemType Directory -Force dist | Out-Null
 
       - name: Copy client assets
-        shell: bash
-        run: cp -r client/dist dist/public
+        shell: powershell
+        run: Copy-Item -Recurse -Force client/dist dist/public
 
       - name: Copy shared data
         run: bun scripts/build/copy-shared-data.ts
 
       - name: Compile server binary
-        shell: bash
-        run: |
-          VERSION=${{ needs.compute-version.outputs.version }}
-          NODE_ENV=production bun build --compile --target=bun-windows-x64 \
-            --windows-icon=assets/raceiq.ico \
-            --windows-title=RaceIQ \
-            --windows-publisher=SpeedHQ \
-            --windows-description="RaceIQ" \
-            --windows-version=${VERSION} \
-            --define 'process.env.NODE_ENV="production"' \
-            --define 'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"' \
-            --define 'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"' \
-            server/bootstrap.ts --outfile dist/raceiq.exe
+        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
-        shell: pwsh
+        shell: powershell
         run: |
           $rcedit = "$env:TEMP\rcedit.exe"
           Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rcedit
           & $rcedit dist\raceiq.exe --set-version-string "ProductName" "RaceIQ" --set-version-string "InternalName" "RaceIQ"
 
       - name: Copy libsql native addon
-        shell: bash
+        shell: powershell
         run: |
-          mkdir -p dist/node_modules/@libsql/win32-x64-msvc
-          cp node_modules/@libsql/win32-x64-msvc/index.node dist/node_modules/@libsql/win32-x64-msvc/
-          cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+          New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
+          Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+
+      - name: Smoke test server startup
+        shell: powershell
+        run: |
+          $server = Start-Process -FilePath (Resolve-Path "dist/raceiq.exe") -WorkingDirectory (Resolve-Path "dist") -PassThru
+          try {
+            $ready = $false
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              if ($server.HasExited) {
+                throw "RaceIQ exited during startup with code $($server.ExitCode)"
+              }
+              try {
+                Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:3117/" | Out-Null
+                $ready = $true
+                break
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $ready) {
+              throw "RaceIQ did not listen on port 3117 within 30 seconds"
+            }
+          } finally {
+            if (-not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
 
       - name: Upload dist artifact (for E2E test)
         uses: actions/upload-artifact@v7
@@ -126,7 +145,7 @@ jobs:
           retention-days: 1
 
       - name: Install Inno Setup
-        shell: pwsh
+        shell: powershell
         run: |
           $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_1/innosetup-6.7.1.exe"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\innosetup.exe"
@@ -149,8 +168,17 @@ jobs:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-release-note
           path: releasenote.md
 
+      - name: Summarize release test mode
+        shell: powershell
+        run: |
+          if ("${{ inputs.skip_tests }}" -eq "true") {
+            "## Release test mode`n`nPlaywright tests skipped by manual dispatch input after local verification." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          } else {
+            "## Release test mode`n`nPlaywright tests enabled." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+
   playwright-test:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
     needs: build
     name: Release E2E (${{ matrix.name }})
     strategy:
@@ -205,10 +233,17 @@ jobs:
       artifact-name: playwright-compiled-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
     needs: [compute-version, build, playwright-test]
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
@@ -217,56 +252,40 @@ jobs:
       - name: Delete existing draft for this tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="v${{ needs.compute-version.outputs.version }}"
-          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases --jq ".[] | select(.tag_name == \"$TAG\" and .draft) | .id" 2>/dev/null || true)
-          if [ -n "$RELEASE_ID" ]; then
-            echo "Deleting existing draft release $RELEASE_ID for $TAG"
-            gh api -X DELETE repos/${{ github.repository }}/releases/$RELEASE_ID
-            # Also delete the tag so softprops can recreate it
-            git push origin :refs/tags/$TAG 2>/dev/null || true
-          fi
+          RELEASE_TAG: v${{ needs.compute-version.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: bun scripts/ci/delete-draft-release.ts
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
-          files: artifacts/**/*
+          files: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-setup/RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
           body_path: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
           draft: true
 
   # --- Triggered when draft is published: commit version bump + tag ---
   finalize:
     if: github.event_name == 'release'
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     steps:
       - uses: actions/checkout@v7
         with:
           ref: main
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
 
 
       - name: Roll over changelog
-        shell: bash
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          PUBLISHED_AT="${{ github.event.release.published_at }}"
-          bun scripts/release/rollover-changelog.ts "$VERSION" "$PUBLISHED_AT"
-
+        run: bun scripts/release/rollover-changelog.ts "${{ github.event.release.tag_name }}" "${{ github.event.release.published_at }}"
 
       - name: Update version in package.json
-        shell: bash
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${VERSION}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
+        run: bun scripts/ci/update-release-version.ts "${{ github.event.release.tag_name }}"
 
       - name: Commit version bump
         run: |

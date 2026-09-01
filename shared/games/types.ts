@@ -23,6 +23,7 @@ export type AnalysisTelemetryMetric =
 
 export interface AnalysisTelemetryModel {
   balance: AnalysisTelemetryMetric;
+  brakeBias: AnalysisTelemetryMetric;
   gForce: AnalysisTelemetryMetric;
   gripDemand: AnalysisTelemetryMetric;
   traction: AnalysisTelemetryMetric;

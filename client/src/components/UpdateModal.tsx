@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
@@ -81,25 +82,19 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4">
-      {!isUpdating && <button type="button" aria-label={m.common_close()} className="absolute inset-0 cursor-default" onClick={onClose} />}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="update-modal-title"
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl"
-      >
+    <Dialog open onOpenChange={(open) => { if (!open && !isUpdating) onClose(); }}>
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto gap-0 bg-app-bg p-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-          <h2 id="update-modal-title" className="text-sm font-semibold text-app-text">
+        <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-4">
+          <DialogTitle id="update-modal-title" className="text-sm font-semibold text-app-text">
             {stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}
-          </h2>
+          </DialogTitle>
           {!isUpdating && (
             <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
               <X className="size-4" />
             </Button>
           )}
-        </div>
+        </DialogHeader>
 
         {/* Body */}
         <div className="px-5 py-5 space-y-5">
@@ -216,7 +211,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

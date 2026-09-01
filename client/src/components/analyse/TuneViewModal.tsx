@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: () => void }) {
   const { data: tune, isLoading } = useQuery({
@@ -11,28 +12,37 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
   });
 
   return (
-    <div className="@container/tune-view fixed inset-0 z-50 flex items-center justify-center p-3">
-      <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
-      <div className="relative max-h-[80vh] w-full max-w-[600px] overflow-y-auto rounded-lg border border-app-border bg-app-surface p-4 shadow-xl @sm/tune-view:p-5">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent size="lg" showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60" className="@container/tune-view max-h-[80vh] max-w-[600px] gap-0 @sm/tune-view:p-5">
         {isLoading ? (
-          <p className="text-app-text-muted text-sm">{m.tuneview_loading()}</p>
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>{m.tuneview_loading()}</DialogTitle>
+            </DialogHeader>
+            <p className="text-app-text-muted text-sm">{m.tuneview_loading()}</p>
+          </>
         ) : !tune ? (
-          <p className="text-app-text-muted text-sm">{m.tuneview_not_found()}</p>
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>{m.tuneview_not_found()}</DialogTitle>
+            </DialogHeader>
+            <p className="text-app-text-muted text-sm">{m.tuneview_not_found()}</p>
+          </>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4">
+            <DialogHeader className="mb-4 flex flex-row items-center justify-between gap-0">
               <div>
-                <h2 className="text-lg font-semibold text-app-text">{tune.name}</h2>
+                <DialogTitle className="text-lg font-semibold text-app-text">{tune.name}</DialogTitle>
                 {tune.author && (
                   <p className="text-xs text-app-text-muted">
                     {m.tuneview_by_author()} {tune.author}
                   </p>
                 )}
               </div>
-              <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+              <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
                 &times;
               </Button>
-            </div>
+            </DialogHeader>
 
             {tune.category && <span className="inline-block px-2 py-0.5 text-xs rounded mb-3 bg-app-accent/15 text-app-accent">{tune.category}</span>}
 
@@ -61,7 +71,7 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
             )}
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -26,6 +26,7 @@ import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/
 import { getSessionTelemetry, parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
 import { reprocessSession } from "../../server/session-capture/reprocess";
+import type { SessionCaptureSource } from "../../server/session-capture/source-loader";
 import {
   iterateSessionCaptureRecords,
   iterateSessionFrames,
@@ -48,6 +49,23 @@ const ALL_GAME_CAPTURES: { gameId: GameId; capture: string; label: string }[] = 
   { gameId: "ac-evo", capture: "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz", label: "Assetto Corsa Evo" },
   { gameId: "iracing", capture: IRACING_CAPTURE, label: "iRacing" },
 ];
+function captureSource(session: {
+  rawFile: string | null;
+  source: string | null;
+  gameId: string;
+  carOrdinal: number;
+  trackOrdinal: number;
+}): SessionCaptureSource {
+  if (!session.rawFile) throw new Error("Session has no capture");
+  return {
+    rawFile: session.rawFile,
+    source: session.source,
+    gameId: session.gameId as GameId,
+    carOrdinal: session.carOrdinal,
+    trackOrdinal: session.trackOrdinal,
+  };
+}
+
 
 
 describe("lap export → import round-trip (real capture)", () => {
@@ -134,10 +152,9 @@ describe("lap export → import round-trip (real capture)", () => {
       const exported = rows.at(-1)!;
       const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sid)).get();
       const sourcePackets = await parseRawLapFrames(
-        sourceSession!.rawFile!,
+        captureSource(sourceSession!),
         exported.rawByteOffset!,
         exported.rawFrameCount!,
-        gameId,
       );
       expect(sourcePackets.length).toBeGreaterThan(0);
 
@@ -153,10 +170,9 @@ describe("lap export → import round-trip (real capture)", () => {
         .find((lap) => lap.lapNumber === exported.lapNumber);
       expect(importedRow).toBeDefined();
       const importedPackets = await parseRawLapFrames(
-        importedSession!.rawFile!,
+        captureSource(importedSession!),
         importedRow!.rawByteOffset!,
         importedRow!.rawFrameCount!,
-        gameId,
       );
 
       expect(imported.lapNumber).toBe(exported.lapNumber);
@@ -196,9 +212,9 @@ describe("lap export → import round-trip (real capture)", () => {
     expect((await getSessionTelemetry(importedSid, "fm-2023")).length).toBeGreaterThan(0);
     expect(readRecordedTelemetry("fm-2023", rawFile).packets.length).toBeGreaterThan(0);
     const metas = importedRows.map((l) => ({ id: l.id, rawByteOffset: l.rawByteOffset!, rawFrameCount: l.rawFrameCount! }));
-    const batch = await parseSessionLapsBatched(rawFile, metas, "fm-2023");
+    const batch = await parseSessionLapsBatched(captureSource(importedSession!), metas);
     for (const meta of metas) {
-      const individual = await parseRawLapFrames(rawFile, meta.rawByteOffset, meta.rawFrameCount, "fm-2023");
+      const individual = await parseRawLapFrames(captureSource(importedSession!), meta.rawByteOffset, meta.rawFrameCount);
       expect(individual.length).toBeGreaterThan(0);
       expect(batch.get(meta.id)).toEqual(individual);
     }
@@ -251,16 +267,14 @@ describe("lap export → import round-trip (real capture)", () => {
     for (const sourceLap of selected) {
       const importedLap = importedRows.find((lap) => lap.lapNumber === sourceLap.lapNumber)!;
       const sourcePackets = await parseRawLapFrames(
-        sourceRawFile,
+        captureSource(sourceSession!),
         sourceLap.rawByteOffset!,
         sourceLap.rawFrameCount!,
-        "iracing",
       );
       const importedPackets = await parseRawLapFrames(
-        importedRawFile,
+        captureSource(importedSession!),
         importedLap.rawByteOffset!,
         importedLap.rawFrameCount!,
-        "iracing",
       );
       expect(importedPackets).toEqual(sourcePackets);
       expect((await queryLapTelemetryBySemanticId(importedLap.id, ["motion.speed"]))?.envelopes.length).toBeGreaterThan(0);
@@ -271,13 +285,12 @@ describe("lap export → import round-trip (real capture)", () => {
       rawByteOffset: lap.rawByteOffset!,
       rawFrameCount: lap.rawFrameCount!,
     }));
-    const batch = await parseSessionLapsBatched(importedRawFile, batchMetas, "iracing");
+    const batch = await parseSessionLapsBatched(captureSource(importedSession!), batchMetas);
     for (const meta of batchMetas) {
       const individual = await parseRawLapFrames(
-        importedRawFile,
+        captureSource(importedSession!),
         meta.rawByteOffset,
         meta.rawFrameCount,
-        "iracing",
       );
       expect(batch.get(meta.id)).toEqual(individual);
     }
@@ -326,5 +339,9 @@ describe("lap export → import round-trip (real capture)", () => {
     const got = result.laps.map((l) => Math.round(l.lapTime * 1000)).sort((a, b) => a - b);
     const want = exportable.map((r) => Math.round(r.lapTime * 1000)).sort((a, b) => a - b);
     expect(got).toEqual(want);
+    const importedRows = await db.select().from(laps).where(inArray(laps.id, result.laps.map((l) => l.lapId))).all();
+    expect(importedRows).toHaveLength(result.laps.length);
+    expect(importedRows.every((l) => l.rawFrameCount !== null && l.rawFrameCount > 0)).toBe(true);
+    expect(importedRows.map((l) => l.isValid).sort()).toEqual(exportable.map((l) => l.isValid).sort());
   }, 120000);
 });

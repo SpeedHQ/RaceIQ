@@ -12,6 +12,7 @@ import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
+import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 type SortKey = "name" | "laps";
@@ -146,7 +147,9 @@ export function TrackViewer() {
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_outlines_title()}</div>
           <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
             {withoutOutline.map((t) => (
-              <button
+              <Button
+                variant="plain"
+                size="content"
                 type="button"
                 key={t.ordinal}
                 className="w-full border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover text-left"
@@ -161,7 +164,7 @@ export function TrackViewer() {
                 <div className="text-app-label text-app-text-dim">
                   {t.variant} · {t.location}
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </>

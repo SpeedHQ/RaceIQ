@@ -1,12 +1,11 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
-import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getAllServerGames } from "../games/registry";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
   iterateSessionImportFrames,
 } from "./framing";
-import { importSessionFrames, type ImportedLap } from "./import-pipeline";
+import { importSessionFrames, type ImportedLap, type ImportSessionOptions } from "./import-pipeline";
 
 const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
   (a, b) => b.length - a.length,
@@ -39,7 +38,7 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
 export async function importSessionBin(
   bytes: Buffer,
   gameId: GameId,
-  options: { notifyDriverProfile?: boolean; ownership?: SessionOwnership } = {},
+  options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
   const { packetCount, laps } = await importSessionFrames(

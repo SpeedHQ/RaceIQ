@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { cleanDisposable, importDisposableLap, lapsFor, sessionsFor, sessionRows, type DisposableImport } from "./helpers";
@@ -38,6 +39,26 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
 const MOTEC_FIXTURES = ["test/fixtures/motec.ld", "test/fixtures/motec.ldx", "test-data-seeded/motec/example.ld"] as const;
 const motecLd = MOTEC_FIXTURES.find((path) => path.endsWith(".ld") && existsSync(path));
 const motecLdx = MOTEC_FIXTURES.find((path) => path.endsWith(".ldx") && existsSync(path));
+const motecZip = resolve(__dirname, "../../../../test/artifacts/motec/acc-barcelona-porsche-992.zip");
+
+test("session importer sends a MoTeC ZIP directly to configuration", async ({ page }) => {
+  test.skip(!existsSync(motecZip), "No repository MoTeC ZIP fixture available");
+  let stageRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/laps/stage-motec") {
+      stageRequests++;
+    }
+  });
+
+  await page.goto("/acc/sessions?tab=mine", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await page.locator('input[type="file"][accept*=".zip"]').setInputFiles(motecZip);
+
+  await expect(page.getByRole("heading", { name: "Import MoTeC log" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("acc-barcelona-porsche-992.zip", { exact: true })).toBeVisible();
+  await expect(page.getByText("Included in archive", { exact: true })).toBeVisible();
+  expect(stageRequests).toBe(0);
+});
 
 test("MoTeC import fixture creates disposable imported session when repository evidence exists", async ({ page, request }) => {
   test.skip(!motecLd, "No repository MoTeC .ld fixture available");

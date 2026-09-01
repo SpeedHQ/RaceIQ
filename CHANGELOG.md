@@ -1,5 +1,26 @@
 ## Unreleased
 
+### Features
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+- Export one or multiple selected laps directly from Sessions toolbar
+
+### Fixes
+- Keep Analyse Data panel content and layout complete across supported views
+- Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+
+### Internal
+- Narrow client response helper contracts to the fields each RPC and download path uses
+- Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
+
+## v0.15.1 - 2026-09-01
+
+### Fixes
+- Start RaceIQ successfully after installing a Windows release
+
+### Internal
+
+## v0.15.0 - 2026-09-01
+
 ### Breaking
 
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
@@ -15,9 +36,10 @@
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
-- Export one or multiple selected laps directly from the Sessions toolbar
+- Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
+- Improve lap-line fitting to track boundaries
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
 - Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.

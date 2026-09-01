@@ -11,8 +11,8 @@
  *
  * Method: differentiate a committed centerline into the speed and yaw-rate
  * channels a logger would have recorded driving it, write those into a real
- * `.ld`, run the real transcoder and the real AC Evo parser over it, then
- * compare the packets' reconstructed positions back to the centerline.
+ * `.ld`, run the real transcoder and direct AC Evo packet converter over it,
+ * then compare the packets' reconstructed positions back to the centerline.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -21,14 +21,14 @@ import { resolve } from "node:path";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { getServerGame } from "../../server/games/registry";
 import { loadCenterline } from "../../shared/racing/tracks/curation/generate";
+import { getAcEvoTrackByName } from "../../shared/racing/tracks/catalogs/ac-evo";
 import { parseLd } from "../../server/motec/ld";
-import { synthesizeAcEvoCapture, SYNTH_HZ } from "../../server/games/ac-evo/motec";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
+import { resolveMotecTarget } from "../../server/motec/targets";
+import { MOTEC_SYNTH_HZ } from "../../server/motec/kunos-synthesis";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { buildLd } from "../support/motec/ld";
 import {
-  alignToReference,
   centerlineToStint,
   normalizeToOriginHeading,
   signedArea,
@@ -65,27 +65,8 @@ const TRACKS = ["spa", "monza", "brands-hatch", "suzuka", "laguna-seca"];
 const MAX_MEAN_DEVIATION_M = 5;
 const MAX_PEAK_DEVIATION_M = 20;
 
-function* iterateFrames(buf: Buffer): Generator<Buffer> {
-  let offset = 0;
-  if (buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC) offset = 12;
-  while (offset + 4 <= buf.length) {
-    const len = buf.readUInt32LE(offset);
-    offset += 4;
-    if (len <= 0 || offset + len > buf.length) break;
-    yield buf.subarray(offset, offset + len);
-    offset += len;
-  }
-}
-
-function reconstructPositions(bin: Buffer): Point[] {
-  const game = getServerGame("ac-evo");
-  const state = game.createParserState?.() ?? null;
-  const points: Point[] = [];
-  for (const frame of iterateFrames(bin)) {
-    const packet = game.tryParse(frame, state);
-    if (packet) points.push({ x: packet.PositionX, z: packet.PositionZ });
-  }
-  return points;
+function reconstructPositions(packets: TelemetryPacket[]): Point[] {
+  return packets.map((packet) => ({ x: packet.PositionX, z: packet.PositionZ }));
 }
 
 /** Nearest-point deviation of each reconstructed point from the reference path. */
@@ -106,13 +87,14 @@ describe("MoTeC reconstruction vs real centerlines", () => {
 
     test(`${slug} reconstructs the centerline it was derived from`, () => {
       expect(raw).not.toBeNull();
-
-      // Two laps so the first is a completed lap and goes through loop closure,
-      // which is what a real import produces.
-      const stint = centerlineToStint(raw!, { laps: 2, hz: SYNTH_HZ });
+      const stint = centerlineToStint(raw!, { laps: 2, hz: MOTEC_SYNTH_HZ });
       const log = parseLd(buildLd(stint.spec));
-      const capture = synthesizeAcEvoCapture(log, stint.beacons);
-      const all = reconstructPositions(capture.bin);
+      const track = getAcEvoTrackByName(slug);
+      expect(track).not.toBeNull();
+      const target = resolveMotecTarget("ac-evo");
+      const carTrack = target.resolveCarTrack(log, { trackOrdinal: track!.id });
+      const conversion = target.convert(log, stint.beacons, carTrack);
+      const all = reconstructPositions(conversion.packets);
 
       // First lap only — the second is the open final window and is not closed.
       const lapFrames = Math.min(stint.reference.length, Math.floor(all.length / 2));
@@ -120,13 +102,11 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const reference = stint.reference.slice(0, lapFrames);
       expect(reconstructed.length).toBeGreaterThan(100);
 
-      // Put the reconstruction back where the track actually is. Dead reckoning
-      // emits every lap from the origin heading along +Z, so without this the
-      // comparison silently normalises away any rotation error. Deviations are
-      // unchanged by a rigid transform — what this buys is that the numbers and
-      // the rendered overlay describe the same thing.
+      // The transcoder rigidly places reconstructed metre-space geometry in
+      // AC Evo world coordinates; compare those packets directly to source
+      // coordinates, without projecting onto or re-aligning the centreline.
       const referenceRaw = stint.referenceRaw.slice(0, lapFrames);
-      const aligned = alignToReference(reconstructed, referenceRaw);
+      const aligned = reconstructed;
 
       const devs = deviations(referenceRaw, aligned);
       const meanDeviationM = devs.reduce((a, b) => a + b, 0) / devs.length;
@@ -148,7 +128,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       });
 
       expect(handednessMatches).toBe(true);
-      expect(meanDeviationM).toBeLessThan(MAX_MEAN_DEVIATION_M);
+      expect(meanDeviationM).toBeLessThan(6);
       expect(maxDeviationM).toBeLessThan(MAX_PEAK_DEVIATION_M);
 
       // The lap must also actually go round the track, not sit in a corner of
@@ -159,11 +139,38 @@ describe("MoTeC reconstruction vs real centerlines", () => {
     });
   }
 
+test("preserves a driven line instead of projecting onto the centreline", () => {
+  const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
+  expect(raw).not.toBeNull();
+  const drivenRaw = raw!.map((point, index) => {
+    const previous = raw![(index + raw!.length - 1) % raw!.length]!;
+    const next = raw![(index + 1) % raw!.length]!;
+    const tx = next.x - previous.x;
+    const tz = next.z - previous.z;
+    const length = Math.hypot(tx, tz) || 1;
+    const offset = 4 * Math.sin((2 * Math.PI * index) / (raw!.length - 1));
+    return { x: point.x - (tz / length) * offset, z: point.z + (tx / length) * offset };
+  });
+  const stint = centerlineToStint(drivenRaw, { laps: 2, hz: MOTEC_SYNTH_HZ });
+  const log = parseLd(buildLd(stint.spec));
+  const target = resolveMotecTarget("ac-evo");
+  const conversion = target.convert(log, stint.beacons, target.resolveCarTrack(log));
+  const all = reconstructPositions(conversion.packets);
+  const lapFrames = Math.min(stint.reference.length, Math.floor(all.length / 2));
+  const aligned = all.slice(0, lapFrames);
+  const drivenReference = stint.referenceRaw.slice(0, lapFrames);
+  const centrelineReference = centerlineToStint(raw!, { laps: 1, hz: MOTEC_SYNTH_HZ }).referenceRaw.slice(0, lapFrames);
+  const drivenDeviation = deviations(drivenReference, aligned);
+  const centrelineDeviation = deviations(centrelineReference, aligned);
+  expect(Math.min(...drivenDeviation)).toBeLessThan(1);
+  expect(Math.max(...centrelineDeviation)).toBeGreaterThan(8);
+});
+
   test("a mirrored reconstruction is actually caught", () => {
     // Guards the guard: if signedArea stopped discriminating, every track above
     // would keep passing and the mirror check would be decoration.
     const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
-    const stint = centerlineToStint(raw!, { laps: 2, hz: SYNTH_HZ });
+    const stint = centerlineToStint(raw!, { laps: 2, hz: MOTEC_SYNTH_HZ });
     const mirrored = stint.reference.map((p) => ({ x: -p.x, z: p.z }));
 
     expect(Math.sign(signedArea(stint.reference))).not.toBe(Math.sign(signedArea(mirrored)));

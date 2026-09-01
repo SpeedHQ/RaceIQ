@@ -64,7 +64,7 @@ export function SessionToolbar({
           </Button>
         ))}
       </div>
-      <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
+      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
       <AppInput
         type="search"
         value={search}

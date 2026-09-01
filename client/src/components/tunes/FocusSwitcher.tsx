@@ -1,5 +1,6 @@
 import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useRef, useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { useSetExperimentFocus } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 
@@ -82,7 +83,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           </p>
           <p className="mt-1 text-app-compact text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[pending]}</p>
           <p className="mt-1 text-app-compact text-app-text-dim">Versions you've already run keep what they were.</p>
-          <input
+          <AppInput
             value={note}
             onChange={(e) => setNote(e.target.value)}
             onKeyDown={(e) => {
@@ -92,7 +93,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
             placeholder="Why the switch? (optional)"
             maxLength={2000}
             ref={noteRef}
-            className="mt-2 w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
+            className="mt-2 w-full text-xs"
           />
           {error && <div className="mt-1.5 text-app-compact text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">

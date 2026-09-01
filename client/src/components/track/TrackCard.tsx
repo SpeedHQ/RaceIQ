@@ -5,6 +5,7 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
+import { Button } from "../ui/button";
 
 const trackCardVisibilityCallbacks = new WeakMap<Element, () => void>();
 let trackCardVisibilityObserver: IntersectionObserver | null = null;
@@ -86,7 +87,9 @@ export function TrackCard({
   }, [outline, flipX]);
 
   return (
-    <button
+    <Button
+      variant="plain"
+      size="content"
       type="button"
       ref={cardRef}
       data-testid={`track-card-${track.ordinal}`}
@@ -136,6 +139,6 @@ export function TrackCard({
           </div>
         )}
       </div>
-    </button>
+    </Button>
   );
 }
