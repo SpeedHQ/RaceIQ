@@ -34,7 +34,7 @@
     "i18n:validate": "bunx @inlang/cli validate --project ./client/project.inlang",
     "test:ai": "bun test test/ai/evals/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/quality/ai-baseline.ts",
-    "bench": "bun test/benchmarks/pipeline.bench.ts",
+    "ai:model-eval": "bun scripts/quality/model-eval.ts",
     "bench:replay-io": "bun scripts/quality/replay-io-bench.ts",
     "extract:tracks": "bun scripts/games/fm-2023/extract-tracks.ts && bun scripts/games/f1-2025/extract-tracks.ts",
     "extract:tracks:forza": "bun scripts/games/fm-2023/extract-tracks.ts",
