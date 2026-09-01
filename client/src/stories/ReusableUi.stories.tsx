@@ -1,13 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
-import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
+import { Table, TBody, TD, TH, THead, TRow, SortableTH } from "../components/ui/AppTable";
+import { AppInput } from "../components/ui/AppInput";
+import { Avatar, AvatarBadge, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "../components/ui/avatar";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../components/ui/collapsible";
 import { DropdownMenu } from "../components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { InfoTooltip, Tooltip as InfoHoverTooltip } from "../components/ui/InfoTooltip";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { NoteModal } from "../components/ui/NoteModal";
+import { PanelSectionHeader } from "../components/ui/panel-section-header";
 import { SearchMultiSelect } from "../components/ui/SearchMultiSelect";
 import { SearchSelect } from "../components/ui/SearchSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -87,6 +94,37 @@ function SearchMultiSelectDemo() {
       onClear={() => setSelected(new Set())}
       searchPlaceholder="Search classes..."
     />
+  );
+}
+
+
+function PanelSectionHeaderDemo() {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <div className="grid gap-4">
+      <PanelSectionHeader title="Static section">
+        <Badge variant="neutral" size="compact">
+          Ready
+        </Badge>
+      </PanelSectionHeader>
+      <PanelSectionHeader title="Telemetry details" collapsed={collapsed} onToggle={() => setCollapsed((current) => !current)} />
+    </div>
+  );
+}
+
+function NoteModalDemo() {
+  const [open, setOpen] = useState(true);
+  const [savedNote, setSavedNote] = useState("");
+  return (
+    <div className="grid gap-3">
+      <Button variant="app-outline" size="app-sm" onClick={() => setOpen(true)} disabled={open}>
+        Open note
+      </Button>
+      <p aria-live="polite" className="text-app-subtext text-app-text-secondary">
+        {savedNote ? `Saved note: ${savedNote}` : "No note saved"}
+      </p>
+      {open && <NoteModal value="" onSave={setSavedNote} onClose={() => setOpen(false)} />}
+    </div>
   );
 }
 export default meta;
@@ -334,6 +372,11 @@ export const CardShell: Story = {
       <CardHeader className="border-b border-app-border">
         <CardTitle>Driver profile</CardTitle>
         <CardDescription>Keep setup notes close to your telemetry.</CardDescription>
+        <CardAction>
+          <Button variant="app-ghost" size="icon-sm" aria-label="More profile actions">
+            …
+          </Button>
+        </CardAction>
       </CardHeader>
       <CardContent className="grid gap-3">
         <label className="grid gap-1 text-app-label text-app-text-secondary" htmlFor="driver-name">
@@ -388,7 +431,9 @@ export const TableShell: Story = {
       <Table>
         <THead>
           <TH scope="col">Driver</TH>
-          <TH scope="col">Lap</TH>
+          <SortableTH scope="col" direction="ascending" onSort={() => undefined}>
+            Lap
+          </SortableTH>
           <TH scope="col">Delta</TH>
         </THead>
         <TBody>
@@ -414,11 +459,188 @@ export const TableShell: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("table")).toBeInTheDocument();
+    await expect(canvas.getByRole("columnheader", { name: /Lap/ })).toHaveAttribute("aria-sort", "ascending");
     await expect(canvas.getAllByRole("rowgroup")).toHaveLength(2);
     await expect(canvas.getAllByRole("columnheader")).toHaveLength(3);
     await expect(canvas.getAllByRole("cell")).toHaveLength(9);
   },
 };
+export const AppInputStates: Story = {
+  render: () => (
+    <div className="grid w-full max-w-sm gap-3">
+      <label className="grid gap-1 text-app-label text-app-text-secondary" htmlFor="app-input-driver">
+        Driver name
+        <AppInput id="app-input-driver" defaultValue="A. Cooper" />
+      </label>
+      <label className="grid gap-1 text-app-label text-app-text-secondary" htmlFor="app-input-laps">
+        Laps to compare
+        <AppInput id="app-input-laps" type="number" defaultValue={3} min={1} max={10} step={1} required />
+      </label>
+      <label className="grid gap-1 text-app-label text-app-text-secondary" htmlFor="app-input-disabled">
+        Disabled value
+        <AppInput id="app-input-disabled" value="Read only state" disabled readOnly />
+      </label>
+      <AppInput id="app-input-placeholder" aria-label="Session search" placeholder="Search sessions..." />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByLabelText("Driver name")).toHaveValue("A. Cooper");
+    await expect(canvas.getByLabelText("Laps to compare")).toHaveAttribute("required");
+    await expect(canvas.getByLabelText("Disabled value")).toBeDisabled();
+    await expect(canvas.getByLabelText("Session search")).toHaveAttribute("placeholder", "Search sessions...");
+  },
+};
+
+export const AvatarVariants: Story = {
+  render: () => (
+    <div className="grid gap-5">
+      <div className="flex items-center gap-3">
+        <Avatar size="sm">
+          <AvatarImage src="data:image/png;base64,not-a-valid-image" alt="Missing driver avatar" />
+          <AvatarFallback>AC</AvatarFallback>
+          <AvatarBadge data-testid="avatar-online-badge" aria-label="Online" />
+        </Avatar>
+        <Avatar>
+          <AvatarFallback>MR</AvatarFallback>
+        </Avatar>
+        <Avatar size="lg">
+          <AvatarFallback>JS</AvatarFallback>
+          <AvatarBadge aria-label="In session">●</AvatarBadge>
+        </Avatar>
+      </div>
+      <AvatarGroup aria-label="Session drivers" data-testid="avatar-group">
+        <Avatar>
+          <AvatarFallback>AC</AvatarFallback>
+        </Avatar>
+        <Avatar>
+          <AvatarFallback>MR</AvatarFallback>
+        </Avatar>
+        <AvatarGroupCount>+3</AvatarGroupCount>
+      </AvatarGroup>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByText("AC")).toHaveLength(2);
+    await expect(canvas.getByTestId("avatar-online-badge")).toBeInTheDocument();
+    await expect(canvas.getByText("+3")).toBeVisible();
+    await expect(canvas.getByTestId("avatar-group")).toHaveAttribute("data-slot", "avatar-group");
+  },
+};
+
+export const CollapsibleStates: Story = {
+  render: () => (
+    <div className="grid w-full max-w-md gap-3">
+      <Collapsible defaultOpen className="rounded border border-app-border p-3">
+        <CollapsibleTrigger className="font-medium">Expanded setup details</CollapsibleTrigger>
+        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Expanded setup content.</CollapsibleContent>
+      </Collapsible>
+      <Collapsible className="rounded border border-app-border p-3">
+        <CollapsibleTrigger className="font-medium">Collapsed telemetry details</CollapsibleTrigger>
+        <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Collapsed telemetry content.</CollapsibleContent>
+      </Collapsible>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const expandedTrigger = canvas.getByRole("button", { name: "Expanded setup details" });
+    const collapsedTrigger = canvas.getByRole("button", { name: "Collapsed telemetry details" });
+    await expect(expandedTrigger).toHaveAttribute("aria-expanded", "true");
+    await expect(canvas.getByText("Expanded setup content.")).toBeVisible();
+    await expect(collapsedTrigger).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(collapsedTrigger);
+    await expect(collapsedTrigger).toHaveAttribute("aria-expanded", "true");
+    await expect(canvas.getByText("Collapsed telemetry content.")).toBeVisible();
+    await userEvent.click(expandedTrigger);
+    await expect(expandedTrigger).toHaveAttribute("aria-expanded", "false");
+  },
+};
+
+export const InfoTooltipStates: Story = {
+  render: () => (
+    <div className="flex items-center gap-5">
+      <InfoHoverTooltip content="Hover tooltip content." position="bottom">
+        <Button variant="app-outline" size="app-sm">
+          Hover help
+        </Button>
+      </InfoHoverTooltip>
+      <InfoTooltip position="top" width="sm">
+        Click the info icon for additional setup guidance.
+      </InfoTooltip>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const hoverButton = canvas.getByRole("button", { name: "Hover help" });
+    await userEvent.hover(hoverButton);
+    await expect(canvas.getByText("Hover tooltip content.")).toBeVisible();
+    await userEvent.unhover(hoverButton);
+    const infoButton = canvas.getByRole("button", { name: "More info" });
+    await userEvent.click(infoButton);
+    await expect(canvas.getByText("Click the info icon for additional setup guidance.")).toBeVisible();
+  },
+};
+
+export const LabelStates: Story = {
+  render: () => (
+    <div className="grid w-full max-w-sm gap-3">
+      <div className="grid gap-1">
+        <Label htmlFor="associated-driver">Associated driver</Label>
+        <AppInput id="associated-driver" placeholder="Driver name" />
+      </div>
+      <Label className="text-app-text-muted">Informational label without input association</Label>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const associatedLabel = canvas.getByText("Associated driver");
+    await expect(associatedLabel).toHaveAttribute("for", "associated-driver");
+    await userEvent.click(associatedLabel);
+    await expect(canvas.getByRole("textbox", { name: "Associated driver" })).toHaveFocus();
+    await expect(canvas.getByText("Informational label without input association")).toHaveAttribute("data-slot", "label");
+  },
+};
+
+export const NoteModalOpen: Story = {
+  render: () => <NoteModalDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    const textbox = await body.findByRole("textbox");
+    await expect(textbox).toHaveFocus();
+    await userEvent.type(textbox, "Pit lane note");
+    await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+    await expect(canvas.getByText("Saved note: Pit lane note")).toBeVisible();
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Open note" }));
+    await expect(await body.findByRole("textbox")).toHaveFocus();
+    await userEvent.click(body.getByRole("button", { name: "Cancel" }));
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Open note" }));
+    await expect(await body.findByRole("textbox")).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+  },
+};
+
+export const PanelSectionHeaderStates: Story = {
+  render: () => <PanelSectionHeaderDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Static section")).toBeVisible();
+    const collapseButton = canvas.getByRole("button", { name: "Collapse Telemetry details" });
+    await expect(collapseButton).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(collapseButton);
+    const expandButton = canvas.getByRole("button", { name: "Expand Telemetry details" });
+    await expect(expandButton).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(expandButton);
+    await expect(canvas.getByRole("button", { name: "Collapse Telemetry details" })).toHaveAttribute("aria-expanded", "true");
+  },
+};
+
 
 export const SearchSelectMenu: Story = {
   render: () => <SearchSelectDemo />,
