@@ -1,5 +1,7 @@
 import { RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiAnalysisState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS, PROVIDER_KEY_MAP } from "./ai-state";
@@ -39,9 +41,9 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_analysis_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label htmlFor="ai-analysis-provider" className="block text-xs text-app-text-muted mb-1">
+          <Label htmlFor="ai-analysis-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
-          </label>
+          </Label>
           <select
             id="ai-analysis-provider"
             value={provider}
@@ -62,33 +64,33 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
         </div>
         {provider === "local" && (
           <div>
-            <label htmlFor="ai-analysis-endpoint" className="block text-xs text-app-text-muted mb-1">
+            <Label htmlFor="ai-analysis-endpoint" className="block text-xs text-app-text-muted mb-1">
               {m.ai_endpoint_label()}
-            </label>
-            <input
+            </Label>
+            <Input
               id="ai-analysis-endpoint"
               type="text"
               value={localEndpoint}
               onChange={(e) => setLocalEndpoint(e.target.value)}
               placeholder="http://localhost:1234/v1"
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
+              className="w-full max-w-xs font-mono"
             />
             <p className="text-xs text-app-text-muted mt-1">{m.ai_endpoint_desc()}</p>
           </div>
         )}
         {keyInfo && (
           <div>
-            <label htmlFor="ai-analysis-api-key" className="block text-xs text-app-text-muted mb-1">
+            <Label htmlFor="ai-analysis-api-key" className="block text-xs text-app-text-muted mb-1">
               {keyInfo.label}
-            </label>
+            </Label>
             <div className="flex items-center gap-1.5 max-w-xs">
-              <input
+              <Input
                 id="ai-analysis-api-key"
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder={(keyStatus[provider] ?? false) ? m.ai_key_stored_placeholder() : keyInfo.placeholder}
-                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+                className="w-full font-mono"
               />
               {(keyStatus[provider] ?? false) && (
                 <Button variant="destructive-outline" size="icon-sm" onClick={() => clearKey(PROVIDER_KEY_MAP[provider])} title={m.ai_clear_key_title()}>
@@ -107,9 +109,9 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
         {canShowModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label htmlFor="ai-analysis-model" className="block text-xs text-app-text-muted">
+              <Label htmlFor="ai-analysis-model" className="block text-xs text-app-text-muted">
                 {m.ai_model_label()}
-              </label>
+              </Label>
               <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={aiModelsFetching || modelsRefreshing || isSaving} title={m.ai_refresh_models_title()}>
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}

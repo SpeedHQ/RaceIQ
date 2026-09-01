@@ -10,7 +10,7 @@ import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 import type { SemanticAnalysisFrame } from "./track-map/types";
-
+import { Button } from "../ui/button";
 const WHEELS = ["FL", "FR", "RL", "RR"] as const;
 const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
   if (frame.states[id] === "missing") return null;
@@ -95,7 +95,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   };
   const wheelRow = (label: string, render: (index: number) => ReactNode) => ({ label, fl: render(0), fr: render(1), rl: render(2), rr: render(3) });
   return <div className="text-app-compact font-mono space-y-1.5 mb-3">
-    <div className="flex justify-between"><button type="button" className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" aria-label={`${m.label_balance()}: Balance tooltip`}>{m.label_balance()} {balance && <><Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />{balanceTooltip}</>}</button><span className="tabular-nums text-app-text-dim">{balance ? <span style={{ color: balanceColor }}>{balance.state === "neutral" ? "Neutral" : balance.state === "understeer" ? "Understeer" : "Oversteer"}({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span> : "—"}</span></div>
+    <div className="flex justify-between"><Button variant="plain" size="content" type="button" className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" aria-label={`${m.label_balance()}: Balance tooltip`}>{m.label_balance()} {balance && <><Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />{balanceTooltip}</>}</Button><span className="tabular-nums text-app-text-dim">{balance ? <span style={{ color: balanceColor }}>{balance.state === "neutral" ? "Neutral" : balance.state === "understeer" ? "Understeer" : "Oversteer"}({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span> : "—"}</span></div>
     <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_brake_bias()}</span><span className="tabular-nums text-app-text">{brakeBias == null ? unavailable : `${(brakeBias * 100).toFixed(1)}%F`}</span></div>
     <WheelTable rows={[wheelRow(m.analyse_dynamics_grip_ask(), (i) => grip[i] == null ? unavailable : C(`${(grip[i]! * 100).toFixed(0)}%`, frictionUtilColor(grip[i]!))), wheelRow(m.analyse_dynamics_traction(), tractionCell), wheelRow(analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp(), (i) => temps[i] == null ? unavailable : C(tireTempLabel(units.toTempC(temps[i]!), units.thresholds).label, tireTempLabel(units.toTempC(temps[i]!), units.thresholds).color)), ...(surfaceBinding?.kind === "group" ? [wheelRow(m.analyse_dynamics_surface(), surfaceCell)] : [])]} />
     {surfaceBinding?.kind === "value" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{surfaceText}</span></div>}
