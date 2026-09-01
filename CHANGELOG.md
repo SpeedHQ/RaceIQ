@@ -1,5 +1,23 @@
 ## Unreleased
 
+### Features
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+
+### Fixes
+- Keep Analyse Data panel content and layout complete across supported views
+- Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+
+### Internal
+
+## v0.15.1 - 2026-09-01
+
+### Fixes
+- Start RaceIQ successfully after installing a Windows release
+
+### Internal
+
+## v0.15.0 - 2026-09-01
+
 ### Breaking
 
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either

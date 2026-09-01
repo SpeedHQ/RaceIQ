@@ -13,14 +13,23 @@ function resetSettingsFile() {
 }
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
-// Waits for every <img> on the current page to finish loading
-// (naturalWidth > 0). Vacuously passes when the page has no images.
+// Waits for every visible HTML image on the current page to finish loading.
+// Three.js creates detached image loaders for model textures; those are not
+// page-facing images and must not block this browser smoke assertion.
 async function assertImagesLoaded(page: Page) {
-  await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete && img.naturalWidth > 0), undefined, { timeout: 15_000 });
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll("img"))
+        .filter((img) => img.getClientRects().length > 0 && img.currentSrc)
+        .every((img) => img.complete && img.naturalWidth > 0),
+    undefined,
+    { timeout: 15_000 },
+  );
   const broken = await page.evaluate(() =>
-    Array.from(document.images)
+    Array.from(document.querySelectorAll("img"))
+      .filter((img) => img.getClientRects().length > 0 && img.currentSrc)
       .filter((img) => !img.complete || img.naturalWidth === 0)
-      .map((img) => img.src),
+      .map((img) => img.currentSrc),
   );
   expect(broken, `broken images:\n${broken.join("\n")}`).toEqual([]);
 }
@@ -141,7 +150,7 @@ test.describe
       await gameSelect.hover();
       await expect(page.getByRole("listbox")).toBeVisible();
       await page.getByRole("option", { name: "F1 2025" }).click();
-      await expect(page).toHaveURL(/\/f125$/);
+      await expect(page).toHaveURL(/\/f125\/sessions$/);
       await expect(navigation.getByRole("link", { name: "Experiments" })).toBeVisible();
 
       await page.reload({ waitUntil: "domcontentloaded" });

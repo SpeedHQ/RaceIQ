@@ -174,7 +174,9 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
             <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
-            <button
+            <Button
+              variant="plain"
+              size="content"
               type="button"
               key={setupId(s)}
               onClick={() => selectSetup(i)}
@@ -211,7 +213,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
               <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
                 {s.lapTime || "—"}
               </span>
-            </button>
+            </Button>
           ))}
         </div>
       </div>

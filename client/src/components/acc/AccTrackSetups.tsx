@@ -185,7 +185,9 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
-            <button
+            <Button
+              variant="plain"
+              size="content"
               type="button"
               key={setupId(s)}
               onClick={() => selectSetup(i)}
@@ -226,7 +228,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 )}
               </span>
               <span className="text-app-compact font-mono text-(--lap-pace-on-target) shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
-            </button>
+            </Button>
           ))}
         </Card>
       </div>

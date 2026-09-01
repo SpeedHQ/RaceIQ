@@ -29,8 +29,9 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
       ).toBeVisible();
     }
 
-    await expect(page).toHaveScreenshot(`${story.name}.png`, {
-      fullPage: false,
+    const screenshotTarget = story.screenshotTarget ? page.locator(story.screenshotTarget) : page;
+    await expect(screenshotTarget).toHaveScreenshot(`${story.name}.png`, {
+      fullPage: story.fullPage ?? false,
       animations: "disabled",
     });
 
