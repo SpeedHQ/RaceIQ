@@ -8,6 +8,7 @@
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
 
 ### Internal
+- Narrow client response helper contracts to the fields each RPC and download path uses
 
 ## v0.15.1 - 2026-09-01
 
@@ -113,7 +114,6 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
-- Narrow client response helper contracts to the fields each RPC and download path uses
 - Read release notes from GitHub release bodies instead of downloading release-note assets
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
