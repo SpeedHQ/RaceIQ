@@ -1,7 +1,7 @@
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 // Stable keys for section metadata — labels resolved at render time via m.*()
 const SECTION_KEYS: Record<string, { titleKey: string; items: Array<{ labelKey: string; value: (s: F1CarSetup) => string | number }> }> = {
   aerodynamics: {
@@ -96,22 +96,16 @@ const getLabel: Record<string, () => string> = {
 
 export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60">
-      <button type="button" aria-label={m.common_close()} className="absolute inset-0 cursor-default border-0 bg-transparent p-0" onClick={onClose} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="f1-setup-title"
-        className="relative z-10 bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl"
-      >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
-          <h2 id="f1-setup-title" className="text-sm font-semibold text-app-text">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[80vh] overflow-y-auto p-0">
+        <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-3">
+          <DialogTitle id="f1-setup-title" className="text-sm font-semibold text-app-text">
             {m.f1setupmodal_section_car_setup()}
-          </h2>
+          </DialogTitle>
           <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             &times;
           </Button>
-        </div>
+        </DialogHeader>
         <div className="px-5 py-4 space-y-4">
           {Object.entries(SECTION_KEYS).map(([key, section]) => (
             <div key={key}>
@@ -127,7 +121,7 @@ export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: (
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
