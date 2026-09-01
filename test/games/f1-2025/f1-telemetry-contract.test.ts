@@ -1,23 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
-import { f1ServerAdapter } from "../../../server/games/f1-2025";
 import {
   F1_HEADER_SIZE,
-  F1_PACKET_IDS,
   type F1Header,
 } from "../../../server/games/f1-2025/f1-wire";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
-
-function packetWithSourcePacketId(sourcePacketId?: number): TelemetryPacket {
-  return {
-    gameId: "f1-2025",
-    f1: sourcePacketId === undefined ? undefined : {
-      sourcePacketId,
-    } as TelemetryPacket["f1"],
-    IsRaceOn: 1,
-    TimestampMS: 1,
-  } as TelemetryPacket;
-}
 
 function header(packetId: number): F1Header {
   return {
@@ -61,7 +47,6 @@ describe("F1 telemetry contract", () => {
     const packet = accumulator.feed(header(7), frame(carStatus));
 
     expect(packet).not.toBeNull();
-    expect(packet!.f1?.sourcePacketId).toBe(F1_PACKET_IDS.CAR_STATUS);
     expect(packet!.Fuel).toBeCloseTo(0.5);
     expect(packet!.FuelCapacity).toBeCloseTo(110);
     expect(packet!.Power).toBeCloseTo(620_000);
@@ -91,11 +76,5 @@ describe("F1 telemetry contract", () => {
     expect(packet?.f1?.resultStatus).toBe(5);
     expect(packet?.f1?.resultReason).toBe(6);
     expect(packet?.f1?.resultSource).toBe("final-classification");
-  });
-  test("retains only canonical F1 source packet types", () => {
-    expect(f1ServerAdapter.retainParsedPacket!(packetWithSourcePacketId(F1_PACKET_IDS.CAR_TELEMETRY))).toBe(true);
-    expect(f1ServerAdapter.retainParsedPacket!(packetWithSourcePacketId(F1_PACKET_IDS.FINAL_CLASSIFICATION))).toBe(true);
-    expect(f1ServerAdapter.retainParsedPacket!(packetWithSourcePacketId(F1_PACKET_IDS.MOTION))).toBe(false);
-    expect(f1ServerAdapter.retainParsedPacket!(packetWithSourcePacketId())).toBe(true);
   });
 });

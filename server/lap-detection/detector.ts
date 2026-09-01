@@ -77,7 +77,6 @@ export interface LapCompleteEvent {
 export class LapDetector implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
-  private readonly retainParsedPacket: (packet: TelemetryPacket) => boolean;
   private db: LapDetectorOptions["db"];
 
   onSessionStart?: (session: SessionState) => void | Promise<void>;
@@ -87,7 +86,6 @@ export class LapDetector implements ILapDetector {
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
     this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
-    this.retainParsedPacket = opts.retainParsedPacket ?? (() => true);
     this.onSessionStart = opts.callbacks?.onSessionStart;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
@@ -243,9 +241,9 @@ export class LapDetector implements ILapDetector {
       this._lapByteOffset = this._currentRawByteOffset;
       this._lapFrameCount = 0;
     }
-    // Process every packet for boundaries/counters, retaining only the
-    // game-owned canonical samples in the lap payload.
-    if (this.retainParsedPacket(packet)) this.lapBuffer.push(packet);
+
+    // Buffer the packet for the current lap
+    this.lapBuffer.push(packet);
     this._lapFrameCount++;
     this.lastTimestampMS = packet.TimestampMS;
     this.lastPacketTime = now;

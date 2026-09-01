@@ -28,7 +28,7 @@ function readFramedPackets(gameId: GameId, recordingPath: string): TelemetryPack
   const packets: TelemetryPacket[] = [];
   for (const frame of iterateSessionFrames(bytes)) {
     const packet = game.tryParse(frame, parserState);
-    if (packet && (game.retainParsedPacket ?? (() => true))(packet)) packets.push(packet);
+    if (packet) packets.push(packet);
   }
   return packets;
 }

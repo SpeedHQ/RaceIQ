@@ -41,8 +41,6 @@ export interface ServerGameAdapter extends GameAdapter {
    * `state` is the per-game parser state from createParserState().
    */
   tryParse(buf: Buffer, state: unknown): TelemetryPacket | null;
-  /** Decide which parsed packets should remain in retained lap/session arrays. */
-  retainParsedPacket?(packet: TelemetryPacket): boolean;
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;

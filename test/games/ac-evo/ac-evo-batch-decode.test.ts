@@ -14,7 +14,7 @@ import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
 import { loadSessionCapture } from "../../../server/session-capture/source-loader";
 
 initGameAdapters();
@@ -71,19 +71,23 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
     const batch = await parseSessionLapsBatchedForTest(source, metas);
 
     for (const meta of metas) {
-      const perLap = parseRawLapFramesFromBuffer(canonical, meta.rawByteOffset, meta.rawFrameCount, "ac-evo", FIXTURE);
+      const buffered = parseRawLapFramesFromBuffer(canonical, meta.rawByteOffset, meta.rawFrameCount, "ac-evo", FIXTURE);
+      const streamed = await parseRawLapFrames(source, meta.rawByteOffset, meta.rawFrameCount);
       const batched = batch.get(meta.id);
       expect(batched).toBeDefined();
-      expect(batched!.length).toBe(perLap.length);
+      expect(streamed.length).toBe(buffered.length);
+      expect(batched!.length).toBe(buffered.length);
 
       // Sample fields across the lap incl. state-dependent DistanceTraveled.
-      const idxs = [0, Math.floor(perLap.length / 2), perLap.length - 1];
+      const idxs = [0, Math.floor(buffered.length / 2), buffered.length - 1];
       for (const i of idxs) {
-        expect(batched![i].PositionX).toBeCloseTo(perLap[i].PositionX, 6);
-        expect(batched![i].PositionZ).toBeCloseTo(perLap[i].PositionZ, 6);
-        expect(batched![i].DistanceTraveled).toBeCloseTo(perLap[i].DistanceTraveled, 6);
-        expect(batched![i].CurrentLap).toBeCloseTo(perLap[i].CurrentLap, 6);
-        expect(batched![i].Speed).toBeCloseTo(perLap[i].Speed, 6);
+        for (const actual of [streamed[i], batched![i]]) {
+          expect(actual.PositionX).toBeCloseTo(buffered[i].PositionX, 6);
+          expect(actual.PositionZ).toBeCloseTo(buffered[i].PositionZ, 6);
+          expect(actual.DistanceTraveled).toBeCloseTo(buffered[i].DistanceTraveled, 6);
+          expect(actual.CurrentLap).toBeCloseTo(buffered[i].CurrentLap, 6);
+          expect(actual.Speed).toBeCloseTo(buffered[i].Speed, 6);
+        }
       }
     }
   }, { timeout: 90_000 });

@@ -284,7 +284,6 @@ export class LiveTelemetryPipeline {
       this._lapDetector = serverAdapter.createLapDetector({
         db: this.db,
         bypassPacketRateFilter: this._bypassPacketRateFilter,
-        retainParsedPacket: serverAdapter.retainParsedPacket,
         callbacks: this._buildCallbacks(),
       });
       this._lapDetectorGameId = gameId;
