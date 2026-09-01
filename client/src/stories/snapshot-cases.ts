@@ -2,7 +2,8 @@ export interface StorybookSnapshotCase {
   name: string;
   id: string;
   outputName: string;
-  viewport?: { width: number; height: number };
+  fullPage?: boolean;
+  screenshotTarget?: string;
   readyText?: string;
   hoverLabel?: string;
   clickLabel?: string;
@@ -165,6 +166,7 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "screens-analysedatapanelparity--loaded-main-parity",
     outputName: "snapshot-AnalyseDataPanelParity.png",
     viewport: { width: 1080, height: 800 },
+    screenshotTarget: "body",
   },
   {
     name: "AnalyseVizPanel3D",
