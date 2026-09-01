@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Keep Analyse Data panel content and layout complete across supported views
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
 
 ### Internal
