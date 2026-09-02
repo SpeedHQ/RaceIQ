@@ -385,7 +385,8 @@ function buildLapResult(
  */
 
 export async function getLapsByIds(
-  ids: number[]
+  ids: number[],
+  options: { readonly parallelSessionDecodes?: boolean } = {},
 ): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
   if (ids.length === 0) return [];
 
@@ -426,7 +427,8 @@ export async function getLapsByIds(
 
   // Group cache-miss laps by session raw file so each session decodes once.
   type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
-  const bySession = new Map<string, { source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; metas: BatchMeta[] }>();
+  type BatchGroup = { source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; metas: BatchMeta[] };
+  const bySession = new Map<string, BatchGroup>();
   const decoded = new Map<number, TelemetryPacket[]>();
 
   for (const row of rows) {
@@ -445,7 +447,7 @@ export async function getLapsByIds(
     }
   }
 
-  for (const [rawFile, group] of bySession) {
+  const decodeSession = async (rawFile: string, group: BatchGroup) => {
     try {
       const batch = await parseSessionLapsBatched(
         { rawFile, source: group.source, gameId: group.gameId, carOrdinal: group.carOrdinal, trackOrdinal: group.trackOrdinal },
@@ -458,11 +460,22 @@ export async function getLapsByIds(
     } catch (err) {
       console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
     }
+  };
+
+  if (options.parallelSessionDecodes) {
+    await Promise.all([...bySession.entries()].map(([rawFile, group]) => decodeSession(rawFile, group)));
+  } else {
+    for (const [rawFile, group] of bySession) await decodeSession(rawFile, group);
   }
 
   // Assemble in requested order; fall back to getLapById for anything the batch
   // pass didn't resolve (unaligned offset, batch error, or a bad lap).
   const results: (LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[] = [];
+  const fallbackIds = ids.filter((id) => rowById.has(id) && !decoded.has(id));
+  const fallbacks = options.parallelSessionDecodes
+    ? await Promise.all(fallbackIds.map((id) => getLapById(id)))
+    : [];
+  const fallbackById = new Map(fallbackIds.map((id, index) => [id, fallbacks[index]]));
   for (const id of ids) {
     const row = rowById.get(id);
     if (!row) continue;
@@ -470,7 +483,7 @@ export async function getLapsByIds(
     if (telemetry) {
       results.push(buildLapResult(row, telemetry));
     } else {
-      const lap = await getLapById(id);
+      const lap = options.parallelSessionDecodes ? fallbackById.get(id) : await getLapById(id);
       if (lap) results.push(lap);
     }
   }

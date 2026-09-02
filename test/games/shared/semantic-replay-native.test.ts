@@ -5,6 +5,7 @@ import { gzipSync } from "node:zlib";
 import { insertLap } from "../../../server/db/lap-mutation-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "../../../server/db/session-queries";
 import type { LapReplaySource } from "../../../server/db/telemetry-replay-storage";
+import { cacheDelete, cacheSet } from "../../../server/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { IRacingSourceFrameEncoder, type IRacingSourceFrameV2 } from "../../../server/games/iracing/source-frame";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing";
@@ -12,6 +13,7 @@ import { iterateIRacingNativeFramesForTest, queryLapTelemetryBySemanticId } from
 import { initGameAdapters } from "../../../shared/games/init";
 import { canonicalizeTelemetryScalar } from "../../../shared/telemetry/replay/canonicalize";
 
+import { packet } from "../../support/telemetry/resolver";
 initGameAdapters();
 initServerGameAdapters();
 
@@ -100,6 +102,30 @@ test("canonical replay values clone recursive boolean and string structures", ()
   expect(() => canonicalizeTelemetryScalar({ invalid: Number.NaN }, "diagnostics.test-structure")).toThrow("contains a non-finite number");
 });
 
+test("native-values replay skips non-native raw capture identity loading", async () => {
+  const sessionId = await insertSession(1, 2, "f1-2025");
+  const rawFile = `${process.env.DATA_DIR ?? "."}/semantic-replay-invalid-${Date.now()}.bin.gz`;
+  let lapId: number | undefined;
+  await Bun.write(rawFile, Buffer.from("not gzip"));
+  try {
+    await updateSessionRawFile(sessionId, rawFile, "test-detector");
+    lapId = await insertLap(sessionId, 1, 1, true, 0, 0);
+    cacheSet(lapId, [packet("f1-2025")]);
+
+    const replay = await queryLapTelemetryBySemanticId(lapId, ["motion.speed"], { rawCaptureRequirement: "native-values" });
+    expect(replay?.envelopes).toHaveLength(1);
+    expect(replay?.envelopes[0]?.values).toEqual(
+      expect.arrayContaining([expect.objectContaining({ semanticId: "motion.speed", value: 42, state: "ok" })]),
+    );
+    expect(replay?.envelopes[0]?.rawReference).toBeUndefined();
+  } finally {
+    if (lapId != null) cacheDelete(lapId);
+    await deleteSession(sessionId);
+    try {
+      unlinkSync(rawFile);
+    } catch {}
+  }
+});
 test("semantic replay aligns native session frames and hashes decompressed capture bytes", async () => {
   const encoder = new IRacingSourceFrameEncoder();
   const sessionFrame = encoder.encode(frame(1, 2));
@@ -117,7 +143,7 @@ test("semantic replay aligns native session frames and hashes decompressed captu
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
     const lapId = await insertLap(sessionId, 1, 1, true, rawByteOffset, 2);
 
-    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed"]);
+    const replay = await queryLapTelemetryBySemanticId(lapId, ["session.session-state", "motion.speed"], { rawCaptureRequirement: "native-values" });
     expect(replay?.envelopes).toHaveLength(2);
     expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "session.session-state")?.value)).toEqual([2, 4]);
     expect(replay?.envelopes[0].values).toEqual(

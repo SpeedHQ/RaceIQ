@@ -57,7 +57,7 @@ export const resourceRoutes = new Hono()
           envelopes: [],
         });
       }
-      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
+      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds(), { rawCaptureRequirement: "native-values" });
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       return c.json({
