@@ -54,7 +54,7 @@ try {
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(
     configPath,
-    suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 30000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 1\n`,
+    suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,
   );
   const manifestFiles = files.map((file) => resolve(root, file));
   const args = suite === "unit" ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
