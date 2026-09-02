@@ -9,7 +9,7 @@
 import { Agent, type AgentExecutionOptions } from "@mastra/core/agent";
 import { providerConfigFromRequestContext } from "../model";
 import { buildLapAnalystExecutionOptions } from "../../server/ai/analysis-agent-options";
-import { getCornerMetricsTool } from "../tools/corner-metrics";
+import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { liveAnalystScorers } from "../evals";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
@@ -28,8 +28,7 @@ For F1 2025 laps: the prompt already contains a block labelled "F1 CURRENT SETUP
 export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
   name: "Lap Analyst",
-  instructions: LAP_ANALYST_INSTRUCTIONS,
-  defaultOptions: ({ requestContext }): AgentExecutionOptions => {
+  defaultOptions: ({ requestContext }): AgentExecutionOptions<undefined> => {
     const config = providerConfigFromRequestContext(requestContext);
     return (config
       ? buildLapAnalystExecutionOptions(config)

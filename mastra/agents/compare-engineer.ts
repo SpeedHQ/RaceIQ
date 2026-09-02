@@ -8,7 +8,7 @@
 import { Agent, type AgentExecutionOptions } from "@mastra/core/agent";
 import { providerConfigFromRequestContext } from "../model";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
-import { getModel } from "../../server/ai/model-provider";
+import { buildCompareEngineerExecutionOptions } from "../../server/ai/analysis-agent-options";
 import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
@@ -26,7 +26,7 @@ export const compareEngineerAgent = new Agent({
       "\nFor each relevant lap, call `get_lap_analysis` first. Only when a lap's retrieval is unavailable, call `generate_lap_analysis` for that lap. If both report unavailable, state that limitation and do not invent findings."
     );
   },
-  defaultOptions: ({ requestContext }): AgentExecutionOptions => {
+  defaultOptions: ({ requestContext }): AgentExecutionOptions<undefined> => {
     const config = providerConfigFromRequestContext(requestContext);
     return (config
       ? buildCompareEngineerExecutionOptions(config)
