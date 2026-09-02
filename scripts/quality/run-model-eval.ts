@@ -62,7 +62,7 @@ for (const modelId of modelIds) for (let index = 0; index < synced.length; index
   const definition = definitions[index]; const { dataset, version } = synced[index];
   const requestContext = { provider: "local", model: modelId, localEndpoint: baseURL };
   const agent = mastra.getAgent(definition.targetId);
-  const instructions = await agent.getInstructions({ requestContext });
+  const instructions = await agent.getInstructions({ requestContext: requestContext as never });
   const promptFingerprint = createHash("sha256").update(canonical({ instructions, items: definition.items.map(({ externalId, input }) => ({ externalId, input })) })).digest("hex");
   const summary = await dataset.startExperiment({ targetType: "agent", targetId: definition.targetId, scorers: [...definition.scorerIds], requestContext, metadata: { modelId, agent: definition.targetId, fixtureIds: [fixtureId], repeatCount: REPEAT_COUNT, endpoint: baseURL, judgeModel, sourceVersion, promptFingerprint, datasetVersion: version }, provenance: { source: "local", sourceId: "raceiq-oss-model-eval", sourceVersion, metadata: { promptFingerprint } }, grouping: { experimentSetId, comparisonId: definition.id, variantId: `${modelId}@${promptFingerprint.slice(0, 12)}` }, maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000, onEvent: (event: unknown) => console.log(JSON.stringify({ model: modelId, agent: definition.targetId, event })) });
   experiments.push({ id: summary.experimentId, modelId, agent: definition.targetId, status: summary.status, promptFingerprint });
@@ -73,7 +73,8 @@ if (judgeEnabled) {
   if (Bun.spawnSync(["lms", "load", judgeModel, "--context-length", "131072", "--parallel", "4", "--yes"], { stdout: "ignore", stderr: "pipe" }).exitCode !== 0) throw new Error(`Model eval judge setup failed: could not load ${judgeModel}`);
   const correctness = await mastra.datasets.create({ id: `raceiq-model-eval-correctness-${experimentSetId}`, name: `RaceIQ correctness ${experimentSetId}`, targetType: "workflow", targetIds: [], scorerIds: ["telemetry-correctness"] });
   for (const experiment of experiments) { const target = definitions.findIndex(definition => definition.targetId === experiment.agent); const results = await synced[target].dataset.listExperimentResults({ experimentId: experiment.id, page: 0, perPage: 1000 }); for (const result of results.results ?? []) if (result.output != null) await correctness.addItem({ input: { answer: result.output }, groundTruth: result.groundTruth, metadata: { candidateExperimentId: experiment.id, candidateItemId: result.itemId, modelId: experiment.modelId, agent: experiment.agent, caseId: result.metadata?.caseId, repeat: result.metadata?.repeat } }); }
-  await correctness.startExperiment({ task: ({ input }) => (input as { answer: unknown }).answer, scorers: ["telemetry-correctness"], maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000 });
+  const correctnessSummary = await correctness.startExperiment({ task: ({ input }) => (input as { answer: unknown }).answer, scorers: ["telemetry-correctness"], metadata: { experimentSetId, phase: "correctness", judgeModel }, grouping: { experimentSetId, comparisonId: correctness.id, variantId: `correctness@${experimentSetId}` }, maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000 });
+  console.log(`Correctness experiment ${correctnessSummary.experimentId}: ${correctnessSummary.status}`);
 } else console.log("No recommendation: correctness judge disabled");
 const mod = await import("../../mastra/evals/model-eval-recommendation");
 const report = await mod.buildModelRecommendation(mastra, experimentSetId, compareToExperimentSetId);
