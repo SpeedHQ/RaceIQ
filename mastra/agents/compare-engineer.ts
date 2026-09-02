@@ -7,7 +7,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { providerConfigFromRequestContext } from "../model";
-import { compareEngineerPersona } from "../../server/ai/compare-engineer";
+import { buildCompareEngineerExecutionOptions } from "../../server/ai/analysis-agent-options";
 import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
