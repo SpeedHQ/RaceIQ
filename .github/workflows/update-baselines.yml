@@ -27,10 +27,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: ubuntu-latest
     # Keep baseline renders on the same pinned Playwright version used by PRs.
     permissions:
       contents: write
