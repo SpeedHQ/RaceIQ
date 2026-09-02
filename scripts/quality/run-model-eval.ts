@@ -7,6 +7,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { initDb, db } from "../../server/db";
 import { sessions, laps } from "../../server/db/schema";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../server/ai/resolved-ai-internals";
+import { MODEL_EVAL_FIXTURES, loadParsedModelEvalFixture, buildModelEvalDatasetDefinitions, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
 const REPEAT_COUNT = 3;
 const DEFAULT_MODELS = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");

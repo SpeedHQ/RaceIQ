@@ -40,6 +40,10 @@ const originalLapAnalystModel = (lapAnalystAgent as unknown as { model: unknown 
     expect(model).toBeDefined();
     expect(typeof model).toBe("object");
   });
+test("model-eval runner imports native fixture registry", async () => {
+  const source = await Bun.file(new URL("../../../scripts/quality/run-model-eval.ts", import.meta.url)).text();
+  expect(source).toMatch(/import \{[^}]*MODEL_EVAL_FIXTURES[^}]*\} from "\.\.\/\.\.\/mastra\/evals\/model-eval-datasets";/);
+});
 describe("Mastra native evaluation targets", () => {
   test("persists production agent experiment result, trace, and score", async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-mastra-test-"));
