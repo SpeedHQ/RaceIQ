@@ -27,10 +27,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,19 +39,11 @@ jobs:
           bun-version: 1.4
 
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Install client dependencies
-        working-directory: client
-        run: bun install
-
       - name: Regenerate baselines
-        working-directory: client
         env:
           RACEIQ_CANONICAL_SNAPSHOT_ENV: "1"
-        # snapshot = playwright test --update-snapshots && copy to assets/screenshots
-        run: bun run snapshot
+        # Run same pinned Linux renderer used by PR comparison.
+        run: bun scripts/ui/run-snapshot-in-docker.ts --update
 
       - name: Upload generated baselines
         uses: actions/upload-artifact@v7
@@ -70,5 +59,5 @@ jobs:
         if: inputs.delivery == 'commit'
         env:
           TARGET_REF: ${{ inputs.target_ref }}
-        shell: cmd
+        shell: bash
         run: bun scripts/ui/commit-snapshot-baselines.ts

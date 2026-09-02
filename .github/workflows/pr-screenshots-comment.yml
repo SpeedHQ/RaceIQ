@@ -12,7 +12,7 @@ name: Comment app screenshot diffs
 
 on:
   workflow_run:
-    workflows: ["Render dashboard screenshots", "Render dashboard snapshots"]
+    workflows: ["Build & Test", "Render dashboard screenshots", "Render dashboard snapshots"]
     types: [completed]
 
 permissions:

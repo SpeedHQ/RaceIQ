@@ -36,10 +36,7 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: ubuntu-latest
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -70,36 +67,25 @@ jobs:
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        shell: cmd
         run: bun scripts/ui/prepare-pr-snapshot.ts
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Install client dependencies
-        working-directory: client
-        run: bun install
-      - name: Pin Playwright Chromium
-        working-directory: client
-        run: bunx playwright install chromium
       - name: Render and compare against committed baselines
         id: storybook-render
-        working-directory: client
-        # CI and baseline generation both use the Mars Windows renderer.
-        run: bun run snapshot:test
+        # Run same pinned Linux renderer used to generate committed baselines.
+        run: bun scripts/ui/run-snapshot-in-docker.ts
+        # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
       - name: Prepare PR snapshot preview
-        shell: cmd
         run: >
-          bun "%GITHUB_WORKSPACE%/scripts/ui/prepare-pr-snapshot-preview.ts"
-          "%GITHUB_WORKSPACE%/pr-preview"
-          "%GITHUB_WORKSPACE%/client/src/stories/__snapshots__/results"
-          "%RUNNER_TEMP%/raceiq-base/client/src/stories/__snapshots__"
-          "%GITHUB_WORKSPACE%/client/src/stories/__snapshots__"
+          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
+          "$GITHUB_WORKSPACE/pr-preview"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
+          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
           "${{ github.event.pull_request.number || inputs.pr }}"
           "${{ steps.pull-request.outputs.base-ref }}"
-          "%GITHUB_OUTPUT%"
+          "$GITHUB_OUTPUT"
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -110,16 +96,17 @@ jobs:
 
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
-        shell: powershell
+        shell: bash
         run: |
-          $diffs = @(Get-ChildItem -Path "pr-preview" -Filter "*-diff.png" -File -ErrorAction SilentlyContinue | Sort-Object Name)
-          if ($diffs.Count -gt 0) {
-            Write-Output "::error::Committed Storybook snapshots do not match ($($diffs.Count) diff(s))."
-            foreach ($diff in $diffs) {
-              Write-Output "::error::Snapshot mismatch artifact: $($diff.Name)"
-            }
-            Write-Output "Download 'pr-screenshot-preview' artifact for before/after/diff images."
-          } else {
-            Write-Output "::error::Committed Storybook snapshots do not match, but no diff artifacts were generated."
-          }
+          shopt -s nullglob
+          diffs=(pr-preview/*-diff.png)
+          if (( ${#diffs[@]} > 0 )); then
+            echo "::error::Committed Storybook snapshots do not match (${#diffs[@]} diff(s))."
+            for diff in "${diffs[@]}"; do
+              echo "::error::Snapshot mismatch artifact: $(basename "$diff")"
+            done
+            echo "Download 'pr-screenshot-preview' artifact for before/after/diff images."
+          else
+            echo "::error::Committed Storybook snapshots do not match, but no diff artifacts were generated."
+          fi
           exit 1
