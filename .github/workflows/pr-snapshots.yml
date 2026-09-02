@@ -62,30 +62,12 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Merge pull request base into the PR head
+      - name: Prepare merged PR snapshot workspace
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        shell: powershell
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
-          $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
-          if ($fetchedBaseSha -ne $env:BASE_SHA) {
-            git fetch --no-tags origin $env:BASE_SHA
-            $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
-          }
-          if ($fetchedBaseSha -ne $env:BASE_SHA) {
-            throw "Fetched base commit $fetchedBaseSha does not match $env:BASE_SHA"
-          }
-          git merge --no-edit $env:BASE_SHA
-
-
-      - name: Prepare base comparison worktree
-        env:
-          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
+        shell: cmd
+        run: bun scripts/ui/prepare-pr-snapshot.ts
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -102,24 +84,21 @@ jobs:
         run: bunx playwright install chromium
       - name: Render and compare against committed baselines
         id: storybook-render
-        # Run the same pinned Linux renderer used to generate committed baselines.
-        run: bun scripts/ui/run-snapshot-in-docker.ts
-        # Keep running so the diff can be collected and posted as UI-change
-        # awareness even when the collaborator assertion fails.
+        working-directory: client
+        # CI and baseline generation both use the Mars Windows renderer.
+        run: bun run snapshot:test
         continue-on-error: true
 
-      - name: Collect diffs
-        id: collect
-        working-directory: client
+        shell: cmd
         run: >
-          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
-          "$GITHUB_WORKSPACE/pr-preview"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
-          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
+          bun "%GITHUB_WORKSPACE%/scripts/ui/prepare-pr-snapshot-preview.ts"
+          "%GITHUB_WORKSPACE%/pr-preview"
+          "%GITHUB_WORKSPACE%/client/src/stories/__snapshots__/results"
+          "%RUNNER_TEMP%/raceiq-base/client/src/stories/__snapshots__"
+          "%GITHUB_WORKSPACE%/client/src/stories/__snapshots__"
           "${{ github.event.pull_request.number || inputs.pr }}"
           "${{ steps.pull-request.outputs.base-ref }}"
-          "$GITHUB_OUTPUT"
+          "%GITHUB_OUTPUT%"
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -131,5 +110,5 @@ jobs:
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
         run: |
-          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot:docker' from client/ to update them in the pinned renderer."
+          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot' from client/ to update them in the CI renderer."
           exit 1
