@@ -5,9 +5,9 @@
  * Different from the per-lap analyst: this persona thinks in terms of A vs B,
  * looks for technique differences, and explains where time is gained or lost.
  */
-import { Agent } from "@mastra/core/agent";
+import { Agent, type AgentExecutionOptions } from "@mastra/core/agent";
 import { providerConfigFromRequestContext } from "../model";
-import { buildCompareEngineerExecutionOptions } from "../../server/ai/analysis-agent-options";
+import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
@@ -26,11 +26,11 @@ export const compareEngineerAgent = new Agent({
       "\nFor each relevant lap, call `get_lap_analysis` first. Only when a lap's retrieval is unavailable, call `generate_lap_analysis` for that lap. If both report unavailable, state that limitation and do not invent findings."
     );
   },
-  defaultOptions: ({ requestContext }) => {
+  defaultOptions: ({ requestContext }): AgentExecutionOptions => {
     const config = providerConfigFromRequestContext(requestContext);
     return (config
       ? buildCompareEngineerExecutionOptions(config)
-      : {}) as never;
+      : {}) as unknown as AgentExecutionOptions;
   },
   tools: {
     get_track_guide: getTrackGuideTool,

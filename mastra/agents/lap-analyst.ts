@@ -6,10 +6,9 @@
  * throttle, coaching, setup). Distinct from compare-engineer, which thinks
  * across two laps.
  */
-import { Agent } from "@mastra/core/agent";
+import { Agent, type AgentExecutionOptions } from "@mastra/core/agent";
 import { providerConfigFromRequestContext } from "../model";
 import { buildLapAnalystExecutionOptions } from "../../server/ai/analysis-agent-options";
-import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { liveAnalystScorers } from "../evals";
@@ -30,11 +29,11 @@ export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
-  defaultOptions: ({ requestContext }) => {
+  defaultOptions: ({ requestContext }): AgentExecutionOptions => {
     const config = providerConfigFromRequestContext(requestContext);
     return (config
       ? buildLapAnalystExecutionOptions(config)
-      : {}) as never;
+      : {}) as unknown as AgentExecutionOptions;
   },
   // Tool stays registered for models that can tool-call reliably. On local
   // models (Gemma 4) that loop the tool, the analyse route inlines the
