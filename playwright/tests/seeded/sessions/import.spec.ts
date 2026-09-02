@@ -56,8 +56,9 @@ test("session importer sends a MoTeC ZIP directly to configuration", async ({ pa
 
   await expect(page.getByRole("heading", { name: "Import MoTeC log" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("acc-barcelona-porsche-992.zip", { exact: true })).toBeVisible();
-  await expect(page.getByText("Included in archive", { exact: true })).toBeVisible();
-  expect(stageRequests).toBe(0);
+  await expect(page.getByText("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ld", { exact: true })).toBeVisible();
+  await expect(page.getByText("Barcelona-porsche_992_gt3_r-4-2024.12.06-14.54.26.ldx", { exact: true })).toBeVisible();
+  expect(stageRequests).toBe(1);
 });
 
 test("MoTeC import fixture creates disposable imported session when repository evidence exists", async ({ page, request }) => {
