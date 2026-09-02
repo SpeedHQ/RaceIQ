@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
+import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
@@ -25,8 +25,8 @@ import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
-export function semanticReplayIds(): readonly string[] {
-  return [...new Set(getAllGames().flatMap((adapter) => analyseSemanticIds(adapter)))];
+export function semanticReplayIds(gameId: GameId): readonly string[] {
+  return analyseSemanticIds(getGame(gameId));
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
@@ -57,7 +57,7 @@ export const resourceRoutes = new Hono()
           envelopes: [],
         });
       }
-      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds(), { rawCaptureRequirement: "native-values" });
+      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds(lap.gameId), { rawCaptureRequirement: "native-values" });
       if (!replay) return c.json({ error: "Lap not found" }, 404);
       const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       return c.json({

@@ -110,13 +110,17 @@ test("native-values replay skips non-native raw capture identity loading", async
   try {
     await updateSessionRawFile(sessionId, rawFile, "test-detector");
     lapId = await insertLap(sessionId, 1, 1, true, 0, 0);
-    cacheSet(lapId, [packet("f1-2025")]);
+    cacheSet(lapId, [
+      packet("f1-2025", { Speed: 10, TimestampMS: 1_000 }),
+      packet("f1-2025", { Speed: 20, TimestampMS: 1_000 }),
+      packet("f1-2025", { Speed: 30, TimestampMS: 1_017 }),
+    ]);
 
     const replay = await queryLapTelemetryBySemanticId(lapId, ["motion.speed"], { rawCaptureRequirement: "native-values" });
-    expect(replay?.envelopes).toHaveLength(1);
-    expect(replay?.envelopes[0]?.values).toEqual(
-      expect.arrayContaining([expect.objectContaining({ semanticId: "motion.speed", value: 42, state: "ok" })]),
-    );
+    expect(replay?.envelopes).toHaveLength(3);
+    expect(replay?.envelopes.map((envelope) => envelope.sequence)).toEqual([0n, 1n, 2n]);
+    expect(replay?.envelopes.map((envelope) => envelope.values.find((value) => value.semanticId === "motion.speed")?.value)).toEqual([10, 20, 30]);
+
     expect(replay?.envelopes[0]?.rawReference).toBeUndefined();
   } finally {
     if (lapId != null) cacheDelete(lapId);

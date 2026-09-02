@@ -1,35 +1,20 @@
 import { describe, expect, test } from "bun:test";
 
 import { initGameAdapters } from "../../shared/games/init";
+import { getGame } from "../../shared/games/registry";
+import { analyseSemanticIds } from "../../shared/games/metric-contracts";
 
 import { lapRoutes } from "../../server/routes/laps";
 import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
 
 initGameAdapters();
 
-test("semantic replay requests lap-relative timing and position", () => {
-  expect(semanticReplayIds()).toContain("timing.current-lap");
-  expect(semanticReplayIds()).toContain("timing.lap-fraction");
-});
-test("semantic replay requests every Analyse display dependency", () => {
-  const ids = semanticReplayIds();
-  for (const id of [
-    "brakes.brake-bias",
-    "fuel.ers-deployed",
-    "fuel.ers-harvested",
-    "fuel.fuel-capacity",
-    "identity.car-ordinal",
-    "motion.pitch",
-    "motion.roll",
-    "identity.player-track-surface",
-    "tires.wheel-in-puddle-depth",
-    "suspension.norm-suspension-travel",
-    "tires.normalized-tire-slip-angle",
-    "tires.tire-radius",
-    "tires.wheel-on-rumble-strip",
-  ]) {
-    expect(ids).toContain(id);
-  }
+test("semantic replay requests F1 Analyse dependencies", () => {
+  const ids = semanticReplayIds("f1-2025");
+  expect(ids).toEqual(analyseSemanticIds(getGame("f1-2025")));
+  expect(ids).toContain("timing.current-lap");
+  expect(ids).toContain("timing.lap-fraction");
+  expect(ids).not.toContain("tires.wheel-in-puddle-depth");
 });
 
 describe("POST /api/laps/:id/analyse", () => {
