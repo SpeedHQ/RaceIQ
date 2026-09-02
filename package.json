@@ -58,7 +58,7 @@
     "fixtures:iracing": "bun scripts/iracing/generate-recording-fixture.ts",
     "fixtures:iracing:seed": "bun scripts/iracing/generate-seed-fixture.ts",
     "build:installer": "bun scripts/build/build-installer.ts",
-    "mastra:studio": "portless studio bun scripts/dev/mastra-studio.ts",
+    "mastra:studio": "DATA_DIR=\"$PWD/.data-test-model-eval-studio\" MASTRA_STORAGE_URL=\"file:$PWD/data/mastra-model-evals.db\" MASTRA_OBSERVABILITY_PATH=\"$PWD/data/mastra-model-evals-observability.duckdb\" concurrently -k -n mastra-server,studio \"bun run server/index.ts\" \"portless --force studio bun scripts/dev/mastra-studio.ts\"",
     "mastra:model-eval:studio-server": "DATA_DIR=\"$PWD/.data-test-model-eval-studio\" MASTRA_STORAGE_URL=\"file:$PWD/data/mastra-model-evals.db\" MASTRA_OBSERVABILITY_PATH=\"$PWD/data/mastra-model-evals-observability.duckdb\" bun run server/index.ts",
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
     "postinstall": "lefthook install",
