@@ -7,7 +7,9 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { initDb, db } from "../../server/db";
 import { sessions, laps } from "../../server/db/schema";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../server/ai/resolved-ai-internals";
+import { getModel } from "../../server/ai/model-provider";
 import { MODEL_EVAL_FIXTURES, loadParsedModelEvalFixture, buildModelEvalDatasetDefinitions, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
+import { RequestContext } from "@mastra/core/request-context";
 const REPEAT_COUNT = 3;
 const DEFAULT_MODELS = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");
@@ -66,13 +68,19 @@ if (!sourceVersion) throw new Error("Model eval setup failed: unable to resolve 
 const experiments: { id: string; modelId: string; agent: string; status: string; promptFingerprint: string }[] = [];
 for (const modelId of modelIds) for (let index = 0; index < synced.length; index++) {
   const definition = definitions[index]; const { dataset, version } = synced[index];
-  const requestContext = { [RESOLVED_AI_MODEL_CONTEXT_KEY]: { provider: "local", model: modelId, localEndpoint: baseURL } };
+  const requestContext = new RequestContext(); const modelConfig = { provider: "local", model: modelId, localEndpoint: baseURL }; requestContext.set(RESOLVED_AI_MODEL_CONTEXT_KEY, modelConfig); const experimentRequestContext = { [RESOLVED_AI_MODEL_CONTEXT_KEY]: modelConfig };
   const agent = mastra.getAgent(definition.targetId);
-  const instructions = await agent.getInstructions({ requestContext: requestContext as never });
-  const promptFingerprint = createHash("sha256").update(canonical({ instructions, items: definition.items.map(({ externalId, input }) => ({ externalId, input })) })).digest("hex");
-  const summary = await dataset.startExperiment({ targetType: "agent", targetId: definition.targetId, scorers: [...definition.scorerIds], requestContext, metadata: { modelId, agent: definition.targetId, fixtureIds: [fixtureId], repeatCount: REPEAT_COUNT, endpoint: baseURL, judgeModel, sourceVersion, promptFingerprint, datasetVersion: version }, provenance: { source: "local", sourceId: "raceiq-oss-model-eval", sourceVersion, metadata: { promptFingerprint } }, grouping: { experimentSetId, comparisonId: definition.id, variantId: `${modelId}@${promptFingerprint.slice(0, 12)}` }, maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000, onEvent: (event: unknown) => console.log(JSON.stringify({ model: modelId, agent: definition.targetId, event })) });
-  experiments.push({ id: summary.experimentId, modelId, agent: definition.targetId, status: summary.status, promptFingerprint });
-  console.log(`Experiment ${summary.experimentId}: ${modelId} ${definition.targetId} ${summary.status}`);
+  const originalModel = (agent as unknown as { model: unknown }).model;
+  (agent as unknown as { model: unknown }).model = getModel("analysis", requestContext);
+  try {
+    const instructions = await agent.getInstructions({ requestContext: requestContext as never });
+    const promptFingerprint = createHash("sha256").update(canonical({ instructions, items: definition.items.map(({ externalId, input }) => ({ externalId, input })) })).digest("hex");
+    const summary = await dataset.startExperiment({ targetType: "agent", targetId: definition.targetId, scorers: [...definition.scorerIds], requestContext: experimentRequestContext, metadata: { modelId, agent: definition.targetId, fixtureIds: [fixtureId], repeatCount: REPEAT_COUNT, endpoint: baseURL, judgeModel, sourceVersion, promptFingerprint, datasetVersion: version }, provenance: { source: "local", sourceId: "raceiq-oss-model-eval", sourceVersion, metadata: { promptFingerprint } }, grouping: { experimentSetId, comparisonId: definition.id, variantId: `${modelId}@${promptFingerprint.slice(0, 12)}` }, maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000, onEvent: (event: unknown) => console.log(JSON.stringify({ model: modelId, agent: definition.targetId, event })) });
+    experiments.push({ id: summary.experimentId, modelId, agent: definition.targetId, status: summary.status, promptFingerprint });
+    console.log(`Experiment ${summary.experimentId}: ${modelId} ${definition.targetId} ${summary.status}`);
+  } finally {
+    (agent as unknown as { model: unknown }).model = originalModel;
+  }
 }
 if (judgeEnabled) {
   for (const model of modelIds) Bun.spawnSync(["lms", "unload", model], { stdout: "ignore", stderr: "ignore" });
