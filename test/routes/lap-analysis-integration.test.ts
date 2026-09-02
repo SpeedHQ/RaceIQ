@@ -4,7 +4,7 @@ import { insertLap } from "../../server/db/lap-mutation-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
 import { initServerGameAdapters } from "../../server/games/init";
 import { lapRoutes } from "../../server/routes/laps";
-import { iterateSessionCaptureFrames } from "../../server/session-capture/source-loader";
+import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
 import { getRecordingFixture } from "../support/recordings/fixtures";
 
 
@@ -31,6 +31,25 @@ describe("F1 Analyse semantic telemetry integration", () => {
     const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000);
     await updateSessionRawFile(sessionId, recording, "test-detector");
 
+    let fileCalls = 0;
+    let streamCalls = 0;
+    const originalFile = Bun.file;
+    setCaptureFileFactoryForTest((path) => {
+      fileCalls++;
+      const file = originalFile(path);
+      return {
+        size: file.size,
+        lastModified: file.lastModified,
+        slice: (start?: number, end?: number) => file.slice(start, end),
+        stream: () => {
+          streamCalls++;
+          return file.stream();
+        },
+        arrayBuffer: () => {
+          throw new Error("Analyse replay must not materialize the full capture");
+        },
+      };
+    });
     try {
       const response = await lapRoutes.request(`/api/laps/${lapId}/semantic-telemetry`, {
         headers: { "X-Game-Id": "f1-2025" },
@@ -44,6 +63,8 @@ describe("F1 Analyse semantic telemetry integration", () => {
       };
       expect(body.lapId).toBe(lapId);
       expect(body.parseError).toBeNull();
+      expect(fileCalls).toBe(1);
+      expect(streamCalls).toBe(1);
       expect(body.requestedSemanticIds).toHaveLength(40);
       expect(body.envelopes.length).toBeGreaterThan(0);
       expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(
@@ -51,7 +72,8 @@ describe("F1 Analyse semantic telemetry integration", () => {
       );
       expect(body.envelopes.every((envelope) => envelope.values.length > 0)).toBe(true);
     } finally {
-      await deleteSession(sessionId);
+      setCaptureFileFactoryForTest(null);
     }
+    await deleteSession(sessionId);
   }, 120000);
 });

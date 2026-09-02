@@ -12,9 +12,21 @@ export type LoadedSessionSource =
   | { kind: "capture"; buffer: Buffer }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
 interface CacheEntry { size: number; mtimeMs: number; loaded: LoadedSessionSource }
+export interface SessionCaptureFile {
+  readonly size: number;
+  readonly lastModified: number;
+  slice(start?: number, end?: number): Blob;
+  stream(): ReadableStream<Uint8Array>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+type CaptureFileFactory = (path: string) => SessionCaptureFile;
+let captureFileFactory: CaptureFileFactory = (path) => Bun.file(path);
 const cache = new Map<string, CacheEntry>();
 const MAX_ENTRIES = 2;
 export function clearRawFileCacheForTest(): void { cache.clear(); }
+export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
+  captureFileFactory = factory ?? ((path) => Bun.file(path));
+}
 function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carOrdinal}\0${source.trackOrdinal}`; }
 
 /**
@@ -28,7 +40,7 @@ export async function* iterateSessionCaptureFrames(
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
 
-  const file = Bun.file(source.rawFile);
+  const file = captureFileFactory(source.rawFile);
   const prefix = Buffer.from(await file.slice(0, 2).arrayBuffer());
   let stream = file.stream() as ReadableStream<Uint8Array>;
   if (prefix[0] === 0x1f && prefix[1] === 0x8b) {
@@ -80,7 +92,7 @@ export async function* iterateSessionCaptureFrames(
   }
 }
 export async function loadSessionSource(source: SessionCaptureSource): Promise<LoadedSessionSource> {
-  const file = Bun.file(source.rawFile); const size = file.size; const mtimeMs = file.lastModified; const cacheKey = key(source);
+  const file = captureFileFactory(source.rawFile); const size = file.size; const mtimeMs = file.lastModified; const cacheKey = key(source);
   const hit = cache.get(cacheKey); if (hit && hit.size === size && hit.mtimeMs === mtimeMs) return hit.loaded;
   let loaded: LoadedSessionSource;
   const bytes = Buffer.from(await file.arrayBuffer());
