@@ -62,16 +62,16 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
       - name: Prepare merged PR snapshot workspace
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         shell: cmd
         run: bun scripts/ui/prepare-pr-snapshot.ts
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4
 
       - name: Install dependencies
         run: bun install
