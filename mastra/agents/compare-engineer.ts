@@ -6,6 +6,7 @@
  * looks for technique differences, and explains where time is gained or lost.
  */
 import { Agent } from "@mastra/core/agent";
+import { providerConfigFromRequestContext } from "../model";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/runtime/config/settings";
@@ -25,7 +26,12 @@ export const compareEngineerAgent = new Agent({
       "\nFor each relevant lap, call `get_lap_analysis` first. Only when a lap's retrieval is unavailable, call `generate_lap_analysis` for that lap. If both report unavailable, state that limitation and do not invent findings."
     );
   },
-  model: ({ requestContext }) => getModel("analysis", requestContext),
+  defaultOptions: ({ requestContext }) => {
+    const config = providerConfigFromRequestContext(requestContext);
+    return (config
+      ? buildCompareEngineerExecutionOptions(config)
+      : {}) as never;
+  },
   tools: {
     get_track_guide: getTrackGuideTool,
     list_track_guides: listTrackGuidesTool,

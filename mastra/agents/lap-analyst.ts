@@ -7,7 +7,8 @@
  * across two laps.
  */
 import { Agent } from "@mastra/core/agent";
-import { getModel } from "../../server/ai/model-provider";
+import { providerConfigFromRequestContext } from "../model";
+import { buildLapAnalystExecutionOptions } from "../../server/ai/analysis-agent-options";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
@@ -29,7 +30,12 @@ export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
-  model: ({ requestContext }) => getModel("analysis", requestContext),
+  defaultOptions: ({ requestContext }) => {
+    const config = providerConfigFromRequestContext(requestContext);
+    return (config
+      ? buildLapAnalystExecutionOptions(config)
+      : {}) as never;
+  },
   // Tool stays registered for models that can tool-call reliably. On local
   // models (Gemma 4) that loop the tool, the analyse route inlines the
   // same data into the prompt — model can ignore the tool and still get
