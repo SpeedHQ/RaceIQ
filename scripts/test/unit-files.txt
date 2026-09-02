@@ -33,6 +33,7 @@ test/tracks/calibration.test.ts
 test/tooling/test-shards.test.ts
 test/tooling/paraglide-cache.test.ts
 test/tooling/release-version.test.ts
+test/tooling/bench-compare.test.ts
 # Moved from integration: deterministic DB-free tests
 test/ai/ai-configured.test.ts
 test/ai/chat/chat-generations.test.ts
