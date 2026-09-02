@@ -237,69 +237,68 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
     }));
 }
 
+type LapMetadataRow = {
+  id: number;
+  sessionId: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: number | boolean;
+  createdAt: string;
+  rawByteOffset: number | null;
+  rawFrameCount: number | null;
+  rawFile?: string | null;
+  source?: string | null;
+  carOrdinal: number;
+  trackOrdinal: number;
+  tuneId: number | null;
+  tuneName: string | null;
+  gameId: string;
+  ownership: string | null;
+  carSetup: string | null;
+  sectorTimes: number[] | null;
+  catalogVersion: string | null;
+  catalogHash: string | null;
+  catalogSchemaVersion: string | null;
+  parserVersion: string | null;
+  resolverVersion: string | null;
+  derivationVersion: string | null;
+};
+
+async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined> {
+  return db
+    .select({
+      id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
+      isValid: laps.isValid, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
+      carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal, tuneId: laps.tuneId,
+      tuneName: tunes.name, gameId: sessions.gameId, ownership: sessions.ownership, carSetup: laps.carSetup,
+      sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
+      catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
+      resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
+    })
+    .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.id, id)).get();
+}
+
+export async function getLapMetaById(id: number): Promise<(LapMeta & { telemetry: TelemetryPacket[]; rawFile: string | null; source: "motec" | null; rawByteOffset: number | null; rawFrameCount: number | null }) | null> {
+  const row = await getLapMetadataRow(id);
+  return row ? { ...buildLapResult(row, []), rawFile: row.rawFile ?? null, source: row.source === "motec" ? "motec" : null, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount } : null;
+}
+
 export async function getLapById(
   id: number
 ): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
-  const row = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      createdAt: laps.createdAt,
-      rawByteOffset: laps.rawByteOffset,
-      rawFrameCount: laps.rawFrameCount,
-      rawFile: sessions.rawFile,
-      source: sessions.source,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      ownership: sessions.ownership,
-      carSetup: laps.carSetup,
-      sectorTimes: laps.sectorTimes,
-      catalogVersion: laps.catalogVersion,
-      catalogHash: laps.catalogHash,
-      catalogSchemaVersion: laps.catalogSchemaVersion,
-      parserVersion: laps.parserVersion,
-      resolverVersion: laps.resolverVersion,
-      derivationVersion: laps.derivationVersion,
-    })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .where(eq(laps.id, id))
-    .get();
-
+  const row = await getLapMetadataRow(id);
   if (!row) return null;
   const cached = cacheGet(id);
-
-  if (cached) {
-    return buildLapResult(row, cached);
-  }
+  if (cached) return buildLapResult(row, cached);
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
-  const rawFile = row.rawFile;
-  const rawByteOffset = row.rawByteOffset;
-  const rawFrameCount = row.rawFrameCount;
-  const shouldParseRaw =
-    rawFile != null &&
-    rawByteOffset != null &&
-    rawFrameCount != null;
-  if (shouldParseRaw) {
+  if (row.rawFile != null && row.rawByteOffset != null && row.rawFrameCount != null) {
     try {
       telemetry = await parseRawLapFrames(
-        {
-          rawFile: rawFile as string,
-          source: row.source,
-          gameId: row.gameId as GameId,
-          carOrdinal: row.carOrdinal,
-          trackOrdinal: row.trackOrdinal,
-        },
-        rawByteOffset,
-        rawFrameCount,
+        { rawFile: row.rawFile, source: row.source === "motec" ? "motec" : null, gameId: row.gameId as GameId, carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal },
+        row.rawByteOffset, row.rawFrameCount,
       );
     } catch (err) {
       if (err instanceof LapParseError) {
@@ -311,13 +310,9 @@ export async function getLapById(
       }
     }
   }
-  // Only cache successful, non-empty parses. Empty/errored results are
-  // transient (often caused by a bug that gets fixed, or a buffer-flush
-  // race) and caching them would require a server restart to recover.
   if (telemetry.length > 0) cacheSet(id, telemetry);
   const result = buildLapResult(row, telemetry);
-  if (parseError) return { ...result, parseError };
-  return result;
+  return parseError ? { ...result, parseError } : result;
 }
 
 type LapResultRow = {

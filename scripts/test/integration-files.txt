@@ -48,6 +48,7 @@ test/games/ac-evo/ac-evo-batch-decode.test.ts
 test/games/ac-evo/ac-evo-distance-integration.test.ts
 test/games/ac-evo/ac-evo-parser-fallback.test.ts
 test/games/ac-evo/ac-evo-session-lifecycle.test.ts
+test/games/f1-2025/f1-indexed-replay.test.ts
 test/games/acc/acc-parser.test.ts
 test/games/acc/acc-recorder.test.ts
 test/games/acc/acc-session-lifecycle.test.ts
@@ -87,6 +88,7 @@ test/runtime/stale-session-jobs.test.ts
 test/runtime/update-check.test.ts
 test/runtime/websocket-manager.test.ts
 test/session-capture/parse-bin-vs-gz.test.ts
+test/session-capture/lap-index-import.test.ts
 test/session-capture/parse-dump.test.ts
 test/session-capture/raw-binary-storage.test.ts
 test/session-capture/session-compressor.test.ts
