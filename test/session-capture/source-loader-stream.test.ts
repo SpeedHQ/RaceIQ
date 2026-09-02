@@ -47,3 +47,29 @@ for (const compressed of [false, true]) {
     ]);
   });
 }
+
+for (const malformed of [
+  { name: "metadata", bytes: Buffer.from([0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x00, 0x01]) },
+  { name: "frame", bytes: Buffer.from([0x01, 0x00, 0x00, 0x01, 0, 0, 0, 0]) },
+]) {
+  test(`rejects oversized ${malformed.name} records before buffering their payload`, async () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-source-stream-"));
+    directories.push(directory);
+    const rawFile = join(directory, "malformed.bin");
+    writeFileSync(rawFile, malformed.bytes);
+
+    const consume = async () => {
+      for await (const _record of iterateSessionCaptureFrames({
+        rawFile,
+        source: null,
+        gameId: "f1-2025",
+        carOrdinal: 0,
+        trackOrdinal: 0,
+      })) {
+        // No valid records expected.
+      }
+    };
+
+    await expect(consume()).rejects.toThrow(/record length .* exceeds 16 MiB limit/);
+  });
+}

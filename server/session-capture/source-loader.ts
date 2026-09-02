@@ -23,6 +23,12 @@ type CaptureFileFactory = (path: string) => SessionCaptureFile;
 let captureFileFactory: CaptureFileFactory = (path) => Bun.file(path);
 const cache = new Map<string, CacheEntry>();
 const MAX_ENTRIES = 2;
+const MAX_CAPTURE_RECORD_BYTES = 16 * 1024 * 1024;
+function assertCaptureRecordLength(length: number): void {
+  if (length > MAX_CAPTURE_RECORD_BYTES) {
+    throw new Error(`Capture record length ${length} exceeds 16 MiB limit`);
+  }
+}
 export function clearRawFileCacheForTest(): void { cache.clear(); }
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
@@ -66,6 +72,7 @@ export async function* iterateSessionCaptureFrames(
         if (pending.length < 8) continue;
         if (pending.readUInt32LE(0) === META_FRAME_MAGIC) {
           const metaLength = pending.readUInt32LE(4);
+          assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) continue;
           pending = pending.subarray(8 + metaLength);
           offset = 8 + metaLength;
@@ -75,6 +82,7 @@ export async function* iterateSessionCaptureFrames(
 
       while (pending.length >= 4) {
         const frameLength = pending.readUInt32LE(0);
+        assertCaptureRecordLength(frameLength);
         if (frameLength <= 0 || pending.length < 4 + frameLength) break;
         const frameOffset = offset;
         const frame = pending.subarray(4, 4 + frameLength);

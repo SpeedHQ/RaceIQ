@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { insertLap } from "../../server/db/lap-mutation-queries";
 import { deleteSession, insertSession, updateSessionRawFile } from "../../server/db/session-queries";
+import { cacheDelete } from "../../server/db/telemetry-replay-storage";
 import { initServerGameAdapters } from "../../server/games/init";
 import { lapRoutes } from "../../server/routes/laps";
 import { iterateSessionCaptureFrames, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
@@ -73,7 +74,8 @@ describe("F1 Analyse semantic telemetry integration", () => {
       expect(body.envelopes.every((envelope) => envelope.values.length > 0)).toBe(true);
     } finally {
       setCaptureFileFactoryForTest(null);
+      cacheDelete(lapId);
+      await deleteSession(sessionId);
     }
-    await deleteSession(sessionId);
   }, 120000);
 });
