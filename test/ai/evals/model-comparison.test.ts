@@ -20,7 +20,7 @@ describe("model comparison aggregation", () => {
     expect(summary.scorers.find((s) => s.id === "unit-consistency")).toMatchObject({ mean: 1, passed: 2 });
   });
   test("quality outranks latency and co-recommends close leaders", () => {
-    const a = { modelId: "a", complete: true, overallScore: 0.9, analystScore: 0.9, compareScore: 0.9, passRate: 1, meanLatencyMs: 1000, scorers: [] };
+    const a = { modelId: "a", complete: true, overallScore: 0.9, analystScore: 0.9, compareScore: 0.9, correctnessScore: null, passRate: 1, meanLatencyMs: 1000, scorers: [] };
     const b = { ...a, modelId: "b", overallScore: 0.89, meanLatencyMs: 10 };
     expect(rankModelSummaries([b, a]).ranking).toEqual(["a", "b"]);
     expect(rankModelSummaries([{ ...a }, { ...a, modelId: "b", overallScore: 0.891 }]).recommendationIds).toEqual(["a", "b"]);
@@ -36,11 +36,34 @@ describe("model comparison aggregation", () => {
     const summary = summariseModelResults("m", [obs("m", "a", "lap-analyst", [0.99, 1, 1, 1])], [], ["a"], 1);
     expect(summary.scorers.find((s) => s.id === "output-shape")).toMatchObject({ passed: 0, total: 1 });
   });
+  test("aggregates total and thinking token usage with throughput", () => {
+    const first = { ...obs("m", "a", "lap-analyst", [1, 1, 1, 1], 1, 1000), usage: { inputTokens: 100, outputTokens: 20, reasoningTokens: 30, totalTokens: 150 } };
+    const second = { ...obs("m", "a", "lap-analyst", [1, 1, 1, 1], 2, 2000), usage: { inputTokens: 200, outputTokens: 40, reasoningTokens: 20, totalTokens: 260 } };
+    const summary = summariseModelResults("m", [first, second], [], ["a"], 2);
+    expect(summary.meanInputTokens).toBe(150);
+    expect(summary.meanOutputTokens).toBe(30);
+    expect(summary.meanReasoningTokens).toBe(25);
+    expect(summary.meanTotalTokens).toBe(205);
+    expect(summary.meanTokensPerSecond).toBe(40);
+  });
+  test("aggregates correctness judge scores separately", () => {
+    const observations = [
+      { ...obs("m", "a", "lap-analyst", [1, 1, 1, 1]), scores: [...obs("m", "a", "lap-analyst", [1, 1, 1, 1]).scores, { id: "correctness", score: 1, reason: "faithful" }] },
+      { ...obs("m", "c", "compare-engineer", [1, 1]), scores: [...obs("m", "c", "compare-engineer", [1, 1]).scores, { id: "correctness", score: 0, reason: "unsupported claim" }] },
+    ];
+    const summary = summariseModelResults("m", observations, [], ["a", "c"], 1);
+    expect(summary.correctnessScore).toBe(0.5);
+    expect(summary.scorers.filter((s) => s.id === "correctness").map((s) => s.mean)).toEqual([1, 0]);
+  });
   test("renders dynamic dataset, failures, and preserves report JSON contract", () => {
     const failure = { modelId: "m", caseId: "c", repeat: 1, stage: "scoring" as const, message: "scorer failed", output: "partial output" };
     const report = buildModelComparisonReport({ createdAt: "2026-01-01T00:00:00Z", endpoint: "http://comparison.test/v1", repeatCount: 1, modelIds: ["m"], dataset: { id: "iracing-x", label: "iRacing Road America", fixturePath: "fixture.bin", gameId: "iracing" as never, units: "imperial", temperatureUnit: "F", analystLap: 7, compareLaps: [6, 7] }, caseIds: ["a", "c"], observations: [obs("m", "a", "lap-analyst", [1, 1, 1, 1]), obs("m", "c", "compare-engineer", [1, 1])], failures: [failure] });
     const markdown = renderModelComparisonMarkdown(report);
-    expect(markdown).toContain("| Rank | Model | Overall | Analyst | Compare | Pass rate | Mean latency | Recommendation |");
+    expect(markdown).toContain("## Executive summary");
+    expect(markdown).toContain("## Model comparison");
+    expect(markdown).toContain("| Rank | Model | Status | Overall | Analyst | Compare | Correctness | Pass rate | Mean latency | Input tok | Output tok | Thinking tok | Total tok | tok/s |");
+    expect(markdown).toContain("## Case evidence");
+    expect(markdown).toContain("## Output excerpts");
     expect(markdown).toContain("| m | c | 1 | scoring | scorer failed |");
     const serialized = JSON.parse(JSON.stringify(report));
     expect(serialized.schemaVersion).toBe(1);

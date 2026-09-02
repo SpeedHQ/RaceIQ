@@ -4,20 +4,25 @@ import { resolve } from "node:path";
 import { Agent } from "@mastra/core/agent";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
+import { initDb } from "../../server/db";
 import { getMastraModelId } from "../../mastra/model";
-import { buildEvalCompareEngineerAgent, buildEvalLapAnalystAgent } from "../../mastra/evals/eval-agents";
 import { analystScorers, compareScorers, scoreOutput } from "../../mastra/evals";
+import { llmFaithfulnessScorer } from "../../mastra/evals/scorers/llm-faithfulness";
+import { buildEvalCompareEngineerAgent, buildEvalLapAnalystAgent } from "../../mastra/evals/eval-agents";
 import {
   buildModelComparisonReport,
   renderModelComparisonMarkdown,
   type ModelEvalDataset,
   type ModelEvalFailure,
   type ModelEvalObservation,
+  type ModelEvalUsage,
 } from "../../mastra/evals/model-comparison";
 import { MODEL_EVAL_FIXTURES, buildModelEvalCases, loadParsedModelEvalFixture } from "./model-eval-cases";
 
 const REPEAT_COUNT = 3;
 const defaultModels = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
+const judgeEnabled = process.env.EVAL_LOCAL_JUDGE === "1";
+const judgeModel = process.env.EVAL_JUDGE_MODEL ?? "google/gemma-4-e2b";
 const separator = process.argv.indexOf("--");
 const positional = separator >= 0 ? process.argv.slice(separator + 1) : process.argv.slice(2);
 const requested = positional.filter((value) => value.trim()).map((value) => value.trim());
@@ -54,15 +59,16 @@ try {
   console.error(`Model eval preflight failed: cannot read ${modelsUrl}: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 }
-const missing = modelIds.filter((id) => !available.includes(id));
+const missing = [...modelIds, ...(judgeEnabled ? [judgeModel] : [])].filter((id) => !available.includes(id));
 if (missing.length) {
-  console.error(`Model eval preflight failed: unavailable model(s): ${missing.join(", ")}`);
+  console.error(`Model eval preflight failed: unavailable model(s): ${[...new Set(missing)].join(", ")}`);
   process.exit(1);
 }
 
 let parsedFixture: Awaited<ReturnType<typeof loadParsedModelEvalFixture>>;
 let cases: Awaited<ReturnType<typeof buildModelEvalCases>>;
 try {
+  await initDb();
   initGameAdapters();
   initServerGameAdapters();
   parsedFixture = await loadParsedModelEvalFixture(fixture);
@@ -85,27 +91,50 @@ for (const model of modelIds) {
       const started = performance.now();
       let output = "";
       let generationLatencyMs: number | undefined;
+      let usage: ModelEvalUsage | undefined;
       try {
         const response = await agent.generate(testCase.input);
         generationLatencyMs = performance.now() - started;
         output = response.text ?? "";
-        if (!output) throw new Error("empty model response");
+        const rawUsage = response.usage as Partial<ModelEvalUsage> | undefined;
+        if (rawUsage) usage = Object.fromEntries(Object.entries(rawUsage).filter(([, value]) => typeof value === "number" && Number.isFinite(value))) as ModelEvalUsage;
         const scores = await Promise.all(scorers.map((scorer) => scoreOutput(scorer, output, testCase.groundTruth)));
-        observations.push({ modelId: model, caseId: testCase.id, agent: testCase.agent, repeat, latencyMs: generationLatencyMs, output, scores });
+        observations.push({ modelId: model, caseId: testCase.id, agent: testCase.agent, repeat, latencyMs: generationLatencyMs, output, scores, ...(usage ? { usage } : {}) });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const stage = output ? "scoring" : "generation";
-        failures.push({ modelId: model, caseId: testCase.id, repeat, stage, message, ...(generationLatencyMs !== undefined ? { latencyMs: generationLatencyMs } : { latencyMs: performance.now() - started }), ...(output ? { output } : {}) });
+        failures.push({ modelId: model, caseId: testCase.id, repeat, stage, message, ...(generationLatencyMs !== undefined ? { latencyMs: generationLatencyMs } : { latencyMs: performance.now() - started }), ...(output ? { output } : {}), ...(usage ? { usage } : {}) });
       }
+    }
+  }
+}
+
+if (judgeEnabled) {
+  for (const model of modelIds) {
+    const result = Bun.spawnSync(["lms", "unload", model], { stdout: "ignore", stderr: "pipe" });
+    if (result.exitCode !== 0) console.warn(`Model eval judge setup warning: could not unload ${model}`);
+  }
+  const judgeLoad = Bun.spawnSync(["lms", "load", judgeModel, "--context-length", "131072", "--parallel", "4", "--yes"], { stdout: "ignore", stderr: "pipe" });
+  if (judgeLoad.exitCode !== 0) throw new Error(`Model eval judge setup failed: could not load ${judgeModel}`);
+  for (const observation of observations) {
+    const testCase = cases.find((item) => item.id === observation.caseId);
+    if (!testCase) continue;
+    try {
+      const result = await scoreOutput(llmFaithfulnessScorer, observation.output, testCase.groundTruth);
+      observation.scores.push({ ...result, id: "correctness" });
+    } catch (error) {
+      failures.push({ modelId: observation.modelId, caseId: observation.caseId, repeat: observation.repeat, stage: "scoring", message: error instanceof Error ? error.message : String(error), latencyMs: observation.latencyMs, output: observation.output, usage: observation.usage });
     }
   }
 }
 
 const createdAt = new Date().toISOString();
 const dataset: ModelEvalDataset = { id: fixture.id, label: fixture.label, fixturePath: fixture.fixturePath, gameId: fixture.gameId, units: fixture.units, temperatureUnit: fixture.temperatureUnit, analystLap: fixture.analystLapNumber, compareLaps: fixture.compareLapNumbers };
-const report = buildModelComparisonReport({ createdAt, endpoint: baseURL, repeatCount: REPEAT_COUNT, modelIds, dataset, caseIds: cases.map((item) => item.id), observations, failures });
+const truth = Object.fromEntries(cases.map((item) => [item.id, item.groundTruth.truth]));
+const report = buildModelComparisonReport({ createdAt, endpoint: baseURL, repeatCount: REPEAT_COUNT, ...(judgeEnabled ? { judgeModel } : {}), modelIds, dataset, caseIds: cases.map((item) => item.id), truth, observations, failures });
 const markdown = renderModelComparisonMarkdown(report);
-const stem = createdAt.replaceAll(":", "-").replaceAll(".", "-");
+const modelStem = modelIds.map((model) => model.replace(/[^A-Za-z0-9._-]+/g, "-")).join("__");
+const stem = `${modelStem}__${createdAt.replaceAll(":", "-").replaceAll(".", "-")}`;
 const outDir = resolve(process.cwd(), "test/artifacts/model-evals");
 await mkdir(outDir, { recursive: true });
 const jsonPath = `${outDir}/${stem}.json`;

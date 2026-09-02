@@ -1,0 +1,602 @@
+{
+  "createdAt": "2026-09-02T05:08:15.423Z",
+  "endpoint": "http://localhost:1234/v1",
+  "repeatCount": 3,
+  "judgeModel": "google/gemma-4-12b-qat",
+  "modelIds": [
+    "qwen3.8-27b"
+  ],
+  "dataset": {
+    "id": "acc-brands-hatch-2026-04-10",
+    "label": "ACC Brands Hatch fixture",
+    "fixturePath": "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz",
+    "gameId": "acc",
+    "units": "metric",
+    "temperatureUnit": "C",
+    "analystLap": 3,
+    "compareLaps": [
+      2,
+      3
+    ]
+  },
+  "caseIds": [
+    "acc-brands-hatch-2026-04-10-lap-3-analyst",
+    "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare"
+  ],
+  "truth": {
+    "acc-brands-hatch-2026-04-10-lap-3-analyst": {
+      "lapNumber": 3,
+      "lapTime": 88.07,
+      "metrics": {
+        "lapId": 0,
+        "algoVersion": 1,
+        "segmentStats": [
+          {
+            "name": "Paddock Hill Bend",
+            "type": "corner",
+            "number": 1,
+            "startFrac": 0,
+            "endFrac": 0.1184,
+            "timeSec": 0.01,
+            "stats": {
+              "throttleAvg": 0.5609432962374139,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.40540540540540543,
+              "brakeAvg": 0.11783253842077364,
+              "brakeMax": 0.6745098039215687,
+              "brakingPctDist": 0.25675675675675674,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1142264311555651,
+              "steerAbsMax": 0.29133858267716534,
+              "steeringSmoothness": 0.008356098344849742,
+              "brakeOnDist": 67.263671875,
+              "brakeOffDist": 189.994140625,
+              "peakBrakeValue": 0.6745098039215687,
+              "peakBrakeDist": 146.3916015625,
+              "fullThrottleDist": 0,
+              "liftOffThrottleDist": 67.263671875,
+              "minSpeed": 145.0798826014949,
+              "minSpeedDist": 200.8623046875,
+              "maxSpeed": 229.14502396765124,
+              "maxSpeedDist": 63.4443359375
+            }
+          },
+          {
+            "name": "Druids",
+            "type": "corner",
+            "number": 2,
+            "startFrac": 0.1184,
+            "endFrac": 0.1858,
+            "timeSec": 0.006,
+            "stats": {
+              "throttleAvg": 0.4992895709008242,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.26811594202898553,
+              "brakeAvg": 0.1609832338732594,
+              "brakeMax": 1,
+              "brakingPctDist": 0.2608695652173913,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.37435809654228036,
+              "steerAbsMax": 0.889763779527559,
+              "steeringSmoothness": 0.01477096384849703,
+              "brakeOnDist": 475.55712890625,
+              "brakeOffDist": 555.13623046875,
+              "peakBrakeValue": 1,
+              "peakBrakeDist": 490.45947265625,
+              "fullThrottleDist": 458.54345703125,
+              "liftOffThrottleDist": 472.01025390625,
+              "minSpeed": 77.68074403292557,
+              "minSpeedDist": 593.23974609375,
+              "maxSpeed": 182.4424451288303,
+              "maxSpeedDist": 475.55712890625
+            }
+          },
+          {
+            "name": "Graham Hill Bend",
+            "type": "corner",
+            "number": 3,
+            "startFrac": 0.1858,
+            "endFrac": 0.2534,
+            "timeSec": 0.006999999999999999,
+            "stats": {
+              "throttleAvg": 0.5875191815856778,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.48695652173913045,
+              "brakeAvg": 0.14963341858482523,
+              "brakeMax": 0.8784313725490196,
+              "brakingPctDist": 0.33043478260869563,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1374186922286887,
+              "steerAbsMax": 0.3464566929133858,
+              "steeringSmoothness": 0.008702859510982174,
+              "brakeOnDist": 781.03369140625,
+              "brakeOffDist": 865.97314453125,
+              "peakBrakeValue": 0.8784313725490196,
+              "peakBrakeDist": 821.33544921875,
+              "fullThrottleDist": 719.10205078125,
+              "liftOffThrottleDist": 774.82763671875,
+              "minSpeed": 101.03868064066808,
+              "minSpeedDist": 880.40966796875,
+              "maxSpeed": 165.6638267106173,
+              "maxSpeedDist": 778.73486328125
+            }
+          },
+          {
+            "name": "Cooper Straight",
+            "type": "straight",
+            "startFrac": 0.2534,
+            "endFrac": 0.2717,
+            "timeSec": 0.0010000000000000009,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.050196850393700775,
+              "steerAbsMax": 0.10236220472440945,
+              "steeringSmoothness": 0.009243409791167407,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 982.83642578125,
+              "liftOffThrottleDist": null,
+              "minSpeed": 149.1894570774702,
+              "minSpeedDist": 982.83642578125,
+              "maxSpeed": 166.79876265382435,
+              "maxSpeedDist": 1048.89599609375
+            }
+          },
+          {
+            "name": "Surtees",
+            "type": "corner",
+            "number": 4,
+            "startFrac": 0.2717,
+            "endFrac": 0.3591,
+            "timeSec": 0.009000000000000001,
+            "stats": {
+              "throttleAvg": 0.6357669308858294,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.49645390070921985,
+              "brakeAvg": 0.1175636211931581,
+              "brakeMax": 0.7647058823529411,
+              "brakingPctDist": 0.2127659574468085,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1356452783827556,
+              "steerAbsMax": 0.3228346456692913,
+              "steeringSmoothness": 0.009786276715410562,
+              "brakeOnDist": 1114.82080078125,
+              "brakeOffDist": 1190.02197265625,
+              "peakBrakeValue": 0.7647058823529411,
+              "peakBrakeDist": 1133.26806640625,
+              "fullThrottleDist": 1052.26416015625,
+              "liftOffThrottleDist": 1114.82080078125,
+              "minSpeed": 107.76232869025142,
+              "minSpeedDist": 1238.25732421875,
+              "maxSpeed": 181.26502346406878,
+              "maxSpeedDist": 1114.82080078125
+            }
+          },
+          {
+            "name": "",
+            "type": "straight",
+            "startFrac": 0.3591,
+            "endFrac": 0.461,
+            "timeSec": 0.0049999999999999975,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.018953383039509417,
+              "steerAbsMax": 0.05511811023622047,
+              "steeringSmoothness": 0.002530933633295836,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 1389.20458984375,
+              "liftOffThrottleDist": null,
+              "minSpeed": 155.74547138371298,
+              "minSpeedDist": 1389.20458984375,
+              "maxSpeed": 229.94278537227206,
+              "maxSpeedDist": 1781.92041015625
+            }
+          },
+          {
+            "name": "Hawthorn Bend",
+            "type": "corner",
+            "number": 5,
+            "startFrac": 0.461,
+            "endFrac": 0.568,
+            "timeSec": 0.006999999999999999,
+            "stats": {
+              "throttleAvg": 0.6368941176470587,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.488,
+              "brakeAvg": 0.08592941176470588,
+              "brakeMax": 0.7568627450980392,
+              "brakingPctDist": 0.152,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1458267716535435,
+              "steerAbsMax": 0.4015748031496063,
+              "steeringSmoothness": 0.00863601727203454,
+              "brakeOnDist": 1869.32958984375,
+              "brakeOffDist": 1937.07763671875,
+              "peakBrakeValue": 0.7568627450980392,
+              "peakBrakeDist": 1893.55615234375,
+              "fullThrottleDist": 1787.99169921875,
+              "liftOffThrottleDist": 1869.32958984375,
+              "minSpeed": 160.33902250486264,
+              "minSpeedDist": 2065.13720703125,
+              "maxSpeed": 237.77188572239154,
+              "maxSpeedDist": 1866.02880859375
+            }
+          },
+          {
+            "name": "Westfield Bend",
+            "type": "corner",
+            "number": 6,
+            "startFrac": 0.568,
+            "endFrac": 0.6563,
+            "timeSec": 0.005999999999999998,
+            "stats": {
+              "throttleAvg": 0.6835947712418303,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6166666666666667,
+              "brakeAvg": 0.10924836601307186,
+              "brakeMax": 0.9647058823529412,
+              "brakingPctDist": 0.175,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.13654855643044608,
+              "steerAbsMax": 0.4645669291338583,
+              "steeringSmoothness": 0.012638126116588357,
+              "brakeOnDist": 2236.21533203125,
+              "brakeOffDist": 2295.28662109375,
+              "peakBrakeValue": 0.9647058823529412,
+              "peakBrakeDist": 2256.26416015625,
+              "fullThrottleDist": 2199.08447265625,
+              "liftOffThrottleDist": 2239.47119140625,
+              "minSpeed": 129.54842690630372,
+              "minSpeedDist": 2349.26025390625,
+              "maxSpeed": 195.35031873561582,
+              "maxSpeedDist": 2236.21533203125
+            }
+          },
+          {
+            "name": "Sheene Curve",
+            "type": "corner",
+            "number": 8,
+            "startFrac": 0.6563,
+            "endFrac": 0.7382,
+            "timeSec": 0.007000000000000006,
+            "stats": {
+              "throttleAvg": 0.7626696832579186,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6923076923076923,
+              "brakeAvg": 0.13363499245852184,
+              "brakeMax": 0.7725490196078432,
+              "brakingPctDist": 0.22115384615384615,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.11970018170805563,
+              "steerAbsMax": 0.29133858267716534,
+              "steeringSmoothness": 0.012078587263970634,
+              "brakeOnDist": 2631.67236328125,
+              "brakeOffDist": 2701.78662109375,
+              "peakBrakeValue": 0.7725490196078432,
+              "peakBrakeDist": 2649.64794921875,
+              "fullThrottleDist": 2540.35009765625,
+              "liftOffThrottleDist": 2631.67236328125,
+              "minSpeed": 149.0890706855862,
+              "minSpeedDist": 2721.15283203125,
+              "maxSpeed": 201.77238805109758,
+              "maxSpeedDist": 2631.67236328125
+            }
+          },
+          {
+            "name": "Stirling's Bend",
+            "type": "corner",
+            "number": 9,
+            "startFrac": 0.7382,
+            "endFrac": 0.7962,
+            "timeSec": 0.0049999999999999975,
+            "stats": {
+              "throttleAvg": 0.5321104786000421,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.45161290322580644,
+              "brakeAvg": 0.17887413029728017,
+              "brakeMax": 1,
+              "brakingPctDist": 0.25806451612903225,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.13284226568453134,
+              "steerAbsMax": 0.33070866141732286,
+              "steeringSmoothness": 0.009072235535775413,
+              "brakeOnDist": 2878.72900390625,
+              "brakeOffDist": 2940.82666015625,
+              "peakBrakeValue": 1,
+              "peakBrakeDist": 2894.41552734375,
+              "fullThrottleDist": 2857.38623046875,
+              "liftOffThrottleDist": 2881.79150390625,
+              "minSpeed": 113.63247360146559,
+              "minSpeedDist": 2989.26708984375,
+              "maxSpeed": 183.80503317473037,
+              "maxSpeedDist": 2881.79150390625
+            }
+          },
+          {
+            "name": "",
+            "type": "straight",
+            "startFrac": 0.7962,
+            "endFrac": 0.8297,
+            "timeSec": 0.0020000000000000018,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.009561304836895379,
+              "steerAbsMax": 0.015748031496062992,
+              "steeringSmoothness": 0.0013443441521029382,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 3081.82470703125,
+              "liftOffThrottleDist": null,
+              "minSpeed": 153.51743941869077,
+              "minSpeedDist": 3081.82470703125,
+              "maxSpeed": 187.71822029553573,
+              "maxSpeedDist": 3205.09912109375
+            }
+          },
+          {
+            "name": "Clark Curve",
+            "type": "corner",
+            "number": 10,
+            "startFrac": 0.8297,
+            "endFrac": 0.9367,
+            "timeSec": 0.006999999999999992,
+            "stats": {
+              "throttleAvg": 0.6938261791202966,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6013513513513513,
+              "brakeAvg": 0.11160572337042922,
+              "brakeMax": 0.9137254901960784,
+              "brakingPctDist": 0.19594594594594594,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.12257927218557145,
+              "steerAbsMax": 0.4094488188976378,
+              "steeringSmoothness": 0.010337993465102566,
+              "brakeOnDist": 3286.97998046875,
+              "brakeOffDist": 3368.07470703125,
+              "peakBrakeValue": 0.9137254901960784,
+              "peakBrakeDist": 3304.99658203125,
+              "fullThrottleDist": 3209.40478515625,
+              "liftOffThrottleDist": 3286.97998046875,
+              "minSpeed": 129.58920834958758,
+              "minSpeedDist": 3423.46630859375,
+              "maxSpeed": 204.2188296120393,
+              "maxSpeedDist": 3286.97998046875
+            }
+          },
+          {
+            "name": "Brabham Straight",
+            "type": "straight",
+            "startFrac": 0.9367,
+            "endFrac": 1,
+            "timeSec": 0.0030000000000000027,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.02663270032422416,
+              "steerAbsMax": 0.07874015748031496,
+              "steeringSmoothness": 0.0036432013162533763,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 3624.82958984375,
+              "liftOffThrottleDist": null,
+              "minSpeed": 181.8671180198587,
+              "minSpeedDist": 3624.82958984375,
+              "maxSpeed": 221.99487669021298,
+              "maxSpeedDist": 3865.62158203125
+            }
+          }
+        ]
+      }
+    },
+    "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare": {
+      "fasterLap": "B",
+      "comparison": {
+        "cornerDeltas": [
+          {
+            "label": "T1",
+            "deltaSeconds": -0.003,
+            "timeA": 0.007,
+            "timeB": 0.01
+          },
+          {
+            "label": "T2",
+            "deltaSeconds": 0.001,
+            "timeA": 0.007,
+            "timeB": 0.006
+          },
+          {
+            "label": "T3",
+            "deltaSeconds": 0.002,
+            "timeA": 0.009,
+            "timeB": 0.007
+          },
+          {
+            "label": "T4",
+            "deltaSeconds": -0.001,
+            "timeA": 0.008,
+            "timeB": 0.009
+          },
+          {
+            "label": "T5",
+            "deltaSeconds": -0.001,
+            "timeA": 0.006,
+            "timeB": 0.007
+          },
+          {
+            "label": "T6",
+            "deltaSeconds": -0.001,
+            "timeA": 0.005,
+            "timeB": 0.006
+          },
+          {
+            "label": "T8",
+            "deltaSeconds": -0.003,
+            "timeA": 0.004,
+            "timeB": 0.007
+          },
+          {
+            "label": "T9",
+            "deltaSeconds": -0.001,
+            "timeA": 0.004,
+            "timeB": 0.005
+          },
+          {
+            "label": "T10",
+            "deltaSeconds": 0.001,
+            "timeA": 0.008,
+            "timeB": 0.007
+          }
+        ]
+      }
+    }
+  },
+  "observations": [],
+  "failures": [
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "repeat": 1,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 299628.769917
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "repeat": 2,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300145.24783300003
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "repeat": 3,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300142.932333
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 1,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300144.46683299995
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 2,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300142.1957500002
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 3,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300147.450708
+    }
+  ],
+  "schemaVersion": 1,
+  "summaries": [
+    {
+      "modelId": "qwen3.8-27b",
+      "complete": false,
+      "overallScore": null,
+      "analystScore": null,
+      "compareScore": null,
+      "correctnessScore": null,
+      "passRate": null,
+      "meanLatencyMs": null,
+      "meanInputTokens": null,
+      "meanOutputTokens": null,
+      "meanReasoningTokens": null,
+      "meanTotalTokens": null,
+      "meanTokensPerSecond": null,
+      "scorers": [
+        {
+          "id": "output-shape",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        },
+        {
+          "id": "corner-coverage",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        },
+        {
+          "id": "numeric-grounding",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        },
+        {
+          "id": "compare-directionality",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 0
+        }
+      ]
+    }
+  ],
+  "ranking": [
+    "qwen3.8-27b"
+  ],
+  "recommendationIds": []
+}

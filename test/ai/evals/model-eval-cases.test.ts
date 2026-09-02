@@ -20,8 +20,12 @@ describe("model eval fixture cases", () => {
     ]);
     const [analyst, compare] = cases;
     expect(analyst.groundTruth.units).toBe("metric");
+    expect(analyst.groundTruth.sourceContext).toContain(analyst.input);
+    expect(analyst.groundTruth.truth.metrics?.segmentStats.length).toBeGreaterThan(0);
     expect(analyst.input).toContain("Brands Hatch");
     expect(compare.input).toContain("Brands Hatch");
+    expect(compare.groundTruth.sourceContext).toContain(compare.input);
+    expect(compare.groundTruth.truth.comparison?.cornerDeltas.length).toBeGreaterThan(0);
     expect(compare.groundTruth.units).toBe("metric");
     expect(analyst.groundTruth.slowestCorners).toHaveLength(3);
     expect(analyst.groundTruth.slowestCorners?.every((corner) => analyst.groundTruth.trackCorners.includes(corner))).toBe(true);

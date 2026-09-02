@@ -1,0 +1,333 @@
+{
+  "createdAt": "2026-09-02T03:50:21.051Z",
+  "endpoint": "http://localhost:1234/v1",
+  "repeatCount": 3,
+  "modelIds": [
+    "qwen/qwen3.5-9b"
+  ],
+  "dataset": {
+    "id": "acc-brands-hatch-2026-04-10",
+    "label": "ACC Brands Hatch fixture",
+    "fixturePath": "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz",
+    "gameId": "acc",
+    "units": "metric",
+    "temperatureUnit": "C",
+    "analystLap": 3,
+    "compareLaps": [
+      2,
+      3
+    ]
+  },
+  "caseIds": [
+    "acc-brands-hatch-2026-04-10-lap-3-analyst",
+    "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare"
+  ],
+  "observations": [
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "agent": "lap-analyst",
+      "repeat": 1,
+      "latencyMs": 142956.379791,
+      "output": "{\n  \"verdict\": \"Your lap time is competitive but stability issues at high-speed corners are limiting pace. Paddock Hill Bend shows consistent over-slowing due to early throttle lift, while Hawthorn Bend exhibits understeer scrub that slows you off-line. Tire temperatures reveal a significant front-left/right imbalance (92°C vs 82°C) which risks uneven degradation and grip loss.\",\n  \"pace\": [\n    { \"label\": \"Avg Speed\", \"value\": \"158.7 km/h\", \"assessment\": \"good\", \"detail\": \"Solid average speed for GT3, but consistency is lost in corners.\" },\n    { \"label\": \"Throttle Avg\", \"value\": \"69%\", \"assessment\": \"warning\", \"detail\": \"Low throttle application indicates frequent coasting or aggressive lift-offs.\" },\n    { \"label\": \"Full Throttle Time\", \"value\": \"59%\", \"assessment\": \"warning\", \"detail\": \"Significant opportunity to carry speed onto straights, currently limited by corner exits.\" },\n    { \"label\": \"Braking Zones Efficiency\", \"value\": \"182->98 km/h\", \"assessment\": \"warning\", \"detail\": \"Entry braking at Paddock is too heavy/early; release point is too early for apex speed.\" }\n  ],\n  \"handling\": [\n    { \"label\": \"Front Tyre Delta\", \"value\": \"10°C (FL 92 / FR 82)\", \"assessment\": \"warning\", \"detail\": \"Large temperature split on front axle indicates uneven weight distribution or camber imbalance.\" },\n    { \"label\": \"Counter-Steer Events\", \"value\": \"9 occurrences\", \"assessment\": \"critical\", \"detail\": \"Loss of rear traction at 8146m suggests aggressive rotation or excessive TC interference.\" },\n    { \"label\": \"Suspension Travel Imbalance\", \"value\": \"FL 0.012m / FR 0.009m\", \"assessment\": \"warning\", \"detail\": \"Uneven suspension compression causes unpredictable balance under heavy braking zones.\" },\n    { \"label\": \"Understeer Scrub\", \"value\": \"1.9s total\", \"assessment\": \"critical\", \"detail\": \"Front scrub at 8480m confirms front tires are exceeding grip limit or driver is forcing line too hard.\" }\n  ],\n  \"corners\": [\n    { \"name\": \"Paddock Hill Bend (1)\", \"issue\": \"Over-slowed entry and early throttle lift causing speed loss.\", \"fix\": \"Brake later into the blind apex, release brake pressure smoothly to carry more rotation, avoid scrubbing on exit kerb.\", \"severity\": \"major\" },\n    { \"name\": \"Hawthorn Bend (5)\", \"issue\": \"Understeer scrub detected at entry requiring steering correction.\", \"fix\": \"Open the steering wheel slightly earlier into the corner and trail-brake more progressively to manage front grip limit.\", \"severity\": \"moderate\" },\n    { \"name\": \"Clark Curve (10)\", \"issue\": \"Hard kerb strikes near exit causing weight transfer instability.\", \"fix\": \"Approach apex more smoothly, avoid heavy lateral loading at the final corner before the straight.\", \"severity\": \"minor\" }\n  ],\n  \"technique\": [\n    { \"tip\": \"Smooth Throttle Application\", \"detail\": \"Avoid binary on/off; keep pedal partially depressed to maintain drive traction and reduce torque steer effects.\" },\n    { \"tip\": \"Optimize Paddock Apex\", \"detail\": \"Delay braking point by ~15m to allow higher entry speed, then lift off brake exactly at 9025m datum for apex rotation.\" },\n    { \"tip\": \"Weight Transfer Control\", \"detail\": \"Counter-act the counter-steer events by easing off steering input as you exit high-speed chicanes to keep rear stable.\" }\n  ],\n  \"setup\": [\n    { \"Parameter\": \"Brake Bias\", \"Current\": \"75.0%\", \"Change to\": \"72.0%\", \"Purpose\": \"Reduce front-heavy braking bias to alleviate understeer scrub at Hawthorn Bend and balance weight transfer.\" },\n    { \"Parameter\": \"TC (Traction Control)\", \"Current\": \"6\", \"Change to\": \"4\", \"Purpose\": \"Stabilize rear end and reduce counter-steer corrections during heavy throttle application on exits.\" },\n    { \"Parameter\": \"ABS (Anti-lock Brakes)\", \"Current\": \"6\", \"Change to\": \"5\", \"Purpose\": \"Improve weight transfer control in braking zones like Paddock Hill Bend to prevent lock-ups and allow smoother rotation.\" }\n  ]\n}",
+      "scores": [
+        {
+          "id": "output-shape",
+          "score": 0,
+          "reason": "setup.0.component: Invalid input: expected string, received undefined; setup.0.symptom: Invalid input: expected string, received undefined; setup.0.fix: Invalid input: expected string, received undefined; setup.0.current: Invalid input: expected string, received undefined; setup.0.target: Invalid input: expected string, received undefined; setup.0.direction: Invalid option: expected one of \"increase\"|\"decrease\"|\"adjust\""
+        },
+        {
+          "id": "corner-coverage",
+          "score": 0,
+          "reason": "missed: Druids, Graham Hill Bend, Surtees (score 0.00)"
+        },
+        {
+          "id": "numeric-grounding",
+          "score": 0,
+          "reason": "output failed to parse — cannot score grounding"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 3347,
+        "outputTokens": 9809,
+        "totalTokens": 13156,
+        "reasoningTokens": 8791,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "agent": "lap-analyst",
+      "repeat": 2,
+      "latencyMs": 112647.812041,
+      "output": "{\n  \"verdict\": \"Lap shows strong pace (avg 69% throttle) but is compromised by stability issues in high-speed sectors like Hawthorn and Surtees. You are scrubbing speed with counter-steer events and heavy kerb strikes (15 detected), wasting valuable grip on the bumpy surface. Biggest time gains come from smoothing throttle application in corners to reduce understeer, and rebalancing rear traction via brake bias adjustment.\",\n  \"pace\": [\n    {\n      \"label\": \"Avg Throttle\",\n      \"value\": \"69%\",\n      \"assessment\": \"good\",\n      \"detail\": \"High average throttle indicates you are not coasting too much, but 'Binary Throttle' warning suggests lack of modulation.\"\n    },\n    {\n      \"label\": \"Full Throttle Time\",\n      \"value\": \"59%\",\n      \"assessment\": \"warning\",\n      \"detail\": \"81% of driving is full-on or full-off; missing mid-corner power delivery opportunities.\"\n    },\n    {\n      \"label\": \"Brake Avg Usage\",\n      \"value\": \"10%\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Low average braking percentage combined with 'Early Braking' alerts indicates inefficient pedal usage or overly cautious lines.\"\n    },\n    {\n      \"label\": \"Gear Distribution 1st/2nd\",\n      \"value\": \"25%\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Heavy reliance on 3rd/4th (65%); missing downshifts in Druids hairpin or low-speed corners reduces grip balance.\"\n    },\n    {\n      \"label\": \"Max Speed\",\n      \"value\": \"237.8 km/h\",\n      \"assessment\": \"good\",\n      \"detail\": \"Car is reaching top speed capability on Cooper Straight, but entry/exit times in priority corners limit overall average.\"\n    },\n    {\n      \"label\": \"Speed Delta Paddock Hill\",\n      \"value\": \"182->98 km/h\",\n      \"assessment\": \"critical\",\n      \"detail\": \"Braking zone is efficient on distance but 'Understeer Scrub' data suggests you are fighting the car through the entry.\"\n    }\n  ],\n  \"handling\": [\n    {\n      \"label\": \"Front Left Temp\",\n      \"value\": \"92°C\",\n      \"assessment\": \"good\",\n      \"detail\": \"Within optimal band (70-100°C), showing front-left is carrying load effectively.\"\n    },\n    {\n      \"label\": \"Front Right Temp\",\n      \"value\": \"82°C\",\n      \"assessment\": \"warning\",\n      \"detail\": \"10°C cooler than Front Left; suggests negative camber imbalance or pressure issue on the right side.\"\n    },\n    {\n      \"label\": \"Rear Right Temp\",\n      \"value\": \"82°C\",\n      \"assessment\": \"critical\",\n      \"detail\": \"Significantly colder (10°C delta) than Rear Left (91°C); indicates rear-right is under-gripping or unweighted.\"\n    },\n    {\n      \"label\": \"Suspension Travel FR\",\n      \"value\": \"0.0089m\",\n      \"assessment\": \"critical\",\n      \"detail\": \"Extremely low compression on Front Right compared to FL (0.0122m), indicating stiff right-side or weight transfer issues.\"\n    },\n    {\n      \"label\": \"Tyre Wear Balance\",\n      \"value\": \"N/A\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Derived from temperature delta; large inner/outer imbalance (10°C) indicates aggressive setup limits tyre life and grip window.\"\n    },\n    {\n      \"label\": \"Weight Transfer\",\n      \"value\": \"Front-Biased\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Counter-steer events at 8146m confirm rear traction is being overwhelmed during corner rotation.\"\n    }\n  ],\n  \"corners\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"issue\": \"Understeer Scrub and Early Braking detected.\",\n      \"fix\": \"Brake later after the 'two' board; trail brake longer into blind apex to rotate car before release.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"issue\": \"15 Hard Kerb Strikes causing instability and suspension spikes.\",\n      \"fix\": \"Smooth out steering inputs at the 'one' board; avoid chasing kerbs aggressively on the off-camber section.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"issue\": \"Counter-Steer events and Over-Slowed Corner warnings near exit.\",\n      \"fix\": \"Apex later to reduce weight transfer; apply full throttle earlier on exit while managing rotation.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"issue\": \"Early Throttle applied with heavy steering input at 8502m.\",\n      \"fix\": \"Delay full throttle application until direction change stabilizes; do not power-slide through exit.\",\n      \"severity\": \"moderate\"\n    }\n  ],\n  \"technique\": [\n    {\n      \"tip\": \"Smooth Throttle Modulation\",\n      \"detail\": \"Avoid binary (on/off) input in corners to prevent the 'Binary Throttle' warning and maintain tyre grip.\"\n    },\n    {\n      \"tip\": \"Kerb Management\",\n      \"detail\": \"Reduce Hard Kerb Strikes by 50% by following track limits strictly; heavy strikes unsettle suspension on bumpy Brands Hatch surface.\"\n    },\n    {\n      \"tip\": \"Trail Braking Consistency\",\n      \"detail\": \"Maintain brake pressure longer into corners like Hawthorn to rotate the car before apex, reducing counter-steer requirements.\"\n    }\n  ],\n  \"setup\": [\n    {\n      \"Parameter\": \"Brake Bias\",\n      \"Current\": \"75.0%\",\n      \"Change to\": \"73.0%\",\n      \"Purpose\": \"Reduce excessive front bias causing understeer and counter-steer events; improves rear rotation.\"\n    },\n    {\n      \"Parameter\": \"TC Level\",\n      \"Current\": \"6\",\n      \"Change to\": \"5\",\n      \"Purpose\": \"Lower traction control slightly to allow more wheel slip on the bumpy surface for better mechanical grip.\"\n    },\n    {\n      \"Parameter\": \"ABS Level\",\n      \"Current\": \"6\",\n      \"Change to\": \"5\",\n      \"Purpose\": \"Reduce ABS intervention frequency to maintain braking balance with reduced TC and Bias changes.\"\n    },\n    {\n      \"Parameter\": \"Engine Map\",\n      \"Current\": \"0\",\n      \"Change to\": \"0\",\n      \"Purpose\": \"Keep neutral mapping to facilitate smooth power delivery matching the Binary Throttle warning reduction goal.\"\n    },\n    {\n      \"Parameter\": \"Ride Height FR\",\n      \"Current\": \"Inferred Low\",\n      \"Change to\": \"+2mm (relative)\",\n      \"Purpose\": \"Increase right side ride height or adjust suspension stiffness to fix 0.0089m travel anomaly compared to FL.\"\n    }\n  ]\n}",
+      "scores": [
+        {
+          "id": "output-shape",
+          "score": 0,
+          "reason": "setup.0.component: Invalid input: expected string, received undefined; setup.0.symptom: Invalid input: expected string, received undefined; setup.0.fix: Invalid input: expected string, received undefined; setup.0.current: Invalid input: expected string, received undefined; setup.0.target: Invalid input: expected string, received undefined; setup.0.direction: Invalid option: expected one of \"increase\"|\"decrease\"|\"adjust\""
+        },
+        {
+          "id": "corner-coverage",
+          "score": 0.6666666666666666,
+          "reason": "missed: Graham Hill Bend (score 0.67)"
+        },
+        {
+          "id": "numeric-grounding",
+          "score": 0,
+          "reason": "output failed to parse — cannot score grounding"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 3347,
+        "outputTokens": 7815,
+        "totalTokens": 11162,
+        "reasoningTokens": 6151,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "agent": "lap-analyst",
+      "repeat": 3,
+      "latencyMs": 116061.41404199999,
+      "output": "{\n  \"verdict\": \"This lap (1:28.070) shows strong average speed but suffers from a significant left-right temperature imbalance (~10°C delta), indicating asymmetric weight transfer or camber setup issues. Over-slowing in high-speed corners like Hawthorn Bend and Clark Curve, combined with frequent counter-steer events, suggests aggressive steering inputs that unsettle the rear end. Focus on smoothing apexes at T5/T9 and reducing kerb strikes to improve grip stability.\",\n  \"pace\": [\n    {\n      \"label\": \"Avg Speed\",\n      \"value\": \"158.7 km/h\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Speed is good but over-slowing in corners (T5/T9) reduces average pace.\"\n    },\n    {\n      \"label\": \"Full Throttle Time\",\n      \"value\": \"59%\",\n      \"assessment\": \"good\",\n      \"detail\": \"Efficient use of full throttle on straights, though binary throttle habits persist in corners.\"\n    },\n    {\n      \"label\": \"Brake Efficiency\",\n      \"value\": \"Avg 10%\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Heavy braking zones used, but trail-braking optimization could improve rotation and exit speed at T1/T4.\"\n    },\n    {\n      \"label\": \"Gear Usage\",\n      \"value\": \"28% in 5th\",\n      \"assessment\": \"good\",\n      \"detail\": \"Correctly using top gear on straights, but ensure downshifting isn't delayed into corners like T5.\"\n    },\n    {\n      \"label\": \"Throttle Application\",\n      \"value\": \"Avg 69%\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Early throttle application with heavy steering (T8/T9) causes wheel hop and grip loss.\"\n    }\n  ],\n  \"handling\": [\n    {\n      \"label\": \"Front Tyre Temp FL\",\n      \"value\": \"92.5°C\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Front Left runs significantly hotter than Right (82°C), indicating left side load or pressure imbalance.\"\n    },\n    {\n      \"label\": \"Counter-Steer Events\",\n      \"value\": \"9 occurrences\",\n      \"assessment\": \"critical\",\n      \"detail\": \"High frequency of corrections indicates unstable rotation and excessive weight transfer during direction changes.\"\n    },\n    {\n      \"label\": \"Suspension Travel FL\",\n      \"value\": \"0.0122m\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Front Left travels more than Front Right (0.0089m), suggesting uneven damping or bump stop engagement.\"\n    },\n    {\n      \"label\": \"Brake Pad Wear\",\n      \"value\": \"FL 2894%\",\n      \"assessment\": \"critical\",\n      \"detail\": \"High wear value suggests aggressive braking; monitor fade risk and adjust bias if needed.\"\n    },\n    {\n      \"label\": \"Hard Kerb Strikes\",\n      \"value\": \"15 strikes\",\n      \"assessment\": \"warning\",\n      \"detail\": \"Frequent kerb hits unsettle suspension and can cause traction loss in high-speed corners like T4/T6.\"\n    }\n  ],\n  \"corners\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"issue\": \"Blind apex and downhill instability from heavy kerb strikes\",\n      \"fix\": \"Brake slightly later into the blind section, trail-brake longer, and smooth steering input to avoid rear lift.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"issue\": \"Over-slowed corner with early throttle application\",\n      \"fix\": \"Commit harder to the outside of T5, trail-brake deeper until the apex is crossed before applying full throttle.\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"issue\": \"Direction changes causing understeer scrub\",\n      \"fix\": \"Smooth steering inputs through T10 exit to maintain momentum onto the Brabham Straight.\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"issue\": \"Loss of rear traction requiring counter-steer\",\n      \"fix\": \"Apex later and progressively open throttle on exit to reduce sudden weight transfer spike.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"issue\": \"Off-camber understeer entry causing speed scrubbing\",\n      \"fix\": \"Apply earlier brake pressure and trail-brake into the off-camber section to rotate the car more effectively.\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"technique\": [\n    {\n      \"tip\": \"Optimize Trail Braking\",\n      \"detail\": \"Extend braking zones into T1 and T4 by 0.5-1s to reduce counter-steer events and carry more speed through the apex.\"\n    },\n    {\n      \"tip\": \"Linear Throttle Application\",\n      \"detail\": \"Avoid binary throttle in T9 (Clark Curve) to prevent rear wheel hop; apply throttle gradually as you turn-in to rotation.\"\n    },\n    {\n      \"tip\": \"Reduce Kerb Aggression\",\n      \"detail\": \"Minimize hard kerb strikes at 7982m by smoothing steering inputs before the bend, especially on left-side entry sections.\"\n    }\n  ]\n}",
+      "scores": [
+        {
+          "id": "output-shape",
+          "score": 1,
+          "reason": "valid"
+        },
+        {
+          "id": "corner-coverage",
+          "score": 0.6666666666666666,
+          "reason": "missed: Graham Hill Bend (score 0.67)"
+        },
+        {
+          "id": "numeric-grounding",
+          "score": 0.5,
+          "reason": "13 analysis entries checked (score 0.50)"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 3347,
+        "outputTokens": 8550,
+        "totalTokens": 11897,
+        "reasoningTokens": 7279,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "agent": "compare-engineer",
+      "repeat": 1,
+      "latencyMs": 122407.00679100002,
+      "output": "{\n  \"verdict\": \"Lap B is faster due to consistent trail braking and later exit speed maintenance, whereas Lap A brakes earlier with aggressive lift-off points that kill corner rotation, particularly on Surtees, Hawthorn, and Clark Curve.\",\n  \"segments\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A averages higher throttle (61.5% vs 56.9%) and reaches full throttle earlier at the apex entry.\",\n      \"brake\": \"Driver A applies brakes 25m earlier than Lap B (39m vs 64m) with a significantly lower peak brake pressure of 54.5% compared to B's 67.5%.\",\n      \"steering\": \"Lap A steering input is less aggressive with a max steer of 22.7% versus B's 28.9%, resulting in a wider apex line.\",\n      \"action\": \"Brake 25m later into the bend (currently on @39m, target @64m) to match Lap B's trail braking window.\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Throttle profiles are nearly identical, though Lap A averages slightly higher (51.1% vs 51.6%).\",\n      \"brake\": \"Lap A releases the brake later than Lap B at 585m versus 554m, causing a slight deceleration delay on the uphill exit.\",\n      \"steering\": \"Lap A uses more steering (avg 24.6% vs 29.6%) with higher peak steer angles indicating a less smooth transition.\",\n      \"action\": \"Release brake 31m earlier into the exit zone (currently @585m, target @554m) to improve acceleration on the uphill.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Graham Hill Bend (3)\",\n      \"deltaSeconds\": 0.009,\n      \"throttle\": \"Lap A averages significantly higher throttle (68.3% vs 60.1%) but fails to modulate into the corner effectively.\",\n      \"brake\": \"Driver A brakes 13m earlier than Lap B (766m vs 779m) and peaks brake pressure earlier (797m vs 819m).\",\n      \"steering\": \"Steering max is higher in Lap A (38.4% vs 34.6%) but with less consistent modulation through the corner.\",\n      \"action\": \"Delay brake application by 13m into the corner (currently on @766m, target @779m) to maintain momentum.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Cooper Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps are on full throttle (100% avg), with similar peak RPM utilization.\",\n      \"brake\": \"No braking events recorded in this straight section for either lap.\",\n      \"steering\": \"Steering inputs remain minimal; Lap A uses 6.9% average steer while B uses 5.1% due to vibration noise.\",\n      \"action\": \"Keep current technique (delta is negligible and consistent).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"deltaSeconds\": 0.007,\n      \"throttle\": \"Lap B averages higher throttle (65.8% vs 54.5%) and holds more consistent partial throttle during the turn.\",\n      \"brake\": \"Lap A brakes 20m earlier than Lap B (1093m vs 1113m) which restricts carry speed significantly.\",\n      \"steering\": \"Lap A peak steer is higher (37.8% vs 31.9%) but less effective at rotation due to early braking point.\",\n      \"action\": \"Brake 20m later into the corner (currently on @1093m, target @1113m) to improve exit velocity.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"S2\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A averages 99.7% throttle versus B's 100.0%, showing a slight drop in power delivery.\",\n      \"brake\": \"No braking events in this straight section for either lap.\",\n      \"steering\": \"Steering usage is low but Lap A uses more lateral input (avg 2.9% vs 1.7%) likely due to uneven surface compensation.\",\n      \"action\": \"Carry at least 18 km/h more speed into this straight section (currently min 138.2 km/h, target 156.4 km/h).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap A applies higher average throttle (65.8% vs 64.0%) but lifts off earlier than Lap B.\",\n      \"brake\": \"Brake entry points are identical at ~1865m/1866m, but peak pressure differs slightly (70.2% vs 75.6%).\",\n      \"steering\": \"Lap A uses less steering input on average (8.6% vs 13.3%), indicating a wider line that loses apex speed.\",\n      \"action\": \"Carry 5 km/h more minimum corner speed (currently 155.0 km/h, target 160.3 km/h) to exit faster.\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Westfield Bend (6)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap B averages higher throttle (70.0% vs 66.7%) and maintains better partial throttle control.\",\n      \"brake\": \"Brake on points are nearly identical (2239m vs 2235m) but peak pressure is lower in A (60.0% vs 96.2%).\",\n      \"steering\": \"Lap B uses more steering max (46.4% vs 40.9%) to maintain a tighter, faster apex line.\",\n      \"action\": \"Increase steering angle by 5.5% during the apex entry (currently avg 12.9%, target ~13.7%).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Sheene Curve (8)\",\n      \"deltaSeconds\": 0.003,\n      \"throttle\": \"Lap B averages higher throttle (76.0% vs 71.0%) and holds more consistent power through the transition.\",\n      \"brake\": \"Brake on points are very close (2626m vs 2630m) but peak brake pressure is lower in A (69.0% vs 77.3%).\",\n      \"steering\": \"Lap B maintains a smoother steering transition with higher max steer input (29.0% vs 26.8% avg).\",\n      \"action\": \"Carry 10 km/h more speed through the curve (currently min 139.0 km/h, target 149.1 km/h).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Stirling's Bend (9)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Throttle averages are similar (51.0% vs 53.7%), both modulating through the hairpin.\",\n      \"brake\": \"Lap A brakes on slightly later than Lap B (2882m vs 2878m) but peak pressure is lower (65.1% vs 100%).\",\n      \"steering\": \"Lap A uses higher max steer (38.6% vs 33.0%) due to a later braking point requiring more correction.\",\n      \"action\": \"Brake 4m earlier into the corner (currently on @2882m, target @2878m) to improve brake stability.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S3\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps are on full throttle (100% avg) immediately after the corner exit.\",\n      \"brake\": \"No braking events in this straight section for either lap.\",\n      \"steering\": \"Steering is negligible; Lap A uses 1.1% average steer versus B's 0.9%.\",\n      \"action\": \"Keep current technique (delta is negligible and consistent).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A averages higher throttle (78.3% vs 71.2%) but loses speed on the entry to the curve.\",\n      \"brake\": \"Driver A brakes 14m later than Lap B (3299m vs 3285m) which sacrifices carry speed into the hairpin.\",\n      \"steering\": \"Lap B uses higher steering max (40.9% vs 35.4%) for a sharper, faster corner rotation.\",\n      \"action\": \"Brake 14m earlier into the corner (currently on @3299m, target @3285m) to gain critical exit speed.\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Brabham Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps are on full throttle (100% avg), with Lap A slightly lower minimum speed (180.8 km/h vs 181.8 km/h).\",\n      \"brake\": \"No braking events in this straight section for either lap.\",\n      \"steering\": \"Steering inputs are minimal; Lap A averages 2.7% steer versus B's 2.6%.\",\n      \"action\": \"Keep current technique (delta is negligible and consistent).\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"coaching\": [\n    { \"tip\": \"Brake later consistently in all medium to high speed corners to improve carry speed.\", \"detail\": \"Target braking points +14m at Clark Curve, +20m at Surtees, and +13m at Graham Hill as shown by telemetry. Later braking allows you to carry more momentum into the apex.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Hold throttle longer through the apex before lifting off on exits like Paddock Hill Bend.\", \"detail\": \"Currently you lift throttle at 45m on exit (P1), whereas faster lap lifts at 64m. Delaying this by ~20m maintains momentum through the downhill acceleration zone.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Increase steering input magnitude during high-speed corners to tighten your line.\", \"detail\": \"At Westfield Bend and Clark Curve, your max steer is lower (40.9%) than the faster lap (46.4%). Increase steering angle by 5-6% to match their apex location.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Reduce early lift-off oversteer on Druids hairpin for better acceleration.\", \"detail\": \"You release brake at 585m but faster lap releases at 554m. Releasing brake earlier (31m sooner) prevents the car from spinning under throttle on the uphill exit.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Focus on carry speed in S2 and S3 straights by maintaining higher exit speeds from previous corners.\", \"detail\": \"You lose ~18km/h minimum speed entering S2 compared to the faster lap. Better braking points earlier on Graham Hill and Surtees will help you arrive here with more momentum.\", \"targetLap\": \"A\" }\n  ]\n}",
+      "scores": [
+        {
+          "id": "compare-directionality",
+          "score": 1,
+          "reason": "correct: faster = Lap B"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 8431,
+        "outputTokens": 9924,
+        "totalTokens": 18355,
+        "reasoningTokens": 7094,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "agent": "compare-engineer",
+      "repeat": 2,
+      "latencyMs": 115229.73220899992,
+      "output": "{\n  \"verdict\": \"Lap A consistently lifts off throttle earlier than Lap B through braking zones, reducing exit speed on straights like S2 and Clark Curve despite similar peak brake pressures.\",\n  \"segments\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A maintains lower average throttle (56.9%) than B (42.1% full) until lift-off.\",\n      \"brake\": \"Brake on point is 25m earlier in Lap A compared to Lap B (39m vs 64m).\",\n      \"steering\": \"Steering inputs are similar magnitude but Lap A reaches max angle slightly later.\",\n      \"action\": \"Brake on at 64m (currently 39m) and lift throttle at 60m (currently 45m)\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Throttle usage is nearly identical between laps with B slightly higher average.\",\n      \"brake\": \"Brake on point matches exactly at 474m in both laps.\",\n      \"steering\": \"Peak steering angle is comparable but Lap A peaks later (515m vs 490m).\",\n      \"action\": \"Maintain current brake point.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Graham Hill Bend (3)\",\n      \"deltaSeconds\": 0.009,\n      \"throttle\": \"Lap A has higher average throttle (68.3%) than B (60.1%).\",\n      \"brake\": \"Brake on point is 13m earlier in Lap A compared to Lap B (766m vs 779m).\",\n      \"steering\": \"Lap A peaks steering angle at 853m versus B at 878m.\",\n      \"action\": \"Brake on at 779m (currently 766m) and lift throttle at 772m (currently 767m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Cooper Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Full throttle applied identically on both laps for the entire segment.\",\n      \"brake\": \"No brake inputs recorded on either lap.\",\n      \"steering\": \"Lap A average steering (6.9%) is slightly higher than B (5.1%).\",\n      \"action\": \"Keep current technique.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"deltaSeconds\": 0.007,\n      \"throttle\": \"Lap A average throttle is lower (54.5%) than B (65.8%) in this section.\",\n      \"brake\": \"Brake on point is 20m earlier in Lap A compared to Lap B (1093m vs 1113m).\",\n      \"steering\": \"Peak steering angle occurs later in Lap A (1230m) than in Lap B (1189m).\",\n      \"action\": \"Brake on at 1113m (currently 1093m) and lift throttle at 1113m (currently 1095m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"S2\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Full throttle applied identically on both laps for the entire segment.\",\n      \"brake\": \"No brake inputs recorded on either lap.\",\n      \"steering\": \"Lap A average steering (2.9%) is slightly higher than B (1.7%).\",\n      \"action\": \"Keep current technique.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap A average throttle is higher (65.8%) than B (64.0%).\",\n      \"brake\": \"Brake on point matches closely at 1865m vs 1866m.\",\n      \"steering\": \"Peak steering angle occurs slightly later in Lap A (2032m) than in Lap B (2064m).\",\n      \"action\": \"Lift throttle at 1867m (currently 1862m).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Westfield Bend (6)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap A average throttle is lower (66.7%) than B (70.0%).\",\n      \"brake\": \"Brake on point matches closely at 2239m vs 2235m.\",\n      \"steering\": \"Peak steering angle occurs later in Lap A (2351m) than in Lap B (2296m).\",\n      \"action\": \"Lift throttle at 2236m (currently 2237m).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Sheene Curve (8)\",\n      \"deltaSeconds\": 0.003,\n      \"throttle\": \"Lap A average throttle is lower (71.0%) than B (76.0%).\",\n      \"brake\": \"Brake on point is 4m earlier in Lap A compared to Lap B (2626m vs 2630m).\",\n      \"steering\": \"Peak steering angle occurs later in Lap A (2724m) than in Lap B (2720m).\",\n      \"action\": \"Lift throttle at 2630m (currently 2624m).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Stirling's Bend (9)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Throttle usage is nearly identical between laps.\",\n      \"brake\": \"Brake on point matches closely at 2882m vs 2878m.\",\n      \"steering\": \"Peak steering angle occurs later in Lap A (2991m) than in Lap B (2940m).\",\n      \"action\": \"Lift throttle at 2879m (currently 2875m).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S3\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Full throttle applied identically on both laps for the entire segment.\",\n      \"brake\": \"No brake inputs recorded on either lap.\",\n      \"steering\": \"Lap A average steering (1.1%) is slightly higher than B (0.9%).\",\n      \"action\": \"Keep current technique.\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A average throttle is higher (78.3%) than B (71.2%).\",\n      \"brake\": \"Brake on point is 14m earlier in Lap A compared to Lap B (3299m vs 3285m).\",\n      \"steering\": \"Peak steering angle occurs later in Lap A (3404m) than in Lap B (3423m).\",\n      \"action\": \"Lift throttle at 3286m (currently 3299m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Brabham Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Full throttle applied identically on both laps for the entire segment.\",\n      \"brake\": \"No brake inputs recorded on either lap.\",\n      \"steering\": \"Lap A average steering (2.7%) is slightly higher than B (2.6%).\",\n      \"action\": \"Keep current technique.\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"coaching\": [\n    { \"tip\": \"Delay lift-off throttle significantly in braking zones.\", \"detail\": \"Lap A lifts off throttle 19-25m too early on straights following corners (Paddock Hill, Surtees, Clark Curve). Delaying this point preserves exit drive and reduces fuel consumption on straights.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Match Lap B's brake release points to maintain momentum.\", \"detail\": \"Releasing the brake pedal earlier than 10m into the apex causes understeer and slows mid-corner speed. Extend the trail brake phase by at least 15m in corners like Surtees (4) and Clark Curve (10).\", \"targetLap\": \"A\" },\n    { \"tip\": \"Increase minimum corner entry speeds by 5-8 km/h.\", \"detail\": \"Lap A enters several corners up to 8 km/h slower than Lap B. Focus on carrying more speed through Paddock Hill and Hawthorn Bend to minimize braking load.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Reduce steering input magnitude during direction changes.\", \"detail\": \"Lap A shows higher average steering input in S-turns like Sheene Curve. Smoother inputs will reduce lift-off oversteer risk and improve balance on the exit.\", \"targetLap\": \"A\" },\n    { \"tip\": \"Commit more aggressively to Paddock Hill Bend apex line.\", \"detail\": \"The blind downhill section requires a late apex. Avoid braking too hard or early (currently 39m vs target 64m) to maintain flow through the exit.\", \"targetLap\": \"A\" }\n  ]\n}",
+      "scores": [
+        {
+          "id": "compare-directionality",
+          "score": 0,
+          "reason": "model did not clearly identify a faster lap"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 8431,
+        "outputTokens": 9462,
+        "totalTokens": 17893,
+        "reasoningTokens": 7154,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "agent": "compare-engineer",
+      "repeat": 3,
+      "latencyMs": 110823.87187500007,
+      "output": "{\n  \"verdict\": \"Lap A is slower primarily due to conservative braking and late throttle application at high-speed corners, resulting in ~18 km/h less exit speed onto S2 and Clark Curve compared to Lap B. This 'trail-braking too long' habit causes lower average speeds on straights (Cooper/S3) and reduces overall efficiency.\",\n  \"segments\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A applies throttle 42% peak vs Lap B's 57% avg during the first 80m of corner exit.\",\n      \"brake\": \"Lap A brakes at 39m vs Lap B's 64m, starting braking 25m earlier into the blind apex.\",\n      \"steering\": \"Steering input is smooth on both laps but Lap A initiates turn-in 0.003s earlier than optimal.\",\n      \"action\": \"Brake 25m later into T1 entry (currently at 39m, target 64m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Lap A throttle avg is 51.1% vs Lap B's 51.6%, carrying more throttle on exit.\",\n      \"brake\": \"Lap A releases brake at 585m vs Lap B's 554m, holding brake pressure 31m longer past apex.\",\n      \"steering\": \"Steering smoothness is identical; both manage the hairpin in 1st/2nd gear appropriately.\",\n      \"action\": \"Release brake 31m earlier into T2 exit (currently at 585m, target 554m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Graham Hill Bend (3)\",\n      \"deltaSeconds\": 0.009,\n      \"throttle\": \"Lap A reaches full throttle at 719m same as B, but avg throttle is higher at 68%.\",\n      \"brake\": \"Lap A brakes at 766m vs Lap B's 779m, initiating braking 13m earlier than optimal.\",\n      \"steering\": \"Steering input delta is 0.004s, with Lap A cutting slightly wider due to early brake release.\",\n      \"action\": \"Brake 13m later into T3 entry (currently at 766m, target 779m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Cooper Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps maintain 100% throttle throughout the straight segment.\",\n      \"brake\": \"No braking events occur on either lap during this straight section.\",\n      \"steering\": \"Steering noise is higher on Lap A at 6.9% avg vs Lap B's 5.1% avg.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"deltaSeconds\": 0.007,\n      \"throttle\": \"Lap A throttle avg is 54.5% vs Lap B's 65.8%, showing lower commitment on exit.\",\n      \"brake\": \"Lap A brakes at 1093m vs Lap B's 1113m, braking 20m earlier than the faster lap point.\",\n      \"steering\": \"Steering input delta is 0.005s with Lap A holding inside kerb longer due to brake overlap.\",\n      \"action\": \"Brake 20m later into T4 entry (currently at 1093m, target 1113m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"S2\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A throttle avg drops to 99.7% while Lap B sustains 100% full throttle.\",\n      \"brake\": \"No braking events occur on either lap during this straight section.\",\n      \"steering\": \"Steering is minimal but Lap A inputs at a higher variance rate than Lap B.\",\n      \"action\": \"Carry 18 km/h more entry speed from Surtees exit (currently 138.2 km/h, target 156.4 km/h).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap A throttle avg is 65.8% vs Lap B's 64%, but Lift Off occurs 66m later.\",\n      \"brake\": \"Lap A releases brake at 2003m vs Lap B's 1937m, holding brakes significantly longer.\",\n      \"steering\": \"Steering input is consistent but delayed due to the extended brake overlap period.\",\n      \"action\": \"Release brake 66m earlier into T5 exit (currently at 2003m, target 1937m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Westfield Bend (6)\",\n      \"deltaSeconds\": 0.004,\n      \"throttle\": \"Lap A throttle avg is 66.7% vs Lap B's 70.0%, showing slightly less aggressive exit drive.\",\n      \"brake\": \"Lap A releases brake at 2339m vs Lap B's 2296m, delaying lift-off by 43m.\",\n      \"steering\": \"Steering delta is minor (0.004s) with Lap A using a slightly wider line to compensate for brake overlap.\",\n      \"action\": \"Release brake 43m earlier into T6 exit (currently at 2339m, target 2296m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Sheene Curve (8)\",\n      \"deltaSeconds\": 0.003,\n      \"throttle\": \"Lap A throttle avg is 71.0% vs Lap B's 76.0%, indicating less aggressive acceleration.\",\n      \"brake\": \"Lap A brakes at 2626m vs Lap B's 2630m, initiating braking 4m earlier into the curve.\",\n      \"steering\": \"Steering is smoother on Lap B with a delta of 0.004s favoring the faster lap.\",\n      \"action\": \"Brake 4m later into T8 entry (currently at 2626m, target 2630m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"Stirling's Bend (9)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Lap A throttle avg is 51.0% vs Lap B's 53.7%, showing lower engagement during corner exit.\",\n      \"brake\": \"Lap A releases brake at 2980m vs Lap B's 2940m, holding brakes 40m longer than optimal.\",\n      \"steering\": \"Steering input is identical in magnitude but delayed on Lap A by 40m of overlap.\",\n      \"action\": \"Release brake 40m earlier into T9 exit (currently at 2980m, target 2940m).\",\n      \"severity\": \"moderate\"\n    },\n    {\n      \"name\": \"S3\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps maintain 100% throttle throughout the straight section.\",\n      \"brake\": \"No braking events occur on either lap during this straight section.\",\n      \"steering\": \"Steering is minimal with Lap A showing slightly higher variance at 1.1% avg.\",\n      \"action\": \"Carry 10 km/h more entry speed from Stirling's exit (currently 142.6 km/h, target 153.0 km/h).\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"deltaSeconds\": 0.006,\n      \"throttle\": \"Lap A throttle avg is 78.3% vs Lap B's 71.2%, but lift off occurs later.\",\n      \"brake\": \"Lap A brakes at 3299m vs Lap B's 3285m, initiating braking 14m earlier than optimal.\",\n      \"steering\": \"Steering delta is 0.003s with Lap A rotating slightly slower on the final turn.\",\n      \"action\": \"Brake 14m later into T10 entry (currently at 3299m, target 3285m).\",\n      \"severity\": \"major\"\n    },\n    {\n      \"name\": \"Brabham Straight\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps maintain 100% throttle throughout the final straight section.\",\n      \"brake\": \"No braking events occur on either lap during this straight section.\",\n      \"steering\": \"Steering input is minimal with Lap A showing slightly higher variance at 2.7% avg.\",\n      \"action\": \"Carry 1 km/h more exit speed from T10 into this straight (currently at 180.8 km/h, target 181.8 km/h).\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"coaching\": [\n    {\n      \"tip\": \"Commit to later brake points in high-speed corners.\",\n      \"detail\": \"Brake 25m later at Paddock Hill Bend (39m → 64m) to gain higher exit speed and carry more momentum onto the Cooper Straight.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Release brake earlier into mid-corner sections.\",\n      \"detail\": \"Reduce brake overlap by 31m at Druids (585m → 554m) and 66m at Hawthorn Bend (2003m → 1937m) to accelerate faster on exit.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Maintain wider track limits on technical sections.\",\n      \"detail\": \"Push further into the kerb at Surtees and Westfield Bend to use extra grip space for a faster rotation, matching Lap B's line.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Improve throttle modulation after apex.\",\n      \"detail\": \"Apply full throttle immediately after lift-off points at S2 and Brabham straight to close the min-speed gap with the faster lap.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Optimize corner entry balance on downhill chicanes.\",\n      \"detail\": \"Balance your steering inputs more aggressively into Graham Hill Bend (3) and Clark Curve (10) to maintain higher minimum corner speeds.\",\n      \"targetLap\": \"A\"\n    }\n  ]\n}",
+      "scores": [
+        {
+          "id": "compare-directionality",
+          "score": 0,
+          "reason": "model did not clearly identify a faster lap"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 1,
+          "reason": "judge: answer is faithful to the source context"
+        }
+      ],
+      "usage": {
+        "inputTokens": 8431,
+        "outputTokens": 9185,
+        "totalTokens": 17616,
+        "reasoningTokens": 6551,
+        "cachedInputTokens": 0
+      }
+    }
+  ],
+  "failures": [],
+  "schemaVersion": 1,
+  "summaries": [
+    {
+      "modelId": "qwen/qwen3.5-9b",
+      "complete": true,
+      "overallScore": 0.6833333333333333,
+      "analystScore": 0.5888888888888888,
+      "compareScore": 0.7777777777777778,
+      "correctnessScore": 1,
+      "passRate": 0.5833333333333334,
+      "meanLatencyMs": 120021.03612483334,
+      "meanInputTokens": 5889,
+      "meanOutputTokens": 9124.166666666666,
+      "meanReasoningTokens": 7170,
+      "meanTotalTokens": 15013.166666666666,
+      "meanTokensPerSecond": 135.94859805800556,
+      "scorers": [
+        {
+          "id": "output-shape",
+          "mean": 0.3333333333333333,
+          "standardDeviation": 0.4714045207910317,
+          "passed": 1,
+          "total": 3
+        },
+        {
+          "id": "corner-coverage",
+          "mean": 0.4444444444444444,
+          "standardDeviation": 0.31426968052735443,
+          "passed": 0,
+          "total": 3
+        },
+        {
+          "id": "numeric-grounding",
+          "mean": 0.16666666666666666,
+          "standardDeviation": 0.23570226039551584,
+          "passed": 0,
+          "total": 3
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 3,
+          "total": 3
+        },
+        {
+          "id": "correctness",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 3,
+          "total": 3
+        },
+        {
+          "id": "compare-directionality",
+          "mean": 0.3333333333333333,
+          "standardDeviation": 0.4714045207910317,
+          "passed": 1,
+          "total": 3
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 3,
+          "total": 3
+        },
+        {
+          "id": "correctness",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 3,
+          "total": 3
+        }
+      ]
+    }
+  ],
+  "ranking": [
+    "qwen/qwen3.5-9b"
+  ],
+  "recommendationIds": [
+    "qwen/qwen3.5-9b"
+  ],
+  "judgeModel": "google/gemma-4-e2b"
+}

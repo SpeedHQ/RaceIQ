@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ComparisonResult } from "../../server/lap-analysis/comparison";
+import type { LapMetrics } from "../../server/lap-analysis/metrics";
 import type { GameId } from "../../shared/games/ids";
 import type { UnitSystem, TemperatureUnit } from "../../server/lap-analysis/report";
 import { parseDump, type CapturedLapWithPackets } from "../../test/support/recordings/parse-dump";
@@ -14,11 +16,17 @@ export interface ModelEvalFixtureConfig {
   units: UnitSystem; temperatureUnit: TemperatureUnit; analystLapNumber: number;
   compareLapNumbers: readonly [number, number];
 }
+export interface ModelEvalTruth {
+  lapNumber?: number;
+  lapTime?: number;
+  metrics?: Pick<LapMetrics, "lapId" | "algoVersion" | "segmentStats">;
+  comparison?: Pick<ComparisonResult, "cornerDeltas">;
+  fasterLap?: "A" | "B";
+}
 export interface ModelEvalFixtureCase {
   id: string; agent: "lap-analyst" | "compare-engineer"; input: string;
-  groundTruth: { trackCorners: string[]; slowestCorners?: string[]; fasterLap?: "A" | "B"; units: UnitSystem };
+  groundTruth: { trackCorners: string[]; slowestCorners?: string[]; fasterLap?: "A" | "B"; units: UnitSystem; sourceContext?: string; truth: ModelEvalTruth };
 }
-export type ModelEvalCase = ModelEvalFixtureCase;
 export interface ParsedModelEvalFixture {
   config: ModelEvalFixtureConfig; carOrdinal: number; trackOrdinal: number;
   analystLap: CapturedLapWithPackets;
@@ -61,12 +69,15 @@ export async function buildModelEvalCases(fixture: ParsedModelEvalFixture): Prom
   const cornerStats = metrics.segmentStats.filter((s) => s.type === "corner");
   const slowestCorners = [...cornerStats].sort((a, b) => a.stats.minSpeed - b.stats.minSpeed || a.startFrac - b.startFrac).slice(0, 3).map((s) => s.name);
   const trackCorners = cornerStats.map((s) => s.name);
+  const analystTruth: ModelEvalTruth = { lapNumber: analystLap.lapNumber, lapTime: analystLap.lapTime, metrics: { lapId: metrics.lapId, algoVersion: metrics.algoVersion, segmentStats: metrics.segmentStats } };
+  const comparison = compareLaps(lapA.packets, lapB.packets, corners);
+  const compareTruth: ModelEvalTruth = { fasterLap: lapA.lapTime < lapB.lapTime ? "A" : "B", comparison: { cornerDeltas: comparison.cornerDeltas } };
   const analyst = buildAnalystPrompt({ lapNumber: analystLap.lapNumber, lapTime: analystLap.lapTime, isValid: true, carOrdinal, trackOrdinal, gameId: config.gameId }, analystLap.packets, corners, config.units, config.temperatureUnit, undefined, promptSegments);
   const lapInfo = (lap: CapturedLapWithPackets) => ({ lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, carOrdinal, trackOrdinal, gameId: config.gameId });
-  const comparison = compareLaps(lapA.packets, lapB.packets, corners);
   const compare = buildInputsComparePrompt(lapInfo(lapA), lapInfo(lapB), comparison, promptSegments);
+  const truthContext = (prompt: string, truth: ModelEvalTruth) => `${prompt}\n\nAUTHORITATIVE TELEMETRY TRUTH (use only for grading; model did not see this):\n${JSON.stringify(truth)}`;
   return [
-    { id: `${config.id}-lap-${config.analystLapNumber}-analyst`, agent: "lap-analyst", input: analyst, groundTruth: { trackCorners, slowestCorners, units: config.units } },
-    { id: `${config.id}-laps-${config.compareLapNumbers[0]}-vs-${config.compareLapNumbers[1]}-compare`, agent: "compare-engineer", input: compare, groundTruth: { trackCorners, fasterLap: lapA.lapTime < lapB.lapTime ? "A" : "B", units: config.units } },
+    { id: `${config.id}-lap-${config.analystLapNumber}-analyst`, agent: "lap-analyst", input: analyst, groundTruth: { trackCorners, slowestCorners, units: config.units, sourceContext: truthContext(analyst, analystTruth), truth: analystTruth } },
+    { id: `${config.id}-laps-${config.compareLapNumbers[0]}-vs-${config.compareLapNumbers[1]}-compare`, agent: "compare-engineer", input: compare, groundTruth: { trackCorners, fasterLap: compareTruth.fasterLap, units: config.units, sourceContext: truthContext(compare, compareTruth), truth: compareTruth } },
   ];
 }

@@ -117,6 +117,7 @@ export const SCORER_THRESHOLDS: Record<string, number> = {
   // measurable-reference signal and still be a real, repeatable instruction.
   "drill-quality": 0.75,
   "llm-faithfulness": 1.0,
+  correctness: 1.0,
 };
 
 export interface ScoreResult {

@@ -1,0 +1,691 @@
+{
+  "createdAt": "2026-09-02T12:30:16.644Z",
+  "endpoint": "http://localhost:1234/v1",
+  "repeatCount": 3,
+  "judgeModel": "google/gemma-4-12b-qat",
+  "modelIds": [
+    "qwen3.8-27b"
+  ],
+  "dataset": {
+    "id": "acc-brands-hatch-2026-04-10",
+    "label": "ACC Brands Hatch fixture",
+    "fixturePath": "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz",
+    "gameId": "acc",
+    "units": "metric",
+    "temperatureUnit": "C",
+    "analystLap": 3,
+    "compareLaps": [
+      2,
+      3
+    ]
+  },
+  "caseIds": [
+    "acc-brands-hatch-2026-04-10-lap-3-analyst",
+    "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare"
+  ],
+  "truth": {
+    "acc-brands-hatch-2026-04-10-lap-3-analyst": {
+      "lapNumber": 3,
+      "lapTime": 88.07,
+      "metrics": {
+        "lapId": 0,
+        "algoVersion": 1,
+        "segmentStats": [
+          {
+            "name": "Paddock Hill Bend",
+            "type": "corner",
+            "number": 1,
+            "startFrac": 0,
+            "endFrac": 0.1184,
+            "timeSec": 0.004,
+            "stats": {
+              "throttleAvg": 0.5609432962374139,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.40540540540540543,
+              "brakeAvg": 0.11783253842077364,
+              "brakeMax": 0.6745098039215687,
+              "brakingPctDist": 0.25675675675675674,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1142264311555651,
+              "steerAbsMax": 0.29133858267716534,
+              "steeringSmoothness": 0.008356098344849742,
+              "brakeOnDist": 67.263671875,
+              "brakeOffDist": 189.994140625,
+              "peakBrakeValue": 0.6745098039215687,
+              "peakBrakeDist": 146.3916015625,
+              "fullThrottleDist": 0,
+              "liftOffThrottleDist": 67.263671875,
+              "minSpeed": 145.0798826014949,
+              "minSpeedDist": 200.8623046875,
+              "maxSpeed": 229.14502396765124,
+              "maxSpeedDist": 63.4443359375
+            }
+          },
+          {
+            "name": "Druids",
+            "type": "corner",
+            "number": 2,
+            "startFrac": 0.1184,
+            "endFrac": 0.1858,
+            "timeSec": 0.004,
+            "stats": {
+              "throttleAvg": 0.4992895709008242,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.26811594202898553,
+              "brakeAvg": 0.1609832338732594,
+              "brakeMax": 1,
+              "brakingPctDist": 0.2608695652173913,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.37435809654228036,
+              "steerAbsMax": 0.889763779527559,
+              "steeringSmoothness": 0.01477096384849703,
+              "brakeOnDist": 475.55712890625,
+              "brakeOffDist": 555.13623046875,
+              "peakBrakeValue": 1,
+              "peakBrakeDist": 490.45947265625,
+              "fullThrottleDist": 458.54345703125,
+              "liftOffThrottleDist": 472.01025390625,
+              "minSpeed": 77.68074403292557,
+              "minSpeedDist": 593.23974609375,
+              "maxSpeed": 182.4424451288303,
+              "maxSpeedDist": 475.55712890625
+            }
+          },
+          {
+            "name": "Graham Hill Bend",
+            "type": "corner",
+            "number": 3,
+            "startFrac": 0.1858,
+            "endFrac": 0.2534,
+            "timeSec": 0.004,
+            "stats": {
+              "throttleAvg": 0.5875191815856778,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.48695652173913045,
+              "brakeAvg": 0.14963341858482523,
+              "brakeMax": 0.8784313725490196,
+              "brakingPctDist": 0.33043478260869563,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1374186922286887,
+              "steerAbsMax": 0.3464566929133858,
+              "steeringSmoothness": 0.008702859510982174,
+              "brakeOnDist": 781.03369140625,
+              "brakeOffDist": 865.97314453125,
+              "peakBrakeValue": 0.8784313725490196,
+              "peakBrakeDist": 821.33544921875,
+              "fullThrottleDist": 719.10205078125,
+              "liftOffThrottleDist": 774.82763671875,
+              "minSpeed": 101.03868064066808,
+              "minSpeedDist": 880.40966796875,
+              "maxSpeed": 165.6638267106173,
+              "maxSpeedDist": 778.73486328125
+            }
+          },
+          {
+            "name": "Cooper Straight",
+            "type": "straight",
+            "startFrac": 0.2534,
+            "endFrac": 0.2717,
+            "timeSec": 0.0009999999999999992,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.050196850393700775,
+              "steerAbsMax": 0.10236220472440945,
+              "steeringSmoothness": 0.009243409791167407,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 982.83642578125,
+              "liftOffThrottleDist": null,
+              "minSpeed": 149.1894570774702,
+              "minSpeedDist": 982.83642578125,
+              "maxSpeed": 166.79876265382435,
+              "maxSpeedDist": 1048.89599609375
+            }
+          },
+          {
+            "name": "Surtees",
+            "type": "corner",
+            "number": 4,
+            "startFrac": 0.2717,
+            "endFrac": 0.3591,
+            "timeSec": 0.004000000000000002,
+            "stats": {
+              "throttleAvg": 0.6357669308858294,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.49645390070921985,
+              "brakeAvg": 0.1175636211931581,
+              "brakeMax": 0.7647058823529411,
+              "brakingPctDist": 0.2127659574468085,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1356452783827556,
+              "steerAbsMax": 0.3228346456692913,
+              "steeringSmoothness": 0.009786276715410562,
+              "brakeOnDist": 1114.82080078125,
+              "brakeOffDist": 1190.02197265625,
+              "peakBrakeValue": 0.7647058823529411,
+              "peakBrakeDist": 1133.26806640625,
+              "fullThrottleDist": 1052.26416015625,
+              "liftOffThrottleDist": 1114.82080078125,
+              "minSpeed": 107.76232869025142,
+              "minSpeedDist": 1238.25732421875,
+              "maxSpeed": 181.26502346406878,
+              "maxSpeedDist": 1114.82080078125
+            }
+          },
+          {
+            "name": "",
+            "type": "straight",
+            "startFrac": 0.3591,
+            "endFrac": 0.461,
+            "timeSec": 0.002999999999999999,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.018953383039509417,
+              "steerAbsMax": 0.05511811023622047,
+              "steeringSmoothness": 0.002530933633295836,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 1389.20458984375,
+              "liftOffThrottleDist": null,
+              "minSpeed": 155.74547138371298,
+              "minSpeedDist": 1389.20458984375,
+              "maxSpeed": 229.94278537227206,
+              "maxSpeedDist": 1781.92041015625
+            }
+          },
+          {
+            "name": "Hawthorn Bend",
+            "type": "corner",
+            "number": 5,
+            "startFrac": 0.461,
+            "endFrac": 0.568,
+            "timeSec": 0.002999999999999999,
+            "stats": {
+              "throttleAvg": 0.6368941176470587,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.488,
+              "brakeAvg": 0.08592941176470588,
+              "brakeMax": 0.7568627450980392,
+              "brakingPctDist": 0.152,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.1458267716535435,
+              "steerAbsMax": 0.4015748031496063,
+              "steeringSmoothness": 0.00863601727203454,
+              "brakeOnDist": 1869.32958984375,
+              "brakeOffDist": 1937.07763671875,
+              "peakBrakeValue": 0.7568627450980392,
+              "peakBrakeDist": 1893.55615234375,
+              "fullThrottleDist": 1787.99169921875,
+              "liftOffThrottleDist": 1869.32958984375,
+              "minSpeed": 160.33902250486264,
+              "minSpeedDist": 2065.13720703125,
+              "maxSpeed": 237.77188572239154,
+              "maxSpeedDist": 1866.02880859375
+            }
+          },
+          {
+            "name": "Westfield Bend",
+            "type": "corner",
+            "number": 6,
+            "startFrac": 0.568,
+            "endFrac": 0.6563,
+            "timeSec": 0.002999999999999999,
+            "stats": {
+              "throttleAvg": 0.6835947712418303,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6166666666666667,
+              "brakeAvg": 0.10924836601307186,
+              "brakeMax": 0.9647058823529412,
+              "brakingPctDist": 0.175,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.13654855643044608,
+              "steerAbsMax": 0.4645669291338583,
+              "steeringSmoothness": 0.012638126116588357,
+              "brakeOnDist": 2236.21533203125,
+              "brakeOffDist": 2295.28662109375,
+              "peakBrakeValue": 0.9647058823529412,
+              "peakBrakeDist": 2256.26416015625,
+              "fullThrottleDist": 2199.08447265625,
+              "liftOffThrottleDist": 2239.47119140625,
+              "minSpeed": 129.54842690630372,
+              "minSpeedDist": 2349.26025390625,
+              "maxSpeed": 195.35031873561582,
+              "maxSpeedDist": 2236.21533203125
+            }
+          },
+          {
+            "name": "Sheene Curve",
+            "type": "corner",
+            "number": 8,
+            "startFrac": 0.6563,
+            "endFrac": 0.7382,
+            "timeSec": 0.004,
+            "stats": {
+              "throttleAvg": 0.7626696832579186,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6923076923076923,
+              "brakeAvg": 0.13363499245852184,
+              "brakeMax": 0.7725490196078432,
+              "brakingPctDist": 0.22115384615384615,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.11970018170805563,
+              "steerAbsMax": 0.29133858267716534,
+              "steeringSmoothness": 0.012078587263970634,
+              "brakeOnDist": 2631.67236328125,
+              "brakeOffDist": 2701.78662109375,
+              "peakBrakeValue": 0.7725490196078432,
+              "peakBrakeDist": 2649.64794921875,
+              "fullThrottleDist": 2540.35009765625,
+              "liftOffThrottleDist": 2631.67236328125,
+              "minSpeed": 149.0890706855862,
+              "minSpeedDist": 2721.15283203125,
+              "maxSpeed": 201.77238805109758,
+              "maxSpeedDist": 2631.67236328125
+            }
+          },
+          {
+            "name": "Stirling's Bend",
+            "type": "corner",
+            "number": 9,
+            "startFrac": 0.7382,
+            "endFrac": 0.7962,
+            "timeSec": 0.0030000000000000027,
+            "stats": {
+              "throttleAvg": 0.5321104786000421,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.45161290322580644,
+              "brakeAvg": 0.17887413029728017,
+              "brakeMax": 1,
+              "brakingPctDist": 0.25806451612903225,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.13284226568453134,
+              "steerAbsMax": 0.33070866141732286,
+              "steeringSmoothness": 0.009072235535775413,
+              "brakeOnDist": 2878.72900390625,
+              "brakeOffDist": 2940.82666015625,
+              "peakBrakeValue": 1,
+              "peakBrakeDist": 2894.41552734375,
+              "fullThrottleDist": 2857.38623046875,
+              "liftOffThrottleDist": 2881.79150390625,
+              "minSpeed": 113.63247360146559,
+              "minSpeedDist": 2989.26708984375,
+              "maxSpeed": 183.80503317473037,
+              "maxSpeedDist": 2881.79150390625
+            }
+          },
+          {
+            "name": "",
+            "type": "straight",
+            "startFrac": 0.7962,
+            "endFrac": 0.8297,
+            "timeSec": 0.0010000000000000009,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.009561304836895379,
+              "steerAbsMax": 0.015748031496062992,
+              "steeringSmoothness": 0.0013443441521029382,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 3081.82470703125,
+              "liftOffThrottleDist": null,
+              "minSpeed": 153.51743941869077,
+              "minSpeedDist": 3081.82470703125,
+              "maxSpeed": 187.71822029553573,
+              "maxSpeedDist": 3205.09912109375
+            }
+          },
+          {
+            "name": "Clark Curve",
+            "type": "corner",
+            "number": 10,
+            "startFrac": 0.8297,
+            "endFrac": 0.9367,
+            "timeSec": 0.003999999999999997,
+            "stats": {
+              "throttleAvg": 0.6938261791202966,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 0.6013513513513513,
+              "brakeAvg": 0.11160572337042922,
+              "brakeMax": 0.9137254901960784,
+              "brakingPctDist": 0.19594594594594594,
+              "brakeApplications": 1,
+              "steerAbsAvg": 0.12257927218557145,
+              "steerAbsMax": 0.4094488188976378,
+              "steeringSmoothness": 0.010337993465102566,
+              "brakeOnDist": 3286.97998046875,
+              "brakeOffDist": 3368.07470703125,
+              "peakBrakeValue": 0.9137254901960784,
+              "peakBrakeDist": 3304.99658203125,
+              "fullThrottleDist": 3209.40478515625,
+              "liftOffThrottleDist": 3286.97998046875,
+              "minSpeed": 129.58920834958758,
+              "minSpeedDist": 3423.46630859375,
+              "maxSpeed": 204.2188296120393,
+              "maxSpeedDist": 3286.97998046875
+            }
+          },
+          {
+            "name": "Brabham Straight",
+            "type": "straight",
+            "startFrac": 0.9367,
+            "endFrac": 1,
+            "timeSec": 0.0020000000000000018,
+            "stats": {
+              "throttleAvg": 1,
+              "throttleMax": 1,
+              "fullThrottlePctDist": 1,
+              "brakeAvg": 0,
+              "brakeMax": 0,
+              "brakingPctDist": 0,
+              "brakeApplications": 0,
+              "steerAbsAvg": 0.02663270032422416,
+              "steerAbsMax": 0.07874015748031496,
+              "steeringSmoothness": 0.0036432013162533763,
+              "brakeOnDist": null,
+              "brakeOffDist": null,
+              "peakBrakeValue": 0,
+              "peakBrakeDist": null,
+              "fullThrottleDist": 3624.82958984375,
+              "liftOffThrottleDist": null,
+              "minSpeed": 181.8671180198587,
+              "minSpeedDist": 3624.82958984375,
+              "maxSpeed": 221.99487669021298,
+              "maxSpeedDist": 3865.62158203125
+            }
+          }
+        ]
+      }
+    },
+    "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare": {
+      "fasterLap": "B",
+      "comparison": {
+        "cornerDeltas": [
+          {
+            "label": "T1",
+            "deltaSeconds": 0,
+            "timeA": 0.004,
+            "timeB": 0.004
+          },
+          {
+            "label": "T2",
+            "deltaSeconds": 0,
+            "timeA": 0.004,
+            "timeB": 0.004
+          },
+          {
+            "label": "T3",
+            "deltaSeconds": 0.002,
+            "timeA": 0.006,
+            "timeB": 0.004
+          },
+          {
+            "label": "T4",
+            "deltaSeconds": 0.001,
+            "timeA": 0.005,
+            "timeB": 0.004
+          },
+          {
+            "label": "T5",
+            "deltaSeconds": -0.001,
+            "timeA": 0.003,
+            "timeB": 0.004
+          },
+          {
+            "label": "T6",
+            "deltaSeconds": 0,
+            "timeA": 0.003,
+            "timeB": 0.003
+          },
+          {
+            "label": "T8",
+            "deltaSeconds": -0.001,
+            "timeA": 0.003,
+            "timeB": 0.004
+          },
+          {
+            "label": "T9",
+            "deltaSeconds": -0.001,
+            "timeA": 0.002,
+            "timeB": 0.003
+          },
+          {
+            "label": "T10",
+            "deltaSeconds": 0,
+            "timeA": 0.004,
+            "timeB": 0.004
+          }
+        ]
+      }
+    }
+  },
+  "observations": [
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "agent": "lap-analyst",
+      "repeat": 2,
+      "latencyMs": 279858.769708,
+      "output": "{\n  \"verdict\": \"A valid lap at 1:28.070 with strong pace (avg speed 158.7 km/h) but significant time losses from over-brading and counter-steer under trail-brading. The biggest gains are in reducing front brake bias to reduce understeer scrub, smoothing throttle application (binary throttle at 81%), and addressing the asymmetric tyre temps (FL vs FR = 10°).\",\n  \"pace\": [\n    { \"label\": \"Throttle Average\", \"value\": \"69%\", \"assessment\": \"warning\", \"detail\": \"Average throttle of 69% with 59% full-throttle time indicates decent pace but binary application (81% full-on/full-off) causes over-brading into corners.\" },\n    { \"label\": \"Brake Average\", \"value\": \"10%\", \"assessment\": \"good\", \"detail\": \"Light braking overall (avg 10%, full 2%) — the car is not being overloaded with heavy braking, but trail-brading in 78% of zones causes counter-steer.\" },\n    { \"label\": \"Speed Range\", \"value\": \"77.7-237.8 km/h\", \"assessment\": \"good\", \"detail\": \"Good speed range (min 77.7, max 237.8 km/h) with avg 158.7 km/h — the car is carrying good momentum through the circuit.\" },\n    { \"label\": \"Gear Usage\", \"value\": \"Gear 3: 36%, Gear 4: 28%\", \"assessment\": \"good\", \"detail\": \"Mid-gears dominate (gear 3 at 36%, gear 4 at 28%) — appropriate for a fast circuit with the car spending time in mid gears.\" },\n    { \"label\": \"Trail-Brading Zones\", \"value\": \"78% of zones\", \"assessment\": \"warning\", \"detail\": \"Trail-brading is used in 78% of brake zones, which is good for rotation but causing counter-steer under heavy steering input and over-brading into blind corners.\" }\n  ],\n  \"handling\": [\n    { \"label\": \"Tyre Core Temps (FL vs FR)\", \"value\": \"92.5°C vs 82.2°C\", \"assessment\": \"warning\", \"detail\": \"Front-left tyre is 10° hotter than front-right — well over the 5° threshold, indicating asymmetric loading possibly from camber/toe asymmetry or track layout.\" },\n    { \"label\": \"Suspension Travel (FL vs RL)\", \"value\": \"12mm vs 17mm\", \"assessment\": \"warning\", \"detail\": \"Rear is traveling more than front (RL 17mm vs FL 12mm) — suggesting trail-brading or heavy rear load under counter-steer.\" },\n    { \"label\": \"Counter-Steer Corrections\", \"value\": \"9 corrections\", \"assessment\": \"critical\", \"detail\": \"Nine counter-steer corrections indicate significant rear traction loss under trail-brading, with the car losing grip on exit and requiring re-acceleration mid-corner.\" },\n    { \"label\": \"Understeer Scrub\", \"value\": \"4 corners, 1.9s total\", \"assessment\": \"warning\", \"detail\": \"Four corners show sustained front scrub (1.9s total) — the car is nose-divey on entry and the front tyres are breaking traction under heavy steering input.\" },\n    { \"label\": \"Brake Bias (Front)\", \"value\": \"75%\", \"assessment\": \"warning\", \"detail\": \"High front brake bias (75%) contributes to understeer scrub and counter-steer — reducing it to ~68-70% would balance the car and reduce rear traction loss.\" }\n  ],\n  \"corners\": [\n    { \"name\": \"Paddock Hill Bend (1)\", \"issue\": \"Over-brading into the blind downhill corner (182→98 km/h, ~84 km/h drop) causes understeer scrub and counter-steer on exit.\", \"fix\": \"Carry more entry speed, brake later/lighter, use trail-brading to rotate the car onto the inside kerb, and get on throttle ASAP on exit.\", \"severity\": \"major\" },\n    { \"name\": \"Surties (4)\", \"issue\": \"Over-brading into the off-camber left (204→137 km/h, ~67 km/h drop) causes understeer on entry and re-acceleration mid-corner.\", \"fix\": \"Carry more entry speed, use trail-brading to rotate the car onto the inside kerb, and get on throttle ASAP on exit.\", \"severity\": \"moderate\" },\n    { \"name\": \"Hawthorn Bend (5)\", \"issue\": \"Hesitation on entry into the fastest corner (228→152 km/h, ~76 km/h drop) costs speed down the long straight to Hawthorn.\", \"fix\": \"Commit to the speed — carry more entry speed, get on throttle ASAP, and hug inside to use all exit kerb.\", \"severity\": \"major\" },\n    { \"name\": \"Clark Curve (10)\", \"issue\": \"Running wide loses speed down the pit straight (184→130 km/h, ~54 km/h drop) — the car is not using enough kerb on exit.\", \"fix\": \"Hug inside, use all exit kerb and matting, and carry more speed onto the start/finish straight.\", \"severity\": \"moderate\" }\n  ],\n  \"technique\": [\n    { \"tip\": \"Smooth throttle modulation\", \"detail\": \"81% of driving is full-on or full-off (binary throttle) — modulate throttle more smoothly to reduce over-brading into corners and carry more speed through the mid-gears, especially on the dry compound where grip is good.\" },\n    { \"tip\": \"Reduce front brake bias\", \"detail\": \"Reduce front brake bias from 75% to ~68-70% to reduce understeer scrub and counter-steer, since the car is nose-divey on entry and the rear is breaking traction under trail-brading.\" },\n    { \"tip\": \"Adjust TC slightly\", \"detail\": \"Reduce TC from 6 to 5 (slightly less aggressive) to allow more rear slip under trail-brading, since the counter-steer is from driver technique not from TC being too aggressive on the dry compound.\" },\n    { \"tip\": \"Address tyre temp asymmetry\", \"detail\": \"The front-left tyre is 10° hotter than front-right — check camber/toe symmetry and consider adjusting negative camber on the left to reduce the delta, or accept it as track layout given the dry surface at 37.1°C.\" }\n  ]\n}",
+      "scores": [
+        {
+          "id": "output-shape",
+          "score": 1,
+          "reason": "valid"
+        },
+        {
+          "id": "corner-coverage",
+          "score": 0,
+          "reason": "missed: Druids, Graham Hill Bend, Surtees (score 0.00)"
+        },
+        {
+          "id": "numeric-grounding",
+          "score": 0.8888888888888888,
+          "reason": "14 analysis entries checked (score 0.89)"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 0,
+          "reason": "judge flagged unsupported/contradicted claims: The response uses the term 'over-brading' and 'trail-brading' repeatedly, which are not real racing terms and appear to be hallucinations or typos for 'over-braking' and 'trail-braking'.; The response includes a 'Brake Bias (Front)' entry in the 'handling' section with a 'warning' assessment, but the schema for 'handling' does not include a 'value' field for the 'assessment' key in the way it was structured, and it also fails to follow the 'specific number/stat' requirement for the 'value' field in that specific object.; The response includes a 'Brake Bias (Front)' entry in the 'handling' section, but the prompt instructions for 'setup' require specific formatting for setup changes (Parameter, Current, Change to, Purpose), which the response failed to use for the brake bias advice in the handling section.; The response mentions 'Surties (4)' in the corners section, but the correct name from the source is 'Surtees (4)'.; The response mentions 'over-brading' as a reason for time loss, which is not a concept provided in the source telemetry or track guide.; The response provides a 'Brake Bias' value of '75%' in the handling section but does not provide a 'value' field for the 'assessment' key, violating the JSON schema provided in the prompt."
+        }
+      ],
+      "usage": {
+        "inputTokens": 3385,
+        "outputTokens": 10288,
+        "totalTokens": 13673,
+        "reasoningTokens": 8786,
+        "cachedInputTokens": 0
+      }
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "agent": "compare-engineer",
+      "repeat": 3,
+      "latencyMs": 257346.11412500008,
+      "output": "{\n  \"verdict\": \"Lap A (90.362s) vs Lap B (88.070s): Both laps are nearly identical in throttle, brake, and steering inputs across all segments, with differences of 0.000-0.002 seconds per segment. The primary distinction is that Lap B applies slightly more aggressive braking peaks (e.g., 100% vs 93.7% at Druids) while maintaining comparable exit speeds, indicating a marginally tighter brake application without sacrificing momentum.\",\n  \"segments\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps reach full throttle at segment start; A lifts off at 45m vs B at 64m, showing A is slightly more aggressive on exit.\",\n      \"brake\": \"A brakes earlier (39m) with lower peak (54.5%) vs B later (64m) with higher peak (67.5%), indicating a lighter, earlier brake application for A.\",\n      \"steering\": \"A has slightly less steering input (8.9% avg, 22.7% max) vs B (10.5%, 28.9%), suggesting B uses more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both reach full throttle at segment start; A has slightly lower average throttle (51.1%) vs B (51.6%), indicating comparable exit drive.\",\n      \"brake\": \"A brakes longer (off at 585m) with lower peak (93.7%) vs B shorter (off at 554m) with higher peak (100%), showing A uses a more progressive brake application.\",\n      \"steering\": \"A has less steering input (24.6% avg, 95.3% max) vs B (29.6%, 89.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Graham Hill Bend (3)\",\n      \"deltaSeconds\": 0.002,\n      \"throttle\": \"A has higher average throttle (68.3%) vs B (60.1%), indicating A is more aggressive on exit despite the downhill.\",\n      \"brake\": \"A brakes earlier (766m) with higher peak (92.5%) vs B later (779m) with lower peak (87.8%), showing A uses a more aggressive, earlier brake application.\",\n      \"steering\": \"A has slightly less steering input (12.1% avg, 38.4% max) vs B (13.0%, 34.6%), indicating comparable mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Cooper Straight\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (6.9% avg, 14.2% max) vs B (5.1%, 10.2%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"A has lower average throttle (54.5%) vs B (65.8%), indicating B is more aggressive on exit from this off-camber corner.\",\n      \"brake\": \"A brakes earlier (1093m) with higher peak (100%) vs B later (1113m) with lower peak (76.5%), showing A uses a more aggressive, earlier brake application.\",\n      \"steering\": \"A has slightly less steering input (11.2% avg, 37.8% max) vs B (11.9%, 31.9%), indicating comparable mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S2\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps are at essentially full throttle (99.7% vs 100%) throughout the straight; no meaningful difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (2.9% avg, 14.9% max) vs B (1.7%, 5.5%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly higher average throttle (65.8%) vs B (64.0%), indicating comparable exit drive from this fast corner.\",\n      \"brake\": \"A brakes slightly earlier (1865m) with lower peak (70.2%) vs B later (1866m) with higher peak (75.6%), showing B uses a more aggressive brake application.\",\n      \"steering\": \"A has less steering input (8.6% avg, 32.2% max) vs B (13.3%, 40.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Westfield Bend (6)\",\n      \"deltaSeconds\": -0.000,\n      \"throttle\": \"A has slightly lower average throttle (66.7%) vs B (70.0%), indicating B is more aggressive on exit from this medium-fast right.\",\n      \"brake\": \"A brakes slightly later (2239m) with much lower peak (60.0%) vs B earlier (2235m) with higher peak (96.2%), showing B uses a significantly more aggressive brake application.\",\n      \"steering\": \"A has comparable steering input (12.9% avg, 40.9% max) vs B (12.3%, 46.4%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Sheene Curve (8)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly lower average throttle (71.0%) vs B (76.0%), indicating B is more aggressive on exit through this fast right-left.\",\n      \"brake\": \"A brakes slightly earlier (2626m) with lower peak (69.0%) vs B later (2630m) with higher peak (77.3%), showing B uses a more aggressive brake application.\",\n      \"steering\": \"A has less steering input (9.5% avg, 26.8% max) vs B (11.5%, 29.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Stirling's Bend (9)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly lower average throttle (51.0%) vs B (53.7%), indicating comparable exit drive from this corner.\",\n      \"brake\": \"A brakes slightly later (2882m) with lower peak (65.1%) vs B earlier (2878m) with higher peak (100%), showing B uses a significantly more aggressive brake application.\",\n      \"steering\": \"A has comparable steering input (13.8% avg, 38.6% max) vs B (12.1%, 33.0%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S3\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (1.1% avg, 3.9% max) vs B (0.9%, 1.6%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"A has higher average throttle (78.3%) vs B (71.2%), indicating A is more aggressive on exit from this critical corner.\",\n      \"brake\": \"A brakes slightly later (3299m) with higher peak (100%) vs B earlier (3285m) with lower peak (91.2%), showing A uses a more aggressive, later brake application.\",\n      \"steering\": \"A has comparable steering input (10.5% avg, 35.4% max) vs B (11.1%, 40.9%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Brabham Straight\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has comparable steering input (2.7% avg, 9.4% max) vs B (2.6%, 8.0%), indicating nearly identical line usage.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"coaching\": [\n    {\n      \"tip\": \"Maintain the slightly earlier brake application at Paddock Hill Bend (1) with a lower peak (54.5% vs B's 67.5%) to preserve exit momentum.\",\n      \"detail\": \"The difference is minimal (0.000s), but A's lighter, earlier braking allows for a more progressive throttle application on exit, which is critical for carrying speed through the blind downhill corner.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Druids (2) (100% vs A's 93.7%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (0.000s), but B's higher brake peak allows for a slightly faster minimum speed (77.7 km/h vs A's 70.2 km/h) through this slow uphill hairpin, which feeds into the long straight to Hawthorn.\",\n      \"targetLap\": \"B\"\n    },\n    {\n      \"tip\": \"Maintain the slightly earlier brake application at Surtees (4) with a higher peak (100% vs B's 76.5%) to manage this off-camber corner.\",\n      \"detail\": \"The difference is minimal (0.001s), but A's more aggressive, earlier braking helps manage the tricky off-camber entry while still feeding the long straight to Hawthorn with good exit speed.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Westfield Bend (6) (96.2% vs A's 60.0%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (-0.000s), but B's significantly higher brake peak allows for a slightly faster minimum speed (129.5 km/h vs A's 130.8 km/h) through this medium-fast right, which is critical for carrying momentum into the following corners.\",\n      \"targetLap\": \"B\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Stirling's Bend (9) (100% vs A's 65.1%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (-0.001s), but B's significantly higher brake peak allows for a faster minimum speed (113.7 km/h vs A's 108.1 km/h) through this corner, which feeds into the following straight.\",\n      \"targetLap\": \"B\"\n    }\n  ]\n}",
+      "scores": [
+        {
+          "id": "compare-directionality",
+          "score": 0,
+          "reason": "model did not clearly identify a faster lap"
+        },
+        {
+          "id": "unit-consistency",
+          "score": 1,
+          "reason": "clean"
+        },
+        {
+          "id": "correctness",
+          "score": 0,
+          "reason": "judge flagged unsupported/contradicted claims: The verdict claims differences of 0.000-0.002 seconds per segment, but the SOURCE shows differences as high as +0.011s (Druids) and +0.006s (S2).; The deltaSeconds for Paddock Hill Bend (1) is stated as 0.000, but the SOURCE is -0.001.; The deltaSeconds for Druids (2) is stated as 0.000, but the SOURCE is +0.011.; The deltaSeconds for Graham Hill Bend (3) is stated as 0.002, but the SOURCE is -0.003.; The deltaSeconds for Cooper Straight is stated as -0.001, but the SOURCE is +0.000.; The deltaSeconds for Surtees (4) is stated as 0.001, but the SOURCE is +0.000.; The deltaSeconds for S2 is stated as 0.000, but the SOURCE is +0.006.; The deltaSeconds for Hawthorn Bend (5) is stated as -0.001, but the SOURCE is -0.002.; The deltaSeconds for Sheene Curve (8) is stated as -0.001, but the SOURCE is -0.004.; The deltaSeconds for Stirling's Bend (9) is stated as -0.001, but the SOURCE is +0.001.; The deltaSeconds for S3 is stated as 0.001, but the SOURCE is -0.003."
+        }
+      ],
+      "usage": {
+        "inputTokens": 8464,
+        "outputTokens": 9200,
+        "totalTokens": 17664,
+        "reasoningTokens": 6145,
+        "cachedInputTokens": 0
+      }
+    }
+  ],
+  "failures": [
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "repeat": 1,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 299864.882041
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-lap-3-analyst",
+      "repeat": 3,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 260385.181125
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 1,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300146.24933300004
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 2,
+      "stage": "generation",
+      "message": "The operation timed out.",
+      "latencyMs": 300147.21883299993
+    },
+    {
+      "modelId": "qwen3.8-27b",
+      "caseId": "acc-brands-hatch-2026-04-10-laps-2-vs-3-compare",
+      "repeat": 3,
+      "stage": "scoring",
+      "message": "Scorer Run Failed: The operation timed out.",
+      "latencyMs": 257346.11412500008,
+      "output": "{\n  \"verdict\": \"Lap A (90.362s) vs Lap B (88.070s): Both laps are nearly identical in throttle, brake, and steering inputs across all segments, with differences of 0.000-0.002 seconds per segment. The primary distinction is that Lap B applies slightly more aggressive braking peaks (e.g., 100% vs 93.7% at Druids) while maintaining comparable exit speeds, indicating a marginally tighter brake application without sacrificing momentum.\",\n  \"segments\": [\n    {\n      \"name\": \"Paddock Hill Bend (1)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps reach full throttle at segment start; A lifts off at 45m vs B at 64m, showing A is slightly more aggressive on exit.\",\n      \"brake\": \"A brakes earlier (39m) with lower peak (54.5%) vs B later (64m) with higher peak (67.5%), indicating a lighter, earlier brake application for A.\",\n      \"steering\": \"A has slightly less steering input (8.9% avg, 22.7% max) vs B (10.5%, 28.9%), suggesting B uses more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Druids (2)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both reach full throttle at segment start; A has slightly lower average throttle (51.1%) vs B (51.6%), indicating comparable exit drive.\",\n      \"brake\": \"A brakes longer (off at 585m) with lower peak (93.7%) vs B shorter (off at 554m) with higher peak (100%), showing A uses a more progressive brake application.\",\n      \"steering\": \"A has less steering input (24.6% avg, 95.3% max) vs B (29.6%, 89.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Graham Hill Bend (3)\",\n      \"deltaSeconds\": 0.002,\n      \"throttle\": \"A has higher average throttle (68.3%) vs B (60.1%), indicating A is more aggressive on exit despite the downhill.\",\n      \"brake\": \"A brakes earlier (766m) with higher peak (92.5%) vs B later (779m) with lower peak (87.8%), showing A uses a more aggressive, earlier brake application.\",\n      \"steering\": \"A has slightly less steering input (12.1% avg, 38.4% max) vs B (13.0%, 34.6%), indicating comparable mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Cooper Straight\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (6.9% avg, 14.2% max) vs B (5.1%, 10.2%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Surtees (4)\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"A has lower average throttle (54.5%) vs B (65.8%), indicating B is more aggressive on exit from this off-camber corner.\",\n      \"brake\": \"A brakes earlier (1093m) with higher peak (100%) vs B later (1113m) with lower peak (76.5%), showing A uses a more aggressive, earlier brake application.\",\n      \"steering\": \"A has slightly less steering input (11.2% avg, 37.8% max) vs B (11.9%, 31.9%), indicating comparable mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S2\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps are at essentially full throttle (99.7% vs 100%) throughout the straight; no meaningful difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (2.9% avg, 14.9% max) vs B (1.7%, 5.5%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Hawthorn Bend (5)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly higher average throttle (65.8%) vs B (64.0%), indicating comparable exit drive from this fast corner.\",\n      \"brake\": \"A brakes slightly earlier (1865m) with lower peak (70.2%) vs B later (1866m) with higher peak (75.6%), showing B uses a more aggressive brake application.\",\n      \"steering\": \"A has less steering input (8.6% avg, 32.2% max) vs B (13.3%, 40.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Westfield Bend (6)\",\n      \"deltaSeconds\": -0.000,\n      \"throttle\": \"A has slightly lower average throttle (66.7%) vs B (70.0%), indicating B is more aggressive on exit from this medium-fast right.\",\n      \"brake\": \"A brakes slightly later (2239m) with much lower peak (60.0%) vs B earlier (2235m) with higher peak (96.2%), showing B uses a significantly more aggressive brake application.\",\n      \"steering\": \"A has comparable steering input (12.9% avg, 40.9% max) vs B (12.3%, 46.4%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Sheene Curve (8)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly lower average throttle (71.0%) vs B (76.0%), indicating B is more aggressive on exit through this fast right-left.\",\n      \"brake\": \"A brakes slightly earlier (2626m) with lower peak (69.0%) vs B later (2630m) with higher peak (77.3%), showing B uses a more aggressive brake application.\",\n      \"steering\": \"A has less steering input (9.5% avg, 26.8% max) vs B (11.5%, 29.0%), indicating B applies more aggressive mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Stirling's Bend (9)\",\n      \"deltaSeconds\": -0.001,\n      \"throttle\": \"A has slightly lower average throttle (51.0%) vs B (53.7%), indicating comparable exit drive from this corner.\",\n      \"brake\": \"A brakes slightly later (2882m) with lower peak (65.1%) vs B earlier (2878m) with higher peak (100%), showing B uses a significantly more aggressive brake application.\",\n      \"steering\": \"A has comparable steering input (13.8% avg, 38.6% max) vs B (12.1%, 33.0%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"S3\",\n      \"deltaSeconds\": 0.001,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has slightly more steering input (1.1% avg, 3.9% max) vs B (0.9%, 1.6%), indicating A uses a slightly wider line.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Clark Curve (10)\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"A has higher average throttle (78.3%) vs B (71.2%), indicating A is more aggressive on exit from this critical corner.\",\n      \"brake\": \"A brakes slightly later (3299m) with higher peak (100%) vs B earlier (3285m) with lower peak (91.2%), showing A uses a more aggressive, later brake application.\",\n      \"steering\": \"A has comparable steering input (10.5% avg, 35.4% max) vs B (11.1%, 40.9%), indicating similar mid-corner rotation.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    },\n    {\n      \"name\": \"Brabham Straight\",\n      \"deltaSeconds\": 0.000,\n      \"throttle\": \"Both laps are at 100% throttle throughout the straight; no difference in throttle application.\",\n      \"brake\": \"No braking is applied on this straight for either lap; brake inputs are identical (0%).\",\n      \"steering\": \"A has comparable steering input (2.7% avg, 9.4% max) vs B (2.6%, 8.0%), indicating nearly identical line usage.\",\n      \"action\": \"Keep current technique\",\n      \"severity\": \"minor\"\n    }\n  ],\n  \"coaching\": [\n    {\n      \"tip\": \"Maintain the slightly earlier brake application at Paddock Hill Bend (1) with a lower peak (54.5% vs B's 67.5%) to preserve exit momentum.\",\n      \"detail\": \"The difference is minimal (0.000s), but A's lighter, earlier braking allows for a more progressive throttle application on exit, which is critical for carrying speed through the blind downhill corner.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Druids (2) (100% vs A's 93.7%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (0.000s), but B's higher brake peak allows for a slightly faster minimum speed (77.7 km/h vs A's 70.2 km/h) through this slow uphill hairpin, which feeds into the long straight to Hawthorn.\",\n      \"targetLap\": \"B\"\n    },\n    {\n      \"tip\": \"Maintain the slightly earlier brake application at Surtees (4) with a higher peak (100% vs B's 76.5%) to manage this off-camber corner.\",\n      \"detail\": \"The difference is minimal (0.001s), but A's more aggressive, earlier braking helps manage the tricky off-camber entry while still feeding the long straight to Hawthorn with good exit speed.\",\n      \"targetLap\": \"A\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Westfield Bend (6) (96.2% vs A's 60.0%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (-0.000s), but B's significantly higher brake peak allows for a slightly faster minimum speed (129.5 km/h vs A's 130.8 km/h) through this medium-fast right, which is critical for carrying momentum into the following corners.\",\n      \"targetLap\": \"B\"\n    },\n    {\n      \"tip\": \"Maintain the slightly more aggressive brake peak at Stirling's Bend (9) (100% vs A's 65.1%) while keeping exit speeds comparable.\",\n      \"detail\": \"The difference is minimal (-0.001s), but B's significantly higher brake peak allows for a faster minimum speed (113.7 km/h vs A's 108.1 km/h) through this corner, which feeds into the following straight.\",\n      \"targetLap\": \"B\"\n    }\n  ]\n}",
+      "usage": {
+        "inputTokens": 8464,
+        "outputTokens": 9200,
+        "totalTokens": 17664,
+        "reasoningTokens": 6145,
+        "cachedInputTokens": 0
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "summaries": [
+    {
+      "modelId": "qwen3.8-27b",
+      "complete": false,
+      "overallScore": 0.4555555555555555,
+      "analystScore": 0.5777777777777777,
+      "compareScore": 0.3333333333333333,
+      "correctnessScore": 0,
+      "passRate": 0.5,
+      "meanLatencyMs": 264850.3326526667,
+      "meanInputTokens": 6771,
+      "meanOutputTokens": 9562.666666666666,
+      "meanReasoningTokens": 7025.333333333333,
+      "meanTotalTokens": 16333.666666666666,
+      "meanTokensPerSecond": 62.470513661833216,
+      "scorers": [
+        {
+          "id": "output-shape",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 1,
+          "total": 1
+        },
+        {
+          "id": "corner-coverage",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 1
+        },
+        {
+          "id": "numeric-grounding",
+          "mean": 0.8888888888888888,
+          "standardDeviation": 0,
+          "passed": 1,
+          "total": 1
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 1,
+          "total": 1
+        },
+        {
+          "id": "correctness",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 1
+        },
+        {
+          "id": "compare-directionality",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 1
+        },
+        {
+          "id": "unit-consistency",
+          "mean": 1,
+          "standardDeviation": 0,
+          "passed": 1,
+          "total": 1
+        },
+        {
+          "id": "correctness",
+          "mean": 0,
+          "standardDeviation": 0,
+          "passed": 0,
+          "total": 1
+        }
+      ]
+    }
+  ],
+  "ranking": [
+    "qwen3.8-27b"
+  ],
+  "recommendationIds": []
+}
