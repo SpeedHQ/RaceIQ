@@ -70,14 +70,14 @@ jobs:
         if: inputs.delivery == 'commit'
         env:
           TARGET_REF: ${{ inputs.target_ref }}
-        shell: powershell
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add client/src/stories/__snapshots__/snapshot-*.png assets/screenshots
-          if (git diff --cached --quiet) {
-            Write-Host "Baselines already match CI render."
-          } else {
+          if git diff --cached --quiet; then
+            echo "Baselines already match CI render."
+          else
             git commit -m "chore(ci): regenerate dashboard baselines in CI env [skip ci]"
-            git push origin "HEAD:$env:TARGET_REF"
-          }
+            git push origin "HEAD:$TARGET_REF"
+          fi
