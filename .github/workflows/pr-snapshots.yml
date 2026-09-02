@@ -110,6 +110,16 @@ jobs:
 
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
+        shell: powershell
         run: |
-          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot' from client/ to update them in the CI renderer."
+          $diffs = @(Get-ChildItem -Path "pr-preview" -Filter "*-diff.png" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+          if ($diffs.Count -gt 0) {
+            Write-Output "::error::Committed Storybook snapshots do not match ($($diffs.Count) diff(s))."
+            foreach ($diff in $diffs) {
+              Write-Output "::error::Snapshot mismatch artifact: $($diff.Name)"
+            }
+            Write-Output "Download 'pr-screenshot-preview' artifact for before/after/diff images."
+          } else {
+            Write-Output "::error::Committed Storybook snapshots do not match, but no diff artifacts were generated."
+          }
           exit 1
