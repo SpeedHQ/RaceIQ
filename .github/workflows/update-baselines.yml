@@ -27,7 +27,10 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     # Keep baseline renders on the same pinned Playwright version used by PRs.
     permissions:
       contents: write
@@ -50,11 +53,10 @@ jobs:
         run: bun install
 
       - name: Regenerate baselines
-        working-directory: client
         env:
           RACEIQ_CANONICAL_SNAPSHOT_ENV: "1"
-        # snapshot = playwright test --update-snapshots && copy to assets/screenshots
-        run: bun run snapshot
+        # Run the same pinned Linux renderer used by PR comparison.
+        run: bun scripts/ui/run-snapshot-in-docker.ts --update
 
       - name: Upload generated baselines
         uses: actions/upload-artifact@v7

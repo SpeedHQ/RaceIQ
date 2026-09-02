@@ -36,7 +36,10 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -63,27 +66,26 @@ jobs:
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        shell: bash
+        shell: powershell
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-          fetchedBaseSha="$(git rev-parse --verify FETCH_HEAD)"
-          if [[ "$fetchedBaseSha" != "$BASE_SHA" ]]; then
-            git fetch --no-tags origin "$BASE_SHA"
-            fetchedBaseSha="$(git rev-parse --verify FETCH_HEAD)"
-          fi
-          if [[ "$fetchedBaseSha" != "$BASE_SHA" ]]; then
-            echo "Fetched base commit $fetchedBaseSha does not match $BASE_SHA" >&2
-            exit 1
-          fi
-          git merge --no-edit "$BASE_SHA"
+          git fetch --no-tags origin "refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
+          $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            git fetch --no-tags origin $env:BASE_SHA
+            $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
+          }
+          if ($fetchedBaseSha -ne $env:BASE_SHA) {
+            throw "Fetched base commit $fetchedBaseSha does not match $env:BASE_SHA"
+          }
+          git merge --no-edit $env:BASE_SHA
 
 
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
+        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -98,14 +100,10 @@ jobs:
       - name: Pin Playwright Chromium
         working-directory: client
         run: bunx playwright install chromium
-
-
       - name: Render and compare against committed baselines
         id: storybook-render
-        working-directory: client
-        # This is the collaborator assertion: `snapshot:test` (no --update)
-        # fails when the PR render differs from its committed snapshot.
-        run: bun run snapshot:test
+        # Run the same pinned Linux renderer used to generate committed baselines.
+        run: bun scripts/ui/run-snapshot-in-docker.ts
         # Keep running so the diff can be collected and posted as UI-change
         # awareness even when the collaborator assertion fails.
         continue-on-error: true
