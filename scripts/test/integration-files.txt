@@ -76,6 +76,7 @@ test/race-results/raw-capture-identity.test.ts
 test/routes/car-routes-game-id.test.ts
 test/routes/import-ownership.test.ts
 test/routes/lap-analysis-route.test.ts
+test/routes/lap-analysis-integration.test.ts
 test/routes/laps-issues-route.test.ts
 test/routes/live-route.test.ts
 test/routes/recording-support.test.ts
