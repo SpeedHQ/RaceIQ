@@ -9,9 +9,9 @@ import { sessions, laps } from "../../server/db/schema";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../server/ai/resolved-ai-internals";
 import { getModel } from "../../server/ai/model-provider";
 import { MODEL_EVAL_FIXTURES, loadParsedModelEvalFixture, buildModelEvalDatasetDefinitions, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
+import { modelEvalModelIds } from "../../mastra/evals/model-eval-config";
 import { RequestContext } from "@mastra/core/request-context";
 const REPEAT_COUNT = 3;
-const DEFAULT_MODELS = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");
 const judgeEnabled = process.env.EVAL_LOCAL_JUDGE === "1";
 const judgeModel = process.env.EVAL_JUDGE_MODEL ?? "google/gemma-4-e2b";
@@ -26,7 +26,7 @@ for (const arg of args) {
   } else if (arg.startsWith("--")) throw new Error(`Unknown flag: ${arg}`);
   else if (arg.trim()) models.push(arg.trim());
 }
-const modelIds = [...new Set(models.length ? models : DEFAULT_MODELS)];
+const modelIds = modelEvalModelIds(models, judgeEnabled, judgeModel);
 const experimentSetId = new Date().toISOString().replace(/[:.]/g, "-");
 const fixtureId = process.env.EVAL_FIXTURE_ID ?? "acc-brands-hatch-2026-04-10";
 const fixture = MODEL_EVAL_FIXTURES[fixtureId];
