@@ -80,7 +80,7 @@ const report = await mod.buildModelRecommendation(mastra, experimentSetId, compa
 const outDir = resolve(process.cwd(), "test/artifacts/model-evals"); await mkdir(outDir, { recursive: true });
 const stem = `${modelIds.map(m => m.replace(/[^A-Za-z0-9._-]+/g, "-")).join("__")}__${experimentSetId}`;
 await Bun.write(`${outDir}/${stem}.json`, JSON.stringify(report, null, 2));
-await Bun.write(`${outDir}/${stem}.md`, "# Model evaluation\n\n" + JSON.stringify(report, null, 2));
+await Bun.write(`${outDir}/${stem}.md`, mod.renderModelRecommendationMarkdown(report));
 console.log(`JSON: test/artifacts/model-evals/${stem}.json`); console.log(`Markdown: test/artifacts/model-evals/${stem}.md`);
 const summaries = report.summaries;
 if (experiments.some(e => e.status !== "completed") || !judgeEnabled || !summaries.some(summary => summary.eligible)) process.exitCode = 1;
