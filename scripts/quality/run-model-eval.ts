@@ -31,7 +31,7 @@ const fixtureId = process.env.EVAL_FIXTURE_ID ?? "acc-brands-hatch-2026-04-10";
 const fixture = MODEL_EVAL_FIXTURES[fixtureId];
 if (!fixture) {
   console.error(`Model eval setup failed: unknown fixture "${fixtureId}" (available: ${Object.keys(MODEL_EVAL_FIXTURES).join(", ")})`);
-  process.exit(1);
+  throw new Error(`Model eval setup failed: unknown fixture "${fixtureId}" (available: ${Object.keys(MODEL_EVAL_FIXTURES).join(", ")})`);
 }
 
 function endpoint(): string {
@@ -45,7 +45,7 @@ function endpoint(): string {
 let baseURL: string;
 try { baseURL = endpoint(); } catch (error) {
   console.error(`Model eval preflight failed: cannot read ${process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1"}/models: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+  throw new Error(`Model eval preflight failed: cannot read ${process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1"}/models`);
 }
 const modelsUrl = `${baseURL}/models`;
 let available: string[];
@@ -57,12 +57,12 @@ try {
   available = (body as { data: { id: string }[] }).data.map((item) => item.id);
 } catch (error) {
   console.error(`Model eval preflight failed: cannot read ${modelsUrl}: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+  throw new Error(`Model eval preflight failed: cannot read ${modelsUrl}`);
 }
 const missing = [...modelIds, ...(judgeEnabled ? [judgeModel] : [])].filter((id) => !available.includes(id));
 if (missing.length) {
   console.error(`Model eval preflight failed: unavailable model(s): ${[...new Set(missing)].join(", ")}`);
-  process.exit(1);
+  throw new Error(`Model eval preflight failed: unavailable model(s): ${[...new Set(missing)].join(", ")}`);
 }
 
 let parsedFixture: Awaited<ReturnType<typeof loadParsedModelEvalFixture>>;
@@ -75,7 +75,7 @@ try {
   cases = await buildModelEvalCases(parsedFixture);
 } catch (error) {
   console.error(`Model eval setup failed: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+  throw new Error(`Model eval setup failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 const observations: ModelEvalObservation[] = [];

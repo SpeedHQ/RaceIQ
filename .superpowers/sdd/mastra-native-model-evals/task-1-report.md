@@ -18,3 +18,10 @@ Output: wrapper syntax check passed; second command began executing runner top-l
 
 - `run-model-eval.ts` retains legacy generation/scoring/report logic intentionally; later tasks replace it. Running it directly bypasses isolation and is not public CLI contract.
 - No project-wide tests/builds run per assignment constraints.
+
+## Review Fixes
+
+- Restored existing `mastra:migrate` script alongside new Studio server script.
+Focused check: attempted `bun --check scripts/quality/model-eval.ts && bun -e 'JSON.parse(await Bun.file("package.json").text()); console.log("package.json: valid JSON")'`; wrapper check triggered Bun's top-level dynamic import and database initialization, timing out after 30 seconds before package validation. No syntax error was reported before timeout.
+
+Concern: direct runner execution still performs top-level initialization; public wrapper remains required for isolation.
