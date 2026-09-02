@@ -58,7 +58,7 @@
     "fixtures:iracing:seed": "bun scripts/iracing/generate-seed-fixture.ts",
     "build:installer": "bun scripts/build/build-installer.ts",
     "mastra:studio": "portless studio bun scripts/dev/mastra-studio.ts",
-    "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
+    "mastra:model-eval:studio-server": "DATA_DIR=\"$PWD/.data-test-model-eval-studio\" MASTRA_STORAGE_URL=\"file:$PWD/data/mastra-model-evals.db\" MASTRA_OBSERVABILITY_PATH=\"$PWD/data/mastra-model-evals-observability.duckdb\" bun run server/index.ts",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && PW_SERVER_SET=fresh DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
     "test:screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --project=mobile-screenshots",
