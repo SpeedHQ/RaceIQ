@@ -77,9 +77,15 @@ jobs:
             bun run telemetry:catalog:check
           }
 
+      - name: Run unit tests
+        run: bun run test:unit
+
+
+
+      - name: Run integration tests
+        run: bun run test:integration
       - name: Build RaceIQ
         run: bun run build
-
       - name: Upload Windows E2E dist artifact
         if: always()
         uses: actions/upload-artifact@v7
@@ -88,12 +94,6 @@ jobs:
           path: dist/
           if-no-files-found: ignore
           retention-days: 1
-
-      - name: Run unit tests
-        run: bun run test:unit
-
-      - name: Run integration tests
-        run: bun run test:integration
 
   playwright-dev:
     if: (github.event_name == 'pull_request' && !github.event.pull_request.draft) || github.event_name == 'workflow_dispatch'
