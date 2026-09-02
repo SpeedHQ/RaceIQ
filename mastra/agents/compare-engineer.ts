@@ -16,9 +16,11 @@ import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { getCompareAnalysisTool } from "../tools/compare-analysis";
 import { setupEngineerTools } from "../tools/setup-engineer";
+import { getModel } from "../../server/ai/model-provider";
 export const compareEngineerAgent = new Agent({
   id: "compare-engineer",
   name: "Compare Engineer",
+  model: ({ requestContext }) => getModel("analysis", requestContext),
   instructions: () => {
     const s = loadSettings();
     return (
@@ -30,7 +32,7 @@ export const compareEngineerAgent = new Agent({
     const config = providerConfigFromRequestContext(requestContext);
     return (config
       ? buildCompareEngineerExecutionOptions(config)
-      : {}) as unknown as AgentExecutionOptions;
+      : {}) as unknown as AgentExecutionOptions<undefined>;
   },
   tools: {
     get_track_guide: getTrackGuideTool,
