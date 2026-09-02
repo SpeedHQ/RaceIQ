@@ -12,7 +12,7 @@ import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
-import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, sortSessions } from "./helpers";
+import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, selectionIncludesMotec, sortSessions } from "./helpers";
 import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
 import { SessionToolbar } from "./SessionToolbar";
@@ -55,6 +55,10 @@ export function SessionsPage() {
   );
 
   const runExport = useCallback(async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
+    if (selectionIncludesMotec(selection, sessions, allLaps) &&
+      !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
+      return;
+    }
     setExporting(true);
     try {
       await exportLapsZip(selection);
@@ -63,7 +67,7 @@ export function SessionsPage() {
     } finally {
       setExporting(false);
     }
-  }, []);
+  }, [allLaps, sessions]);
 
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
   useEffect(() => {

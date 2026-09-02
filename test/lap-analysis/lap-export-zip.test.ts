@@ -198,7 +198,7 @@ describe("buildLapsZip", () => {
   test("selected non-contiguous laps export as separated segments", async () => {
     const { lapIds } = await fixture();
     const { bytes, manifest } = await buildLapsZip([lapIds[0], lapIds[2]]);
-    expect(manifest.version).toBe(3);
+    expect(manifest.version).toBe(4);
     expect(manifest.entries[0]!.laps.map((l) => l.lapNumber)).toEqual([1, 3]);
     const slice = readEntry(bytes, manifest.entries[0]!.file);
     expect(frameIndices(slice)).toEqual([0, 1, 2, 4, 5]);

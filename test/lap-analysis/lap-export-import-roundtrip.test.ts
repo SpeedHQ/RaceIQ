@@ -23,6 +23,7 @@ import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { importSessionFrames } from "../../server/session-capture/import-pipeline";
 import { getSessionResult } from "../../server/db/session-result-queries";
 import { buildLapsZip, importLapsZip, type LapsZipManifest } from "../../server/laps/archive";
+import { importMotec } from "../../server/motec/import";
 import { getSessionTelemetry, parseRawLapFrames, parseSessionLapsBatched } from "../../server/db/telemetry-replay-storage";
 import { readRecordedTelemetry } from "../../server/session-capture/replay-packets";
 import { reprocessSession } from "../../server/session-capture/reprocess";
@@ -34,6 +35,7 @@ import {
 } from "../../server/session-capture/framing";
 import { queryLapTelemetryBySemanticId } from "../../server/telemetry/replay";
 import type { GameId } from "../../shared/games/ids";
+import { buildLd, buildLdx, syntheticStint } from "../support/motec/ld";
 initGameAdapters();
 initServerGameAdapters();
 
@@ -181,7 +183,33 @@ describe("lap export → import round-trip (real capture)", () => {
       expect(importedPackets.map(({ TimestampMS: _timestamp, ...packet }) => packet))
         .toEqual(sourcePackets.map(({ TimestampMS: _timestamp, ...packet }) => packet));
     }, 120000);
+
   }
+  test("mixed BIN and MoTeC selection keeps BIN sliced and MoTeC whole-session", async () => {
+    const { rows: binRows } = await seedSession({ minimumLaps: 1 });
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    const motecImport = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), { gameId: "ac-evo" });
+    const motecSessionId = motecImport.laps[0]!.sessionId;
+    createdSessions.push(motecSessionId);
+    const motecSession = await db.select().from(sessions).where(eq(sessions.id, motecSessionId)).get();
+    if (motecSession?.rawFile) tmpFiles.push(motecSession.rawFile);
+    const motecRows = await db.select().from(laps).where(eq(laps.sessionId, motecSessionId)).all();
+    const { bytes, manifest } = await buildLapsZip([binRows[0]!.id, motecRows[0]!.id]);
+
+    expect(manifest.entries).toHaveLength(2);
+    expect(manifest.entries.map((entry) => entry.file)).toEqual(expect.arrayContaining([
+      expect.stringMatching(/\.bin\.gz$/),
+      expect.stringMatching(/\.motec\.zip$/),
+    ]));
+    expect(manifest.entries.find((entry) => entry.file.endsWith(".bin.gz"))!.laps).toHaveLength(1);
+    expect(manifest.entries.find((entry) => entry.file.endsWith(".motec.zip"))!.laps).toHaveLength(motecRows.length);
+
+    const result = await importLapsZip(bytes);
+    expect(result.errors).toEqual([]);
+    expect(result.skipped).toBe(0);
+    expect(result.imported).toBe(1 + motecRows.length);
+    result.laps.forEach((lap) => createdSessions.push(lap.sessionId));
+  }, 120_000);
 
   test("first and last selected laps round-trip as compact segments", async () => {
     const { sid, rows } = await seedSession();
@@ -189,7 +217,7 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(exportable).toHaveLength(2);
     const [first, last] = exportable;
     const { bytes: zip, manifest } = await buildLapsZip([first.id, last.id]);
-    expect(manifest.version).toBe(3);
+    expect(manifest.version).toBe(4);
     expect(manifest.entries).toHaveLength(1);
     expect(manifest.entries[0]?.laps.map((l) => l.lapNumber)).toEqual([first.lapNumber, last.lapNumber]);
     expect(manifest.entries[0]?.laps.map((l) => l.lapTime)).toEqual([first.lapTime, last.lapTime]);
