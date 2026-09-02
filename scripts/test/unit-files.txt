@@ -73,3 +73,4 @@ test/tooling/version-label.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/visualization/suspension.test.ts
 test/tooling/playwright-setup-seed.test.ts
+test/ai/evals/model-eval-recommendation.test.ts
