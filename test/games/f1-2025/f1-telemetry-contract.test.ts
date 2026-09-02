@@ -77,4 +77,14 @@ describe("F1 telemetry contract", () => {
     expect(packet?.f1?.resultReason).toBe(6);
     expect(packet?.f1?.resultSource).toBe("final-classification");
   });
+  test("primes parser state without emitting a packet", () => {
+    const accumulator = new F1StateAccumulator();
+    const motion = frame(Buffer.alloc(60));
+    const session = frame(Buffer.alloc(9));
+    const lapData = frame(Buffer.alloc(57));
+    accumulator.primeParserState(header(0), motion);
+    accumulator.primeParserState(header(1), session);
+    accumulator.primeParserState(header(2), lapData);
+    expect(accumulator.feed(header(6), frame(Buffer.alloc(60)))).not.toBeNull();
+  });
 });

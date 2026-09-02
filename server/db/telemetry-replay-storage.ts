@@ -7,8 +7,10 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { iterateSessionCaptureFrames, loadSessionSource, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
+import { countFullPacketMaterialized, countParserStatePrime } from "../session-capture/test-instrumentation";
+
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
 // packet to pick a tighter estimate is precise enough for an eviction budget
@@ -310,6 +312,15 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
   }
   return packets;
 }
+function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
+  try {
+    countFullPacketMaterialized();
+    const packet = serverGame.tryParse(frame, state);
+    if (packet) normalizeReplayPacket(packet, serverGame);
+    return packet;
+  } catch { return null; }
+}
+
 async function parseRawLapFramesFromSource(
   source: SessionCaptureSource,
   rawByteOffset: number,
@@ -317,60 +328,48 @@ async function parseRawLapFramesFromSource(
 ): Promise<TelemetryPacket[]> {
   const serverGame = getServerGame(source.gameId);
   const state = serverGame.createParserState?.() ?? null;
+  let fileSize = source.rawFile.endsWith(".gz") ? 0 : Bun.file(source.rawFile).size;
   const packets: TelemetryPacket[] = [];
-  let started = false;
-  let framesRead = 0;
-
-  for await (const record of iterateSessionCaptureFrames(source)) {
-    if (!started) {
-      if (record.offset < rawByteOffset) {
-        try {
-          serverGame.tryParse(record.frame, state);
-        } catch {
-          /* warmup best-effort */
+  let found = false;
+  let targetCount = 0;
+  for await (const { offset, frame } of iterateSessionCaptureFrames(source)) {
+    fileSize = Math.max(fileSize, offset + 4 + frame.length);
+    if (!found) {
+      if (offset < rawByteOffset) {
+        if (state != null && serverGame.primeParserState) {
+          try { countParserStatePrime(); serverGame.primeParserState(frame, state); } catch {}
         }
         continue;
       }
-      if (record.offset !== rawByteOffset) break;
-      started = true;
+      if (offset !== rawByteOffset) {
+        throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is not aligned to a capture frame in ${source.rawFile}`, {
+          rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "truncated-frame",
+        });
+      }
+      found = true;
     }
-
-    let packet: TelemetryPacket | null = null;
-    try {
-      packet = serverGame.tryParse(record.frame, state);
-      if (packet) normalizeReplayPacket(packet, serverGame);
-    } catch {
-      /* single bad frame — skip, matching buffered replay */
-    }
-
-    if (framesRead < rawFrameCount) {
-      framesRead++;
+    const packet = parseReplayFrame(frame, serverGame, state);
+    if (targetCount < rawFrameCount) {
       if (packet) packets.push(packet);
+      targetCount++;
       continue;
     }
-
     appendDelayedFinishPacket(packets, packet, serverGame);
     break;
   }
-
-  if (!started || framesRead < rawFrameCount) {
+  if (!found || targetCount < rawFrameCount) {
+    if (!found && rawByteOffset >= fileSize) {
+      throw new LapParseError(`Lap raw byte offset ${rawByteOffset} is past EOF (file is ${fileSize} bytes) in ${source.rawFile}`, {
+        rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "offset-past-eof",
+      });
+    }
     throw new LapParseError(`Capture ended before ${rawFrameCount} lap frames were read`, {
-      rawFile: source.rawFile,
-      rawByteOffset,
-      rawFrameCount,
-      fileSize: Bun.file(source.rawFile).size,
-      framesParsed: framesRead,
-      reason: "truncated-frame",
+      rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame",
     });
   }
   if (packets.length === 0 && rawFrameCount > 0) {
     throw new LapParseError(`Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${source.gameId})`, {
-      rawFile: source.rawFile,
-      rawByteOffset,
-      rawFrameCount,
-      fileSize: Bun.file(source.rawFile).size,
-      framesParsed: 0,
-      reason: "no-packets-parsed",
+      rawFile: source.rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed",
     });
   }
   return packets;
@@ -409,28 +408,20 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     });
   }
 
-  // Warm up stateful parsers (F1) by replaying frames from the start of the
-  // file. Without this the accumulator starts empty mid-file and drops the
-  // first ~1s of lap telemetry waiting for every sub-packet type to arrive.
-  // Start at 12 to skip the meta frame.
-  let warmupOffset = 12;
-  while (warmupOffset < rawByteOffset && warmupOffset + 4 <= buf.length) {
-    const wLen = buf.readUInt32LE(warmupOffset);
-    if (wLen <= 0 || warmupOffset + 4 + wLen > buf.length) break;
-    const wBuf = buf.subarray(warmupOffset + 4, warmupOffset + 4 + wLen);
-    warmupOffset += 4 + wLen;
+  const frameIndex = indexCaptureFrames(buf);
+  const startRecord = frameIndex.byOffset.get(rawByteOffset);
+  const warmupRecords = startRecord
+    ? frameIndex.records.slice(0, startRecord.frameIndex)
+    : frameIndex.records.filter((record) => record.offset < rawByteOffset);
+  if (state != null) for (const record of warmupRecords) {
+    const wBuf = buf.subarray(record.offset + 4, record.offset + 4 + record.length);
     try {
-      serverGame.tryParse(wBuf, state);
-    } catch {
-      /* warmup best-effort */
-    }
+      countParserStatePrime();
+      serverGame.primeParserState(wBuf, state);
+    } catch { /* warmup best-effort */ }
   }
-
   let offset = rawByteOffset;
   const packets: TelemetryPacket[] = [];
-  // Read one extra frame past the stored count so we can enrich the final
-  // in-lap packet with the lap-completion info carried on the next-lap
-  // trigger frame (LastLap, sector3Time, etc). The extra frame is NOT
   // returned to the caller.
   const readCount = rawFrameCount + 1;
 
@@ -468,24 +459,12 @@ export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, 
     }
     const sourceFrame = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
-    try {
-      const packet = serverGame.tryParse(sourceFrame, state);
-      if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
-      if (i < rawFrameCount) {
-        packets.push(packet);
-      } else {
-        // Extra trailing frame = the next-lap trigger. It carries real
-        // speed/throttle/etc. values for the finish-line crossing, but its
-        // CurrentLap has already reset for the new lap.
-        appendDelayedFinishPacket(packets, packet, serverGame);
-      }
-    } catch (err) {
-      // A single malformed frame shouldn't kill the whole lap parse. Log
-      // once (first occurrence) with enough context to diagnose, then skip.
-      if (packets.length === 0 && i < 5) {
-        console.warn(`[DB] tryParse threw on frame ${i + 1}/${rawFrameCount} of lap ` + `(gameId=${gameId}, offset=${offset - frameLen}, len=${frameLen}): ` + `${(err as Error).message}`);
-      }
+    const packet = parseReplayFrame(sourceFrame, serverGame, state);
+    if (!packet) continue;
+    if (i < rawFrameCount) {
+      packets.push(packet);
+    } else {
+      appendDelayedFinishPacket(packets, packet, serverGame);
     }
   }
 
@@ -610,61 +589,50 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     return out;
   }
 
+  const loaded = await loadSessionSource(source);
+  if (loaded.kind !== "capture") throw new Error("Expected BIN capture source");
   const state = serverGame.createParserState?.() ?? null;
-  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
-  const active: Array<{
-    meta: (typeof metas)[number];
-    packets: TelemetryPacket[];
-    remaining: number;
-    needsTrailingFrame: boolean;
-  }> = [];
+  const metas = lapMetas
+    .map((meta) => ({ meta, record: loaded.frameIndex.byOffset.get(meta.rawByteOffset) }))
+    .filter((item): item is { meta: (typeof lapMetas)[number]; record: SessionCaptureFrameRecord } => item.record !== undefined)
+    .sort((a, b) => a.record.frameIndex - b.record.frameIndex);
+  const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
-
-  for await (const record of iterateSessionCaptureFrames(source)) {
-    while (nextMeta < metas.length && metas[nextMeta].rawByteOffset < record.offset) {
-      nextMeta++;
-    }
-    while (nextMeta < metas.length && metas[nextMeta].rawByteOffset === record.offset) {
-      const meta = metas[nextMeta++];
-      active.push({
-        meta,
-        packets: [],
-        remaining: meta.rawFrameCount,
-        needsTrailingFrame: true,
-      });
+  for (const record of loaded.frameIndex.records) {
+    while (nextMeta < metas.length && metas[nextMeta]!.record.frameIndex === record.frameIndex) {
+      const item = metas[nextMeta++]!;
+      active.push({ meta: item.meta, packets: [], end: record.frameIndex + item.meta.rawFrameCount });
     }
     if (nextMeta === metas.length && active.length === 0) break;
-
+    const needsFull = active.some((lap) => record.frameIndex <= lap.end);
+    if (!needsFull && state == null) continue;
     let packet: TelemetryPacket | null = null;
     try {
-      packet = serverGame.tryParse(record.frame, state);
-      if (packet) normalizeReplayPacket(packet, serverGame);
-    } catch {
-      /* single bad frame — skip, matching per-lap replay */
-    }
-
+      const frame = loaded.buffer.subarray(record.offset + 4, record.offset + 4 + record.length);
+      if (needsFull) {
+        countFullPacketMaterialized();
+        packet = serverGame.tryParse(frame, state);
+        if (packet) normalizeReplayPacket(packet, serverGame);
+      } else {
+        countParserStatePrime();
+        serverGame.primeParserState(frame, state);
+      }
+    } catch { /* malformed frame */ }
     for (const lap of active) {
-      if (lap.remaining > 0) {
-        lap.remaining--;
+      if (record.frameIndex < lap.end) {
         if (packet) lap.packets.push(packet);
-      } else if (lap.needsTrailingFrame) {
+      } else if (record.frameIndex === lap.end) {
         appendDelayedFinishPacket(lap.packets, packet, serverGame);
-        lap.needsTrailingFrame = false;
       }
     }
     for (let index = active.length - 1; index >= 0; index--) {
-      const lap = active[index];
-      if (lap.remaining === 0 && !lap.needsTrailingFrame) {
+      const lap = active[index]!;
+      if (record.frameIndex >= lap.end) {
         if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
         active.splice(index, 1);
       }
     }
   }
-
-  for (const lap of active) {
-    if (lap.remaining === 0 && lap.packets.length > 0) {
-      out.set(lap.meta.id, lap.packets);
-    }
-  }
+  for (const lap of active) if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
   return out;
 }

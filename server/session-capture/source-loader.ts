@@ -1,4 +1,4 @@
-import { gunzipBuffer, META_FRAME_MAGIC } from "./framing";
+import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
@@ -6,10 +6,16 @@ import { decodeMotecSourceArchive, type MotecOffsetEncoding } from "../motec/sou
 import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
+import { countSourceFrameScanned } from "./test-instrumentation";
 
+export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
+export interface SessionCaptureFrameIndex {
+  readonly records: readonly SessionCaptureFrameRecord[];
+  readonly byOffset: ReadonlyMap<number, SessionCaptureFrameRecord>;
+}
 export interface SessionCaptureSource { rawFile: string; source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; }
 export type LoadedSessionSource =
-  | { kind: "capture"; buffer: Buffer }
+  | { kind: "capture"; buffer: Buffer; frameIndex: SessionCaptureFrameIndex }
   | { kind: "packets"; packets: TelemetryPacket[]; offsetEncoding: MotecOffsetEncoding };
 interface CacheEntry { size: number; mtimeMs: number; loaded: LoadedSessionSource }
 export interface SessionCaptureFile {
@@ -28,6 +34,19 @@ function assertCaptureRecordLength(length: number): void {
   if (length > MAX_CAPTURE_RECORD_BYTES) {
     throw new Error(`Capture record length ${length} exceeds 16 MiB limit`);
   }
+}
+export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
+  const records: SessionCaptureFrameRecord[] = [];
+  const byOffset = new Map<number, SessionCaptureFrameRecord>();
+  let frameIndex = 0;
+  for (const { offset, frame } of iterateSessionFrameRecords(buffer, readFrameStreamStart(buffer), { skipMetaFrames: true })) {
+    countSourceFrameScanned();
+    const record = { offset, length: frame.length, frameIndex };
+    records.push(record);
+    byOffset.set(offset, record);
+    frameIndex++;
+  }
+  return { records, byOffset };
 }
 export function clearRawFileCacheForTest(): void { cache.clear(); }
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
@@ -111,7 +130,10 @@ export async function loadSessionSource(source: SessionCaptureSource): Promise<L
     const target = resolveMotecTarget(source.gameId);
     const carTrack = target.resolveCarTrack(log, { carOrdinal: source.carOrdinal, trackOrdinal: source.trackOrdinal });
     loaded = { kind: "packets", packets: target.convert(log, beacons, carTrack).packets, offsetEncoding: archive.offsetEncoding };
-  } else loaded = { kind: "capture", buffer: bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes };
+  } else {
+    const buffer = bytes[0] === 0x1f && bytes[1] === 0x8b ? await gunzipBuffer(bytes) : bytes;
+    loaded = { kind: "capture", buffer, frameIndex: indexCaptureFrames(buffer) };
+  }
   cache.set(cacheKey, { size, mtimeMs, loaded }); while (cache.size > MAX_ENTRIES) { const oldest = cache.keys().next().value; if (oldest) cache.delete(oldest); }
   return loaded;
 }
