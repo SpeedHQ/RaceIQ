@@ -40,10 +40,14 @@ export async function buildModelEvalDatasetDefinitions(fixture: ParsedModelEvalF
   const { config, analystLap, compareLaps: [lapA, lapB], trackOrdinal, carOrdinal } = fixture; const segments = await resolveLapSegments(trackOrdinal, config.gameId); if (!segments.length) throw new Error(`Model eval fixture ${config.id} has no curated segments`);
   const corners = lapCornersFromSegments(segments, analystLap.packets); if (corners.length < 3) throw new Error(`Model eval fixture ${config.id} must resolve at least three corners`); const promptSegments = segments as PromptSegment[];
   const metrics = computeLapMetrics(0, analystLap.packets, config.gameId, segments); const cornerStats = metrics.segmentStats.filter((s) => s.type === "corner"); const trackCorners = cornerStats.map((s) => s.name); const slowestCorners = [...cornerStats].sort((a,b) => a.stats.minSpeed-b.stats.minSpeed || a.startFrac-b.startFrac).slice(0,3).map((s) => s.name); const comparison = compareLaps(lapA.packets, lapB.packets, corners);
-  const lapId = (lap: CapturedLapWithPackets): number => lap.lapNumber;
+  const lapId = (lap: CapturedLapWithPackets): number => {
+    const id = lap.id;
+    if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+      throw new Error(`Model eval fixture ${config.id} requires persisted positive lap ID for lap ${lap.lapNumber}`);
+    }
+    return id;
+  };
   const lapIds = [lapId(analystLap), lapId(lapA), lapId(lapB)];
-  if (lapIds.some((id) => !Number.isFinite(id) || id <= 0)) throw new Error(`Model eval fixture ${config.id} requires positive lap IDs`);
-  if ([analystLap, lapA, lapB].some((lap) => !lap.packets.length || !lap.isValid)) throw new Error(`Model eval fixture ${config.id} has unusable telemetry`);
   const analystTruth: ModelEvalTruth = { lapNumber: analystLap.lapNumber, lapTime: analystLap.lapTime, metrics: { lapId: metrics.lapId, algoVersion: metrics.algoVersion, segmentStats: metrics.segmentStats } }; const compareTruth: ModelEvalTruth = { fasterLap: lapA.lapTime < lapB.lapTime ? "A" : "B", comparison: { cornerDeltas: comparison.cornerDeltas } };
   const analystInput = buildAnalystPrompt({ lapNumber: analystLap.lapNumber, lapTime: analystLap.lapTime, isValid: true, carOrdinal, trackOrdinal, gameId: config.gameId }, analystLap.packets, corners, config.units, config.temperatureUnit, undefined, promptSegments);
   const lapInfo = (lap: CapturedLapWithPackets) => ({ id: lapId(lap), lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, carOrdinal, trackOrdinal, gameId: config.gameId }); const compareInput = buildInputsComparePrompt(lapInfo(lapA), lapInfo(lapB), comparison, promptSegments);

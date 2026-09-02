@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { initDb } from "../../server/db";
+import { initDb, db } from "../../server/db";
+import { sessions, laps } from "../../server/db/schema";
 import { providerConfigFromRequestContext } from "../../mastra/model";
 import { buildModelEvalDatasetDefinitions, loadParsedModelEvalFixture, MODEL_EVAL_FIXTURES, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
-
 const REPEAT_COUNT = 3;
 const DEFAULT_MODELS = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");
@@ -51,6 +51,12 @@ const missing = [...modelIds, ...(judgeEnabled ? [judgeModel] : [])].filter(id =
 if (missing.length) throw new Error(`Model eval preflight failed: unavailable model(s): ${[...new Set(missing)].join(", ")}`);
 await initDb(); initGameAdapters(); initServerGameAdapters();
 const parsed = await loadParsedModelEvalFixture(fixture);
+const fixtureLaps = [parsed.analystLap, ...parsed.compareLaps];
+await db.insert(sessions).values({ carOrdinal: parsed.carOrdinal, trackOrdinal: parsed.trackOrdinal, gameId: parsed.config.gameId, ownership: "mine" }).onConflictDoNothing().run();
+for (const lap of fixtureLaps) {
+  if (typeof lap.id !== "number" || lap.id <= 0) throw new Error(`Model eval fixture ${fixture.id} missing persisted lap ID`);
+  await db.insert(laps).values({ id: lap.id, sessionId: 1, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, rawByteOffset: lap.rawByteOffset, rawFrameCount: lap.rawFrameCount, profileId: lap.profileId, tuneId: lap.tuneId, invalidReason: lap.invalidReason, sectorTimes: lap.sectors }).onConflictDoNothing().run();
+}
 const definitions = await buildModelEvalDatasetDefinitions(parsed, REPEAT_COUNT);
 const { mastra } = await import("../../mastra/index");
 const synced = await Promise.all(definitions.map(definition => syncModelEvalDataset(mastra, definition)));
