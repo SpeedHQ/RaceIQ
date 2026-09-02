@@ -9,6 +9,7 @@ import { DuckDBStore } from "@mastra/duckdb";
 import { LibSQLStore } from "@mastra/libsql";
 import { Observability, DefaultExporter } from "@mastra/observability";
 import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../../server/ai/resolved-ai-internals";
+import { modelFromRequestContext, type MastraRequestContext } from "../../../mastra/model";
 
 // @mastra/core's bundled mock imports Vitest as a side effect. Bun's module
 // mocking lets this test use the real Mastra mock model without adding Vitest.
@@ -27,6 +28,18 @@ const originalLapAnalystModel = (lapAnalystAgent as unknown as { model: unknown 
 // Keep transport deterministic while exercising production agent registration.
 (lapAnalystAgent as unknown as { model: unknown }).model = () => deterministicModel;
 
+  test("runner-shaped context resolves local model through production resolver", () => {
+    const requestContext = {
+      [RESOLVED_AI_MODEL_CONTEXT_KEY]: {
+        provider: "local",
+        model: "local-model",
+        localEndpoint: "http://localhost:1234/v1",
+      },
+    } as unknown as MastraRequestContext;
+    const model = modelFromRequestContext(requestContext);
+    expect(model).toBeDefined();
+    expect(typeof model).toBe("object");
+  });
 describe("Mastra native evaluation targets", () => {
   test("persists production agent experiment result, trace, and score", async () => {
     const directory = await mkdtemp(join(tmpdir(), "raceiq-mastra-test-"));

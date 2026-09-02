@@ -6,8 +6,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { initDb, db } from "../../server/db";
 import { sessions, laps } from "../../server/db/schema";
-import { providerConfigFromRequestContext } from "../../mastra/model";
-import { buildModelEvalDatasetDefinitions, loadParsedModelEvalFixture, MODEL_EVAL_FIXTURES, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../../server/ai/resolved-ai-internals";
 const REPEAT_COUNT = 3;
 const DEFAULT_MODELS = ["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"];
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");
@@ -66,7 +65,7 @@ if (!sourceVersion) throw new Error("Model eval setup failed: unable to resolve 
 const experiments: { id: string; modelId: string; agent: string; status: string; promptFingerprint: string }[] = [];
 for (const modelId of modelIds) for (let index = 0; index < synced.length; index++) {
   const definition = definitions[index]; const { dataset, version } = synced[index];
-  const requestContext = { provider: "local", model: modelId, localEndpoint: baseURL };
+  const requestContext = { [RESOLVED_AI_MODEL_CONTEXT_KEY]: { provider: "local", model: modelId, localEndpoint: baseURL } };
   const agent = mastra.getAgent(definition.targetId);
   const instructions = await agent.getInstructions({ requestContext: requestContext as never });
   const promptFingerprint = createHash("sha256").update(canonical({ instructions, items: definition.items.map(({ externalId, input }) => ({ externalId, input })) })).digest("hex");

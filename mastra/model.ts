@@ -201,6 +201,15 @@ function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
 export type MastraRequestContext = {
   get(key: string): unknown;
 };
+function requestContextValue(
+  requestContext: MastraRequestContext | undefined,
+): unknown {
+  if (!requestContext) return undefined;
+  if (typeof requestContext.get === "function") {
+    return requestContext.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  }
+  return (requestContext as unknown as Record<string, unknown>)[RESOLVED_AI_MODEL_CONTEXT_KEY];
+}
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object") return false;
   const prototype = Object.getPrototypeOf(value);
@@ -210,7 +219,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 export function providerConfigFromRequestContext(
   requestContext: MastraRequestContext | undefined,
 ): MastraProviderConfig | undefined {
-  const value = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  const value = requestContextValue(requestContext);
   if (!isPlainRecord(value) || "apiKey" in value) return undefined;
   const { provider, model, localEndpoint } = value;
   if (typeof provider !== "string" || provider.trim() === "") return undefined;
@@ -228,7 +237,7 @@ export function providerConfigFromRequestContext(
 export function modelFromRequestContext(
   requestContext: MastraRequestContext | undefined,
 ): BoundMastraModel | undefined {
-  const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  const model = requestContextValue(requestContext);
   if (typeof model === "string") return model;
   if (model && typeof model === "object" && "doGenerate" in model
       && typeof model.doGenerate === "function") {
