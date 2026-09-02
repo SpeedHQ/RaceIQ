@@ -97,6 +97,10 @@ jobs:
       - name: Install client dependencies
         working-directory: client
         run: bun install
+      - name: Pin Playwright Chromium
+        working-directory: client
+        run: bunx playwright install chromium
+
 
       - name: Render and compare against committed baselines
         id: storybook-render
