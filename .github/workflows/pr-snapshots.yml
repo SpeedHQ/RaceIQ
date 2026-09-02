@@ -89,6 +89,7 @@ jobs:
         run: bun run snapshot:test
         continue-on-error: true
 
+      - name: Prepare PR snapshot preview
         shell: cmd
         run: >
           bun "%GITHUB_WORKSPACE%/scripts/ui/prepare-pr-snapshot-preview.ts"
