@@ -7,6 +7,8 @@
  * bundle.
  */
 import type { MastraScorer } from "@mastra/core/evals";
+import { checks } from "@mastra/evals/checks";
+import { createTrajectoryScorerCode } from "@mastra/evals/scorers/prebuilt";
 import { outputShapeScorer } from "./scorers/output-shape";
 import { cornerCoverageScorer } from "./scorers/corner-coverage";
 import { numericGroundingScorer } from "./scorers/numeric-grounding";
@@ -15,6 +17,10 @@ import { compareDirectionalityScorer } from "./scorers/compare-directionality";
 import { chatFreeformShapeScorer } from "./scorers/chat-freeform-shape";
 import { drillQualityScorer } from "./scorers/drill-quality";
 import { llmFaithfulnessScorer } from "./scorers/llm-faithfulness";
+import { telemetryCorrectnessScorer } from "./scorers/telemetry-correctness";
+
+export const trajectoryScorer = createTrajectoryScorerCode();
+export const noToolErrorsScorer = checks.noToolErrors();
 
 const IS_TEST = process.env.NODE_ENV === "test";
 
@@ -60,9 +66,7 @@ export const judgeScorers = [
 
 /**
  * Instance-level registry: makes every scorer listable/selectable in Mastra
- * Studio's Scorers tab. Keyed by scorer id. Studio only surfaces scorers it
- * finds here (or attached to an agent) — objects that merely exist in eval
- * files are invisible to it.
+ * Studio's Scorers tab. Keyed by scorer id.
  */
 export const scorerRegistry: Record<string, MastraScorer> = IS_TEST
   ? {}
@@ -75,6 +79,9 @@ export const scorerRegistry: Record<string, MastraScorer> = IS_TEST
       "chat-freeform-shape": chatFreeformShapeScorer,
       "drill-quality": drillQualityScorer,
       "llm-faithfulness": llmFaithfulnessScorer,
+      "code-trajectory-scorer": trajectoryScorer,
+      "check-no-tool-errors": noToolErrorsScorer,
+      "telemetry-correctness": telemetryCorrectnessScorer,
     };
 
 /**
@@ -112,11 +119,12 @@ export const SCORER_THRESHOLDS: Record<string, number> = {
   "unit-consistency": 1.0,
   "compare-directionality": 0.9,
   "chat-freeform-shape": 0.8,
-  // 0.75 = three of four signals. Deliberately not 1.0: a legitimately
-  // lap-wide drill ("keep your eyes up through every corner") can miss the
-  // measurable-reference signal and still be a real, repeatable instruction.
   "drill-quality": 0.75,
   "llm-faithfulness": 1.0,
+  "code-trajectory-scorer": 1.0,
+  "check-no-tool-errors": 1.0,
+  "telemetry-correctness": 1.0,
+  correctness: 1.0,
 };
 
 export interface ScoreResult {

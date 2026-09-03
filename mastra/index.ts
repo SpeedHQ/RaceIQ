@@ -38,6 +38,7 @@ import { scorerRegistry } from "./evals";
  * HTTP (see server/runtime/dev-studio.ts), which is what keeps the two from deadlocking.
  */
 const observabilityDuckDbPath =
+  process.env.MASTRA_OBSERVABILITY_PATH ??
   `${process.env.DATA_DIR ?? resolve(process.cwd(), "data")}/mastra-observability.duckdb`;
 
 /**
@@ -64,7 +65,7 @@ export const mastra = new Mastra({
     id: "raceiq-composite",
     default: new LibSQLStore({
       id: "mastra-storage",
-      url: ":memory:",
+      url: process.env.MASTRA_STORAGE_URL ?? ":memory:",
     }),
     domains: {
       observability: await new DuckDBStore({ path: observabilityDuckDbPath }).getStore("observability"),

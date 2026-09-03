@@ -201,18 +201,50 @@ function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
 export type MastraRequestContext = {
   get(key: string): unknown;
 };
+function requestContextValue(
+  requestContext: MastraRequestContext | undefined,
+): unknown {
+  if (!requestContext) return undefined;
+  if (typeof requestContext.get === "function") {
+    return requestContext.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  }
+  return (requestContext as unknown as Record<string, unknown>)[RESOLVED_AI_MODEL_CONTEXT_KEY];
+}
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+export function providerConfigFromRequestContext(
+  requestContext: MastraRequestContext | undefined,
+): MastraProviderConfig | undefined {
+  const value = requestContextValue(requestContext);
+  if (!isPlainRecord(value) || "apiKey" in value) return undefined;
+  const { provider, model, localEndpoint } = value;
+  if (typeof provider !== "string" || provider.trim() === "") return undefined;
+  if (typeof model !== "string" || model.trim() === "") return undefined;
+  if (localEndpoint !== undefined &&
+      (typeof localEndpoint !== "string" || localEndpoint.trim() === "")) return undefined;
+  return {
+    provider,
+    model,
+    ...(localEndpoint === undefined ? {} : { localEndpoint }),
+  };
+}
+
 /** Return the provider-bound model attached to this request, if present. */
 export function modelFromRequestContext(
   requestContext: MastraRequestContext | undefined,
 ): BoundMastraModel | undefined {
-  const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  const model = requestContextValue(requestContext);
   if (typeof model === "string") return model;
   if (model && typeof model === "object" && "doGenerate" in model
       && typeof model.doGenerate === "function") {
-    const boundModel = model as BoundMastraModel;
-    return boundModel;
+    return model as BoundMastraModel;
   }
-  return undefined;
+  const config = providerConfigFromRequestContext(requestContext);
+  return config ? getMastraModelId(config) : undefined;
 }
 
 

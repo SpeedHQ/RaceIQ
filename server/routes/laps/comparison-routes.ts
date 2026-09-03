@@ -18,9 +18,10 @@ import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
-import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
+import { buildInputsComparePrompt, type PromptSegment } from "../../ai/inputs-compare-prompt";
 import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
-import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
+import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
+import { buildCompareEngineerExecutionOptions } from "../../ai/analysis-agent-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import {
@@ -305,9 +306,9 @@ export const comparisonRoutes = new Hono()
         group: s.group,
         direction: s.direction,
       })) ?? null;
-
-    const prompt = buildInputsComparePrompt(
-      {
+      const prompt = buildInputsComparePrompt(
+        {
+        id: lapA.id ?? undefined,
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
         isValid: lapA.isValid,
@@ -315,7 +316,8 @@ export const comparisonRoutes = new Hono()
         trackOrdinal: lapA.trackOrdinal ?? undefined,
         gameId: lapA.gameId as GameId | undefined,
       },
-      {
+        {
+        id: lapB.id ?? undefined,
         lapNumber: lapB.lapNumber,
         lapTime: lapB.lapTime,
         isValid: lapB.isValid,
@@ -354,32 +356,14 @@ export const comparisonRoutes = new Hono()
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: {
-          schema: InputsCompareSchema,
-          // LM Studio only accepts `response_format: json_schema` (it rejects
-          // json_object), and for reasoning models such as qwen3.5 it emits the
-          // schema-constrained JSON into `reasoning_content` while leaving
-          // `content` empty — so no object is ever parsed and this route throws.
-          // Prompt injection keeps the answer on the plain-text channel, which
-          // those models fill normally. Hosted providers parse native structured
-          // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
-        },
-        // Every other AI route already caps output and disables reasoning on
-        // local models (analyse, lap chat, compare chat). This one did not, so
-        // a thinking model such as qwen3.5 could reason unboundedly and push the
-        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
-        // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        providerOptions: {
-          openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
-        },
-      });
+      const result = await compareEngineerAgent.generate(
+        prompt,
+        buildCompareEngineerExecutionOptions({
+          provider: settings.aiProvider,
+          model: settings.aiModel || "gemini-flash-latest",
+          thinkingBudget: settings.aiThinkingBudget ?? undefined,
+        }),
+      );
       const durationMs = Math.round(performance.now() - start);
 
       const object = (result as any).object;

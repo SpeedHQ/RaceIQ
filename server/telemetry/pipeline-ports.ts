@@ -49,6 +49,8 @@ export interface CapturedSession {
 }
 
 export interface CapturedLap {
+  /** Persistence identity. Capturing adapters assign this exactly as DB adapters do. */
+  id?: number;
   sessionId: number;
   lapNumber: number;
   lapTime: number;
@@ -210,10 +212,10 @@ export class CapturingDbAdapter implements DbAdapter {
     this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership });
     return Promise.resolve(++this._sessionId);
   }
-
   insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
-    return Promise.resolve(++this._lapId);
+    const id = ++this._lapId;
+    this.laps.push({ id, sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
+    return Promise.resolve(id);
   }
 
   readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];

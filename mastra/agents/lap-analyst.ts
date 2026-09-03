@@ -6,12 +6,14 @@
  * throttle, coaching, setup). Distinct from compare-engineer, which thinks
  * across two laps.
  */
-import { Agent } from "@mastra/core/agent";
-import { getModel } from "../../server/ai/model-provider";
+import { Agent, type AgentExecutionOptions } from "@mastra/core/agent";
+import { providerConfigFromRequestContext } from "../model";
+import { buildLapAnalystExecutionOptions } from "../../server/ai/analysis-agent-options";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { liveAnalystScorers } from "../evals";
+import { getModel } from "../../server/ai/model-provider";
 import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 const LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, coaching, and setup recommendations.
 
@@ -27,9 +29,15 @@ For F1 2025 laps: the prompt already contains a block labelled "F1 CURRENT SETUP
 
 export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
+  model: ({ requestContext }) => getModel("analysis", requestContext),
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
-  model: ({ requestContext }) => getModel("analysis", requestContext),
+  defaultOptions: ({ requestContext }): AgentExecutionOptions<undefined> => {
+    const config = providerConfigFromRequestContext(requestContext);
+    return (config
+      ? buildLapAnalystExecutionOptions(config)
+      : {}) as unknown as AgentExecutionOptions<undefined>;
+  },
   // Tool stays registered for models that can tool-call reliably. On local
   // models (Gemma 4) that loop the tool, the analyse route inlines the
   // same data into the prompt — model can ignore the tool and still get
