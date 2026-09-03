@@ -14,6 +14,7 @@
 ### Internal
 - Narrow client response helper contracts to the fields each RPC and download path uses
 - Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
+- Fail responsive screenshot CI when either render fails
 
 ## v0.15.1 - 2026-09-01
 
