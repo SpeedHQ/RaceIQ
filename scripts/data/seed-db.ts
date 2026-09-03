@@ -11,19 +11,16 @@ import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { seedIRacingSession } from "./seed-db-iracing";
 import { assertSafeTarget, seedRowCount } from "./seed-db-safety";
 import { insertDemoRows, markOnboardingComplete } from "./seed-db-demo";
-import { cleanDatabase, removeSeedData } from "./seed-db-reset";
+import { cleanDatabaseFiles, removeSeedData } from "./seed-db-reset";
 import { FIXTURES, PROFILE_NAME, parseOptions, SEED_MARKER } from "./seed-db-options";
 
 async function main(): Promise<void> {
   const options = parseOptions();
+  if (options.clean) cleanDatabaseFiles();
   await initDb();
   initGameAdapters(developmentReleaseFeatures);
   initServerGameAdapters(developmentReleaseFeatures);
-  if (options.clean) {
-    await cleanDatabase();
-  } else {
-    await assertSafeTarget(options.force);
-  }
+  if (!options.clean) await assertSafeTarget(options.force);
   if (options.reset) await removeSeedData();
   if (await seedRowCount()) {
     markOnboardingComplete();

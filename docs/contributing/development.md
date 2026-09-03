@@ -41,7 +41,7 @@ bun run db:seed --games fm-2023,acc,ac-evo,iracing
 bun run db:seed --force
 ```
 
-Seed is idempotent. `--clean` deletes all database rows and referenced captured-session files, preserves schema migrations, then reseeds; use disposable `DATA_DIR` because it is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
+Seed is idempotent. `--clean` deletes the database file, SQLite sidecars, and captured-session files, then creates a fresh database and reseeds; use disposable `DATA_DIR` because it is destructive. `--reset` replaces seeded rows only. Without `--force`, seed refuses to mix demo data into a database containing captured user data.
 
 ## Database changes
 

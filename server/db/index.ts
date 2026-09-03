@@ -2,7 +2,7 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
-import { existsSync, mkdirSync, renameSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
@@ -49,15 +49,27 @@ if (!IN_MEMORY && process.env.RACEIQ_TEST_MODE !== "1") {
   migrateLegacyDatabase();
 }
 
-const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
+let client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
 
 // Bindings are created synchronously so importing this module can never block
 // and `db` can never be observed in its temporal dead zone. All async setup
 // (PRAGMAs, migrations, backfills) moved into initDb() below.
-export const db = drizzle(client, { schema });
+export let db = drizzle(client, { schema });
 export { client };
 
 let initPromise: Promise<void> | null = null;
+
+export function recreateDatabaseFile(): void {
+  if (IN_MEMORY) throw new Error("Cannot recreate an in-memory database file");
+  client.close();
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const path = `${DB_PATH}${suffix}`;
+    if (existsSync(path)) unlinkSync(path);
+  }
+  client = createClient({ url: `file:${DB_PATH}` });
+  db = drizzle(client, { schema });
+  initPromise = null;
+}
 
 /**
  * Idempotent async DB setup. Must be awaited once by every entry point before
