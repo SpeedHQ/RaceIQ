@@ -38,7 +38,7 @@ function mergeStaticModelMeshes(root: THREE.Object3D): THREE.BufferGeometry | nu
 }
 
 export function canonicalModelYawAlignment(modelPath: string): number {
-  return modelPath === "/models/f1_2025_mclaren_mcl39.glb" ? Math.PI / 2 : 0;
+  return modelPath === "/models/f1_2025_mclaren_mcl39_optimised.glb" ? Math.PI / 2 : 0;
 }
 
 export function CarBody({

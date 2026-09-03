@@ -22,8 +22,8 @@ import { DropdownMenu } from "./ui/DropdownMenu";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
-useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
-useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");
+useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
+useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
