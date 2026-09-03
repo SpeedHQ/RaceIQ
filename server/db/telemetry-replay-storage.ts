@@ -5,6 +5,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
+import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { iterateSessionCaptureRecords } from "../session-capture/framing";
@@ -609,7 +610,7 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
   }
   const loaded = await loadSessionSource(source);
   if (loaded.kind !== "capture") throw new Error("Expected BIN capture source");
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const metas = lapMetas
     .map((meta) => ({ meta, record: loaded.frameIndex.byOffset.get(meta.rawByteOffset) }))
     .filter((item): item is { meta: (typeof lapMetas)[number]; record: SessionCaptureFrameRecord } => item.record !== undefined)
@@ -627,6 +628,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     let packet: TelemetryPacket | null = null;
     try {
       const frame = loaded.buffer.subarray(record.offset + 4, record.offset + 4 + record.length);
+      if (source.gameId === "iracing" && isIRacingSessionFrame(frame)) {
+        state = serverGame.createParserState?.() ?? null;
+      }
       if (needsFull) {
         countFullPacketMaterialized();
         packet = serverGame.tryParse(frame, state);

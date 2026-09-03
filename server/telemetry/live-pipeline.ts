@@ -498,6 +498,12 @@ export class LiveTelemetryPipeline {
     await detector.feed(telemetryPacket, rawByteOffset);
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) {
+            this.recorder.writeRawCaptureBytes(contextFrame);
+          }
+          this._pendingSessionContextFrames = [];
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
