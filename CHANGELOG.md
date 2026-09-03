@@ -3,10 +3,12 @@
 ### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 - Ship optimized GT3 and F1 car models, reducing delivered model sizes by 96.5% and 91.0% while preserving exterior visuals
+- Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+- Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
 
 ### Internal
 - Narrow client response helper contracts to the fields each RPC and download path uses

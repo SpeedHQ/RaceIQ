@@ -11,7 +11,7 @@ import {
   RealSessionRecorderAdapter,
 } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
-import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import type { ILapDetector, LapDetectorCallbacks, LapIndexPacket } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
@@ -446,6 +446,42 @@ export class LiveTelemetryPipeline {
         sectorTracker: this.sectorTracker.getDebugState(),
         pitTracker: this.pitTracker.getDebugState(),
       });
+    }
+  }
+
+  /**
+   * Metadata-only canonical import path. Records and feeds lap detection,
+   * while avoiding live-only trackers, projection, publication, and issues.
+   */
+  async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference): Promise<void> {
+    this._totalProcessed++;
+    let rawByteOffset: number | undefined;
+    const epochBefore = this.recorder.epoch;
+    if (source && this.recorder.active) {
+      if (Buffer.isBuffer(source)) {
+        rawByteOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+      } else {
+        rawByteOffset = source.rawOffset;
+      }
+    }
+    const adapter = getServerGame(packet.gameId);
+    const telemetryPacket = packet as unknown as TelemetryPacket;
+    normalizeTelemetryPacket(
+      telemetryPacket,
+      adapter.coordSystem === "standard-xyz",
+      adapter.runtime.normSuspensionTravelMm,
+    );
+    const detector = this._getOrCreateDetector(packet.gameId);
+    await detector.feed(telemetryPacket, rawByteOffset);
+    if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      if (Buffer.isBuffer(source)) {
+        const firstOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+        detector.setCurrentLapByteOffset?.(firstOffset);
+      } else {
+        detector.setCurrentLapByteOffset?.(source.rawOffset);
+      }
     }
   }
 

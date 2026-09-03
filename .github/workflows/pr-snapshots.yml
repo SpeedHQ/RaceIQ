@@ -36,10 +36,7 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: ubuntu-latest
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -62,90 +59,43 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Merge pull request base into the PR head
-        env:
-          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
-          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        shell: powershell
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
-          $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
-          if ($fetchedBaseSha -ne $env:BASE_SHA) {
-            git fetch --no-tags origin $env:BASE_SHA
-            $fetchedBaseSha = git rev-parse --verify FETCH_HEAD
-          }
-          if ($fetchedBaseSha -ne $env:BASE_SHA) {
-            throw "Fetched base commit $fetchedBaseSha does not match $env:BASE_SHA"
-          }
-          git merge --no-edit $env:BASE_SHA
-
-
-      - name: Prepare base comparison worktree
-        env:
-          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
 
+      - name: Prepare merged PR snapshot workspace
+        env:
+          BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
+        run: bun scripts/ui/prepare-pr-snapshot.ts
       - name: Install dependencies
         run: bun install
 
       - name: Install client dependencies
         working-directory: client
         run: bun install
+      - name: Pin Playwright Chromium
+        working-directory: client
+        run: bunx playwright install chromium
 
       - name: Render and compare against committed baselines
         id: storybook-render
+        # CI and baseline generation both use the Ubuntu renderer.
         working-directory: client
-        # This is the collaborator assertion: `snapshot:test` (no --update)
-        # fails when the PR render differs from its committed snapshot.
         run: bun run snapshot:test
-        # Keep running so the diff can be collected and posted as UI-change
-        # awareness even when the collaborator assertion fails.
+        # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
-      - name: Collect diffs
-        id: collect
-        working-directory: client
-        shell: powershell
-        run: |
-          $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          "${{ github.event.pull_request.number || inputs.pr }}" | Out-File (Join-Path $out "pr-number.txt") -Encoding utf8
-          "${{ steps.pull-request.outputs.base-ref }}" | Out-File (Join-Path $out "base-ref.txt") -Encoding utf8
-
-          $results = Join-Path (Get-Location) "src/stories/__snapshots__/results"
-          if (Test-Path $results) {
-            Get-ChildItem -Path $results -Filter "*-diff.png" -File -Recurse | ForEach-Object {
-              $dir = $_.DirectoryName
-              $name = $_.BaseName.Substring(0, $_.BaseName.Length - "-diff".Length)
-              $before = Join-Path $dir "$name-expected.png"
-              $after = Join-Path $dir "$name-actual.png"
-              $diff = Join-Path $dir "$name-diff.png"
-              if ((Test-Path $before) -and (Test-Path $after) -and (Test-Path $diff)) {
-                Copy-Item $before (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-before.png")
-                Copy-Item $after (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-after.png")
-                Copy-Item $diff (Join-Path $out "changed--render-vs-committed-pr-baseline--$name-diff.png")
-                Write-Host "changed rendered snapshot: $name"
-              }
-            }
-          }
-
-          bun "$env:GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" `
-            --base "$env:RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__" `
-            --current "$env:GITHUB_WORKSPACE/client/src/stories/__snapshots__" `
-            --out "$out" `
-            --prefix committed-pr-baseline-vs-base
-
-          if (Get-ChildItem -Path $out -Filter "*-after.png" -File -ErrorAction SilentlyContinue) {
-            "changed=1" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } else {
-            "changed=0" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          }
+      - name: Prepare PR snapshot preview
+        run: >
+          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
+          "$GITHUB_WORKSPACE/pr-preview"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
+          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
+          "${{ github.event.pull_request.number || inputs.pr }}"
+          "${{ steps.pull-request.outputs.base-ref }}"
+          "$GITHUB_OUTPUT"
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -156,6 +106,17 @@ jobs:
 
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
+        shell: bash
         run: |
-          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot:docker' from client/ to update them in the pinned renderer."
+          shopt -s nullglob
+          diffs=(pr-preview/*-diff.png)
+          if (( ${#diffs[@]} > 0 )); then
+            echo "::error::Committed Storybook snapshots do not match (${#diffs[@]} diff(s))."
+            for diff in "${diffs[@]}"; do
+              echo "::error::Snapshot mismatch artifact: $(basename "$diff")"
+            done
+            echo "Download 'pr-screenshot-preview' artifact for before/after/diff images."
+          else
+            echo "::error::Committed Storybook snapshots do not match, but no diff artifacts were generated."
+          fi
           exit 1
