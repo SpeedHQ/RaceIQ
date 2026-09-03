@@ -91,8 +91,8 @@ for (const modelId of modelIds) {
   Bun.spawnSync(["lms", "unload", modelId], { stdout: "ignore", stderr: "ignore" });
 }
 if (judgeEnabled) {
-  for (const model of modelIds) Bun.spawnSync(["lms", "unload", model], { stdout: "ignore", stderr: "ignore" });
-  if (Bun.spawnSync(["lms", "load", judgeModel, "--context-length", "131072", "--parallel", "4", "--yes"], { stdout: "ignore", stderr: "pipe" }).exitCode !== 0) throw new Error(`Model eval judge setup failed: could not load ${judgeModel}`);
+  Bun.spawnSync(["lms", "unload", "--all"], { stdout: "ignore", stderr: "ignore" });
+  if (Bun.spawnSync(["lms", "load", judgeModel, "--context-length", "131072", "--parallel", "1", "--yes"], { stdout: "ignore", stderr: "pipe" }).exitCode !== 0) throw new Error(`Model eval judge setup failed: could not load ${judgeModel}`);
   const correctness = await mastra.datasets.create({ id: `raceiq-model-eval-correctness-${experimentSetId}`, name: `RaceIQ correctness ${experimentSetId}`, targetType: "workflow", targetIds: [], scorerIds: ["telemetry-correctness"] });
   for (const experiment of experiments) { const target = definitions.findIndex(definition => definition.targetId === experiment.agent); const results = await synced[target].dataset.listExperimentResults({ experimentId: experiment.id, page: 0, perPage: 1000 }); for (const result of results.results ?? []) if (result.output != null) await correctness.addItem({ input: { answer: result.output }, groundTruth: result.groundTruth, metadata: { candidateExperimentId: experiment.id, candidateResultId: String(result.id), candidateItemId: result.itemId, modelId: experiment.modelId, agent: experiment.agent, caseId: result.metadata?.caseId, repeat: result.metadata?.repeat } }); }
   const correctnessSummary = await correctness.startExperiment({ task: ({ input }) => (input as { answer: unknown }).answer, scorers: ["telemetry-correctness"], metadata: { experimentSetId, phase: "correctness", judgeModel }, grouping: { experimentSetId, comparisonId: correctness.id, variantId: `correctness@${experimentSetId}` }, maxConcurrency: 1, maxRetries: 0, itemTimeout: 300_000 });

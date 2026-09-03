@@ -4,9 +4,8 @@ import { candidateLifecycleCommands } from "../../../scripts/quality/model-eval-
 describe("model evaluation lifecycle", () => {
   test("keeps only active candidate loaded", () => {
     expect(candidateLifecycleCommands(["bonsai", "qwen", "gemma"], "qwen")).toEqual([
-      ["lms", "unload", "bonsai"],
-      ["lms", "unload", "gemma"],
-      ["lms", "load", "qwen", "--context-length", "131072", "--parallel", "4", "--yes"],
+      ["lms", "unload", "--all"],
+      ["lms", "load", "qwen", "--context-length", "131072", "--parallel", "1", "--yes"],
     ]);
   });
 });

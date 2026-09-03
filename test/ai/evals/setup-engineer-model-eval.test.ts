@@ -25,7 +25,7 @@ describe("setup engineer model eval fixture", () => {
   });
   test("selects positional candidates and defaults when omitted", async () => {
     const { setupEngineerModelEvalModelIds } = await import("../../../mastra/evals/setup-engineer-model-eval");
-    expect(setupEngineerModelEvalModelIds([])).toEqual(["prism-ml/bonsai-27b", "qwen/qwen3.5-9b"]);
+    expect(setupEngineerModelEvalModelIds([])).toEqual(["qwen/qwen3.5-9b"]);
     expect(setupEngineerModelEvalModelIds(["foo/bar"])).toEqual(["foo/bar"]);
   });
 });
