@@ -18,6 +18,7 @@
 - Start RaceIQ successfully after installing a Windows release
 
 ### Internal
+- Increase seeded Playwright E2E CI coverage from five to seven shards
 
 ## v0.15.0 - 2026-09-01
 
