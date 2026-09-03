@@ -68,11 +68,21 @@ jobs:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
         run: bun scripts/ui/prepare-pr-snapshot.ts
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install client dependencies
+        working-directory: client
+        run: bun install
+      - name: Pin Playwright Chromium
+        working-directory: client
+        run: bunx playwright install chromium
 
       - name: Render and compare against committed baselines
         id: storybook-render
-        # Run same pinned Linux renderer used to generate committed baselines.
-        run: bun scripts/ui/run-snapshot-in-docker.ts
+        # CI and baseline generation both use the Ubuntu renderer.
+        working-directory: client
+        run: bun run snapshot:test
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
