@@ -242,7 +242,6 @@ export const CarWireframe = React.memo(function CarWireframe({
           modelOffsetX={modelOffsetX}
           fmtTemp={fmtTemp}
           hideModelWheels={!minimal}
-          mergeBodyMeshes={!minimal}
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
