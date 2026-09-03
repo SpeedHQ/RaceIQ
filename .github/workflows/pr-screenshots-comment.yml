@@ -12,7 +12,7 @@ name: Comment app screenshot diffs
 
 on:
   workflow_run:
-    workflows: ["Render dashboard screenshots", "Render dashboard snapshots"]
+    workflows: ["Build & Test", "Render dashboard screenshots", "Render dashboard snapshots"]
     types: [completed]
 
 permissions:
@@ -34,6 +34,8 @@ jobs:
       RUN_ID: ${{ github.event.workflow_run.id }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      # Check out trusted base-repo scripts; never execute PR code here.
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4

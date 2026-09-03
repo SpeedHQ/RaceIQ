@@ -91,6 +91,7 @@ async function main() {
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
   await run(["bun", "scripts/build/copy-shared-data.ts"]);
   await run(["bun", "scripts/build/copy-client-dist.ts"]);
+  await run(["bun", "scripts/build/optimize-client-images.ts"]);
 
   const compileArgs = [
     "bun",

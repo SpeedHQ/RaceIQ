@@ -9,6 +9,14 @@ import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
 import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+export interface QueryLapTelemetryOptions {
+  readonly rawCaptureRequirement?: "provenance" | "native-values";
+}
+
+const defaultQueryLapTelemetryOptions: Required<QueryLapTelemetryOptions> = {
+  rawCaptureRequirement: "provenance",
+};
+
 
 interface ReplayNativeFrame {
   packet: TelemetryPacket;
@@ -146,7 +154,11 @@ export function resolveTelemetryReplay(
  * Returned diagnostics expose mapping state, freshness, limitations, and source
  * provenance; callers never need to inspect simulator-specific packet fields.
  */
-export async function queryLapTelemetryBySemanticId(lapId: number, requestedSemanticIds: readonly string[]): Promise<SemanticTelemetryReplay | null> {
+export async function queryLapTelemetryBySemanticId(
+  lapId: number,
+  requestedSemanticIds: readonly string[],
+  options: QueryLapTelemetryOptions = {},
+): Promise<SemanticTelemetryReplay | null> {
   if (requestedSemanticIds.length === 0) {
     throw new Error("At least one semantic ID is required for telemetry replay");
   }
@@ -157,6 +169,10 @@ export async function queryLapTelemetryBySemanticId(lapId: number, requestedSema
     throw new Error(`Lap ${lapId} has no replayable telemetry`);
   }
 
-  const rawCapture = source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
+  const { rawCaptureRequirement } = { ...defaultQueryLapTelemetryOptions, ...options };
+  const needsRawCapture =
+    source.rawFile != null &&
+    (rawCaptureRequirement === "provenance" || source.gameId === "iracing");
+  const rawCapture = needsRawCapture ? await loadRawCaptureIdentity(source.rawFile as string) : undefined;
   return resolveTelemetryReplay(lapId, source, lap.telemetry, requestedSemanticIds, rawCapture);
 }

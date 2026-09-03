@@ -1,11 +1,13 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapIndexPacket } from "../../lap-detection/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
+import { parseAcEvoLapIndex } from "../kunos/lap-index";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { buildKunosAiContext } from "../kunos/ai-context";
@@ -88,6 +90,17 @@ export const acEvoServerAdapter: ServerGameAdapter = {
     if (!triplet) return null;
     const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
     return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache);
+  },
+  tryParseLapIndex(buf, state): LapIndexPacket | null {
+    const triplet = unpackTriplet(buf);
+    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
+    return triplet ? parseAcEvoLapIndex(triplet.physics, triplet.graphics, triplet.staticData, cache) : null;
+  },
+  primeParserState(buf, state): void {
+    const triplet = unpackTriplet(buf);
+    if (!triplet) return;
+    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
+    parseAcEvoLapIndex(triplet.physics, triplet.graphics, triplet.staticData, cache);
   },
 
   createParserState(): ReturnType<typeof createAcEvoParserCache> {

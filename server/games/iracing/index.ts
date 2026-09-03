@@ -6,10 +6,12 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "../types";
+import type { LapIndexPacket } from "../../lap-detection/types";
 import {
   createIRacingParserState,
   type IRacingParserState,
   normalizeIRacingFrame,
+  projectIRacingLapIndex,
 } from "./normalizer";
 import {
   canHandleIRacingSourceFrame,
@@ -69,6 +71,16 @@ export const iracingServerAdapter: ServerGameAdapter = {
     return frame
       ? normalizeIRacingFrame(frame, parserState)
       : null;
+  },
+  tryParseLapIndex(buf, state): LapIndexPacket | null {
+    const parserState = state as IRacingParserState | null;
+    const frame = decodeIRacingSourceFrame(buf, parserState?.source);
+    return frame ? projectIRacingLapIndex(frame, parserState) : null;
+  },
+
+  primeParserState(buf, state): void {
+    const parserState = state as IRacingParserState | null;
+    decodeIRacingSourceFrame(buf, parserState?.source);
   },
 
   createParserState(): IRacingParserState {
