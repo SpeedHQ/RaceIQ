@@ -4,6 +4,7 @@ import { parseDump } from "../support/recordings/parse-dump";
 import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
 import { generateRecordingVisualizations } from "../support/laps/visualizations";
 import { getRecordingFixture } from "../support/recordings/fixtures";
+import { parseSessionLapsBatchedForTest } from "../../server/db/telemetry-replay-storage";
 
 describe("F1-2025 recording", () => {
   describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
@@ -56,6 +57,31 @@ describe("F1-2025 recording", () => {
           assertValidLapHasSectors(lap);
           expect(lap.sectors).toHaveLength(3);
         }
+      }
+
+      // Analysis replays selected lap ranges from the capture using the byte
+      // offsets/frame counts persisted by the live detector.
+      const indexedLaps = laps.filter(
+        (lap) => lap.rawByteOffset != null && lap.rawFrameCount > 0,
+      );
+      const selectedLaps = [indexedLaps[0], indexedLaps[indexedLaps.length - 1]]
+        .filter((lap, index, selected) => lap && selected.indexOf(lap) === index);
+      const replayed = await parseSessionLapsBatchedForTest(
+        {
+          rawFile: recording,
+          source: null,
+          gameId: "f1-2025",
+          carOrdinal: 0,
+          trackOrdinal: 0,
+        },
+        selectedLaps.map((lap, index) => ({
+          id: index + 1,
+          rawByteOffset: lap.rawByteOffset!,
+          rawFrameCount: lap.rawFrameCount,
+        })),
+      );
+      for (const [index, lap] of selectedLaps.entries()) {
+        expect(replayed.get(index + 1)?.length).toBe(lap.packets.length);
       }
 
       // Debug: show coordinate ranges and large jumps for each lap

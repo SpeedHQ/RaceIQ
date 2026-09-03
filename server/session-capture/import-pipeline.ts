@@ -9,6 +9,8 @@ import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
+import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
+
 
 
 export interface ImportedLap {
@@ -306,9 +308,11 @@ export function importSessionFrames(
     gameId,
     options,
     async (sourceFrame, _packetIndex, pipeline) => {
-      const packet = serverGame.tryParse(sourceFrame, state);
+      countSourceFrameScanned();
+      const packet = serverGame.tryParseLapIndex(sourceFrame, state);
       if (!packet) return false;
-      await pipeline.processPacket(packet, sourceFrame);
+      countIndexSampleMaterialized();
+      await pipeline.processLapIndexPacket(packet, sourceFrame);
       return true;
     },
   );

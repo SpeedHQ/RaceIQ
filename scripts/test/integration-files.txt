@@ -48,6 +48,7 @@ test/games/ac-evo/ac-evo-batch-decode.test.ts
 test/games/ac-evo/ac-evo-distance-integration.test.ts
 test/games/ac-evo/ac-evo-parser-fallback.test.ts
 test/games/ac-evo/ac-evo-session-lifecycle.test.ts
+test/games/f1-2025/f1-indexed-replay.test.ts
 test/games/acc/acc-parser.test.ts
 test/games/acc/acc-recorder.test.ts
 test/games/acc/acc-session-lifecycle.test.ts
@@ -76,6 +77,7 @@ test/race-results/raw-capture-identity.test.ts
 test/routes/car-routes-game-id.test.ts
 test/routes/import-ownership.test.ts
 test/routes/lap-analysis-route.test.ts
+test/routes/lap-analysis-integration.test.ts
 test/routes/laps-issues-route.test.ts
 test/routes/live-route.test.ts
 test/routes/recording-support.test.ts
@@ -86,10 +88,12 @@ test/runtime/stale-session-jobs.test.ts
 test/runtime/update-check.test.ts
 test/runtime/websocket-manager.test.ts
 test/session-capture/parse-bin-vs-gz.test.ts
+test/session-capture/lap-index-import.test.ts
 test/session-capture/parse-dump.test.ts
 test/session-capture/raw-binary-storage.test.ts
 test/session-capture/session-compressor.test.ts
 test/session-capture/session-recorder.test.ts
+test/session-capture/source-loader-stream.test.ts
 test/setups/ac-evo/ac-evo-carsetup-f1.test.ts
 test/setups/ac-evo/ac-evo-carsetup-knobs.test.ts
 test/setups/ac-evo/ac-evo-carsetup-writer.test.ts

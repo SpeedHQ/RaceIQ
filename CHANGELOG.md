@@ -6,6 +6,7 @@
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+- Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
 
 ### Internal
 - Narrow client response helper contracts to the fields each RPC and download path uses
