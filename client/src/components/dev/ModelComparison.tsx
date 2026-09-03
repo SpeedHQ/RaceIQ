@@ -10,8 +10,8 @@ interface ModelStats { sizeBytes: number; vertexCount: number }
 interface StatsPayload { original: ModelStats; optimized: ModelStats }
 const MODEL_LABELS: Record<ModelId, string> = { gt3: "Aston Martin GT3", f1: "McLaren MCL39 F1" };
 const MODEL_URLS: Record<ModelId, Record<AssetChoice, string>> = {
-  gt3: { original: "/api/dev/models/gt3/original", optimized: "/models/aston_martin_vantage_gt3_exterior.glb" },
-  f1: { original: "/api/dev/models/f1/original", optimized: "/models/f1_2025_mclaren_mcl39_exterior.glb" },
+  gt3: { original: "/api/dev/models/gt3/original", optimized: "/models/aston_martin_vantage_gt3_optimised.glb" },
+  f1: { original: "/api/dev/models/f1/original", optimized: "/models/f1_2025_mclaren_mcl39_optimised.glb" },
 };
 function formatBytes(bytes: number): string { return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`; }
 function ComparisonModel({ modelId, asset, wireframe }: { modelId: ModelId; asset: AssetChoice; wireframe: boolean }) {

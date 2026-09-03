@@ -57,7 +57,7 @@ export async function optimizeF1Model(inputPath: string, outputPath: string): Pr
 
 if (import.meta.main) {
   const inputPath = process.argv[2] ?? resolve(REPO_ROOT, "assets/models/source/f1_2025_mclaren_mcl39.glb");
-  const outputPath = process.argv[3] ?? resolve(REPO_ROOT, "client/public/models/f1_2025_mclaren_mcl39_exterior.glb");
+  const outputPath = process.argv[3] ?? resolve(REPO_ROOT, "client/public/models/f1_2025_mclaren_mcl39_optimised.glb");
   try {
     const report = await optimizeF1Model(inputPath, outputPath);
     console.log(JSON.stringify(report, null, 2));

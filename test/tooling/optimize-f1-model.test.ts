@@ -10,14 +10,14 @@ import { MeshoptDecoder } from "meshoptimizer";
 
 const sourcePath = resolve("assets/models/source/f1_2025_mclaren_mcl39.glb");
 
-describe("F1 exterior derivative", () => {
+describe("F1 optimised derivative", () => {
   let temporaryDirectory: string;
   let generatedPath: string;
 
   beforeAll(async () => {
     await MeshoptDecoder.ready;
     temporaryDirectory = await mkdtemp(join(tmpdir(), "raceiq-f1-"));
-    generatedPath = join(temporaryDirectory, "f1_2025_mclaren_mcl39_exterior.glb");
+    generatedPath = join(temporaryDirectory, "f1_2025_mclaren_mcl39_optimised.glb");
     await optimizeF1Model(sourcePath, generatedPath);
   });
 

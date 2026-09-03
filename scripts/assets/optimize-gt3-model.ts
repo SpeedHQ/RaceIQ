@@ -110,7 +110,7 @@ export async function optimizeGt3Model(inputPath: string, outputPath: string): P
 
 if (import.meta.main) {
   const inputPath = process.argv[2] ?? resolve(REPO_ROOT, "assets/models/source/aston_martin_vantage_gt3.glb");
-  const outputPath = process.argv[3] ?? resolve(REPO_ROOT, "client/public/models/aston_martin_vantage_gt3_exterior.glb");
+  const outputPath = process.argv[3] ?? resolve(REPO_ROOT, "client/public/models/aston_martin_vantage_gt3_optimised.glb");
   try {
     const report = await optimizeGt3Model(inputPath, outputPath);
     const reduction = 1 - report.outputBytes / report.sourceBytes;

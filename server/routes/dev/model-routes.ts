@@ -8,11 +8,11 @@ import { MeshoptDecoder } from "meshoptimizer";
 const MODELS = {
   gt3: {
     sourcePath: resolve("assets/models/source/aston_martin_vantage_gt3.glb"),
-    optimizedPath: resolve("client/public/models/aston_martin_vantage_gt3_exterior.glb"),
+    optimizedPath: resolve("client/public/models/aston_martin_vantage_gt3_optimised.glb"),
   },
   f1: {
     sourcePath: resolve("assets/models/source/f1_2025_mclaren_mcl39.glb"),
-    optimizedPath: resolve("client/public/models/f1_2025_mclaren_mcl39_exterior.glb"),
+    optimizedPath: resolve("client/public/models/f1_2025_mclaren_mcl39_optimised.glb"),
   },
 } as const;
 

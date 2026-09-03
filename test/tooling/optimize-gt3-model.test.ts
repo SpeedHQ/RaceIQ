@@ -36,14 +36,14 @@ function bounds(document: Awaited<ReturnType<NodeIO["read"]>>): number[][] {
   return [result.min, result.max];
 }
 
-describe("GT3 exterior derivative", () => {
+describe("GT3 optimised derivative", () => {
   let temporaryDirectory: string;
   let generatedPath: string;
 
   beforeAll(async () => {
     await Promise.all([MeshoptDecoder.ready]);
     temporaryDirectory = await mkdtemp(join(tmpdir(), "raceiq-gt3-"));
-    generatedPath = join(temporaryDirectory, "aston_martin_vantage_gt3_exterior.glb");
+    generatedPath = join(temporaryDirectory, "aston_martin_vantage_gt3_optimised.glb");
     await optimizeGt3Model(sourcePath, generatedPath);
   });
 
