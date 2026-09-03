@@ -2,6 +2,7 @@
 
 ### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+- Ship optimized GT3 and F1 car models, reducing delivered model sizes by 96.5% and 91.0% while preserving exterior visuals
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
