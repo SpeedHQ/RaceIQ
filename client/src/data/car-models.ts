@@ -36,7 +36,7 @@ export const DEFAULT_CAR: CarModelEnrichment = {
 
 /** F1 2025 car model — regulation dimensions (Pirelli 305/720-18 front, 405/720-18 rear) */
 export const F1_CAR: CarModelEnrichment & { hasModel: true } = {
-  modelPath: "/models/f1_2025_mclaren_mcl39.glb",
+  modelPath: "/models/f1_2025_mclaren_mcl39_optimised.glb",
   halfWheelbase: 1.8, // 3600mm wheelbase (regulation max)
   halfFrontTrack: 0.8, // ~1600mm front track (centre-to-centre)
   halfRearTrack: 0.8, // ~1600mm rear track (centre-to-centre)
@@ -72,6 +72,6 @@ export function getCarModel(carOrdinal: number): CarModelEnrichment & { hasModel
 /** Aston Martin Vantage GT3 — used as demo model in onboarding */
 export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   ...DEFAULT_CAR,
-  modelPath: "/models/aston_martin_vantage_gt3.glb",
+  modelPath: "/models/aston_martin_vantage_gt3_optimised.glb",
   hasModel: true,
 };

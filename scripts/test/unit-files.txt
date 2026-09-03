@@ -74,3 +74,6 @@ test/tooling/version-label.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/visualization/suspension.test.ts
 test/tooling/playwright-setup-seed.test.ts
+test/tooling/optimize-gt3-model.test.ts
+test/tooling/dev-model-routes.test.ts
+test/tooling/optimize-f1-model.test.ts
