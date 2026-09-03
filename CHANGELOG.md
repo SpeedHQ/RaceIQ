@@ -10,7 +10,7 @@
 ### Internal
 - Narrow client response helper contracts to the fields each RPC and download path uses
 - Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
-- Reduce packaged image payload by 41.3% (32,687,248 bytes across 890 images) and remove stale assets during upgrades
+- Reduce packaged image payload by 22.8% (18,066,710 bytes across 890 images) and remove stale assets during upgrades
 
 ## v0.15.1 - 2026-09-01
 

@@ -96,7 +96,7 @@ export async function optimizeClientImages({ publicDir, dataDir }: OptimizeOptio
     const pipeline = Bun.file(inputPath).image();
     const outputPath = `${inputPath.slice(0, -extname(inputPath).length)}.webp`;
     if (metadata.width > 1600) pipeline.resize(1600);
-    await pipeline.webp({ quality: 80 }).write(outputPath);
+    await pipeline.webp({ quality: 90 }).write(outputPath);
     const inputBytes = statSync(inputPath).size;
     const outputBytes = statSync(outputPath).size;
     unlinkSync(inputPath);
