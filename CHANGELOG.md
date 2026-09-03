@@ -2,7 +2,7 @@
 
 ### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
-- Ship optimized GT3 and F1 car models, reducing delivered model sizes by 96.5% and 91.0% while preserving exterior visuals
+- Ship optimized GT3 and F1 car models, saving 52,570,304 bytes and 60,432,612 bytes respectively (113,002,916 bytes total) while preserving exterior visuals
 - Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
 
 ### Fixes
