@@ -17,5 +17,19 @@ describe("native model-eval datasets", () => {
     expect((compare.items[0].groundTruth as { fasterLap: string }).fasterLap).toBe("B");
     expect((compare.items[0].groundTruth as { lapIds: number[] }).lapIds.every((id) => id > 0)).toBe(true);
     expect(compare.items[0].toolMocks).toHaveLength(2);
+    expect(analyst.scorerIds).toEqual([
+      "output-shape",
+      "corner-coverage",
+      "numeric-grounding",
+      "unit-consistency",
+      "code-trajectory-scorer",
+      "check-no-tool-errors",
+    ]);
+    expect(compare.scorerIds).toEqual([
+      "compare-directionality",
+      "unit-consistency",
+      "code-trajectory-scorer",
+      "check-no-tool-errors",
+    ]);
   }, 300_000);
 });
