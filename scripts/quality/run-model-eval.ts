@@ -42,16 +42,28 @@ function canonical(value: unknown): string {
   };
   return JSON.stringify(encode(value));
 }
+async function ensureLocalModelServer(): Promise<void> {
+  const endpoint = new URL(baseURL);
+  if (!["localhost", "127.0.0.1"].includes(endpoint.hostname)) return;
+  try {
+    const response = await fetch(`${baseURL}/models`);
+    if (response.ok) return;
+  } catch {}
+  const port = endpoint.port || "1234";
+  const started = Bun.spawnSync(["lms", "server", "start", "--port", port], { stdout: "inherit", stderr: "inherit" });
+  if (started.exitCode !== 0) throw new Error(`Model eval preflight failed: could not start LM Studio server on port ${port}`);
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      const response = await fetch(`${baseURL}/models`);
+      if (response.ok) return;
+    } catch {}
+    await Bun.sleep(1000);
+  }
+  throw new Error(`Model eval preflight failed: LM Studio server did not become ready on port ${port}`);
+}
+await ensureLocalModelServer();
 const response = await fetch(`${baseURL}/models`);
 if (!response.ok) throw new Error(`Model eval preflight failed: HTTP ${response.status}`);
-const body: unknown = await response.json();
-if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) throw new Error("Model eval preflight failed: invalid /models response shape");
-const available = body.data.map(item => {
-  if (typeof item !== "object" || item === null || !("id" in item) || typeof item.id !== "string" || item.id.length === 0) throw new Error("Model eval preflight failed: invalid /models response shape");
-  return item.id;
-});
-const missing = [...modelIds, ...(judgeEnabled ? [judgeModel] : [])].filter(id => !available.includes(id));
-if (missing.length) throw new Error(`Model eval preflight failed: unavailable model(s): ${[...new Set(missing)].join(", ")}`);
 await initDb(); initGameAdapters(); initServerGameAdapters();
 const parsed = await loadParsedModelEvalFixture(fixture);
 const fixtureLaps = [parsed.analystLap, ...parsed.compareLaps];
