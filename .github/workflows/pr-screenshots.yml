@@ -134,7 +134,6 @@ jobs:
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
         continue-on-error: true
-        working-directory: ${{ runner.temp }}/raceiq-base
         env:
           E2E_SERVER_MODE: compiled
           PW_SCREENSHOT_ONLY: "1"
@@ -142,6 +141,11 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
+          $base = Join-Path $env:RUNNER_TEMP "raceiq-base"
+          if (-not (Test-Path -LiteralPath $base -PathType Container)) {
+            throw "Base comparison worktree is missing: $base"
+          }
+          Push-Location $base
           bun install
           bun run build
           Remove-Item (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force -ErrorAction SilentlyContinue
@@ -196,3 +200,9 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+      - name: Fail when responsive render fails
+        if: steps.current-responsive.outcome == 'failure' || steps.base-responsive.outcome == 'failure'
+        shell: powershell
+        run: |
+          Write-Error "Responsive screenshot render failed."
+          exit 1
