@@ -11,6 +11,7 @@ import { getModel } from "../../server/ai/model-provider";
 import { MODEL_EVAL_FIXTURES, loadParsedModelEvalFixture, buildModelEvalDatasetDefinitions, syncModelEvalDataset } from "../../mastra/evals/model-eval-datasets";
 import { modelEvalModelIds } from "../../mastra/evals/model-eval-config";
 import { RequestContext } from "@mastra/core/request-context";
+import { candidateLifecycleCommands } from "./model-eval-lifecycle";
 const REPEAT_COUNT = 3;
 const baseURL = (process.env.EVAL_LOCAL_ENDPOINT ?? "http://localhost:1234/v1").replace(/\/+$/, "");
 const judgeEnabled = process.env.EVAL_LOCAL_JUDGE === "1";
@@ -66,7 +67,12 @@ const sourceVersionResult = Bun.spawnSync(["git", "rev-parse", "HEAD"], { stdout
 const sourceVersion = sourceVersionResult.exitCode === 0 ? new TextDecoder().decode(sourceVersionResult.stdout).trim() : "";
 if (!sourceVersion) throw new Error("Model eval setup failed: unable to resolve sourceVersion");
 const experiments: { id: string; modelId: string; agent: string; status: string; promptFingerprint: string }[] = [];
-for (const modelId of modelIds) for (let index = 0; index < synced.length; index++) {
+for (const modelId of modelIds) {
+  for (const command of candidateLifecycleCommands(modelIds, modelId)) {
+    const result = Bun.spawnSync(command, { stdout: "ignore", stderr: "pipe" });
+    if (command[1] === "load" && result.exitCode !== 0) throw new Error(`Model eval candidate setup failed: could not load ${modelId}`);
+  }
+  for (let index = 0; index < synced.length; index++) {
   const definition = definitions[index]; const { dataset, version } = synced[index];
   const requestContext = new RequestContext(); const modelConfig = { provider: "local", model: modelId, localEndpoint: baseURL }; requestContext.set(RESOLVED_AI_MODEL_CONTEXT_KEY, modelConfig); const experimentRequestContext = { [RESOLVED_AI_MODEL_CONTEXT_KEY]: modelConfig };
   const agent = mastra.getAgent(definition.targetId);
@@ -81,6 +87,8 @@ for (const modelId of modelIds) for (let index = 0; index < synced.length; index
   } finally {
     (agent as unknown as { model: unknown }).model = originalModel;
   }
+}
+  Bun.spawnSync(["lms", "unload", modelId], { stdout: "ignore", stderr: "ignore" });
 }
 if (judgeEnabled) {
   for (const model of modelIds) Bun.spawnSync(["lms", "unload", model], { stdout: "ignore", stderr: "ignore" });
