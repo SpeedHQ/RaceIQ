@@ -135,6 +135,7 @@ test/tooling/changelog.test.ts
 test/tooling/responsive-workspace-contract.test.ts
 test/tooling/story-isolation.test.ts
 test/tooling/theme-contract.test.ts
+test/tooling/optimize-client-images.test.ts
 test/tracks/compact-route.test.ts
 test/tracks/discovered-cars.test.ts
 test/tracks/guides/anchor-validity.test.ts

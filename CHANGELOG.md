@@ -2,6 +2,7 @@
 
 ### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+- Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views

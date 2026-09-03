@@ -93,6 +93,8 @@ jobs:
 
       - name: Copy shared data
         run: bun scripts/build/copy-shared-data.ts
+      - name: Optimize packaged images
+        run: bun scripts/build/optimize-client-images.ts
 
       - name: Compile server binary
         run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
