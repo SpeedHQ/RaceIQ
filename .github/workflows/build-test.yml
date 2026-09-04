@@ -49,11 +49,6 @@ jobs:
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
 
-      - name: Check changelog
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          bun scripts/release/check-changelog.ts
 
       - name: Check generated telemetry catalog
         shell: powershell
@@ -94,6 +89,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+
+  changelog:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Check changelog
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          bun scripts/release/check-changelog.ts
   playwright-dev:
     if: >-
       always() && (
