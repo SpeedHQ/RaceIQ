@@ -139,6 +139,7 @@ jobs:
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
         continue-on-error: true
+        timeout-minutes: 15
         env:
           PW_SCREENSHOT_WORKERS: "1"
           E2E_SERVER_MODE: compiled
