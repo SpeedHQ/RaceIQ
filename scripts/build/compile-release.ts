@@ -1,6 +1,7 @@
 export {};
 
 const version = process.argv[2] ?? "";
+const e2e = process.argv.includes("--e2e");
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
   throw new Error(`Release version must match MAJOR.MINOR.PATCH: ${version || "<missing>"}`);
 }
@@ -17,6 +18,10 @@ const child = Bun.spawn([
   `--windows-version=${version}`,
   "--define",
   'process.env.NODE_ENV="production"',
+  "--define",
+  `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="${e2e ? "true" : process.env.RACEIQ_FEATURE_F1_EXPERIMENTS}"`,
+  "--define",
+  `process.env.RACEIQ_FEATURE_IRACING_ADAPTER="${e2e ? "true" : process.env.RACEIQ_FEATURE_IRACING_ADAPTER}"`,
   "server/bootstrap.ts",
   "--outfile",
   "dist/raceiq.exe",

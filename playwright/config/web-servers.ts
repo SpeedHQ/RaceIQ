@@ -25,8 +25,6 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     env.CLIENT_PORT = ports.clientPort;
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;
   }
-  env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
-  env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
   if (seeded) {
     env.PW_SEED_SCREENSHOTS = "1";
     env.RACEIQ_E2E = "1";

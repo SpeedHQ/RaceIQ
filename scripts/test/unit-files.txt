@@ -71,7 +71,6 @@ test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/storybook-ready.test.ts
 test/tooling/version-label.test.ts
 test/routes/place-setup-sanitise.test.ts
-test/routes/runtime-features.test.ts
 test/visualization/suspension.test.ts
 test/tooling/playwright-setup-seed.test.ts
 test/tooling/optimize-gt3-model.test.ts

@@ -97,7 +97,7 @@ jobs:
         run: bun scripts/build/optimize-client-images.ts
 
       - name: Compile server binary
-        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         shell: powershell
@@ -112,9 +112,6 @@ jobs:
           New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
           Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
 
-      - name: Copy production environment defaults
-        shell: powershell
-        run: Copy-Item -Force .env.production dist\.env.production
 
       - name: Smoke test server startup
         shell: powershell
@@ -142,13 +139,6 @@ jobs:
               Stop-Process -Id $server.Id -Force
             }
           }
-      - name: Upload dist artifact (for E2E test)
-        uses: actions/upload-artifact@v7
-        with:
-          name: raceiq-dist-windows
-          path: dist/
-          retention-days: 1
-
       - name: Install Inno Setup
         shell: powershell
         run: |
@@ -157,12 +147,32 @@ jobs:
           Start-Process -Wait -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/DIR=C:\InnoSetup"
           echo "C:\InnoSetup" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
-
       - name: Build installer
         shell: cmd
         run: |
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
+
+      - name: Build feature-enabled E2E client
+        shell: powershell
+        run: |
+          $env:RACEIQ_FEATURE_F1_EXPERIMENTS = "true"
+          $env:RACEIQ_FEATURE_IRACING_ADAPTER = "true"
+          Push-Location client
+          bun run build
+          Pop-Location
+          Remove-Item -Recurse -Force dist\public
+          Copy-Item -Recurse -Force client\dist dist\public
+
+      - name: Compile feature-enabled E2E server
+        shell: powershell
+        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}" --e2e
+      - name: Upload E2E dist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-e2e-dist-windows
+          path: dist/
+          retention-days: 1
 
 
       - uses: actions/upload-artifact@v7
@@ -246,7 +256,7 @@ jobs:
       projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ matrix.runs_on }}
-      dist-artifact: raceiq-dist-windows
+      dist-artifact: raceiq-e2e-dist-windows
       artifact-name: playwright-compiled-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
