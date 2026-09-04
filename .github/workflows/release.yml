@@ -154,6 +154,10 @@ jobs:
           Start-Process -Wait -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/DIR=C:\InnoSetup"
           echo "C:\InnoSetup" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
+      - name: Copy production environment defaults
+        shell: powershell
+        run: Copy-Item -Force .env.production dist\.env.production
+
       - name: Build installer
         shell: cmd
         run: |
