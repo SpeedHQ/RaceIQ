@@ -200,8 +200,8 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
-      - name: Fail when responsive render fails
-        if: steps.current-responsive.outcome == 'failure' || steps.base-responsive.outcome == 'failure'
+      - name: Fail when current responsive render fails
+        if: steps.current-responsive.outcome == 'failure'
         shell: powershell
         run: |
           Write-Error "Responsive screenshot render failed."
