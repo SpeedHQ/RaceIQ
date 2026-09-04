@@ -97,7 +97,7 @@ jobs:
         run: bun scripts/build/optimize-client-images.ts
 
       - name: Compile server binary
-        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         shell: powershell
@@ -162,7 +162,10 @@ jobs:
 
       - name: Compile feature-enabled E2E server
         shell: powershell
-        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}" --e2e
+        env:
+          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
+          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
+        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}" --e2e
 
       - name: Upload E2E dist artifact
         uses: actions/upload-artifact@v7
