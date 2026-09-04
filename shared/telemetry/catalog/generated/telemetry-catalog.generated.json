@@ -12,13 +12,13 @@
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
       "server/games/acc/parser.ts": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0",
-      "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
+      "server/games/f1-2025/f1-state.ts": "8ea01f7b5c8a170b3b6b88cfe7af2082177b29c0a23bc82dc03725db2f83f863",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
+      "server/games/iracing/normalizer.ts": "3e394540825b686fee1abc3151cbc6a8b88b35b546692dbba94a34ae8d3831ba",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "06881bb0bded98551c9420656c620c9b3acf6998b15286994354effc5aeb3527"
+    "contentHash": "23b5360df7089faead76bd6520757efcdb10e81110b52ba81cfd7797dae43ea6"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",

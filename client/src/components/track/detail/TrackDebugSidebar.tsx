@@ -1,3 +1,4 @@
+import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
@@ -144,24 +145,24 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
                     </Button>
                   </div>
                   <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
-                    <input
+                    <AppInput
                       type="number"
                       step="0.1"
                       min="0"
                       max="100"
                       value={(seg.startFrac * 100).toFixed(1)}
                       onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)}
-                      className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                      className="w-14 text-center"
                     />
                     <span>-</span>
-                    <input
+                    <AppInput
                       type="number"
                       step="0.1"
                       min="0"
                       max="100"
                       value={(seg.endFrac * 100).toFixed(1)}
                       onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)}
-                      className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                      className="w-14 text-center"
                     />
                     <span className="text-app-text-dim">({pct}%)</span>
                   </div>
@@ -211,28 +212,28 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
                 <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
-                <input
+                <AppInput
                   type="number"
                   step="0.1"
                   min="1"
                   max={editS2 - 1}
                   value={editS1.toFixed(1)}
                   onChange={(e) => setEditS1(Number(e.target.value))}
-                  className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                  className="w-16 text-center font-mono"
                 />
                 <span className="text-app-label text-app-text-dim">%</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
                 <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
-                <input
+                <AppInput
                   type="number"
                   step="0.1"
                   min={editS1 + 1}
                   max="99"
                   value={editS2.toFixed(1)}
                   onChange={(e) => setEditS2(Number(e.target.value))}
-                  className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                  className="w-16 text-center font-mono"
                 />
                 <span className="text-app-label text-app-text-dim">%</span>
               </div>

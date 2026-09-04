@@ -29,10 +29,12 @@ runners, pre-commit checks, and CI run this guard before tests can be skipped.
 there is no DB preload, and Bun may run workers in parallel. `bun run
 test:integration` runs only `scripts/test/integration-files.txt`; by default it
 initializes shared state in isolated `.data-test` (when `DATA_DIR` is unset),
-uses the DB preload, and limits Bun worker concurrency to 2. Callers and CI may
-provide their own isolated `DATA_DIR` override. `bun run test` runs unit first,
-then initializes the shared integration database; the combined command stops on
-its first failure.
+uses the DB preload, and limits Bun worker concurrency to 2. `bun run
+test:e2e:recordings` runs only `scripts/test/e2e-files.txt` with the same isolated
+database and serial execution used for recording-backed flows. Callers and CI
+may provide their own isolated `DATA_DIR` override. `bun run test` runs unit
+first, then initializes the shared integration database; the combined command
+stops on its first failure.
 
 Focused command runs one final-path file. `bun run test:ai` runs
 `test/ai/evals/ai-quality.ai-eval.ts` with its longer timeout. `bun run bench`
@@ -44,7 +46,7 @@ cache, and canonical replay paths in isolated temporary state. Mitata owns
 warmup and repeated sampling for both; I/O results stay report-only with wider
 tolerance. Benchmarks are explicit scripts, not ordinary tests.
 
-## Unit and integration classification
+## Unit, integration, and E2E classification
 
 Classify a test as **unit** only when it exercises deterministic logic and has
 no direct or indirect `server/db` dependency, preload side effects, network or
@@ -57,10 +59,12 @@ destructive table cleanup, experiment, driver profile, discovered entity,
 migration or seed, or settings-backed behavior. Uncertain cases stay integration
 until the dependency boundary is refactored.
 
-Every ordinary `test/**/*.test.ts` and `test/**/*.test.tsx` file must appear
-exactly once across `scripts/test/unit-files.txt` and
-`scripts/test/integration-files.txt`; duplicate paths are forbidden. Keep
-explicit AI evals and benchmarks outside both manifests.
+Classify a test as **E2E** when it validates a complete recording-backed flow
+across ingestion, parsing, persistence, or generated output. Every ordinary
+`test/**/*.test.ts` and `test/**/*.test.tsx` file must appear exactly once across
+`scripts/test/unit-files.txt`, `scripts/test/integration-files.txt`, and
+`scripts/test/e2e-files.txt`; duplicate paths are forbidden. Keep explicit AI
+evals and benchmarks outside all manifests.
 
 ## Top-level map
 

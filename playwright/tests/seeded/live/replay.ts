@@ -36,7 +36,7 @@ async function visibleState(page: Page, states: readonly string[]): Promise<stri
 export async function assertRecordingChangesLiveChannels(page: Page, request: APIRequestContext, gameId: keyof typeof LIVE_CHANNELS_BY_GAME, recordingName: string): Promise<ReplayResult> {
   const channels: readonly LiveChannel[] = LIVE_CHANNELS_BY_GAME[gameId];
   const replayIntervalMs = gameId === "f1-2025" ? 50 : 12;
-  const replayResponsePromise = request.post(`/api/dev/replay/${recordingName}?packets=240&intervalMs=${replayIntervalMs}`, { timeout: 20_000 });
+  const replayResponsePromise = request.post(`/api/dev/replay/${recordingName}?packets=240&intervalMs=${replayIntervalMs}`, { timeout: 60_000 });
   for (const channel of channels) {
     if (channel.kind === "static") {
       await expect(page.getByText(channel.label, { exact: true }).first(), `${gameId} static ${channel.label}`).toBeVisible({

@@ -104,6 +104,11 @@ Source: "..\dist\node_modules\@libsql\win32-x64-msvc\*"; DestDir: "{app}\node_mo
 Source: "..\dist\credstore.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "raceiq-launcher.vbs"; DestDir: "{app}"; Flags: ignoreversion
 
+[InstallDelete]
+; Public contains only packaged assets; replace it completely on every install/upgrade.
+; User data lives under data and is intentionally preserved.
+Type: filesandordirs; Name: "{app}\public\*"
+
 [Registry]
 ; Create startup entry on install (enabled by default)
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "RaceIQ"; ValueData: """{app}\raceiq.exe"""; Flags: uninsdeletevalue

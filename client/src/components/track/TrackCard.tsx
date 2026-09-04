@@ -5,6 +5,7 @@ import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
+import { Button } from "../ui/button";
 
 export const TRACK_CARD_SHELL_CLASS = "w-full border border-app-border rounded-lg overflow-hidden bg-app-surface/50";
 const trackCardVisibilityCallbacks = new WeakMap<Element, () => void>();
@@ -145,7 +146,9 @@ export function TrackCard({
   ) : undefined;
 
   return (
-    <button
+    <Button
+      variant="plain"
+      size="content"
       type="button"
       ref={cardRef}
       data-testid={`track-card-${track.ordinal}`}
@@ -153,6 +156,6 @@ export function TrackCard({
       onClick={() => onSelect(track)}
     >
       <TrackCardVisual track={track} map={map} setupCount={setupCount} guideCount={guideCount} />
-    </button>
+    </Button>
   );
 }

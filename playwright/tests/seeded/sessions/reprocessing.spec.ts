@@ -42,6 +42,7 @@ test("failed reprocessing exposes Retry and supports keyboard dismissal", async 
   );
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
   await socket.ready;
   socket.send();
 
@@ -80,6 +81,7 @@ test("Retry completes successfully and clears the stale-session action", async (
   });
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
   await socket.ready;
   socket.send();
 
@@ -112,6 +114,7 @@ test("an in-flight request can be dismissed without exposing a duplicate action"
   });
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
   await socket.ready;
   socket.send();
 
