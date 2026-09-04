@@ -97,7 +97,7 @@ jobs:
         run: bun scripts/build/optimize-client-images.ts
 
       - name: Compile server binary
-        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         shell: powershell
@@ -153,24 +153,10 @@ jobs:
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
 
-      - name: Build feature-enabled E2E client
-        shell: powershell
-        run: |
-          $env:RACEIQ_FEATURE_F1_EXPERIMENTS = "true"
-          $env:RACEIQ_FEATURE_IRACING_ADAPTER = "true"
-          Push-Location client
-          bun run build
-          Pop-Location
-          Remove-Item -Recurse -Force dist\public
-          Copy-Item -Recurse -Force client\dist dist\public
-
-      - name: Compile feature-enabled E2E server
-        shell: powershell
-        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}" --e2e
-      - name: Upload E2E dist artifact
+      - name: Upload dist artifact (for E2E test)
         uses: actions/upload-artifact@v7
         with:
-          name: raceiq-e2e-dist-windows
+          name: raceiq-dist-windows
           path: dist/
           retention-days: 1
 

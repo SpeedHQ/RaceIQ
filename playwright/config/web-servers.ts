@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { E2ERuntime, ServerPorts } from "./runtime";
 
@@ -10,10 +11,22 @@ type WebServerDefinition = {
   stdout: "pipe";
   stderr: "pipe";
 };
+function loadDevelopmentEnv(): Record<string, string> {
+  const path = resolve(import.meta.dirname, "..", "..", ".env.development");
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (match) values[match[1]] = match[2];
+  }
+  return values;
+}
+
+const developmentEnv = loadDevelopmentEnv();
 
 function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetupData = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
+    ...developmentEnv,
     DATA_DIR: ports.dataDir,
     SERVER_PORT: ports.port,
     UDP_PORT: ports.udpPort,
@@ -21,6 +34,10 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
     RACEIQ_SEED_SETUP_DATA: seedSetupData ? "1" : "0",
   };
+  for (const key of ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"] as const) {
+    const value = process.env[key];
+    if (value !== undefined) env[key] = value;
+  }
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;

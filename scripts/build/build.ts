@@ -1,6 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const root = process.cwd();
 const distDir = join(root, "dist");
@@ -80,22 +79,7 @@ function copyLibsqlAddon() {
   cpSync(join(pkgDir, "package.json"), join(destDir, "package.json"));
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
-function loadProductionFeatureEnv(): void {
-  const path = join(root, ".env.production");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const match = line.match(/^\s*(RACEIQ_FEATURE_[A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (match && process.env[match[1]] === undefined) process.env[match[1]] = match[2];
-  }
-}
-
-
 async function main() {
-  loadProductionFeatureEnv();
-  releaseFeatureFlags({
-    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
-    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
-  });
   mkdirSync(distDir, { recursive: true });
   await run(["bun", "scripts/telemetry/generate-demo-fixture.ts"]);
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
@@ -109,10 +93,6 @@ async function main() {
     "--compile",
     "--define",
     'process.env.NODE_ENV="production"',
-    "--define",
-    `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
-    "--define",
-    `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
   ];
   if (process.platform === "win32") {
     const iconPath = join(root, "assets", "raceiq.ico");
