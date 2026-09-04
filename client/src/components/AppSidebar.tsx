@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
 import { type GameRouteFeature, supportsGameFeature } from "../lib/game-routes";
-import { isGameContextPath } from "../lib/sidebar-navigation";
+import { isGameContextPath, replaceGameRoutePrefix } from "../lib/sidebar-navigation";
 import { ConnectionStatus } from "./ConnectionStatus";
 
 export interface AppSidebarProps {
@@ -194,9 +194,10 @@ export function AppSidebar({
   const handleGameChange = (gameId: string | null) => {
     if (gameId === null) return;
     const game = getAllGames().find((candidate) => candidate.id === gameId);
-    if (!game) return;
+    if (!game || !activeGame) return;
     setGameSelectOpen(false);
-    void navigate({ to: `/${game.routePrefix}` });
+    const supportedPageRoots = FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(game.routePrefix, feature.feature)).map((feature) => feature.segment);
+    void navigate({ to: replaceGameRoutePrefix(location.pathname, activeGame.routePrefix, game.routePrefix, supportedPageRoots) });
   };
 
   const handleSettings = () => {

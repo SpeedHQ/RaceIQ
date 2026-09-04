@@ -23,7 +23,7 @@ async function assertReplayCompleted(responsePromise: Promise<APIResponse>): Pro
 test("dash/fm-2023 replay binds combo-1 values and combo-2 track flow", async ({ page, request }) => {
   const browserErrors = collectBrowserErrors(page);
 
-  const combo1Replay = request.post(`/api/dev/replay/${FM_RECORDING}?packets=240&intervalMs=12`);
+  const combo1Replay = request.post(`/api/dev/replay/${FM_RECORDING}?packets=240&intervalMs=12`, { timeout: 60_000 });
   await page.goto("/portable/combo-1", { waitUntil: "domcontentloaded" });
 
   const speedTile = page.getByText(/KM\/H|MPH/, { exact: false }).locator("..");
@@ -43,7 +43,7 @@ test("dash/fm-2023 replay binds combo-1 values and combo-2 track flow", async ({
   await expect(page.getByText("Waiting for lap data…", { exact: true })).toHaveCount(0, { timeout: 20_000 });
   await expect(page.getByText("Waiting for tire data…", { exact: true })).toHaveCount(0, { timeout: 20_000 });
 
-  const combo2Replay = request.post(`/api/dev/replay/${FM_RECORDING}?packets=120&intervalMs=12`);
+  const combo2Replay = request.post(`/api/dev/replay/${FM_RECORDING}?packets=120&intervalMs=12`, { timeout: 60_000 });
   await page.goto("/portable/combo-2", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Waiting for track…", { exact: true })).toHaveCount(0, { timeout: 20_000 });
   await expect(page.getByText("No completed laps yet", { exact: true })).toBeVisible();

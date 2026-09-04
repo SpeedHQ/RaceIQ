@@ -80,6 +80,18 @@ export class F1StateAccumulator {
    * Each emission reflects the latest merged state from all sources.
    */
   feed(header: F1Header, buf: Buffer): TelemetryPacket | null {
+    if (!this.applyState(header, buf)) return null;
+    if (this.motion && this.carTelemetry && this.lapData && this.session) {
+      return this.buildPacket(header);
+    }
+    return null;
+  }
+
+  primeParserState(header: F1Header, buf: Buffer): void {
+    this.applyState(header, buf);
+  }
+
+  private applyState(header: F1Header, buf: Buffer): boolean {
     if (header.sessionUID !== this.sessionUID) {
       this.reset();
       this.sessionUID = header.sessionUID;
@@ -125,13 +137,9 @@ export class F1StateAccumulator {
         this.motionEx = decodeF1MotionEx(data);
         break;
       default:
-        return null;
+        return false;
     }
-
-    if (this.motion && this.carTelemetry && this.lapData && this.session) {
-      return this.buildPacket(header);
-    }
-    return null;
+    return true;
   }
 
   private applySessionHistory(decoded: F1SessionHistoryData): void {

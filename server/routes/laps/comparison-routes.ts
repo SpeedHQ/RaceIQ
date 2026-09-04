@@ -3,8 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
-import { getLapById } from "../../db/lap-read-queries";
-import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { getLapsByIds } from "../../db/lap-read-queries";
+import { resolveTelemetryReplay } from "../../telemetry/replay";
+import { loadRawCaptureIdentity } from "../../session-capture/identity";
 import {
   comparisonAlignmentIndexCacheGet,
   comparisonAlignmentIndexCacheSet,
@@ -36,6 +37,49 @@ const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
 
+async function loadComparisonLaps(id1: number, id2: number) {
+  const laps = await getLapsByIds([id1, id2], { parallelSessionDecodes: true });
+  const byId = new Map(laps.map((lap) => [lap.id, lap]));
+  return [byId.get(id1) ?? null, byId.get(id2) ?? null] as const;
+}
+function comparisonReplaySource(lap: {
+  id: number;
+  sessionId: number;
+  createdAt: string;
+  gameId: GameId;
+  catalogVersion?: string;
+  catalogHash?: string;
+  catalogSchemaVersion?: string;
+  parserVersion?: string;
+  resolverVersion?: string;
+  derivationVersion?: string;
+  rawFile?: string | null;
+  rawByteOffset?: number | null;
+  rawFrameCount?: number | null;
+}) {
+  const versionIdentity =
+    lap.catalogVersion && lap.catalogHash && lap.catalogSchemaVersion && lap.parserVersion && lap.resolverVersion && lap.derivationVersion
+      ? {
+          catalogVersion: lap.catalogVersion,
+          catalogHash: lap.catalogHash,
+          catalogSchemaVersion: lap.catalogSchemaVersion,
+          parserVersion: lap.parserVersion,
+          resolverVersion: lap.resolverVersion,
+          derivationVersion: lap.derivationVersion,
+        }
+      : undefined;
+  return {
+    id: lap.id,
+    sessionId: lap.sessionId,
+    createdAt: lap.createdAt,
+    gameId: lap.gameId,
+    rawFile: (lap as typeof lap & { rawFile?: string | null }).rawFile ?? null,
+    rawByteOffset: (lap as typeof lap & { rawByteOffset?: number | null }).rawByteOffset ?? null,
+    rawFrameCount: (lap as typeof lap & { rawFrameCount?: number | null }).rawFrameCount ?? null,
+    versionIdentity,
+  };
+}
+
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
@@ -47,7 +91,7 @@ export const comparisonRoutes = new Hono()
       c.header("X-RaceIQ-Cache", "HIT");
       return c.body(cached);
     }
-    const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
@@ -73,10 +117,16 @@ export const comparisonRoutes = new Hono()
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;
-    const [replayA, replayB] = await Promise.all([
-      queryLapTelemetryBySemanticId(id1, semanticIds),
-      queryLapTelemetryBySemanticId(id2, semanticIds),
+    const sourceA = comparisonReplaySource({ ...lapA, gameId: lapA.gameId as GameId });
+    const sourceB = comparisonReplaySource({ ...lapB, gameId: lapB.gameId as GameId });
+    const [rawCaptureA, rawCaptureB] = await Promise.all([
+      sourceA.gameId === "iracing" && sourceA.rawFile ? loadRawCaptureIdentity(sourceA.rawFile) : undefined,
+      sourceB.gameId === "iracing" && sourceB.rawFile ? loadRawCaptureIdentity(sourceB.rawFile) : undefined,
     ]);
+    const [replayA, replayB] = [
+      resolveTelemetryReplay(id1, sourceA, lapA.telemetry, semanticIds, rawCaptureA),
+      resolveTelemetryReplay(id2, sourceB, lapB.telemetry, semanticIds, rawCaptureB),
+    ];
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
@@ -148,7 +198,7 @@ export const comparisonRoutes = new Hono()
     const { step, start, end } = c.req.valid("query");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
@@ -226,9 +276,8 @@ export const comparisonRoutes = new Hono()
       if (cacheOnly) return c.json({ analysis: null, cached: false });
     }
 
-    const lapA = await getLapById(id1);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
@@ -413,9 +462,8 @@ export const comparisonRoutes = new Hono()
     const { messages } = c.req.valid("json");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const lapA = await getLapById(id1);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 

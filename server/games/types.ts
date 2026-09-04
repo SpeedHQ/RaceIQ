@@ -1,7 +1,6 @@
 import type { GameAdapter } from "../../shared/games/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LapDetectorFactory } from "../lap-detection/types";
-
+import type { LapDetectorFactory, LapIndexPacket } from "../lap-detection/types";
 /** Server-only runtime behavior owned by each game implementation. */
 export interface ServerGameRuntimePolicy {
   /** Pit strategy behavior and history seeding strategy. */
@@ -41,6 +40,12 @@ export interface ServerGameAdapter extends GameAdapter {
    * `state` is the per-game parser state from createParserState().
    */
   tryParse(buf: Buffer, state: unknown): TelemetryPacket | null;
+
+  /** Parse only detector-facing fields for canonical metadata/index scans. */
+  tryParseLapIndex(buf: Buffer, state: unknown): LapIndexPacket | null;
+
+  /** Advance state without constructing a full live telemetry packet. */
+  primeParserState(buf: Buffer, state: unknown): void;
 
   /** Create per-game parser state (e.g. F1's multi-packet accumulator). null = stateless. */
   createParserState(): unknown;

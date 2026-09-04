@@ -1,5 +1,7 @@
 import type { SessionOwnership } from "@shared/racing/sessions/types";
+import type { GameId } from "@shared/games/ids";
 import { useRef, useState } from "react";
+import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
@@ -31,7 +33,7 @@ function formatLabel(format: DetectedFormat): string {
   }
 }
 
-export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: ImportResult) => void }) {
+export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [detected, setDetected] = useState<DetectionResult | null>(null);
@@ -58,14 +60,17 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
         throw new Error(message ?? `Detection failed (${response.status})`);
       }
       if (!data || !("format" in data)) throw new Error("Detection response was invalid");
-      setDetected(data);
+      const detection = data as DetectionResult;
+      setDetected(detection);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setDetecting(false);
     }
   }
-
+  function closeImport() {
+    onClose();
+  }
   async function importFile() {
     if (!file || !detected?.supported || (detected.format !== "zip" && detected.format !== "bin")) return;
     setBusy(true);
@@ -94,9 +99,20 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   }
 
   const canImport = !!file && !!detected?.supported && (detected.format === "zip" || detected.format === "bin") && !busy;
-
+  if (detected?.format === "motec" && file) {
+    return (
+      <MotecImportModal
+        initialGameId={gameId}
+        initialLd={file}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onClose={closeImport}
+        onImported={(motecResult: MotecImportSuccess) => onImported?.({ imported: motecResult.imported, gameId: motecResult.gameId })}
+      />
+    );
+  }
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && closeImport()}>
       <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
         <DialogHeader>
           <DialogTitle variant="import">Import session data</DialogTitle>
@@ -110,7 +126,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
                 {result.skipped ? ` Skipped ${result.skipped}.` : ""}
               </p>
               <div className="flex justify-end">
-                <Button variant="app-outline" size="app-md" onClick={onClose}>Done</Button>
+                <Button variant="app-outline" size="app-md" onClick={closeImport}>Done</Button>
               </div>
             </>
           ) : (
@@ -143,7 +159,7 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
               )}
               {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
               <div className="flex justify-end gap-2">
-                <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>Cancel</Button>
+                <Button variant="app-outline" size="app-md" onClick={closeImport} disabled={busy}>Cancel</Button>
                 <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? "Importing…" : "Import"}</Button>
               </div>
             </>

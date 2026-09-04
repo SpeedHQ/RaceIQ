@@ -12,7 +12,7 @@
  */
 
 const MARKER_RE = /<Marker\b[^>]*>/gi;
-const TIME_ATTR_RE = /\bTime\s*=\s*"(-?\d+(?:\.\d+)?)"/i;
+const TIME_ATTR_RE = /\bTime\s*=\s*"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)"/i;
 
 /**
  * Extract beacon times, in **seconds** from log start, sorted ascending.

@@ -3,6 +3,7 @@ import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@sha
 import { type DragEvent, useMemo, useRef, useState } from "react";
 import { FocusPicker } from "@/components/tunes/FocusPicker";
 import { SetupFilePicker } from "@/components/tunes/SetupFilePicker";
+import { AppInput } from "@/components/ui/AppInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -443,12 +444,12 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <input
+          <AppInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={car && track ? `${car} @ ${track}` : "Session name"}
             maxLength={120}
-            className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
+            className="text-xs"
           />
         </label>
 

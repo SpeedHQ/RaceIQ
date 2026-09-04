@@ -36,7 +36,7 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     command,
     env,
     url: `http://localhost:${runtime.devServer ? ports.clientPort : ports.port}`,
-    timeout: 120_000,
+    timeout: 180_000,
     reuseExistingServer: false,
     stdout: "pipe",
     stderr: "pipe",

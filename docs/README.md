@@ -11,6 +11,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Contributing](../CONTRIBUTING.md) — repository entry point and contribution workflow.
 - [Development](contributing/development.md) — install, run, seed data, and manage schema changes.
 - [Frontend development](contributing/frontend.md) — component ownership, live-state boundaries, and routing contracts.
+- [Performance benchmarks](contributing/performance-benchmarks.md) — run parser, replay, and process-isolated performance measurements.
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
 - [Test troubleshooting](contributing/test-troubleshooting.md) — diagnose test processes that do not exit.
@@ -22,6 +23,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Overview](architecture/overview.md) — service boundaries, five game adapters, ports, and telemetry flow.
 - [Race results](architecture/race-results.md) — persisted results, pit events, provenance, and reconciliation.
 - [Setup Engineer](architecture/setup-engineer.md) — tuning experiment and agent boundaries.
+- [Track calibration](architecture/track-calibration.md) — live/static transform lifecycle, fit requirements, and verification.
 - [Telemetry recording](architecture/telemetry-recording.md) — raw capture, replay, and reprocessing formats.
 - [Lap telemetry cache](architecture/lap-cache.md) — in-memory cache policy and invalidation.
 - [Lap detection](architecture/lap-detection.md) — per-game detector behavior and lifecycle.

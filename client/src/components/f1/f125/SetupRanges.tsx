@@ -276,7 +276,9 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 const inRange = dragRange.size === 0 || dragRange.has(i);
                 const isPicked = pickedIdx === i;
                 return (
-                  <button
+                  <Button
+                    variant="plain"
+                    size="content"
                     type="button"
                     key={setupId(s)}
                     data-setup-idx={i}
@@ -327,7 +329,7 @@ export function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                     <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
                       {s.lapTime || "—"}
                     </span>
-                  </button>
+                  </Button>
                 );
               })
             )}

@@ -36,9 +36,7 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: blacksmith-4vcpu-ubuntu-2204
-    container:
-      image: mcr.microsoft.com/playwright:v1.62.0-jammy
+    runs-on: ubuntu-latest
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -61,91 +59,43 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
-      - name: Mark workspace safe for git (container runs as root)
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
 
-      - name: Merge pull request base into the PR head
+      - name: Prepare merged PR snapshot workspace
         env:
           BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-          fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
-          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
-            git fetch --no-tags origin "$BASE_SHA"
-            fetched_base_sha="$(git rev-parse --verify FETCH_HEAD)"
-          fi
-          if [ "$fetched_base_sha" != "$BASE_SHA" ]; then
-            echo "Fetched base commit $fetched_base_sha does not match $BASE_SHA" >&2
-            exit 1
-          fi
-          git merge --no-edit "$BASE_SHA"
-
-      - name: Prepare base comparison worktree
-        env:
-          BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
-
-      - name: Install unzip (required by setup-bun in the container)
-        run: apt-get update && apt-get install -y --no-install-recommends unzip
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
+        run: bun scripts/ui/prepare-pr-snapshot.ts
       - name: Install dependencies
         run: bun install
 
       - name: Install client dependencies
         working-directory: client
         run: bun install
+      - name: Pin Playwright Chromium
+        working-directory: client
+        run: bunx playwright install chromium
 
       - name: Render and compare against committed baselines
         id: storybook-render
+        # CI and baseline generation both use the Ubuntu renderer.
         working-directory: client
-        # This is the collaborator assertion: `snapshot:test` (no --update)
-        # fails when the PR render differs from its committed snapshot.
         run: bun run snapshot:test
-        # Keep running so the diff can be collected and posted as UI-change
-        # awareness even when the collaborator assertion fails.
+        # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
-      - name: Collect diffs
-        id: collect
-        working-directory: client
-        shell: bash
-        run: |
-          out="$GITHUB_WORKSPACE/pr-preview"
-          mkdir -p "$out"
-          echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
-          echo "${{ steps.pull-request.outputs.base-ref }}" > "$out/base-ref.txt"
-
-          results="src/stories/__snapshots__/results"
-          if [ -d "$results" ]; then
-            while IFS= read -r diff; do
-              dir=$(dirname "$diff")
-              name=$(basename "$diff")
-              name=${name%-diff.png}
-              cp "$dir/$name-expected.png" "$out/changed--render-vs-committed-pr-baseline--$name-before.png" 2>/dev/null || continue
-              cp "$dir/$name-actual.png"   "$out/changed--render-vs-committed-pr-baseline--$name-after.png"  2>/dev/null || continue
-              cp "$dir/$name-diff.png"     "$out/changed--render-vs-committed-pr-baseline--$name-diff.png"   2>/dev/null || continue
-              echo "changed rendered snapshot: $name"
-            done < <(find "$results" -name '*-diff.png')
-          fi
-
-          bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
-            --base "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__" \
-            --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
-            --out "$out" \
-            --prefix committed-pr-baseline-vs-base
-
-          if compgen -G "$out/*-after.png" >/dev/null; then
-            echo "changed=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=0" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Prepare PR snapshot preview
+        run: >
+          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
+          "$GITHUB_WORKSPACE/pr-preview"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
+          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
+          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
+          "${{ github.event.pull_request.number || inputs.pr }}"
+          "${{ steps.pull-request.outputs.base-ref }}"
+          "$GITHUB_OUTPUT"
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -156,6 +106,17 @@ jobs:
 
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
+        shell: bash
         run: |
-          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot:docker' from client/ to update them in the pinned renderer."
+          shopt -s nullglob
+          diffs=(pr-preview/*-diff.png)
+          if (( ${#diffs[@]} > 0 )); then
+            echo "::error::Committed Storybook snapshots do not match (${#diffs[@]} diff(s))."
+            for diff in "${diffs[@]}"; do
+              echo "::error::Snapshot mismatch artifact: $(basename "$diff")"
+            done
+            echo "Download 'pr-screenshot-preview' artifact for before/after/diff images."
+          else
+            echo "::error::Committed Storybook snapshots do not match, but no diff artifacts were generated."
+          fi
           exit 1
