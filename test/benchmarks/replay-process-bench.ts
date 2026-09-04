@@ -85,6 +85,20 @@ export async function setup(): Promise<void> {
   for (const item of cases) item.expected = digest(item.run());
 }
 
+export function runIteration(): unknown {
+  switch (selectedAlias()) {
+    case REPLAY_PARSE_ALIAS:
+      return parseRawLapFramesFromBuffer(capture, 12, FRAME_COUNT, "ac-evo", FIXTURE);
+    case REPLAY_RESOLVE_ALIAS:
+      return resolveTelemetryReplay(1, source, packets, SEMANTIC_IDS);
+    default: {
+      const item = cases.find((entry) => entry.name === selectedAlias());
+      if (!item) throw new Error(`Unknown benchmark case: ${selectedAlias()}`);
+      return item.run();
+    }
+  }
+}
+
 group("replay process", () => {
   bench(REPLAY_PARSE_ALIAS, () => do_not_optimize(parseRawLapFramesFromBuffer(capture, 12, FRAME_COUNT, "ac-evo", FIXTURE)));
   bench(REPLAY_RESOLVE_ALIAS, () => do_not_optimize(resolveTelemetryReplay(1, source, packets, SEMANTIC_IDS)));
