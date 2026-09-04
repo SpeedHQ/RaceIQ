@@ -82,10 +82,8 @@ jobs:
 
       - name: Run integration tests
         run: bun run test:integration
-
       - name: Build RaceIQ
         run: bun run build
-
       - name: Upload Windows E2E dist artifact
         uses: actions/upload-artifact@v7
         with:

@@ -14,14 +14,18 @@
  * Zip layout:
  *   manifest.json                              — describes every entry
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
+ *   <gameId>-<track>-session<id>.motec.zip     — one complete MoTeC source archive per session
  */
 import { zipSync } from "fflate";
+import { readFile } from "node:fs/promises";
 import { LAPS_ZIP_LIMITS, unzipBounded } from "../archive/bounded-unzip";
 import type { SessionOwnership } from "../../shared/racing/sessions/types";
 import { getLapsRaw } from "../db/lap-read-queries";
 import { loadSessionCapture } from "../session-capture/source-loader";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { extractMotecArchive } from "../motec/import-staging";
+import { importMotec } from "../motec/import";
 import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
@@ -30,16 +34,26 @@ import {
 import type { ImportedLap } from "../session-capture/import-pipeline";
 import {
   advanceSessionFrames,
+  encodeFrameLength,
   encodeMetaFrame,
+  encodeSegmentBoundaryFrame,
+  encodeSegmentContextEndFrame,
+  encodeSegmentContextFrame,
   gzipBufferSync,
-  readFrameStreamStart,
+  iterateSessionCaptureRecords,
+  type SessionCaptureRecord,
   sessionFrameAt,
 } from "../session-capture/framing";
-import { isIRacingSessionFrame } from "../games/iracing/source-frame";
-import type { GameId } from "../../shared/games/ids";
+import {
+  createIRacingSourceDecoderState,
+  decodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
+  type IRacingSourceFrame,
+} from "../games/iracing/source-frame";
+import { parseF1Header } from "../games/f1-2025/f1-wire";
+import type { GameId } from "@shared/games/ids";
 
-/** Bumped when the zip layout changes in a way older readers can't handle. */
-export const LAPS_ZIP_VERSION = 2;
+export const LAPS_ZIP_VERSION = 4;
 
 export interface ManifestLap {
   lapNumber: number;
@@ -48,7 +62,7 @@ export interface ManifestLap {
 }
 
 export interface ManifestEntry {
-  /** Zip entry name holding this session's gzip'd frame slice. */
+  /** Zip entry name holding this session's gzip'd frame slice or MoTeC source archive. */
   file: string;
   gameId: GameId;
   /** Session id in the *source* database (informational — import always creates a new session). */
@@ -110,7 +124,7 @@ function captureFileName(memberName: string): string {
 
 function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
   return Object.keys(files)
-    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz"))
+    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz") || name.endsWith(".motec.zip"))
     .sort();
 }
 
@@ -163,27 +177,77 @@ function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
 }
 
 /**
- * iRacing value frames depend on the latest packed session frame. Exports can
- * begin at a later lap, so carry that one length-prefixed header record into
- * the slice instead of replaying every preceding telemetry frame.
+ * Re-encode decoder state immediately before a selected iRacing lap as a full
+ * session frame. Delta frames then parse identically without earlier laps.
  */
-function latestIRacingSessionRecord(
+function buildIRacingContextRecord(
   buf: Buffer,
   beforeOffset: number,
 ): Buffer | null {
-  let offset = readFrameStreamStart(buf);
-  let latest: Buffer | null = null;
-  while (offset < beforeOffset) {
-    const frame = sessionFrameAt(buf, offset);
-    if (!frame) break;
-    const recordEnd = offset + 4 + frame.length;
-    if (recordEnd > beforeOffset) break;
-    if (isIRacingSessionFrame(frame)) {
-      latest = Buffer.from(buf.subarray(offset, recordEnd));
-    }
-    offset = recordEnd;
+  const state = createIRacingSourceDecoderState();
+  let latest: IRacingSourceFrame | null = null;
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.kind !== "frame") continue;
+    if (record.offset >= beforeOffset && latest) break;
+    const decoded = decodeIRacingSourceFrame(record.frame, state);
+    if (decoded) latest = decoded;
+    if (record.offset >= beforeOffset) break;
   }
-  return latest;
+  if (!latest) return null;
+  const context = new IRacingSourceFrameEncoder().encode(latest);
+  return Buffer.concat([encodeFrameLength(context.length), context]);
+}
+function buildF1ContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
+  const selected = [...iterateSessionCaptureRecords(buf, beforeOffset)]
+    .find((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+      record.kind === "frame",
+    );
+  if (!selected) return [];
+  const sessionUID = parseF1Header(selected.frame).sessionUID;
+  const records: Buffer[] = [];
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind !== "frame") continue;
+    if (parseF1Header(record.frame).sessionUID !== sessionUID) continue;
+    records.push(Buffer.concat([
+      encodeFrameLength(record.frame.length),
+      record.frame,
+    ]));
+  }
+  return records;
+}
+function iracingSegmentEnd(
+  buf: Buffer,
+  start: number,
+  frameCount: number,
+  sessionPrefix: Buffer | null,
+): number {
+  const state = createIRacingSourceDecoderState();
+  const prefixFrame = sessionPrefix ? sessionFrameAt(sessionPrefix, 0) : null;
+  if (prefixFrame) decodeIRacingSourceFrame(prefixFrame, state);
+  let end = start;
+  let seen = 0;
+  let staleLastLap: number | undefined;
+  for (const record of iterateSessionCaptureRecords(buf, start)) {
+    if (record.kind !== "frame") continue;
+    const decoded = decodeIRacingSourceFrame(record.frame, state);
+    seen++;
+    end = record.offset + 4 + record.frame.length;
+    const lastLap = decoded?.values.LapLastLapTime;
+    if (seen <= frameCount && typeof lastLap === "number") staleLastLap = lastLap;
+    if (seen > frameCount && typeof lastLap === "number" && lastLap > 0 && staleLastLap !== undefined && Math.abs(lastLap - staleLastLap) > 0.000_1) return end;
+  }
+  return end;
+}
+function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
+  return [...iterateSessionCaptureRecords(buf)]
+    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
+      record.kind === "frame" && record.offset < beforeOffset,
+    )
+    .map((record) => Buffer.concat([
+      encodeFrameLength(record.frame.length),
+      record.frame,
+    ]));
 }
 
 function slugify(s: string): string {
@@ -191,20 +255,11 @@ function slugify(s: string): string {
 }
 
 /**
- * Build a zip containing the raw frames for the given laps, grouped by session.
- *
- * Per session the slice spans from the first selected lap's frames through the
- * last selected lap's frames *plus one trigger frame*, so the importing lap
- * detector sees the crossing that completes the final lap. Cherry-picking
- * non-adjacent laps therefore also carries the laps in between — a contiguous
- * frame stream is what makes the capture replayable, and the manifest lists
- * exactly what will come back.
- *
- * Laps with no raw capture (pre-migration rows, or a capture deleted off disk)
- * are skipped.
+ * Build a zip containing selected raw lap windows grouped by session.
+ * Each selected lap gets one completion trigger; boundaries reset import state.
  */
 export async function buildLapsZip(
-  lapIds: number[]
+  lapIds: number[],
 ): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
@@ -212,100 +267,93 @@ export async function buildLapsZip(
   if (sessions.size === 0) {
     throw new Error("No laps matched");
   }
-  if ([...sessions.values()].some((rows) => rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip")))) {
-    throw new Error("MoTeC sessions use canonical packets and have no BIN capture");
-  }
-
   const files: Record<string, Uint8Array> = {};
   const entries: ManifestEntry[] = [];
-
   for (const [sessionId, rows] of sessions) {
-    const usable = usableRawLaps(rows);
-    if (usable.length === 0) continue;
-
-    const buf = await readCapture(usable[0]);
-    if (!buf) continue; // capture gone from disk — nothing to export for this session
-
-    const first = usable[0];
-    let startByte = first.rawByteOffset as number;
-    let last = first;
-    for (let i = 1; i < usable.length; i++) {
-      const row = usable[i];
-      const offset = row.rawByteOffset as number;
-      if (offset < startByte) startByte = offset;
-      if (offset > (last.rawByteOffset as number)) last = row;
+    const firstSelected = rows[0]!;
+    const isMotec = rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip"));
+    if (isMotec) {
+      const first = allRows.find((row) => row.sessionId === sessionId) ?? firstSelected;
+      const rawFile = first.rawFile;
+      let sourceBytes: Buffer;
+      try {
+        sourceBytes = rawFile ? await readFile(rawFile) : Buffer.alloc(0);
+      } catch {
+        sourceBytes = Buffer.alloc(0);
+      }
+      if (sourceBytes.byteLength === 0) {
+        throw new Error("MoTeC source archive is missing on disk");
+      }
+      const gameId = first.gameId as GameId;
+      const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
+      const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
+      const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.motec.zip`;
+      files[fileName] = sourceBytes;
+      const sourceLaps = allRows
+        .filter((row) => row.sessionId === sessionId)
+        .sort((a, b) => a.lapNumber - b.lapNumber);
+      entries.push({
+        file: fileName, gameId, sessionId,
+        carOrdinal: first.carOrdinal ?? 0, trackOrdinal: first.trackOrdinal ?? 0,
+        carName, trackName, createdAt: first.createdAt,
+        laps: sourceLaps.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
+      });
+      continue;
     }
-    if (startByte >= buf.length) continue;
-    // +1 frame: the next-lap trigger that completes the final lap on replay.
-    const endByte = advanceSessionFrames(
-      buf,
-      last.rawByteOffset as number,
-      (last.rawFrameCount as number) + 1
+    const usable = usableRawLaps(rows).sort(
+      (a, b) => (a.rawByteOffset as number) - (b.rawByteOffset as number),
     );
-
+    if (usable.length === 0) continue;
+    const first = usable[0]!;
+    const buf = await readCapture(first);
+    if (!buf) continue;
+    const segments: Buffer[] = [];
+    for (const row of usable) {
+      const start = row.rawByteOffset as number;
+      const frameCount = row.rawFrameCount as number;
+      if (start >= buf.length) continue;
+      const prefix =
+        first.gameId === "iracing"
+          ? buildIRacingContextRecord(buf, start)
+          : null;
+      const context = first.gameId === "f1-2025"
+        ? buildF1ContextRecords(buf, start)
+        : first.gameId === "ac-evo"
+          ? buildParserContextRecords(buf, start)
+          : [];
+      const end = first.gameId === "iracing"
+        ? iracingSegmentEnd(buf, start, frameCount, prefix)
+        : advanceSessionFrames(buf, start, frameCount + 1);
+      segments.push(Buffer.concat([
+        encodeSegmentBoundaryFrame(),
+        ...(context.length > 0
+          ? [encodeSegmentContextFrame(), ...context, encodeSegmentContextEndFrame()]
+          : []),
+        ...(prefix ? [prefix] : []),
+        buf.subarray(start, end),
+      ]));
+    }
+    if (segments.length === 0) continue;
     const gameId = first.gameId as GameId;
-    const firstFrame = sessionFrameAt(buf, startByte);
-    const sessionPrefix =
-      gameId === "iracing" &&
-      firstFrame &&
-      !isIRacingSessionFrame(firstFrame)
-        ? latestIRacingSessionRecord(buf, startByte)
-        : null;
-    const telemetrySlice = buf.subarray(startByte, endByte);
-    const slice = Buffer.concat(
-      sessionPrefix
-        ? [encodeMetaFrame(), sessionPrefix, telemetrySlice]
-        : [encodeMetaFrame(), telemetrySlice],
-    );
-
+    const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
     const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
-    // Filename MUST start with `<gameId>-` so import can fall back to
-    // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
-
     files[fileName] = gzipBufferSync(slice);
-
-    // Everything inside the exported span comes back on import — list it all.
-    const covered = allRows
-      .filter(
-        (r) =>
-          r.sessionId === sessionId &&
-          r.rawByteOffset != null &&
-          r.rawByteOffset >= startByte &&
-          r.rawByteOffset < endByte
-      )
-      .sort((a, b) => a.lapNumber - b.lapNumber);
-
     entries.push({
-      file: fileName,
-      gameId,
-      sessionId,
-      carOrdinal: first.carOrdinal ?? 0,
-      trackOrdinal: first.trackOrdinal ?? 0,
-      carName,
-      trackName,
-      createdAt: first.createdAt,
-      laps: covered.map((r) => ({
-        lapNumber: r.lapNumber,
-        lapTime: r.lapTime,
-        isValid: r.isValid,
-      })),
+      file: fileName, gameId, sessionId,
+      carOrdinal: first.carOrdinal ?? 0, trackOrdinal: first.trackOrdinal ?? 0,
+      carName, trackName, createdAt: first.createdAt,
+      laps: usable.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
     });
   }
-
   if (entries.length === 0) {
     throw new Error("None of the selected laps have a raw capture available to export");
   }
-
   const manifest: LapsZipManifest = {
-    version: LAPS_ZIP_VERSION,
-    exportedAt: new Date().toISOString(),
-    entries,
+    version: LAPS_ZIP_VERSION, exportedAt: new Date().toISOString(), entries,
   };
   files[MANIFEST_FILE_NAME] = encodeManifestFile(manifest);
-
-  // level 0 for the .bin.gz members (already gzip'd), default for the manifest.
   const bytes = zipSync(files, { level: 6 });
   return { bytes, manifest };
 }
@@ -335,11 +383,10 @@ export interface ImportZipResult {
  */
 export async function importLapsZip(zipData: Uint8Array, options: { ownership?: SessionOwnership } = {}): Promise<ImportZipResult> {
   const files = unzipBounded(zipData, LAPS_ZIP_LIMITS);
-
   const manifest = parseManifestFile(files);
-  const manifestGame = new Map<string, GameId>();
-  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
 
+  const manifestEntries = new Map<string, ManifestEntry>();
+  for (const entry of manifest?.entries ?? []) manifestEntries.set(entry.file, entry);
   const laps: ImportedLap[] = [];
   const errors: string[] = [];
   let skipped = 0;
@@ -348,7 +395,7 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
 
   if (names.length === 0) {
     throw new Error(
-      "Zip contains no session captures (.bin/.bin.gz). Exports from an older RaceIQ version can't be imported."
+      "Zip contains no session captures (.bin/.bin.gz/.motec.zip). Exports from an older RaceIQ version can't be imported."
     );
   }
 
@@ -359,7 +406,31 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
       memberBytes.byteOffset,
       memberBytes.byteLength,
     );
-    const gameId = parseCaptureGameId(name, bytes, manifestGame);
+    const entry = manifestEntries.get(name);
+    if (name.endsWith(".motec.zip")) {
+      if (!entry) {
+        skipped++;
+        errors.push(`${name}: missing MoTeC manifest metadata`);
+        continue;
+      }
+      try {
+        const extracted = extractMotecArchive(bytes);
+        const result = await importMotec(extracted.ldBytes, extracted.ldxBytes, {
+          gameId: entry.gameId,
+          carOrdinal: entry.carOrdinal,
+          trackOrdinal: entry.trackOrdinal,
+          ownership: options.ownership,
+        });
+        laps.push(...result.laps);
+      } catch (err) {
+        skipped++;
+        errors.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      continue;
+    }
+    const gameId = parseCaptureGameId(name, bytes, new Map(
+      entry ? [[name, entry.gameId]] : [],
+    ));
     if (!gameId) {
       skipped++;
       errors.push(`${name}: could not determine which game this capture came from`);

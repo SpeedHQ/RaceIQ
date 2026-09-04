@@ -2,11 +2,10 @@
  * buildLapsZip — the export half of the lap/session ZIP feature.
  *
  * The zip is a *slice of the session's raw capture*, not a re-encoded blob, so
- * what matters here is the byte maths: which frames land in the slice, that the
- * 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
- * complete the final lap on replay is included, and that the manifest lists
- * every lap the importer will actually recreate (including laps that fall
- * *between* two cherry-picked ones).
+ * what matters here is the byte maths: which frames land in the slice, that
+ * the 12-byte meta frame is re-prepended, that the +1 trigger frame needed to
+ * complete each selected lap on replay is included, and that the manifest
+ * lists only selected laps.
  *
  * Uses the real (test) SQLite DB directly — same convention as
  * laps-issues-route.test.ts — since getLapsRaw joins laps→sessions with no
@@ -21,8 +20,8 @@ import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
-import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
-import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive"
+import { iterateSessionCaptureRecords, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC } from "../../server/session-capture/framing";
+import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../../server/laps/archive";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
@@ -30,6 +29,7 @@ import {
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
 } from "../../server/games/iracing/source-frame";
+import { F1_PACKET_IDS } from "../../server/games/f1-2025/f1-wire";
 import type { GameId } from "../../shared/games/ids";
 
 initGameAdapters();
@@ -55,12 +55,54 @@ function makeCapture(frameCount: number): Buffer {
   return buf;
 }
 
-/** Frame indices present in an exported slice, read back from payload[0]. */
+function makeF1Capture(frameCount: number): Buffer {
+  const frameBytes = 29;
+  const buf = Buffer.alloc(META + frameCount * (4 + frameBytes));
+  buf.writeUInt32LE(META_FRAME_MAGIC, 0);
+  buf.writeUInt32LE(4, 4);
+  buf.writeUInt32LE(0, 8);
+  const packetIds = [
+    F1_PACKET_IDS.MOTION,
+    F1_PACKET_IDS.SESSION,
+    F1_PACKET_IDS.LAP_DATA,
+    F1_PACKET_IDS.PARTICIPANTS,
+    F1_PACKET_IDS.CAR_SETUP,
+    F1_PACKET_IDS.CAR_TELEMETRY,
+    F1_PACKET_IDS.CAR_STATUS,
+    F1_PACKET_IDS.FINAL_CLASSIFICATION,
+    F1_PACKET_IDS.CAR_DAMAGE,
+    F1_PACKET_IDS.SESSION_HISTORY,
+    F1_PACKET_IDS.MOTION_EX,
+  ];
+  for (let i = 0; i < frameCount; i++) {
+    const at = META + i * (4 + frameBytes);
+    buf.writeUInt32LE(frameBytes, at);
+    buf.writeUInt16LE(2025, at + 4);
+    buf.writeUInt8(25, at + 6);
+    buf.writeUInt8(1, at + 7);
+    buf.writeUInt8(0, at + 8);
+    buf.writeUInt8(packetIds[i % packetIds.length]!, at + 10);
+    buf.writeBigUInt64LE(1n, at + 11);
+    buf.writeUInt8(0, at + 31);
+  }
+  return buf;
+}
+
+/** Frame indices present in exported ordinary records; tagged boundaries skipped. */
 function frameIndices(slice: Buffer): number[] {
   const out: number[] = [];
   let at = META;
   while (at + 4 <= slice.length) {
     const len = slice.readUInt32LE(at);
+    if (
+      slice.readUInt32LE(at) === META_FRAME_MAGIC &&
+      slice.readUInt32LE(at + 4) === 8 &&
+      at + 16 <= slice.length &&
+      slice.readUInt32LE(at + 8) === SEGMENT_BOUNDARY_MAGIC
+    ) {
+      at += 16;
+      continue;
+    }
     if (len <= 0 || at + 4 + len > slice.length) break;
     out.push(slice.readUInt8(at + 4));
     at += 4 + len;
@@ -127,10 +169,10 @@ describe("buildLapsZip", () => {
     return row!.id;
   }
 
-  /** 5-frame capture, laps at frames [0,1], [2,3], [4]. */
+  /** 6-frame capture, laps at frames [0,1], [2,3], [4], trigger [5]. */
   async function fixture(): Promise<{ sid: number; lapIds: number[] }> {
     const path = `${process.env.DATA_DIR ?? "."}/zip-test-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`;
-    await Bun.write(path, makeCapture(5));
+    await Bun.write(path, makeCapture(6));
     tmpFiles.push(path);
     const sid = await insertSession(path);
     const lapIds = [
@@ -153,14 +195,34 @@ describe("buildLapsZip", () => {
     expect(frameIndices(slice)).toEqual([0, 1, 2]); // lap 1's frames + 1 trigger
   });
 
-  test("manifest lists laps carried along inside the exported span", async () => {
+  test("selected non-contiguous laps export as separated segments", async () => {
     const { lapIds } = await fixture();
-    // Cherry-pick laps 1 and 3 — lap 2 sits between them and rides along.
     const { bytes, manifest } = await buildLapsZip([lapIds[0], lapIds[2]]);
+    expect(manifest.version).toBe(4);
+    expect(manifest.entries[0]!.laps.map((l) => l.lapNumber)).toEqual([1, 3]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+    expect(frameIndices(slice)).toEqual([0, 1, 2, 4, 5]);
+    expect(slice.indexOf(Buffer.from("SEGM"))).toBeGreaterThanOrEqual(0);
+  });
 
-    const slice = readEntry(bytes, manifest.entries[0].file);
-    expect(frameIndices(slice)).toEqual([0, 1, 2, 3, 4]);
-    expect(manifest.entries[0].laps.map((l) => l.lapNumber)).toEqual([1, 2, 3]);
+  test("F1 export bounds parser context instead of copying all prior frames", async () => {
+    const frameBytes = 29;
+    const path = `${process.env.DATA_DIR ?? "."}/zip-test-f1-context-${Date.now()}.bin`;
+    const capture = makeF1Capture(40);
+    await Bun.write(path, capture);
+    tmpFiles.push(path);
+    const sid = await insertSession(path, "f1-2025");
+    const lapId = await insertLap(sid, 1, META + 30 * (4 + frameBytes), 1);
+
+    const { bytes, manifest } = await buildLapsZip([lapId]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+    const records = [...iterateSessionCaptureRecords(slice)];
+    const contextStart = records.findIndex((record) => record.kind === "segment-context");
+    const contextEnd = records.findIndex((record) => record.kind === "segment-context-end");
+    const contextFrames = records.slice(contextStart + 1, contextEnd)
+      .filter((record) => record.kind === "frame");
+
+    expect(contextFrames.length).toBeLessThanOrEqual(30);
   });
 
   test("entry filename starts with the gameId so import can detect the game", async () => {
@@ -226,14 +288,9 @@ describe("buildLapsZip", () => {
     const { bytes, manifest } = await buildLapsZip([lapId]);
     const slice = readEntry(bytes, manifest.entries[0]!.file);
 
-    const exportedFrames: Buffer[] = [];
-    let at = META;
-    while (at + 4 <= slice.length) {
-      const length = slice.readUInt32LE(at);
-      if (length <= 0 || at + 4 + length > slice.length) break;
-      exportedFrames.push(slice.subarray(at + 4, at + 4 + length));
-      at += 4 + length;
-    }
+    const exportedFrames = [...iterateSessionCaptureRecords(slice)].flatMap(
+      (record) => record.kind === "frame" ? [record.frame] : [],
+    );
     expect(exportedFrames).toHaveLength(3);
     expect(isIRacingSessionFrame(exportedFrames[0]!)).toBe(true);
 
@@ -243,7 +300,7 @@ describe("buildLapsZip", () => {
         (frame) =>
           decodeIRacingSourceFrame(frame, decoder)?.values.SessionTick,
       ),
-    ).toEqual([0, 2, 3]);
+    ).toEqual([1, 2, 3]);
   });
 
   test("unknown lap ids are rejected", async () => {

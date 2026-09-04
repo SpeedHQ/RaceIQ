@@ -5,8 +5,10 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
+import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
+import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime } from "../session-capture/test-instrumentation";
@@ -300,15 +302,33 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     return packets;
   }
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
-  let offset = 12;
-  while (offset + 4 <= buf.length) {
-    const frameLen = buf.readUInt32LE(offset); offset += 4;
-    if (frameLen <= 0 || offset + frameLen > buf.length) break;
-    const sourceFrame = buf.subarray(offset, offset + frameLen); offset += frameLen;
-    try { const packet = serverGame.tryParse(sourceFrame, state); if (packet) { normalizeReplayPacket(packet, serverGame); packets.push(packet); } } catch {}
+  let inContext = false;
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.kind === "segment-boundary") {
+      state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
+    try {
+      const packet = serverGame.tryParse(record.frame, state);
+      if (!packet) continue;
+      normalizeReplayPacket(packet, serverGame);
+      if (!inContext) packets.push(packet);
+    } catch {
+      // Match lap replay: one malformed native frame does not discard session.
+    }
   }
   return packets;
 }
@@ -391,7 +411,7 @@ export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOff
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const fileSize = buf.length;
 
   // rawByteOffset past EOF means the lap row was written before the
@@ -588,10 +608,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     }
     return out;
   }
-
   const loaded = await loadSessionSource(source);
   if (loaded.kind !== "capture") throw new Error("Expected BIN capture source");
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const metas = lapMetas
     .map((meta) => ({ meta, record: loaded.frameIndex.byOffset.get(meta.rawByteOffset) }))
     .filter((item): item is { meta: (typeof lapMetas)[number]; record: SessionCaptureFrameRecord } => item.record !== undefined)
@@ -609,6 +628,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     let packet: TelemetryPacket | null = null;
     try {
       const frame = loaded.buffer.subarray(record.offset + 4, record.offset + 4 + record.length);
+      if (source.gameId === "iracing" && isIRacingSessionFrame(frame)) {
+        state = serverGame.createParserState?.() ?? null;
+      }
       if (needsFull) {
         countFullPacketMaterialized();
         packet = serverGame.tryParse(frame, state);
