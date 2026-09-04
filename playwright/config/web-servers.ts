@@ -12,7 +12,7 @@ type WebServerDefinition = {
   stderr: "pipe";
 };
 function loadDevelopmentEnv(): Record<string, string> {
-  const path = resolve(import.meta.dirname, "..", "..", ".env.development");
+  const path = resolve(process.cwd(), "..", ".env.development");
   const values: Record<string, string> = {};
   for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
