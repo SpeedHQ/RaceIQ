@@ -117,7 +117,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          bun run build
+          bun --env-file=.env.development run build
           Push-Location playwright
           $ErrorActionPreference = "Continue"
           & bunx playwright test --project=mobile-screenshots
@@ -147,7 +147,7 @@ jobs:
           }
           Push-Location $base
           bun install
-          bun run build
+          bun --env-file=.env.development run build
           Remove-Item (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item "dist" (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force
           Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
