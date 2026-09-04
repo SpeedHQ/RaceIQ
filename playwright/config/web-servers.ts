@@ -34,10 +34,6 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     RACEIQ_SETUP_HOME: resolve(ports.dataDir, "setup-home"),
     RACEIQ_SEED_SETUP_DATA: seedSetupData ? "1" : "0",
   };
-  for (const key of ["RACEIQ_FEATURE_F1_EXPERIMENTS", "RACEIQ_FEATURE_IRACING_ADAPTER"] as const) {
-    const value = process.env[key];
-    if (value !== undefined) env[key] = value;
-  }
   if (runtime.devServer) {
     env.CLIENT_PORT = ports.clientPort;
     if (runtime.appRoot) env.RACEIQ_APP_ROOT = runtime.appRoot;
