@@ -160,19 +160,6 @@ jobs:
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
 
-      - name: Compile feature-enabled E2E server
-        shell: powershell
-        env:
-          RACEIQ_FEATURE_F1_EXPERIMENTS: "true"
-          RACEIQ_FEATURE_IRACING_ADAPTER: "true"
-        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}" --e2e
-
-      - name: Upload E2E dist artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: raceiq-e2e-dist-windows
-          path: dist/
-          retention-days: 1
 
       - uses: actions/upload-artifact@v7
         with:
@@ -255,7 +242,7 @@ jobs:
       projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ matrix.runs_on }}
-      dist-artifact: raceiq-e2e-dist-windows
+      dist-artifact: raceiq-dist-windows
       artifact-name: playwright-compiled-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
