@@ -6,6 +6,8 @@ import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
 import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
 import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
+import type { SemanticLapTelemetry } from "@/hooks/laps";
+import { GameStoryScope } from "./GameStoryScope";
 
 /**
  * The experiment flow end to end — list → workspace → review — in both
@@ -229,6 +231,58 @@ const lapMetrics = (laps: typeof allLaps): ExperimentLapMetric[] =>
     tyreWear: +(3 + i * 1.2).toFixed(1),
   }));
 
+const semanticIds = [
+  "motion.position-x",
+  "motion.position-z",
+  "timing.distance-traveled",
+  "motion.speed",
+  "identity.track-ordinal",
+  "tire.temperature.average",
+  "brakes.brake-temp",
+  "tires.tire-pressure",
+  "tires.tire-wear",
+  "fuel.fuel",
+] as const;
+
+function lapTelemetry(lap: (typeof allLaps)[number], lapIndex: number): SemanticLapTelemetry {
+  const sampleCount = 180;
+  const start = Date.parse(lap.createdAt ?? new Date(0).toISOString());
+  const values = (semanticId: string, value: unknown) => ({ semanticId, value, state: "ok", freshness: "fresh" });
+
+  return {
+    lapId: lap.id,
+    requestedSemanticIds: [...semanticIds],
+    sectorTimes: lap.sectorTimes,
+    sectorStarts: [60, 120],
+    insights: [],
+    parseError: null,
+    envelopes: Array.from({ length: sampleCount }, (_, index) => {
+      const progress = index / (sampleCount - 1);
+      const angle = progress * Math.PI * 2;
+      const cornerLoad = Math.max(0, Math.sin(angle * 3));
+      const lapOffset = lapIndex * 0.16;
+      return {
+        sequence: index,
+        observedAt: { domain: "wall-clock", milliseconds: start + index * 16.667 },
+        receivedAt: { domain: "wall-clock", milliseconds: start + index * 16.667 + 3 },
+        simulator: "acc",
+        values: [
+          values("motion.position-x", Math.cos(angle) * (110 + 18 * Math.sin(angle * 2))),
+          values("motion.position-z", Math.sin(angle) * (72 + 14 * Math.cos(angle * 3))),
+          values("timing.distance-traveled", progress * 7_004),
+          values("motion.speed", 54 + Math.cos(angle * 3) * 16 - cornerLoad * 8),
+          values("identity.track-ordinal", lap.trackOrdinal),
+          values("tire.temperature.average", [82 + cornerLoad * 9 + lapOffset, 83 + cornerLoad * 8 + lapOffset, 78 + cornerLoad * 6 + lapOffset, 79 + cornerLoad * 7 + lapOffset]),
+          values("brakes.brake-temp", [315 + cornerLoad * 245, 320 + cornerLoad * 250, 240 + cornerLoad * 170, 245 + cornerLoad * 175]),
+          values("tires.tire-pressure", [27.2 + progress * 0.45, 27.3 + progress * 0.42, 26.9 + progress * 0.38, 27 + progress * 0.4]),
+          values("tires.tire-wear", [0.04 + progress * 0.032, 0.042 + progress * 0.034, 0.035 + progress * 0.026, 0.036 + progress * 0.028]),
+          values("fuel.fuel", 82 - progress * 2.7),
+        ],
+      };
+    }),
+  };
+}
+
 function seededClient() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   qc.setQueryData(["experiments", "acc"], [carExperiment, driverExperiment]);
@@ -242,6 +296,10 @@ function seededClient() {
   qc.setQueryData(["experiment-actions", DRIVER_ID], []);
   qc.setQueryData(["laps", null], allLaps);
   qc.setQueryData(["laps", "acc"], allLaps);
+  for (const [index, lap] of allLaps.entries()) {
+    qc.setQueryData(["lap-semantic-telemetry", lap.id, "acc"], lapTelemetry(lap, index));
+    qc.setQueryData(["lap-issues", lap.id], []);
+  }
   // The list rows resolve a car's folder name to a display name via
   // `useAccCarName`. Seed it so a story never depends on the network: Storybook
   // has no API behind it, and an unseeded fetch leaves the list stuck on its
@@ -254,9 +312,11 @@ function withProviders(Story: React.ComponentType) {
   const qc = seededClient();
   const Comp = () => (
     <QueryClientProvider client={qc}>
-      <div style={{ height: "100vh", overflow: "hidden", background: "var(--app-bg)" }}>
-        <Story />
-      </div>
+      <GameStoryScope gameId="acc">
+        <div style={{ height: "100vh", overflow: "hidden", background: "var(--app-bg)" }}>
+          <Story />
+        </div>
+      </GameStoryScope>
     </QueryClientProvider>
   );
   const rootRoute = createRootRoute({ component: Comp });
