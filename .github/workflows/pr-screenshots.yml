@@ -90,7 +90,7 @@ jobs:
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
+        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
 
 
       - uses: oven-sh/setup-bun@v2
