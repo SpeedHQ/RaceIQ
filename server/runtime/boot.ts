@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "../../shared/games/init";
+import { serverReleaseFeatures } from "./config/release-features";
 import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
 import app from "../routes/index";
@@ -41,8 +42,8 @@ function recordingGameIdFromArgs(args: readonly string[]): string | null {
 }
 
 export async function bootServer(options: BootOptions = {}): Promise<RunningServer> {
-  initGameAdapters();
-  initServerGameAdapters();
+  initGameAdapters(serverReleaseFeatures);
+  initServerGameAdapters(serverReleaseFeatures);
 
   const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html"))
     ? PUBLIC_DIR

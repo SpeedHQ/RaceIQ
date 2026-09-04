@@ -102,7 +102,6 @@ Source: "..\dist\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recurs
 Source: "..\dist\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\dist\node_modules\@libsql\win32-x64-msvc\*"; DestDir: "{app}\node_modules\@libsql\win32-x64-msvc"; Flags: ignoreversion
 Source: "..\dist\credstore.ps1"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\.env.production"; DestDir: "{app}"; Flags: ignoreversion
 Source: "raceiq-launcher.vbs"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]

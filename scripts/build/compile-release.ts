@@ -1,7 +1,6 @@
 export {};
 
 const version = process.argv[2] ?? "";
-const e2e = process.argv.includes("--e2e");
 if (!/^\d+\.\d+\.\d+$/.test(version)) {
   throw new Error(`Release version must match MAJOR.MINOR.PATCH: ${version || "<missing>"}`);
 }

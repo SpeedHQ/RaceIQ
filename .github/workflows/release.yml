@@ -97,7 +97,7 @@ jobs:
         run: bun scripts/build/optimize-client-images.ts
 
       - name: Compile server binary
-        run: bun --env-file=.env.production scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun scripts/build/compile-release.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Patch PE version info (ProductName)
         shell: powershell
@@ -111,6 +111,10 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
           Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+
+      - name: Copy production environment defaults
+        shell: powershell
+        run: Copy-Item -Force .env.production dist\.env.production
 
       - name: Smoke test server startup
         shell: powershell
@@ -138,7 +142,6 @@ jobs:
               Stop-Process -Id $server.Id -Force
             }
           }
-
       - name: Upload dist artifact (for E2E test)
         uses: actions/upload-artifact@v7
         with:
@@ -154,9 +157,6 @@ jobs:
           Start-Process -Wait -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/DIR=C:\InnoSetup"
           echo "C:\InnoSetup" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
-      - name: Copy production environment defaults
-        shell: powershell
-        run: Copy-Item -Force .env.production dist\.env.production
 
       - name: Build installer
         shell: cmd
