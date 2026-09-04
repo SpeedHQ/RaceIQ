@@ -160,7 +160,7 @@ jobs:
           Copy-Item "dist" (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force
           Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
           $ErrorActionPreference = "Continue"
-          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop
           $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
