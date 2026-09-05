@@ -158,7 +158,11 @@ jobs:
           bun --env-file=.env.development run build
           Remove-Item (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item "dist" (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force
-          Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
+          $basePlaywright = Join-Path $base "playwright"
+          $currentScreenshotDir = Join-Path $env:GITHUB_WORKSPACE "playwright/screenshots/mobile"
+          New-Item -ItemType Directory -Path $currentScreenshotDir -Force | Out-Null
+          Set-Location $basePlaywright
+          $env:RACEIQ_SCREENSHOT_DIR = $currentScreenshotDir
           $ErrorActionPreference = "Continue"
           $status = 0
           foreach ($shard in 1..3) {
