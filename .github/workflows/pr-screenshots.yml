@@ -164,11 +164,8 @@ jobs:
           Set-Location $basePlaywright
           $env:RACEIQ_SCREENSHOT_DIR = $currentScreenshotDir
           $ErrorActionPreference = "Continue"
-          $status = 0
-          foreach ($shard in 1..3) {
-            & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop "--shard=$shard/3"
-            if ($LASTEXITCODE -ne 0) { $status = $LASTEXITCODE }
-          }
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop
+          $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
           if (Test-Path "screenshots/mobile") {
