@@ -10,9 +10,9 @@ const RESULTS_DIR = process.env.RACEIQ_SNAPSHOT_RESULTS_DIR ? resolve(process.en
 export default defineConfig({
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
-  // Static Storybook is built once and serves concurrent snapshot pages.
-  // Two workers match the constrained CI runner's two vCPUs.
-  workers: 2,
+  // Each snapshot opens a full Storybook page with chart/image state. Keeping
+  // one worker prevents concurrent Chromium pages from exhausting CI memory.
+  workers: 1,
   outputDir: RESULTS_DIR,
   snapshotDir: SNAPSHOT_DIR,
   snapshotPathTemplate: "{snapshotDir}/{testName}.png",
