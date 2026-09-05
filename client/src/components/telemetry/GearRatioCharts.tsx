@@ -55,12 +55,19 @@ function gearingOf(settings: unknown): GearingDraft | null {
   return { finalDrive, ratios, topSpeed: 0 };
 }
 
+/** Saved power band (RPM) stored in a tune's gearing — null when absent or invalid. */
+function savedBandOf(tune: CarTune | null): { min: number; max: number } | null {
+  const lo = tune?.settings.gearing.powerBandMinRpm;
+  const hi = tune?.settings.gearing.powerBandMaxRpm;
+  return typeof lo === "number" && typeof hi === "number" && lo > 0 && hi > lo ? { min: lo, max: hi } : null;
+}
+
 /**
  * Gear Ratio Chart of the user's setup: loads the current car's tune, shows
  * its gearing (final drive + gear ratios), draws the speed-per-gear sawtooth
  * chart derived from the setup's stored top speed, and saves edits back.
  * The power band range (cross → peak power RPM) and redline come from the
- * live dyno.
+ * live dyno, or from the band saved with the tune (Live/Saved toggle).
  */
 export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel, crossRpm = null }: Props) {
   const { data: tunes = [], isPending: tunesLoading } = useUserTunes(packet?.gameId);
@@ -85,6 +92,8 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  // Which power band the chart draws — and what Save captures into the tune.
+  const [bandMode, setBandMode] = useState<"live" | "saved">("live");
   const redlineRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
   const userFactor = speedUnitFactor(speedLabel === "mph" ? "mph" : "km/h");
   // The setup's top speed (user unit): stored topSpeedKph, else car spec.
@@ -106,6 +115,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
       const tune = carTunes.find((t) => t.id === id);
       if (!tune) return;
       setSelectedId(id);
+      setBandMode(savedBandOf(tune) ? "saved" : "live");
       setDraft({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeed: topSpeedOf(tune) });
     },
     [carTunes, topSpeedOf],
@@ -168,6 +178,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
     if (!gearing) return;
     const tune: CarTune = { id: created.id, name: "", settings: created.settings as TuneSettings, gearing };
     setPendingId(created.id);
+    setBandMode(savedBandOf(tune) ? "saved" : "live");
     setDraft({ ...gearing, ratios: [...gearing.ratios], topSpeed: topSpeedOf(tune) });
   };
 
@@ -228,6 +239,15 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   // ── Chart model ──────────────────────────────────────────────
   const peakPowerRpm = useMemo(() => findPeakRpm(powerCurve, "powerW"), [powerCurve]);
 
+  // Live band: cross RPM → peak power RPM from the dyno; saved band: stored
+  // with the tune. The toggle picks which one the chart draws and Save writes.
+  const liveBand = useMemo(
+    () => (crossRpm != null && peakPowerRpm != null ? { min: Math.min(crossRpm, peakPowerRpm), max: Math.max(crossRpm, peakPowerRpm) } : null),
+    [crossRpm, peakPowerRpm],
+  );
+  const savedBand = useMemo(() => savedBandOf(activeTune), [activeTune]);
+  const displayedBand = bandMode === "saved" && savedBand ? savedBand : liveBand;
+
   const chartModel = useMemo(() => {
     if (!draft || draft.ratios.length === 0 || !activeTune) return null;
     // V_top: the setup's top speed (user unit) — the chart's scale anchor.
@@ -254,6 +274,9 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
     // Keep the stored top speed consistent with the saved gearing: recompute
     // the kph top speed from the fixed tire circumference when known.
     const topSpeedKph = chartModel && !chartModel.noTopSpeed && lastRatio > 0 ? setupSpeedAtRpm(chartModel.circ, redlineRpm, lastRatio, draft.finalDrive, 3.6) : tune.settings.gearing.topSpeedKph;
+    // Capture the power band currently shown (per the Live/Saved toggle) so
+    // saving while "Live" is selected snapshots the dyno into the tune.
+    const bandToSave = displayedBand;
     setSaveStatus("saving");
     updateTune.mutate(
       {
@@ -265,6 +288,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
             finalDrive: draft.finalDrive,
             ratios: draft.ratios.map((r) => r.value),
             ...(topSpeedKph != null ? { topSpeedKph } : {}),
+            ...(bandToSave ? { powerBandMinRpm: Math.round(bandToSave.min), powerBandMaxRpm: Math.round(bandToSave.max) } : {}),
           },
         },
       },
@@ -368,6 +392,30 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
                 />
               </label>
 
+              {liveBand && savedBand ? (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-app-text-muted whitespace-nowrap">{m.powerband_legend_power_band()}</span>
+                  <div className="flex overflow-hidden rounded border border-app-border" role="group" aria-label={m.grc_band_toggle_title()} title={m.grc_band_toggle_title()}>
+                    <button
+                      type="button"
+                      aria-pressed={bandMode === "live"}
+                      onClick={() => setBandMode("live")}
+                      className={`px-1.5 py-0.5 text-app-caption ${bandMode === "live" ? "bg-app-surface-hover text-app-text font-medium" : "text-app-text-muted hover:text-app-text"}`}
+                    >
+                      {m.grc_band_live()}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={bandMode === "saved"}
+                      onClick={() => setBandMode("saved")}
+                      className={`px-1.5 py-0.5 text-app-caption ${bandMode === "saved" ? "bg-app-surface-hover text-app-text font-medium" : "text-app-text-muted hover:text-app-text"}`}
+                    >
+                      {m.grc_band_saved()}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="pt-1 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_gear_ratios()}</div>
@@ -429,8 +477,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
                 tops={chartModel.tops}
                 redlineRpm={chartModel.redlineRpm}
                 xMax={chartModel.xMax}
-                peakPowerRpm={peakPowerRpm}
-                crossRpm={crossRpm}
+                band={displayedBand}
                 speedLabel={speedLabel}
               />
             </div>
@@ -447,23 +494,22 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
 
 /**
  * SVG sawtooth chart: speed (x) vs RPM (y) for every gear of the setup.
- * Shows the power band range (cross RPM → peak power RPM) and the redline.
+ * Shows a power band range and the redline — the band comes from the live
+ * dyno (cross RPM → peak power RPM) or from the values saved with the tune.
  */
 function GearSpeedChart({
   gears,
   tops,
   redlineRpm,
   xMax,
-  peakPowerRpm,
-  crossRpm,
+  band,
   speedLabel,
 }: {
   gears: number[];
   tops: number[];
   redlineRpm: number;
   xMax: number;
-  peakPowerRpm: number | null;
-  crossRpm: number | null;
+  band: { min: number; max: number } | null;
   speedLabel: string;
 }) {
   const width = 640;
@@ -493,9 +539,7 @@ function GearSpeedChart({
       startRpm,
     };
   });
-  // Power band range: cross RPM → peak power RPM (from the power band chart).
-  const bandLo = crossRpm != null && peakPowerRpm != null ? Math.min(crossRpm, peakPowerRpm) : null;
-  const bandHi = crossRpm != null && peakPowerRpm != null ? Math.max(crossRpm, peakPowerRpm) : null;
+  // Power band range: cross RPM → peak power RPM, or the saved band.
   const refLines: { rpm: number; color: string; label: string }[] = [{ rpm: redlineRpm, color: "var(--status-danger)", label: m.powerband_legend_redline() }];
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full rounded border border-app-border/50" role="img" aria-label={`Gear speed chart, redline ${redlineRpm} rpm`}>
@@ -527,12 +571,12 @@ function GearSpeedChart({
         {speedLabel}
       </text>
 
-      {/* Power band range: cross RPM → peak power RPM */}
-      {bandLo != null && bandHi != null && bandHi > bandLo && (
+      {/* Power band range */}
+      {band && band.max > band.min && (
         <g>
-          <rect x={pad.left} y={sy(bandHi)} width={cW} height={sy(bandLo) - sy(bandHi)} fill="var(--status-warning)" opacity={0.14} />
-          <text x={pad.left + cW - 4} y={(sy(bandHi) + sy(bandLo)) / 2 + 3} fontSize={8.5} fill="var(--status-warning)" textAnchor="end">
-            {m.powerband_legend_power_band()} {Math.round(bandLo).toLocaleString()}–{Math.round(bandHi).toLocaleString()}
+          <rect x={pad.left} y={sy(band.max)} width={cW} height={sy(band.min) - sy(band.max)} fill="var(--status-warning)" opacity={0.14} />
+          <text x={pad.left + cW - 4} y={(sy(band.max) + sy(band.min)) / 2 + 3} fontSize={8.5} fill="var(--status-warning)" textAnchor="end">
+            {m.powerband_legend_power_band()} {Math.round(band.min).toLocaleString()}–{Math.round(band.max).toLocaleString()}
           </text>
         </g>
       )}
