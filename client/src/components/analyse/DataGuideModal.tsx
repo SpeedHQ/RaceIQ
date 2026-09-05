@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import { operatingColor, severityColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 interface SectionProps {
   title: string;
   children: React.ReactNode;
@@ -52,26 +52,23 @@ function BrakeTemperatureDot({ state }: { state: "cold" | "working" | "hot" }) {
 
 export function DataGuideModal({ onClose }: { onClose: () => void }) {
   return (
-    <div className="@container/data-guide fixed inset-0 z-50 flex items-center justify-center p-3">
-      <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="analyse-data-guide-title"
-        className="relative flex max-h-[85vh] w-full max-w-[560px] flex-col rounded-xl border border-app-border bg-app-surface shadow-2xl"
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        size="lg"
+        showCloseButton={false}
+        overlayClassName="bg-app-bg/60"
+        className="@container/data-guide flex min-h-0 max-h-[85vh] max-w-[560px] flex-col gap-0 overflow-hidden p-0"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
-          <h2 id="analyse-data-guide-title" className="text-sm font-semibold text-app-text">
+        <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-3">
+          <DialogTitle id="analyse-data-guide-title" className="text-sm font-semibold text-app-text">
             {m.analyse_data_guide_title()}
-          </h2>
+          </DialogTitle>
           <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
-        </div>
-
+        </DialogHeader>
         {/* Scrollable content */}
-        <div className="overflow-y-auto px-5 py-4 space-y-5">
+        <div className="min-h-0 overflow-y-auto px-5 py-4 space-y-5">
           {/* Metrics */}
           <Section title={m.dataguide_metrics()}>
             <Row label={m.dataguide_speed()} desc="Current vehicle speed in selected units." />
@@ -221,7 +218,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
             <Row label={m.dataguide_load()} desc="Weight distribution. Lon 50% = balanced front/rear · Lat 50% = balanced left/right. Shifts during acceleration, braking, and cornering." />
           </Section>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

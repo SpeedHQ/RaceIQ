@@ -8,7 +8,7 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator source SHA-256: `b57abc6ac5ca63c419b91024a27a66dd82a06ad7e9375cfb6737e464315e7b0a`
-- Content SHA-256: `06881bb0bded98551c9420656c620c9b3acf6998b15286994354effc5aeb3527`
+- Content SHA-256: `23b5360df7089faead76bd6520757efcdb10e81110b52ba81cfd7797dae43ea6`
 
 ## Coverage
 

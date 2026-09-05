@@ -1,6 +1,7 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
+import { resetTestDatabase } from "./reset-test-database";
 import { seedScreenshotData } from "./seed-screenshot-data";
 
 const repoDir = process.env.RACEIQ_APP_ROOT ? resolve(process.env.RACEIQ_APP_ROOT) : resolve(__dirname, "..", "..", "..");
@@ -8,13 +9,8 @@ const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoD
 const serverPort = process.env.SERVER_PORT ?? "3118";
 const clientPort = process.env.CLIENT_PORT ?? "4118";
 const udpPort = process.env.UDP_PORT ?? "15318";
+resetTestDatabase(dir);
 
-const dirSegments = dir.split(/[\\/]+/);
-if (!dirSegments.some((segment) => segment.includes("test-data"))) {
-  throw new Error(`Refusing to wipe DATA_DIR "${dir}": path must contain a "test-data" segment.`);
-}
-
-rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
 seedScreenshotData(repoDir, dir);

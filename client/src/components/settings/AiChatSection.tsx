@@ -1,5 +1,7 @@
 import { RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiChatState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS, PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
@@ -37,9 +39,9 @@ export function AiChatSection({ state }: { state: AiChatState }) {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
+          <Label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
-          </label>
+          </Label>
           <select
             id="ai-chat-provider"
             value={chatProvider}
@@ -60,17 +62,17 @@ export function AiChatSection({ state }: { state: AiChatState }) {
         </div>
         {PROVIDER_KEY_LABELS[chatProvider] && (
           <div>
-            <label htmlFor="ai-chat-api-key" className="block text-xs text-app-text-muted mb-1">
+            <Label htmlFor="ai-chat-api-key" className="block text-xs text-app-text-muted mb-1">
               {PROVIDER_KEY_LABELS[chatProvider].label}
-            </label>
+            </Label>
             <div className="flex items-center gap-1.5 max-w-xs">
-              <input
+              <Input
                 id="ai-chat-api-key"
                 type="password"
                 value={chatApiKey}
                 onChange={(e) => setChatApiKey(e.target.value)}
                 placeholder={(keyStatus[chatProvider] ?? false) ? m.ai_key_stored_placeholder() : PROVIDER_KEY_LABELS[chatProvider].placeholder}
-                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+                className="w-full font-mono"
               />
               {(keyStatus[chatProvider] ?? false) && (
                 <Button
@@ -95,9 +97,9 @@ export function AiChatSection({ state }: { state: AiChatState }) {
         {canShowChatModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label htmlFor="ai-chat-model" className="block text-xs text-app-text-muted">
+              <Label htmlFor="ai-chat-model" className="block text-xs text-app-text-muted">
                 {m.ai_model_label()}
-              </label>
+              </Label>
               <Button
                 variant="app-ghost"
                 size="app-sm"

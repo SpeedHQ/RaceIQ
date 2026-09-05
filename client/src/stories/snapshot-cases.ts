@@ -2,13 +2,15 @@ export interface StorybookSnapshotCase {
   name: string;
   id: string;
   outputName: string;
-  viewport?: { width: number; height: number };
+  fullPage?: boolean;
+  screenshotTarget?: string;
   readyText?: string;
   hoverLabel?: string;
   clickLabel?: string;
   clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
+  viewport?: { width: number; height: number };
 }
 
 // Single screenshot inventory for CI and `bun run ui:diff`.
@@ -83,6 +85,32 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     viewport: { width: 900, height: 650 },
   },
   {
+    name: "ReusableAvatars",
+    id: "ui-reusable-primitives--avatar-variants",
+    outputName: "snapshot-ReusableAvatars.png",
+    viewport: { width: 900, height: 650 },
+  },
+  {
+    name: "ReusableCollapsible",
+    id: "ui-reusable-primitives--collapsible-states",
+    outputName: "snapshot-ReusableCollapsible.png",
+    viewport: { width: 900, height: 650 },
+  },
+  {
+    name: "ReusableNoteModal",
+    id: "ui-reusable-primitives--note-modal-open",
+    outputName: "snapshot-ReusableNoteModal.png",
+    viewport: { width: 900, height: 700 },
+    clickLabel: "Open note",
+    readyRole: "dialog",
+  },
+  {
+    name: "ReusablePanelSectionHeader",
+    id: "ui-reusable-primitives--panel-section-header-states",
+    outputName: "snapshot-ReusablePanelSectionHeader.png",
+    viewport: { width: 900, height: 650 },
+  },
+  {
     name: "ReusableTabs",
     id: "ui-reusable-primitives--tabs-uncontrolled",
     outputName: "snapshot-ReusableTabs.png",
@@ -139,6 +167,7 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "screens-analysedatapanelparity--loaded-main-parity",
     outputName: "snapshot-AnalyseDataPanelParity.png",
     viewport: { width: 1080, height: 800 },
+    screenshotTarget: "body",
   },
   {
     name: "AnalyseVizPanel3D",

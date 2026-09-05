@@ -18,40 +18,50 @@ jobs:
           - name: fresh
             server_set: fresh
             projects: --project=fresh-install
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "15G"]'
+            runs_on: '["mars-windows-x64", "2VCPU", "15G"]'
           - name: tunes
             server_set: tunes
             projects: --project=tunes
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "15G"]'
+            runs_on: '["mars-windows-x64", "2VCPU", "15G"]'
           - name: tunes-unseeded
             server_set: tunes-unseeded
             projects: --project=tunes-unseeded
-            runs_on: '["whitesmith-windows-x64", "2VCPU", "15G"]'
+            runs_on: '["mars-windows-x64", "2VCPU", "15G"]'
           - name: seeded-shard-1
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 1/5
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+            shard: 1/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-2
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 2/5
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+            shard: 2/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-3
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 3/5
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+            shard: 3/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-4
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 4/5
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+            shard: 4/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
           - name: seeded-shard-5
             server_set: seeded
             projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
-            shard: 5/5
-            runs_on: '["whitesmith-windows-x64", "4VCPU", "15G"]'
+            shard: 5/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-shard-6
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 6/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
+          - name: seeded-shard-7
+            server_set: seeded
+            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports --project=mobile-device --project=tablet-device
+            shard: 7/7
+            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
     uses: ./.github/workflows/playwright.yml
     with:
       server-mode: compiled

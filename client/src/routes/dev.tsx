@@ -1,27 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { DevStateViewer } from "../components/DevStateViewer";
+import { ModelComparison } from "../components/dev/ModelComparison";
 import { DevTelemetryPanel } from "../components/dev/DevTelemetryPanel";
 import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
 import { GearingTestViewer } from "../components/dev/GearingTestViewer";
 import { E2EViewer } from "../components/settings/E2EViewer";
 import { Button } from "../components/ui/button";
+const DEV_TABS = [
+  { id: "state", label: "State" },
+  { id: "telemetry", label: "Native Telemetry" },
+  { id: "e2e", label: "E2E Recordings" },
+  { id: "gearing", label: "FM23 Powerband" },
+  { id: "import", label: "Import Dump" },
+  { id: "model", label: "GT3 Model" },
+] as const;
 function DevPage() {
-  const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import" | "telemetry" | "gearing">("state");
-
-  const tabs = [
-    { id: "state", label: "State" },
-    { id: "telemetry", label: "Native Telemetry" },
-    { id: "e2e", label: "E2E Recordings" },
-    { id: "gearing", label: "FM23 Powerband" },
-    { id: "import", label: "Import Dump" },
-  ] as const;
+  const [activeTab, setActiveTab] = useState<(typeof DEV_TABS)[number]["id"]>("state");
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-app-surface">
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-app-border px-4 py-2 bg-app-surface-alt">
-        {tabs.map((tab) => (
+        {DEV_TABS.map((tab) => (
           <Button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -47,6 +48,7 @@ function DevPage() {
           </div>
         )}
         {activeTab === "import" && <ImportDumpPanel />}
+        {activeTab === "model" && <ModelComparison />}
       </div>
     </div>
   );

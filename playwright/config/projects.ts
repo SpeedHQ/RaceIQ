@@ -12,7 +12,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
     "seeded/dev-tools/server-import.spec.ts",
     "seeded/sessions/import.spec.ts",
     "seeded/sessions/lifecycle.spec.ts",
-  ] as const;
+  ];
 
   return [
     {
@@ -25,7 +25,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       name: "marketing",
       testMatch: "marketing/**/*.spec.ts",
       use: {
-        baseURL: process.env.MARKETING_BASE_URL ?? "https://raceiq.localhost",
+        baseURL: process.env.MARKETING_BASE_URL ?? seededBaseURL,
         viewport: { width: 1920, height: 1080 },
       },
     },
@@ -94,6 +94,7 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: {
         baseURL: freshBaseURL,
         actionTimeout: 120_000,
+        viewport: { width: 1920, height: 1080 },
         launchOptions: {
           args: ["--enable-gpu", "--enable-gpu-rasterization", "--enable-features=Vulkan,UseSkiaRenderer", "--ignore-gpu-blocklist", "--enable-webgl", "--disable-software-rasterizer"],
         },

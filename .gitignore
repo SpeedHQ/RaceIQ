@@ -13,12 +13,9 @@ dist/
 .env
 server/client-assets.generated.ts
 **/.DS_Store
-.superpowers/
-docs/superpowers/
 
-scripts/track-data/
 /.playwright-mcp
-/.superpowers
+scripts/track-data/
 /.claude/settings.local.json
 lighthouse-report.html
 test-results/

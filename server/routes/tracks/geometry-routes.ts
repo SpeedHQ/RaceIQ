@@ -20,6 +20,7 @@ import {
   calibrateFromPositions,
   clearCurbRefinement,
   computeStaticAlignment,
+  getCalibrationComparison,
   getCalibrationStatus,
   refineAlignmentWithCurbs,
   transformToSourceSpace,
@@ -36,6 +37,10 @@ export const trackCalibrationRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
       return c.json(getCalibrationStatus(ordinal));
     }
+  )
+  .get("/api/track-calibration/:ordinal/comparison",
+    zValidator("param", OrdinalParamSchema),
+    (c) => c.json(getCalibrationComparison(c.req.valid("param").ordinal))
   )
 
   // POST /api/track-calibration/:ordinal/from-lap — calibrate using a stored lap's positions
@@ -54,14 +59,20 @@ export const trackCalibrationRoutes = new Hono()
         return c.json({ error: "Lap has insufficient telemetry data" }, 400);
       }
 
-      // Get the track outline
-      const outline = getTrackOutlineByOrdinal(ordinal, requireGameId(c));
+      // Get the track geometry
+      const gameId = requireGameId(c);
+      const outline = getTrackOutlineByOrdinal(ordinal, gameId);
       if (!outline || outline.length === 0) return c.json({ error: "No outline available for this track" }, 400);
 
       // Extract positions from telemetry
       const positions = lapData.telemetry.map(p => ({ x: p.PositionX, z: p.PositionZ }));
 
-      const success = calibrateFromPositions(ordinal, positions, outline);
+      const success = calibrateFromPositions(
+        ordinal,
+        positions,
+        outline,
+        getTrackBoundariesByOrdinal(ordinal, gameId) ?? undefined
+      );
       if (!success) return c.json({ error: "Calibration failed — not enough valid position points" }, 400);
 
       return c.json(getCalibrationStatus(ordinal));

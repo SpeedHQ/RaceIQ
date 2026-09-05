@@ -1,5 +1,6 @@
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapIndexPacket } from "../../lap-detection/types";
 import { f1Adapter } from "../../../shared/games/f1-2025";
 import { F1StateAccumulator } from "./f1-state";
 import { parseF1Header } from "./f1-wire";
@@ -81,6 +82,15 @@ export const f1ServerAdapter: ServerGameAdapter = {
     const accumulator = state as F1StateAccumulator;
     const header = parseF1Header(buf);
     return accumulator.feed(header, buf);
+  },
+  tryParseLapIndex(buf, state): LapIndexPacket | null {
+    return this.tryParse(buf, state) as unknown as LapIndexPacket;
+  },
+
+  primeParserState(buf, state): void {
+    const accumulator = state as F1StateAccumulator;
+    const header = parseF1Header(buf);
+    accumulator.primeParserState(header, buf);
   },
 
   createParserState() {

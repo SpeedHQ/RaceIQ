@@ -22,6 +22,7 @@
  */
 import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+import { timestampForFilename } from "../../session-capture/filename";
 
 // Header: magic(8) + version(4) + frameCount(4) = 16 bytes (same layout v2 and v3)
 const HEADER_SIZE = 16;
@@ -58,7 +59,7 @@ export class KunosRecorder {
       mkdirSync(outDir, { recursive: true });
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const timestamp = timestampForFilename();
     const filename = `${prefix}-${timestamp}.bin`;
     this._path = resolve(outDir, filename);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

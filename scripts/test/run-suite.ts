@@ -4,8 +4,8 @@ import { resolve, relative, sep } from "node:path";
 import { checkTestShards } from "./check-shards";
 
 const suite = process.argv[2];
-if (suite !== "unit" && suite !== "integration") {
-  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration>");
+if (suite !== "unit" && suite !== "integration" && suite !== "e2e") {
+  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration|e2e>");
   process.exit(2);
 }
 
@@ -54,13 +54,13 @@ try {
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(
     configPath,
-    suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 30000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 30000\nmaxConcurrency = 1\n`,
+    suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,
   );
   const manifestFiles = files.map((file) => resolve(root, file));
   const args = suite === "unit" ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
-  if (suite === "integration" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
+  if (suite !== "unit" && env.DATA_DIR === undefined) env.DATA_DIR = resolve(root, ".data-test");
   const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;
 } finally {
