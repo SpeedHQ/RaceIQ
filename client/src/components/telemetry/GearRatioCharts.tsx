@@ -1,10 +1,13 @@
+import { CopyIcon, PencilIcon } from "lucide-react";
 import type { TuneSettings } from "@shared/racing/tuning/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useUpdateTune, useUserTunes } from "../../hooks/tunes";
+import { useCreateTune, useDuplicateTune, useUpdateTune, useUserTunes } from "../../hooks/tunes";
 import { GEAR_COLORS } from "../../lib/colors";
 import type { GearingSample } from "../../lib/gearing-telemetry";
 import { ceilTo, findPeakRpm, setupSpeedAtRpm, speedUnitFactor, tireCircumferenceM } from "../../lib/gearing-ratios";
 import { m } from "../../paraglide/messages";
+import { defaultTuneSettings } from "../tune/form/defaults";
+import { AppInput } from "../ui/AppInput";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 
@@ -60,8 +63,11 @@ function gearingOf(settings: unknown): GearingDraft | null {
  * live dyno.
  */
 export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel, crossRpm = null }: Props) {
-  const { data: tunes = [] } = useUserTunes(packet?.gameId);
+  const { data: tunes = [], isPending: tunesLoading } = useUserTunes(packet?.gameId);
   const updateTune = useUpdateTune();
+  const renameTune = useUpdateTune();
+  const createTune = useCreateTune();
+  const duplicateTune = useDuplicateTune();
 
   const carTunes = useMemo<CarTune[]>(() => {
     return (tunes as { id: number; name: string; carOrdinal: number; settings: unknown }[])
@@ -72,8 +78,13 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   const setupOptions = useMemo(() => carTunes.map((t) => ({ value: String(t.id), label: t.name })), [carTunes]);
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // A freshly created/duplicated tune id waiting for the tunes refetch to
+  // include it — selected (instead of the first tune) once it shows up.
+  const [pendingId, setPendingId] = useState<number | null>(null);
   const [draft, setDraft] = useState<GearingDraft | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const redlineRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
   const userFactor = speedUnitFactor(speedLabel === "mph" ? "mph" : "km/h");
   // The setup's top speed (user unit): stored topSpeedKph, else car spec.
@@ -87,18 +98,35 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   );
 
   // Auto-select the first tune of the car (and reset when the car changes).
+  // A pending created/duplicated tune is selected as soon as the refetched
+  // list contains it; until then don't fall back to the first tune.
   const activeTune = carTunes.find((t) => t.id === selectedId) ?? null;
+  const selectTune = useCallback(
+    (id: number) => {
+      const tune = carTunes.find((t) => t.id === id);
+      if (!tune) return;
+      setSelectedId(id);
+      setDraft({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeed: topSpeedOf(tune) });
+    },
+    [carTunes, topSpeedOf],
+  );
   useEffect(() => {
+    if (pendingId != null) {
+      if (carTunes.some((t) => t.id === pendingId)) {
+        const id = pendingId;
+        setPendingId(null);
+        selectTune(id);
+      }
+      return;
+    }
     if (activeTune) return;
     if (carTunes.length > 0) {
-      const first = carTunes[0];
-      setSelectedId(first.id);
-      setDraft({ ...first.gearing, ratios: [...first.gearing.ratios], topSpeed: topSpeedOf(first) });
+      selectTune(carTunes[0].id);
     } else {
       setSelectedId(null);
       setDraft(null);
     }
-  }, [carTunes, activeTune, topSpeedOf]);
+  }, [carTunes, activeTune, pendingId, selectTune]);
 
   const touchGearing = useCallback((next: GearingDraft) => {
     setDraft(next);
@@ -125,11 +153,76 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
     if (!draft) return;
     touchGearing({ ...draft, ratios: draft.ratios.filter((_, i) => i !== index) });
   };
-  const selectTune = (id: number) => {
-    const tune = carTunes.find((t) => t.id === id);
-    if (!tune) return;
-    setSelectedId(id);
-    touchGearing({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeed: topSpeedOf(tune) });
+
+  /** First unused "Live gearing tune N" name among the car's tunes. */
+  const nextLiveTuneName = () => {
+    const used = new Set(carTunes.map((t) => t.name));
+    let n = 1;
+    while (used.has(m.grc_live_tune_name({ n }))) n += 1;
+    return m.grc_live_tune_name({ n });
+  };
+
+  /** Load a mutation-returned tune row into the draft and select it once listed. */
+  const adoptCreatedTune = (created: { id: number; settings: unknown }) => {
+    const gearing = gearingOf(created.settings);
+    if (!gearing) return;
+    const tune: CarTune = { id: created.id, name: "", settings: created.settings as TuneSettings, gearing };
+    setPendingId(created.id);
+    setDraft({ ...gearing, ratios: [...gearing.ratios], topSpeed: topSpeedOf(tune) });
+  };
+
+  const handleCreateTune = async () => {
+    if (!packet) return;
+    setSaveStatus("saving");
+    try {
+      const created = (await createTune.mutateAsync({
+        gameId: packet.gameId,
+        name: nextLiveTuneName(),
+        author: m.tune_me(),
+        carOrdinal: packet.CarOrdinal,
+        category: "circuit",
+        settings: defaultTuneSettings(),
+        unitSystem: speedLabel === "mph" ? "imperial" : "metric",
+        source: "user",
+      } as any)) as { id: number; settings: unknown };
+      adoptCreatedTune(created);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDuplicateTune = async () => {
+    if (selectedId == null) return;
+    setSaveStatus("saving");
+    try {
+      const copy = (await duplicateTune.mutateAsync(selectedId)) as { id: number; settings: unknown };
+      adoptCreatedTune(copy);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const startRename = () => {
+    if (!activeTune) return;
+    setNameDraft(activeTune.name);
+    setRenaming(true);
+  };
+  const cancelRename = () => setRenaming(false);
+  const commitRename = () => {
+    setRenaming(false);
+    if (!activeTune) return;
+    const next = nameDraft.trim();
+    if (!next || next === activeTune.name) return;
+    setSaveStatus("saving");
+    renameTune.mutate(
+      { id: activeTune.id, name: next },
+      {
+        onSuccess: () => setSaveStatus("saved"),
+        onError: () => setSaveStatus("error"),
+      },
+    );
   };
 
   // ── Chart model ──────────────────────────────────────────────
@@ -196,13 +289,57 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
       <div className="flex flex-col md:flex-row gap-2">
         {/* Setup panel */}
         <div className="w-full md:w-64 shrink-0 space-y-1.5 rounded border border-app-border p-2">
-          {carTunes.length === 0 ? (
-            <p className="text-xs text-app-text-muted leading-snug">{m.grc_no_setup()}</p>
-          ) : draft ? (
+          {!draft ? (
+            carTunes.length === 0 && !tunesLoading ? (
+              <div className="space-y-2">
+                <p className="text-xs text-app-text-muted leading-snug">{m.grc_no_setup()}</p>
+                <Button size="app-sm" variant="app-primary" onClick={handleCreateTune} disabled={!packet || createTune.isPending}>
+                  {m.grc_create_tune()}
+                </Button>
+              </div>
+            ) : null
+          ) : (
             <>
-              <div>
+              <div className="space-y-1">
                 <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.aidisplay_setup()}</div>
-                <SearchSelect value={selectedId != null ? String(selectedId) : ""} onChange={(value) => selectTune(Number(value))} options={setupOptions} placeholder={m.tune_section_gearing()} />
+                {renaming ? (
+                  <AppInput
+                    autoFocus
+                    aria-label={m.grc_rename_tune()}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename();
+                      if (e.key === "Escape") cancelRename();
+                    }}
+                    onBlur={commitRename}
+                    className="w-full py-0.5 text-xs"
+                  />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <SearchSelect className="min-w-0 flex-1" value={selectedId != null ? String(selectedId) : ""} onChange={(value) => selectTune(Number(value))} options={setupOptions} placeholder={m.tune_section_gearing()} />
+                    <button
+                      type="button"
+                      aria-label={m.grc_rename_tune()}
+                      title={m.grc_rename_tune()}
+                      onClick={startRename}
+                      disabled={!activeTune}
+                      className="flex w-5 h-5 shrink-0 items-center justify-center rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover disabled:opacity-50"
+                    >
+                      <PencilIcon className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={m.common_duplicate()}
+                      title={m.common_duplicate()}
+                      onClick={handleDuplicateTune}
+                      disabled={!activeTune || duplicateTune.isPending}
+                      className="flex w-5 h-5 shrink-0 items-center justify-center rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover disabled:opacity-50"
+                    >
+                      <CopyIcon className="size-3" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <label className="flex items-center justify-between gap-2 text-xs">
@@ -271,7 +408,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
                 </Button>
               </div>
             </>
-          ) : null}
+          )}
         </div>
 
         {/* Setup chart */}
