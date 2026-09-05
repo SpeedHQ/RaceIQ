@@ -4,6 +4,7 @@
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 - Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
 - Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
+- Show FM23 live gearing with power and torque curves, shift points, and mph/kmh gear-ratio charts
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
@@ -40,7 +41,6 @@
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
-- Show FM23 live gearing with power and torque curves, shift points, and mph/kmh gear-ratio charts
 - Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
