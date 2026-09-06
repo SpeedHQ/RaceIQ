@@ -183,68 +183,7 @@ jobs:
   playwright-test:
     if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
     needs: build
-    name: Release E2E (${{ matrix.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: fresh
-            server_set: all
-            projects: --project=fresh-install --project=mobile-device --project=tablet-device
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
-          - name: tunes
-            server_set: tunes
-            projects: --project=tunes
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
-          - name: tunes-unseeded
-            server_set: tunes-unseeded
-            projects: --project=tunes-unseeded
-            runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
-          - name: seeded-shard-1
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 1/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-2
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 2/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-3
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 3/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-4
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 4/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-5
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 5/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-6
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 6/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-          - name: seeded-shard-7
-            server_set: seeded
-            projects: --project=seeded-e2e --project=seeded-routes --project=seeded-imports
-            shard: 7/7
-            runs_on: '["mars-windows-x64", "4VCPU", "15G"]'
-    uses: ./.github/workflows/playwright.yml
-    with:
-      server-mode: compiled
-      server-set: ${{ matrix.server_set }}
-      projects: ${{ matrix.projects }}
-      shard: ${{ matrix.shard }}
-      runs-on: ${{ matrix.runs_on }}
-      dist-artifact: raceiq-dist-windows
-      artifact-name: playwright-compiled-${{ matrix.name }}
-      diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
+    uses: ./.github/workflows/playwright-dev.yml
   draft-release:
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
     needs: [compute-version, build, playwright-test]
