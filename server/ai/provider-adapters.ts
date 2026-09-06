@@ -109,9 +109,9 @@ export class OpenAiProviderAdapter {
   }
 }
 
-export class LocalProviderAdapter {
+export class OpenAiCompatibleProviderAdapter {
   readonly feature: AiFeature;
-  readonly provider: AiProvider = "local";
+  readonly provider: AiProvider = "openai-compatible";
   readonly model: string;
   readonly mastraModel: BoundMastraModel;
   readonly #endpoint: string;
@@ -159,7 +159,7 @@ export class LocalProviderAdapter {
 export type AnyProviderAdapter =
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
-  | LocalProviderAdapter;
+  | OpenAiCompatibleProviderAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   const resolved: ResolvedAi = {

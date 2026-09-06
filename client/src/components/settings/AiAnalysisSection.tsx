@@ -62,7 +62,7 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
             ))}
           </select>
         </div>
-        {provider === "local" && (
+        {provider === "openai-compatible" && (
           <div>
             <Label htmlFor="ai-analysis-endpoint" className="block text-xs text-app-text-muted mb-1">
               {m.ai_endpoint_label()}

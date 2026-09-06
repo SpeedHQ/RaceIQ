@@ -9,13 +9,13 @@ import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
 export interface DisplaySettings {
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "local";
+  aiProvider: "gemini" | "openai" | "openai-compatible";
   aiModel: string;
   aiThinkingBudget: number | null;
-  chatProvider: "gemini" | "openai" | "local";
+  chatProvider: "gemini" | "openai" | "openai-compatible";
   chatModel: string;
   chatThinkingBudget: number | null;
-  autoTuneProvider: "gemini" | "openai" | "local";
+  autoTuneProvider: "gemini" | "openai" | "openai-compatible";
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
@@ -29,8 +29,8 @@ export interface DisplaySettings {
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
-  /** Server-injected: whether a Local API key is stored */
-  localApiKeySet?: boolean;
+  /** Server-injected: whether an OpenAI-compatible API key is stored */
+  openaiCompatibleApiKeySet?: boolean;
   /** Server-injected: whether an Anthropic API key is stored */
   anthropicApiKeySet?: boolean;
   /** Driver display name */

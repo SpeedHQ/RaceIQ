@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { m } from "@/paraglide/messages";
 
-type ProviderId = "gemini" | "openai" | "local";
+type ProviderId = "gemini" | "openai" | "openai-compatible";
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 export type ModelsResponse = {
   gemini: ModelInfo[];
   openai: ModelInfo[];
-  local: ModelInfo[];
+  "openai-compatible": ModelInfo[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
 
@@ -20,12 +20,12 @@ export type AiModelData = {
 };
 
 export function isAiProvider(value: string): value is ProviderId {
-  return value === "gemini" || value === "openai" || value === "local";
+  return value === "gemini" || value === "openai" || value === "openai-compatible";
 }
 
 export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Record<string, boolean>): AiModelData {
   const qc = useQueryClient();
-  const selectedProvidersForFetch = selectedProviders.filter((provider) => provider === "local" || provider === "openai" || Boolean(keyStatus[provider]));
+  const selectedProvidersForFetch = selectedProviders.filter((provider) => provider === "openai-compatible" || provider === "openai" || Boolean(keyStatus[provider]));
   const selectedProvidersCsv = selectedProvidersForFetch.join(",");
   const { data: aiProviders } = useQuery({
     queryKey: ["ai-providers"],
@@ -52,7 +52,7 @@ export function useAiModelData(selectedProviders: ProviderId[], keyStatus: Recor
   });
   const refreshModelsMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedProvidersCsv) return { gemini: [], openai: [], local: [], _errors: { gemini: null, openai: null, local: null } } as ModelsResponse;
+      if (!selectedProvidersCsv) return { gemini: [], openai: [], "openai-compatible": [], _errors: { gemini: null, openai: null, "openai-compatible": null } } as ModelsResponse;
       const base = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}&refresh=1`;
       const response = await fetch(base);
       console.info(`[AI] GET ${base} -> ${response.status} ${response.statusText}`);

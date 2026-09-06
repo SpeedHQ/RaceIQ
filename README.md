@@ -105,7 +105,7 @@ The database is created automatically on first run. No cloud account or external
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to run AI entirely on your own PC? See the [Local AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/local-ai.md).
+Want to use LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible gateway? See the [OpenAI-compatible AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/openai-compatible-ai.md).
 
 ## Sponsorship
 

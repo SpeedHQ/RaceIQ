@@ -31,7 +31,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { configureAiProviderEnvironment } from "../../ai/local-provider";
+import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema, ComparisonRangeQuerySchema } from "./support";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
@@ -353,7 +353,7 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
@@ -374,7 +374,7 @@ export const comparisonRoutes = new Hono()
       const object = (result as any).object;
       if (!object) {
         throw new Error(
-          settings.aiProvider === "local"
+          settings.aiProvider === "openai-compatible"
             ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
             : "Compare engineer returned no structured object",
         );
@@ -506,7 +506,7 @@ export const comparisonRoutes = new Hono()
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "local"
+        : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
 

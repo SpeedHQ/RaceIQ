@@ -4,7 +4,7 @@ import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
 import { loadSettings } from "../runtime/config/settings";
 import { toClientAiError, type ClientAiError } from "../ai/provider-error";
-import { configureAiProviderEnvironment } from "../ai/local-provider";
+import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
 import { driverProfilerAgent } from "../ai/agents";
 import { buildDriverProfilerPrompt } from "./prompt";
 import {
@@ -117,7 +117,7 @@ async function failDriverProfileRun(
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "local"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: "gemini" | "openai" | "openai-compatible"; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
   const settings = loadSettings();
@@ -130,7 +130,7 @@ async function providerConfiguration(): Promise<
     provider,
     model:
       settings.driverProfileModel ||
-      (provider === "openai" ? "gpt-4o-mini" : provider === "local" ? "local-model" : "gemini-flash-latest"),
+      (provider === "openai" ? "gpt-4o-mini" : provider === "openai-compatible" ? "local-model" : "gemini-flash-latest"),
     thinkingBudget: settings.driverProfileThinkingBudget,
   };
 }

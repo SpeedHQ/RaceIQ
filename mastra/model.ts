@@ -245,7 +245,7 @@ export function getMastraModelId(
       if (!apiKey) return `openai/${id}`;
       return bindMastraModel(createOpenAI({ apiKey }).chat(id));
     }
-    case "local": {
+    case "openai-compatible": {
       const openai = createOpenAI({
         baseURL: localEndpoint ?? "http://localhost:1234/v1",
         apiKey: apiKey || "local",

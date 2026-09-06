@@ -1,13 +1,13 @@
 import { AiProviderError } from "./provider-error";
 import { getSecret } from "../runtime/platform/keystore";
 
-export type ConfiguredAiProvider = "gemini" | "openai" | "local";
+export type ConfiguredAiProvider = "gemini" | "openai" | "openai-compatible";
 
 export async function getAiProviderApiKey(provider: ConfiguredAiProvider): Promise<string | undefined> {
   const key = await getSecret(`${provider}-api-key`);
   return key || undefined;
 }
-export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProvider, "local">): Promise<string> {
+export async function requireAiProviderApiKey(provider: Exclude<ConfiguredAiProvider, "openai-compatible">): Promise<string> {
   const key = await getAiProviderApiKey(provider);
   if (!key) {
     throw new AiProviderError(`${provider === "gemini" ? "Gemini" : "OpenAI"} API key not set. Configure it in Settings.`, {
@@ -23,7 +23,7 @@ export async function configureAiProviderEnvironment(
   localEndpoint = "http://localhost:1234/v1",
 ): Promise<string | undefined> {
   const apiKey = await getAiProviderApiKey(provider);
-  if (provider !== "local" && !apiKey) {
+  if (provider !== "openai-compatible" && !apiKey) {
     throw new AiProviderError(`${provider === "gemini" ? "Gemini" : "OpenAI"} API key not set. Configure it in Settings.`, {
       code: "missing-api-key",
       provider,
@@ -42,5 +42,5 @@ export async function configureAiProviderEnvironment(
   return apiKey;
 }
 
-export const getLocalApiKey = () => getAiProviderApiKey("local");
-export const configureLocalOpenAiEnvironment = (endpoint: string) => configureAiProviderEnvironment("local", endpoint);
+export const getLocalApiKey = () => getAiProviderApiKey("openai-compatible");
+export const configureLocalOpenAiEnvironment = (endpoint: string) => configureAiProviderEnvironment("openai-compatible", endpoint);

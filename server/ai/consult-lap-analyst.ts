@@ -14,7 +14,7 @@
  */
 import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resolution";
 import { loadSettings } from "../runtime/config/settings";
-import { configureAiProviderEnvironment } from "./local-provider";
+import { configureAiProviderEnvironment } from "./openai-compatible-provider";
 import { buildAnalystPrompt } from "./analyst-prompt";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
@@ -53,7 +53,7 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   if (!provider) return { available: false, summary: "Lap Analyst unavailable — no AI provider selected." };
   await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
 
-  const hideTools = provider === "local";
+  const hideTools = provider === "openai-compatible";
   const result = await lapAnalystAgent.generate(prompt, {
     maxSteps: 5,
     ...(hideTools ? { activeTools: [] as never[] } : {}),

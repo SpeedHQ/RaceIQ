@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractLmStudioContextLengths, getLocalModelsDetailed } from "../../../server/ai/providers";
+import { extractLmStudioContextLengths, getOpenAiCompatibleModelsDetailed } from "../../../server/ai/providers";
 
 describe("LM Studio context discovery", () => {
   test("uses loaded runtime context instead of model maximum", () => {
@@ -30,7 +30,7 @@ describe("LM Studio context discovery", () => {
       return new Response(JSON.stringify({ data: [{ id: "qwen" }] }));
     }) as typeof fetch;
     try {
-      const result = await getLocalModelsDetailed("http://local.test/v1", "gateway-secret");
+      const result = await getOpenAiCompatibleModelsDetailed("http://local.test/v1", "gateway-secret");
       expect(result.models[0]?.contextLength).toBe(8192);
       expect(requests).toHaveLength(2);
       expect(requests.every((request) => new Headers(request.headers).get("authorization") === "Bearer gateway-secret")).toBe(true);
@@ -47,7 +47,7 @@ describe("LM Studio context discovery", () => {
       return new Response(JSON.stringify({ data: [{ id: "qwen" }] }));
     }) as typeof fetch;
     try {
-      await getLocalModelsDetailed("http://local.test/v1");
+      await getOpenAiCompatibleModelsDetailed("http://local.test/v1");
       expect(requests.every((request) => !new Headers(request.headers).has("authorization"))).toBe(true);
     } finally {
       globalThis.fetch = originalFetch;

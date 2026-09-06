@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { generateText, type LanguageModel } from "ai";
-import { LocalProviderAdapter } from "../../../server/ai/provider-adapters";
+import { OpenAiCompatibleProviderAdapter } from "../../../server/ai/provider-adapters";
 
 const endpoint = "http://local.test/v1";
 
@@ -21,7 +21,7 @@ describe("Local provider authentication", () => {
     const requests: RequestInit[] = [];
     const restore = installFetchStub(requests);
     try {
-      const adapter = new LocalProviderAdapter({ feature: "analysis", model: "qwen", endpoint, apiKey: "gateway-secret" });
+      const adapter = new OpenAiCompatibleProviderAdapter({ feature: "analysis", model: "qwen", endpoint, apiKey: "gateway-secret" });
       await adapter.generateText({ prompt: "ping" });
       await generateText({ model: adapter.mastraModel as unknown as LanguageModel, prompt: "ping" });
       expect(requests).toHaveLength(2);
@@ -36,7 +36,7 @@ describe("Local provider authentication", () => {
     const requests: RequestInit[] = [];
     const restore = installFetchStub(requests);
     try {
-      const adapter = new LocalProviderAdapter({ feature: "analysis", model: "qwen", endpoint });
+      const adapter = new OpenAiCompatibleProviderAdapter({ feature: "analysis", model: "qwen", endpoint });
       await adapter.generateText({ prompt: "ping" });
       await generateText({ model: adapter.mastraModel as unknown as LanguageModel, prompt: "ping" });
       expect(requests).toHaveLength(2);

@@ -1,4 +1,4 @@
-import { getAiProviderApiKey } from "./local-provider";
+import { getAiProviderApiKey } from "./openai-compatible-provider";
 import { loadSettings, type AppSettings } from "../runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "./ai-features";
 import {
@@ -6,7 +6,7 @@ import {
 } from "./provider-error";
 import {
   GeminiProviderAdapter,
-  LocalProviderAdapter,
+  OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
   resolvedAiFromAdapter,
 } from "./provider-adapters";
@@ -41,7 +41,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "local") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "openai-compatible") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -79,9 +79,9 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
       }
       return resolvedAiFromAdapter(new OpenAiProviderAdapter({ ...config, apiKey }));
     }
-    case "local": {
-      const apiKey = await getAiProviderApiKey("local");
-      return resolvedAiFromAdapter(new LocalProviderAdapter({
+    case "openai-compatible": {
+      const apiKey = await getAiProviderApiKey("openai-compatible");
+      return resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({
         ...config,
         endpoint: settings.localEndpoint || "http://localhost:1234/v1",
         apiKey,

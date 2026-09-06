@@ -16,12 +16,12 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "local";
+export type AiProvider = "gemini" | "openai" | "openai-compatible";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
   { id: "openai", name: "OpenAI" },
-  { id: "local", name: "Local (LM Studio / Ollama)" },
+  { id: "openai-compatible", name: "OpenAI-compatible" },
 ];
 
 export function getProviders() {
@@ -373,7 +373,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
         : `OpenAI API error: ${res.status}`,
       {
         code: "upstream",
-        provider: endpoint === "https://api.openai.com/v1" ? "openai" : "local",
+        provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible",
         modelId: model,
         statusCode: res.status,
         isRetryable: res.status >= 500,
@@ -466,7 +466,7 @@ async function getLmStudioContextLengths(endpoint: string, apiKey?: string): Pro
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
-export async function getLocalModelsDetailed(endpoint: string, apiKey?: string): Promise<ModelListResult> {
+export async function getOpenAiCompatibleModelsDetailed(endpoint: string, apiKey?: string): Promise<ModelListResult> {
   try {
     const url = `${endpoint.replace(/\/+$/, "")}/models`;
     console.info(`[AI] GET ${url}`);
@@ -476,7 +476,7 @@ export async function getLocalModelsDetailed(endpoint: string, apiKey?: string):
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      const message = `Local models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      const message = `OpenAI-compatible models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
       console.warn(`[AI] ${message}`);
       return { models: [], error: message };
     }
@@ -492,12 +492,12 @@ export async function getLocalModelsDetailed(endpoint: string, apiKey?: string):
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[AI] Local models list request errored:", message);
+    console.error("[AI] OpenAI-compatible models list request errored:", message);
     return { models: [], error: message };
   }
 }
 
-export async function getLocalModels(endpoint: string, apiKey?: string): Promise<{ id: string; name: string }[]> {
-  const result = await getLocalModelsDetailed(endpoint, apiKey);
+export async function getOpenAiCompatibleModels(endpoint: string, apiKey?: string): Promise<{ id: string; name: string }[]> {
+  const result = await getOpenAiCompatibleModelsDetailed(endpoint, apiKey);
   return result.models;
 }

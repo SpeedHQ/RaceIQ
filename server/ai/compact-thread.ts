@@ -13,7 +13,7 @@ import {
   generationThreadId,
 } from "./chat-agent";
 import { loadSettings } from "../runtime/config/settings";
-import { configureAiProviderEnvironment } from "./local-provider";
+import { configureAiProviderEnvironment } from "./openai-compatible-provider";
 export const MIN_COMPACT_MESSAGES = 6;
 const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
 

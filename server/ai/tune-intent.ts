@@ -10,7 +10,7 @@
  */
 import type { GameId } from "../../shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
-import { getAiProviderApiKey, requireAiProviderApiKey } from "./local-provider";
+import { getAiProviderApiKey, requireAiProviderApiKey } from "./openai-compatible-provider";
 import { runGemini, runOpenAi } from "./providers";
 import {
   getTuneIntentJsonSchema,
@@ -162,10 +162,10 @@ async function runTuneIntentProvider(
       const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
       return { raw: r.analysis, model: r.usage.model };
     }
-    case "local": {
+    case "openai-compatible": {
       // Local OpenAI-compatible endpoint (LM Studio / Ollama).
       const base = settings.localEndpoint || "http://localhost:1234/v1";
-      const key = await getAiProviderApiKey("local");
+      const key = await getAiProviderApiKey("openai-compatible");
       const r = await runOpenAiLocal(prompt, base, tuneModel, schema, key);
       return { raw: r.analysis, model: r.usage.model };
     }

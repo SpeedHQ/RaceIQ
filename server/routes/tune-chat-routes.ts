@@ -32,7 +32,7 @@ import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { configureAiProviderEnvironment } from "../ai/local-provider";
+import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
 
@@ -227,7 +227,7 @@ export const tuneChatRoutes = new Hono()
       const chatModelLabel = settings.chatModel
         || (chatProvider === "openai"
           ? "gpt-4o-mini"
-          : chatProvider === "local"
+          : chatProvider === "openai-compatible"
             ? "local-model"
             : "gemini-flash-latest");
 

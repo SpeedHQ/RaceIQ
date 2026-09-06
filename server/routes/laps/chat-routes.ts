@@ -21,7 +21,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { configureAiProviderEnvironment } from "../../ai/local-provider";
+import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 
@@ -96,7 +96,7 @@ export const chatRoutes = new Hono()
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "local"
+        : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
 

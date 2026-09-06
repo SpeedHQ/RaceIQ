@@ -15,7 +15,7 @@ test("AI settings classify empty models and recover from controlled API error", 
     }
     const response = await route.fetch();
     const body = await response.json() as Record<string, unknown>;
-    body.localApiKeySet = savedKeyPayload?.apiKey === "gateway-secret";
+    body.openaiCompatibleApiKeySet = savedKeyPayload?.apiKey === "gateway-secret";
     await route.fulfill({ response, json: body });
   });
   await page.route("**/api/ai-key", async (route) => {
@@ -26,7 +26,7 @@ test("AI settings classify empty models and recover from controlled API error", 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ gemini: [], openai: [], local: [], _errors: {} }),
+      body: JSON.stringify({ gemini: [], openai: [], "openai-compatible": [], _errors: {} }),
     });
   });
   try {
@@ -34,12 +34,12 @@ test("AI settings classify empty models and recover from controlled API error", 
     await page.getByRole("button", { name: "Settings" }).click();
     await page.getByRole("button", { name: "AI Analysis" }).click();
     await expect(page.getByRole("heading", { name: "AI Analysis Provider" })).toBeVisible();
-    await page.getByLabel("Provider").first().selectOption("local");
-    await expect(page.getByLabel("Local API Key (optional)")).toBeVisible();
-    await page.getByLabel("Local API Key (optional)").fill("gateway-secret");
+    await page.getByLabel("Provider").first().selectOption("openai-compatible");
+    await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toBeVisible();
+    await page.getByLabel("OpenAI-compatible API Key (optional)").fill("gateway-secret");
     await page.getByRole("button", { name: "Save", exact: true }).first().click();
-    await expect.poll(() => savedKeyPayload).toEqual({ provider: "local", apiKey: "gateway-secret" });
-    await expect(page.getByLabel("Local API Key (optional)")).toHaveAttribute("placeholder", /.+/);
+    await expect.poll(() => savedKeyPayload).toEqual({ provider: "openai-compatible", apiKey: "gateway-secret" });
+    await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toHaveAttribute("placeholder", /.+/);
     await expect(page.getByTitle("Clear stored key").first()).toBeVisible();
     await expect(page.getByText("No models returned for this provider.")).toBeVisible();
 
@@ -55,7 +55,7 @@ test("AI settings classify empty models and recover from controlled API error", 
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ gemini: [], openai: [], local: [], _errors: {} }),
+        body: JSON.stringify({ gemini: [], openai: [], "openai-compatible": [], _errors: {} }),
       });
     });
     await expect(page.getByText("No models returned for this provider.")).toBeVisible();
