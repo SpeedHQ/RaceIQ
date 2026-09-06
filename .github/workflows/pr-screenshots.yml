@@ -35,6 +35,10 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on:
       - mars-windows-x64
       - 4VCPU
@@ -124,11 +128,8 @@ jobs:
           bun --env-file=.env.development run build
           Push-Location playwright
           $ErrorActionPreference = "Continue"
-          $statuses = foreach ($shard in 1..2) {
-            & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=$shard/2"
-            $LASTEXITCODE
-          }
-          $status = if ($statuses -contains 0) { 0 } else { 1 }
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=${{ matrix.shard }}/2"
+          $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           Pop-Location
           $output = Join-Path $env:RUNNER_TEMP "current-responsive"
@@ -166,11 +167,8 @@ jobs:
           Set-Location $basePlaywright
           $env:RACEIQ_SCREENSHOT_DIR = $currentScreenshotDir
           $ErrorActionPreference = "Continue"
-          $statuses = foreach ($shard in 1..2) {
-            & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop "--shard=$shard/2"
-            $LASTEXITCODE
-          }
-          $status = if ($statuses -contains 0) { 0 } else { 1 }
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop "--shard=${{ matrix.shard }}/2"
+          $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
           if (Test-Path "screenshots/mobile") {
@@ -178,38 +176,75 @@ jobs:
             Move-Item "screenshots/mobile" $output
           }
           exit $status
-
-      - name: Collect diffs
-        id: collect
-        working-directory: client
-        # Container default shell is sh; this step uses bash process substitution.
+      - name: Save shard render outputs
+        if: always()
         shell: powershell
         run: |
-          $ErrorActionPreference = "Stop"
-          $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          "${{ github.event.pull_request.number || inputs.pr }}" | Set-Content (Join-Path $out "pr-number.txt")
-          "${{ steps.pull-request.outputs.base-ref }}" | Set-Content (Join-Path $out "base-ref.txt")
-
-          $diffArgs = @(
-            "--base", (Join-Path $env:RUNNER_TEMP "base-responsive"),
-            "--current", (Join-Path $env:RUNNER_TEMP "current-responsive"),
-            "--out", $out,
-            "--prefix", "responsive"
-          )
-          & bun (Join-Path $env:GITHUB_WORKSPACE "scripts/ui/collect-screenshot-diffs.ts") @diffArgs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          if ("${{ steps.current-responsive.outcome }}" -eq "failure" -or "${{ steps.base-responsive.outcome }}" -eq "failure") {
-            Write-Output "::warning::Responsive screenshot comparison is partial because one render failed."
+          $artifact = Join-Path $env:RUNNER_TEMP "screenshot-render-${{ matrix.shard }}"
+          New-Item -ItemType Directory -Path $artifact -Force | Out-Null
+          foreach ($name in @("current-responsive", "base-responsive")) {
+            $source = Join-Path $env:RUNNER_TEMP $name
+            if (Test-Path $source) {
+              Copy-Item $source (Join-Path $artifact $name) -Recurse -Force
+            }
           }
+          "${{ steps.current-responsive.outcome }}" | Set-Content (Join-Path $artifact "current-status.txt")
+          "${{ steps.base-responsive.outcome }}" | Set-Content (Join-Path $artifact "base-status.txt")
+          "${{ github.event.pull_request.number || inputs.pr }}" | Set-Content (Join-Path $artifact "pr-number.txt")
+          "${{ steps.pull-request.outputs.base-ref }}" | Set-Content (Join-Path $artifact "base-ref.txt")
 
-          $afterFiles = Get-ChildItem (Join-Path $out "*-after.png") -ErrorAction SilentlyContinue
-          if ($afterFiles) {
-            "changed=1" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "changed=0" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
+      - name: Upload shard render outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-screenshot-render-${{ matrix.shard }}
+          path: ${{ runner.temp }}/screenshot-render-${{ matrix.shard }}/
+          retention-days: 14
+
+  collect:
+    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    needs: render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download shard render outputs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: pr-screenshot-render-*
+          path: ${{ runner.temp }}/screenshot-renders
+          merge-multiple: false
+
+      - name: Collect responsive diffs
+        id: collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$RUNNER_TEMP/current-responsive"
+          base="$RUNNER_TEMP/base-responsive"
+          mkdir -p "$current" "$base" pr-preview
+          for shard in "$RUNNER_TEMP"/screenshot-renders/pr-screenshot-render-*; do
+            [ -d "$shard" ] || continue
+            [ -d "$shard/current-responsive" ] && cp -R "$shard/current-responsive/." "$current/"
+            [ -d "$shard/base-responsive" ] && cp -R "$shard/base-responsive/." "$base/"
+          done
+          first_shard="$RUNNER_TEMP/screenshot-renders/pr-screenshot-render-1"
+          cp "$first_shard/pr-number.txt" pr-preview/pr-number.txt
+          cp "$first_shard/base-ref.txt" pr-preview/base-ref.txt
+          bun scripts/ui/collect-screenshot-diffs.ts \
+            --base "$base" \
+            --current "$current" \
+            --out "$GITHUB_WORKSPACE/pr-preview" \
+            --prefix responsive
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -217,9 +252,19 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+
       - name: Fail when current responsive render fails
-        if: steps.current-responsive.outcome == 'failure'
-        shell: powershell
+        if: always()
+        shell: bash
         run: |
-          Write-Error "Responsive screenshot render failed."
-          exit 1
+          set -euo pipefail
+          failed=0
+          for status in "$RUNNER_TEMP"/screenshot-renders/pr-screenshot-render-*/current-status.txt; do
+            if [ -f "$status" ] && [ "$(cat "$status")" != "success" ]; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Responsive screenshot render failed in at least one shard."
+            exit 1
+          fi
