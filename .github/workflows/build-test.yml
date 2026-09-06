@@ -104,7 +104,7 @@ jobs:
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           bun scripts/release/check-changelog.ts
-  playwright-dev:
+  playwright-e2e:
     if: >-
       always() && (
         (github.event_name == 'workflow_dispatch' && needs.build-test.result == 'success') ||
@@ -118,7 +118,7 @@ jobs:
       - build-test
       - screenshots
       - snapshots
-    uses: ./.github/workflows/playwright-dev.yml
+    uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
 

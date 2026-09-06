@@ -183,7 +183,7 @@ jobs:
   playwright-test:
     if: github.event_name == 'workflow_dispatch' && !inputs.skip_tests
     needs: build
-    uses: ./.github/workflows/playwright-dev.yml
+    uses: ./.github/workflows/playwright-e2e.yml
   draft-release:
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
     needs: [compute-version, build, playwright-test]
