@@ -242,7 +242,7 @@ jobs:
       projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ matrix.runs_on }}
-      dist-artifact: raceiq-e2e-dist-windows
+      dist-artifact: raceiq-dist-windows
       artifact-name: playwright-compiled-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:
