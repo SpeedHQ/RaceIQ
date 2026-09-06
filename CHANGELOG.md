@@ -1,11 +1,11 @@
 ## Unreleased
 
 ### Features
-- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 
 ### Fixes
 
 ### Internal
+- Regenerate and commit telemetry catalog artifacts during release finalization.
 
 ## v0.16.0 - 2026-09-06
 
