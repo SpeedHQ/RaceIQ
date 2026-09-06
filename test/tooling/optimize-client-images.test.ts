@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { optimizeClientImages } from "../../scripts/build/optimize-client-images";
+sharp.cache(false);
 
 const tempDirs: string[] = [];
 

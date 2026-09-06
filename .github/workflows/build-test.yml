@@ -49,11 +49,6 @@ jobs:
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
 
-      - name: Check changelog
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          bun scripts/release/check-changelog.ts
 
       - name: Check generated telemetry catalog
         shell: powershell
@@ -94,7 +89,22 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-  playwright-dev:
+
+  changelog:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Check changelog
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          bun scripts/release/check-changelog.ts
+  playwright-e2e:
     if: >-
       always() && (
         (github.event_name == 'workflow_dispatch' && needs.build-test.result == 'success') ||
@@ -108,7 +118,7 @@ jobs:
       - build-test
       - screenshots
       - snapshots
-    uses: ./.github/workflows/playwright-dev.yml
+    uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
 
