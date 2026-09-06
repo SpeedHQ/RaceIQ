@@ -9,6 +9,7 @@ test/ai/chat/tune-chat-message.test.ts
 test/ai/evals/drill-quality-scorer.test.ts
 test/ai/mastra-agents.test.ts
 test/ai/providers/analysis-provider-binding.test.ts
+test/ai/providers/lm-studio-e2e.test.ts
 test/db/database-path.test.ts
 test/db/db-seed.test.ts
 test/db/lap-ownership.test.ts

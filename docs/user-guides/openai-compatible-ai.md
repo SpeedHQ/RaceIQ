@@ -38,6 +38,16 @@ Use LM Studio, Ollama, OpenRouter, LiteLLM, or any OpenAI-compatible endpoint.
 
 RaceIQ sends requests only to configured endpoint with bearer authentication when key is set.
 
+## Local LM Studio smoke test
+
+Run live provider coverage locally with LM Studio running:
+
+```sh
+LM_STUDIO_E2E=1 bun test test/ai/providers/lm-studio-e2e.test.ts
+```
+
+Optional environment variables: `LM_STUDIO_BASE_URL`, `LM_STUDIO_MODEL`, `LM_STUDIO_API_KEY`. Test skips when `CI` is set.
+
 
 ## Troubleshooting
 
