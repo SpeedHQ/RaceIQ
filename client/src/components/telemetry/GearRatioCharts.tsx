@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCreateTune, useDuplicateTune, useUpdateTune, useUserTunes } from "../../hooks/tunes";
 import { GEAR_COLORS } from "../../lib/colors";
 import type { GearingSample } from "../../lib/gearing-telemetry";
-import { ceilTo, findPeakRpm, setupSpeedAtRpm, speedUnitFactor, tireCircumferenceM } from "../../lib/gearing-ratios";
+import { ceilTo, findPeakRpm, kphToSpeedUnit, setupSpeedAtRpm, speedUnitFactor, speedUnitToKph, tireCircumferenceM } from "../../lib/gearing-ratios";
 import { m } from "../../paraglide/messages";
 import { defaultTuneSettings } from "../tune/form/defaults";
 import { AppInput } from "../ui/AppInput";
@@ -29,8 +29,8 @@ interface RatioRow {
 interface GearingDraft {
   finalDrive: number;
   ratios: RatioRow[];
-  /** The setup's top speed in the user's unit (chart anchor). */
-  topSpeed: number;
+  /** The setup's top speed in km/h — unit-independent so drafts survive unit switches. */
+  topSpeedKph: number;
 }
 
 interface CarTune {
@@ -52,7 +52,9 @@ function gearingOf(settings: unknown): GearingDraft | null {
   if (typeof finalDrive !== "number" || !Number.isFinite(finalDrive) || finalDrive <= 0) return null;
   const ratiosRaw = "ratios" in g ? g.ratios : undefined;
   const ratios = Array.isArray(ratiosRaw) ? ratiosRaw.filter((r): r is number => typeof r === "number" && Number.isFinite(r) && r > 0).map((value) => ({ id: nextRatioId++, value })) : [];
-  return { finalDrive, ratios, topSpeed: 0 };
+  const storedTopSpeed = "topSpeedKph" in g ? g.topSpeedKph : undefined;
+  const topSpeedKph = typeof storedTopSpeed === "number" && Number.isFinite(storedTopSpeed) && storedTopSpeed > 0 ? storedTopSpeed : 0;
+  return { finalDrive, ratios, topSpeedKph };
 }
 
 /** Saved power band (RPM) stored in a tune's gearing — null when absent or invalid. */
@@ -96,15 +98,11 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   const [bandMode, setBandMode] = useState<"live" | "saved">("live");
   const redlineRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
   const userFactor = speedUnitFactor(speedLabel === "mph" ? "mph" : "km/h");
-  // The setup's top speed (user unit): stored topSpeedKph, else car spec.
-  const topSpeedOf = useCallback(
-    (tune: CarTune): number => {
-      const kph = tune.settings.gearing.topSpeedKph;
-      const fromTune = kph != null && kph > 0 ? kph * (userFactor / 3.6) : 0;
-      return fromTune > 0 ? fromTune : targetMaxSpeed;
-    },
-    [userFactor, targetMaxSpeed],
-  );
+  // The setup's top speed in km/h: stored topSpeedKph, else car spec. The car
+  // spec arrives in the user's unit and is normalised to kph so the draft is
+  // unit-independent and survives display-unit switches without corrupting.
+  const fallbackTopSpeedKph = targetMaxSpeed > 0 ? speedUnitToKph(targetMaxSpeed, userFactor) : 0;
+  const draftTopSpeedKph = useCallback((tune: CarTune): number => (tune.gearing.topSpeedKph > 0 ? tune.gearing.topSpeedKph : fallbackTopSpeedKph), [fallbackTopSpeedKph]);
 
   // Auto-select the first tune of the car (and reset when the car changes).
   // A pending created/duplicated tune is selected as soon as the refetched
@@ -116,9 +114,9 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
       if (!tune) return;
       setSelectedId(id);
       setBandMode(savedBandOf(tune) ? "saved" : "live");
-      setDraft({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeed: topSpeedOf(tune) });
+      setDraft({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeedKph: draftTopSpeedKph(tune) });
     },
-    [carTunes, topSpeedOf],
+    [carTunes, draftTopSpeedKph],
   );
   useEffect(() => {
     if (pendingId != null) {
@@ -149,7 +147,8 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   };
   const updateTopSpeed = (value: number) => {
     if (!draft) return;
-    touchGearing({ ...draft, topSpeed: value });
+    // The input is in the user's unit; the draft stores km/h.
+    touchGearing({ ...draft, topSpeedKph: value > 0 ? speedUnitToKph(value, userFactor) : 0 });
   };
   const updateRatio = (index: number, value: number) => {
     if (!draft) return;
@@ -179,7 +178,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
     const tune: CarTune = { id: created.id, name: "", settings: created.settings as TuneSettings, gearing };
     setPendingId(created.id);
     setBandMode(savedBandOf(tune) ? "saved" : "live");
-    setDraft({ ...gearing, ratios: [...gearing.ratios], topSpeed: topSpeedOf(tune) });
+    setDraft({ ...gearing, ratios: [...gearing.ratios], topSpeedKph: draftTopSpeedKph(tune) });
   };
 
   const handleCreateTune = async () => {
@@ -251,7 +250,9 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
   const chartModel = useMemo(() => {
     if (!draft || draft.ratios.length === 0 || !activeTune) return null;
     // V_top: the setup's top speed (user unit) — the chart's scale anchor.
-    const topSpeedUser = draft.topSpeed;
+    // The draft stores km/h; convert for the current display unit so a unit
+    // switch re-scales correctly instead of reusing a stale draft value.
+    const topSpeedUser = kphToSpeedUnit(draft.topSpeedKph, userFactor);
     if (topSpeedUser <= 0) return { noTopSpeed: true as const, tops: [], gears: [], xMax: 0, redlineRpm, topSpeedUser: 0 };
     // Tire circumference is fixed by the SAVED setup (top speed at redline in
     // the saved top gear) so editing the draft FD/ratios rescales the chart
@@ -272,8 +273,10 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
     if (!tune || !draft) return;
     const lastRatio = draft.ratios.length > 0 ? draft.ratios[draft.ratios.length - 1].value : 0;
     // Keep the stored top speed consistent with the saved gearing: recompute
-    // the kph top speed from the fixed tire circumference when known.
-    const topSpeedKph = chartModel && !chartModel.noTopSpeed && lastRatio > 0 ? setupSpeedAtRpm(chartModel.circ, redlineRpm, lastRatio, draft.finalDrive, 3.6) : tune.settings.gearing.topSpeedKph;
+    // the kph top speed from the fixed tire circumference when known; else
+    // keep the draft's kph value (unit-independent, so never a stale display
+    // unit). Zero means "no top speed" and is not persisted.
+    const topSpeedKph = chartModel && !chartModel.noTopSpeed && lastRatio > 0 ? setupSpeedAtRpm(chartModel.circ, redlineRpm, lastRatio, draft.finalDrive, 3.6) : draft.topSpeedKph;
     // Capture the power band currently shown (per the Live/Saved toggle) so
     // saving while "Live" is selected snapshots the dyno into the tune.
     const bandToSave = displayedBand;
@@ -287,7 +290,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
             ...tune.settings.gearing,
             finalDrive: draft.finalDrive,
             ratios: draft.ratios.map((r) => r.value),
-            ...(topSpeedKph != null ? { topSpeedKph } : {}),
+            ...(topSpeedKph != null && topSpeedKph > 0 ? { topSpeedKph } : {}),
             ...(bandToSave ? { powerBandMinRpm: Math.round(bandToSave.min), powerBandMaxRpm: Math.round(bandToSave.max) } : {}),
           },
         },
@@ -386,7 +389,7 @@ export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel
                   type="number"
                   step={1}
                   min={0}
-                  value={draft.topSpeed}
+                  value={draft.topSpeedKph > 0 ? Math.round(kphToSpeedUnit(draft.topSpeedKph, userFactor)) : 0}
                   onChange={(e) => updateTopSpeed(parseFloat(e.target.value) || 0)}
                   className="w-20 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />

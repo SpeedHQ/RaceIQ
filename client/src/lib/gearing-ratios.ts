@@ -9,6 +9,16 @@ export function speedUnitFactor(speedLabel: "km/h" | "mph"): number {
   return speedLabel === "mph" ? 2.23694 : 3.6;
 }
 
+/** Convert km/h → the user's speed unit (userFactor from speedUnitFactor). */
+export function kphToSpeedUnit(kph: number, userFactor: number): number {
+  return kph * (userFactor / 3.6);
+}
+
+/** Convert the user's speed unit → km/h (userFactor from speedUnitFactor). */
+export function speedUnitToKph(speed: number, userFactor: number): number {
+  return (speed * 3.6) / userFactor;
+}
+
 /**
  * Tire circumference in metres implied by the setup's top speed: at redline in
  * the top gear the car reaches `topSpeedUser`. 0 when the inputs can't derive
