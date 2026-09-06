@@ -189,7 +189,7 @@ jobs:
       matrix:
         include:
           - name: fresh
-            server_set: fresh
+            server_set: all
             projects: --project=fresh-install --project=mobile-device --project=tablet-device
             runs_on: '["mars-windows-x64", "2VCPU", "10G"]'
           - name: tunes
