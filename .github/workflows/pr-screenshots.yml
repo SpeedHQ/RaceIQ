@@ -121,12 +121,14 @@ jobs:
           PW_SEED_SCREENSHOTS: "1"
         shell: powershell
         run: |
-          $ErrorActionPreference = "Stop"
           bun --env-file=.env.development run build
           Push-Location playwright
           $ErrorActionPreference = "Continue"
-          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots
-          $status = $LASTEXITCODE
+          $statuses = foreach ($shard in 1..2) {
+            & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=$shard/2"
+            $LASTEXITCODE
+          }
+          $status = if ($statuses -contains 0) { 0 } else { 1 }
           $ErrorActionPreference = "Stop"
           Pop-Location
           $output = Join-Path $env:RUNNER_TEMP "current-responsive"
@@ -164,8 +166,11 @@ jobs:
           Set-Location $basePlaywright
           $env:RACEIQ_SCREENSHOT_DIR = $currentScreenshotDir
           $ErrorActionPreference = "Continue"
-          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop
-          $status = $LASTEXITCODE
+          $statuses = foreach ($shard in 1..2) {
+            & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop "--shard=$shard/2"
+            $LASTEXITCODE
+          }
+          $status = if ($statuses -contains 0) { 0 } else { 1 }
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
           if (Test-Path "screenshots/mobile") {
