@@ -38,7 +38,7 @@ jobs:
     runs-on:
       - mars-windows-x64
       - 4VCPU
-      - 20G
+      - 15G
     env:
       PR_NUMBER: ${{ inputs.pr || github.event.pull_request.number }}
     steps:
