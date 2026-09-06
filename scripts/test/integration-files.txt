@@ -130,6 +130,7 @@ test/telemetry/pipeline-live-issues.test.ts
 test/telemetry/resolver/native-sources.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/tooling/bench-compare.test.ts
+test/tooling/bench-summary.test.ts
 test/tooling/process-bench.test.ts
 test/tooling/changelog.test.ts
 test/tooling/responsive-workspace-contract.test.ts
