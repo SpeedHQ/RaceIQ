@@ -67,7 +67,7 @@ function makeDeps(
     },
     loadSettings: () =>
       ({
-        aiProvider: "local",
+        aiProvider: "openai-compatible",
         aiModel: "test-model",
         localEndpoint: "http://localhost:1234/v1",
         unit: "metric",
@@ -79,7 +79,7 @@ function makeDeps(
     buildAnalystPrompt: () => "prompt" as never,
     resolveAi: async () => ({
       feature: "analysis",
-      provider: "local",
+      provider: "openai-compatible",
       model: "test-model",
       generateText: async () => {
         throw new Error("unused");

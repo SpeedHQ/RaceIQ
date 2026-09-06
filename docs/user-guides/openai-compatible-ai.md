@@ -1,13 +1,13 @@
-# Local AI Setup
+# OpenAI-Compatible AI Setup
 
-Use LM Studio or another OpenAI-compatible server (including Ollama-compatible endpoints) to keep telemetry analysis local.
+Use LM Studio, Ollama, OpenRouter, LiteLLM, or any OpenAI-compatible endpoint.
 
 ## Requirements
 
-- A machine running an OpenAI-compatible local provider.
-- Network access from RaceIQ to the provider endpoint.
+- A reachable OpenAI-compatible provider endpoint.
+- Optional bearer API key when provider requires authentication.
 
-## Run an OpenAI-compatible provider
+## Providers
 
 ### LM Studio
 
@@ -22,15 +22,22 @@ Use LM Studio or another OpenAI-compatible server (including Ollama-compatible e
 2. Verify its OpenAI-compatible endpoint is reachable.
 3. Use that endpoint in RaceIQ.
 
+### OpenRouter
+
+1. Copy your OpenRouter API key.
+2. Use `https://openrouter.ai/api/v1` as endpoint.
+3. Select an OpenRouter model ID, such as `openai/gpt-4o-mini`.
+
 ## Configure RaceIQ
 
 1. Open **Settings → AI**.
-2. Set **Provider** to **Local (LM Studio / Ollama)**.
-3. Set **Endpoint** to your local URL.
-4. Click **Load models** and select one model.
-5. Save and run AI analysis.
+2. Set **Provider** to **OpenAI-compatible**.
+3. Set **Endpoint** to provider base URL, including `/v1` when required.
+4. Enter optional **OpenAI-compatible API Key**.
+5. Click **Load models**, select one model, then save.
 
-RaceIQ sends local-provider requests only to the configured endpoint.
+RaceIQ sends requests only to configured endpoint with bearer authentication when key is set.
+
 
 ## Troubleshooting
 

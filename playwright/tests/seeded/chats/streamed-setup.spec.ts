@@ -35,7 +35,7 @@ test("Setup chat submits a prompt and renders a streamed response", async ({ pag
     const settings = (await response.json()) as Record<string, unknown>;
     await route.fulfill({
       response,
-      json: { ...settings, aiProvider: "local", aiModel: "seeded-e2e" },
+      json: { ...settings, aiProvider: "openai-compatible", aiModel: "seeded-e2e" },
     });
   });
 

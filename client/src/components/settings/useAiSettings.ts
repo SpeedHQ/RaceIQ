@@ -153,12 +153,14 @@ export function useAiSettings(): AiSettingsState {
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
+    "openai-compatible": !!displaySettings.openaiCompatibleApiKeySet,
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
     qc.setQueryData(["settings"], (prev: unknown) => {
       if (!prev || typeof prev !== "object") return prev;
       if (providerKeyId === "gemini") return { ...(prev as Record<string, unknown>), geminiApiKeySet: isSet };
       if (providerKeyId === "openai") return { ...(prev as Record<string, unknown>), openaiApiKeySet: isSet };
+      if (providerKeyId === "openai-compatible") return { ...(prev as Record<string, unknown>), openaiCompatibleApiKeySet: isSet };
       return prev;
     });
   };
@@ -170,12 +172,12 @@ export function useAiSettings(): AiSettingsState {
   };
   const { aiProviders, aiModels, aiModelsFetching, aiModelsError, modelsRefreshing, refreshModels: refreshModelsAction } = useAiModelData(selectedProviders, keyStatus);
   const models = isAiProvider(provider) ? (aiModels?.[provider] ?? []) : [];
-  const hasProviderKey = provider === "local" || (keyStatus[provider] ?? false);
+  const hasProviderKey = provider === "openai-compatible" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(model || "gemini-flash-latest");
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
   const chatModels = isAiProvider(chatProvider) ? (aiModels?.[chatProvider] ?? []) : [];
-  const hasChatProviderKey = chatProvider === "local" || (keyStatus[chatProvider] ?? false);
+  const hasChatProviderKey = chatProvider === "openai-compatible" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(chatModel || "gemini-flash-latest");
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
@@ -183,11 +185,11 @@ export function useAiSettings(): AiSettingsState {
   const providerModelError = isAiProvider(provider) ? (modelErrors[provider] ?? null) : null;
   const chatProviderModelError = isAiProvider(chatProvider) ? (modelErrors[chatProvider] ?? null) : null;
   const autoTuneModels = isAiProvider(autoTuneProvider) ? (aiModels?.[autoTuneProvider] ?? []) : [];
-  const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
+  const hasAutoTuneProviderKey = autoTuneProvider === "openai-compatible" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = isAiProvider(autoTuneProvider) ? (modelErrors[autoTuneProvider] ?? null) : null;
   const driverProfileModels = isAiProvider(driverProfileProvider) ? (aiModels?.[driverProfileProvider] ?? []) : [];
-  const hasDriverProfileProviderKey = driverProfileProvider === "local" || (keyStatus[driverProfileProvider] ?? false);
+  const hasDriverProfileProviderKey = driverProfileProvider === "openai-compatible" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(driverProfileModel || "gemini-flash-latest");
   const selectedDriverProfileModel = driverProfileModels.find((mm) => mm.id === driverProfileModel);
@@ -200,7 +202,7 @@ export function useAiSettings(): AiSettingsState {
     provider !== analysisBaseline.provider ||
     model !== analysisBaseline.model ||
     nextThinkingBudget !== analysisBaseline.thinkingBudget ||
-    (provider === "local" && localEndpoint !== analysisBaseline.localEndpoint);
+    (provider === "openai-compatible" && localEndpoint !== analysisBaseline.localEndpoint);
   const canSaveAnalysis = analysisConfigDirty || apiKey.trim().length > 0;
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
   const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model || nextChatThinkingBudget !== chatBaseline.thinkingBudget;
@@ -231,7 +233,7 @@ export function useAiSettings(): AiSettingsState {
       const providerKeyId = PROVIDER_KEY_MAP[provider];
       const keyPromise = apiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey }) : null;
       const updates: Record<string, unknown> = { aiProvider: provider, aiModel: model, aiThinkingBudget: nextThinkingBudget };
-      if (provider === "local") updates.localEndpoint = localEndpoint;
+      if (provider === "openai-compatible") updates.localEndpoint = localEndpoint;
       updateSettingsInCache(updates);
       await saveSettings.mutateAsync(updates);
       if (keyPromise) {
@@ -244,7 +246,7 @@ export function useAiSettings(): AiSettingsState {
       }
       console.info(`[AI Settings] analysis save completed in ${Math.round(performance.now() - startedAt)}ms`);
       qc.invalidateQueries({ queryKey: ["settings"] });
-      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, localEndpoint: provider === "local" ? localEndpoint : analysisBaseline.localEndpoint });
+      setAnalysisBaseline({ provider, model, thinkingBudget: nextThinkingBudget, localEndpoint: provider === "openai-compatible" ? localEndpoint : analysisBaseline.localEndpoint });
     } catch (err) {
       console.error(`[AI Settings] analysis save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());

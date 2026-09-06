@@ -88,9 +88,11 @@ export function AiChatSection({ state }: { state: AiChatState }) {
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[chatProvider].helpText}{" "}
-              <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
-                {new URL(PROVIDER_KEY_LABELS[chatProvider].helpUrl).hostname}
-              </a>
+              {PROVIDER_KEY_LABELS[chatProvider].helpUrl && (
+                <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
+                  {new URL(PROVIDER_KEY_LABELS[chatProvider].helpUrl).hostname}
+                </a>
+              )}
             </p>
           </div>
         )}

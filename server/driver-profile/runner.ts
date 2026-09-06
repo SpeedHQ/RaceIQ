@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
 import { loadSettings } from "../runtime/config/settings";
-import { getSecret } from "../runtime/platform/keystore";
 import { toClientAiError, type ClientAiError } from "../ai/provider-error";
+import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
 import { driverProfilerAgent } from "../ai/agents";
 import { buildDriverProfilerPrompt } from "./prompt";
 import {
@@ -117,32 +117,20 @@ async function failDriverProfileRun(
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "local"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: "gemini" | "openai" | "openai-compatible"; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
   const settings = loadSettings();
   const provider = settings.driverProfileProvider;
   if (!provider) return { ok: false, reason: "No driver-profile AI provider is configured." };
-
-  if (provider === "openai") {
-    const key = await getSecret("openai-api-key");
-    if (!key) return { ok: false, reason: "OpenAI API key is not configured for driver profiling." };
-    process.env.OPENAI_API_KEY = key;
-  } else if (provider === "local") {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-    process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-  } else {
-    const key = await getSecret("gemini-api-key");
-    if (!key) return { ok: false, reason: "Gemini API key is not configured for driver profiling." };
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-  }
+  await configureAiProviderEnvironment(provider, settings.localEndpoint || "http://localhost:1234/v1");
 
   return {
     ok: true,
     provider,
     model:
       settings.driverProfileModel ||
-      (provider === "openai" ? "gpt-4o-mini" : provider === "local" ? "local-model" : "gemini-flash-latest"),
+      (provider === "openai" ? "gpt-4o-mini" : provider === "openai-compatible" ? "local-model" : "gemini-flash-latest"),
     thinkingBudget: settings.driverProfileThinkingBudget,
   };
 }

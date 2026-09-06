@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 
 ### Fixes
 

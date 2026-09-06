@@ -42,6 +42,7 @@ test/ai/context-window.test.ts
 test/ai/extract-json.test.ts
 test/ai/providers/google-provider-options.test.ts
 test/ai/providers/lm-studio-context.test.ts
+test/ai/providers/local-provider-auth.test.ts
 test/ai/providers/provider-error.test.ts
 test/analysis/data-panel-parity.test.ts
 test/analysis/suspension-compression.test.ts

@@ -10,7 +10,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "openai-compatible"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -96,6 +96,10 @@ export function loadSettings(): AppSettings {
     }
     if (parsed.autoTuneProvider === "claude-cli") {
       parsed.autoTuneProvider = "gemini";
+    }
+    // Migrate the shipped Local provider ID to OpenAI-compatible.
+    for (const providerKey of ["aiProvider", "chatProvider", "autoTuneProvider", "driverProfileProvider"]) {
+      if (parsed[providerKey] === "local") parsed[providerKey] = "openai-compatible";
     }
     // Seed auto-tune provider/model from the legacy shared analysis provider
     // for settings written before auto-tune had its own entry.

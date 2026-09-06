@@ -4,7 +4,7 @@ import { isAiAnalysisConfigured, isAiConfigured, launchAiFeature } from "../../c
 
 describe("isAiConfigured", () => {
   test("treats local provider as configured without API keys", () => {
-    expect(isAiConfigured({ aiProvider: "local", geminiApiKeySet: false, openaiApiKeySet: false })).toBe(true);
+    expect(isAiConfigured({ aiProvider: "openai-compatible", geminiApiKeySet: false, openaiApiKeySet: false })).toBe(true);
   });
 
   test("requires OpenAI key when provider is openai", () => {
@@ -24,14 +24,14 @@ describe("isAiAnalysisConfigured", () => {
   test("requires a selected analysis model after provider credentials are configured", () => {
     expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "" })).toBe(false);
     expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "   " })).toBe(false);
-    expect(isAiAnalysisConfigured({ aiProvider: "local", aiModel: "" })).toBe(false);
+    expect(isAiAnalysisConfigured({ aiProvider: "openai-compatible", aiModel: "" })).toBe(false);
     expect(isAiAnalysisConfigured({ aiProvider: "", geminiApiKeySet: true, aiModel: "gemini-2.5-flash" })).toBe(false);
   });
 
   test("accepts a selected model with valid provider credentials", () => {
     expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "gemini-2.5-flash" })).toBe(true);
     expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "gpt-5" })).toBe(true);
-    expect(isAiAnalysisConfigured({ aiProvider: "local", aiModel: "qwen3" })).toBe(true);
+    expect(isAiAnalysisConfigured({ aiProvider: "openai-compatible", aiModel: "qwen3" })).toBe(true);
   });
 });
 
