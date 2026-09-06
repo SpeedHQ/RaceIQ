@@ -113,6 +113,12 @@ jobs:
       - name: Pin Playwright Chromium
         working-directory: playwright
         run: bunx playwright install chromium
+      - name: Download current compiled artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: raceiq-dist-windows
+          path: dist
+
 
       - name: Capture current responsive screenshots
         id: current-responsive
@@ -125,13 +131,8 @@ jobs:
           PW_SEED_SCREENSHOTS: "1"
         shell: powershell
         run: |
-          bun --env-file=.env.development run build
-          Push-Location playwright
-          $ErrorActionPreference = "Continue"
           & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=${{ matrix.shard }}/2"
           $status = $LASTEXITCODE
-          $ErrorActionPreference = "Stop"
-          Pop-Location
           $output = Join-Path $env:RUNNER_TEMP "current-responsive"
           if (Test-Path "playwright/screenshots/mobile") {
             Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
