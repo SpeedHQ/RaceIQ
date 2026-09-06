@@ -238,13 +238,16 @@ jobs:
 
       - name: Update version in package.json
         run: bun scripts/ci/update-release-version.ts "${{ github.event.release.tag_name }}"
+      - name: Regenerate telemetry catalog
+        run: bun run telemetry:catalog
 
-      - name: Commit version bump
+
+      - name: Commit version and catalog bump
         run: |
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md
+          git add package.json CHANGELOG.md shared/telemetry/catalog/generated/
           git commit -m "chore: bump version to $VERSION"
           git push
