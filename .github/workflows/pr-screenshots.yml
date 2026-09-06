@@ -248,27 +248,13 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $renderRoot = Join-Path $env:RUNNER_TEMP "screenshot-renders"
-          $current = Join-Path $env:RUNNER_TEMP "current-responsive"
-          $base = Join-Path $env:RUNNER_TEMP "base-responsive"
           $preview = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
-          New-Item -ItemType Directory -Force -Path $current, $base, $preview | Out-Null
-          $shards = Get-ChildItem -LiteralPath $renderRoot -Directory -Filter "pr-screenshot-render-*"
-          foreach ($shard in $shards) {
-            $currentShard = Join-Path $shard.FullName "current-responsive"
-            $baseShard = Join-Path $shard.FullName "base-responsive"
-            if (Test-Path -LiteralPath $currentShard) {
-              Copy-Item (Join-Path $currentShard "*") $current -Recurse -Force
-            }
-            if (Test-Path -LiteralPath $baseShard) {
-              Copy-Item (Join-Path $baseShard "*") $base -Recurse -Force
-            }
-          }
-          $firstShard = Join-Path $renderRoot "pr-screenshot-render-1"
-          Copy-Item (Join-Path $firstShard "pr-number.txt") (Join-Path $preview "pr-number.txt")
-          Copy-Item (Join-Path $firstShard "base-ref.txt") (Join-Path $preview "base-ref.txt")
+          & bun scripts/ui/merge-screenshot-renders.ts `
+            --input $renderRoot `
+            --output $preview
           & bun scripts/ui/collect-screenshot-diffs.ts `
-            --base $base `
-            --current $current `
+            --base (Join-Path $preview "base-responsive") `
+            --current (Join-Path $preview "current-responsive") `
             --out $preview `
             --prefix responsive
 
