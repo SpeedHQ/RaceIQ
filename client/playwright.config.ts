@@ -10,9 +10,9 @@ const RESULTS_DIR = process.env.RACEIQ_SNAPSHOT_RESULTS_DIR ? resolve(process.en
 export default defineConfig({
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
-  // Static Storybook is built once and serves concurrent snapshot pages.
-  // Two workers match the constrained CI runner's two vCPUs.
-  workers: 2,
+  // Each snapshot opens a full Storybook page with chart/image state. Keeping
+  // one worker prevents concurrent Chromium pages from exhausting CI memory.
+  workers: 1,
   outputDir: RESULTS_DIR,
   snapshotDir: SNAPSHOT_DIR,
   snapshotPathTemplate: "{snapshotDir}/{testName}.png",
@@ -37,8 +37,9 @@ export default defineConfig({
   webServer: {
     // Storybook's Vite preview can exceed Node's default ~2 GB heap while
     // compiling the full snapshot inventory in the constrained CI runner.
-    command: `NODE_OPTIONS=--max-old-space-size=4096 bunx storybook build --test --output-dir storybook-static && bunx vite preview --outDir storybook-static --host 0.0.0.0 --port ${STORYBOOK_PORT} --strictPort`,
+    command: `bunx storybook build --test --output-dir storybook-static && bunx vite preview --outDir storybook-static --host 0.0.0.0 --port ${STORYBOOK_PORT} --strictPort`,
     cwd: STORYBOOK_ROOT,
+    env: { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" },
     url: `http://localhost:${STORYBOOK_PORT}/index.json`,
     reuseExistingServer: false,
     timeout: 600_000,

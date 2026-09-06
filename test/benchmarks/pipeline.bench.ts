@@ -14,6 +14,7 @@ import { getAccCarByModel } from "../../shared/racing/cars/acc";
 import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { runMitataBenchmarks } from "./mitata-harness";
+import { createBoundedPipelineRunner } from "./pipeline-bench-support";
 
 const t0 = performance.now();
 const elapsed = () => `+${((performance.now() - t0) / 1000).toFixed(2)}s`;
@@ -95,9 +96,15 @@ console.log(`[bench] pipelines warm ${elapsed()}`);
 // Stop the default pipeline's maintenance interval (created at import time)
 stopMaintenanceTasks();
 
-// --- Benchmarks (all synchronous — avoids async event-loop hangs) ---
-// Telemetry pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
-// Parse benches are fully synchronous and measure raw decode throughput.
+// Pipeline detectors retain the in-progress lap. The fixture packets do not
+// reliably cross lap boundaries, so periodically flush the synthetic lap to
+// keep repeated benchmark iterations from turning detector state into a leak.
+const PIPELINE_FLUSH_EVERY = 500;
+const makePipelineRunner = (pipeline: LiveTelemetryPipeline) =>
+  createBoundedPipelineRunner(pipeline, PIPELINE_FLUSH_EVERY);
+
+// Parse benches are synchronous. Pipeline benches await the complete processing
+// path and periodically flush synthetic detector state.
 
 group("fm", () => {
   let i = 0;
@@ -106,11 +113,12 @@ group("fm", () => {
     i = (i + 1) % fmBuffers.length;
     do_not_optimize(fmAdapter.tryParse(buf, null));
   });
+  const runPipeline = makePipelineRunner(fmPipeline);
   let pi = 0;
   bench("pipeline", async () => {
     const packet = fmPackets[pi]!;
     pi = (pi + 1) % fmPackets.length;
-    await fmPipeline.processPacket(packet);
+    await runPipeline.run(packet);
   });
 });
 
@@ -126,11 +134,12 @@ group("f1", () => {
     }
     do_not_optimize(f1Adapter.tryParse(buf, state));
   });
+  const runPipeline = makePipelineRunner(f1Pipeline);
   let pi = 0;
   bench("pipeline", async () => {
     const packet = f1Packets[pi]!;
     pi = (pi + 1) % f1Packets.length;
-    await f1Pipeline.processPacket(packet);
+    await runPipeline.run(packet);
   });
 });
 
@@ -141,11 +150,12 @@ group("acc", () => {
     i = (i + 1) % accFrames.length;
     do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts));
   });
+  const runPipeline = makePipelineRunner(accPipeline);
   let pi = 0;
   bench("pipeline", async () => {
     const packet = accPackets[pi]!;
     pi = (pi + 1) % accPackets.length;
-    await accPipeline.processPacket(packet);
+    await runPipeline.run(packet);
   });
 });
 
@@ -157,11 +167,12 @@ group("ac-evo", () => {
     i = (i + 1) % acEvoFrames.length;
     do_not_optimize(parseAcEvoBuffers(f.physics, f.graphics, f.staticData, parseCache));
   });
+  const runPipeline = makePipelineRunner(acEvoPipeline);
   let pi = 0;
   bench("pipeline", async () => {
     const packet = acEvoPackets[pi]!;
     pi = (pi + 1) % acEvoPackets.length;
-    await acEvoPipeline.processPacket(packet);
+    await runPipeline.run(packet);
   });
 });
 

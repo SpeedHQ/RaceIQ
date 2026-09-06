@@ -112,6 +112,7 @@ jobs:
           New-Item -ItemType Directory -Force dist/node_modules/@libsql/win32-x64-msvc | Out-Null
           Copy-Item -Force node_modules/@libsql/win32-x64-msvc/index.node, node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
 
+
       - name: Smoke test server startup
         shell: powershell
         run: |
@@ -138,14 +139,6 @@ jobs:
               Stop-Process -Id $server.Id -Force
             }
           }
-
-      - name: Upload dist artifact (for E2E test)
-        uses: actions/upload-artifact@v7
-        with:
-          name: raceiq-dist-windows
-          path: dist/
-          retention-days: 1
-
       - name: Install Inno Setup
         shell: powershell
         run: |
@@ -159,6 +152,14 @@ jobs:
         run: |
           SET VERSION=${{ needs.compute-version.outputs.version }}
           iscc /DMyAppVersion=%VERSION% installer\raceiq.iss
+
+      - name: Upload dist artifact (for E2E test)
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-dist-windows
+          path: dist/
+          retention-days: 1
+
 
       - uses: actions/upload-artifact@v7
         with:
@@ -241,7 +242,7 @@ jobs:
       projects: ${{ matrix.projects }}
       shard: ${{ matrix.shard }}
       runs-on: ${{ matrix.runs_on }}
-      dist-artifact: raceiq-dist-windows
+      dist-artifact: raceiq-e2e-dist-windows
       artifact-name: playwright-compiled-${{ matrix.name }}
       diagnostic-artifact-name: server-diagnostics-${{ matrix.name }}
   draft-release:

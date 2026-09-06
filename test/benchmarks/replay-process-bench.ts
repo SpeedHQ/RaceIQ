@@ -66,8 +66,11 @@ export async function setup(): Promise<void> {
   initServerGameAdapters();
   capture = Buffer.from(gunzipSync(Buffer.from(await Bun.file(FIXTURE).arrayBuffer())));
   packets = parseRawLapFramesFromBuffer(capture, 12, FRAME_COUNT, "ac-evo", FIXTURE);
+  const selected = selectedAlias();
+  if (selected === REPLAY_PARSE_ALIAS) return;
   const envelopes = resolveTelemetryReplay(1, source, packets, SEMANTIC_IDS).envelopes;
   if (packets.length < FRAME_COUNT || packets.length > FRAME_COUNT + 1 || envelopes.length < FRAME_COUNT || envelopes.length > FRAME_COUNT + 1) throw new Error("Baseline replay output count mismatch");
+  if (selected === REPLAY_RESOLVE_ALIAS) return;
   const acRecords = records(capture);
   const mid = Math.floor(acRecords.length / 2);
   const f1 = Buffer.from(gunzipSync(Buffer.from(await Bun.file(F1_FIXTURES[0]).arrayBuffer())));
@@ -83,6 +86,20 @@ export async function setup(): Promise<void> {
     { name: CROSS_SESSION_ALIAS, gameId: "f1-2025", capture: f1, offsets: [], counts: [], run: cross, expected: "" },
   ];
   for (const item of cases) item.expected = digest(item.run());
+}
+
+export function runIteration(): unknown {
+  switch (selectedAlias()) {
+    case REPLAY_PARSE_ALIAS:
+      return parseRawLapFramesFromBuffer(capture, 12, FRAME_COUNT, "ac-evo", FIXTURE);
+    case REPLAY_RESOLVE_ALIAS:
+      return resolveTelemetryReplay(1, source, packets, SEMANTIC_IDS);
+    default: {
+      const item = cases.find((entry) => entry.name === selectedAlias());
+      if (!item) throw new Error(`Unknown benchmark case: ${selectedAlias()}`);
+      return item.run();
+    }
+  }
 }
 
 group("replay process", () => {
