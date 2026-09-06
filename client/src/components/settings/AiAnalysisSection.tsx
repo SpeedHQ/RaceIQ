@@ -100,9 +100,11 @@ export function AiAnalysisSection({ state }: { state: AiAnalysisState }) {
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {keyInfo.helpText}{" "}
-              <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
-                {new URL(keyInfo.helpUrl).hostname}
-              </a>
+              {keyInfo.helpUrl && (
+                <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
+                  {new URL(keyInfo.helpUrl).hostname}
+                </a>
+              )}
             </p>
           </div>
         )}

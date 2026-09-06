@@ -153,12 +153,14 @@ export function useAiSettings(): AiSettingsState {
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
+    local: !!displaySettings.localApiKeySet,
   };
   const updateKeyStatusInSettingsCache = (providerKeyId: string, isSet: boolean) => {
     qc.setQueryData(["settings"], (prev: unknown) => {
       if (!prev || typeof prev !== "object") return prev;
       if (providerKeyId === "gemini") return { ...(prev as Record<string, unknown>), geminiApiKeySet: isSet };
       if (providerKeyId === "openai") return { ...(prev as Record<string, unknown>), openaiApiKeySet: isSet };
+      if (providerKeyId === "local") return { ...(prev as Record<string, unknown>), localApiKeySet: isSet };
       return prev;
     });
   };

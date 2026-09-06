@@ -369,7 +369,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
     throw new AiProviderError(
       res.status === 401
-        ? "Invalid OpenAI API key. Check your key in Settings."
+        ? "Invalid API key. Check your key in Settings."
         : `OpenAI API error: ${res.status}`,
       {
         code: "upstream",
@@ -449,11 +449,13 @@ export function extractLmStudioContextLengths(data: unknown): Map<string, number
 }
 
 /** Fetch configured runtime context lengths from LM Studio's native API. */
-async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+async function getLmStudioContextLengths(endpoint: string, apiKey?: string): Promise<Map<string, number>> {
   const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+  const headers: Record<string, string> = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   for (const path of ["/api/v1/models", "/api/v0/models"]) {
     try {
-      const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${base}${path}`, { headers, signal: AbortSignal.timeout(3000) });
       if (!res.ok) continue;
       return extractLmStudioContextLengths(await res.json());
     } catch {
@@ -464,11 +466,13 @@ async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, 
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
-export async function getLocalModelsDetailed(endpoint: string): Promise<ModelListResult> {
+export async function getLocalModelsDetailed(endpoint: string, apiKey?: string): Promise<ModelListResult> {
   try {
     const url = `${endpoint.replace(/\/+$/, "")}/models`;
     console.info(`[AI] GET ${url}`);
-    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(3000) });
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -477,7 +481,7 @@ export async function getLocalModelsDetailed(endpoint: string): Promise<ModelLis
       return { models: [], error: message };
     }
     const data = await res.json() as any;
-    const contextByModel = await getLmStudioContextLengths(endpoint);
+    const contextByModel = await getLmStudioContextLengths(endpoint, apiKey);
     return {
       models: (data.data ?? []).map((m: any) => ({
         id: m.id,
@@ -493,7 +497,7 @@ export async function getLocalModelsDetailed(endpoint: string): Promise<ModelLis
   }
 }
 
-export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
-  const result = await getLocalModelsDetailed(endpoint);
+export async function getLocalModels(endpoint: string, apiKey?: string): Promise<{ id: string; name: string }[]> {
+  const result = await getLocalModelsDetailed(endpoint, apiKey);
   return result.models;
 }

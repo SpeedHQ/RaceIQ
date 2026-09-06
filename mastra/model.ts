@@ -248,8 +248,7 @@ export function getMastraModelId(
     case "local": {
       const openai = createOpenAI({
         baseURL: localEndpoint ?? "http://localhost:1234/v1",
-        apiKey: "local",
-        // Surface the non-standard `reasoning_content` field that LM Studio /
+        apiKey: apiKey || "local",
         // Ollama thinking models emit; see the file header for the full chain.
         fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
       });

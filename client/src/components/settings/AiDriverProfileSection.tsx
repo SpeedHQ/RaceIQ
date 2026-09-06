@@ -103,9 +103,11 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {driverProfileKeyInfo.helpText}{" "}
-              <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:text-app-accent-hover hover:underline">
-                {new URL(driverProfileKeyInfo.helpUrl).hostname}
-              </a>
+              {driverProfileKeyInfo.helpUrl && (
+                <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:text-app-accent-hover hover:underline">
+                  {new URL(driverProfileKeyInfo.helpUrl).hostname}
+                </a>
+              )}
             </p>
           </div>
         )}

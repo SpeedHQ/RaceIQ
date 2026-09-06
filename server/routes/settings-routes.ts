@@ -18,11 +18,12 @@ import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outli
 import { withOnboardingOverride } from "../runtime/options";
 
 import { getGeminiModelsDetailed, getLocalModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
+import { getLocalApiKey } from "../ai/local-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
-let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
-let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
+let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
+let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
   id: string;
   name: string;
@@ -71,14 +72,17 @@ export const settingsRoutes = new Hono()
     let hasGeminiKey = false;
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
+    let hasLocalApiKey = false;
     if (shouldCheckCredentialStatus()) {
       hasGeminiKey = !!(await getSecret("gemini-api-key"));
       hasOpenaiKey = !!(await getSecret("openai-api-key"));
       hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
+      hasLocalApiKey = !!(await getLocalApiKey());
     }
     return c.json({
       ...settings,
       udpPort: udpListener.port,
+      localApiKeySet: hasLocalApiKey,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
@@ -148,13 +152,17 @@ export const settingsRoutes = new Hono()
     let localError: string | null = null;
     if (shouldFetchLocal) {
       const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
+      const localKey = await getLocalApiKey();
+      const localCacheKey = localKey || "";
       const localCacheHit = !forceRefresh
         && cachedLocalModels
         && cachedLocalModels.endpoint === endpoint
+        && cachedLocalModels.key === localCacheKey
         && (Date.now() - cachedLocalModels.at) < MODELS_CACHE_TTL_MS;
       const localEmptyRecent = !forceRefresh
         && cachedLocalEmpty
         && cachedLocalEmpty.endpoint === endpoint
+        && cachedLocalEmpty.key === localCacheKey
         && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
       let fetchedLocal: Awaited<ReturnType<typeof getLocalModelsDetailed>>;
       if (localCacheHit && cachedLocalModels) {
@@ -165,18 +173,18 @@ export const settingsRoutes = new Hono()
         fetchedLocal = { models: [], error: localError };
       } else {
         console.info("[AI] ai-models local cache miss");
-        fetchedLocal = await getLocalModelsDetailed(endpoint);
+        fetchedLocal = await getLocalModelsDetailed(endpoint, localKey || undefined);
       }
       localError = fetchedLocal.error;
       const fetchedLocalModels = fetchedLocal.models;
       localModels = fetchedLocalModels.length > 0
         ? fetchedLocalModels
-        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint ? cachedLocalModels.models : []);
+        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint && cachedLocalModels.key === localCacheKey ? cachedLocalModels.models : []);
       if (fetchedLocalModels.length > 0) {
-        cachedLocalModels = { endpoint, models: localModels, at: Date.now() };
+        cachedLocalModels = { endpoint, key: localCacheKey, models: localModels, at: Date.now() };
         cachedLocalEmpty = null;
       } else if (!localCacheHit) {
-        cachedLocalEmpty = { endpoint, at: Date.now() };
+        cachedLocalEmpty = { endpoint, key: localCacheKey, at: Date.now() };
       }
     } else {
       console.info("[AI] ai-models local fetch skipped (provider not local)");

@@ -2,7 +2,7 @@ type ProviderInfo = { id: string; name: string };
 export type ModelInfo = { id: string; name: string; contextLength?: number };
 type AsyncAction = { mutate: () => void; isPending: boolean; isError: boolean };
 
-type KeyInfo = { label: string; placeholder: string; helpText: string; helpUrl: string };
+type KeyInfo = { label: string; placeholder: string; helpText: string; helpUrl?: string };
 
 export interface AiAnalysisState {
   provider: string;
@@ -126,8 +126,9 @@ export const GEMINI_THINKING_BUDGET_OPTIONS = [
   { label: "High (4,096 tokens)", value: 4096 },
   { label: "Max (8,192 tokens)", value: 8192 },
 ] as const;
-export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai" };
+export const PROVIDER_KEY_MAP: Record<string, string> = { gemini: "gemini", openai: "openai", local: "local" };
 export const PROVIDER_KEY_LABELS: Record<string, KeyInfo> = {
   gemini: { label: "Gemini API Key", placeholder: "AIza...", helpText: "Get a free API key from", helpUrl: "https://aistudio.google.com/apikey" },
   openai: { label: "OpenAI API Key", placeholder: "sk-...", helpText: "Get an API key from", helpUrl: "https://platform.openai.com/api-keys" },
+  local: { label: "Local API Key (optional)", placeholder: "Optional bearer token", helpText: "Sent as a Bearer token to the configured endpoint." },
 };

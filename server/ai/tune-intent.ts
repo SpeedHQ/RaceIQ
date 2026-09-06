@@ -10,7 +10,7 @@
  */
 import type { GameId } from "../../shared/games/ids";
 import { loadSettings } from "../runtime/config/settings";
-import { getSecret } from "../runtime/platform/keystore";
+import { getAiProviderApiKey, requireAiProviderApiKey } from "./local-provider";
 import { runGemini, runOpenAi } from "./providers";
 import {
   getTuneIntentJsonSchema,
@@ -158,19 +158,20 @@ async function runTuneIntentProvider(
 
   switch (provider) {
     case "openai": {
-      const key = await getSecret("openai-api-key");
+      const key = await requireAiProviderApiKey("openai");
       const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
       return { raw: r.analysis, model: r.usage.model };
     }
     case "local": {
       // Local OpenAI-compatible endpoint (LM Studio / Ollama).
       const base = settings.localEndpoint || "http://localhost:1234/v1";
-      const r = await runOpenAiLocal(prompt, base, tuneModel, schema);
+      const key = await getAiProviderApiKey("local");
+      const r = await runOpenAiLocal(prompt, base, tuneModel, schema, key);
       return { raw: r.analysis, model: r.usage.model };
     }
     default: {
       // gemini (and legacy default)
-      const key = await getSecret("gemini-api-key");
+      const key = await requireAiProviderApiKey("gemini");
       const r = await runGemini(prompt, key, tuneModel, schema);
       return { raw: r.analysis, model: r.usage.model };
     }
@@ -204,12 +205,15 @@ async function runOpenAiLocal(
   baseUrl: string,
   model: string,
   schema: object,
+  apiKey?: string,
 ): ReturnType<typeof runOpenAi> {
   // runOpenAi hard-codes the OpenAI host, so hit the local endpoint inline.
   const start = performance.now();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       model,
       messages: [{ role: "user", content: prompt }],

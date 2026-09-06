@@ -29,6 +29,8 @@ export interface DisplaySettings {
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
+  /** Server-injected: whether a Local API key is stored */
+  localApiKeySet?: boolean;
   /** Server-injected: whether an Anthropic API key is stored */
   anthropicApiKeySet?: boolean;
   /** Driver display name */

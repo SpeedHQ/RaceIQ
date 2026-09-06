@@ -72,9 +72,11 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
             </div>
             <p className="text-app-compact text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[autoTuneProvider].helpText}{" "}
-              <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
-                {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
-              </a>
+              {PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl && (
+                <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
+                  {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
+                </a>
+              )}
             </p>
           </div>
         )}
