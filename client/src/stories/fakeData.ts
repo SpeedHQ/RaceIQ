@@ -8,6 +8,15 @@ import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { buildLiveTelemetryView } from "../lib/live-telemetry-view";
+import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
+
+import { initGameAdapters } from "../../../shared/games/init";
+
+// Display fixtures are precomputed through the shared converter, which
+// resolves against the adapter registry. Register eagerly so the module is
+// self-sufficient regardless of import order (app startup and Storybook
+// re-register the same adapters later; registration is idempotent).
+initGameAdapters();
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
 // ── Shared base packet fields ────────────────────────────────────────────────
@@ -612,6 +621,15 @@ export const fakeAccPacket: TelemetryPacket = {
 // AC Evo shares ACC's shared-memory shape and carries its own simulator identity.
 export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-evo" };
 
+function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
+  // Same canonical conversion the app uses — story fixtures stay honest.
+  return convertPacket(raw, "kmh", "C");
+}
+
+export const fakeF1DisplayPacket: DisplayPacket = makeDisplayPacket(fakeF1Packet);
+export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForzaPacket);
+export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
+export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
 export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);
@@ -684,7 +702,6 @@ export const fakeAllDataTelemetryView: LiveTelemetryView = {
   competitors: [],
   statusBySemanticId: {},
 };
-
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
 // Last completed lap = lap 4: S1=29.845 S2=32.21 S3=30.286 → 92.341

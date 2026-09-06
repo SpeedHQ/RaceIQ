@@ -43,6 +43,7 @@ export function TuneForm({
     const u = initialData?.settings?.springs?.unit;
     const au = initialData?.settings?.aero?.unit;
     if (u || au) return u !== "lb/in" && au !== "lb";
+    if (initialData?.unitSystem) return initialData.unitSystem !== "imperial";
     return displaySettings.unit !== "imperial";
   });
   const [carSearchQuery, setCarSearchQuery] = useState("");
@@ -69,6 +70,8 @@ export function TuneForm({
     const au = initialData?.settings?.aero?.unit;
     if (u || au) {
       setIsMetric(u !== "lb/in" && au !== "lb");
+    } else if (initialData?.unitSystem) {
+      setIsMetric(initialData.unitSystem !== "imperial");
     } else {
       setIsMetric(displaySettings.unit !== "imperial");
     }

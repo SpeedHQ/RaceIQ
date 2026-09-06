@@ -1,6 +1,9 @@
 # Explicit DB-free unit tests
 test/archive/bounded-unzip.test.ts
 test/client/compare-segment-key.test.ts
+test/client/gearing-sample-rejection.test.ts
+test/client/gearing-source-sampling.test.ts
+test/client/live-telemetry-view.test.ts
 test/client/parse-lap-time.test.ts
 test/client/speed.test.ts
 test/client/temperature.test.ts

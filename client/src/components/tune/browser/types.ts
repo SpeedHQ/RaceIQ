@@ -15,6 +15,8 @@ export interface TuneRow {
   lapTimeTrack: string | null;
   description: string;
   settings: unknown;
+  /** Unit system the stored settings values are denominated in. */
+  unitSystem?: "metric" | "imperial";
 }
 
 export interface SourceTab {

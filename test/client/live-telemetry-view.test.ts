@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { GameId } from "../../shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
-import { buildLiveTelemetryView, indexTelemetrySchema, readIndexedValue } from "../src/lib/live-telemetry-view";
+import { buildLiveTelemetryView, indexTelemetrySchema, readIndexedValue } from "../../client/src/lib/live-telemetry-view";
 
 function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {
   return {

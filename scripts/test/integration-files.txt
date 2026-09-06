@@ -24,6 +24,7 @@ test/driver-profile/runner.test.ts
 test/driver-profile/runs.test.ts
 test/driver-profile/style.test.ts
 test/driver-profile/trend-provenance.test.ts
+test/e2e/e2e-telemetry-route.test.ts
 test/experiments/arms/auto-exclude.test.ts
 test/experiments/arms/compare-card-background.test.ts
 test/experiments/arms/curation.test.ts
@@ -59,6 +60,9 @@ test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
 test/games/shared/release-game-registration.test.ts
+test/gear-ranges.test.ts
+test/gearing-ratios.test.ts
+test/gearing-recording.test.ts
 test/lap-analysis/lap-cache.test.ts
 test/lap-analysis/lap-consistency.test.ts
 test/lap-analysis/persist-lap-metrics.test.ts
@@ -173,5 +177,6 @@ test/ai/tools/lap-analysis-tool.test.ts
 test/games/shared/parser.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
+test/tune-clone-unit.test.ts
 test/runtime/release-feature-flags.test.ts
 test/ai/prompts/tune-chat-prompt.test.ts

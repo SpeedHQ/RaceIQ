@@ -4,6 +4,7 @@
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 - Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
 - Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
+- Show FM23 live gearing with power and torque curves, shift points, and mph/kmh gear-ratio charts
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
@@ -118,6 +119,7 @@
 - Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
+- Show FM23 unit-aware top speed and gear ratios in tune forms and stamp cloned community tunes as imperial
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal

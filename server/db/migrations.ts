@@ -1250,5 +1250,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Catalog clones were stamped `metric` even though community tunes are
+  // imperial-denominated — flip existing clones so values render in psi/lb.
+  {
+    version: 59,
+    name: "fix catalog-clone unit system",
+    sql: [
+      `UPDATE tunes SET unit_system = 'imperial' WHERE source = 'catalog-clone' AND unit_system = 'metric'`,
+    ],
+  },
 ];
 
