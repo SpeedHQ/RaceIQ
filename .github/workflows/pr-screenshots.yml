@@ -201,11 +201,24 @@ jobs:
           name: pr-screenshot-render-${{ matrix.shard }}
           path: ${{ runner.temp }}/screenshot-render-${{ matrix.shard }}/
           retention-days: 14
+      - name: Fail incomplete render shard
+        if: always()
+        shell: powershell
+        run: |
+          if ("${{ steps.current-responsive.outcome }}" -ne "success" -or
+              "${{ steps.base-responsive.outcome }}" -ne "success") {
+            Write-Error "Responsive screenshot shard incomplete."
+            exit 1
+          }
+
 
   collect:
-    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     steps:
       - uses: actions/checkout@v7
         with:
@@ -253,19 +266,3 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
-
-      - name: Fail when current responsive render fails
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          failed=0
-          for status in "$RUNNER_TEMP"/screenshot-renders/pr-screenshot-render-*/current-status.txt; do
-            if [ -f "$status" ] && [ "$(cat "$status")" != "success" ]; then
-              failed=1
-            fi
-          done
-          if [ "$failed" -ne 0 ]; then
-            echo "::error::Responsive screenshot render failed in at least one shard."
-            exit 1
-          fi
