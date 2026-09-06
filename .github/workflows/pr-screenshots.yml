@@ -131,8 +131,12 @@ jobs:
           PW_SEED_SCREENSHOTS: "1"
         shell: powershell
         run: |
+          Push-Location playwright
+          $ErrorActionPreference = "Continue"
           & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=${{ matrix.shard }}/2"
           $status = $LASTEXITCODE
+          $ErrorActionPreference = "Stop"
+          Pop-Location
           $output = Join-Path $env:RUNNER_TEMP "current-responsive"
           if (Test-Path "playwright/screenshots/mobile") {
             Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
