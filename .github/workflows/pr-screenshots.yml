@@ -244,24 +244,32 @@ jobs:
 
       - name: Collect responsive diffs
         id: collect
-        shell: bash
+        shell: powershell
         run: |
-          set -euo pipefail
-          current="$RUNNER_TEMP/current-responsive"
-          base="$RUNNER_TEMP/base-responsive"
-          mkdir -p "$current" "$base" pr-preview
-          for shard in "$RUNNER_TEMP"/screenshot-renders/pr-screenshot-render-*; do
-            [ -d "$shard" ] || continue
-            [ -d "$shard/current-responsive" ] && cp -R "$shard/current-responsive/." "$current/"
-            [ -d "$shard/base-responsive" ] && cp -R "$shard/base-responsive/." "$base/"
-          done
-          first_shard="$RUNNER_TEMP/screenshot-renders/pr-screenshot-render-1"
-          cp "$first_shard/pr-number.txt" pr-preview/pr-number.txt
-          cp "$first_shard/base-ref.txt" pr-preview/base-ref.txt
-          bun scripts/ui/collect-screenshot-diffs.ts \
-            --base "$base" \
-            --current "$current" \
-            --out "$GITHUB_WORKSPACE/pr-preview" \
+          $ErrorActionPreference = "Stop"
+          $renderRoot = Join-Path $env:RUNNER_TEMP "screenshot-renders"
+          $current = Join-Path $env:RUNNER_TEMP "current-responsive"
+          $base = Join-Path $env:RUNNER_TEMP "base-responsive"
+          $preview = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
+          New-Item -ItemType Directory -Force -Path $current, $base, $preview | Out-Null
+          $shards = Get-ChildItem -LiteralPath $renderRoot -Directory -Filter "pr-screenshot-render-*"
+          foreach ($shard in $shards) {
+            $currentShard = Join-Path $shard.FullName "current-responsive"
+            $baseShard = Join-Path $shard.FullName "base-responsive"
+            if (Test-Path -LiteralPath $currentShard) {
+              Copy-Item (Join-Path $currentShard "*") $current -Recurse -Force
+            }
+            if (Test-Path -LiteralPath $baseShard) {
+              Copy-Item (Join-Path $baseShard "*") $base -Recurse -Force
+            }
+          }
+          $firstShard = Join-Path $renderRoot "pr-screenshot-render-1"
+          Copy-Item (Join-Path $firstShard "pr-number.txt") (Join-Path $preview "pr-number.txt")
+          Copy-Item (Join-Path $firstShard "base-ref.txt") (Join-Path $preview "base-ref.txt")
+          & bun scripts/ui/collect-screenshot-diffs.ts `
+            --base $base `
+            --current $current `
+            --out $preview `
             --prefix responsive
 
       - name: Upload preview artifact
