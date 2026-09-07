@@ -25,6 +25,7 @@ import { detectCorners } from "../lap-analysis/corners"
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
@@ -51,6 +52,9 @@ export class LiveTelemetryPipeline {
    *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
+  private _continuingSegment = false;
+  private _pendingSessionContextFrames: Buffer[] = [];
+  private _expectCompleteLapStart = false;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
@@ -165,30 +169,36 @@ export class LiveTelemetryPipeline {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
-        await withSessionCaptureMaintenanceLock(async () => {
-          this._recordingSession = null;
-          await this.recorder.stop();
-          this.recorder.start(session.gameId);
-          this.recorder.writeMetaFrame();
-          this._recordingSession = {
-            sessionId: session.sessionId,
-            gameId: session.gameId,
-          };
-          if (this.recorder.path) {
-            await this.db.updateSessionRawFile(
-              session.sessionId,
-              this.recorder.path,
-              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
-            );
-          }
-        });
-        if (previousSession) {
-          void this._reconcileRecordedSession(previousSession).catch((error) => {
-            console.error(
-              `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
-              error,
-            );
+        const continuing = this._continuingSegment &&
+          previousSession?.sessionId === session.sessionId &&
+          previousSession.gameId === session.gameId;
+        this._continuingSegment = false;
+        if (!continuing) {
+          await withSessionCaptureMaintenanceLock(async () => {
+            this._recordingSession = null;
+            await this.recorder.stop();
+            this.recorder.start(session.gameId);
+            this.recorder.writeMetaFrame();
+            this._recordingSession = {
+              sessionId: session.sessionId,
+              gameId: session.gameId,
+            };
+            if (this.recorder.path) {
+              await this.db.updateSessionRawFile(
+                session.sessionId,
+                this.recorder.path,
+                this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+              );
+            }
           });
+          if (previousSession) {
+            void this._reconcileRecordedSession(previousSession).catch((error) => {
+              console.error(
+                `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
+                error,
+              );
+            });
+          }
         }
 
         resetLiveCalibration(session.trackOrdinal);
@@ -287,6 +297,10 @@ export class LiveTelemetryPipeline {
         callbacks: this._buildCallbacks(),
       });
       this._lapDetectorGameId = gameId;
+      if (this._expectCompleteLapStart) {
+        this._lapDetector.expectCompleteLapStart?.();
+        this._expectCompleteLapStart = false;
+      }
     }
     return this._lapDetector;
   }
@@ -377,8 +391,16 @@ export class LiveTelemetryPipeline {
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
 
+    // If feed rotates the session, write the triggering source into the new recorder
+    // and patch the detector offset to the canonical source position.
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) {
+            this.recorder.writeRawCaptureBytes(contextFrame);
+          }
+          this._pendingSessionContextFrames = [];
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
@@ -476,6 +498,12 @@ export class LiveTelemetryPipeline {
     await detector.feed(telemetryPacket, rawByteOffset);
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) {
+            this.recorder.writeRawCaptureBytes(contextFrame);
+          }
+          this._pendingSessionContextFrames = [];
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
@@ -487,6 +515,36 @@ export class LiveTelemetryPipeline {
 
   async flushSessionRecorder(): Promise<void> {
     await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
+  }
+
+  /**
+   * Preserve parser context in imported captures without feeding its stale
+   * telemetry values through the lap detector.
+   */
+  recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
+    this._expectCompleteLapStart = completeLapStart;
+    const contextRecord = Buffer.concat([
+      encodeSegmentContextFrame(),
+      encodeFrameLength(sourceFrame.length),
+      sourceFrame,
+      encodeSegmentContextEndFrame(),
+    ]);
+    if (this.recorder.active) {
+      this.recorder.writeRawCaptureBytes(contextRecord);
+      return;
+    }
+    this._pendingSessionContextFrames.push(contextRecord);
+  }
+
+  /** Start next offline capture segment without rotating canonical session. */
+  beginSessionSegment(): void {
+    if (!this.recorder.active || !this._recordingSession) {
+      throw new Error("Cannot begin import segment before a session has started");
+    }
+    this.recorder.writeSegmentBoundary();
+    this._lapDetector = null;
+    this._lapDetectorGameId = null;
+    this._continuingSegment = true;
   }
 
   /** Flush buffered writes to disk without closing. */

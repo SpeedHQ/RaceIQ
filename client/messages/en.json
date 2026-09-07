@@ -224,6 +224,7 @@
   "sessions_add_note": "Add note…",
   "sessions_export_lap": "Export lap",
   "sessions_export_session": "Export session",
+  "sessions_export_motec_whole_session_confirm": "MoTeC exports include the entire source session, not only selected laps. Continue?",
   "sessions_col_notes": "Notes",
   "sessions_recheck_validity": "Recheck validity",
   "sessions_search_placeholder": "Search track, car, notes…",

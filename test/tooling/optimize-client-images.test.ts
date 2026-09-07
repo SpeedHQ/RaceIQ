@@ -6,6 +6,8 @@ import sharp from "sharp";
 import { optimizeClientImages } from "../../scripts/build/optimize-client-images";
 sharp.cache(false);
 
+sharp.cache(false);
+
 const tempDirs: string[] = [];
 
 function tempDir(): string {

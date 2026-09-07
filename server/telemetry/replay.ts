@@ -7,7 +7,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import { createIRacingSourceDecoderState, decodeIRacingSourceFrame, type IRacingValue } from "../games/iracing/source-frame";
-import { readFrameStreamStart } from "../session-capture/framing";
+import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadRawCaptureIdentity, type RawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 export interface QueryLapTelemetryOptions {
   readonly rawCaptureRequirement?: "provenance" | "native-values";
@@ -24,25 +24,22 @@ interface ReplayNativeFrame {
 }
 
 function* iterateIRacingNativeFrames(source: LapReplaySource, capture: Buffer | undefined): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
-  if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) {
-    return undefined;
-  }
-  const decoderState = createIRacingSourceDecoderState();
-  let offset = readFrameStreamStart(capture);
+  if (source.gameId !== "iracing" || !capture || source.rawByteOffset == null || source.rawFrameCount == null) return undefined;
+  let decoderState = createIRacingSourceDecoderState();
   let replayFrames = 0;
-  while (offset + 4 <= capture.length) {
-    const frameOffset = offset;
-    const frameLength = capture.readUInt32LE(offset);
-    offset += 4;
-    if (frameLength <= 0 || offset + frameLength > capture.length) break;
-    const frame = capture.subarray(offset, offset + frameLength);
-    offset += frameLength;
-    if (frameOffset < source.rawByteOffset) {
-      decodeIRacingSourceFrame(frame, decoderState);
+  for (const record of iterateSessionCaptureRecords(capture)) {
+    if (record.kind === "segment-boundary") {
+      decoderState = createIRacingSourceDecoderState();
+      replayFrames = 0;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
+    if (record.offset < source.rawByteOffset) {
+      decodeIRacingSourceFrame(record.frame, decoderState);
       continue;
     }
     if (replayFrames >= source.rawFrameCount) break;
-    const decoded = decodeIRacingSourceFrame(frame, decoderState);
+    const decoded = decodeIRacingSourceFrame(record.frame, decoderState);
     replayFrames += 1;
     if (decoded) yield decoded.values;
   }
