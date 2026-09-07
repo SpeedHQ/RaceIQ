@@ -177,29 +177,6 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
 
   return (
     <div className="space-y-3">
-      {issueAnnotations.length > 0 && (
-        <div className="sticky top-0 z-20 -mb-2 bg-app-bg/95 px-1" aria-label="Issue annotations">
-          <div className="text-app-caption font-semibold uppercase tracking-wider text-app-text-dim">Issues</div>
-          <div className="relative h-5">
-            {issueAnnotations.map((it) => {
-              const color = it.severity === "critical" ? "var(--status-danger)" : it.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
-              return (
-                <button
-                  key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
-                  type="button"
-                  className="absolute top-0 flex -translate-x-1/2 flex-col items-center text-app-caption text-app-text-muted"
-                  style={{ left: `${it.distanceFrac! * 100}%` }}
-                  title={it.detail}
-                  onClick={() => onCursorFrac(it.distanceFrac!)}
-                >
-                  <span className="max-w-28 truncate">{it.corner ?? it.kind}</span>
-                  <span className="h-2.5 w-2.5 rounded-full border border-app-bg" style={{ background: color }} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
       {CHANNELS.map((ch) => {
         return (
           <div key={ch.key}>

@@ -1,5 +1,6 @@
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { useMeasuredWidth } from "./use-measured-width";
 import { useCallback, useMemo, useState } from "react";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
@@ -302,7 +303,7 @@ export function TrackFocusViewInner({
   }, [corners, cornerFracs, resolvedTraces, bestLapId]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 p-4 gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4">
       {/* Stat strip */}
       <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
         <StatCell label={m.trackfocus_consistency()} value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
@@ -328,7 +329,7 @@ export function TrackFocusViewInner({
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
-          <div className="flex-none">
+          <div className="mx-auto w-full max-w-[28rem] flex-none">
             {zoomActive && zoomLines.length > 0 && cursorFrac != null ? (
               <TrackFocusZoom lapLines={zoomLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
@@ -347,16 +348,14 @@ export function TrackFocusViewInner({
               />
             )}
           </div>
-          <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex min-h-0 flex-1 flex-col @5xl/workspace:flex-none">
             <div className="flex-none text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} />
             </div>
           </div>
         </div>
-
-        {/* Right pane: tabbed lanes — header static, lane content scrolls. */}
-        <div className="flex flex-col gap-3 min-h-0 min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <div className="flex-none flex gap-1 flex-wrap">
             {TABS.map((t) => (
               <Button
@@ -371,8 +370,12 @@ export function TrackFocusViewInner({
             ))}
           </div>
 
-          {/* Lane content owns its own scroll. */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+          {/* Lane content owns its own scroll on wide layouts. */}
+          <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
+          <div className="sticky top-0 z-20 bg-app-bg/95">
+            <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
+            <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
+          </div>
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
@@ -452,6 +455,73 @@ function StatCell({ label, value, unit, title }: { label: string; value: string;
       <div className="text-base font-mono tabular-nums text-app-text">
         {value}
         {unit && <span className="text-app-caption text-app-text-dim ml-1">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+function TurnMarkers({ corners, cornerFracs }: { corners: TrackCorner[]; cornerFracs: number[] }) {
+  const { ref, width } = useMeasuredWidth<HTMLDivElement>();
+  const markers = useMemo(() => {
+    const labels = cornerFracs.map((frac, index) => ({ frac, label: corners[index]?.label ?? `T${index + 1}` }));
+    if (labels.length < 2 || width === 0) return labels;
+
+    const groups: Array<{ start: number; end: number }> = [];
+    for (let index = 0; index < labels.length; index += 1) {
+      const previous = groups.at(-1);
+      if (previous && (labels[index].frac - labels[previous.end].frac) * width < 34) previous.end = index;
+      else groups.push({ start: index, end: index });
+    }
+    return groups.map(({ start, end }) => ({
+      frac: (labels[start].frac + labels[end].frac) / 2,
+      label: start === end ? labels[start].label : `${labels[start].label}–${labels[end].label.replace(/^T/, "")}`,
+    }));
+  }, [corners, cornerFracs, width]);
+
+  return (
+    <div ref={ref} className="px-1" aria-label="Track turns">
+      <div className="relative h-5">
+        {markers.map((marker) => (
+          <span
+            key={`${marker.label}-${marker.frac}`}
+            className="absolute top-0 -translate-x-1/2 text-app-caption text-app-text-muted"
+            style={{ left: `calc(6px + ${marker.frac * 100}% - ${marker.frac * 12}px)` }}
+          >
+            {marker.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+function IssueMarkers({ issues, onCursorFrac }: { issues: TuneIssue[]; onCursorFrac: (frac: number) => void }) {
+  const annotations = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.filter((issue) => {
+      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return false;
+      seen.add(issue.distanceFrac);
+      return true;
+    });
+  }, [issues]);
+
+  if (annotations.length === 0) return null;
+  return (
+    <div className="px-1" aria-label="Issue annotations">
+      <div className="relative h-5">
+        {annotations.map((issue) => {
+          const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+          return (
+            <button
+              key={`${issue.kind}-${issue.corner ?? ""}-${issue.detail}`}
+              type="button"
+              className="absolute top-0 flex -translate-x-1/2 items-center text-app-caption text-app-text-muted"
+              style={{ left: `calc(6px + ${issue.distanceFrac! * 100}% - ${issue.distanceFrac! * 12}px)` }}
+              title={issue.detail}
+              onClick={() => onCursorFrac(issue.distanceFrac!)}
+            >
+              <span className="h-2.5 w-2.5 rounded-full border border-app-bg" style={{ background: color }} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );

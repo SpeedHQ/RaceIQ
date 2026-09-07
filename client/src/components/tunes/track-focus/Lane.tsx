@@ -69,7 +69,7 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
       {title && <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{title}</div>}
       <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onMouseMove={onMove} onMouseLeave={onLeave} onMouseDown={(e) => onRangeSelect && setDragStart(fracFromEvent(e))} onDoubleClick={() => onZoomOut?.()}>
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill ?? "var(--app-surface-alt)"} fillOpacity={bgFill == null ? 0.35 : 1} rx={4} />
-        {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--app-border)" strokeDasharray="2 4" opacity={0.8} />)}
+        {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" opacity={0.9} />)}
         {annotationFracs?.map((f, index) => <line key={`annotation-${index}-${f}`} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" strokeWidth={1} opacity={0.9} />)}
         {children({ x, y, x0, x1, y0, y1 })}
         {cursorFrac != null && <line x1={x(cursorFrac)} x2={x(cursorFrac)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />}
