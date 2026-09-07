@@ -31,6 +31,8 @@ interface TuneReviewDashboardProps {
   trackName?: string;
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
+  /** Optional metadata row shown directly beneath review controls. */
+  sessionLabel?: string;
   onBack?: () => void;
   /** When set, exposes direct navigation into selected lap's detailed Analyse view. */
   onDrillIntoLap?: (lap: LapMeta) => void;
@@ -65,7 +67,7 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDrillIntoLap, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDrillIntoLap, sessionLabel, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const evaluationLapIds = useMemo(() => evaluationLaps.map((lap) => lap.id), [evaluationLaps]);
@@ -259,6 +261,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
 
+        {sessionLabel && <div className="px-4 py-1 text-xs text-app-text-dim">Showing up to five fastest clean laps.</div>}
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
             {test?.driverComment && (
@@ -281,7 +284,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
         {isOverview && (
           <div className="border-b border-app-border">
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
-              <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
+              <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{sessionLabel}</span>
               <div className="flex gap-1 flex-wrap justify-end">
                 {METRICS.map((m) => (
                   <Button
@@ -296,10 +299,11 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 @3xl/workspace:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)]">
-              <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r">
+            <div className="grid grid-cols-1 @3xl/workspace:grid-cols-2">
+              <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r aspect-square">
                 {telemetry.length > 0 ? (
                   <SectorMap
+                    gameId={gameId}
                     telemetry={telemetry}
                     sectorTimes={sectorTimes}
                     showTimes={false}
@@ -320,7 +324,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                         <span className="h-1 w-6 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                         <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{label}</span>
                       </div>
-                      <div className="mt-1 text-sm font-mono tabular-nums text-app-text">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
+                      <div className="mt-1 text-sm font-mono tabular-nums text-app-text">{sectorTimes && sectorTimes.times[i] > 0 ? formatLapTime(sectorTimes.times[i]) : "—"}</div>
                     </div>
                     {ranges ? <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} /> : <div className="text-xs text-app-text-dim">No telemetry</div>}
                   </div>
@@ -353,7 +357,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
             onActiveTabChange={setTrackTab}
           />
         ) : sectorIndex != null ? (
-          <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+          <SectorDetailView gameId={gameId} telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
           <>
             {/* Detected issues, laid out per sector */}
@@ -368,7 +372,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                   {issueGroups.wholeLap.length > 0 && (
                     <div className="px-4 pb-2">
                       <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">Whole lap</div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-col gap-1">
                         {issueGroups.wholeLap.map((it) => (
                           <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />
                         ))}

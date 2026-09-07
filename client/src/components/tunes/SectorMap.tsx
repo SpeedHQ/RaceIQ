@@ -1,4 +1,6 @@
 import { useMemo, useRef, useState } from "react";
+import type { GameId } from "@shared/games/ids";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { SemanticTuneSample } from "./semantic-tune";
 import { useTrackBoundaries } from "../../hooks/track-queries";
@@ -24,6 +26,7 @@ interface SectorMapProps {
   showTimes?: boolean;
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
   trackOrdinal?: number;
+  gameId?: GameId;
   /** Tooltip content for the hovered frame; when omitted, hover is disabled. */
   readout?: (frame: SemanticTuneSample, fraction: number) => ReadoutRow[];
   /** Reports the hovered telemetry index (or null) so a parent can sync other
@@ -40,9 +43,13 @@ interface SectorMapProps {
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
-export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, readout, onHover, markFraction }: SectorMapProps) {
-  const { data: bounds } = useTrackBoundaries(trackOrdinal);
-  const edges = extractEdges(bounds);
+export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, markFraction }: SectorMapProps) {
+  const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
+  const edges = useMemo(() => {
+    const extracted = extractEdges(bounds);
+    if (!extracted || !gameId || !needsTrackFlip(gameId)) return extracted;
+    return { left: flipPoints(extracted.left), right: flipPoints(extracted.right) };
+  }, [bounds, gameId]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<ProjPt | null>(null);
 

@@ -77,9 +77,9 @@ export function ReviewTrackStats({
   ];
 
   return (
-    <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
+    <div className="grid flex-none grid-cols-2 gap-2 px-4 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
       {cells.map((cell) => (
-        <div key={cell.label} className="rounded bg-app-surface border border-app-border px-3 py-2" title={cell.title}>
+        <div key={cell.label} className="rounded bg-app-surface border border-t-0 border-app-border px-3 py-2" title={cell.title}>
           <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{cell.label}</div>
           <div className="text-base font-mono tabular-nums text-app-text">
             {cell.value}

@@ -165,7 +165,7 @@ export function SessionDesktopTable({
                             analyseSession(session);
                           }}
                         >
-                          Analyse
+                          {m.sessions_analyse_session()}
                         </Button>
                         <Button
                           variant="app-outline"

@@ -46,6 +46,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   }, [navigate, sessionRedirectId]);
   const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? `Track ${resolvedTrackOrdinal ?? "?"}`;
   const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
+  const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · Selected session · ${selectedSession?.lapCount ?? evaluationLaps.length} laps`;
   const backToSession = () => void navigate({ to: ".." });
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading) return <div role="status" aria-live="polite" className="p-8 text-sm text-app-text-muted">Loading Analyse review…</div>;
 
@@ -58,5 +59,5 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
     return <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 p-8 text-center"><p role="status" className="text-sm text-app-text-muted">{groupSessions.length === 0 ? "No recorded session matches this selection." : "No valid laps are available for review."}</p><Button variant="app-outline" size="app-sm" onClick={backToSession}>Back to Sessions</Button></div>;
   }
 
-  return <div className="flex flex-col gap-3 p-3"><div className="px-1 text-sm text-app-text-muted">{resolvedTrackName} · {resolvedCarName} · {sessionId != null ? "Selected session" : `${groupSessions.length} sessions`} · {sessionId != null ? selectedSession?.lapCount ?? evaluationLaps.length : groupSessions.reduce((total, session) => total + (session.lapCount ?? 0), 0)} laps</div><SessionReviewDashboard gameId={gameId} stayOnSessionReview autoSelectLap={false} laps={evaluationLaps} trackName={resolvedTrackName} onBack={backToSession} onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)} lineSpread={sessionLineSpread ?? null} /></div>;
+  return <div className="flex flex-col"><SessionReviewDashboard gameId={gameId} stayOnSessionReview autoSelectLap={false} laps={evaluationLaps} trackName={resolvedTrackName} sessionLabel={sessionLabel} onBack={backToSession} onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)} lineSpread={sessionLineSpread ?? null} /></div>;
 }
