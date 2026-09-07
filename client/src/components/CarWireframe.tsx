@@ -252,7 +252,7 @@ export const CarWireframe = React.memo(function CarWireframe({
           ]}
         />
       </Canvas>
-      <span ref={fpsRef} className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
+      <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}
       {!hideControls && (

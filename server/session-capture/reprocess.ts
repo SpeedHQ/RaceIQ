@@ -12,7 +12,7 @@ import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { readFrameStreamStart, iterateSessionFrameRecords } from "./framing";
+import { readFrameStreamStart, iterateSessionCaptureRecords } from "./framing";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -67,6 +67,21 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
+  const existingLaps = await getLapsForSession(sessionId);
+  if (loaded.kind === "capture") {
+    const frameStreamStart = readFrameStreamStart(loaded.buffer);
+    const hasSegmentBoundaries = [...iterateSessionCaptureRecords(loaded.buffer, frameStreamStart)]
+      .some((record) => record.kind === "segment-boundary");
+    if (hasSegmentBoundaries) {
+      return {
+        sessionId,
+        lapsDetected: existingLaps.length,
+        lapsUpdated: existingLaps.length,
+        strategy: "in-place",
+      };
+    }
+  }
+
   const capturingDb = new CapturingDbAdapter();
   const detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
   if (loaded.kind === "packets") {
@@ -79,17 +94,31 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   } else {
     const buf = loaded.buffer;
     const frameStreamStart = readFrameStreamStart(buf);
-    const parserState = serverGame.createParserState?.() ?? null;
-    for (const { offset, frame } of iterateSessionFrameRecords(buf, frameStreamStart, { skipMetaFrames: true, allowEmptyFrames: true })) {
-      const packet = serverGame.tryParse(frame, parserState);
-      if (packet) await detector.feed(packet, offset);
+    let parserState = serverGame.createParserState?.() ?? null;
+    let inContext = false;
+    for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
+      if (record.kind === "segment-boundary") {
+        parserState = serverGame.createParserState?.() ?? null;
+        inContext = false;
+        continue;
+      }
+      if (record.kind === "segment-context") {
+        inContext = true;
+        continue;
+      }
+      if (record.kind === "segment-context-end") {
+        inContext = false;
+        continue;
+      }
+      if (record.kind !== "frame") continue;
+      const packet = serverGame.tryParse(record.frame, parserState);
+      if (packet && !inContext) await detector.feed(packet, record.offset);
     }
   }
 
   await detector.flushIncompleteLap?.();
 
   const detectedLaps = capturingDb.laps;
-  const existingLaps = await getLapsForSession(sessionId);
 
   let strategy: "in-place" | "replace";
   let lapsUpdated = 0;
