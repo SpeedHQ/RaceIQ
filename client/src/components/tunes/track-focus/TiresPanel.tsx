@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
-import { Button } from "../../ui/button";
 import { Lane } from "./Lane";
-import { useMeasuredWidth } from "./use-measured-width";
+import { Button } from "../../ui/button";
 
 interface TiresPanelProps {
   /** Traces in lap order (undefined entries = not loaded yet, skipped). */
@@ -12,6 +11,9 @@ interface TiresPanelProps {
   cornerFracs?: number[];
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
@@ -22,7 +24,6 @@ const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
 ];
 
 const REF_LINES_TEMP = [80, 90, 100];
-const H = 160;
 
 type Mode = "temp" | "pressure" | "brake";
 
@@ -42,7 +43,7 @@ interface MetricConfig {
 const METRICS: MetricConfig[] = [
   {
     mode: "temp",
-    title: "Tyres — avg temperature (°C)",
+    title: "Tyres — peak temperature (°C)",
     avgUnit: "°C",
     laneUnit: "temp per lap (°C)",
     defaultDomain: [60, 120],
@@ -53,7 +54,7 @@ const METRICS: MetricConfig[] = [
   },
   {
     mode: "pressure",
-    title: "Tyres — avg pressure (bar)",
+    title: "Tyres — peak pressure (bar)",
     avgUnit: "bar",
     laneUnit: "pressure per lap (bar)",
     defaultDomain: [1.5, 2.5],
@@ -64,7 +65,7 @@ const METRICS: MetricConfig[] = [
   },
   {
     mode: "brake",
-    title: "Brakes — avg brake temp (°C)",
+    title: "Brakes — peak brake temperature (°C)",
     avgUnit: "°C",
     laneUnit: "brake temp per lap (°C)",
     defaultDomain: [100, 600],
@@ -75,11 +76,24 @@ const METRICS: MetricConfig[] = [
   },
 ];
 
-function avgOf(t: LapTrace, mode: Mode): TireAverages | null {
-  return mode === "temp" ? t.tire : mode === "pressure" ? t.pressure : t.brakeTemp;
-}
 function traceOf(t: LapTrace, mode: Mode): TireTraces | null {
   return mode === "temp" ? t.tireTempTrace : mode === "pressure" ? t.pressureTrace : t.brakeTempTrace;
+}
+function tracePeakAt(t: LapTrace, mode: Mode, i: number): number | null {
+  const trace = traceOf(t, mode);
+  if (!trace) return null;
+  let peak = Number.NEGATIVE_INFINITY;
+  for (const c of CORNERS) peak = Math.max(peak, trace[c.key][i] ?? Number.NEGATIVE_INFINITY);
+  return Number.isFinite(peak) ? peak : null;
+}
+
+function peakPolyline(t: LapTrace, mode: Mode, x: (f: number) => number, y: (v: number) => number): string {
+  const points: string[] = [];
+  for (let i = 0; i < t.n; i++) {
+    const value = tracePeakAt(t, mode, i);
+    if (value != null) points.push(`${x(t.frac[i]).toFixed(1)},${y(value).toFixed(1)}`);
+  }
+  return points.join(" ");
 }
 
 function tirePolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
@@ -88,28 +102,6 @@ function tirePolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, 
   return pts.join(" ");
 }
 
-/** OLS slope+intercept of `pts` (index -> value). Null when fewer than 2 points. */
-function olsTrend(pts: { i: number; v: number }[]): { slope: number; intercept: number } | null {
-  const n = pts.length;
-  if (n < 2) return null;
-  let sx = 0;
-  let sy = 0;
-  for (const p of pts) {
-    sx += p.i;
-    sy += p.v;
-  }
-  const mx = sx / n;
-  const my = sy / n;
-  let num = 0;
-  let den = 0;
-  for (const p of pts) {
-    num += (p.i - mx) * (p.v - my);
-    den += (p.i - mx) ** 2;
-  }
-  if (den === 0) return null;
-  const slope = num / den;
-  return { slope, intercept: my - slope * mx };
-}
 
 /**
  * Tyres tab: three always-visible metric sections (tyre temperature, tyre
@@ -119,13 +111,13 @@ function olsTrend(pts: { i: number; v: number }[]): { slope: number; intercept: 
  * every lap's per-distance trace — dim per lap, best lap in accent, invalid
  * laps in red, matching the Consistency tab's visual language.
  */
-export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorFrac = null, onCursorFrac = () => {} }: TiresPanelProps) {
+export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut }: TiresPanelProps) {
   const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
 
   return (
     <div className="space-y-5">
       {METRICS.map((cfg) => (
-        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} />
+        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} visibleRange={visibleRange} onRangeSelect={onRangeSelect} onZoomOut={onZoomOut} />
       ))}
     </div>
   );
@@ -138,6 +130,9 @@ function TireMetricSection({
   cornerFracs,
   cursorFrac,
   onCursorFrac,
+  visibleRange,
+  onRangeSelect,
+  onZoomOut,
 }: {
   cfg: MetricConfig;
   laps: LapTrace[];
@@ -145,173 +140,64 @@ function TireMetricSection({
   cornerFracs: number[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  visibleRange: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }) {
   const { mode } = cfg;
-  const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [expanded, setExpanded] = useState(false);
-
   const domain = useMemo<[number, number]>(() => {
     if (cfg.fixedAvgDomain) return cfg.fixedAvgDomain;
     const all: number[] = [];
     for (const t of laps) {
-      const src = avgOf(t, mode);
-      if (src) all.push(src.FL, src.FR, src.RL, src.RR);
+      const trace = traceOf(t, mode);
+      if (!trace) continue;
+      for (const c of CORNERS) for (const value of trace[c.key]) if (Number.isFinite(value)) all.push(value);
     }
     if (all.length === 0) return cfg.defaultDomain;
     return [Math.min(...all) - cfg.pad, Math.max(...all) + cfg.pad];
-  }, [laps, cfg]);
-
-  // Shared y-domain for the per-corner lanes so all four are comparable.
+  }, [laps, cfg, mode]);
   const laneDomain = useMemo<[number, number]>(() => {
     let lo = Infinity;
     let hi = -Infinity;
     for (const t of laps) {
-      const tt = traceOf(t, mode);
-      if (!tt) continue;
-      for (const c of CORNERS) {
-        const arr = tt[c.key];
-        for (let i = 0; i < arr.length; i++) {
-          const v = arr[i];
-          if (v < lo) lo = v;
-          if (v > hi) hi = v;
-        }
-      }
+      const trace = traceOf(t, mode);
+      if (!trace) continue;
+      for (const c of CORNERS) for (const value of trace[c.key]) { lo = Math.min(lo, value); hi = Math.max(hi, value); }
     }
     if (!Number.isFinite(lo) || !Number.isFinite(hi)) return cfg.defaultDomain;
     const pad = Math.max(cfg.pad, (hi - lo) * 0.08);
     return [lo - pad, hi + pad];
-  }, [laps, cfg]);
-
+  }, [laps, cfg, mode]);
   const lapsWithTrace = useMemo(() => laps.filter((t) => traceOf(t, mode)), [laps, mode]);
-
-  // Per-corner OLS trend across laps, computed on the valid (non-zero) points.
-  const trends = useMemo(() => {
-    const out: Record<string, { slope: number; intercept: number } | null> = {};
-    for (const c of CORNERS) {
-      const pts: { i: number; v: number }[] = [];
-      laps.forEach((t, i) => {
-        const v = avgOf(t, mode)?.[c.key];
-        if (v != null && v !== 0) pts.push({ i, v });
-      });
-      out[c.key] = olsTrend(pts);
-    }
-    return out;
-  }, [laps, mode]);
-
-  const hasData = laps.some((t) => avgOf(t, mode));
-  if (!hasData) return null;
-
-  const x0 = 30;
-  const x1 = bw - 10;
-  const y0 = 10;
-  const y1 = H - 20;
-  const [min, max] = domain;
-  const x = (i: number) => (laps.length <= 1 ? (x0 + x1) / 2 : x0 + (i / (laps.length - 1)) * (x1 - x0));
-  const y = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0);
-  const activeIndex = cursorFrac == null || laps.length === 0 ? null : Math.min(laps.length - 1, Math.max(0, Math.round(cursorFrac * (laps.length - 1))));
-  const activeLap = activeIndex == null ? null : laps[activeIndex];
+  if (lapsWithTrace.length === 0) return null;
 
   return (
-    <div
-      ref={wrapRef}
-      className="relative space-y-2"
-      onMouseLeave={() => onCursorFrac(null)}
-    >
-      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
-      <svg
-        viewBox={`0 0 ${bw} ${H}`}
-        width="100%"
-        height={H}
-        preserveAspectRatio="none"
-        onMouseMove={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const fraction = (event.clientX - rect.left - x0) / Math.max(1, x1 - x0);
-          onCursorFrac(Math.max(0, Math.min(1, fraction)));
+    <div className="relative space-y-2">
+      <Lane
+        title={cfg.title}
+        height={100}
+        domain={domain}
+        cornerFracs={cornerFracs}
+        cursorFrac={cursorFrac}
+        onCursorFrac={onCursorFrac}
+        tooltip={(f) => {
+          const best = lapsWithTrace.find((t) => t.lapId === bestLapId) ?? lapsWithTrace[0];
+          if (!best) return null;
+          const value = tracePeakAt(best, mode, indexAtFrac(best, f));
+          return <span>best lap peak: {value == null ? "—" : cfg.fmt(value)}</span>;
         }}
+        bgFill="transparent"
       >
-        <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
-        {cfg.refLines?.map((t) => (
-          <g key={t}>
-            <line x1={x0} x2={x1} y1={y(t)} y2={y(t)} stroke="var(--app-border)" strokeDasharray="2 4" />
-            <text x={x0 - 4} y={y(t) + 3} textAnchor="end" fontSize={9} fill="var(--app-text-dim)">
-              {t}
-            </text>
-          </g>
-        ))}
-        {CORNERS.map((c) => {
-          const segs: string[] = [];
-          let cur: string[] = [];
-          laps.forEach((t, i) => {
-            const v = avgOf(t, mode)?.[c.key];
-            if (v == null || v === 0) {
-              if (cur.length) {
-                segs.push(cur.join(" "));
-                cur = [];
-              }
-              return;
-            }
-            cur.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-          });
-          if (cur.length) segs.push(cur.join(" "));
-          const tr = trends[c.key];
-          return (
-            <g key={c.key}>
-              {segs.map((pts) => (
-                <polyline key={pts} points={pts} fill="none" stroke={c.color} strokeWidth={1.6} />
-              ))}
-              {tr && laps.length > 1 && (
-                <line
-                  x1={x(0)}
-                  y1={y(tr.intercept)}
-                  x2={x(laps.length - 1)}
-                  y2={y(tr.intercept + tr.slope * (laps.length - 1))}
-                  stroke={c.color}
-                  strokeWidth={1.2}
-                  strokeDasharray="5 4"
-                  opacity={0.55}
-                />
-              )}
-            </g>
-          );
-        })}
-        {activeIndex != null && (
+        {({ x, y }) => (
           <>
-            <line x1={x(activeIndex)} x2={x(activeIndex)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />
-            {activeLap && (
-              <g pointerEvents="none">
-                <rect x={Math.min(x(activeIndex) + 6, bw - 150)} y={y0 + 4} width={144} height={CORNERS.length * 15 + 8} rx={3} fill="var(--app-surface)" stroke="var(--app-border)" />
-                <text x={Math.min(x(activeIndex) + 12, bw - 144)} y={y0 + 18} fontSize={9} fill="var(--app-text-muted)">
-                  L{activeLap.lapNumber} · {cfg.avgUnit}
-                </text>
-                {CORNERS.map((corner, index) => (
-                  <text key={corner.key} x={Math.min(x(activeIndex) + 12, bw - 144)} y={y0 + 33 + index * 15} fontSize={9} fill={corner.color}>
-                    {corner.label}: {avgOf(activeLap, mode)?.[corner.key] == null ? "—" : cfg.fmt(avgOf(activeLap, mode)![corner.key])}
-                  </text>
-                ))}
-              </g>
-            )}
+            {lapsWithTrace.map((t) => {
+              const points = peakPolyline(t, mode, x, y);
+              return points ? <polyline key={t.lapId} points={points} fill="none" stroke={t.lapId === bestLapId ? "var(--app-accent)" : "var(--app-text-dim)"} strokeWidth={t.lapId === bestLapId ? 1.8 : 1} opacity={t.lapId === bestLapId ? 1 : 0.35} /> : null;
+            })}
           </>
         )}
-      </svg>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
-        {CORNERS.map((c) => {
-          const tr = trends[c.key];
-          return (
-            <span key={c.key} className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
-              {c.label}
-              {tr && laps.length > 1 && (
-                <span className="tabular-nums opacity-70">
-                  {tr.slope >= 0 ? "+" : ""}
-                  {cfg.fmt(tr.slope)}/lap
-                </span>
-              )}
-            </span>
-          );
-        })}
-      </div>
-
-      {/* Per-corner lanes: collapsed by default — the averages chart above is the summary. */}
+      </Lane>
       {lapsWithTrace.length > 0 && (
         <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((v) => !v)} className="flex items-center gap-1.5 uppercase tracking-wider text-app-text-dim hover:text-app-text">
           <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
@@ -330,6 +216,9 @@ function TireMetricSection({
               height={80}
               domain={laneDomain}
               cornerFracs={cornerFracs}
+              visibleRange={visibleRange}
+              onRangeSelect={onRangeSelect}
+              onZoomOut={onZoomOut}
               cursorFrac={cursorFrac}
               onCursorFrac={onCursorFrac}
               tooltip={(f) => {

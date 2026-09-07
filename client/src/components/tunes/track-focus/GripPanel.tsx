@@ -14,6 +14,9 @@ interface GripPanelProps {
   corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
 const SLIP_CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
@@ -74,7 +77,7 @@ function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null):
  * for the two scalar lanes and the corner lane, plus the standalone
  * `GgScatter` for the friction circle.
  */
-export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac }: GripPanelProps) {
+export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
   const withLatG = useMemo(() => traces.filter((t) => t.latG != null), [traces]);
   const withLongG = useMemo(() => traces.filter((t) => t.longG != null), [traces]);
   const withSlip = useMemo(() => traces.filter((t) => t.combinedSlip != null), [traces]);
@@ -117,6 +120,9 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={latDomain}
             cornerFracs={cornerFracs}
@@ -164,6 +170,9 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={longDomain}
             cornerFracs={cornerFracs}
@@ -211,6 +220,9 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={slipDomain}
             cornerFracs={cornerFracs}

@@ -1,6 +1,6 @@
 import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
@@ -95,6 +95,17 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const { data: alignedSet } = useAlignedTelemetry(reviewLaps.map((lap) => lap.id), { step: 1 });
   const zoom = useAlignedTelemetryZoom(reviewLaps.map((lap) => lap.id), alignedSet);
   const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
+  const visibleLaneRange = useMemo(() => {
+    if (!zoom.visibleRange || !alignedSet || alignedSet.nominalSpanMeters <= 0) return null;
+    return {
+      start: zoom.visibleRange.start / alignedSet.nominalSpanMeters,
+      end: zoom.visibleRange.end / alignedSet.nominalSpanMeters,
+    };
+  }, [alignedSet, zoom.visibleRange]);
+  const selectLaneRange = useCallback((startFrac: number, endFrac: number) => {
+    if (!alignedSet) return;
+    zoom.selectRangeMeters(startFrac * alignedSet.nominalSpanMeters, endFrac * alignedSet.nominalSpanMeters);
+  }, [alignedSet, zoom.selectRangeMeters]);
   const { data: fetchedLineSpread } = useLineSpread(experimentId);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
 
@@ -164,6 +175,9 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       totalLapCount={stintLaps.length}
       activeTab={activeTab}
       onActiveTabChange={onActiveTabChange}
+      visibleLaneRange={visibleLaneRange}
+      selectLaneRange={selectLaneRange}
+      onZoomOut={zoom.zoomOut}
     />
   );
 }
@@ -192,6 +206,9 @@ export interface TrackFocusViewInnerProps {
   totalLapCount?: number;
   activeTab?: Tab;
   onActiveTabChange?: (tab: Tab) => void;
+  visibleLaneRange?: { start: number; end: number } | null;
+  selectLaneRange?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
 /** Presentational Track Focus view — no data fetching, so it can be driven
@@ -213,6 +230,9 @@ export function TrackFocusViewInner({
   totalLapCount,
   activeTab: controlledActiveTab,
   onActiveTabChange,
+  visibleLaneRange = null,
+  selectLaneRange,
+  onZoomOut,
 }: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
@@ -377,7 +397,16 @@ export function TrackFocusViewInner({
             )}
             {activeTab === "tires" && (
               <>
-                <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                <TiresPanel
+                  traces={traces}
+                  bestLapId={bestLapId}
+                  cornerFracs={cornerFracs}
+                  cursorFrac={cursorFrac}
+                  onCursorFrac={setCursorFrac}
+                  visibleRange={visibleLaneRange}
+                  onRangeSelect={selectLaneRange}
+                  onZoomOut={onZoomOut}
+                />
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
                   <GripPanel
@@ -387,6 +416,9 @@ export function TrackFocusViewInner({
                     corners={effectiveCorners.corners}
                     cursorFrac={cursorFrac}
                     onCursorFrac={setCursorFrac}
+                    visibleRange={visibleLaneRange}
+                    onRangeSelect={selectLaneRange}
+                    onZoomOut={onZoomOut}
                   />
                 </div>
               </>

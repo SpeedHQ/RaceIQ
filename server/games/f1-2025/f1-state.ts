@@ -364,9 +364,9 @@ export class F1StateAccumulator {
       EngineIdleRpm: cs?.idleRPM ?? 4000,
       CurrentEngineRpm: ct.rpm,
 
-      AccelerationX: -m.gForceX,
-      AccelerationY: m.gForceY,
-      AccelerationZ: m.gForceZ,
+      AccelerationX: -m.gForceX * 9.81,
+      AccelerationY: m.gForceY * 9.81,
+      AccelerationZ: m.gForceZ * 9.81,
 
       VelocityX: -m.velX,
       VelocityY: m.velY,
