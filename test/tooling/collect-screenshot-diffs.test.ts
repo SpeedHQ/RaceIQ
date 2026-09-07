@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { collectScreenshotDiffs } from "../../scripts/ui/collect-screenshot-diffs";
+import { mergeScreenshotRenders } from "../../scripts/ui/merge-screenshot-renders";
 
 const tempDirs: string[] = [];
 
@@ -200,5 +201,24 @@ describe("collect-screenshot-diffs", () => {
 
     await collect(base, current, out);
     expect(existsSync(join(out, "changed--responsive--desktop--resized-diff.png"))).toBe(true);
+  });
+
+  test("merges shard outputs and metadata without decoding screenshots", async () => {
+    const root = makeTempDir();
+    const input = join(root, "artifacts");
+    const output = join(root, "merged");
+    mkdirSync(join(input, "pr-screenshot-render-1", "current-responsive", "desktop"), { recursive: true });
+    mkdirSync(join(input, "pr-screenshot-render-2", "base-responsive", "desktop"), { recursive: true });
+    await Bun.write(join(input, "pr-screenshot-render-1", "pr-number.txt"), "365\n");
+    await Bun.write(join(input, "pr-screenshot-render-1", "base-ref.txt"), "main\n");
+    await writePng(join(input, "pr-screenshot-render-1", "current-responsive", "desktop", "one.png"), { r: 255, g: 0, b: 0 });
+    await writePng(join(input, "pr-screenshot-render-2", "base-responsive", "desktop", "two.png"), { r: 0, g: 255, b: 0 });
+
+    mergeScreenshotRenders({ inputDir: input, outputDir: output });
+
+    expect(await Bun.file(join(output, "pr-number.txt")).text()).toBe("365\n");
+    expect(await Bun.file(join(output, "base-ref.txt")).text()).toBe("main\n");
+    expect(existsSync(join(output, "current-responsive", "desktop", "one.png"))).toBe(true);
+    expect(existsSync(join(output, "base-responsive", "desktop", "two.png"))).toBe(true);
   });
 });

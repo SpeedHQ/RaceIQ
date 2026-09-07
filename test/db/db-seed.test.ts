@@ -183,4 +183,18 @@ describe("db:seed", () => {
     });
     expect(sessionCountByNotes(dataDir, "real user session")).toBe(1);
   }, 180000);
+
+  test("clean removes user and seed rows before reseeding", async () => {
+    const dataDir = makeDataDir();
+    const seeded = await runSeed(dataDir, "--games=acc");
+    expect(seeded.code, seeded.output).toBe(0);
+    withSeedDb(dataDir, (db) => {
+      db.query("INSERT INTO sessions (car_ordinal, track_ordinal, game_id, notes) VALUES (?, ?, ?, ?)").run(999, 999, "acc", "real user session");
+    });
+
+    const clean = await runSeed(dataDir, "--clean", "--games=acc");
+    expect(clean.code, clean.output).toBe(0);
+    expect(sessionCountByNotes(dataDir, "real user session")).toBe(0);
+    expect(seededGames(dataDir)).toEqual(["acc"]);
+  }, 180000);
 });

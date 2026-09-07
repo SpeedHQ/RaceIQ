@@ -83,7 +83,6 @@ export function buildLoadTrail(
   return pts.reverse();
 }
 
-
 export function CarScene({
   gameId,
   frame,
@@ -97,7 +96,6 @@ export function CarScene({
   modelOffsetX,
   fmtTemp,
   hideModelWheels,
-  mergeBodyMeshes,
   suspThresholds,
   autoOrbit,
   tireColors,
@@ -113,9 +111,8 @@ export function CarScene({
   carModel: CarModelEnrichment & { hasModel: boolean };
   modelOffsetX: number;
   fmtTemp: (f: number) => string;
-  hideModelWheels?: boolean;
   suspThresholds: number[];
-  mergeBodyMeshes?: boolean;
+  hideModelWheels?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
 }) {
@@ -362,9 +359,7 @@ export function CarScene({
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>
-          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
-        </Suspense>
+        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -473,7 +468,7 @@ export function CarScene({
             </mesh>
           </>
         )}
-        </group>
+      </group>
 
       {/* Track outline (center line) */}
       {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}

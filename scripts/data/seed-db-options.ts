@@ -11,14 +11,15 @@ export const FIXTURES: Record<GameId, string[]> = {
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
 };
 
-export type SeedOptions = { reset: boolean; force: boolean; games: GameId[] };
+export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; games: GameId[] };
 
 export function parseOptions(argv = process.argv): SeedOptions {
+  const clean = argv.includes("--clean");
   const reset = argv.includes("--reset");
   const force = argv.includes("--force");
   const gamesArg = argv.find((arg) => arg.startsWith("--games="))?.slice("--games=".length)
     ?? (argv.includes("--games") ? argv[argv.indexOf("--games") + 1] : undefined);
   const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
   if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc,ac-evo,iracing");
-  return { reset, force, games };
+  return { clean, reset, force, games };
 }

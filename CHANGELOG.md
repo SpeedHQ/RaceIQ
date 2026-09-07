@@ -1,6 +1,15 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Internal
+- Regenerate and commit telemetry catalog artifacts during release finalization.
+
+## v0.16.0 - 2026-09-06
+
+### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 - Export one or multiple selected laps directly from Sessions toolbar
 - Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
@@ -15,6 +24,7 @@
 - Narrow client response helper contracts to the fields each RPC and download path uses
 - Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
 - Fail responsive screenshot CI when either render fails
+- Compile all release feature code once and enable runtime overrides for Playwright E2E
 
 ## v0.15.1 - 2026-09-01
 
