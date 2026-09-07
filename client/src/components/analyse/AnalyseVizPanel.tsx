@@ -87,6 +87,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
         <div className="relative min-h-0 w-full flex-1">
           {visualFrame && (
             <CarWireframe
+              gameId={gameId}
               frame={visualFrame}
               telemetry={displayTelemetry}
               cursorRef={cursorRef}

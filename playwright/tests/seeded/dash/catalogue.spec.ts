@@ -23,7 +23,7 @@ test("dashboard catalogue exposes loading, no-data, and error network states", a
   });
 
   try {
-    await page.goto("/dash", { waitUntil: "domcontentloaded" });
+    await page.goto("/portable", { waitUntil: "domcontentloaded" });
     const status = page.locator('p[role="status"]');
     await expect(status).toHaveAttribute("data-network-state", "loading");
     await expect(status).toContainText("Loading");
@@ -53,34 +53,34 @@ test("dashboard catalogue exposes loading, no-data, and error network states", a
 test("dashboard catalogue links select each combination and survive reload", async ({ page }) => {
   test.setTimeout(60_000);
   const browserErrors = collectBrowserErrors(page);
-  await page.goto("/dash", { waitUntil: "domcontentloaded" });
+  await page.goto("/portable", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Race HUD" })).toHaveAttribute("href", "/dash/combo-1");
-  await expect(page.getByRole("link", { name: /Lap Times & Pace/ })).toHaveAttribute("href", "/dash/combo-2");
+  await expect(page.getByRole("link", { name: "Race HUD" })).toHaveAttribute("href", "/portable/combo-1");
+  await expect(page.getByRole("link", { name: /Lap Times & Pace/ })).toHaveAttribute("href", "/portable/combo-2");
 
   await page.getByRole("link", { name: "Race HUD" }).click();
-  await expect(page).toHaveURL(/\/dash\/combo-1$/);
+  await expect(page).toHaveURL(/\/portable\/combo-1$/);
   await expect(page.getByRole("heading", { name: /"?Dashboards"?/ }))
     .not.toBeVisible({ timeout: 1_000 })
     .catch(() => void 0);
   await expect(page.getByText(/KM\/H|MPH/)).toBeVisible({ timeout: 20_000 });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/dash\/combo-1$/);
+  await expect(page).toHaveURL(/\/portable\/combo-1$/);
   await expect(page.getByText("Waiting for lap data…", { exact: true })).toBeVisible();
   await expect(page.getByText("Waiting for tire data…", { exact: true })).toBeVisible();
 
-  await page.goto("/dash");
+  await page.goto("/portable");
   await page.getByRole("link", { name: /Lap Times & Pace/ }).click();
-  await expect(page).toHaveURL(/\/dash\/combo-2$/);
+  await expect(page).toHaveURL(/\/portable\/combo-2$/);
   await expect(page.getByRole("heading", { name: /"?Dashboards"?/ }))
     .not.toBeVisible({ timeout: 1_000 })
     .catch(() => void 0);
   await expect(page.getByText("Complete a lap to see lap times", { exact: true })).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page).toHaveURL(/\/dash\/combo-2$/);
+  await expect(page).toHaveURL(/\/portable\/combo-2$/);
   await expect(page.getByText("Complete a lap to see lap times", { exact: true })).toBeVisible();
   await expect(page.getByText("Waiting for track…", { exact: true })).toBeVisible();
-  await page.goto("/dash");
+  await page.goto("/portable");
   await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
 
   expect(browserErrors.errors, "unexpected browser errors in dashboard selection flow").toEqual([]);
@@ -93,7 +93,7 @@ test("dash responsive accessibility and no overflow on catalogue and combo route
     { width: 768, height: 1024 },
     { width: 1280, height: 900 },
   ];
-  const routes = ["/dash", "/dash/combo-1", "/dash/combo-2"];
+  const routes = ["/portable", "/portable/combo-1", "/portable/combo-2"];
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
@@ -106,17 +106,17 @@ test("dash responsive accessibility and no overflow on catalogue and combo route
       await expect(page.getByText(/Desktop required/i)).toHaveCount(0);
       await expect(page.getByText(/Rotate your device/i)).toHaveCount(0);
 
-      if (path === "/dash") {
+      if (path === "/portable") {
         await expect(page.getByRole("heading", { name: "Dashboards" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Race HUD" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Lap Times & Pace" })).toBeVisible();
       }
 
-      if (path === "/dash/combo-1") {
+      if (path === "/portable/combo-1") {
         await expect(page.getByText(/KM\/H|MPH/)).toBeVisible({ timeout: 20_000 });
       }
 
-      if (path === "/dash/combo-2") {
+      if (path === "/portable/combo-2") {
         await expect(page.getByText(/^(?:Waiting for track…|No completed laps yet)$/)).toBeVisible({ timeout: 20_000 });
       }
     }

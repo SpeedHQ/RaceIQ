@@ -19,7 +19,7 @@ import { DimensionLines } from "./DimensionLines";
 import { InputOverlay } from "./InputOverlay";
 import { SuspensionSpring } from "./SuspensionSpring";
 import { TireTrails } from "./TireTrails";
-import { TrackBoundaryEdges, TrackOutline } from "./TrackElements";
+import { TrackBoundaryEdges, TrackLine } from "./TrackElements";
 import { Wheel } from "./Wheel";
 
 // Load-dot geometry: direction comes from the baseline-subtracted weighted
@@ -57,6 +57,32 @@ function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft
   return { x: dirX * scale, z: dirZ * scale };
 }
 
+const MAX_LOAD_TRAIL_SAMPLES = 64;
+
+export function buildLoadTrail(
+  telemetry: SemanticAnalysisFrame[],
+  cursorIdx: number,
+  suspensionRange: { min: number; max: number } | undefined,
+  wb: number,
+  ft: number,
+  rt: number,
+): Array<[number, number]> {
+  const cur = telemetry[cursorIdx];
+  if (!cur) return [];
+  const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
+  const pts: Array<[number, number]> = [];
+  for (let i = cursorIdx; i >= 0 && cursorIdx - i < MAX_LOAD_TRAIL_SAMPLES; i--) {
+    const p = telemetry[i];
+    if (!p) break;
+    const lap = semanticNumber(p, "timing.current-lap") ?? 0;
+    if (lap > endLap || endLap - lap > 1) break;
+    const suspension = normalizedSuspension(p, suspensionRange);
+    const xz = computeLoadDotXZ(suspension, wb, ft, rt);
+    if (xz) pts.push([xz.x, xz.z]);
+  }
+  return pts.reverse();
+}
+
 export function CarScene({
   gameId,
   frame,
@@ -70,7 +96,6 @@ export function CarScene({
   modelOffsetX,
   fmtTemp,
   hideModelWheels,
-  mergeBodyMeshes,
   suspThresholds,
   autoOrbit,
   tireColors,
@@ -80,15 +105,14 @@ export function CarScene({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; raceLine?: { x: number; z: number }[] | null } | null;
   toggles: ViewToggles;
   viewPreset: ViewPreset;
   carModel: CarModelEnrichment & { hasModel: boolean };
   modelOffsetX: number;
   fmtTemp: (f: number) => string;
-  hideModelWheels?: boolean;
   suspThresholds: number[];
-  mergeBodyMeshes?: boolean;
+  hideModelWheels?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
 }) {
@@ -127,7 +151,6 @@ export function CarScene({
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
   const bodyRoll = (rightAvg - leftAvg) * 0.1;
-
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
@@ -135,6 +158,7 @@ export function CarScene({
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
+
   useFrame(() => {
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
@@ -222,7 +246,7 @@ export function CarScene({
       camber: cambFL,
       susp: suspFL,
       drop: dropFL,
-      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.tire-slip-angle", 0)).color,
+      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 0)).color,
       rimColor: colorFL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 0),
       pressure: pressFL,
@@ -241,7 +265,7 @@ export function CarScene({
       camber: cambFR,
       susp: suspFR,
       drop: dropFR,
-      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.tire-slip-angle", 1)).color,
+      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 1)).color,
       rimColor: colorFR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 1),
       pressure: pressFR,
@@ -260,7 +284,7 @@ export function CarScene({
       camber: cambRL,
       susp: suspRL,
       drop: dropRL,
-      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.tire-slip-angle", 2)).color,
+      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 2)).color,
       rimColor: colorRL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 2),
       pressure: pressRL,
@@ -279,7 +303,7 @@ export function CarScene({
       camber: cambRR,
       susp: suspRR,
       drop: dropRR,
-      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.tire-slip-angle", 3)).color,
+      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 3)).color,
       rimColor: colorRR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 3),
       pressure: pressRR,
@@ -298,22 +322,7 @@ export function CarScene({
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
     return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
-  const loadTrail = useMemo(() => {
-    const cur = telemetry[cursorIdx];
-    if (!cur) return [];
-    const endLap = semanticNumber(cur, "timing.current-lap") ?? 0;
-    const pts: Array<[number, number]> = [];
-    for (let i = cursorIdx; i >= 0; i--) {
-      const p = telemetry[i];
-      if (!p) break;
-      const lap = semanticNumber(p, "timing.current-lap") ?? 0;
-      if (lap > endLap || endLap - lap > 1) break;
-      const suspension = normalizedSuspension(p, suspensionRange ?? undefined);
-      const xz = computeLoadDotXZ(suspension, wb, ft, rt);
-      if (xz) pts.push([xz.x, xz.z]);
-    }
-    return pts.reverse();
-  }, [telemetry, cursorIdx, wb, ft, rt, suspensionRange]);
+  const loadTrail = useMemo(() => buildLoadTrail(telemetry, cursorIdx, suspensionRange, wb, ft, rt), [telemetry, cursorIdx, suspensionRange, wb, ft, rt]);
 
   return (
     <>
@@ -350,9 +359,7 @@ export function CarScene({
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>
-          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
-        </Suspense>
+        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -464,7 +471,12 @@ export function CarScene({
       </group>
 
       {/* Track outline (center line) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+      {toggles.track && outline && <TrackLine points={outline} packet={frame} distAhead={autoOrbit ? 80 : undefined} />}
+
+      {/* Game-provided reference racing line */}
+      {toggles.racingLine && boundaries?.raceLine && boundaries.raceLine.length > 1 && (
+        <TrackLine points={boundaries.raceLine} packet={frame} color={THREE_COLORS.trackRacingLine} lineWidth={4} opacity={1} y={-0.435} distAhead={autoOrbit ? 80 : undefined} />
+      )}
 
       {/* Track boundary edges (walls) */}
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={frame} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}

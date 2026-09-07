@@ -121,8 +121,8 @@ export const SEEDED_ROUTE_CASES: readonly SeededRouteCase[] = SEEDED_GAME_CASES.
 
 export const SEEDED_GLOBAL_ROUTE_CASES: readonly SeededGlobalRouteCase[] = [
   { label: "home", path: "/" },
-  { label: "dash catalogue", path: "/dash" },
-  { label: "combo dash 1", path: "/dash/combo-1" },
-  { label: "combo dash 2", path: "/dash/combo-2" },
+  { label: "portable catalogue", path: "/portable" },
+  { label: "portable combo 1", path: "/portable/combo-1" },
+  { label: "portable combo 2", path: "/portable/combo-2" },
   { label: "developer tools", path: "/dev" },
 ];

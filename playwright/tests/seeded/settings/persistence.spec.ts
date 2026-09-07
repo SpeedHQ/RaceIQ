@@ -36,8 +36,10 @@ test("settings persist through reload and can be restored", async ({ page, reque
     const selectedTemperature = page.getByRole("button", {
       name: `°${nextTemperature}`,
     });
-    await expect(selectedUnit).toHaveClass(/bg-app-surface-alt/);
-    await expect(selectedTemperature).toHaveClass(/bg-app-surface-alt/);
+    await expect(selectedUnit).toHaveAttribute("aria-pressed", "true");
+    await expect(selectedUnit).toHaveClass(/border-app-accent/);
+    await expect(selectedTemperature).toHaveAttribute("aria-pressed", "true");
+    await expect(selectedTemperature).toHaveClass(/border-app-accent/);
 
     const persistedResponse = await request.get("/api/settings");
     expect(persistedResponse.ok()).toBe(true);

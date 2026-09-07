@@ -2,11 +2,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { formatReleaseDate, rolloverChangelog } from "@shared/tooling/render";
 
-const version = process.argv[2];
+const rawVersion = process.argv[2];
 const publishedAt = process.argv[3];
-if (!version || !publishedAt) {
+if (!rawVersion || !publishedAt) {
   throw new Error("Usage: bun scripts/release/rollover-changelog.ts <version> <publishedAt>");
 }
+const version = rawVersion.startsWith("v") ? rawVersion.slice(1) : rawVersion;
 
 const changelogPath = join(process.cwd(), "CHANGELOG.md");
 const changelog = readFileSync(changelogPath, "utf8");

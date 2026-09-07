@@ -1,4 +1,3 @@
-import type { TelemetryVariableId } from "../../telemetry/catalog/generated/telemetry-catalog.types";
 import type { LapMeta } from "../sessions/types";
 
 export interface AlignedTrace {
@@ -11,8 +10,20 @@ export interface AlignedTrace {
   throttleB: number[];
   brakeA: number[];
   brakeB: number[];
+  steerA: number[];
+  steerB: number[];
+  gearA: number[];
+  gearB: number[];
   rpmA: number[];
   rpmB: number[];
+  positionXA: number[];
+  positionXB: number[];
+  positionZA: number[];
+  positionZB: number[];
+  yawA: number[];
+  yawB: number[];
+  elapsedTimeA: number[];
+  elapsedTimeB: number[];
   tireWearA?: number[];
   tireWearB?: number[];
 }
@@ -24,19 +35,19 @@ export interface CornerDelta {
   timeB: number;
 }
 
-/** Canonical semantic values consumed by comparison/map UI. */
-export interface SemanticTelemetrySample {
-  values: Partial<Readonly<Record<TelemetryVariableId, number | boolean | string | null | readonly unknown[]>>>;
-  sequence: string;
-  observedAtMs: number;
-}
-
 export interface ComparisonData {
   lapA: LapMeta;
   lapB: LapMeta;
   traces: AlignedTrace;
   timeDelta: number[];
   corners: CornerDelta[];
-  telemetryA: SemanticTelemetrySample[];
-  telemetryB: SemanticTelemetrySample[];
+  gameId?: string;
+}
+
+export interface ComparisonRangeData {
+  distanceStart: number;
+  distanceEnd: number;
+  stepMeters: number;
+  traces: AlignedTrace;
+  timeDelta: number[];
 }

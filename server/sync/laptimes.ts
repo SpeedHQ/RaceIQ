@@ -190,17 +190,38 @@ function totalCached(): number {
   return n;
 }
 
-let intervalHandle: ReturnType<typeof setInterval> | null = null;
+let refreshTimer: Timer | null = null;
+let laptimesReady = false;
+let initialSyncPromise: Promise<void> | null = null;
+
+function scheduleLaptimeRefresh(): void {
+  if (refreshTimer) return;
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    void syncLaptimes().finally(() => {
+      scheduleLaptimeRefresh();
+    });
+  }, SYNC_INTERVAL_MS);
+  refreshTimer.unref?.();
+}
 
 /**
- * Kick off a non-blocking startup sync and schedule the recurring 6h refresh.
- * Safe to call once during server bootstrap.
+ * Load laptimes on first game-scoped request, then schedule six-hour refreshes.
+ * Concurrent first requests share one sync pass.
  */
-export function startLaptimesSync(): void {
-  void syncLaptimes();
-  if (!intervalHandle) {
-    intervalHandle = setInterval(() => {
-      void syncLaptimes();
-    }, SYNC_INTERVAL_MS);
+export async function ensureLaptimesReady(): Promise<void> {
+  if (laptimesReady) return;
+  if (!initialSyncPromise) {
+    initialSyncPromise = syncLaptimes()
+      .then(() => {
+        if (cachedVersion !== null) {
+          laptimesReady = true;
+          scheduleLaptimeRefresh();
+        }
+      })
+      .finally(() => {
+        initialSyncPromise = null;
+      });
   }
+  await initialSyncPromise;
 }

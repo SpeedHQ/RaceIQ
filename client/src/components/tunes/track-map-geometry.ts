@@ -1,5 +1,5 @@
 import { makeTrackProjection } from "@shared/racing/tracks/projection";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { SemanticTuneSample } from "./semantic-tune";
 
 export interface Pt {
   x: number;
@@ -82,52 +82,48 @@ export function extractEdges(bounds: any): { left: Pt[]; right: Pt[] } | null {
  * Downsamples the driven line to ~TARGET_POINTS while keeping each point's
  * original telemetry index so hover/lookup can find the real frame.
  */
-export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null): Geometry | null {
-  if (telemetry.length < 10) return null;
+export function buildGeometry(telemetry: SemanticTuneSample[], sectorTimes: SectorTimesLite | null, edges: { left: Pt[]; right: Pt[] } | null): Geometry | null {
+  const positioned = telemetry.flatMap((sample, index) => (sample.positionM ? [{ point: sample.positionM, index }] : []));
+  if (positioned.length < 10) return null;
 
-  const step = Math.max(1, Math.floor(telemetry.length / TARGET_POINTS));
-  const line: { p: Pt; idx: number }[] = [];
-  for (let i = 0; i < telemetry.length; i += step) line.push({ p: { x: telemetry[i].PositionX, z: telemetry[i].PositionZ }, idx: i });
-
-  // Orientation lives in @shared/racing/tracks/projection so the e2e segment renderer
-  // draws the same track the same way up. Do not reintroduce local axis math.
-  const boundsPts: Pt[] = line.map((l) => l.p);
+  const step = Math.max(1, Math.floor(positioned.length / TARGET_POINTS));
+  const line = positioned.filter((_, index) => index % step === 0).map(({ point, index }) => ({ p: point, idx: index }));
+  const boundsPoints: Pt[] = line.map((entry) => entry.p);
   if (edges) {
-    for (const p of edges.left) boundsPts.push(p);
-    for (const p of edges.right) boundsPts.push(p);
+    boundsPoints.push(...edges.left, ...edges.right);
   }
-  const projection = makeTrackProjection(boundsPts, { width: VIEW, height: VIEW, padPx: PAD });
+  const projection = makeTrackProjection(boundsPoints, { width: VIEW, height: VIEW, padPx: PAD });
   if (!projection) return null;
 
-  const px = (p: Pt) => projection.project(p).x;
-  const py = (p: Pt) => projection.project(p).y;
-  const str = (p: Pt) => `${px(p).toFixed(1)},${py(p).toFixed(1)}`;
-  const polyline = (ps: Pt[]) => ps.map(str).join(" ");
-
-  const projPts: ProjPt[] = line.map((l) => ({ x: px(l.p), y: py(l.p), idx: l.idx }));
-  const pline = line.map((l) => l.p);
-
-  const n = line.length;
+  const projectedX = (point: Pt) => projection.project(point).x;
+  const projectedY = (point: Pt) => projection.project(point).y;
+  const pointString = (point: Pt) => `${projectedX(point).toFixed(1)},${projectedY(point).toFixed(1)}`;
+  const polyline = (points: Pt[]) => points.map(pointString).join(" ");
+  const projectedPoints: ProjPt[] = line.map((entry) => ({ x: projectedX(entry.p), y: projectedY(entry.p), idx: entry.idx }));
+  const drivenLine = line.map((entry) => entry.p);
   const sectorCount = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
   const rawBoundaries =
     sectorTimes?.boundaryIndices.length === sectorCount - 1
-      ? sectorTimes.boundaryIndices.map((index) => Math.floor(index / step))
-      : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * n) / sectorCount));
+      ? sectorTimes.boundaryIndices.map((boundary) => {
+          const index = line.findIndex((entry) => entry.idx >= boundary);
+          return index < 0 ? line.length - 1 : index;
+        })
+      : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * line.length) / sectorCount));
   const boundaries: number[] = [];
   for (let index = 0; index < rawBoundaries.length; index++) {
     const previous = boundaries[index - 1] ?? 0;
     const remaining = rawBoundaries.length - index;
-    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), n - remaining));
+    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), line.length - remaining));
   }
-  const sliceBounds = [0, ...boundaries, n - 1];
-  const segments = Array.from({ length: sectorCount }, (_, index) => polyline(pline.slice(sliceBounds[index], sliceBounds[index + 1] + 1)));
+  const sliceBounds = [0, ...boundaries, line.length - 1];
+  const segments = Array.from({ length: sectorCount }, (_, index) => polyline(drivenLine.slice(sliceBounds[index], sliceBounds[index + 1] + 1)));
 
   return {
-    allPoints: polyline(pline),
+    allPoints: polyline(drivenLine),
     segments,
     leftEdge: edges ? polyline(edges.left) : null,
     rightEdge: edges ? polyline(edges.right) : null,
-    pts: projPts,
+    pts: projectedPoints,
   };
 }
 
@@ -135,15 +131,10 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
  *  given the min/max bounds computed from the same telemetry+edges inputs.
  *  Used by consumers that need to place markers (corners, issues) at an
  *  arbitrary point not already in the downsampled line. */
-export function projectPoint(p: Pt, telemetry: TelemetryPacket[], edges: { left: Pt[]; right: Pt[] } | null): { x: number; y: number } | null {
-  if (telemetry.length === 0) return null;
-  const boundsPts: Pt[] = telemetry.map((t) => ({ x: t.PositionX, z: t.PositionZ }));
-  if (edges) {
-    for (const e of edges.left) boundsPts.push(e);
-    for (const e of edges.right) boundsPts.push(e);
-  }
-  // Same projection as buildGeometry — shared so markers land on the line.
-  const projection = makeTrackProjection(boundsPts, { width: VIEW, height: VIEW, padPx: PAD });
-  if (!projection) return null;
-  return projection.project(p);
+export function projectPoint(point: Pt, telemetry: SemanticTuneSample[], edges: { left: Pt[]; right: Pt[] } | null): { x: number; y: number } | null {
+  const boundsPoints = telemetry.flatMap((sample) => (sample.positionM ? [sample.positionM] : []));
+  if (boundsPoints.length === 0) return null;
+  if (edges) boundsPoints.push(...edges.left, ...edges.right);
+  const projection = makeTrackProjection(boundsPoints, { width: VIEW, height: VIEW, padPx: PAD });
+  return projection?.project(point) ?? null;
 }

@@ -1,3 +1,4 @@
+export type PacketSourceReference = Buffer | { rawOffset: number };
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
@@ -10,11 +11,13 @@ import {
   RealSessionRecorderAdapter,
 } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
-import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
+import type { ILapDetector, LapDetectorCallbacks, LapIndexPacket } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
-import { feedCalibrationPosition } from "../tracks/calibration";
+import { feedCalibrationPosition, resetLiveCalibration } from "../tracks/calibration";
 import { getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
+import { getTrackBoundariesByOrdinal } from "../../shared/racing/tracks/geometry/extracted";
+import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
@@ -52,6 +55,7 @@ export class LiveTelemetryPipeline {
   private _finalizedResultSessions = new Set<number>();
   private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
+  private _calibrationBoundary: TrackBoundary | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -186,6 +190,9 @@ export class LiveTelemetryPipeline {
             );
           });
         }
+
+        resetLiveCalibration(session.trackOrdinal);
+        this._calibrationBoundary = getTrackBoundariesByOrdinal(session.trackOrdinal, session.gameId);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
@@ -342,24 +349,25 @@ export class LiveTelemetryPipeline {
    * Stages: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
-  async processPacket(packet: TelemetryPacket, sourceFrame?: Buffer): Promise<void> {
+  async processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
     this._totalProcessed++;
 
-    // Snapshot byte offset BEFORE writing so it points to this packet's position
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
-    if (sourceFrame && this.recorder.active) {
-      rawByteOffset = this.recorder.getCurrentByteOffset();
-      this.recorder.writeRecord(sourceFrame);
+    if (source && this.recorder.active) {
+      if (Buffer.isBuffer(source)) {
+        rawByteOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+      } else {
+        rawByteOffset = source.rawOffset;
+      }
     }
 
     const adapter = getServerGame(packet.gameId);
     if (this.ws.wantsDevTelemetry) {
-      // Clone parser-native values before any in-place normalization/derivation.
       this.ws.stageDevTelemetry(structuredClone(packet));
     }
 
-    // Normalize coordinates and derived channels using the adapter profile.
     normalizeTelemetryPacket(
       packet,
       adapter.coordSystem === "standard-xyz",
@@ -369,15 +377,14 @@ export class LiveTelemetryPipeline {
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
 
-    // If a new session was created during feed — either the very first
-    // session (recorder was null) or a rotation (car-changed, etc.) — the
-    // triggering packet was written to the PREVIOUS recorder (or not at all).
-    // Catch up: write it to the NEW recorder as lap 1's first frame and patch
-    // the detector's lap byte offset so the DB row points at the right place.
-    if (sourceFrame && this.recorder.active && this.recorder.epoch !== epochBefore) {
-      const firstOffset = this.recorder.getCurrentByteOffset();
-      this.recorder.writeRecord(sourceFrame);
-      detector.setCurrentLapByteOffset?.(firstOffset);
+    if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      if (Buffer.isBuffer(source)) {
+        const firstOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+        detector.setCurrentLapByteOffset?.(firstOffset);
+      } else {
+        detector.setCurrentLapByteOffset?.(source.rawOffset);
+      }
     }
 
     const sectors = this.sectorTracker.feed(packet);
@@ -400,11 +407,18 @@ export class LiveTelemetryPipeline {
       if (session?.trackOrdinal) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
+          const trackLength = this.sectorTracker.getTrackLength();
+          const normalizedProgress = Number.isFinite(packet.DistanceTraveled) &&
+            Number.isFinite(trackLength) && trackLength > 0
+            ? ((packet.DistanceTraveled % trackLength) + trackLength) % trackLength / trackLength
+            : undefined;
           feedCalibrationPosition(
             session.trackOrdinal,
             { x: packet.PositionX, z: packet.PositionZ },
             packet.LapNumber,
-            outline
+            outline,
+            normalizedProgress,
+            this._calibrationBoundary ?? undefined
           );
         }
       }
@@ -432,6 +446,42 @@ export class LiveTelemetryPipeline {
         sectorTracker: this.sectorTracker.getDebugState(),
         pitTracker: this.pitTracker.getDebugState(),
       });
+    }
+  }
+
+  /**
+   * Metadata-only canonical import path. Records and feeds lap detection,
+   * while avoiding live-only trackers, projection, publication, and issues.
+   */
+  async processLapIndexPacket(packet: LapIndexPacket, source?: PacketSourceReference): Promise<void> {
+    this._totalProcessed++;
+    let rawByteOffset: number | undefined;
+    const epochBefore = this.recorder.epoch;
+    if (source && this.recorder.active) {
+      if (Buffer.isBuffer(source)) {
+        rawByteOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+      } else {
+        rawByteOffset = source.rawOffset;
+      }
+    }
+    const adapter = getServerGame(packet.gameId);
+    const telemetryPacket = packet as unknown as TelemetryPacket;
+    normalizeTelemetryPacket(
+      telemetryPacket,
+      adapter.coordSystem === "standard-xyz",
+      adapter.runtime.normSuspensionTravelMm,
+    );
+    const detector = this._getOrCreateDetector(packet.gameId);
+    await detector.feed(telemetryPacket, rawByteOffset);
+    if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      if (Buffer.isBuffer(source)) {
+        const firstOffset = this.recorder.getCurrentByteOffset();
+        this.recorder.writeRecord(source);
+        detector.setCurrentLapByteOffset?.(firstOffset);
+      } else {
+        detector.setCurrentLapByteOffset?.(source.rawOffset);
+      }
     }
   }
 
@@ -472,9 +522,8 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
-
-export const processPacket = (packet: TelemetryPacket, sourceFrame?: Buffer) =>
-  _default.processPacket(packet, sourceFrame);
+export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference) =>
+  _default.processPacket(packet, source);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {

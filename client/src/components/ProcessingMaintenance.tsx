@@ -1,7 +1,7 @@
 import { canStartReprocess, isReprocessPending, submitStaleSessionReprocess } from "@/lib/reprocess-state";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { RaceResultStatus } from "./RaceResultStatus";
 import { Button } from "./ui/button";
 
@@ -11,20 +11,19 @@ export function LapDetectorStatus() {
   const running = isReprocessPending(reprocessState);
 
   async function reparse() {
-    const store = useTelemetryStore.getState();
+    const store = telemetryStore.get();
     if (!canStartReprocess(store.reprocessState)) return;
 
     const total = store.reprocessState.status === "error" ? store.reprocessState.total : store.staleLapDetection?.sessionCount;
     if (!total) return;
 
-    store.beginReprocess(total);
+    telemetryStore.actions.beginReprocess(total);
     try {
       await submitStaleSessionReprocess(() => client.api.sessions["reprocess-stale"].$post());
-      const currentStore = useTelemetryStore.getState();
-      currentStore.setStaleLapDetection(null);
-      currentStore.completeReprocess();
+      telemetryStore.actions.setStaleLapDetection(null);
+      telemetryStore.actions.completeReprocess();
     } catch {
-      useTelemetryStore.getState().failReprocess(m.root_reprocessing_failed_description());
+      telemetryStore.actions.failReprocess(m.root_reprocessing_failed_description());
     }
   }
 

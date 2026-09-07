@@ -1,10 +1,10 @@
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import type { SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_TRACK_OVERLAYS, type SemanticAnalysisFrame, type TrackMapBoundaries } from "../analyse/track-map/types";
+import { useEffect, useMemo, useState } from "react";
 import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
@@ -12,26 +12,28 @@ import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
 
-function packetToSemanticFrame(packet: TelemetryPacket): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": packet.TrackOrdinal, "identity.car-ordinal": packet.CarOrdinal,
-    "motion.position-x": packet.PositionX, "motion.position-z": packet.PositionZ, "motion.speed": packet.Speed,
-    "motion.yaw": packet.Yaw, "motion.pitch": packet.Pitch, "motion.roll": packet.Roll,
-    "inputs.accel": packet.Accel, "inputs.brake": packet.Brake, "inputs.steer": packet.Steer, "inputs.gear": packet.Gear,
-    "timing.distance-traveled": packet.DistanceTraveled, "timing.current-lap": packet.CurrentLap,
-    "tire.temperature.average": [packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR],
-  }, states: {}, freshness: {} };
-}
-
 function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
-  return { values: {
-    "identity.track-ordinal": view.identity.trackOrdinal, "identity.car-ordinal": view.identity.carOrdinal,
-    "motion.position-x": view.motion.position?.x, "motion.position-z": view.motion.position?.z, "motion.speed": view.motion.speedMps,
-    "motion.yaw": view.motion.attitude?.yaw, "motion.pitch": view.motion.attitude?.pitch, "motion.roll": view.motion.attitude?.roll,
-    "inputs.accel": view.inputs.throttle, "inputs.brake": view.inputs.brake, "inputs.steer": view.inputs.steer, "inputs.gear": view.inputs.gear,
-    "timing.distance-traveled": view.motion.distanceM, "timing.current-lap": view.timing.currentLapS,
-    "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
-  }, states: {}, freshness: {} };
+  return {
+    values: {
+      "identity.track-ordinal": view.identity.trackOrdinal,
+      "identity.car-ordinal": view.identity.carOrdinal,
+      "motion.position-x": view.motion.position?.x,
+      "motion.position-z": view.motion.position?.z,
+      "motion.speed": view.motion.speedMps,
+      "motion.yaw": view.motion.attitude?.yaw,
+      "motion.pitch": view.motion.attitude?.pitch,
+      "motion.roll": view.motion.attitude?.roll,
+      "inputs.accel": view.inputs.throttle,
+      "inputs.brake": view.inputs.brake,
+      "inputs.steer": view.inputs.steer,
+      "inputs.gear": view.inputs.gear,
+      "timing.distance-traveled": view.motion.distanceM,
+      "timing.current-lap": view.timing.currentLapS,
+      "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
+    },
+    states: {},
+    freshness: {},
+  };
 }
 
 const MAX_LIVE_TRACE = 5000;
@@ -47,7 +49,7 @@ const WEATHER_LABELS: Record<number, string> = {
 
 /** Top-level track conditions from catalog-resolved semantic telemetry. */
 export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null | undefined }) {
-  if (!view || view.simulator === "f1-2025") return null;
+  if (!view) return null;
   const weather = view.weather;
   if (weather.kind == null && weather.trackTemperatureC == null && weather.airTemperatureC == null) return null;
   return (
@@ -73,51 +75,55 @@ export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null |
 export function LiveTestDashboard({
   gameId,
   trackOrdinal,
-  initialTrace,
+  initialViews,
 }: {
   gameId: ExperimentGameId;
   trackOrdinal: number | null;
-  /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
-  initialTrace?: TelemetryPacket[];
+  /** Story-only canonical trace for immediate rendering. */
+  initialViews?: LiveTelemetryView[];
 }) {
-  const telemetryView = useTelemetryStore((s) => s.telemetryView);
-  const packet = initialTrace?.[initialTrace.length - 1] ?? null;
-  const rawPacket = packet;
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const sectors = useTelemetryStore((s) => s.sectors);
+  const telemetryView = useTelemetryStore((state) => state.telemetryView);
+  const initialGameViews = useMemo(() => (initialViews ?? []).filter((view) => view.simulator === gameId), [gameId, initialViews]);
+  const liveView = telemetryView?.simulator === gameId ? telemetryView : null;
+  const currentView = liveView ?? initialGameViews.at(-1) ?? null;
+  const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
+  const sectors = useTelemetryStore((state) => state.sectors);
+  const gameLaps = useMemo(() => sessionLaps.filter((lap) => lap.gameId === gameId), [gameId, sessionLaps]);
+  const gameSectors = telemetryView?.simulator === gameId ? sectors : null;
 
   // Most-recently-completed lap's track ordinal, used as a fallback below.
-  const latestLap = useMemo(() => (sessionLaps.length ? [...sessionLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [sessionLaps]);
+  const latestLap = useMemo(() => (gameLaps.length ? [...gameLaps].sort((a, b) => b.lapNumber - a.lapNumber)[0] : null), [gameLaps]);
 
   const [rotateWithCar, setRotateWithCar] = useState(false);
-  const [trackOverlay, setTrackOverlay] = useState<"none" | "inputs" | "segments" | "sectors">("none");
   const [mapZoom, setMapZoom] = useState(1);
 
-  // Live driving line for the current in-progress lap: append each new packet,
-  // reset when a new lap starts. Capped defensively for very long laps.
-  const [rawTrace, setRawTrace] = useState<TelemetryPacket[]>(() => initialTrace ?? []);
-  const semanticInitialTrace = useMemo(() => (initialTrace ?? []).map(packetToSemanticFrame), [initialTrace]);
-  const [liveTrace, setLiveTrace] = useState<SemanticAnalysisFrame[]>(() => semanticInitialTrace);
-  const lastRawRef = useRef<TelemetryPacket | null>(null);
-  const semanticTrace = useMemo(() => {
-    if (telemetryView) return [viewToSemanticFrame(telemetryView)];
-    return liveTrace;
-  }, [liveTrace, telemetryView]);
-  const currentFrame = semanticTrace.at(-1) ?? null;
+  // Canonical live trace for the in-progress lap. Trace carries its simulator
+  // identity so route changes cannot render samples from the previous game.
+  const [trace, setTrace] = useState<{ gameId: ExperimentGameId; views: LiveTelemetryView[] }>(() => ({ gameId, views: initialGameViews }));
   useEffect(() => {
-    if (!rawPacket || rawPacket === lastRawRef.current) return;
-    setRawTrace((prev) => {
-      const next = rawPacket.CurrentLap < (prev.at(-1)?.CurrentLap ?? 0) ? [rawPacket] : [...prev, rawPacket];
-      return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
+    if (!liveView) {
+      setTrace((current) => (current.gameId === gameId ? current : { gameId, views: initialGameViews }));
+      return;
+    }
+    setTrace((current) => {
+      const currentViews = current.gameId === gameId ? current.views : initialGameViews;
+      const previous = currentViews.at(-1);
+      if (previous?.streamId === liveView.streamId && previous.sequence === liveView.sequence) {
+        return current.gameId === gameId ? current : { gameId, views: currentViews };
+      }
+      const streamChanged = previous !== undefined && previous.streamId !== liveView.streamId;
+      const lapChanged = previous?.timing.lapNumber !== undefined && liveView.timing.lapNumber !== undefined && previous.timing.lapNumber !== liveView.timing.lapNumber;
+      const next = streamChanged || lapChanged ? [liveView] : [...currentViews, liveView];
+      return { gameId, views: next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next };
     });
-    setLiveTrace((prev) => {
-      if (prev.length && rawPacket.CurrentLap < Number(prev.at(-1)?.values["timing.current-lap"] ?? 0)) return [packetToSemanticFrame(rawPacket)];
-      const next = [...prev, packetToSemanticFrame(rawPacket)];
-      return next.length > MAX_LIVE_TRACE ? next.slice(next.length - MAX_LIVE_TRACE) : next;
-    });
-  }, [rawPacket]);
+  }, [gameId, initialGameViews, liveView]);
+  const viewTrace = trace.gameId === gameId ? trace.views : initialGameViews;
+  const activeViews = viewTrace.length > 0 ? viewTrace : currentView ? [currentView] : [];
+  const semanticTrace = useMemo(() => activeViews.map(viewToSemanticFrame), [activeViews]);
+  const tuneTrace = useMemo(() => activeViews.map(semanticTuneSampleFromView), [activeViews]);
+  const currentFrame = semanticTrace.at(-1) ?? null;
 
-  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? telemetryView?.identity.trackOrdinal ?? rawPacket?.TrackOrdinal ?? null;
+  const trackOrd = trackOrdinal ?? latestLap?.trackOrdinal ?? currentView?.identity.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
@@ -127,7 +133,7 @@ export function LiveTestDashboard({
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
-  const boundaries = (boundariesRaw as any) ?? null;
+  const boundaries = (boundariesRaw as TrackMapBoundaries | null) ?? null;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -147,10 +153,9 @@ export function LiveTestDashboard({
               currentFrame={currentFrame}
               showTrace={false}
               rotateWithCar={rotateWithCar}
-              trackOverlay={trackOverlay}
+              trackOverlays={DEFAULT_TRACK_OVERLAYS}
               mapZoom={mapZoom}
               onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-              onTrackOverlayCycle={() => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none"))}
               onMapZoomChange={setMapZoom}
               hideSteeringOverlay
               weatherBottomRight
@@ -158,7 +163,7 @@ export function LiveTestDashboard({
           </div>
         </div>
         <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
-          <LiveLapInfo sectors={sectors} currentLap={telemetryView?.timing.currentLapS ?? packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
+          <LiveLapInfo sectors={gameSectors} currentLap={currentView?.timing.lapNumber ?? null} totalLaps={gameLaps.length} />
         </div>
         <div className="h-full min-h-0">
           <LiveIssuesFeed />
@@ -170,13 +175,13 @@ export function LiveTestDashboard({
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
-          <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={rawPacket?.LapNumber ?? null} maxLaps={30} />
+          <LiveLapCards laps={gameLaps} trackOrdinal={trackOrd ?? undefined} sectors={gameSectors} currentLapNumber={currentView?.timing.lapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
-          <CurrentLapTireStrip telemetry={rawTrace} />
+          <CurrentLapTireStrip telemetry={tuneTrace} />
         </div>
       </div>
     </div>

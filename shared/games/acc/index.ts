@@ -13,6 +13,7 @@ export const accAdapter: GameAdapter = {
     pitStatus: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "race.pit-status" } },
     analysis: {
       balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } },
+      brakeBias: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "brakes.brake-bias" } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] } },
       traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } },
@@ -22,8 +23,8 @@ export const accAdapter: GameAdapter = {
       slipAngle: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-angle" } },
       lateralSlip: { source: "unavailable", reason: "source-limitation" },
       wheelRotation: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.wheel-rotation-speed" } },
-      tireHealth: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-wear" } },
-      tireWearRate: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "wear-rate-v1", requires: ["tires.tire-wear"] } },
+      tireHealth: { source: "unavailable", reason: "source-limitation" },
+      tireWearRate: { source: "unavailable", reason: "source-limitation" },
       tirePressure: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
       suspensionTravel: { source: "direct", freshness: "continuous", display: "normalized", binding: { kind: "value", semanticId: "suspension.norm-suspension-travel" } },
       suspensionCompressionBias: { source: "derived", confidence: "exact", display: "compression-bias", binding: { kind: "derived", derivation: "compression-bias-v1", requires: ["suspension.norm-suspension-travel"] } },

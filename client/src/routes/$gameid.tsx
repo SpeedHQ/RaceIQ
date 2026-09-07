@@ -1,11 +1,11 @@
 import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { gameIdForRoutePrefix } from "../lib/game-routes";
-import { useGameStore } from "../stores/game";
+import { gameStore, } from "../stores/game";
 
 function DynamicGameLayout() {
   const { gameid } = useParams({ from: "/$gameid" });
-  const setGameId = useGameStore((s) => s.setGameId);
+  const setGameId = gameStore.actions.setGameId;
   const gameId = gameIdForRoutePrefix(gameid);
 
   useEffect(() => {

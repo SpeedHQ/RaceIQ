@@ -1,7 +1,6 @@
-import { pointAtLapFraction } from "@shared/racing/tracks/path";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
-import type { TelemetryPacket } from "@shared/telemetry/types";
 import type { MutableRefObject, RefObject } from "react";
+import { pointForLiveTrackSample, type LiveTrackSample } from "./live-track-sample";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
@@ -20,7 +19,7 @@ const ISSUE_COLORS: Record<TuneIssue["severity"], string> = { info: "var(--statu
 
 export function drawLiveTrack({
   canvasRef,
-  packet,
+  sample,
   outline,
   noOutline,
   isRecorded,
@@ -33,7 +32,7 @@ export function drawLiveTrack({
   lapDistRef,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
-  packet: TelemetryPacket | null;
+  sample: LiveTrackSample | null;
   outline: Point[] | null;
   noOutline: boolean;
   isRecorded: boolean;
@@ -409,75 +408,30 @@ export function drawLiveTrack({
     ctx.fillText(`Mapping... ${displayOutline.length} pts`, 8, h - 8);
   }
 
-  // Live car position
-  if (packet) {
-    let cx: number;
-    let cy: number;
-    let hasPos = false;
+  // Live car position. Selection follows semantic availability, not simulator.
+  if (sample) {
+    const distance = lapDistRef.current;
+    const distanceFraction = distance.totalDist > 50 && sample.distanceM !== undefined ? Math.max(0, Math.min((sample.distanceM - distance.startDist) / distance.totalDist, 1)) : undefined;
+    const point = pointForLiveTrackSample(sample, displayOutline, {
+      useWorldPosition: isLiveTrace || isRecorded || boundaryCenter !== null,
+      deadReckonedPosition: isLiveTrace ? deadReckonedPosRef.current : null,
+      distanceFraction,
+    });
 
-    const nativeLapFraction = packet.iracing?.lapDistancePct;
-    if (packet.gameId === "iracing" && outline && Number.isFinite(nativeLapFraction)) {
-      const point = pointAtLapFraction(displayOutline, nativeLapFraction!);
-      if (point) {
-        [cx, cy] = toCanvas(point.x, point.z);
-        hasPos = true;
-      } else {
-        [cx, cy] = [0, 0];
-      }
-    } else if (isLiveTrace && packet.gameId === "iracing") {
-      const point = deadReckonedPosRef.current;
-      if (point) {
-        [cx, cy] = toCanvas(point.x, point.z);
-        hasPos = true;
-      } else {
-        [cx, cy] = [0, 0];
-      }
-    } else if (isLiveTrace || isRecorded || boundaryCenter) {
-      // Forza coords: live trace, recorded outline, or boundary center — plot directly
-      if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
-        [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
-        hasPos = true;
-      } else {
-        [cx, cy] = [0, 0];
-      }
-    } else {
-      // Pre-made outline: use distance fraction to determine position.
-      // (distance traveled this lap) / (total lap distance) = 0-1 progress
-      const d = lapDistRef.current;
-      if (d.totalDist > 50) {
-        const lapDist = packet.DistanceTraveled - d.startDist;
-        const frac = Math.max(0, Math.min(lapDist / d.totalDist, 1));
-        const idx = Math.round(frac * (displayOutline.length - 1));
-        const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
-        if (pt) {
-          [cx, cy] = toCanvas(pt.x, pt.z);
-          hasPos = true;
-        } else {
-          [cx, cy] = [0, 0];
-        }
-      } else {
-        [cx, cy] = [0, 0];
-        ctx.fillStyle = "var(--app-text-dim)";
-        ctx.font = "var(--text-app-micro) var(--font-sans)";
-        ctx.textAlign = "left";
-        ctx.fillText("Complete a lap to track position", 8, h - 8);
-      }
-    }
-
-    if (hasPos) {
-      // Glow
+    if (point) {
+      const [cx, cy] = toCanvas(point.x, point.z);
       ctx.beginPath();
-      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-      ctx.fillStyle = "color-mix(in srgb, var(--app-accent) 20%, transparent)";
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.fillStyle = "var(--track-position)";
       ctx.fill();
-      // Dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "var(--app-accent)";
-      ctx.fill();
-      ctx.strokeStyle = "var(--track-label-background)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "var(--track-position-outline)";
+      ctx.lineWidth = 2;
       ctx.stroke();
+    } else if (!isLiveTrace) {
+      ctx.fillStyle = "var(--app-text-dim)";
+      ctx.font = "var(--text-app-caption) var(--font-sans)";
+      ctx.textAlign = "center";
+      ctx.fillText("Waiting for track position...", w / 2, h - 8);
     }
   }
 }

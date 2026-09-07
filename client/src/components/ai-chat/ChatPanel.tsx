@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiConfigured } from "@/lib/is-ai-configured";
 import { m } from "@/paraglide/messages";
-import { useUiStore } from "@/stores/ui";
+import { uiStore, } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
@@ -29,7 +29,7 @@ export interface ChatPanelProps {
 
 export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
-  const openSettings = useUiStore((s) => s.openSettings);
+  const openSettings = uiStore.actions.openSettings;
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
   const [clearVersion, setClearVersion] = useState(0);

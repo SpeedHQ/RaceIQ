@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../shared/racing/analysis/metric-values";
 
-const frame = (values: Record<string, unknown>) => ({ values });
+const frame = (values: Record<string, unknown>, states: Record<string, string> = {}) => ({ values, states });
 
 describe("analysis metric value resolvers", () => {
   test("preserves Forza combined slip Grip Ask", () => {
@@ -50,6 +50,23 @@ describe("analysis metric value resolvers", () => {
     expect(understeer?.state).toBe("understeer");
     expect(oversteer?.state).toBe("oversteer");
     expect(understeer?.slipAvailable).toBe(false);
+  });
+  test("returns unavailable when a required balance signal is missing", () => {
+    const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } } as const;
+    expect(resolveBalance(frame({
+      "motion.speed": 30,
+      "motion.acceleration-x": -9.81,
+      "motion.angular-velocity-y": 0.1,
+    }), metric)).toBeNull();
+  });
+  test("rejects invalid required balance signals", () => {
+    const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } } as const;
+    expect(resolveBalance(frame({
+      "motion.speed": 30,
+      "motion.acceleration-x": -9.81,
+      "motion.angular-velocity-y": 0.1,
+      "tires.tire-slip-angle": [0.1, 0.1, 0.1, 0.1],
+    }, { "tires.tire-slip-angle": "invalid" }), metric)).toBeNull();
   });
   test("resolves balance from canonical semantic motion IDs", () => {
     const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } } as const;

@@ -1,5 +1,7 @@
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiAutoTuneState } from "./ai-state";
 import { PROVIDER_KEY_LABELS } from "./ai-state";
@@ -33,9 +35,9 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
+          <Label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
-          </label>
+          </Label>
           <select
             id="ai-auto-tune-provider"
             value={autoTuneProvider}
@@ -55,17 +57,17 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
         </div>
         {PROVIDER_KEY_LABELS[autoTuneProvider] && (
           <div>
-            <label htmlFor="ai-auto-tune-api-key" className="block text-xs text-app-text-muted mb-1">
+            <Label htmlFor="ai-auto-tune-api-key" className="block text-xs text-app-text-muted mb-1">
               {PROVIDER_KEY_LABELS[autoTuneProvider].label}
-            </label>
+            </Label>
             <div className="flex items-center gap-1.5 max-w-xs">
-              <input
+              <Input
                 id="ai-auto-tune-api-key"
                 type="password"
                 value={autoTuneApiKey}
                 onChange={(e) => setAutoTuneApiKey(e.target.value)}
                 placeholder={(keyStatus[autoTuneProvider] ?? false) ? m.ai_key_stored_placeholder() : PROVIDER_KEY_LABELS[autoTuneProvider].placeholder}
-                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+                className="w-full font-mono"
               />
             </div>
             <p className="text-app-compact text-app-text-muted mt-1">
@@ -79,9 +81,9 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
         {canShowAutoTuneModelPicker && (
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <label htmlFor="ai-auto-tune-model" className="block text-xs text-app-text-muted">
+              <Label htmlFor="ai-auto-tune-model" className="block text-xs text-app-text-muted">
                 {m.ai_model_label()}
-              </label>
+              </Label>
               <Button
                 variant="app-ghost"
                 size="app-sm"

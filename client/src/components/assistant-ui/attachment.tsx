@@ -3,7 +3,6 @@
 import { AttachmentPrimitive, ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { AlertCircleIcon, FileText, Loader2Icon, PlusIcon, XIcon } from "lucide-react";
 import { type FC, isValidElement, type PropsWithChildren, useEffect, useState } from "react";
-import { useShallow } from "zustand/shallow";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -31,16 +30,11 @@ const useFileSrc = (file: File | undefined) => {
 };
 
 const useAttachmentSrc = () => {
-  const { file, src } = useAuiState(
-    useShallow((s): { file?: File; src?: string } => {
-      if (s.attachment.type !== "image") return {};
-      if (s.attachment.file) return { file: s.attachment.file };
-      const src = s.attachment.content?.filter((c) => c.type === "image")[0]?.image;
-      if (!src) return {};
-      return { src };
-    }),
-  );
-
+  const file = useAuiState((s): File | undefined => s.attachment.type === "image" ? s.attachment.file : undefined);
+  const src = useAuiState((s): string | undefined => {
+    if (s.attachment.type !== "image" || s.attachment.file) return undefined;
+    return s.attachment.content?.filter((c) => c.type === "image")[0]?.image;
+  });
   return useFileSrc(file) ?? src;
 };
 

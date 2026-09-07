@@ -1,21 +1,26 @@
 import { describe, expect, test } from "bun:test";
-import { resolveAlignedCursor } from "../src/lib/comparison-utils";
-import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { findTraceIndexAtDistance } from "../src/lib/comparison-utils";
 
-const packet = (position: number): TelemetryPacket => ({ PositionX: position, PositionZ: 0 } as TelemetryPacket);
-
-describe("comparison aligned cursor", () => {
-  test("resolves each lap through its aligned source index", () => {
-    const telemetryA = [0, 50, 75, 100].map(packet);
-    const telemetryB = [0, 50, 55, 75, 100].map(packet);
-    const cursor = resolveAlignedCursor(telemetryA, telemetryB, [0, 50, 75, 100], [0, 1, 2, 3], [0, 1, 3, 4], 75);
-    expect(cursor).toEqual({ gridIndex: 2, packetA: telemetryA[2], packetB: telemetryB[3] });
+describe("comparison trace cursor", () => {
+  test("returns exact distance index", () => {
+    expect(findTraceIndexAtDistance([0, 50, 75, 100], 75)).toBe(2);
   });
 
-  test("returns null for empty cursor and does not substitute invalid indices", () => {
-    expect(resolveAlignedCursor([], [], [], [], [], null)).toBeNull();
-    const cursor = resolveAlignedCursor([packet(0)], [packet(0)], [0], [4], [0], 0);
-    expect(cursor?.packetA).toBeNull();
-    expect(cursor?.packetB).not.toBeNull();
+  test("returns nearest neighbour between distances", () => {
+    expect(findTraceIndexAtDistance([0, 50, 100], 62)).toBe(1);
+    expect(findTraceIndexAtDistance([0, 50, 100], 76)).toBe(2);
+  });
+
+  test("clamps before-first and after-last distances", () => {
+    expect(findTraceIndexAtDistance([10, 20, 30], 0)).toBe(0);
+    expect(findTraceIndexAtDistance([10, 20, 30], 40)).toBe(2);
+  });
+
+  test("returns -1 for empty distances", () => {
+    expect(findTraceIndexAtDistance([], 10)).toBe(-1);
+  });
+
+  test("returns first duplicate index for exact duplicate distance", () => {
+    expect(findTraceIndexAtDistance([0, 50, 50, 100], 50)).toBe(1);
   });
 });

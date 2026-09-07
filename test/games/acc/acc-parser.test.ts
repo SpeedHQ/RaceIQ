@@ -6,7 +6,7 @@ import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
-import { parseRawLapFramesForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
 import { getAccCarName } from "../../../shared/racing/cars/acc"
@@ -130,6 +130,23 @@ describe("ACC parser", () => {
     expect(packet!.TirePressureFrontRight).toBeCloseTo(27.6);
   });
 
+  test("marks SDK-reserved tire wear as unavailable", () => {
+    const physics = makePhysicsBuf();
+    physics.writeFloatLE(0.5, PHYSICS.tyreWearFL.offset);
+    physics.writeFloatLE(0.6, PHYSICS.tyreWearFR.offset);
+    physics.writeFloatLE(0.7, PHYSICS.tyreWearRL.offset);
+    physics.writeFloatLE(0.8, PHYSICS.tyreWearRR.offset);
+
+    const packet = parseAccBuffers(physics, makeGraphicsBuf(), makeStaticBuf());
+
+    expect([
+      packet!.TireWearFL,
+      packet!.TireWearFR,
+      packet!.TireWearRL,
+      packet!.TireWearRR,
+    ]).toEqual([-1, -1, -1, -1]);
+  });
+
   test("parseAccBuffers maps fuel correctly", () => {
     const packet = parseAccBuffers(
       makePhysicsBuf({ fuel: 25.5 }),
@@ -170,7 +187,7 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     }
     expect(rawPackets.length).toBe(N);
 
-    const normalized = await parseRawLapFramesForTest(ACC_SESSION_BIN, startOffset, N, "acc");
+    const normalized = parseRawLapFramesFromBuffer(raw, startOffset, N, "acc", ACC_SESSION_BIN);
     expect(normalized.length).toBe(N);
 
     for (let i = 0; i < N; i++) {

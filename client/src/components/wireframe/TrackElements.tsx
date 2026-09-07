@@ -4,19 +4,36 @@ import * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
 
-export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: SemanticAnalysisFrame; distAhead?: number }) {
+export function TrackLine({
+  points,
+  packet,
+  color = THREE_COLORS.appText,
+  lineWidth = 3,
+  opacity = 0.6,
+  y = -0.44,
+  distAhead,
+}: {
+  points: { x: number; z: number }[];
+  packet: SemanticAnalysisFrame;
+  color?: THREE.Color;
+  lineWidth?: number;
+  opacity?: number;
+  y?: number;
+  distAhead?: number;
+}) {
   const ahead = distAhead ?? DIST_AHEAD;
-  // One-time index build per outline — stable while the reference is stable
-  // (React Query returns the same object until refetch).
-  const index = useMemo(() => buildTrackIndex(outline), [outline]);
-  const segments = useMemo(() => filterByDistanceIndexed(index, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), -0.44, ahead), [index, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), ahead]);
+  const index = useMemo(() => buildTrackIndex(points), [points]);
+  const segments = useMemo(
+    () => filterByDistanceIndexed(index, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, y, ahead),
+    [index, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, y, ahead],
+  );
 
   if (segments.length === 0) return null;
 
   return (
     <>
       {segments.map((segment) => (
-        <Line key={segment.sourceStartIndex} points={segment.points} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
+        <Line key={segment.sourceStartIndex} points={segment.points} color={color} lineWidth={lineWidth} opacity={opacity} transparent />
       ))}
     </>
   );
@@ -59,12 +76,28 @@ export function TrackBoundaryEdges({
   // Filter by distance, then fill the pre-allocated buffers in place.
   // useLayoutEffect so geometry updates land before the next paint.
   const leftSegsGround = useMemo(
-    () => filterByDistanceIndexed(leftIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead),
-    [leftIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead],
+    () =>
+      filterByDistanceIndexed(
+        leftIndex,
+        semanticNumber(packet, "motion.position-x") ?? 0,
+        semanticNumber(packet, "motion.position-z") ?? 0,
+        semanticNumber(packet, "motion.yaw") ?? 0,
+        GROUND_Y,
+        ahead,
+      ),
+    [leftIndex, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, GROUND_Y, ahead],
   );
   const rightSegsGround = useMemo(
-    () => filterByDistanceIndexed(rightIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead),
-    [rightIndex, (semanticNumber(packet, "motion.position-x") ?? 0), (semanticNumber(packet, "motion.position-z") ?? 0), (semanticNumber(packet, "motion.yaw") ?? 0), GROUND_Y, ahead],
+    () =>
+      filterByDistanceIndexed(
+        rightIndex,
+        semanticNumber(packet, "motion.position-x") ?? 0,
+        semanticNumber(packet, "motion.position-z") ?? 0,
+        semanticNumber(packet, "motion.yaw") ?? 0,
+        GROUND_Y,
+        ahead,
+      ),
+    [rightIndex, semanticNumber(packet, "motion.position-x") ?? 0, semanticNumber(packet, "motion.position-z") ?? 0, semanticNumber(packet, "motion.yaw") ?? 0, GROUND_Y, ahead],
   );
 
   useLayoutEffect(() => {

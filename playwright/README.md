@@ -35,7 +35,7 @@ Launchers and screenshot database seeding live together in `support/server/`. Th
 
 ## Data safety and generated output
 
-Launchers wipe configured E2E data before startup. They refuse paths without a `test-data` path segment. Defaults are ignored `test-data`, `test-data-tunes`, and `test-results/test-data-seeded`; never point these variables at tracked fixtures or user data. Tests that mutate notes, imports, sessions, or settings restore state in `finally` blocks.
+Launchers create configured E2E data directories and delete only their SQLite database files at startup. They preserve non-database fixture files and do not perform teardown cleanup. Seeded tests share one isolated server per shard; tests that mutate notes, imports, sessions, or settings must restore their own state. CI containers are disposable.
 
 Playwright output goes to `playwright/test-results/`. Responsive captures go to `playwright/screenshots/` (mobile captures under `screenshots/mobile/`). Both are generated artifacts and must not be committed. Seeded data under `test-results/` is disposable.
 

@@ -76,12 +76,12 @@ describe("assessLapRecording", () => {
   });
 
   test("start/end positions too far apart", () => {
-    // Gap of 1000m on a 5000m lap = 20% > 15% threshold
+    // A 21m closure gap exceeds the strict 20m maximum.
     const packets = makePackets(100, {
       lapTime: 90,
       startX: 0,
       startZ: 0,
-      endX: 1000,
+      endX: 21,
       endZ: 0,
     });
     const result = assessLapRecording(packets, 90);
@@ -89,27 +89,12 @@ describe("assessLapRecording", () => {
     expect(result.reason).toBe("start/end positions too far apart");
   });
 
-  test("small position gap on short lap passes (under 100m absolute)", () => {
-    // Gap of 80m but that's 16% of 500m lap — over 15% but under 100m absolute
-    const packets = makePackets(50, {
-      lapDistance: 500,
-      lapTime: 30,
-      startX: 0,
-      startZ: 0,
-      endX: 80,
-      endZ: 0,
-    });
-    const result = assessLapRecording(packets, 30);
-    expect(result.valid).toBe(true);
-  });
-
-  test("moderate position gap passes (within tolerance)", () => {
-    // Gap of 50m on 5000m lap = 1% — well within tolerance
+  test("20m position gap passes", () => {
     const packets = makePackets(100, {
       lapTime: 90,
       startX: 0,
       startZ: 0,
-      endX: 50,
+      endX: 20,
       endZ: 0,
     });
     const result = assessLapRecording(packets, 90);

@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
 import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
@@ -96,7 +96,7 @@ export interface ServerStatus {
   } | null;
 }
 
-interface TelemetryState {
+export interface TelemetryState {
   connected: boolean;
   telemetrySchema: LiveTelemetrySchemaMessageV1 | null;
   telemetryFrame: LiveTelemetryFrameMessageV1 | null;
@@ -133,6 +133,8 @@ interface TelemetryState {
   staleRaceResults: { sessionCount: number; currentVersion: string } | null;
   /** Active race-result reconciliation progress */
   raceResultReprocessProgress: { done: number; total: number } | null;
+  /** Legacy unprefixed progress slot retained for state-shape compatibility. */
+  reprocessProgress: { done: number; total: number } | null;
   /** Race-result reconciliation error, if the latest attempt failed */
   raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
@@ -143,38 +145,11 @@ interface TelemetryState {
   liveIssues: TuneIssue[];
   /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
   lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
-  setConnected: (connected: boolean) => void;
-  setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
-  setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
-  setSectors: (sectors: LiveSectorData) => void;
-  setPit: (pit: LivePitData) => void;
-  setLiveIssues: (issues: TuneIssue[]) => void;
-  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
-  clearTelemetry: () => void;
-  setPacketsPerSec: (pps: number) => void;
-  setServerStatus: (status: ServerStatus | null) => void;
-  setSessionLaps: (laps: LapMeta[]) => void;
-  setUpdateAvailable: (version: string | null) => void;
-  setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
-  setVersionInfo: (info: VersionInfo) => void;
-  setStaleRaceResults: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
-  setRaceResultReprocessError: (error: string | null) => void;
-  setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  beginReprocess: (total: number) => void;
-  completeReprocess: () => void;
-  failReprocess: (message: string) => void;
-  dismissReprocess: () => void;
-  incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
-  setDevState: (state: unknown) => void;
-  toggleDevStatePause: () => void;
-  /** Update display units — re-converts current packet */
-  setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
-export const useTelemetryStore = create<TelemetryState>((set, get) => ({
+const initialTelemetryState = {
   connected: false,
   telemetrySchema: null,
   telemetryFrame: null,
@@ -194,6 +169,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   sessionLaps: [],
   staleRaceResults: null,
   raceResultReprocessProgress: null,
+  reprocessProgress: null,
   raceResultReprocessError: null,
   staleLapDetection: null,
   reprocessState: initialReprocessState,
@@ -201,73 +177,67 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   lapIssuesFeed: [],
   devState: null,
   devStatePaused: false,
-  setConnected: (connected) =>
-    set((prev) => {
-      // Detect reconnection after update install
-      if (connected && prev.updateProgress?.stage === "reconnecting") {
-        return {
-          connected,
-          updateProgress: { stage: "complete", percent: 100 },
-          updateAvailable: null,
-        };
-      }
-      return { connected };
-    }),
-  setSectors: (sectors) => set({ sectors }),
-  setPit: (pit) => set({ pit }),
-  setSessionLaps: (sessionLaps) => set({ sessionLaps }),
-  setLiveIssues: (liveIssues) => set({ liveIssues }),
-  addLapIssues: (entry) =>
-    set((prev) => ({
-      // Most-recent-first, capped so a long practice session doesn't grow unbounded.
-      lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20),
-    })),
-  setTelemetrySchema: (telemetrySchema) =>
-    set((prev) =>
-      prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
-        ? { telemetrySchema }
-        : { telemetrySchema, telemetryFrame: null, telemetryView: null },
-    ),
-  setTelemetryFrame: (telemetryFrame) =>
-    set((prev) => ({ telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
-  clearTelemetry: () => set({ telemetryFrame: null, telemetryView: null, telemetrySchema: null }),
-  setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
-  setServerStatus: (status: ServerStatus | null) =>
-    set(
-      status
-        ? {
-            serverStatus: status,
-            udpPps: status.udpPps,
-            isRaceOn: status.isRaceOn,
-            lastUdpAt: status.udpPps > 0 ? Date.now() : get().lastUdpAt,
-          }
-        : {
-            serverStatus: null,
-            udpPps: 0,
-            isRaceOn: false,
-          },
-    ),
-  setUpdateAvailable: (version) => set({ updateAvailable: version }),
-  setStaleRaceResults: (data) => set({ staleRaceResults: data }),
-  setRaceResultReprocessProgress: (progress) => set({ raceResultReprocessProgress: progress }),
-  incrementRaceResultReprocessProgress: () =>
-    set((prev) => (prev.raceResultReprocessProgress ? { raceResultReprocessProgress: { ...prev.raceResultReprocessProgress, done: prev.raceResultReprocessProgress.done + 1 } } : {})),
-  setRaceResultReprocessError: (error) => set({ raceResultReprocessError: error }),
-  setStaleLapDetection: (data) => set({ staleLapDetection: data }),
-  beginReprocess: (total) => set((prev) => ({ reprocessState: beginReprocess(prev.reprocessState, total) })),
-  completeReprocess: () => set((prev) => ({ reprocessState: completeReprocess(prev.reprocessState) })),
-  failReprocess: (message) => set((prev) => ({ reprocessState: failReprocess(prev.reprocessState, message) })),
-  dismissReprocess: () => set((prev) => ({ reprocessState: dismissReprocess(prev.reprocessState) })),
-  incrementReprocessProgress: () =>
-    set((prev) => ({
-      reprocessState: advanceReprocess(prev.reprocessState),
-    })),
-  setUpdateProgress: (progress) => set({ updateProgress: progress }),
-  setVersionInfo: (info) => set({ versionInfo: info }),
-  setDevState: (state) => {
-    if (get().devStatePaused) return;
-    set({ devState: state });
-  },
-  toggleDevStatePause: () => set((prev) => ({ devStatePaused: !prev.devStatePaused })),
-  setDisplayUnits: (unit, temperatureUnit) => set({ unitSystem: unit, temperatureUnit }),
+} as TelemetryState;
+
+export interface TelemetryActions extends StoreActionMap {
+  setConnected: (connected: boolean) => void;
+  setTelemetrySchema: (schema: LiveTelemetrySchemaMessageV1) => void;
+  setTelemetryFrame: (frame: LiveTelemetryFrameMessageV1) => void;
+  setSectors: (sectors: LiveSectorData) => void;
+  setPit: (pit: LivePitData) => void;
+  setLiveIssues: (issues: TuneIssue[]) => void;
+  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
+  clearTelemetry: () => void;
+  setPacketsPerSec: (pps: number) => void;
+  setServerStatus: (status: ServerStatus | null) => void;
+  setSessionLaps: (laps: LapMeta[]) => void;
+  setUpdateAvailable: (version: string | null) => void;
+  setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
+  setVersionInfo: (info: VersionInfo) => void;
+  setStaleRaceResults: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  setRaceResultReprocessError: (error: string | null) => void;
+  setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  beginReprocess: (total: number) => void; completeReprocess: () => void; failReprocess: (message: string) => void; dismissReprocess: () => void; incrementReprocessProgress: () => void;
+  setDevState: (state: unknown) => void; toggleDevStatePause: () => void;
+  setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
+}
+
+export const telemetryStore = createStore(initialTelemetryState, (store): TelemetryActions => ({
+  setConnected: (connected) => store.setState((prev) => connected && prev.updateProgress?.stage === "reconnecting"
+    ? { ...prev, connected, updateProgress: { stage: "complete", percent: 100 }, updateAvailable: null }
+    : { ...prev, connected }),
+  setSectors: (sectors) => store.setState((prev) => ({ ...prev, sectors })),
+  setPit: (pit) => store.setState((prev) => ({ ...prev, pit })),
+  setSessionLaps: (sessionLaps) => store.setState((prev) => ({ ...prev, sessionLaps })),
+  setLiveIssues: (liveIssues) => store.setState((prev) => ({ ...prev, liveIssues })),
+  addLapIssues: (entry) => store.setState((prev) => ({ ...prev, lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20) })),
+  setTelemetrySchema: (telemetrySchema) => store.setState((prev) => prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
+    ? { ...prev, telemetrySchema }
+    : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null }),
+  setTelemetryFrame: (telemetryFrame) => store.setState((prev) => ({ ...prev, telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
+  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null })),
+  setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
+  setServerStatus: (status) => store.setState((prev) => status
+    ? { ...prev, serverStatus: status, udpPps: status.udpPps, isRaceOn: status.isRaceOn, lastUdpAt: status.udpPps > 0 ? Date.now() : prev.lastUdpAt }
+    : { ...prev, serverStatus: null, udpPps: 0, isRaceOn: false }),
+  setUpdateAvailable: (version) => store.setState((prev) => ({ ...prev, updateAvailable: version })),
+  setStaleRaceResults: (data) => store.setState((prev) => ({ ...prev, staleRaceResults: data })),
+  setRaceResultReprocessProgress: (progress) => store.setState((prev) => ({ ...prev, raceResultReprocessProgress: progress })),
+  setRaceResultReprocessError: (error) => store.setState((prev) => ({ ...prev, raceResultReprocessError: error })),
+  setStaleLapDetection: (data) => store.setState((prev) => ({ ...prev, staleLapDetection: data })),
+  beginReprocess: (total) => store.setState((prev) => ({ ...prev, reprocessState: beginReprocess(prev.reprocessState, total) })),
+  completeReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: completeReprocess(prev.reprocessState) })),
+  failReprocess: (message) => store.setState((prev) => ({ ...prev, reprocessState: failReprocess(prev.reprocessState, message) })),
+  dismissReprocess: () => store.setState((prev) => ({ ...prev, reprocessState: dismissReprocess(prev.reprocessState) })),
+  incrementReprocessProgress: () => store.setState((prev) => ({ ...prev, reprocessState: advanceReprocess(prev.reprocessState) })),
+  setUpdateProgress: (progress) => store.setState((prev) => ({ ...prev, updateProgress: progress })),
+  setVersionInfo: (info) => store.setState((prev) => ({ ...prev, versionInfo: info })),
+  setDevState: (state) => { if (store.get().devStatePaused) return; store.setState((prev) => ({ ...prev, devState: state })); },
+  toggleDevStatePause: () => store.setState((prev) => ({ ...prev, devStatePaused: !prev.devStatePaused })),
+  setDisplayUnits: (unit, temperatureUnit) => store.setState((prev) => ({ ...prev, unitSystem: unit, temperatureUnit })),
 }));
+
+export function useTelemetryStore<T>(selector: (state: TelemetryState) => T): T {
+  return useSelector(telemetryStore, selector, { compare: Object.is });
+}

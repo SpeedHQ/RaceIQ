@@ -1,22 +1,21 @@
-import { deadReckonIRacingPosition } from "@shared/racing/tracks/path";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
-import type { TelemetryPacket } from "@shared/telemetry/types";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useGameId } from "@/stores/game";
+import { advanceLiveTrackPosition, type LiveTrackSample, liveTrackSampleFromView } from "./live-track-sample";
 import { drawLiveTrack, type Point, type TrackBoundaryData } from "./draw-live-track";
 
 interface Props {
-  packet: TelemetryPacket | null;
-  /** Live Tuning Dashboard: transient issues to plot as markers along the track,
-   *  positioned by their distanceFrac. Omitted/undefined elsewhere. */
+  view: LiveTelemetryView | null;
+  /** Live Tuning Dashboard issues positioned by canonical lap fraction. */
   issues?: TuneIssue[];
 }
 
-export function LiveTrackMap({ packet, issues }: Props) {
-  const gameId = useGameId();
+export function LiveTrackMap({ view, issues }: Props) {
+  const sample = useMemo(() => (view ? liveTrackSampleFromView(view) : null), [view]);
+  const gameId = sample?.simulator ?? null;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [noOutline, setNoOutline] = useState(false);
@@ -37,14 +36,14 @@ export function LiveTrackMap({ packet, issues }: Props) {
   const liveTraceRef = useRef<Point[]>([]);
   const lastTracePos = useRef<Point | null>(null);
   const deadReckonedPosRef = useRef<Point | null>(null);
-  const deadReckonedPacketRef = useRef<TelemetryPacket | null>(null);
+  const previousSampleRef = useRef<LiveTrackSample | null>(null);
   const deadReckonedLapRef = useRef<number | null>(null);
   const traceMinDist = 3;
 
-  // Auto-detect track changes from packet.TrackOrdinal and fetch outline
+  // Auto-detect track changes from canonical identity and fetch outline.
   useEffect(() => {
-    if (!packet?.TrackOrdinal) return;
-    const trackOrd = packet.TrackOrdinal;
+    if (sample?.trackOrdinal === undefined) return;
+    const trackOrd = sample.trackOrdinal;
     if (trackOrd === lastTrackOrdRef.current) return;
     lastTrackOrdRef.current = trackOrd;
 
@@ -52,7 +51,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
     liveTraceRef.current = [];
     lastTracePos.current = null;
     deadReckonedPosRef.current = null;
-    deadReckonedPacketRef.current = null;
+    previousSampleRef.current = null;
     deadReckonedLapRef.current = null;
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
@@ -105,15 +104,15 @@ export function LiveTrackMap({ packet, issues }: Props) {
         setStartYaw(null);
         setNoOutline(true);
       });
-  }, [packet?.TrackOrdinal, gameId]);
+  }, [gameId, sample?.trackOrdinal]);
 
   // Re-fetch outline on lap completion if we don't have a recorded one yet.
   // The server may have just recorded the first lap trace.
   // Also re-fetch boundaries (calibration may have completed after a lap).
   useEffect(() => {
-    if (!packet) return;
+    if (!sample) return;
     const trackOrd = lastTrackOrdRef.current;
-    if (!trackOrd) return;
+    if (trackOrd === null) return;
 
     if (!gameId) return;
     if (!isRecorded) {
@@ -133,6 +132,8 @@ export function LiveTrackMap({ packet, issues }: Props) {
     }
 
     // Re-fetch boundaries — calibration may now provide game-space coords
+    // Boundary state is intentionally not an effect dependency: a response
+    // must not trigger another fetch before the next lap checks calibration.
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
       client.api["track-boundaries"][":ordinal"]
         .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
@@ -142,69 +143,52 @@ export function LiveTrackMap({ packet, issues }: Props) {
         }) // eslint-disable-line @typescript-eslint/no-explicit-any
         .catch(() => {});
     }
-  }, [packet?.LapNumber, gameId]);
+  }, [gameId, isRecorded, sample?.lapNumber]);
 
   // Track distance at lap boundaries for position estimation
   useEffect(() => {
-    if (!packet) return;
-    const d = lapDistRef.current;
-    if (packet.LapNumber !== d.lastLap) {
-      // Lap boundary: record total distance of completed lap, reset start
-      if (d.lastLap >= 0 && d.startDist > 0) {
-        const completedDist = packet.DistanceTraveled - d.startDist;
-        if (completedDist > 50) {
-          d.totalDist = completedDist;
-        }
+    if (sample?.lapNumber === undefined || sample.distanceM === undefined) return;
+    const distance = lapDistRef.current;
+    if (sample.lapNumber !== distance.lastLap) {
+      if (distance.lastLap >= 0 && distance.startDist > 0) {
+        const completedDistanceM = sample.distanceM - distance.startDist;
+        if (completedDistanceM > 50) distance.totalDist = completedDistanceM;
       }
-      d.startDist = packet.DistanceTraveled;
-      d.lastLap = packet.LapNumber;
+      distance.startDist = sample.distanceM;
+      distance.lastLap = sample.lapNumber;
     }
-  }, [packet?.LapNumber, packet?.DistanceTraveled]);
+  }, [sample?.distanceM, sample?.lapNumber]);
 
-  // Collect real positions when available. iRacing deliberately publishes no
-  // world position, so dead-reckon speed along heading while the first lap is
-  // being built. Once an outline exists, native LapDistPct takes over.
+  // Build a live trace from canonical world position when available. When it is
+  // unavailable, dead-reckon from canonical speed and yaw without simulator switches.
   useEffect(() => {
-    if (!packet) return;
-    let pos: Point | null = null;
-    if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
-      pos = { x: packet.PositionX, z: packet.PositionZ };
-    } else if (packet.gameId === "iracing") {
-      const previousPacket = deadReckonedPacketRef.current;
-      const lapChanged = deadReckonedLapRef.current != null && deadReckonedLapRef.current !== packet.LapNumber;
+    if (!sample) return;
+    let position = sample.positionM ?? null;
+    if (!position && sample.yawRad !== undefined && sample.speedMps !== undefined) {
+      const previousSample = previousSampleRef.current;
+      const lapChanged = deadReckonedLapRef.current !== null && deadReckonedLapRef.current !== sample.lapNumber;
       if (!deadReckonedPosRef.current || lapChanged) {
         deadReckonedPosRef.current = { x: 0, z: 0 };
         liveTraceRef.current = [];
         lastTracePos.current = null;
-      } else if (previousPacket) {
-        deadReckonedPosRef.current = deadReckonIRacingPosition(previousPacket, packet, deadReckonedPosRef.current);
+      } else if (previousSample) {
+        deadReckonedPosRef.current = advanceLiveTrackPosition(previousSample, sample, deadReckonedPosRef.current);
       }
-      deadReckonedPacketRef.current = packet;
-      deadReckonedLapRef.current = packet.LapNumber;
-      pos = deadReckonedPosRef.current;
+      position = deadReckonedPosRef.current;
     }
-    if (!pos) return;
+    previousSampleRef.current = sample;
+    deadReckonedLapRef.current = sample.lapNumber ?? null;
+    if (!position) return;
     const last = lastTracePos.current;
-
-    if (last) {
-      const dx = pos.x - last.x;
-      const dz = pos.z - last.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist < traceMinDist) return;
-    }
-
-    liveTraceRef.current.push(pos);
-    lastTracePos.current = pos;
-
-    // Cap at 2000 points (enough for most tracks)
-    if (liveTraceRef.current.length > 2000) {
-      liveTraceRef.current.shift();
-    }
-  }, [packet]);
+    if (last && Math.hypot(position.x - last.x, position.z - last.z) < traceMinDist) return;
+    liveTraceRef.current.push(position);
+    lastTracePos.current = position;
+    if (liveTraceRef.current.length > 2000) liveTraceRef.current.shift();
+  }, [sample]);
 
   // Redraw
   useEffect(() => {
-    drawLiveTrack({ canvasRef, packet, outline, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
+    drawLiveTrack({ canvasRef, sample, outline, noOutline, isRecorded, startYaw, sectors, boundaries, issues, liveTraceRef, deadReckonedPosRef, lapDistRef });
   });
 
   async function handleDeleteMap() {
@@ -219,7 +203,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
       liveTraceRef.current = [];
       lastTracePos.current = null;
       deadReckonedPosRef.current = null;
-      deadReckonedPacketRef.current = null;
+      previousSampleRef.current = null;
       deadReckonedLapRef.current = null;
     } catch {}
   }

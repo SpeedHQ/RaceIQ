@@ -13,15 +13,17 @@ export type ComparisonPayload = {
     brakeB: number[];
     rpmA: number[];
     rpmB: number[];
-    tireWearA: number[];
-    tireWearB: number[];
+    tireWearA?: number[];
+    tireWearB?: number[];
   };
   timeDelta: number[];
 };
 
 export async function getDistinctPair(request: APIRequestContext, gameId: GameId): Promise<SeededLapPair> {
   const laps = await getSeededLaps(request, gameId);
-  for (const lapA of laps.filter((lap) => lap.isValid)) {
+  const firstLaps = laps.filter((lap) => lap.isValid);
+  const fallbackLaps = laps.filter((lap) => lap.lapTime >= 30);
+  for (const lapA of firstLaps.length > 0 ? firstLaps : fallbackLaps) {
     for (const lapB of laps) {
       if (lapB.id === lapA.id || lapB.lapTime < 30 || lapB.trackOrdinal !== lapA.trackOrdinal || lapB.carOrdinal !== lapA.carOrdinal) {
         continue;

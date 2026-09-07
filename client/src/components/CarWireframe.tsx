@@ -2,9 +2,11 @@ import { useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { tryGetGame } from "@shared/games/registry";
 import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { ChevronDownIcon } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
+import type { TrackMapBoundaries } from "./analyse/track-map/types";
 import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -16,11 +18,12 @@ import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from
 import { useGameId } from "../stores/game";
 import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 import { Button } from "./ui/button";
+import { DropdownMenu } from "./ui/DropdownMenu";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
-useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
-useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");
+useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
+useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
@@ -42,7 +45,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
-  boundaries?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  boundaries?: Pick<TrackMapBoundaries, "leftEdge" | "rightEdge" | "raceLine"> | null;
   carOrdinal?: number;
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;
@@ -80,7 +83,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
-  const units = useUnits();
+  const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;
@@ -99,7 +102,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   const toggles: ViewToggles = {
     ...DEFAULT_TOGGLES,
     ...storedToggles,
-    ...(hideControls ? { wheelInfo: false } : {}),
+    ...(hideControls ? { wheelInfo: false, inputs: true } : {}),
   };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
@@ -107,8 +110,25 @@ export const CarWireframe = React.memo(function CarWireframe({
     if (!boundaries) return null;
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
-
-  const toggle = (key: keyof ViewToggles) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+  const viewToggleItems = [
+    { key: "springs" as const, label: m.carwire_springs(), available: true },
+    { key: "trails" as const, label: m.carwire_trails(), available: true },
+    { key: "inputs" as const, label: m.carwire_inputs(), available: true },
+    { key: "track" as const, label: m.carwire_track(), available: true },
+    { key: "racingLine" as const, label: m.overlay_racing_line(), available: Array.isArray(flippedBoundaries?.raceLine) && flippedBoundaries.raceLine.length > 1 },
+    { key: "grid" as const, label: m.carwire_grid(), available: true },
+    { key: "drivetrain" as const, label: m.carwire_drive(), available: true },
+    { key: "wheelInfo" as const, label: m.carwire_tire_info(), available: true },
+  ]
+    .filter((item) => item.available)
+    .map((item) => ({
+      type: "checkbox" as const,
+      key: item.key,
+      label: item.label,
+      checked: toggles[item.key],
+      onCheckedChange: (checked: boolean) => setToggles((previous) => ({ ...previous, [item.key]: checked })),
+    }));
+  const anyViewToggle = viewToggleItems.some((item) => item.checked);
 
   const fpsRef = useRef<HTMLSpanElement>(null);
   const fpsFrames = useRef(0);
@@ -222,7 +242,6 @@ export const CarWireframe = React.memo(function CarWireframe({
           modelOffsetX={modelOffsetX}
           fmtTemp={fmtTemp}
           hideModelWheels={!minimal}
-          mergeBodyMeshes={!minimal}
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
@@ -237,7 +256,7 @@ export const CarWireframe = React.memo(function CarWireframe({
 
       {/* View toggles */}
       {!hideControls && (
-        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
+        <div className="absolute top-2 left-2 flex max-w-[65%] flex-wrap gap-1">
           <ToggleButton
             label={toggles.solid === "solid" ? m.carwire_solid() : toggles.solid === "hidden" ? m.carwire_hidden() : m.carwire_wire()}
             active={toggles.solid !== "wire"}
@@ -248,17 +267,23 @@ export const CarWireframe = React.memo(function CarWireframe({
               }))
             }
           />
-          {!minimal && <ToggleButton label={m.carwire_springs()} active={toggles.springs} onClick={() => toggle("springs")} />}
-          {!minimal && <ToggleButton label={m.carwire_trails()} active={toggles.trails} onClick={() => toggle("trails")} />}
-          {!minimal && <ToggleButton label={m.carwire_inputs()} active={toggles.inputs} onClick={() => toggle("inputs")} />}
-          {!minimal && <ToggleButton label={m.carwire_track()} active={toggles.track} onClick={() => toggle("track")} />}
-          {!minimal && <ToggleButton label={m.carwire_grid()} active={toggles.grid} onClick={() => toggle("grid")} />}
-          {!minimal && <ToggleButton label={m.carwire_drive()} active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
-          {!minimal && <ToggleButton label={m.carwire_tire_info()} active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
-          {/* Camber toggle intentionally not rendered: ACC is the only game
-            with camber in telemetry and Kunos currently ships camberRAD[4]
-            as a zeroed stub. Re-enable when the game writes real values. */}
-          {minimal && <ToggleButton label={m.carwire_dims()} active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
+          {!minimal && (
+            <DropdownMenu
+              align="left"
+              trigger={
+                <Button
+                  className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
+                    anyViewToggle ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  {m.carwire_view()}
+                  <ChevronDownIcon data-icon="inline-end" />
+                </Button>
+              }
+              items={viewToggleItems}
+            />
+          )}
+          {minimal && <ToggleButton label={m.carwire_dims()} active={toggles.dimensions} onClick={() => setToggles((previous) => ({ ...previous, dimensions: !previous.dimensions }))} />}
         </div>
       )}
 

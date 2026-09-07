@@ -11,7 +11,7 @@ import { TuneReviewDashboard } from "./TuneReviewDashboard";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
- * (/​<game>/experiments/<id>/review?versionId=5) rather than a tab inside the tuning
+ * (/<game>/experiments/<id>/review?versionId=5) rather than a tab inside the tuning
  * workspace. When `versionId` is present the reviewed laps are derived from it —
  * laps are stamped with their experiment_version_id server-side, so the set is fully
  * recoverable from the id and does NOT need to travel in the URL. `lapIds` is

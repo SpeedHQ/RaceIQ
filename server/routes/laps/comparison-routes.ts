@@ -3,10 +3,17 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
-import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
-import { getLapById } from "../../db/lap-read-queries";
+import { getLapsByIds } from "../../db/lap-read-queries";
+import { resolveTelemetryReplay } from "../../telemetry/replay";
+import { loadRawCaptureIdentity } from "../../session-capture/identity";
+import {
+  comparisonAlignmentIndexCacheGet,
+  comparisonAlignmentIndexCacheSet,
+  comparisonCacheGet,
+  comparisonCacheSet,
+} from "../../db/telemetry-replay-storage";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
-import { compareLaps } from "../../lap-analysis/comparison";
+import { compareLaps, prepareComparisonAlignmentIndex } from "../../lap-analysis/comparison";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
@@ -25,29 +32,79 @@ import {
   resolveActiveThread,
 } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
-import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
+import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema, ComparisonRangeQuerySchema } from "./support";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
+
+async function loadComparisonLaps(id1: number, id2: number) {
+  const laps = await getLapsByIds([id1, id2], { parallelSessionDecodes: true });
+  const byId = new Map(laps.map((lap) => [lap.id, lap]));
+  return [byId.get(id1) ?? null, byId.get(id2) ?? null] as const;
+}
+function comparisonReplaySource(lap: {
+  id: number;
+  sessionId: number;
+  createdAt: string;
+  gameId: GameId;
+  catalogVersion?: string;
+  catalogHash?: string;
+  catalogSchemaVersion?: string;
+  parserVersion?: string;
+  resolverVersion?: string;
+  derivationVersion?: string;
+  rawFile?: string | null;
+  rawByteOffset?: number | null;
+  rawFrameCount?: number | null;
+}) {
+  const versionIdentity =
+    lap.catalogVersion && lap.catalogHash && lap.catalogSchemaVersion && lap.parserVersion && lap.resolverVersion && lap.derivationVersion
+      ? {
+          catalogVersion: lap.catalogVersion,
+          catalogHash: lap.catalogHash,
+          catalogSchemaVersion: lap.catalogSchemaVersion,
+          parserVersion: lap.parserVersion,
+          resolverVersion: lap.resolverVersion,
+          derivationVersion: lap.derivationVersion,
+        }
+      : undefined;
+  return {
+    id: lap.id,
+    sessionId: lap.sessionId,
+    createdAt: lap.createdAt,
+    gameId: lap.gameId,
+    rawFile: (lap as typeof lap & { rawFile?: string | null }).rawFile ?? null,
+    rawByteOffset: (lap as typeof lap & { rawByteOffset?: number | null }).rawByteOffset ?? null,
+    rawFrameCount: (lap as typeof lap & { rawFrameCount?: number | null }).rawFrameCount ?? null,
+    versionIdentity,
+  };
+}
 
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const lapA = await getLapById(id1);
+    const cached = comparisonCacheGet(id1, id2);
+    if (cached !== undefined) {
+      c.header("Content-Type", "application/json; charset=UTF-8");
+      c.header("X-RaceIQ-Cache", "HIT");
+      return c.body(cached);
+    }
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-
-    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
-
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+
+    const cachedAlignmentIndex = comparisonAlignmentIndexCacheGet(id1, id2);
+    const alignmentIndex = cachedAlignmentIndex ?? prepareComparisonAlignmentIndex(lapA.telemetry, lapB.telemetry);
+    if (!cachedAlignmentIndex) comparisonAlignmentIndexCacheSet(id1, id2, alignmentIndex);
 
     const trackOrdinal = lapA.trackOrdinal ?? 0;
     const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
       saveDetected: true,
     });
-    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+    const result = compareLaps(lapA.telemetry, lapB.telemetry, corners, { alignmentIndex });
     const semanticIds = [
       "motion.position-x",
       "motion.position-z",
@@ -60,21 +117,32 @@ export const comparisonRoutes = new Hono()
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;
-    const [replayA, replayB] = await Promise.all([
-      queryLapTelemetryBySemanticId(id1, semanticIds),
-      queryLapTelemetryBySemanticId(id2, semanticIds),
+    const sourceA = comparisonReplaySource({ ...lapA, gameId: lapA.gameId as GameId });
+    const sourceB = comparisonReplaySource({ ...lapB, gameId: lapB.gameId as GameId });
+    const [rawCaptureA, rawCaptureB] = await Promise.all([
+      sourceA.gameId === "iracing" && sourceA.rawFile ? loadRawCaptureIdentity(sourceA.rawFile) : undefined,
+      sourceB.gameId === "iracing" && sourceB.rawFile ? loadRawCaptureIdentity(sourceB.rawFile) : undefined,
     ]);
+    const [replayA, replayB] = [
+      resolveTelemetryReplay(id1, sourceA, lapA.telemetry, semanticIds, rawCaptureA),
+      resolveTelemetryReplay(id2, sourceB, lapB.telemetry, semanticIds, rawCaptureB),
+    ];
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
-    const toSamples = (replay: typeof replayA) =>
-      replay.envelopes.map((envelope) => ({
-        sequence: envelope.sequence.toString(),
-        observedAtMs: envelope.observedAt.domain === "monotonic" ? Number(envelope.observedAt.nanoseconds) / 1_000_000 : envelope.observedAt.milliseconds,
-        values: Object.fromEntries(envelope.values.filter((entry) => entry.state === "ok").map((entry) => [entry.semanticId, entry.value])),
-      }));
-
-    return c.json({
+    const hasTireWearA = replayA.envelopes.some((envelope) =>
+      envelope.values.some(
+        (entry) =>
+          entry.semanticId === "tires.tire-wear" && entry.state === "ok",
+      ),
+    );
+    const hasTireWearB = replayB.envelopes.some((envelope) =>
+      envelope.values.some(
+        (entry) =>
+          entry.semanticId === "tires.tire-wear" && entry.state === "ok",
+      ),
+    );
+    const body = JSON.stringify({
       lapA: {
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
@@ -99,17 +167,85 @@ export const comparisonRoutes = new Hono()
         throttleB: result.lapB.throttle,
         brakeA: result.lapA.brake,
         brakeB: result.lapB.brake,
+        steerA: result.lapA.steer,
+        steerB: result.lapB.steer,
+        gearA: result.lapA.gear,
+        gearB: result.lapB.gear,
         rpmA: result.lapA.rpm,
         rpmB: result.lapB.rpm,
-        tireWearA: result.lapA.tireWear,
-        tireWearB: result.lapB.tireWear,
+        positionXA: result.lapA.posX,
+        positionXB: result.lapB.posX,
+        positionZA: result.lapA.posZ,
+        positionZB: result.lapB.posZ,
+        yawA: result.lapA.yaw,
+        yawB: result.lapB.yaw,
+        elapsedTimeA: result.lapA.elapsedTime,
+        elapsedTimeB: result.lapB.elapsedTime,
+        ...(hasTireWearA ? { tireWearA: result.lapA.tireWear } : {}),
+        ...(hasTireWearB ? { tireWearB: result.lapB.tireWear } : {}),
       },
       timeDelta: result.timeDelta,
       corners: result.cornerDeltas,
-      telemetryA: toSamples(replayA),
-      telemetryB: toSamples(replayB),
       gameId: lapA.gameId,
     });
+    comparisonCacheSet(id1, id2, body);
+    c.header("Content-Type", "application/json; charset=UTF-8");
+    c.header("X-RaceIQ-Cache", "MISS");
+    return c.body(body);
+  })
+  .get("/api/laps/:id1/compare/:id2/range", zValidator("param", CompareParamsSchema), zValidator("query", ComparisonRangeQuerySchema), async (c) => {
+    const { id1, id2 } = c.req.valid("param");
+    const { step, start, end } = c.req.valid("query");
+    if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
+
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
+    if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+    if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+    if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
+    const cachedAlignmentIndex = comparisonAlignmentIndexCacheGet(id1, id2);
+    const alignmentIndex = cachedAlignmentIndex ?? prepareComparisonAlignmentIndex(lapA.telemetry, lapB.telemetry);
+    if (!cachedAlignmentIndex) comparisonAlignmentIndexCacheSet(id1, id2, alignmentIndex);
+    const result = compareLaps(lapA.telemetry, lapB.telemetry, [], {
+      alignmentIndex,
+      gridStepMeters: step,
+      distanceRange: { start, end },
+    });
+    const alignmentCacheHeader = cachedAlignmentIndex ? "HIT" : "MISS";
+    const traces = {
+      distance: result.distances,
+      sourceIndicesA: result.lapA.sourceIndices,
+      sourceIndicesB: result.lapB.sourceIndices,
+      speedA: result.lapA.speed,
+      speedB: result.lapB.speed,
+      throttleA: result.lapA.throttle,
+      throttleB: result.lapB.throttle,
+      brakeA: result.lapA.brake,
+      brakeB: result.lapB.brake,
+      steerA: result.lapA.steer,
+      steerB: result.lapB.steer,
+      gearA: result.lapA.gear,
+      gearB: result.lapB.gear,
+      rpmA: result.lapA.rpm,
+      rpmB: result.lapB.rpm,
+      positionXA: result.lapA.posX,
+      positionXB: result.lapB.posX,
+      positionZA: result.lapA.posZ,
+      positionZB: result.lapB.posZ,
+      yawA: result.lapA.yaw,
+      yawB: result.lapB.yaw,
+      elapsedTimeA: result.lapA.elapsedTime,
+      elapsedTimeB: result.lapB.elapsedTime,
+      tireWearA: result.lapA.tireWear,
+      tireWearB: result.lapB.tireWear,
+    };
+    const body = JSON.stringify({
+      distanceStart: result.distances[0] ?? start,
+      distanceEnd: result.distances.at(-1) ?? end,
+      stepMeters: result.distances.length > 1 ? result.distances[1] - result.distances[0] : step,
+      traces,
+      timeDelta: result.timeDelta,
+    });
+    return c.body(body, 200, { "X-RaceIQ-Alignment-Cache": alignmentCacheHeader });
   })
 
   .get("/api/laps/:id1/compare/:id2/inputs-analyse/status", zValidator("param", CompareParamsSchema), (c) => {
@@ -140,9 +276,8 @@ export const comparisonRoutes = new Hono()
       if (cacheOnly) return c.json({ analysis: null, cached: false });
     }
 
-    const lapA = await getLapById(id1);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
@@ -327,9 +462,8 @@ export const comparisonRoutes = new Hono()
     const { messages } = c.req.valid("json");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const lapA = await getLapById(id1);
+    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 

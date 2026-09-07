@@ -2,9 +2,10 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
@@ -35,17 +36,18 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; onClose: () => void }) {
+export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
 
   const stage = updateProgress?.stage ?? null;
+  const releasesToDisplay = currentReleaseNotes ? [...newReleases, { version: currentVersion, notes: currentReleaseNotes, date: currentReleaseDate ?? "" }] : newReleases;
   const percent = updateProgress?.percent ?? 0;
 
   const handleInstall = async () => {
     setError(null);
-    useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
+    telemetryStore.actions.setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
@@ -54,7 +56,7 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : m.update_failed());
-      useTelemetryStore.getState().setUpdateProgress(null);
+      telemetryStore.actions.setUpdateProgress(null);
     }
   };
 
@@ -80,25 +82,19 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4">
-      {!isUpdating && <button type="button" aria-label={m.common_close()} className="absolute inset-0 cursor-default" onClick={onClose} />}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="update-modal-title"
-        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl"
-      >
+    <Dialog open onOpenChange={(open) => { if (!open && !isUpdating) onClose(); }}>
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto gap-0 bg-app-bg p-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-          <h2 id="update-modal-title" className="text-sm font-semibold text-app-text">
+        <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-4">
+          <DialogTitle id="update-modal-title" className="text-sm font-semibold text-app-text">
             {stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}
-          </h2>
+          </DialogTitle>
           {!isUpdating && (
             <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
               <X className="size-4" />
             </Button>
           )}
-        </div>
+        </DialogHeader>
 
         {/* Body */}
         <div className="px-5 py-5 space-y-5">
@@ -113,9 +109,9 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
                   <ReleaseNotes notes={fullReleaseNotes} />
                 </div>
               ) : (
-                newReleases.length > 0 &&
+                releasesToDisplay.length > 0 &&
                 (() => {
-                  const [latest, ...older] = newReleases;
+                  const [latest, ...older] = releasesToDisplay;
                   return (
                     <div className="max-h-52 overflow-y-auto space-y-3">
                       <div>
@@ -215,7 +211,7 @@ export function UpdateModal({ version, newReleases, fullReleaseNotes, onClose }:
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

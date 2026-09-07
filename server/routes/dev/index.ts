@@ -4,6 +4,7 @@ import { initServerGameAdapters } from "../../games/init";
 import { importRoutes } from "./import-routes";
 import { recordingPacketRoutes, recordingRoutes } from "./recording-routes";
 import { replayRoutes } from "./replay-routes";
+import { modelRoutes } from "./model-routes";
 
 // Initialize game adapters on module load, exactly once for the dev route tree.
 initGameAdapters();
@@ -14,4 +15,5 @@ export const devRoutes = new Hono()
   .route("/", recordingRoutes)
   .route("/", importRoutes)
   .route("/", replayRoutes)
-  .route("/", recordingPacketRoutes);
+  .route("/", recordingPacketRoutes)
+  .route("/", modelRoutes);

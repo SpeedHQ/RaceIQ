@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import type { VersionInfo } from "@/stores/telemetry";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { ProcessingMaintenance } from "../ProcessingMaintenance";
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
@@ -19,11 +19,11 @@ export function UpdatesSection() {
     try {
       const checkResponse = await client.api.update.check.$post();
       if (!checkResponse.ok) throw new Error(`update check failed: ${checkResponse.status}`);
-      // Refetch version info into Zustand
+      // Refetch version info into TanStack Store
       const res = await client.api.version.$get();
       if (!res.ok) throw new Error(`version request failed: ${res.status}`);
       const data = await res.json();
-      useTelemetryStore.getState().setVersionInfo(data as VersionInfo);
+      telemetryStore.actions.setVersionInfo(data as VersionInfo);
     } catch {
       setError(true);
     } finally {
@@ -33,13 +33,13 @@ export function UpdatesSection() {
 
   const handleInstall = async () => {
     setError(false);
-    useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
+    telemetryStore.actions.setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
       const response = await client.api.update.apply.$post();
       if (!response.ok) throw new Error(`update apply failed: ${response.status}`);
     } catch {
       setError(true);
-      useTelemetryStore.getState().setUpdateProgress(null);
+      telemetryStore.actions.setUpdateProgress(null);
     }
   };
 

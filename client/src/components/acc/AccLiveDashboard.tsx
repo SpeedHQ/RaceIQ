@@ -46,6 +46,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
             pressureOptimal={pressureOptimal}
             brakeTempThresholds={tryGetGame(gameId)?.brakeTempThresholds}
             compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
+            healthAvailable={view.tires.wear !== undefined}
           />
         </div>
 

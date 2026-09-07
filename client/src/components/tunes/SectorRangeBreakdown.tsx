@@ -1,5 +1,5 @@
 import { tireTempColor } from "@/lib/vehicle-dynamics";
-import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import { type SemanticTuneSample, type TuneWheelMetric, wheelValue } from "./semantic-tune";
 
 interface SectorTimes {
   times: number[];
@@ -16,7 +16,7 @@ export interface MetricDef {
   unit: string;
   accent: string;
   semantic?: boolean; // colour the avg by hot/cold bands (tyre temp only)
-  sel: Record<CornerKey, (p: TelemetryPacket) => number | undefined>;
+  field: TuneWheelMetric;
 }
 
 export const METRICS: MetricDef[] = [
@@ -26,30 +26,34 @@ export const METRICS: MetricDef[] = [
     unit: "°C",
     accent: "var(--metric-tire-temperature)",
     semantic: true,
-    sel: { FL: (p) => p.TireTempFL, FR: (p) => p.TireTempFR, RL: (p) => p.TireTempRL, RR: (p) => p.TireTempRR },
+    field: "tireTemperatureC",
   },
   {
     key: "brakeTemp",
     label: "Brake temp",
     unit: "°C",
     accent: "var(--metric-brake-temperature)",
-    sel: { FL: (p) => p.BrakeTempFrontLeft, FR: (p) => p.BrakeTempFrontRight, RL: (p) => p.BrakeTempRearLeft, RR: (p) => p.BrakeTempRearRight },
+    field: "brakeTemperatureC",
   },
   {
     key: "pressure",
     label: "Pressure",
     unit: "psi",
     accent: "var(--metric-pressure)",
-    sel: { FL: (p) => p.TirePressureFrontLeft, FR: (p) => p.TirePressureFrontRight, RL: (p) => p.TirePressureRearLeft, RR: (p) => p.TirePressureRearRight },
+    field: "tirePressurePsi",
   },
   {
     key: "wear",
     label: "Wear",
     unit: "%",
     accent: "var(--metric-wear)",
-    sel: { FL: (p) => p.TireWearFL, FR: (p) => p.TireWearFR, RL: (p) => p.TireWearRL, RR: (p) => p.TireWearRR },
+    field: "tireWearFraction",
   },
 ];
+export function tuneMetricValue(sample: SemanticTuneSample, metric: MetricDef, index: number): number | undefined {
+  const value = wheelValue(sample, metric.field, index);
+  return value === undefined || metric.key !== "wear" ? value : value * 100;
+}
 
 export interface Range {
   min: number;
@@ -66,58 +70,54 @@ export interface SectorRangeModel {
 }
 
 /** Compute per-sector corner ranges for a metric, on a shared domain. */
-export function buildSectorRanges(telemetry: TelemetryPacket[], sectorTimes: SectorTimes | null, metric: MetricDef): SectorRangeModel | null {
+export function buildSectorRanges(telemetry: SemanticTuneSample[], sectorTimes: SectorTimes | null, metric: MetricDef): SectorRangeModel | null {
   if (telemetry.length < 5) return null;
 
-  const n = telemetry.length;
+  const sampleCount = telemetry.length;
   const sectorCount = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
   const rawBoundaries =
-    sectorTimes?.boundaryIndices.length === sectorCount - 1 ? sectorTimes.boundaryIndices : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * n) / sectorCount));
+    sectorTimes?.boundaryIndices.length === sectorCount - 1
+      ? sectorTimes.boundaryIndices
+      : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * sampleCount) / sectorCount));
   const boundaries: number[] = [];
   for (let index = 0; index < rawBoundaries.length; index++) {
     const previous = boundaries[index - 1] ?? 0;
     const remaining = rawBoundaries.length - index;
-    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), n - remaining));
+    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), sampleCount - remaining));
   }
-  const sliceBounds = [0, ...boundaries, n];
+  const sliceBounds = [0, ...boundaries, sampleCount];
   const slices = Array.from({ length: sectorCount }, (_, index) => telemetry.slice(sliceBounds[index], sliceBounds[index + 1]));
-  const skipZero = metric.key !== "wear"; // wear of 0 is valid; temp of 0 = unpopulated
+  const skipZero = metric.key !== "wear";
+  const sectors = slices.map((frames) => Object.fromEntries(CORNERS.map((corner, index) => [corner, rangeOf(frames, metric, index, skipZero)])) as Record<CornerKey, Range>);
 
-  const sectors = slices.map((frames) => Object.fromEntries(CORNERS.map((c) => [c, rangeOf(frames, metric.sel[c], skipZero)])) as Record<CornerKey, Range>);
-
-  let gMin = Number.POSITIVE_INFINITY;
-  let gMax = Number.NEGATIVE_INFINITY;
-  for (const sec of sectors) {
-    for (const c of CORNERS) {
-      const r = sec[c];
-      if (r.n === 0) continue;
-      if (r.min < gMin) gMin = r.min;
-      if (r.max > gMax) gMax = r.max;
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  for (const sector of sectors) {
+    for (const corner of CORNERS) {
+      const range = sector[corner];
+      if (range.n === 0) continue;
+      minimum = Math.min(minimum, range.min);
+      maximum = Math.max(maximum, range.max);
     }
   }
-  if (!Number.isFinite(gMin)) return { sectors, domain: [0, 1] };
-  const pad = Math.max(metric.key === "wear" ? 1 : 4, (gMax - gMin) * 0.15);
-  return { sectors, domain: [Math.floor(gMin - pad), Math.ceil(gMax + pad)] };
+  if (!Number.isFinite(minimum)) return { sectors, domain: [0, 1] };
+  const padding = Math.max(metric.key === "wear" ? 1 : 4, (maximum - minimum) * 0.15);
+  return { sectors, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
 
 /** Compute per-corner ranges for a metric over a whole telemetry slice (no
  *  sector split), on a shared padded domain — used by the live test dashboard
  *  where the current lap is still in progress. */
-export function buildLiveRanges(telemetry: TelemetryPacket[], metric: MetricDef): { ranges: Record<CornerKey, Range>; domain: [number, number] } | null {
+export function buildLiveRanges(telemetry: SemanticTuneSample[], metric: MetricDef): { ranges: Record<CornerKey, Range>; domain: [number, number] } | null {
   if (telemetry.length < 5) return null;
   const skipZero = metric.key !== "wear";
-  const ranges = Object.fromEntries(CORNERS.map((c) => [c, rangeOf(telemetry, metric.sel[c], skipZero)])) as Record<CornerKey, Range>;
-  let gMin = Number.POSITIVE_INFINITY;
-  let gMax = Number.NEGATIVE_INFINITY;
-  for (const c of CORNERS) {
-    const r = ranges[c];
-    if (r.n === 0) continue;
-    if (r.min < gMin) gMin = r.min;
-    if (r.max > gMax) gMax = r.max;
-  }
-  if (!Number.isFinite(gMin)) return { ranges, domain: [0, 1] };
-  const pad = Math.max(metric.key === "wear" ? 1 : 4, (gMax - gMin) * 0.15);
-  return { ranges, domain: [Math.floor(gMin - pad), Math.ceil(gMax + pad)] };
+  const ranges = Object.fromEntries(CORNERS.map((corner, index) => [corner, rangeOf(telemetry, metric, index, skipZero)])) as Record<CornerKey, Range>;
+  const populated = CORNERS.flatMap((corner) => (ranges[corner].n === 0 ? [] : [ranges[corner].min, ranges[corner].max]));
+  if (populated.length === 0) return { ranges, domain: [0, 1] };
+  const minimum = Math.min(...populated);
+  const maximum = Math.max(...populated);
+  const padding = Math.max(metric.key === "wear" ? 1 : 4, (maximum - minimum) * 0.15);
+  return { ranges, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
 
 /** Four corner bars (min→max fill, avg tick) on a shared domain. When `cursor`
@@ -182,41 +182,18 @@ export function bandColor(t: number): string {
   return tireTempColor(t, { cold: 70, warm: 100, hot: 110 });
 }
 
-function rangeOf(frames: TelemetryPacket[], sel: (p: TelemetryPacket) => number | undefined, skipZero: boolean): Range {
+function rangeOf(frames: SemanticTuneSample[], metric: MetricDef, index: number, skipZero: boolean): Range {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   let sum = 0;
-  let n = 0;
-  for (const p of frames) {
-    const v = sel(p);
-    if (v == null || !Number.isFinite(v)) continue;
-    if (skipZero && v <= 0) continue;
-    if (v < min) min = v;
-    if (v > max) max = v;
-    sum += v;
-    n++;
+  let count = 0;
+  for (const frame of frames) {
+    const value = tuneMetricValue(frame, metric, index);
+    if (value === undefined || (skipZero && value <= 0)) continue;
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+    sum += value;
+    count++;
   }
-  if (n === 0) return { min: 0, avg: 0, max: 0, n: 0 };
-  return { min, avg: sum / n, max, n };
-}
-
-import type { SemanticTuneSample } from "./semantic-tune";
-import { wheelValue } from "./semantic-tune";
-
-export function buildSemanticSectorRanges(samples: SemanticTuneSample[], sectorTimes: SectorTimes | null, metric: MetricKey): SectorRangeModel | null {
-  if (samples.length < 5) return null;
-  const ids: Record<MetricKey, keyof SemanticTuneSample["values"]> = { tyreTemp: "tire.temperature.average", brakeTemp: "brakes.brake-temp", pressure: "tires.tire-pressure", wear: "tires.tire-wear" };
-  const n = samples.length;
-  const count = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
-  const bounds = sectorTimes?.boundaryIndices.length === count - 1 ? sectorTimes.boundaryIndices : Array.from({ length: count - 1 }, (_, i) => Math.floor(((i + 1) * n) / count));
-  const slices = [0, ...bounds, n].map((start, i, a) => samples.slice(start, a[i + 1] ?? n)).slice(0, count);
-  const skipZero = metric !== "wear";
-  const ranges = (xs: SemanticTuneSample[]) => Object.fromEntries(CORNERS.map((c, i) => {
-    const vs = xs.map((s) => wheelValue(s, ids[metric], i)).filter((v): v is number => v != null && (!skipZero || v > 0));
-    return [c, vs.length ? { min: Math.min(...vs), avg: vs.reduce((a, b) => a + b, 0) / vs.length, max: Math.max(...vs), n: vs.length } : { min: 0, avg: 0, max: 0, n: 0 }];
-  })) as Record<CornerKey, Range>;
-  const sectors = slices.map(ranges); const vals = sectors.flatMap((s) => CORNERS.flatMap((c) => s[c].n ? [s[c].min, s[c].max] : []));
-  if (!vals.length) return { sectors, domain: [0, 1] };
-  const min = Math.min(...vals), max = Math.max(...vals), pad = Math.max(metric === "wear" ? 1 : 4, (max - min) * .15);
-  return { sectors, domain: [Math.floor(min - pad), Math.ceil(max + pad)] };
+  return count === 0 ? { min: 0, avg: 0, max: 0, n: 0 } : { min, avg: sum / count, max, n: count };
 }
