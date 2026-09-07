@@ -165,15 +165,15 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     const max = Math.max(...lineSpread!.spreadM, LINE_SPREAD_THRESHOLD_M);
     return [0, max * 1.15];
   }, [hasLineSpread, lineSpread]);
-  const issueAnnotations = useMemo(() => {
+  const issueMarkers = useMemo(() => {
     const seen = new Set<number>();
-    return issues.filter((issue) => {
-      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return false;
+    return issues.flatMap((issue) => {
+      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return [];
       seen.add(issue.distanceFrac);
-      return true;
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ frac: issue.distanceFrac, color }];
     });
   }, [issues]);
-  const issueFracs = issueAnnotations.map((issue) => issue.distanceFrac!);
 
   return (
     <div className="space-y-3">
@@ -182,12 +182,12 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           <div key={ch.key}>
             <Lane title={ch.label}
               bgFill="transparent"
-              annotationFracs={issueFracs}
               height={100}
               domain={ch.domain}
               cornerFracs={cornerFracs}
               cursorFrac={cursorFrac}
               onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
+              annotationMarkers={issueMarkers}
               tooltip={(f) => {
                 const score = consistencyAt(traces, f, ch.key);
                 const scoreColorValue = score == null ? "var(--app-text-dim)" : scoreColor(score);
@@ -258,9 +258,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           bgFill="transparent"
-          annotationFracs={issueFracs}
           height={120}
           domain={speedDomain}
+          annotationMarkers={issueMarkers}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
           onCursorFrac={zoomCursor}
@@ -318,11 +318,11 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           bgFill="transparent"
-          annotationFracs={issueFracs}
           height={100}
           domain={deltaDomain}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
+          annotationMarkers={issueMarkers}
           onCursorFrac={onCursorFrac}
           tooltip={(f) => {
             const withDelta = traces.filter((t) => deltas.has(t.lapId) && t.isValid);
@@ -398,9 +398,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             bgFill="transparent"
             height={90}
             domain={spreadDomain}
-            annotationFracs={issueFracs}
             cornerFracs={cornerFracs}
             cursorFrac={cursorFrac}
+            annotationMarkers={issueMarkers}
             onCursorFrac={zoomCursor}
             tooltip={(f) => {
               const spreadM = spreadValueAt(lineSpread!, f);

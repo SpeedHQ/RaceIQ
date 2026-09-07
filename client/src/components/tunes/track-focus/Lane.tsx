@@ -19,8 +19,8 @@ export interface LaneProps {
   /** Optional tooltip renderer keyed by hovered fraction. */
   tooltip?: (f: number) => React.ReactNode;
   className?: string;
-  /** Optional issue/annotation positions (0..1) drawn over timeline. */
-  annotationFracs?: number[];
+  /** Optional issue markers drawn over timeline. */
+  annotationMarkers?: Array<{ frac: number; color: string }>;
   /** Plot-area background fill. Defaults to the slate wash; pass "transparent"
    *  to let the surrounding panel show through. */
   bgFill?: string;
@@ -35,7 +35,7 @@ export interface LaneProps {
  * tracking that reports the hovered fraction up to the parent (which owns
  * the single cross-lane `cursorFrac`).
  */
-export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, title, children, tooltip, className, annotationFracs, bgFill, visibleRange, onRangeSelect, onZoomOut }: LaneProps) {
+export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, title, children, tooltip, className, annotationMarkers, bgFill, visibleRange, onRangeSelect, onZoomOut }: LaneProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [hoverFrac, setHoverFrac] = useState<number | null>(null);
@@ -70,7 +70,7 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
       <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onMouseMove={onMove} onMouseLeave={onLeave} onMouseDown={(e) => onRangeSelect && setDragStart(fracFromEvent(e))} onDoubleClick={() => onZoomOut?.()}>
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill ?? "var(--app-surface-alt)"} fillOpacity={bgFill == null ? 0.35 : 1} rx={4} />
         {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" opacity={0.9} />)}
-        {annotationFracs?.map((f, index) => <line key={`annotation-${index}-${f}`} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" strokeWidth={1} opacity={0.9} />)}
+        {annotationMarkers?.map((marker, index) => <line key={`annotation-${index}-${marker.frac}`} x1={x(marker.frac)} x2={x(marker.frac)} y1={y0} y2={y1} stroke={marker.color} strokeDasharray="2 4" strokeWidth={1} opacity={0.9} />)}
         {children({ x, y, x0, x1, y0, y1 })}
         {cursorFrac != null && <line x1={x(cursorFrac)} x2={x(cursorFrac)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />}
         {dragStart != null && dragFrac != null && <rect x={Math.min(x(dragStart), x(dragFrac))} y={y0} width={Math.abs(x(dragFrac) - x(dragStart))} height={y1-y0} fill="var(--app-accent)" opacity={0.12} />}
