@@ -51,10 +51,10 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
     new MutationObserver((records) => { mutations += records.length; }).observe(grid, { childList: true, subtree: true, characterData: true });
     (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations = () => mutations;
   });
-  await page.getByTitle("Play (Space)").click();
+  await page.getByRole("button", { name: "Play playback", exact: true }).click();
   await page.waitForTimeout(2000);
   // Timeline rerenders every frame; dispatch pause without waiting on replaced DOM.
-  await page.getByTitle("Pause (Space)").evaluate((button) => (button as HTMLButtonElement).click());
+  await page.getByRole("button", { name: "Pause playback", exact: true }).evaluate((button) => (button as HTMLButtonElement).click());
   const pausedFrame = Number(await slider.getAttribute("aria-valuenow"));
   expect(await page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
   expect(pausedFrame).toBeGreaterThan(startFrame);
