@@ -11,7 +11,7 @@ import { useTrackName } from "@/hooks/track-queries";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, sessionId }: { gameId: GameId; trackOrdinal?: number; carOrdinal?: number; sessionId?: number }) {
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: "/$gameid/analyse" });
   const search = useSearch({ strict: false }) as { laps?: string; view?: string; trackTab?: string };
   const { data: sessions = [], isLoading: sessionsLoading } = useSessions();
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
@@ -33,18 +33,27 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
     return reviewLaps.filter((lap) => requestedLapIdSet.has(lap.id));
   }, [reviewLaps, search.laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(comparisonCandidates).chosen, [comparisonCandidates]);
-  const canonicalLaps = evaluationLaps.map((lap) => lap.id).join(",");
+  const sessionRedirectId = useMemo(() => {
+    if (sessionId != null) return null;
+    const requestedLapIds = parseAnalyseLapIds(search.laps);
+    if (!requestedLapIds || requestedLapIds.length === 0 || comparisonCandidates.length !== requestedLapIds.length) return null;
+    const candidateSessionId = comparisonCandidates[0]?.sessionId;
+    return candidateSessionId != null && comparisonCandidates.every((lap) => lap.sessionId === candidateSessionId) ? candidateSessionId : null;
+  }, [comparisonCandidates, search.laps, sessionId]);
+  useEffect(() => {
+    if (sessionRedirectId == null) return;
+    void navigate({ search: { session: sessionRedirectId } });
+  }, [navigate, sessionRedirectId]);
   const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? `Track ${resolvedTrackOrdinal ?? "?"}`;
   const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
-  const backToPicker = () => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, session: undefined, track: undefined, car: undefined, lap: undefined, laps: undefined }) } as never);
-
-  useEffect(() => {
-    if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading || evaluationLaps.length === 0 || sessionId != null) return;
-    if (search.laps === canonicalLaps) return;
-    void navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, track: resolvedTrackOrdinal, car: resolvedCarOrdinal, lap: undefined, laps: canonicalLaps }) } as never);
-  }, [canonicalLaps, carLoading, evaluationLaps.length, lapsLoading, namesLoading, navigate, resolvedCarOrdinal, resolvedTrackOrdinal, search.laps, sessionId, sessionsLoading, trackLoading]);
-
+  const backToPicker = () => void navigate({ search: { session: undefined, track: undefined, car: undefined, lap: undefined, laps: undefined } });
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading) return <div role="status" aria-live="polite" className="p-8 text-sm text-app-text-muted">Loading Analyse review…</div>;
+
+
+  if (sessionRedirectId != null) return <div role="status" aria-live="polite" className="p-8 text-sm text-app-text-muted">Opening session review…</div>;
+  if (sessionId == null) {
+    return <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 p-8 text-center"><p role="alert" className="text-sm text-app-text-muted">Session selection required for Analyse review.</p><Button variant="app-outline" size="app-sm" onClick={backToPicker}>Back to Analyse picker</Button></div>;
+  }
   if (evaluationLaps.length === 0) {
     return <div className="flex min-h-[18rem] flex-col items-center justify-center gap-3 p-8 text-center"><p role="status" className="text-sm text-app-text-muted">{groupSessions.length === 0 ? "No recorded session matches this selection." : "No valid laps are available for review."}</p><Button variant="app-outline" size="app-sm" onClick={backToPicker}>Back to Analyse picker</Button></div>;
   }

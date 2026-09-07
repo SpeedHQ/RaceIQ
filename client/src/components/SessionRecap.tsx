@@ -289,8 +289,8 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const analyse = () => {
     if (recap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(recap.gameId)}/analyse` as never,
-      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId } as never,
+      to: `${getGameRoute(recap.gameId)}/analyse`,
+      search: { session: sessionId },
     });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;
