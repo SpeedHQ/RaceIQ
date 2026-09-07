@@ -332,7 +332,7 @@ export const experimentLapAnalysisRoutes = new Hono()
         loadedLaps.push({ meta, telemetry: lap.telemetry });
       }
 
-      if (loadedLaps.length < 3) {
+      if (loadedLaps.length < 1) {
         return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
       }
 

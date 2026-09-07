@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { ComparisonData, ComparisonRangeData } from "../../../shared/racing/comparison/types";
 import { client } from "../lib/rpc";
@@ -20,6 +21,47 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
+export function useReviewLaps(trackOrdinal: number | null, carOrdinal: number | null, limit = 5) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["review-laps", gameId ?? null, trackOrdinal, carOrdinal, limit],
+    queryFn: async () => {
+      if (!gameId || trackOrdinal == null || carOrdinal == null) return [];
+      const res = await client.api.laps.review.$get({
+        query: { gameId, trackOrdinal: String(trackOrdinal), carOrdinal: String(carOrdinal), limit: String(limit) },
+      });
+      return rpcJson<LapMeta[]>(res);
+    },
+    enabled: !!gameId && trackOrdinal != null && carOrdinal != null,
+  });
+}
+
+export function useSessionReviewLaps(sessionId: number | null, limit = 5) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["session-review-laps", gameId ?? null, sessionId, limit],
+    queryFn: async () => {
+      if (!gameId || sessionId == null) return [];
+      const res = await client.api.laps.review.$get({ query: { gameId, sessionId: String(sessionId), limit: String(limit) } });
+      return rpcJson<LapMeta[]>(res);
+    },
+    enabled: !!gameId && sessionId != null,
+  });
+}
+
+
+export function useSessionLineSpread(sessionId: number | null) {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["session-review-line-spread", gameId ?? null, sessionId],
+    queryFn: async () => {
+      if (!gameId || sessionId == null) return null;
+      const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId) } });
+      return rpcJson<LineSpreadTrace>(res);
+    },
+    enabled: !!gameId && sessionId != null,
+  });
+}
 export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   return useQuery({
     queryKey: ["lap-comparison", lapAId, lapBId],

@@ -16,8 +16,7 @@ interface ConsistencyLanesProps {
   issues: TuneIssue[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
-  /** Trimmed racing-line spread trace (null = loading / no session / too few
-   *  clean laps — the lane shows a "need 3+ laps" note instead). */
+  /** Null means no valid resampled laps were available. */
   lineSpread?: LineSpreadTrace | null;
   /** Fires true when the cursor enters a lane that drives the track zoom (brake,
    *  throttle, speed, race-line spread), false on leave. Steer and Δ-time do not. */
@@ -411,7 +410,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             )}
           </Lane>
         ) : (
-          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ valid laps</div>
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No race line data</div>
         )}
       </div>
     </div>

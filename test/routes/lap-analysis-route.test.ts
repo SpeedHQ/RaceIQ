@@ -5,8 +5,8 @@ import { getGame } from "../../shared/games/registry";
 import { analyseSemanticIds } from "../../shared/games/metric-contracts";
 
 import { deleteSession, insertSession } from "../../server/db/session-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
 import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
+import { insertLap } from "../../server/db/lap-mutation-queries";
 import { lapRoutes } from "../../server/routes/laps";
 import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
 import { packet } from "../support/telemetry/resolver";
@@ -54,6 +54,23 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
       );
     } finally {
       cacheDelete(lapId);
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+describe("GET /api/laps/review", () => {
+  test("returns only top valid metadata laps for a track/car", async () => {
+    const sessionId = await insertSession(10, 20, "acc");
+    const lapIds = await Promise.all([61, 59, 62, 58, 60, 57].map((time, index) => insertLap(sessionId, index + 1, time, true, null, 0)));
+    try {
+      const response = await lapRoutes.request("/api/laps/review?gameId=acc&trackOrdinal=20&carOrdinal=10");
+      expect(response.status).toBe(200);
+      const body = await response.json() as { id: number; lapTime: number }[];
+      expect(body).toHaveLength(5);
+      expect(body.map((lap) => lap.lapTime)).toEqual([57, 58, 59, 60, 61]);
+      expect(body.map((lap) => lap.id)).toEqual([lapIds[5], lapIds[3], lapIds[1], lapIds[4], lapIds[0]]);
+    } finally {
       await deleteSession(sessionId);
     }
   });

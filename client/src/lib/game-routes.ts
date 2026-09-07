@@ -4,6 +4,7 @@ import type { ReleaseFeatureFlags } from "@shared/platform/runtime/release-featu
 import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
+  session?: number;
   track?: number;
   car?: number;
   lap?: number;
@@ -95,6 +96,7 @@ export function parseAnalyseLapIds(value: string | undefined): number[] | null |
 
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
   return {
+    session: parseOptionalNumber(search.session),
     track: parseOptionalNumber(search.track),
     car: parseOptionalNumber(search.car),
     lap: parseOptionalNumber(search.lap),

@@ -12,7 +12,7 @@ import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyz
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
-import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps } from "../../db/lap-read-queries";
 import { loadSessionSource } from "../../session-capture/source-loader";
 import { loadRawCaptureIdentity } from "../../session-capture/identity";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
@@ -22,9 +22,11 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
+import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { resolveTelemetryReplay } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
-import { BulkDeleteSchema, LapsQuerySchema } from "./support";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema } from "./support";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
@@ -38,6 +40,21 @@ export const resourceRoutes = new Hono()
     const { gameId } = c.req.valid("query");
     const lapList = await getLaps(gameId);
     return c.json(lapList);
+  })
+  .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
+    const { gameId, sessionId, trackOrdinal, carOrdinal, limit } = c.req.valid("query");
+    return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId));
+  })
+  .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
+    const { gameId, sessionId } = c.req.valid("query");
+    const topLaps = await getReviewLaps(gameId, null, null, 5, sessionId);
+    const loaded = await getLapsByIds(topLaps.map((lap) => lap.id));
+    const usable = loaded.filter((lap) => lap.telemetry.length >= 30);
+    if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0, lapLines: [] });
+    const first = usable[0]!;
+    const corners = await resolveLapCorners(first.trackOrdinal, gameId, first.telemetry);
+    const trace = computeLineSpreadTrace(usable.map((lap) => lap.telemetry), usable.map((lap) => lap.id), corners);
+    return c.json(trace ?? { fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length, lapLines: [] });
   })
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {

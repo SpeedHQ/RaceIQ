@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { ExperimentGameId } from "@/hooks/experiments";
 import { useExperiment, useExperimentVersions } from "@/hooks/experiments";
 import { useLaps } from "@/hooks/laps";
-import { TuneReviewDashboard } from "./TuneReviewDashboard";
+import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
@@ -85,7 +85,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
           `items-start` lets the sticky chat column pin instead of stretching. */}
       <div className="grid grid-cols-1 items-start gap-3 @5xl/workspace:grid-cols-[1fr_360px]">
         <div className="border border-app-border rounded-lg">
-          <TuneReviewDashboard
+          <SessionReviewDashboard
             gameId={gameId}
             laps={laps}
             trackName={session?.trackName ?? undefined}

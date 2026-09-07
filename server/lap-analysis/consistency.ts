@@ -217,15 +217,11 @@ function percentile(sortedAsc: number[], p: number): number {
   return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
 }
 
-const MIN_LINE_SPREAD_LAPS = 3;
+const MIN_LINE_SPREAD_LAPS = 1;
 
 /**
- * Full per-bin racing-line spread trace, trimmed to the 10th-90th percentile
- * range of each bin's per-lap lateral deviations from the mean line — this
- * suppresses a single blunder/outlier lap from dominating the metre figure
- * the way a plain mean or min/max would. Returns null when fewer than 3
- * valid resampled laps are available (need enough laps for a meaningful
- * percentile trim).
+ * Full per-bin racing-line spread trace over every valid resampled lap.
+ * One lap produces zero spread; additional laps expose lap-to-lap variation.
  */
 export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number[], corners: Corner[]): LineSpreadTrace | null {
   const resampled = laps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);

@@ -1,3 +1,4 @@
+import type { GameId } from "@shared/games/ids";
 import { tryGetGame } from "@shared/games/registry";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { LapMeta } from "@shared/racing/sessions/types";
@@ -9,7 +10,7 @@ import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
-import type { ExperimentGameId, ExperimentVersion } from "@/hooks/experiments";
+import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
@@ -21,12 +22,13 @@ import { buildOpenLapContext } from "./open-lap-context";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
-  gameId: ExperimentGameId;
+  gameId: GameId;
   trackName?: string;
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
-  /** Keep a missing lap out of the URL when selecting one means drill-down. */
+  /** Keep lap selection local so session review never routes into LapAnalyse. */
+  stayOnSessionReview?: boolean;
   autoSelectLap?: boolean;
   /** The version node being reviewed (resolved by the route from ?versionId or
    *  the session HEAD). Used to display its driver comment / engineer notes
@@ -36,6 +38,7 @@ interface TuneReviewDashboardProps {
    *  Track Focus line-spread lane + map heat. Passed straight through rather
    *  than read off `test` so it survives an orphaned/missing test row. */
   experimentId?: number | null;
+  lineSpread?: LineSpreadTrace | null;
   /** Fires whenever the compact text summary of the currently-open lap review
    *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
    *  parent pipe "what the user is currently looking at" into the Setup
@@ -55,17 +58,19 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelectLap = true, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
-  // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
-  const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
+  const [reviewLapId, setReviewLapId] = useState<number | null>(null);
+  const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
+  const focusLap = validLaps.find((l) => l.id === selectedLapId) ?? validLaps[0];
   const trackTab = search.trackTab ?? "consistency";
   const setFocus = useCallback((id: number) => {
-    void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
-  }, [navigate]);
+    if (stayOnSessionReview) setReviewLapId(id);
+    else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
+  }, [navigate, stayOnSessionReview]);
   const setTrackTab = useCallback((tab: TrackTab) => {
     void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never);
   }, [navigate]);
@@ -73,11 +78,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelec
   // Point the URL at a real lap when it's missing or stale for this session.
   // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
   useEffect(() => {
-    if (!autoSelectLap || validLaps.length === 0) return;
+    if (stayOnSessionReview || !autoSelectLap || validLaps.length === 0) return;
     if (search.view === "track" && search.lap == null) return;
     if (validLaps.some((l) => l.id === search.lap)) return;
     navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: validLaps[0].id }) } as never);
-  }, [autoSelectLap, navigate, search.lap, search.view, validLaps]);
+  }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, validLaps]);
 
   const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
@@ -122,16 +127,15 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelec
   const parsedSectorIndex = requestedSector ? Number(requestedSector) - 1 : null;
   const sectorIndex = parsedSectorIndex != null && parsedSectorIndex < sectorCount ? parsedSectorIndex : null;
   const setView = (nextView: ReviewView) =>
-    // Entering the track view defaults the lap picker to "All" (no ?lap=).
     navigate({
       search: (previous: Record<string, unknown>) => ({
         ...previous,
         view: nextView === "overview" ? undefined : nextView,
-        lap: nextView === "track" ? undefined : (typeof previous.lap === "number" ? previous.lap : focusLap?.id),
+        lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : (typeof previous.lap === "number" ? previous.lap : focusLap?.id),
       }),
     } as never);
   // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
-  const trackFocusId = view === "track" && validLaps.some((l) => l.id === search.lap) ? (search.lap as number) : null;
+  const trackFocusId = view === "track" && (stayOnSessionReview ? reviewLapId : validLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
@@ -200,24 +204,24 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelec
           )}
           <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
           <select
-            className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-app-detail font-mono"
-            value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
+            value={stayOnSessionReview && view !== "track" ? (reviewLapId ?? "all") : view === "track" ? (trackFocusId ?? "all") : focusLap.id}
             onChange={(e) => {
               if (e.target.value === "all") {
-                navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
+                if (stayOnSessionReview) setReviewLapId(null);
+                else navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
               } else {
                 setFocus(Number(e.target.value));
               }
             }}
           >
-            {view === "track" && <option value="all">All laps</option>}
+            {(stayOnSessionReview || view === "track") && <option value="all">All laps</option>}
             {validLaps.map((l) => (
               <option key={l.id} value={l.id}>
                 Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
               </option>
             ))}
           </select>
-          {!(view === "track" && trackFocusId == null) && (
+          {!(stayOnSessionReview && reviewLapId == null) && !(view === "track" && trackFocusId == null) && (
             <span className="text-status-success text-sm" title="valid lap">
               ✓
             </span>
@@ -277,36 +281,36 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelec
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
-              {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
-                <div key={label} className={`border-t border-app-border p-3 first:border-t-0 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
-                    <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
-                  </div>
-                  <div className="text-xl font-mono tabular-nums text-app-text mt-1.5">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
-                  {telemetry.length > 0 ? (
-                    <SectorMap
-                      telemetry={telemetry}
-                      sectorTimes={sectorTimes}
-                      highlight={i}
-                      showTimes={false}
-                      trackOrdinal={focusLap.trackOrdinal}
-                      readout={readout}
-                      onHover={(idx) => setHoverPos(idx == null ? null : { sector: i, idx })}
-                      markFraction={markedIssue?.sector === i ? markedIssue.frac : null}
-                    />
-                  ) : (
-                    <div className="p-4 text-xs text-app-text-dim">{loadingTel ? "Loading…" : "No telemetry"}</div>
-                  )}
-                  {/* Per-sector metric range under this sector's map */}
-                  {ranges && (
-                    <div className="mt-1">
-                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} />
+            <div className="grid grid-cols-1 gap-3 p-3 @3xl/workspace:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)]">
+              <div className="min-w-0 rounded border border-app-border bg-app-surface/20">
+                {telemetry.length > 0 ? (
+                  <SectorMap
+                    telemetry={telemetry}
+                    sectorTimes={sectorTimes}
+                    showTimes={false}
+                    trackOrdinal={focusLap.trackOrdinal}
+                    readout={readout}
+                    onHover={(idx) => setHoverPos(idx == null ? null : { sector: -1, idx })}
+                    markFraction={markedIssue ? markedIssue.frac : null}
+                  />
+                ) : (
+                  <div className="p-4 text-xs text-app-text-dim">{loadingTel ? "Loading…" : "No telemetry"}</div>
+                )}
+              </div>
+              <div className="min-w-0 divide-y divide-app-border rounded border border-app-border bg-app-surface/20">
+                {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
+                  <div key={label} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 p-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="h-1 w-6 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
+                        <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{label}</span>
+                      </div>
+                      <div className="mt-1 text-sm font-mono tabular-nums text-app-text">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {ranges ? <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} /> : <div className="text-xs text-app-text-dim">No telemetry</div>}
+                  </div>
+                ))}
+              </div>
             </div>
             {ranges && (
               <div className="px-4 py-1.5 text-app-compact text-app-text-dim border-t border-app-border">
@@ -327,6 +331,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, autoSelec
             focusLapId={trackFocusId}
             onFocusLap={setFocus}
             experimentId={experimentId ?? test?.experimentId ?? null}
+            lineSpreadOverride={lineSpread}
             activeTab={trackTab}
             onActiveTabChange={setTrackTab}
           />

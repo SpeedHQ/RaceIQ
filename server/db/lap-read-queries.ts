@@ -112,6 +112,57 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
 
   return rows.map(toLapMeta);
 }
+/**
+ * Top valid laps for Analyse session review. SQL ranks and limits before
+ * serializing rows, so the browser never receives an entire track/car history.
+ */
+export async function getReviewLaps(gameId: GameId, trackOrdinal: number | null, carOrdinal: number | null, limit = 5, sessionId?: number): Promise<LapMeta[]> {
+  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`];
+  if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
+  else if (trackOrdinal != null && carOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.carOrdinal, carOrdinal));
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      createdAt: laps.createdAt,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      gameId: sessions.gameId,
+      sectorTimes: laps.sectorTimes,
+      ownership: sessions.ownership,
+      source: sessions.source,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      catalogVersion: laps.catalogVersion,
+      catalogHash: laps.catalogHash,
+      catalogSchemaVersion: laps.catalogSchemaVersion,
+      parserVersion: laps.parserVersion,
+      resolverVersion: laps.resolverVersion,
+      derivationVersion: laps.derivationVersion,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...filters))
+    .orderBy(laps.lapTime, desc(laps.id))
+    .limit(Math.max(1, Math.min(limit, 20)))
+    .all();
+  return rows.map(toLapMeta);
+}
+
 
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.

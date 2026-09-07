@@ -28,7 +28,7 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
 
 export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
-  if (gameId !== "acc" && gameId !== "ac-evo") return <LapAnalyse />;
+  const hasSession = search.session != null;
   const hasTrack = search.track != null;
   const hasCar = search.car != null;
   const hasLap = search.lap != null;
@@ -43,6 +43,12 @@ export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   }
   if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0)) {
     return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
+  }
+  if (hasSession) {
+    if (!Number.isInteger(search.session!) || search.session! <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
+      return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID." />;
+    }
+    return <TrackCarAnalyseReviewPage gameId={gameId} sessionId={search.session!} />;
   }
   if (hasTrack !== hasCar) {
     return <InvalidAnalyseSelection message="Choose both track and car before selecting laps." />;

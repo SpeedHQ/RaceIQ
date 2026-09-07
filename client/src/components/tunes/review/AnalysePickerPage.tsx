@@ -3,50 +3,45 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useResolveNames } from "@/hooks/catalog-queries";
-import { useLaps } from "@/hooks/laps";
+import { useSessions } from "@/hooks/session-queries";
 
 export function AnalysePickerPage({ gameId }: { gameId: GameId }) {
   const navigate = useNavigate();
-  const { data: laps = [], isLoading } = useLaps();
-  const trackOrdinals = useMemo(() => [...new Set(laps.map((lap) => lap.trackOrdinal).filter((ordinal): ordinal is number => ordinal != null && ordinal > 0))].sort((a, b) => a - b), [laps]);
-  const carOrdinals = useMemo(() => [...new Set(laps.map((lap) => lap.carOrdinal).filter((ordinal): ordinal is number => ordinal != null && ordinal > 0))].sort((a, b) => a - b), [laps]);
+  const { data: sessions = [], isLoading } = useSessions();
+  const trackOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.trackOrdinal).filter((ordinal) => ordinal > 0))].sort((a, b) => a - b), [sessions]);
+  const carOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.carOrdinal).filter((ordinal) => ordinal > 0))].sort((a, b) => a - b), [sessions]);
   const { data: names, isLoading: namesLoading } = useResolveNames(trackOrdinals, carOrdinals);
-  const trackName = (ordinal: number) => names?.trackNames[String(ordinal)] ?? `Track ${ordinal}`;
-  const carName = (ordinal: number) => names?.carNames[String(ordinal)] ?? `Car ${ordinal}`;
 
-  if (isLoading || namesLoading) {
-    return <div role="status" className="p-8 text-sm text-app-text-muted">Loading Analyse selections…</div>;
-  }
+  if (isLoading || namesLoading) return <div role="status" className="p-8 text-sm text-app-text-muted">Loading Analyse selections…</div>;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-xl font-semibold text-app-text">Analyse</h1>
-        <p className="mt-1 text-sm text-app-text-muted">Choose track and car to review recorded laps for {gameId}.</p>
+        <p className="mt-1 text-sm text-app-text-muted">Choose track and car to review recorded sessions for {gameId}.</p>
       </div>
       {trackOrdinals.length === 0 ? (
-        <div className="rounded-lg border border-app-border p-6 text-sm text-app-text-muted">No recorded laps available for this game.</div>
+        <div className="rounded-lg border border-app-border p-6 text-sm text-app-text-muted">No recorded sessions available for this game.</div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {trackOrdinals.map((track) => {
-            const cars = carOrdinals.filter((car) => laps.some((lap) => lap.trackOrdinal === track && lap.carOrdinal === car));
+            const cars = carOrdinals.filter((car) => sessions.some((session) => session.trackOrdinal === track && session.carOrdinal === car && session.bestLapTime != null));
             return (
               <div key={track} className="rounded-lg border border-app-border p-4">
-                <div className="font-semibold text-app-text">{trackName(track)}</div>
+                <div className="font-semibold text-app-text">{names?.trackNames[String(track)] ?? `Track ${track}`}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {cars.map((car) => {
-                    const count = laps.filter((lap) => lap.trackOrdinal === track && lap.carOrdinal === car && lap.isValid && lap.lapTime > 0).length;
+                    const matchingSessions = sessions.filter((session) => session.trackOrdinal === track && session.carOrdinal === car);
+                    const lapCount = matchingSessions.reduce((total, session) => total + (session.lapCount ?? 0), 0);
                     return (
                       <Button
                         key={car}
                         variant="app-outline"
                         size="app-sm"
-                        disabled={count === 0}
-                        title={count === 0 ? "No valid laps available for review" : undefined}
-                        aria-label={`Review ${carName(car)} on ${trackName(track)} (${count} valid laps)`}
+                        aria-label={`Review ${names?.carNames[String(car)] ?? `Car ${car}`} on ${names?.trackNames[String(track)] ?? `Track ${track}`} (${matchingSessions.length} sessions)`}
                         onClick={() => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, track, car, lap: undefined, laps: undefined }) } as never)}
                       >
-                        {carName(car)} ({count})
+                        {names?.carNames[String(car)] ?? `Car ${car}`} · {matchingSessions.length} sessions · {lapCount} laps
                       </Button>
                     );
                   })}

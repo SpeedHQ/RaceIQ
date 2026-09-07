@@ -18,6 +18,20 @@ export const LapsQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
 });
 
+export const ReviewLapsQuerySchema = z.object({
+  gameId: GameIdSchema,
+  sessionId: z.coerce.number().int().positive().optional(),
+  trackOrdinal: z.coerce.number().int().positive().optional(),
+  carOrdinal: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+}).refine((value) => value.sessionId != null || (value.trackOrdinal != null && value.carOrdinal != null), {
+  message: "sessionId or trackOrdinal and carOrdinal required",
+});
+export const ReviewLineSpreadQuerySchema = z.object({
+  gameId: GameIdSchema,
+  sessionId: z.coerce.number().int().positive(),
+});
+
 export const AnalyseQuerySchema = z.object({
   regenerate: z
     .enum(["true", "false"])

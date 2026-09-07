@@ -35,6 +35,7 @@ export type SessionMobileListProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionMobileList({
@@ -61,6 +62,7 @@ export function SessionMobileList({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionMobileListProps) {
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
@@ -114,6 +116,17 @@ export function SessionMobileList({
                         }}
                       >
                         Recap
+                      </Button>
+                      <Button
+                        variant="app-outline"
+                        size="app-sm"
+                        disabled={false}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          analyseSession(session);
+                        }}
+                      >
+                        Analyse
                       </Button>
                       <Button
                         variant="app-outline"
