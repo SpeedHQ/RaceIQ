@@ -76,7 +76,7 @@ export function AnalyseWorkspaceModals({
                         setSelectedCar(lastLap.carOrdinal);
                         setSelectedLapId(lastLap.lapId);
                       } else {
-                        navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
+                        navigate({ to: `/${importResult.routePrefix}/sessions/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
                       }
                       onCloseImport();
                     }

@@ -17,7 +17,7 @@ test("Analyse exposes loading and parse-error states", async ({ page, request })
     await loadingGate;
     await route.continue();
   });
-  await page.goto(`/fm23/analyse?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/fm23/sessions/analyse?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Loading lap telemetry...", { exact: true })).toBeVisible();
   releaseLoading();
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
@@ -42,7 +42,7 @@ test("Analyse renders seeded no-telemetry lap state when available", async ({ pa
   const emptyLap = await findNoTelemetryLap(request);
   test.skip(!emptyLap, "seed has no FM lap without telemetry");
   if (!emptyLap) return;
-  await page.goto(`/fm23/analyse?track=${emptyLap.trackOrdinal}&car=${emptyLap.carOrdinal}&lap=${emptyLap.id}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/fm23/sessions/analyse?track=${emptyLap.trackOrdinal}&car=${emptyLap.carOrdinal}&lap=${emptyLap.id}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("No telemetry data for this lap.", { exact: true })).toBeVisible({ timeout: 30_000 });
   expect(browserErrors.errors, "unexpected browser errors in no-telemetry state").toEqual([]);
 });

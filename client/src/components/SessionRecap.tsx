@@ -289,7 +289,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const analyse = () => {
     if (recap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(recap.gameId)}/analyse`,
+      to: `${getGameRoute(recap.gameId)}/sessions/analyse`,
       search: { session: sessionId },
     });
   };

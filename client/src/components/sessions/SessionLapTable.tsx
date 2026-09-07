@@ -94,7 +94,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate({ to: `${gameRoute}/analyse`, search: { session: session.id } });
+                        navigate({ to: `${gameRoute}/sessions/analyse`, search: { session: session.id } });
                       }}
                     >
                       {m.label_analyse()}

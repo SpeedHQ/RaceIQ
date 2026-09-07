@@ -33,7 +33,7 @@ test("saved Analyse and Compare chats open their AI workspaces without a provide
   await expect(analyseRow, "dismissed delete keeps chat row").toBeVisible();
 
   await openChatRow(page, "analyse");
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/fm23/analyse");
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/fm23/sessions/analyse");
   expect(new URL(page.url()).searchParams.get("lap")).toBe(String(analyse.laps[0].id));
   expect(new URL(page.url()).searchParams.get("ai")).toBe("1");
   await expect(page.locator("span").getByText("AI Analysis", { exact: true })).toBeVisible({ timeout: 30_000 });

@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Breaking
+- Move Analyse into Sessions and remove its standalone navigation entry.
+
 ### Features
 - Review recorded sessions from bounded metadata summaries and surface only top laps before opening detailed analysis
 - Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse

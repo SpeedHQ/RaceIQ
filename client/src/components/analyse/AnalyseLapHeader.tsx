@@ -24,6 +24,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   gameId: GameId;
+  onBack?: () => void;
   // Selection state
   selectedTrack: number | null;
   selectedCar: number | null;
@@ -63,6 +64,7 @@ interface Props {
 
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
+  onBack,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -122,6 +124,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+        {onBack && <Button variant="app-outline" size="app-sm" onClick={onBack}>{m.analyse_session_button()}</Button>}
         {/* Track selector */}
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}

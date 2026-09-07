@@ -15,7 +15,7 @@ const VIEWPORTS = [
 ] as const;
 
 const PAGES = [
-  { name: "analyse", path: "/fm23/analyse", testId: "lap-analyse-workspace", inputCount: 3 },
+  { name: "analyse", path: "/fm23/sessions/analyse", testId: "lap-analyse-workspace", inputCount: 3 },
   { name: "compare", path: "/fm23/compare", testId: "lap-compare-workspace", inputCount: 5 },
 ] as const;
 

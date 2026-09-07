@@ -6,7 +6,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions/analyse?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },

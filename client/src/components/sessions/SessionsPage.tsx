@@ -75,7 +75,7 @@ export function SessionsPage() {
     if (!gameId) return;
     const routePrefix = routePrefixForGameId(gameId);
     if (!routePrefix) return;
-    void navigate({ to: `/${routePrefix}/analyse` as never, search: { session: session.id } as never });
+    void navigate({ to: `/${routePrefix}/sessions/analyse` as never, search: { session: session.id } as never });
   }, [gameId, navigate]);
   useEffect(() => {
     const trackOrdinals = new Set<number>();

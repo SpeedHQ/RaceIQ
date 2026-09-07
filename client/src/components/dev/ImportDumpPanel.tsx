@@ -40,9 +40,9 @@ export function ImportDumpPanel() {
 
   const openInAnalyse = (lap: ImportedLap) => {
     if (!result || lap.trackOrdinal <= 0 || lap.carOrdinal <= 0) return;
-    // Route is /{routePrefix}/analyse with ?track&car&lap search params
+    // Route is /{routePrefix}/sessions/analyse with ?track&car&lap search params
     navigate({
-      to: `/${result.routePrefix}/analyse`,
+      to: `/${result.routePrefix}/sessions/analyse`,
       search: {
         track: lap.trackOrdinal || undefined,
         car: lap.carOrdinal || undefined,

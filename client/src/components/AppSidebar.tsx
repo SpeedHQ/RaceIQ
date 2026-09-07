@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Binary,
   Car,
-  ChartNoAxesCombined,
   Check,
   Code2,
   FlaskConical,
@@ -122,7 +121,6 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "live", label: m.tab_live, icon: Gauge },
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
-  { segment: "analyse", label: m.label_analyse, icon: ChartNoAxesCombined },
   { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
   { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, feature: "experiments" },
   { segment: "chats", label: m.tab_chats, icon: MessagesSquare },

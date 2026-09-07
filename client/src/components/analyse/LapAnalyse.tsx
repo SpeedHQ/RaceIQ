@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
@@ -342,11 +342,14 @@ function LapAnalyseInner() {
     setSelectedLapId,
   });
 
+  const navigate = useNavigate();
+  const handleBackToSession = useCallback(() => void navigate({ to: ".." }), [navigate]);
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
         gameId={gameId}
+        onBack={handleBackToSession}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),

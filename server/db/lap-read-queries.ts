@@ -6,6 +6,7 @@ import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+const inFlightSessionDecodes = new Map<string, Promise<void>>();
 
 interface LapStats {
   totalLaps: number;
@@ -471,11 +472,12 @@ export async function getLapsByIds(
 
   const rowById = new Map(rows.map((r) => [r.id, r]));
 
-  // Group cache-miss laps by session raw file so each session decodes once.
+  // Concurrent review queries (line spread + aligned telemetry) often request
+  // same raw session/lap set. Share decode promise to avoid duplicate BIN work.
   type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
   type BatchGroup = { source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; metas: BatchMeta[] };
-  const bySession = new Map<string, BatchGroup>();
   const decoded = new Map<number, TelemetryPacket[]>();
+  const bySession = new Map<string, BatchGroup>();
 
   for (const row of rows) {
     const cached = cacheGet(row.id);
@@ -494,17 +496,33 @@ export async function getLapsByIds(
   }
 
   const decodeSession = async (rawFile: string, group: BatchGroup) => {
-    try {
-      const batch = await parseSessionLapsBatched(
-        { rawFile, source: group.source, gameId: group.gameId, carOrdinal: group.carOrdinal, trackOrdinal: group.trackOrdinal },
-        group.metas,
-      );
-      for (const [lapId, telemetry] of batch) {
-        cacheSet(lapId, telemetry);
-        decoded.set(lapId, telemetry);
+    const key = `${rawFile}:${group.metas.map((meta) => meta.id).sort((a, b) => a - b).join(",")}`;
+    const existing = inFlightSessionDecodes.get(key);
+    if (existing) {
+      await existing;
+      for (const meta of group.metas) {
+        const telemetry = cacheGet(meta.id);
+        if (telemetry) decoded.set(meta.id, telemetry);
       }
-    } catch (err) {
-      console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+      return;
+    }
+    const decode = (async () => {
+      try {
+        const batch = await parseSessionLapsBatched(
+          { rawFile, source: group.source, gameId: group.gameId, carOrdinal: group.carOrdinal, trackOrdinal: group.trackOrdinal },
+          group.metas,
+        );
+        for (const [lapId, telemetry] of batch) cacheSet(lapId, telemetry);
+      } catch (err) {
+        console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+      }
+    })();
+    inFlightSessionDecodes.set(key, decode);
+    await decode;
+    inFlightSessionDecodes.delete(key);
+    for (const meta of group.metas) {
+      const telemetry = cacheGet(meta.id);
+      if (telemetry) decoded.set(meta.id, telemetry);
     }
   };
 

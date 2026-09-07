@@ -96,7 +96,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                     <Button
                       disabled={l.trackOrdinal == null || l.carOrdinal == null}
                       title={l.trackOrdinal == null || l.carOrdinal == null ? "Analyse unavailable: track/car identity unresolved" : undefined}
-                      onClick={() => void navigate({ to: `${gameRoute}/analyse` as never, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as never })}
+                      onClick={() => void navigate({ to: `${gameRoute}/sessions/analyse` as never, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as never })}
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"

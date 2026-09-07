@@ -9,7 +9,7 @@ function GameAnalyseRoute() {
   return <AnalyseRoute gameId={gameId} />;
 }
 
-export const Route = createFileRoute("/$gameid/analyse")({
+export const Route = createFileRoute("/$gameid/sessions/analyse")({
   component: GameAnalyseRoute,
   validateSearch: validateAnalyseSearch,
 });

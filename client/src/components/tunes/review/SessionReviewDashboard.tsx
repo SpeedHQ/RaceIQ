@@ -23,6 +23,7 @@ import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValue } from "../semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
 import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
@@ -31,6 +32,8 @@ interface TuneReviewDashboardProps {
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
+  /** When set, exposes direct navigation into selected lap's detailed Analyse view. */
+  onDrillIntoLap?: (lap: LapMeta) => void;
   /** Keep lap selection local so session review never routes into LapAnalyse. */
   stayOnSessionReview?: boolean;
   autoSelectLap?: boolean;
@@ -62,7 +65,7 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDrillIntoLap, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const evaluationLapIds = useMemo(() => evaluationLaps.map((lap) => lap.id), [evaluationLaps]);
@@ -93,10 +96,14 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
   }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, evaluationLaps]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
   const telemetry = useMemo(() => selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : [], [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace]);
-  const sectorTimes = selectedTrace?.sectorTimes ? {
-    times: selectedTrace.sectorTimes,
-    boundaryIndices: (selectedTrace.sectorStarts ?? []).filter((start) => start > 0 && start < 1).slice(0, Math.max(0, selectedTrace.sectorTimes.length - 1)).map((start) => Math.round(start * Math.max(0, telemetry.length - 1))),
-  } : null;
+  const sectorTimes = selectedTrace?.sectorTimes ? (() => {
+    const times = selectedTrace.sectorTimes!;
+    const starts = (selectedTrace.sectorStarts ?? []).filter((start) => Number.isFinite(start) && start > 0 && start < 1).slice(0, Math.max(0, times.length - 1));
+    const boundaryIndices = starts.length === times.length - 1
+      ? starts.map((start) => Math.round(start * Math.max(0, telemetry.length - 1)))
+      : Array.from({ length: Math.max(0, times.length - 1) }, (_, index) => Math.round((index + 1) * Math.max(0, telemetry.length - 1) / times.length));
+    return { times, boundaryIndices };
+  })() : null;
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => selectedTrace ? tireSnapshotFromAlignedTrace(selectedTrace) : null, [selectedTrace]);
   const game = tryGetGame(gameId);
@@ -224,6 +231,11 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
             ariaLabel="Select lap"
             className="w-56"
           />
+          {onDrillIntoLap && focusLap && (!stayOnSessionReview || reviewLapId != null) && (
+            <Button variant="app-outline" size="app-sm" onClick={() => onDrillIntoLap(focusLap)}>
+              {m.analyse_lap_button()}
+            </Button>
+          )}
           {!(stayOnSessionReview && reviewLapId == null) && !(view === "track" && trackFocusId == null) && (
             <span className="text-status-success text-sm" title="valid lap">
               ✓

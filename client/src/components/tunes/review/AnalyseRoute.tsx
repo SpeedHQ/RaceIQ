@@ -2,7 +2,6 @@ import type { GameId } from "@shared/games/ids";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { parseAnalyseLapIds, type AnalyseSearch } from "@/lib/game-routes";
-import { AnalysePickerPage } from "./AnalysePickerPage";
 import { TrackCarAnalyseReviewPage } from "./TrackCarAnalyseReviewPage";
 import { LapAnalyse } from "../../analyse/LapAnalyse";
 
@@ -13,13 +12,8 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
       <div>
         <h1 className="text-lg font-semibold text-app-text">Invalid Analyse selection</h1>
         <p role="alert" className="mt-2 text-sm text-app-text-muted">{message}</p>
-        <Button
-          variant="app-outline"
-          size="app-sm"
-          className="mt-4"
-          onClick={() => void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, track: undefined, car: undefined, lap: undefined, laps: undefined }) } as never)}
-        >
-          Back to Analyse picker
+        <Button variant="app-outline" size="app-sm" className="mt-4" onClick={() => void navigate({ to: ".." })}>
+          Back to Sessions
         </Button>
       </div>
     </div>
@@ -38,25 +32,17 @@ export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   const validCar = !hasCar || (Number.isInteger(search.car!) && search.car! > 0);
   const validLap = !hasLap || (Number.isInteger(search.lap!) && search.lap! > 0);
 
-  if (!validTrack || !validCar || !validLap) {
-    return <InvalidAnalyseSelection message="Track, car, and lap must be positive numeric selections." />;
-  }
-  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0)) {
-    return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
-  }
+  if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection message="Track, car, and lap must be positive numeric selections." />;
+  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0)) return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
   if (hasSession) {
     if (!Number.isInteger(search.session!) || search.session! <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
       return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID." />;
     }
     return <TrackCarAnalyseReviewPage gameId={gameId} sessionId={search.session!} />;
   }
-  if (hasTrack !== hasCar) {
-    return <InvalidAnalyseSelection message="Choose both track and car before selecting laps." />;
-  }
-  if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) {
-    return <InvalidAnalyseSelection message="A lap selection must include its track and car." />;
-  }
-  if (!hasTrack && !hasCar) return <AnalysePickerPage gameId={gameId} />;
+  if (hasTrack !== hasCar) return <InvalidAnalyseSelection message="Choose both track and car before selecting laps." />;
+  if (!hasTrack && !hasCar) return <InvalidAnalyseSelection message="Session selection required for Analyse." />;
+  if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection message="A lap selection must include its track and car." />;
   if (hasLap) return <LapAnalyse />;
   return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track!} carOrdinal={search.car!} />;
 }

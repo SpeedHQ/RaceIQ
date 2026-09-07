@@ -630,6 +630,8 @@
   "analyse_loading_telemetry": "Loading lap telemetry...",
   "analyse_no_telemetry_data": "No telemetry data for this lap.",
   "analyse_select_to_start": "Select a track, car, and lap to analyse.",
+  "analyse_lap_button": "Analyse Lap",
+  "analyse_session_button": "Analyse Session",
   "analyse_search_tracks_placeholder": "Search tracks...",
   "analyse_search_cars_placeholder": "Search cars...",
   "analyse_search_laps_placeholder": "Search laps...",
