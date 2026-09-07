@@ -181,6 +181,9 @@ function TireMetricSection({
         title={cfg.title}
         height={100}
         domain={domain}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
         annotationMarkers={annotationMarkers}
         cornerFracs={cornerFracs}
         cursorFrac={cursorFrac}

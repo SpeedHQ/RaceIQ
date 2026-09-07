@@ -21,8 +21,11 @@ interface ConsistencyLanesProps {
   /** Fires true when the cursor enters a lane that drives the track zoom (brake,
    *  throttle, speed, race-line spread), false on leave. Steer and Δ-time do not. */
   onZoomHover?: (active: boolean) => void;
-}
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 
+}
 // Same threshold as server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M.
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
@@ -111,7 +114,7 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
-export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread, onZoomHover }: ConsistencyLanesProps) {
+export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread, onZoomHover, visibleRange, onRangeSelect, onZoomOut }: ConsistencyLanesProps) {
   // Wrap onCursorFrac so a lane that drives the zoom also toggles zoomActive.
   const zoomCursor = (f: number | null) => {
     onCursorFrac(f);
@@ -184,6 +187,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
               bgFill="transparent"
               height={100}
               domain={ch.domain}
+              visibleRange={visibleRange}
+              onRangeSelect={onRangeSelect}
+              onZoomOut={onZoomOut}
               cornerFracs={cornerFracs}
               cursorFrac={cursorFrac}
               onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
@@ -261,6 +267,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           height={120}
           domain={speedDomain}
           annotationMarkers={issueMarkers}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
           onCursorFrac={zoomCursor}
@@ -324,6 +333,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           cursorFrac={cursorFrac}
           annotationMarkers={issueMarkers}
           onCursorFrac={onCursorFrac}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
           tooltip={(f) => {
             const withDelta = traces.filter((t) => deltas.has(t.lapId) && t.isValid);
             if (withDelta.length === 0 || !bestTrace) return null;
@@ -400,14 +412,15 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             domain={spreadDomain}
             cornerFracs={cornerFracs}
             cursorFrac={cursorFrac}
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             annotationMarkers={issueMarkers}
             onCursorFrac={zoomCursor}
             tooltip={(f) => {
               const spreadM = spreadValueAt(lineSpread!, f);
-              const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               return (
                 <div className="space-y-1">
-                  <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                   <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                     <div>
                       spread: <span style={{ color: spreadColor(spreadM) }}>{spreadM.toFixed(2)}m</span>

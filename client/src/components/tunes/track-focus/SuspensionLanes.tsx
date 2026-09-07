@@ -13,8 +13,11 @@ interface SuspensionLanesProps {
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
   annotationMarkers?: AnnotationMarker[];
-}
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 
+}
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
   { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
   { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
@@ -34,7 +37,7 @@ function suspPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, 
  * lap in accent, invalid laps red. Empty state when the game has no
  * suspension-travel data (e.g. F1, which doesn't expose it).
  */
-export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], annotationMarkers, cursorFrac = null, onCursorFrac = () => {} }: SuspensionLanesProps) {
+export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], annotationMarkers, cursorFrac = null, onCursorFrac = () => {}, visibleRange, onRangeSelect, onZoomOut }: SuspensionLanesProps) {
   const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
   const lapsWithTrace = useMemo(() => laps.filter((t) => t.suspTravel != null), [laps]);
 
@@ -80,6 +83,9 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], an
           <Lane
             height={80}
             domain={laneDomain}
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             cornerFracs={cornerFracs}
             annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}

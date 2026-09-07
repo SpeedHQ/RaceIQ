@@ -15,8 +15,11 @@ interface BalanceLanesProps {
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
   annotationMarkers?: AnnotationMarker[];
-}
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 
+}
 /** Magnitude thresholds (degrees) for the severity banding — tuned to
  *  typical GT3-class axle slip deltas rather than a formal spec. */
 const BAND_AMBER_DEG = 3;
@@ -68,7 +71,7 @@ function balanceAt(t: LapTrace, f: number): number {
  * more). Every lap dim, best lap in accent, dashed zero line. Empty state
  * when the game reports no slip-angle data at all.
  */
-export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac }: BalanceLanesProps) {
+export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
   const withBalance = useMemo(() => traces.filter((t) => t.balance != null), [traces]);
   const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === bestLapId) ?? null, [withBalance, bestLapId]);
 
@@ -99,6 +102,9 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
         bgFill="transparent"
         height={120}
         domain={domain}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
         cornerFracs={cornerFracs}
         annotationMarkers={annotationMarkers}
         cursorFrac={cursorFrac}

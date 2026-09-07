@@ -46,7 +46,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   }, [routeSelectionKey]);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
-  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
+  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(search.view === "track" ? null : selectedLapId);
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
     () =>
       semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({

@@ -125,6 +125,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   return useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
+      if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
       const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
       const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
@@ -137,8 +138,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       if (!body) throw new Error("Unable to replay telemetry");
       return body;
     },
-    enabled: lapId != null && gameId != null,
-    gcTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnMount: false,
   });

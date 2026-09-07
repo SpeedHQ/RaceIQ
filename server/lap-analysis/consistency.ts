@@ -47,12 +47,7 @@ export interface LineSpreadTrace {
   overallSpreadM: number;
   /** Number of laps that fed the trace (after resampling). */
   lapCount: number;
-  /** Per-lap RAW per-frame racing line (full resolution, variable length — for
-   *  the zoom window), one per lap that survived resampling. World-space metres.
-   *  `brake`/`throttle` are 0..1 per frame, used to color the zoom by input state.
-   *  `frac` is each frame's normalized distance fraction (0..1 by DistanceTraveled)
-   *  so the zoom can locate a distance-fraction cursor without assuming uniform
-   *  frame spacing. */
+  /** Internal zoom paths; stripped from API responses. */
   lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac: number[] }[];
 }
 
@@ -144,10 +139,10 @@ function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
 }
 
+
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
-
 /** Shortest distance from point P to segment AB. */
 function pointSegmentDistance(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
   const dx = bx - ax;
@@ -262,33 +257,28 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number
   const lowTrust = overallSpreadM > LINE_SPREAD_THRESHOLD_M || perCorner.some((c) => c.lowTrust);
   const consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (overallSpreadM / LINE_SPREAD_FULL_SCALE_M) * 100)));
 
-  // lapLines are drawn in a small zoomed window, so they use the RAW per-frame
-  // path (not the 200-bin metric resample, which is ~15-25m/point — far too
-  // coarse for a ±30m zoom). Only laps that survived resampling are included,
-  // in the same order.
   const round2 = (v: number) => Math.round(v * 100) / 100;
   const round4 = (v: number) => Math.round(v * 10000) / 10000;
   const survivingIds = new Set(resampled.map((r) => r.lapId));
   const lapLines: LineSpreadTrace["lapLines"] = [];
   for (let i = 0; i < laps.length; i++) {
     if (!survivingIds.has(lapIds[i])) continue;
-    const packets = laps[i];
+    const packets = laps[i]!;
     const { x, z } = lapPath(packets);
-    // Per-frame normalized distance fraction (matches the resample's DistanceTraveled
-    // basis) so the zoom locates a distance-fraction cursor at the right physical point.
-    const base = packets[0].DistanceTraveled;
-    const span = packets[packets.length - 1].DistanceTraveled - base;
-    const frac = span > 0 ? packets.map((p) => round4(clamp01((p.DistanceTraveled - base) / span))) : packets.map((_, k) => round4(k / Math.max(1, packets.length - 1)));
+    const base = packets[0]!.DistanceTraveled;
+    const span = packets.at(-1)!.DistanceTraveled - base;
+    const frac = span > 0
+      ? packets.map((packet) => round4(clamp01((packet.DistanceTraveled - base) / span)))
+      : packets.map((_, index) => round4(index / Math.max(1, packets.length - 1)));
     lapLines.push({
-      lapId: lapIds[i],
+      lapId: lapIds[i]!,
       x: x.map(round2),
       z: z.map(round2),
-      brake: packets.map((p) => round2(normChannel(p.Brake))),
-      throttle: packets.map((p) => round2(normChannel(p.Accel))),
+      brake: packets.map((packet) => round2(normChannel(packet.Brake))),
+      throttle: packets.map((packet) => round2(normChannel(packet.Accel))),
       frac,
     });
   }
-
   return {
     fracs,
     spreadM: spreadM.map(round3),

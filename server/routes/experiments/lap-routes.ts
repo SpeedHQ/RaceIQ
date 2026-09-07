@@ -333,7 +333,7 @@ export const experimentLapAnalysisRoutes = new Hono()
       }
 
       if (loadedLaps.length < 1) {
-        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
       }
 
       const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
@@ -345,10 +345,10 @@ export const experimentLapAnalysisRoutes = new Hono()
 
       const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), loadedLaps.map((l) => l.meta.id), corners);
       if (!trace) {
-        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
       }
-      // Store for next open (fire-and-forget correctness: recompute is safe).
-      await setLineSpreadCache(id, lapSetHash, JSON.stringify(trace));
-      return c.json(trace);
+      const { lapLines: _lapLines, ...compactTrace } = trace;
+      await setLineSpreadCache(id, lapSetHash, JSON.stringify(compactTrace));
+      return c.json(compactTrace);
     }
   );

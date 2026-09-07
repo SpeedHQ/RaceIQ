@@ -2,7 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "./index";
 import { lineSpreadCache } from "./schema";
 
-const LINE_SPREAD_ALGO_VERSION = 1;
+const LINE_SPREAD_ALGO_VERSION = 2;
 
 
 export function lineSpreadLapSetHash(lapIds: number[]): string {

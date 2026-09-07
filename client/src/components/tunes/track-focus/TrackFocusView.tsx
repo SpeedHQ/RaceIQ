@@ -65,8 +65,8 @@ interface TrackFocusViewProps {
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
   /** Experiment id, when this view is hosted inside an experiment
-   *  review (drives the /line-spread racing-line consistency query). Omit to
-   *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
+   *  review (drives the /line-spread racing-line consistency query). Omit for
+   *  Storybook, non-tuning contexts. */
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;
   activeTab?: Tab;
@@ -109,7 +109,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
     if (!alignedSet) return;
     zoom.selectRangeMeters(startFrac * alignedSet.nominalSpanMeters, endFrac * alignedSet.nominalSpanMeters);
   }, [alignedSet, zoom.selectRangeMeters]);
-  const { data: fetchedLineSpread } = useLineSpread(experimentId);
+  const { data: fetchedLineSpread } = useLineSpread(activeTab === "consistency" && !lineSpreadOverride ? experimentId : null);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
 
   const bestLapId = useMemo(() => {
@@ -126,10 +126,9 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
   const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
   const focusTelemetry = useMemo(() => {
-    const activeSet = zoom.data ?? alignedSet;
-    const lap = activeSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? activeSet?.laps[0];
-    return lap ? alignedToSemantic(lap, gameId, trackOrdinal, activeSet?.nominalSpanMeters ?? 0) : null;
-  }, [alignedSet, effectiveFocusId, gameId, trackOrdinal, zoom.data]);
+    const lap = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
+    return lap ? alignedToSemantic(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
+  }, [alignedSet, effectiveFocusId, gameId, trackOrdinal]);
   const { data: issues } = useLapIssues(effectiveFocusId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
@@ -376,6 +375,9 @@ export function TrackFocusViewInner({
                   onCursorFrac={setCursorFrac}
                   lineSpread={lineSpread}
                   onZoomHover={setZoomActive}
+                  visibleRange={visibleLaneRange}
+                  onRangeSelect={selectLaneRange}
+                  onZoomOut={onZoomOut}
                 />
                 <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <CornerLedger
@@ -429,9 +431,24 @@ export function TrackFocusViewInner({
                 corners={effectiveCorners.corners}
                 cursorFrac={cursorFrac}
                 onCursorFrac={setCursorFrac}
+                visibleRange={visibleLaneRange}
+                onRangeSelect={selectLaneRange}
+                onZoomOut={onZoomOut}
               />
             )}
-            {activeTab === "suspension" && <SuspensionLanes traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} annotationMarkers={issueMarkers} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
+            {activeTab === "suspension" && (
+              <SuspensionLanes
+                traces={traces}
+                bestLapId={bestLapId}
+                cornerFracs={cornerFracs}
+                annotationMarkers={issueMarkers}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+                visibleRange={visibleLaneRange}
+                onRangeSelect={selectLaneRange}
+                onZoomOut={onZoomOut}
+              />
+            )}
           </div>
         </div>
       </div>

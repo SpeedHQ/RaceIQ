@@ -12,9 +12,6 @@ import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyz
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
-import { downsampleLap } from "../../../shared/racing/laps/trace/build";
-import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
-import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
 import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps } from "../../db/lap-read-queries";
 import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "../../db/telemetry-replay-storage";
 import { loadSessionSource } from "../../session-capture/source-loader";
@@ -54,11 +51,13 @@ export const resourceRoutes = new Hono()
     const topLaps = await getReviewLaps(gameId, null, null, 5, sessionId);
     const loaded = await getLapsByIds(topLaps.map((lap) => lap.id));
     const usable = loaded.filter((lap) => lap.telemetry.length >= 30);
-    if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0, lapLines: [] });
+    if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0 });
     const first = usable[0]!;
     const corners = await resolveLapCorners(first.trackOrdinal, gameId, first.telemetry);
     const trace = computeLineSpreadTrace(usable.map((lap) => lap.telemetry), usable.map((lap) => lap.id), corners);
-    return c.json(trace ?? { fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length, lapLines: [] });
+    if (!trace) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length });
+    const { lapLines: _lapLines, ...compactTrace } = trace;
+    return c.json(compactTrace);
   })
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
@@ -137,20 +136,6 @@ export const resourceRoutes = new Hono()
     const body = JSON.stringify(encodeAlignedLapSet(set) as EncodedAlignedLapSet);
     if (request.step === 1) alignedTelemetryCacheSet(request.ids, body);
     return c.body(body, 200, { "Content-Type": "application/json; charset=UTF-8", "X-RaceIQ-Cache": "MISS" });
-  })
-
-  .post("/api/laps/traces", zValidator("json", z.object({ ids: z.array(z.number().int().positive()).max(200) })), async (c) => {
-    const { ids } = c.req.valid("json");
-    if (ids.length === 0) return c.json({ traces: [] as EncodedLapTrace[] });
-
-    const laps = await getLapsByIds(ids);
-    const traces: EncodedLapTrace[] = [];
-    for (const lap of laps) {
-      if (lap.telemetry.length === 0) continue;
-      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
-      if (trace) traces.push(encodeLapTrace(trace));
-    }
-    return c.json({ traces });
   })
   .get("/api/laps/:id/setup", zValidator("param", IdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
