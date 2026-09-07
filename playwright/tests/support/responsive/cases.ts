@@ -74,7 +74,6 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "acc-track-setups", path: "/acc/tracks/2/setups", viewports: DESKTOP_ONLY, readyText: "Brands Hatch" },
   { name: "acc-track-guide", path: "/acc/tracks/2/guide", viewports: DESKTOP_ONLY, readyText: "Brands Hatch" },
   { name: "f125-experiment-detail", path: "/f125/experiments/1", viewports: DESKTOP_ONLY, readyText: "Demo setup experiment", requiresSeed: true },
-  { name: "f125-experiment-review", path: "/f125/experiments/1/review?versionId=2", viewports: DESKTOP_ONLY, readyText: "Post-lap", requiresSeed: true },
   { name: "iracing-raw", path: "/iracing/raw", viewports: DESKTOP_ONLY },
 ];
 
