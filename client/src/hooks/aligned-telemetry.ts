@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { EncodedAlignedLapSet } from "@shared/racing/laps/alignment/types";
 import { decodeAlignedLapSet } from "@shared/racing/laps/alignment/codec";
@@ -8,7 +9,7 @@ type BaseRequest = { step: 1 };
 type DetailRequest = { step: 0.1; start: number; end: number };
 export type AlignedTelemetryRequest = BaseRequest | DetailRequest;
 export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedTelemetryRequest) {
-  const ids = [...lapIds];
+  const ids = useMemo(() => [...lapIds], [lapIds]);
   return useQuery({
     queryKey: ["aligned-telemetry", ids, request],
     enabled: ids.length > 0,

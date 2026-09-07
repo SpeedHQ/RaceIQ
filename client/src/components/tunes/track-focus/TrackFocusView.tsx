@@ -14,8 +14,7 @@ import { useLapIssues } from "../../../hooks/tunes";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
 import { useAlignedTelemetry } from "../../../hooks/aligned-telemetry";
 import { type SemanticTuneSample } from "../semantic-tune";
-import { type LapTrace, stintStats } from "../../../lib/stint-traces";
-import { formatLapTime } from "../../../lib/format";
+import { type LapTrace } from "../../../lib/stint-traces";
 import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
@@ -95,8 +94,9 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
   const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const { data: alignedSet } = useAlignedTelemetry(reviewLaps.map((lap) => lap.id), { step: 1 });
-  const zoom = useAlignedTelemetryZoom(reviewLaps.map((lap) => lap.id), alignedSet);
+  const reviewLapIds = useMemo(() => reviewLaps.map((lap) => lap.id), [reviewLaps]);
+  const { data: alignedSet } = useAlignedTelemetry(reviewLapIds, { step: 1 });
+  const zoom = useAlignedTelemetryZoom(reviewLapIds, alignedSet);
   const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
   const visibleLaneRange = useMemo(() => {
     if (!zoom.visibleRange || !alignedSet || alignedSet.nominalSpanMeters <= 0) return null;
@@ -153,11 +153,6 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
     return { s1End, s2End };
   }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
 
-  // Stats read the same eval-lap pool as the traces/lanes/ledgers below. Using
-  // the full stintLaps here made the header disagree with everything under it
-  // (out-laps and scrappy laps dragged the averages/degradation around while
-  // the line + consistency views only ever showed the chosen laps).
-  const stats = useMemo(() => stintStats(reviewLaps, { dropOutLap: false }), [reviewLaps]);
 
   return (
     <TrackFocusViewInner
@@ -171,7 +166,6 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       corners={corners ?? []}
       focusTelemetry={focusTelemetry}
       issues={issues ?? []}
-      stats={stats}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
       shownLapCount={reviewLaps.length}
@@ -196,7 +190,6 @@ export interface TrackFocusViewInnerProps {
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
   issues: TuneIssue[];
-  stats: ReturnType<typeof stintStats>;
   /** Trimmed racing-line spread trace (null while loading, no session, or too
    *  few clean laps — lane + map overlay render their empty state). */
   lineSpread: LineSpreadTrace | null;
@@ -226,7 +219,6 @@ export function TrackFocusViewInner({
   edges,
   corners,
   issues,
-  stats,
   lineSpread,
   metaSectors,
   shownLapCount,
@@ -313,19 +305,6 @@ export function TrackFocusViewInner({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4">
-      {/* Stat strip */}
-      <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
-        <StatCell label={m.trackfocus_consistency()} value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
-        <StatCell label={m.trackfocus_lap_variation()} value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} title={m.trackfocus_lap_variation_tooltip()} />
-        <StatCell label={m.trackfocus_best()} value={stats.bestS != null ? formatLapTime(stats.bestS) : "—"} />
-        <StatCell label={m.trackfocus_mean()} value={stats.meanS != null ? formatLapTime(stats.meanS) : "—"} />
-        <StatCell
-          label={m.trackfocus_degradation()}
-          value={stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—"}
-          unit={stats.degSlopeSPerLap != null ? "s/lap" : undefined}
-        />
-        <StatCell label={m.trackfocus_issues()} value={String(issues.length)} />
-      </div>
 
 
 
@@ -357,7 +336,7 @@ export function TrackFocusViewInner({
               />
             )}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col @5xl/workspace:flex-none">
+          <div className="flex min-h-0 flex-1 flex-col @5xl/workspace:flex-none @5xl/workspace:overflow-y-auto">
             <div className="flex-none text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} />
@@ -460,17 +439,6 @@ export function TrackFocusViewInner({
   );
 }
 
-function StatCell({ label, value, unit, title }: { label: string; value: string; unit?: string; title?: string }) {
-  return (
-    <div className="rounded bg-app-surface border border-app-border px-3 py-2" title={title}>
-      <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{label}</div>
-      <div className="text-base font-mono tabular-nums text-app-text">
-        {value}
-        {unit && <span className="text-app-caption text-app-text-dim ml-1">{unit}</span>}
-      </div>
-    </div>
-  );
-}
 function TurnMarkers({ corners, cornerFracs }: { corners: TrackCorner[]; cornerFracs: number[] }) {
   const { ref, width } = useMeasuredWidth<HTMLDivElement>();
   const markers = useMemo(() => {

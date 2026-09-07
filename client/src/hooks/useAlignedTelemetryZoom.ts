@@ -8,7 +8,10 @@ export function useAlignedTelemetryZoom(lapIds: readonly number[], base: Aligned
   const [detail, setDetail] = useState<{ start: number; end: number } | null>(null);
   const [optimistic, setOptimistic] = useState<AlignedLapSet | null>(null);
   const current = stack.at(-1);
-  const request = detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : { step: 1 as const };
+  const request = useMemo(
+    () => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : { step: 1 as const }),
+    [detail],
+  );
   const query = useAlignedTelemetry(lapIds, request);
   useEffect(() => { setStack([null]); setDetail(null); setOptimistic(null); }, [lapIds.join(",")]);
   useEffect(() => { if (query.data && detail) { setOptimistic(null); setDetail(null); } }, [query.data, detail]);

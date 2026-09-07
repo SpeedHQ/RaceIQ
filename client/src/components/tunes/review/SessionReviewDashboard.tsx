@@ -1,5 +1,7 @@
 import type { GameId } from "@shared/games/ids";
 import { tryGetGame } from "@shared/games/registry";
+import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
+import { stintStats } from "@shared/racing/laps/stint-stats";
 import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -15,7 +17,7 @@ import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import { ArmHeadline, ReviewOverviewSkeleton } from "./OverviewSkeleton";
+import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
 import { tireSnapshot } from "./tire-snapshot";
 import { semanticSamples, type SemanticTuneSample, wheelValue } from "../semantic-tune";
@@ -107,6 +109,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
+  const reviewStats = useMemo(() => stintStats(selectEvaluationLaps(laps).chosen, { dropOutLap: false }), [laps]);
   const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
@@ -245,6 +248,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
         </div>
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
+        {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
 
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
@@ -321,10 +325,10 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
             )}
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Detail body — owns its own scroll; the header above stays static. */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      {/* Detail body — track panels own their internal scroll; other views use the body scroll. */}
+      <div className={`flex-1 min-h-0 ${view === "track" ? "overflow-hidden" : "overflow-y-auto"}`}>
         {view === "track" ? (
           <TrackFocusView
             gameId={gameId}

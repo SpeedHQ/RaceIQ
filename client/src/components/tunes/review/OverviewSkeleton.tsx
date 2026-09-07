@@ -54,6 +54,43 @@ export function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[]
     </div>
   );
 }
+export function ReviewTrackStats({
+  stats,
+  issueCount,
+}: {
+  stats: {
+    consistency: number | undefined;
+    sdS: number | undefined;
+    bestS: number | undefined;
+    meanS: number | undefined;
+    degSlopeSPerLap: number | undefined;
+  };
+  issueCount: number;
+}) {
+  const cells = [
+    { label: "Consistency", value: stats.consistency != null ? stats.consistency.toFixed(0) : "—", unit: stats.consistency != null ? "%" : undefined },
+    { label: "Lap variation", value: stats.sdS != null ? stats.sdS.toFixed(3) : "—", unit: stats.sdS != null ? "s" : undefined, title: "Typical lap-time difference from the mean. Lower is more consistent." },
+    { label: "Best", value: stats.bestS != null ? formatLapTime(stats.bestS) : "—" },
+    { label: "Mean", value: stats.meanS != null ? formatLapTime(stats.meanS) : "—" },
+    { label: "Degradation", value: stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—", unit: stats.degSlopeSPerLap != null ? "s/lap" : undefined },
+    { label: "Issues", value: String(issueCount) },
+  ];
+
+  return (
+    <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
+      {cells.map((cell) => (
+        <div key={cell.label} className="rounded bg-app-surface border border-app-border px-3 py-2" title={cell.title}>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{cell.label}</div>
+          <div className="text-base font-mono tabular-nums text-app-text">
+            {cell.value}
+            {cell.unit && <span className="text-app-caption text-app-text-dim ml-1">{cell.unit}</span>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 
 export function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
   return (
