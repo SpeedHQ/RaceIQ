@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
 
 ### Fixes
 
