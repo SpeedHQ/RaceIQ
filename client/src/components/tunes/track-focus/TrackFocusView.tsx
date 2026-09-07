@@ -41,8 +41,13 @@ function alignedToLapTrace(t: AlignedLapTrace): LapTrace {
 }
 function alignedToSemantic(t: AlignedLapTrace, gameId: GameId, trackOrdinal: number | undefined, span: number): SemanticTuneSample[] {
   return Array.from({ length: t.speedMps.length }, (_, i) => ({
-    gameId, trackOrdinal, distanceM: t.frac[i] * span,
-    fuel: t.fuel[i], fuelUnit: "litre" as const,
+    gameId,
+    trackOrdinal,
+    distanceM: t.frac[i] * span,
+    speedMps: t.speedMps[i],
+    positionM: Number.isFinite(t.positionX[i]) && Number.isFinite(t.positionZ[i]) ? { x: t.positionX[i], z: t.positionZ[i] } : undefined,
+    fuel: t.fuel[i],
+    fuelUnit: "litre" as const,
     tireWearFraction: t.tireWear ? { fl: t.tireWear[i], fr: t.tireWear[i], rl: t.tireWear[i], rr: t.tireWear[i] } : undefined,
     tireTemperatureC: t.tireTemp ? { fl: t.tireTemp.FL[i], fr: t.tireTemp.FR[i], rl: t.tireTemp.RL[i], rr: t.tireTemp.RR[i] } : undefined,
     tirePressurePsi: t.tirePressure ? { fl: t.tirePressure.FL[i], fr: t.tirePressure.FR[i], rl: t.tirePressure.RL[i], rr: t.tirePressure.RR[i] } : undefined,
@@ -211,6 +216,7 @@ export function TrackFocusViewInner({
 }: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
+  const [hoverRange, setHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
   const [localActiveTab, setLocalActiveTab] = useState<Tab>("consistency");
   const activeTab = controlledActiveTab ?? localActiveTab;
   const setActiveTab = (tab: Tab) => {
@@ -312,6 +318,7 @@ export function TrackFocusViewInner({
                 cursorFrac={cursorFrac}
                 onCursorFrac={setCursorFrac}
                 overlayPoints={hoverPoints}
+                highlightRange={hoverRange}
                 lineSpread={activeTab === "consistency" ? lineSpread : null}
               />
             )}
@@ -364,6 +371,7 @@ export function TrackFocusViewInner({
                   cursorFrac={cursorFrac}
                   onCursorFrac={setCursorFrac}
                   onHoverPoints={setHoverPoints}
+                  onHoverRange={setHoverRange}
                 />
               </>
             )}

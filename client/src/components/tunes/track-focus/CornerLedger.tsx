@@ -14,8 +14,10 @@ interface CornerLedgerProps {
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
   /** Fired on row hover with the per-lap brake/throttle onset fracs for that
-   *  corner (null on leave) — used to overlay the points on the track map. */
+   *  corner (null on leave) — used to overlay points on the track map. */
   onHoverPoints?: (pts: { brake: number[]; throttle: number[] } | null) => void;
+  /** Fired on row hover with corner's track span (null on leave). */
+  onHoverRange?: (range: { startFrac: number; endFrac: number } | null) => void;
 }
 
 interface LedgerRow {
@@ -199,7 +201,7 @@ function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; 
  * `design-mockups/tune-review/4-corner-ledger.html`, adapted to the traces
  * and corner data already resolved for Track Focus.
  */
-export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints }: CornerLedgerProps) {
+export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: CornerLedgerProps) {
   // When the track has no corner metadata, fall back to detecting apex zones
   // from the best lap's speed trace (as the mockup did from raw telemetry).
   const effective = useMemo(() => {
@@ -246,10 +248,17 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                     onCursorFrac(r.frac);
                     const nextPinned = pinnedFrac === r.frac ? null : r.frac;
                     setPinnedFrac(nextPinned);
-                    onHoverPoints?.(nextPinned == null ? null : { brake: r.brakeOnsets, throttle: r.throttleOnsets });
+                    onHoverRange?.(nextPinned == null ? null : { startFrac: r.corner.distanceStart, endFrac: r.corner.distanceEnd });
                   }}
-                  onMouseEnter={() => onHoverPoints?.({ brake: r.brakeOnsets, throttle: r.throttleOnsets })}
-                  onMouseLeave={() => onHoverPoints?.(pinnedFrac == null ? null : pointsFor(pinnedFrac))}
+                  onMouseEnter={() => {
+                    onHoverPoints?.({ brake: r.brakeOnsets, throttle: r.throttleOnsets });
+                    onHoverRange?.({ startFrac: r.corner.distanceStart, endFrac: r.corner.distanceEnd });
+                  }}
+                  onMouseLeave={() => {
+                    onHoverPoints?.(pinnedFrac == null ? null : pointsFor(pinnedFrac));
+                    const pinned = pinnedFrac == null ? null : rows.find((row) => row.frac === pinnedFrac);
+                    onHoverRange?.(pinned ? { startFrac: pinned.corner.distanceStart, endFrac: pinned.corner.distanceEnd } : null);
+                  }}
                   selected={pinnedFrac === r.frac || isActive}
                 >
                   <TD nowrap emphasis tone="primary">

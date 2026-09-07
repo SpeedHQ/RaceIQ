@@ -11,12 +11,16 @@ export interface LaneProps {
   /** Cursor position (0..1), or null to hide the cursor line. */
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  /** Optional heading rendered directly above timeline. */
+  title?: React.ReactNode;
   /** Extra content drawn inside the plot area (polylines, markers) — receives
    *  the lane's x/y scale functions so children can position themselves. */
   children: (scale: { x: (f: number) => number; y: (v: number) => number; x0: number; x1: number; y0: number; y1: number }) => React.ReactNode;
-  /** Optional tooltip renderer keyed by the hovered fraction. */
+  /** Optional tooltip renderer keyed by hovered fraction. */
   tooltip?: (f: number) => React.ReactNode;
   className?: string;
+  /** Optional issue/annotation positions (0..1) drawn over timeline. */
+  annotationFracs?: number[];
   /** Plot-area background fill. Defaults to the slate wash; pass "transparent"
    *  to let the surrounding panel show through. */
   bgFill?: string;
@@ -31,7 +35,7 @@ export interface LaneProps {
  * tracking that reports the hovered fraction up to the parent (which owns
  * the single cross-lane `cursorFrac`).
  */
-export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, children, tooltip, className, bgFill, visibleRange, onRangeSelect, onZoomOut }: LaneProps) {
+export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, title, children, tooltip, className, annotationFracs, bgFill, visibleRange, onRangeSelect, onZoomOut }: LaneProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [hoverFrac, setHoverFrac] = useState<number | null>(null);
@@ -62,10 +66,11 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
   function onLeave() { setHoverFrac(null); if (dragStart == null) onCursorFrac(null); }
   return (
     <div ref={wrapRef} className="relative">
+      {title && <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{title}</div>}
       <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onMouseMove={onMove} onMouseLeave={onLeave} onMouseDown={(e) => onRangeSelect && setDragStart(fracFromEvent(e))} onDoubleClick={() => onZoomOut?.()}>
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill ?? "var(--app-surface-alt)"} fillOpacity={bgFill == null ? 0.35 : 1} rx={4} />
-        {min < 0 && max > 0 && <line x1={x0} x2={x1} y1={y(0)} y2={y(0)} stroke="var(--app-border)" strokeWidth={1} />}
-        {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--app-border)" strokeDasharray="2 4" />)}
+        {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--app-border)" strokeDasharray="2 4" opacity={0.8} />)}
+        {annotationFracs?.map((f, index) => <line key={`annotation-${index}-${f}`} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" strokeWidth={1} opacity={0.9} />)}
         {children({ x, y, x0, x1, y0, y1 })}
         {cursorFrac != null && <line x1={x(cursorFrac)} x2={x(cursorFrac)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />}
         {dragStart != null && dragFrac != null && <rect x={Math.min(x(dragStart), x(dragFrac))} y={y0} width={Math.abs(x(dragFrac) - x(dragStart))} height={y1-y0} fill="var(--app-accent)" opacity={0.12} />}

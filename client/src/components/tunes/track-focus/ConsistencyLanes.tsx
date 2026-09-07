@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { LineSpreadTrace } from "@/hooks/experiments";
 import type { TrackCorner } from "@/hooks/track-queries";
-import { severityRangeColor } from "@/lib/colors";
+import { severityColor, severityRangeColor } from "@/lib/colors";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
@@ -27,7 +27,7 @@ interface ConsistencyLanesProps {
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
-  return severityRangeColor(spreadM, [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2]);
+  return spreadM < LINE_SPREAD_THRESHOLD_M ? severityColor(0) : spreadM < LINE_SPREAD_THRESHOLD_M * 2 ? severityColor(1) : severityColor(3);
 }
 
 /** Same theme-owned severity banding as the lap-time consistency readout. */
@@ -35,12 +35,28 @@ function scoreColor(score: number): string {
   return severityRangeColor(100 - score, [20, 40]);
 }
 
-function spreadPolyline(trace: LineSpreadTrace, x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < trace.fracs.length; i++) {
-    s += `${i ? " " : ""}${x(trace.fracs[i]).toFixed(1)},${y(trace.spreadM[i]).toFixed(1)}`;
+
+function spreadSegments(trace: LineSpreadTrace, x: (f: number) => number, y: (v: number) => number) {
+  const segments: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
+  const thresholds = [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2];
+  for (let index = 1; index < trace.fracs.length; index++) {
+    const f0 = trace.fracs[index - 1];
+    const f1 = trace.fracs[index];
+    const v0 = trace.spreadM[index - 1];
+    const v1 = trace.spreadM[index];
+    const cuts = [0, ...thresholds.flatMap((threshold) => {
+      const t = (threshold - v0) / (v1 - v0);
+      return t > 0 && t < 1 ? [t] : [];
+    }), 1].sort((a, b) => a - b);
+    for (let cut = 1; cut < cuts.length; cut++) {
+      const t0 = cuts[cut - 1];
+      const t1 = cuts[cut];
+      const a = v0 + (v1 - v0) * t0;
+      const b = v0 + (v1 - v0) * t1;
+      segments.push({ x1: x(f0 + (f1 - f0) * t0), y1: y(a), x2: x(f0 + (f1 - f0) * t1), y2: y(b), color: spreadColor((a + b) / 2) });
+    }
   }
-  return s;
+  return segments;
 }
 
 /** Linear-interpolate `spreadM` at fraction `f` along the trace's own fracs array. */
@@ -149,16 +165,47 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     const max = Math.max(...lineSpread!.spreadM, LINE_SPREAD_THRESHOLD_M);
     return [0, max * 1.15];
   }, [hasLineSpread, lineSpread]);
+  const issueAnnotations = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.filter((issue) => {
+      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return false;
+      seen.add(issue.distanceFrac);
+      return true;
+    });
+  }, [issues]);
+  const issueFracs = issueAnnotations.map((issue) => issue.distanceFrac!);
 
   return (
     <div className="space-y-3">
+      {issueAnnotations.length > 0 && (
+        <div className="sticky top-0 z-20 -mb-2 bg-app-bg/95 px-1" aria-label="Issue annotations">
+          <div className="text-app-caption font-semibold uppercase tracking-wider text-app-text-dim">Issues</div>
+          <div className="relative h-5">
+            {issueAnnotations.map((it) => {
+              const color = it.severity === "critical" ? "var(--status-danger)" : it.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+              return (
+                <button
+                  key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
+                  type="button"
+                  className="absolute top-0 flex -translate-x-1/2 flex-col items-center text-app-caption text-app-text-muted"
+                  style={{ left: `${it.distanceFrac! * 100}%` }}
+                  title={it.detail}
+                  onClick={() => onCursorFrac(it.distanceFrac!)}
+                >
+                  <span className="max-w-28 truncate">{it.corner ?? it.kind}</span>
+                  <span className="h-2.5 w-2.5 rounded-full border border-app-bg" style={{ background: color }} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {CHANNELS.map((ch) => {
-        const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (
           <div key={ch.key}>
-            <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
-            <Lane
+            <Lane title={ch.label}
               bgFill="transparent"
+              annotationFracs={issueFracs}
               height={100}
               domain={ch.domain}
               cornerFracs={cornerFracs}
@@ -224,17 +271,6 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                       />
                     ))}
                   {bestTrace && <polyline points={tracePolyline(bestTrace, ch.key, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
-                  {laneIssues.map((it) => (
-                    <circle
-                      key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
-                      cx={x(it.distanceFrac!)}
-                      cy={12}
-                      r={3}
-                      fill={it.severity === "critical" ? "var(--status-danger)" : it.severity === "warn" ? "var(--status-warning)" : "var(--status-info)"}
-                      stroke="var(--app-bg)"
-                      strokeWidth={1}
-                    />
-                  ))}
                 </>
               )}
             </Lane>
@@ -245,6 +281,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           bgFill="transparent"
+          annotationFracs={issueFracs}
           height={120}
           domain={speedDomain}
           cornerFracs={cornerFracs}
@@ -304,6 +341,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           bgFill="transparent"
+          annotationFracs={issueFracs}
           height={100}
           domain={deltaDomain}
           cornerFracs={cornerFracs}
@@ -383,6 +421,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             bgFill="transparent"
             height={90}
             domain={spreadDomain}
+            annotationFracs={issueFracs}
             cornerFracs={cornerFracs}
             cursorFrac={cursorFrac}
             onCursorFrac={zoomCursor}
@@ -404,8 +443,17 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           >
             {({ x, y }) => (
               <>
-                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke="var(--delta-focus)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
-                <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={0.9} />
+                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke={severityColor(1)} strokeWidth={1} opacity={0.6} strokeDasharray="4 3" />
+                <text x={x(1) - 4} y={y(LINE_SPREAD_THRESHOLD_M) - 3} textAnchor="end" fontSize={8} fill={severityColor(1)}>
+                  1.5m
+                </text>
+                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M * 2)} y2={y(LINE_SPREAD_THRESHOLD_M * 2)} stroke={severityColor(3)} strokeWidth={1} opacity={0.6} strokeDasharray="4 3" />
+                <text x={x(1) - 4} y={y(LINE_SPREAD_THRESHOLD_M * 2) - 3} textAnchor="end" fontSize={8} fill={severityColor(3)}>
+                  3.0m
+                </text>
+                {spreadSegments(lineSpread!, x, y).map((segment, index) => (
+                  <line key={index} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} stroke={segment.color} strokeWidth={1.8} opacity={0.9} />
+                ))}
               </>
             )}
           </Lane>

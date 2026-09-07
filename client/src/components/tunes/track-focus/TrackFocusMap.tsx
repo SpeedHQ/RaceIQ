@@ -1,19 +1,17 @@
 import { useMemo, useRef } from "react";
-import { SECTOR_COLOR_VARS, severityColor, severityRangeColor } from "@/lib/colors";
+import { SECTOR_COLOR_VARS, severityColor } from "@/lib/colors";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { SemanticTuneSample } from "../semantic-tune";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { buildGeometry, buildStartMarker, type Pt, type SectorTimesLite, VIEW } from "../track-map-geometry";
-import { nearestCornerLabel } from "./detect-corners";
 
 // Same threshold server-side (server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M).
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
-  return severityRangeColor(spreadM, [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2]);
+  return spreadM < LINE_SPREAD_THRESHOLD_M ? severityColor(0) : spreadM < LINE_SPREAD_THRESHOLD_M * 2 ? severityColor(1) : severityColor(3);
 }
-
 /** Linear-interpolate `spreadM` at fraction `f` along the trace's own fracs array. */
 function spreadAt(trace: LineSpreadTrace, f: number): number {
   const { fracs, spreadM } = trace;
@@ -49,9 +47,10 @@ interface TrackFocusMapProps {
   /** Per-lap brake/throttle onset fracs to overlay as dots on the driven
    *  line (set while hovering a Corner Ledger row, null otherwise). */
   overlayPoints?: { brake: number[]; throttle: number[] } | null;
-  /** Racing-line consistency trace (Consistency tab only, null otherwise) —
-   *  when present and non-empty, colors the driven line by lateral spread
-   *  instead of the default sector coloring. */
+  /** Corner span highlighted while hovering or pinning a ledger row. */
+  highlightRange?: { startFrac: number; endFrac: number } | null;
+  /** Racing-line consistency trace (Consistency tab only, null while loading,
+   *  no session, or too few clean laps — lane + map overlay render empty). */
   lineSpread?: LineSpreadTrace | null;
 }
 
@@ -68,7 +67,7 @@ const SEV_COLOR: Record<string, string> = {
  * that tracks the cursor (or the lap
  * average when no cursor is set).
  */
-export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, lineSpread }: TrackFocusMapProps) {
+export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, highlightRange, lineSpread }: TrackFocusMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const geometry = useMemo(() => (telemetry ? buildGeometry(telemetry, sectorTimes, edges) : null), [telemetry, sectorTimes, edges]);
@@ -132,18 +131,6 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
     return segs;
   }, [geometry, telemetry, normDist, lineSpread]);
 
-  // Centroid of the driven line, used to push corner labels outward along
-  // the vector from centroid -> apex so they don't sit on top of the track.
-  const centroid = useMemo(() => {
-    if (!geometry || geometry.pts.length === 0) return null;
-    let sx = 0;
-    let sy = 0;
-    for (const p of geometry.pts) {
-      sx += p.x;
-      sy += p.y;
-    }
-    return { x: sx / geometry.pts.length, y: sy / geometry.pts.length };
-  }, [geometry]);
 
   function fracToPoint(frac: number): { x: number; y: number } | null {
     if (!geometry || geometry.pts.length === 0) return null;
@@ -200,9 +187,16 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   const startMarker = useMemo(() => buildStartMarker(geometry?.pts), [geometry]);
 
   const cornerApexFracs = useMemo(() => corners.map((c, i) => cornerFracs?.[i] ?? c.distanceStart), [corners, cornerFracs]);
-  // Suppress the "nearest corner" chip while the brake/throttle overlay is
-  // active (hovering/pinning a ledger row) so no turn label lingers.
-  const hoveredCornerLabel = cursorFrac != null && !overlayPoints ? nearestCornerLabel(corners, cornerApexFracs, cursorFrac) : null;
+  const highlightedLine = useMemo(() => {
+    if (!geometry || !highlightRange) return null;
+    const start = Math.max(0, Math.min(1, highlightRange.startFrac));
+    const end = Math.max(start, Math.min(1, highlightRange.endFrac));
+    const points = geometry.pts.filter((point) => {
+      const f = normDist?.[point.idx] ?? 0;
+      return f >= start && f <= end;
+    });
+    return points.length >= 2 ? points.map((point) => `${point.x},${point.y}`).join(" ") : null;
+  }, [geometry, highlightRange, normDist]);
 
   return (
     <div className="space-y-2">
@@ -211,8 +205,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           ref={svgRef}
           viewBox={`0 0 ${VIEW} ${VIEW}`}
           width="100%"
-          height="100%"
-          className="aspect-square"
+          className="aspect-[1.1/1]"
           style={{ cursor: geometry ? "crosshair" : "default" }}
           onMouseMove={onMove}
           onMouseLeave={() => onCursorFrac(null)}
@@ -229,6 +222,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
             : (["s1", "s2", "s3"] as const).map((segKey, i) => (
                 <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
+          {highlightedLine && <polyline points={highlightedLine} fill="none" stroke="var(--app-accent)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />}
           {startMarker && (
             <g>
               <line x1={startMarker.x} y1={startMarker.y} x2={startMarker.tipX} y2={startMarker.tipY} stroke="var(--track-start)" strokeWidth={1.5} />
@@ -241,38 +235,14 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               const apexFrac = cornerApexFracs[i];
               const pt = fracToPoint(apexFrac);
               if (!pt) return null;
-              const isActive = hoveredCornerLabel === c.label;
-              // Offset the label outward along the vector from the track's
-              // centroid to the apex point so it clears the driven line.
-              let ox = 0;
-              let oy = -8;
-              if (centroid) {
-                const dx = pt.x - centroid.x;
-                const dy = pt.y - centroid.y;
-                const len = Math.hypot(dx, dy) || 1;
-                ox = (dx / len) * 10;
-                oy = (dy / len) * 10;
-              }
-              const color = isActive ? "var(--app-accent)" : "var(--app-text-dim)";
+              const color = "var(--app-text-dim)";
               return (
                 <g key={c.index}>
-                  <circle cx={pt.x} cy={pt.y} r={isActive ? 3.5 : 2.5} fill={color} stroke="var(--app-bg)" strokeWidth={0.75} />
-                  <text
-                    x={pt.x + ox}
-                    y={pt.y + oy}
-                    textAnchor="middle"
-                    fontFamily="var(--font-mono)"
-                    fontSize={isActive ? 8.5 : 7.5}
-                    fontWeight={isActive ? "var(--font-weight-bold)" : "var(--font-weight-normal)"}
-                    fill={color}
-                  >
-                    {c.label}
-                  </text>
+                  <circle cx={pt.x} cy={pt.y} r={2.5} fill={color} stroke="var(--app-bg)" strokeWidth={0.75} />
                 </g>
               );
             })}
-          {!overlayPoints &&
-            issues.map((it) => {
+          {issues.map((it) => {
               if (it.distanceFrac == null) return null;
               const pt = fracToPoint(it.distanceFrac);
               if (!pt) return null;
@@ -312,7 +282,6 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
                     transform: `translate(${flipX ? "-110%" : "10px"}, ${flipY ? "calc(-100% - 10px)" : "10px"})`,
                   }}
                 >
-                  {hoveredCornerLabel && <span className="text-app-accent font-semibold">{hoveredCornerLabel} · </span>}
                   {(cursorFrac * 100).toFixed(0)}%{speed ? ` · ${speed}` : ""}
                 </div>
               );
@@ -322,6 +291,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
         {heatSegments ? (
           <>
+            <span className="font-semibold text-app-text-muted">Line spread</span>
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(0) }} /> tight line
             </span>
@@ -345,6 +315,8 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
             </span>
           </>
         )}
+        <span className="basis-full h-0" aria-hidden="true" />
+        <span className="font-semibold text-app-text-muted">Issues</span>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.critical }} /> critical
         </span>
@@ -354,6 +326,18 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.info }} /> info
         </span>
+        {overlayPoints && (
+          <>
+            <span className="basis-full h-0" aria-hidden="true" />
+            <span className="font-semibold text-app-text-muted">Corner points</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-0.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--ch-brake)" }} /> brake points
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-0.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--ch-throttle)" }} /> throttle points
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

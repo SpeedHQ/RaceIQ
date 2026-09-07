@@ -208,11 +208,27 @@ function TireMetricSection({
   const [min, max] = domain;
   const x = (i: number) => (laps.length <= 1 ? (x0 + x1) / 2 : x0 + (i / (laps.length - 1)) * (x1 - x0));
   const y = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0);
+  const activeIndex = cursorFrac == null || laps.length === 0 ? null : Math.min(laps.length - 1, Math.max(0, Math.round(cursorFrac * (laps.length - 1))));
+  const activeLap = activeIndex == null ? null : laps[activeIndex];
 
   return (
-    <div ref={wrapRef} className="space-y-2">
+    <div
+      ref={wrapRef}
+      className="relative space-y-2"
+      onMouseLeave={() => onCursorFrac(null)}
+    >
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
-      <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H} preserveAspectRatio="none">
+      <svg
+        viewBox={`0 0 ${bw} ${H}`}
+        width="100%"
+        height={H}
+        preserveAspectRatio="none"
+        onMouseMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const fraction = (event.clientX - rect.left - x0) / Math.max(1, x1 - x0);
+          onCursorFrac(Math.max(0, Math.min(1, fraction)));
+        }}
+      >
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
         {cfg.refLines?.map((t) => (
           <g key={t}>
@@ -258,6 +274,24 @@ function TireMetricSection({
             </g>
           );
         })}
+        {activeIndex != null && (
+          <>
+            <line x1={x(activeIndex)} x2={x(activeIndex)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />
+            {activeLap && (
+              <g pointerEvents="none">
+                <rect x={Math.min(x(activeIndex) + 6, bw - 150)} y={y0 + 4} width={144} height={CORNERS.length * 15 + 8} rx={3} fill="var(--app-surface)" stroke="var(--app-border)" />
+                <text x={Math.min(x(activeIndex) + 12, bw - 144)} y={y0 + 18} fontSize={9} fill="var(--app-text-muted)">
+                  L{activeLap.lapNumber} · {cfg.avgUnit}
+                </text>
+                {CORNERS.map((corner, index) => (
+                  <text key={corner.key} x={Math.min(x(activeIndex) + 12, bw - 144)} y={y0 + 33 + index * 15} fontSize={9} fill={corner.color}>
+                    {corner.label}: {avgOf(activeLap, mode)?.[corner.key] == null ? "—" : cfg.fmt(avgOf(activeLap, mode)![corner.key])}
+                  </text>
+                ))}
+              </g>
+            )}
+          </>
+        )}
       </svg>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
         {CORNERS.map((c) => {
