@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { ComparisonData, ComparisonRangeData } from "../../../shared/racing/comparison/types";
+import type { ComparisonData, AlignedTrace } from "../../../shared/racing/comparison/types";
+import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
+import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -50,7 +52,7 @@ export function useSessionReviewLaps(sessionId: number | null, limit = 5) {
 }
 
 
-export function useSessionLineSpread(sessionId: number | null) {
+export function useSessionLineSpread(sessionId: number | null, enabled = true) {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["session-review-line-spread", gameId ?? null, sessionId],
@@ -59,50 +61,40 @@ export function useSessionLineSpread(sessionId: number | null) {
       const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId) } });
       return rpcJson<LineSpreadTrace>(res);
     },
-    enabled: !!gameId && sessionId != null,
+    enabled: enabled && !!gameId && sessionId != null,
   });
+}
+function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {
+  const a = set.laps[0]!, b = set.laps[1]!;
+  const traces: AlignedTrace = {
+    distance: [...set.distanceMeters], sourceIndicesA: [...a.sourceIndices], sourceIndicesB: [...b.sourceIndices],
+    speedA: [...a.speedMps].map((v) => v * 2.236936), speedB: [...b.speedMps].map((v) => v * 2.236936),
+    throttleA: [...a.throttle], throttleB: [...b.throttle], brakeA: [...a.brake], brakeB: [...b.brake],
+    steerA: [...a.steer], steerB: [...b.steer], gearA: [...a.gear], gearB: [...b.gear], rpmA: [...a.rpm], rpmB: [...b.rpm],
+    positionXA: [...a.positionX], positionXB: [...b.positionX], positionZA: [...a.positionZ], positionZB: [...b.positionZ],
+    yawA: [...a.yaw], yawB: [...b.yaw], elapsedTimeA: [...a.elapsedTimeS], elapsedTimeB: [...b.elapsedTimeS],
+    tireWearA: a.tireWear ? [...a.tireWear] : undefined, tireWearB: b.tireWear ? [...b.tireWear] : undefined,
+  };
+  return { lapA, lapB, traces, timeDelta: traces.elapsedTimeA.map((v, i) => v - traces.elapsedTimeB[i]), corners: [], gameId: lapA.gameId };
 }
 export function useLapComparison(lapAId: number | null, lapBId: number | null) {
-  return useQuery({
-    queryKey: ["lap-comparison", lapAId, lapBId],
-    queryFn: async ({ signal }) => {
-      if (lapAId == null || lapBId == null || lapAId === lapBId) return null;
-      const res = await client.api.laps[":id1"].compare[":id2"].$get(
-        { param: { id1: String(lapAId), id2: String(lapBId) } },
-        { init: { signal } },
-      );
-      if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ComparisonData>(res);
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
+  const aligned = useAlignedTelemetry(ids, { step: 1 });
+  const laps = useLaps().data ?? [];
+  const lapA = laps.find((lap) => lap.id === lapAId);
+  const lapB = laps.find((lap) => lap.id === lapBId);
+  return { ...aligned, data: aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, isLoading: aligned.isLoading, error: aligned.error };
 }
-
-
 export function useLapComparisonRange(
-  lapAId: number | null,
-  lapBId: number | null,
-  stepMeters: 0.1 | null,
-  start: number | null,
-  end: number | null,
+  lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null,
 ) {
-  return useQuery({
-    queryKey: ["lap-comparison-range", lapAId, lapBId, stepMeters, start, end],
-    queryFn: async ({ signal }) => {
-      if (lapAId == null || lapBId == null || lapAId === lapBId || stepMeters == null || start == null || end == null) return null;
-      const res = await client.api.laps[":id1"].compare[":id2"].range.$get(
-        {
-          param: { id1: String(lapAId), id2: String(lapBId) },
-          query: { step: String(stepMeters), start: String(start), end: String(end) },
-        },
-        { init: { signal } },
-      );
-      if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ComparisonRangeData>(res);
-    },
-    placeholderData: (previousData) => previousData,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
+  const aligned = useAlignedTelemetry(ids, stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 });
+  const laps = useLaps().data ?? [];
+  const lapA = laps.find((lap) => lap.id === lapAId);
+  const lapB = laps.find((lap) => lap.id === lapBId);
+  const data = aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
+  return { data: data ? { distanceStart: data.traces.distance[0] ?? 0, distanceEnd: data.traces.distance.at(-1) ?? 0, stepMeters: data.traces.distance[1] - data.traces.distance[0], traces: data.traces, timeDelta: data.timeDelta } : undefined, isLoading: aligned.isLoading, isFetching: aligned.isFetching, isPlaceholderData: false, error: aligned.error };
 }
 
 export interface SemanticReplayFrame {

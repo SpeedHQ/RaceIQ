@@ -32,6 +32,12 @@ export const ReviewLineSpreadQuerySchema = z.object({
   sessionId: z.coerce.number().int().positive(),
 });
 
+const AlignedLapIdsSchema = z.array(z.number().int().positive()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, "Lap IDs must be unique");
+export const AlignedTelemetryRequestSchema = z.union([
+  z.object({ ids: AlignedLapIdsSchema, step: z.literal(1) }),
+  z.object({ ids: AlignedLapIdsSchema, step: z.literal(0.1), start: z.number().finite().min(0), end: z.number().finite().gt(0) }).refine((v) => v.end > v.start, "Detail range must increase"),
+]);
+
 export const AnalyseQuerySchema = z.object({
   regenerate: z
     .enum(["true", "false"])

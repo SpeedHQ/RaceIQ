@@ -66,6 +66,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
   const [reviewLapId, setReviewLapId] = useState<number | null>(null);
   const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
   const focusLap = validLaps.find((l) => l.id === selectedLapId) ?? validLaps[0];
+  const view = search.view ?? "overview";
   const trackTab = search.trackTab ?? "consistency";
   const setFocus = useCallback((id: number) => {
     if (stayOnSessionReview) setReviewLapId(id);
@@ -83,8 +84,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
     if (validLaps.some((l) => l.id === search.lap)) return;
     navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: validLaps[0].id }) } as never);
   }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, validLaps]);
-
-  const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(focusLap?.id ?? null);
+  const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(view === "track" ? null : focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
@@ -121,8 +121,6 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
   const [hoverPos, setHoverPos] = useState<{ sector: number; idx: number } | null>(null);
   // An issue's location, marked on its sector map while its list item is hovered.
   const [markedIssue, setMarkedIssue] = useState<{ sector: number; frac: number } | null>(null);
-  // Active view lives in the URL (?view=overview|s1..sN|track).
-  const view = search.view ?? "overview";
   const requestedSector = /^s([1-9]\d*)$/.exec(view)?.[1];
   const parsedSectorIndex = requestedSector ? Number(requestedSector) - 1 : null;
   const sectorIndex = parsedSectorIndex != null && parsedSectorIndex < sectorCount ? parsedSectorIndex : null;

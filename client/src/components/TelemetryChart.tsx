@@ -59,6 +59,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
   const onCursorMoveRef = useRef(onCursorMove);
   onCursorMoveRef.current = onCursorMove;
   const cleanupOverlayRef = useRef<(() => void) | null>(null);
+  const [cursorIndex, setCursorIndex] = useState<number | null>(null);
   const [dragSel, setDragSel] = useState<DragSel | null>(null);
   const buildOpts = useCallback(
     (width: number): uPlot.Options => {
@@ -202,11 +203,9 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
           setCursor: [
             (upl: uPlot) => {
               const idx = upl.cursor.idx;
-              if (idx != null && idx >= 0 && idx < data.distance.length) {
-                onCursorMoveRef.current?.(data.distance[idx]);
-              } else {
-                onCursorMoveRef.current?.(null);
-              }
+              setCursorIndex(idx != null && idx >= 0 && idx < data.distance.length ? idx : null);
+              if (idx != null && idx >= 0 && idx < data.distance.length) onCursorMoveRef.current?.(data.distance[idx]);
+              else onCursorMoveRef.current?.(null);
             },
           ],
         },
@@ -281,6 +280,15 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               height: dragSel.overHeight,
             }}
           />
+        )}
+        {cursorIndex != null && data.distance[cursorIndex] != null && (
+          <div
+            className="pointer-events-none absolute z-10 rounded border border-app-border bg-app-surface-alt/95 px-2 py-1 text-app-caption font-mono tabular-nums shadow"
+            style={{ left: `${((data.distance[cursorIndex] - (data.distance[0] ?? 0)) / Math.max(1e-9, (data.distance.at(-1) ?? 1) - (data.distance[0] ?? 0))) * 100}%`, top: 2, transform: cursorIndex > data.distance.length / 2 ? "translateX(-105%)" : "translateX(5%)" }}
+          >
+            <div className="text-app-text-dim">{data.distance[cursorIndex].toFixed(1)} m</div>
+            {data.values.map((values, index) => <div key={data.labels[index]}><span style={{ color: resolveCssColor(data.colors[index]) }}>{data.labels[index]}:</span> {Number.isFinite(values[cursorIndex]) ? values[cursorIndex].toFixed(2) : "—"}</div>)}
+          </div>
         )}
       </div>
     </div>

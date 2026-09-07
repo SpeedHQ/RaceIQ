@@ -6,6 +6,8 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Keep Analyse track maps visible when aligned telemetry has no direct world-position samples
+- Show synchronized cursor tooltips across Compare and Analyse charts
 
 ### Internal
 - Regenerate and commit telemetry catalog artifacts during release finalization.

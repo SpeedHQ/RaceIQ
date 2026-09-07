@@ -3,15 +3,16 @@ import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
+import type { AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
-import { useLapSemanticTelemetry } from "../../../hooks/laps";
-import { useStintTraces } from "../../../hooks/useStintTraces";
-import { semanticSamples, type SemanticTuneSample } from "../semantic-tune";
+import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
+import { useAlignedTelemetry } from "../../../hooks/aligned-telemetry";
+import { type SemanticTuneSample } from "../semantic-tune";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -26,6 +27,28 @@ import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
 import { TrackFocusZoom } from "./TrackFocusZoom";
+
+function alignedToLapTrace(t: AlignedLapTrace): LapTrace {
+  const averages = (value: WheelAverages | null) => value ? { FL: value.FL, FR: value.FR, RL: value.RL, RR: value.RR } : null;
+  return {
+    lapId: t.lapId, lapNumber: t.lapNumber, isValid: t.isValid, n: t.speedMps.length, frac: t.frac,
+    throttle: t.throttle, brake: t.brake, steer: t.steer, speedKmh: Float32Array.from(t.speedMps, (v) => v * 3.6), timeS: t.elapsedTimeS,
+    posX: t.positionX, posZ: t.positionZ,
+    tire: averages(t.tireAverages), pressure: averages(t.pressureAverages), tireTempTrace: t.tireTemp, pressureTrace: t.tirePressure,
+    balance: t.balanceDeg, latG: t.latG, longG: t.longG, suspTravel: t.suspTravel, combinedSlip: t.combinedSlip,
+    brakeTemp: averages(t.brakeTempAverages), brakeTempTrace: t.brakeTemp,
+  };
+}
+function alignedToSemantic(t: AlignedLapTrace, gameId: GameId, trackOrdinal: number | undefined, span: number): SemanticTuneSample[] {
+  return Array.from({ length: t.speedMps.length }, (_, i) => ({
+    gameId, trackOrdinal, distanceM: t.frac[i] * span,
+    fuel: t.fuel[i], fuelUnit: "litre" as const,
+    tireWearFraction: t.tireWear ? { fl: t.tireWear[i], fr: t.tireWear[i], rl: t.tireWear[i], rr: t.tireWear[i] } : undefined,
+    tireTemperatureC: t.tireTemp ? { fl: t.tireTemp.FL[i], fr: t.tireTemp.FR[i], rl: t.tireTemp.RL[i], rr: t.tireTemp.RR[i] } : undefined,
+    tirePressurePsi: t.tirePressure ? { fl: t.tirePressure.FL[i], fr: t.tirePressure.FR[i], rl: t.tirePressure.RL[i], rr: t.tirePressure.RR[i] } : undefined,
+    brakeTemperatureC: t.brakeTemp ? { fl: t.brakeTemp.FL[i], fr: t.brakeTemp.FR[i], rl: t.brakeTemp.RL[i], rr: t.brakeTemp.RR[i] } : undefined,
+  }));
+}
 
 interface TrackFocusViewProps {
   gameId: GameId;
@@ -64,7 +87,9 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
   const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const { traces } = useStintTraces(reviewLaps);
+  const { data: alignedSet } = useAlignedTelemetry(reviewLaps.map((lap) => lap.id), { step: 1 });
+  const zoom = useAlignedTelemetryZoom(reviewLaps.map((lap) => lap.id), alignedSet);
+  const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
   const { data: fetchedLineSpread } = useLineSpread(experimentId);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
 
@@ -81,8 +106,11 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;
   const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
   const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
-
-  const { data: focusTel } = useLapSemanticTelemetry(effectiveFocusId);
+  const focusTelemetry = useMemo(() => {
+    const activeSet = zoom.data ?? alignedSet;
+    const lap = activeSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? activeSet?.laps[0];
+    return lap ? alignedToSemantic(lap, gameId, trackOrdinal, activeSet?.nominalSpanMeters ?? 0) : null;
+  }, [alignedSet, effectiveFocusId, gameId, trackOrdinal, zoom.data]);
   const { data: issues } = useLapIssues(effectiveFocusId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
@@ -119,10 +147,10 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={semanticSamples(gameId, focusTel?.envelopes)}
-      focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
+      focusSectorTimes={null}
       edges={edges}
       corners={corners ?? []}
+      focusTelemetry={focusTelemetry}
       issues={issues ?? []}
       stats={stats}
       lineSpread={lineSpread ?? null}
@@ -192,6 +220,7 @@ export function TrackFocusViewInner({
   const [zoomActive, setZoomActive] = useState(false);
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
+  const zoomLines = useMemo(() => resolvedTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [resolvedTraces]);
 
   // Corners are now returned as lap fractions (0..1) by the server — either
   // from curated track meta or meters-converted-to-fraction DB corners. No
@@ -270,8 +299,8 @@ export function TrackFocusViewInner({
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none">
-            {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
-              <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
+            {zoomActive && zoomLines.length > 0 && cursorFrac != null ? (
+              <TrackFocusZoom lapLines={zoomLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
               <TrackFocusMap
                 telemetry={focusTelemetry}

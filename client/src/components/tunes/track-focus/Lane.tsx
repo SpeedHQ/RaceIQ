@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMeasuredWidth } from "./use-measured-width";
 
 export interface LaneProps {
@@ -20,6 +20,9 @@ export interface LaneProps {
   /** Plot-area background fill. Defaults to the slate wash; pass "transparent"
    *  to let the surrounding panel show through. */
   bgFill?: string;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
 /**
@@ -28,67 +31,50 @@ export interface LaneProps {
  * tracking that reports the hovered fraction up to the parent (which owns
  * the single cross-lane `cursorFrac`).
  */
-export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, children, tooltip, className, bgFill }: LaneProps) {
+export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, children, tooltip, className, bgFill, visibleRange, onRangeSelect, onZoomOut }: LaneProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [hoverFrac, setHoverFrac] = useState<number | null>(null);
-  const x0 = 6;
-  const x1 = bw - 6;
-  const y0 = 6;
-  const y1 = height - 6;
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragFrac, setDragFrac] = useState<number | null>(null);
+  const x0 = 6, x1 = bw - 6, y0 = 6, y1 = height - 6;
   const [min, max] = domain;
-  const x = (f: number) => x0 + f * (x1 - x0);
+  const rangeStart = visibleRange?.start ?? 0, rangeEnd = visibleRange?.end ?? 1;
+  const x = (f: number) => x0 + ((f - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * (x1 - x0);
   const y = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0);
-
   function fracFromEvent(e: React.MouseEvent<SVGSVGElement>): number {
     const rect = svgRef.current!.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    return Math.max(0, Math.min(1, rangeStart + ((e.clientX - rect.left) / rect.width) * (rangeEnd - rangeStart)));
   }
-
+  useEffect(() => {
+    if (dragStart == null) return;
+    const finish = () => {
+      if (dragFrac != null && Math.abs(dragFrac - dragStart) >= 0.01) onRangeSelect?.(dragStart, dragFrac);
+      setDragStart(null); setDragFrac(null);
+    };
+    window.addEventListener("mouseup", finish);
+    return () => window.removeEventListener("mouseup", finish);
+  }, [dragStart, dragFrac, onRangeSelect]);
   function onMove(e: React.MouseEvent<SVGSVGElement>) {
-    const f = fracFromEvent(e);
-    setHoverFrac(f);
-    onCursorFrac(f);
+    const f = fracFromEvent(e); setHoverFrac(f);
+    if (dragStart != null) setDragFrac(f); else onCursorFrac(f);
   }
-
-  function onLeave() {
-    setHoverFrac(null);
-    onCursorFrac(null);
-  }
-
+  function onLeave() { setHoverFrac(null); if (dragStart == null) onCursorFrac(null); }
   return (
     <div ref={wrapRef} className="relative">
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${bw} ${height}`}
-        width="100%"
-        height={height}
-        preserveAspectRatio="none"
-        className={className}
-        style={{ cursor: "crosshair" }}
-        onMouseMove={onMove}
-        onMouseLeave={onLeave}
-      >
+      <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onMouseMove={onMove} onMouseLeave={onLeave} onMouseDown={(e) => onRangeSelect && setDragStart(fracFromEvent(e))} onDoubleClick={() => onZoomOut?.()}>
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill ?? "var(--app-surface-alt)"} fillOpacity={bgFill == null ? 0.35 : 1} rx={4} />
         {min < 0 && max > 0 && <line x1={x0} x2={x1} y1={y(0)} y2={y(0)} stroke="var(--app-border)" strokeWidth={1} />}
-        {cornerFracs?.map((f) => (
-          <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--app-border)" strokeDasharray="2 4" />
-        ))}
+        {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--app-border)" strokeDasharray="2 4" />)}
         {children({ x, y, x0, x1, y0, y1 })}
         {cursorFrac != null && <line x1={x(cursorFrac)} x2={x(cursorFrac)} y1={y0} y2={y1} stroke="var(--app-accent)" strokeWidth={1.2} opacity={0.9} />}
+        {dragStart != null && dragFrac != null && <rect x={Math.min(x(dragStart), x(dragFrac))} y={y0} width={Math.abs(x(dragFrac) - x(dragStart))} height={y1-y0} fill="var(--app-accent)" opacity={0.12} />}
       </svg>
-      {tooltip && hoverFrac != null && (
-        <div
-          className="absolute z-10 pointer-events-none bg-app-surface border border-app-border rounded px-2 py-1.5 shadow-lg text-app-compact"
-          style={{
-            left: `${hoverFrac * 100}%`,
-            top: 0,
-            transform: hoverFrac > 0.5 ? "translate(-105%, 0)" : "translate(5%, 0)",
-          }}
-        >
-          {tooltip(hoverFrac)}
+      {tooltip && (hoverFrac != null || cursorFrac != null) && (() => { const tooltipFrac = hoverFrac ?? cursorFrac!; return (
+        <div className="absolute z-10 pointer-events-none bg-app-surface border border-app-border rounded px-2 py-1.5 shadow-lg text-app-compact" style={{ left: `${((tooltipFrac - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * 100}%`, top: 0, transform: tooltipFrac > (rangeStart + rangeEnd) / 2 ? "translate(-105%, 0)" : "translate(5%, 0)" }}>
+          {tooltip(tooltipFrac)}
         </div>
-      )}
+      ); })()}
     </div>
   );
 }

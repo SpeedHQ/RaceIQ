@@ -12,7 +12,7 @@ import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, sessionId }: { gameId: GameId; trackOrdinal?: number; carOrdinal?: number; sessionId?: number }) {
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { laps?: string };
+  const search = useSearch({ strict: false }) as { laps?: string; view?: string; trackTab?: string };
   const { data: sessions = [], isLoading: sessionsLoading } = useSessions();
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
   const resolvedTrackOrdinal = trackOrdinal ?? selectedSession?.trackOrdinal;
@@ -22,7 +22,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const sessionQuery = useSessionReviewLaps(sessionId ?? null);
   const reviewLaps = sessionId != null ? sessionQuery.data ?? [] : groupQuery.data ?? [];
   const lapsLoading = sessionId != null ? sessionQuery.isLoading : groupQuery.isLoading;
-  const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null);
+  const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null, search.view === "track" && (search.trackTab ?? "consistency") === "consistency");
   const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackOrdinal ?? undefined);
   const { data: resolvedNames, isLoading: namesLoading } = useResolveNames(resolvedTrackOrdinal != null ? [resolvedTrackOrdinal] : [], resolvedCarOrdinal != null ? [resolvedCarOrdinal] : []);
   const { data: carName, isLoading: carLoading } = useCarName(resolvedCarOrdinal ?? undefined);

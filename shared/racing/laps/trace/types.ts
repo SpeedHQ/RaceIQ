@@ -28,6 +28,8 @@ export interface LapTrace {
   /** Seconds elapsed since the first sample, derived from TimestampMS
    *  (wrap-corrected) — used to compute time-at-distance deltas between laps. */
   timeS: Float32Array;
+  posX?: Float32Array;
+  posZ?: Float32Array;
   /** Per-lap average tire temp (°C-ish, game units), skipping zero frames.
    *  Null when the lap has no usable tire temp data. */
   tire: TireAverages | null;
