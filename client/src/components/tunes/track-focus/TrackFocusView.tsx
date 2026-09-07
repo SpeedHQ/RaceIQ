@@ -301,6 +301,15 @@ export function TrackFocusViewInner({
     if (!bestTrace) return { corners: [], fracs: [] };
     return detectCorners(bestTrace);
   }, [corners, cornerFracs, resolvedTraces, bestLapId]);
+  const issueMarkers = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.flatMap((issue) => {
+      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return [];
+      seen.add(issue.distanceFrac);
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ frac: issue.distanceFrac, color }];
+    });
+  }, [issues]);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4">
@@ -408,6 +417,7 @@ export function TrackFocusViewInner({
                   traces={traces}
                   bestLapId={bestLapId}
                   cornerFracs={cornerFracs}
+                  annotationMarkers={issueMarkers}
                   cursorFrac={cursorFrac}
                   onCursorFrac={setCursorFrac}
                   visibleRange={visibleLaneRange}
@@ -420,6 +430,7 @@ export function TrackFocusViewInner({
                     traces={resolvedTraces}
                     bestLapId={bestLapId}
                     cornerFracs={effectiveCorners.fracs}
+                    annotationMarkers={issueMarkers}
                     corners={effectiveCorners.corners}
                     cursorFrac={cursorFrac}
                     onCursorFrac={setCursorFrac}
@@ -435,12 +446,13 @@ export function TrackFocusViewInner({
                 traces={resolvedTraces}
                 bestLapId={bestLapId}
                 cornerFracs={effectiveCorners.fracs}
+                annotationMarkers={issueMarkers}
                 corners={effectiveCorners.corners}
                 cursorFrac={cursorFrac}
                 onCursorFrac={setCursorFrac}
               />
             )}
-            {activeTab === "suspension" && <SuspensionLanes traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
+            {activeTab === "suspension" && <SuspensionLanes traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} annotationMarkers={issueMarkers} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
           </div>
         </div>
       </div>

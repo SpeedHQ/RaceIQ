@@ -4,6 +4,7 @@ import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
+import type { AnnotationMarker } from "./Lane";
 import { GgScatter } from "./GgScatter";
 import { Lane } from "./Lane";
 
@@ -14,6 +15,7 @@ interface GripPanelProps {
   corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  annotationMarkers?: AnnotationMarker[];
   visibleRange?: { start: number; end: number } | null;
   onRangeSelect?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
@@ -77,7 +79,7 @@ function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null):
  * for the two scalar lanes and the corner lane, plus the standalone
  * `GgScatter` for the friction circle.
  */
-export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
+export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
   const withLatG = useMemo(() => traces.filter((t) => t.latG != null), [traces]);
   const withLongG = useMemo(() => traces.filter((t) => t.longG != null), [traces]);
   const withSlip = useMemo(() => traces.filter((t) => t.combinedSlip != null), [traces]);
@@ -126,6 +128,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
             height={100}
             domain={latDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
             tooltip={(f) => {
@@ -176,6 +179,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
             height={100}
             domain={longDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
             tooltip={(f) => {
@@ -226,6 +230,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
             height={100}
             domain={slipDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
             tooltip={(f) => {

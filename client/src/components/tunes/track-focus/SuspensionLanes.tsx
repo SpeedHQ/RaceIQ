@@ -3,6 +3,7 @@ import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { indexAtFrac } from "../../../lib/stint-traces";
 import { Lane } from "./Lane";
+import type { AnnotationMarker } from "./Lane";
 
 interface SuspensionLanesProps {
   /** Traces in lap order (undefined entries = not loaded yet, skipped). */
@@ -11,6 +12,7 @@ interface SuspensionLanesProps {
   cornerFracs?: number[];
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
+  annotationMarkers?: AnnotationMarker[];
 }
 
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
@@ -32,7 +34,7 @@ function suspPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, 
  * lap in accent, invalid laps red. Empty state when the game has no
  * suspension-travel data (e.g. F1, which doesn't expose it).
  */
-export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cursorFrac = null, onCursorFrac = () => {} }: SuspensionLanesProps) {
+export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], annotationMarkers, cursorFrac = null, onCursorFrac = () => {} }: SuspensionLanesProps) {
   const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
   const lapsWithTrace = useMemo(() => laps.filter((t) => t.suspTravel != null), [laps]);
 
@@ -79,6 +81,7 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cu
             height={80}
             domain={laneDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
             tooltip={(f) => {

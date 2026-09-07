@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
-import { Lane } from "./Lane";
+import { Lane, type AnnotationMarker } from "./Lane";
 import { Button } from "../../ui/button";
 
 interface TiresPanelProps {
@@ -9,6 +9,7 @@ interface TiresPanelProps {
   traces: (LapTrace | undefined)[];
   bestLapId?: number | null;
   cornerFracs?: number[];
+  annotationMarkers?: AnnotationMarker[];
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
   visibleRange?: { start: number; end: number } | null;
@@ -111,13 +112,13 @@ function tirePolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, 
  * every lap's per-distance trace — dim per lap, best lap in accent, invalid
  * laps in red, matching the Consistency tab's visual language.
  */
-export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut }: TiresPanelProps) {
+export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], annotationMarkers, cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut }: TiresPanelProps) {
   const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
 
   return (
     <div className="space-y-5">
       {METRICS.map((cfg) => (
-        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} visibleRange={visibleRange} onRangeSelect={onRangeSelect} onZoomOut={onZoomOut} />
+        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} annotationMarkers={annotationMarkers} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} visibleRange={visibleRange} onRangeSelect={onRangeSelect} onZoomOut={onZoomOut} />
       ))}
     </div>
   );
@@ -128,6 +129,7 @@ function TireMetricSection({
   laps,
   bestLapId,
   cornerFracs,
+  annotationMarkers,
   cursorFrac,
   onCursorFrac,
   visibleRange,
@@ -138,6 +140,7 @@ function TireMetricSection({
   laps: LapTrace[];
   bestLapId: number | null;
   cornerFracs: number[];
+  annotationMarkers?: AnnotationMarker[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
   visibleRange: { start: number; end: number } | null;
@@ -178,6 +181,7 @@ function TireMetricSection({
         title={cfg.title}
         height={100}
         domain={domain}
+        annotationMarkers={annotationMarkers}
         cornerFracs={cornerFracs}
         cursorFrac={cursorFrac}
         onCursorFrac={onCursorFrac}
@@ -219,6 +223,7 @@ function TireMetricSection({
               visibleRange={visibleRange}
               onRangeSelect={onRangeSelect}
               onZoomOut={onZoomOut}
+              annotationMarkers={annotationMarkers}
               cursorFrac={cursorFrac}
               onCursorFrac={onCursorFrac}
               tooltip={(f) => {

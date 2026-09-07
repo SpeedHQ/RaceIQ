@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useMeasuredWidth } from "./use-measured-width";
 
+export interface AnnotationMarker {
+  frac: number;
+  color: string;
+}
 export interface LaneProps {
   /** SVG viewbox height in local units; width tracks the parent's pixel width. */
   height?: number;
@@ -20,7 +24,7 @@ export interface LaneProps {
   tooltip?: (f: number) => React.ReactNode;
   className?: string;
   /** Optional issue markers drawn over timeline. */
-  annotationMarkers?: Array<{ frac: number; color: string }>;
+  annotationMarkers?: AnnotationMarker[];
   /** Plot-area background fill. Defaults to the slate wash; pass "transparent"
    *  to let the surrounding panel show through. */
   bgFill?: string;

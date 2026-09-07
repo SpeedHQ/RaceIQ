@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { AnnotationMarker } from "./Lane";
 import { severityRangeColor } from "@/lib/colors";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
@@ -13,6 +14,7 @@ interface BalanceLanesProps {
   corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  annotationMarkers?: AnnotationMarker[];
 }
 
 /** Magnitude thresholds (degrees) for the severity banding — tuned to
@@ -66,7 +68,7 @@ function balanceAt(t: LapTrace, f: number): number {
  * more). Every lap dim, best lap in accent, dashed zero line. Empty state
  * when the game reports no slip-angle data at all.
  */
-export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac }: BalanceLanesProps) {
+export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac }: BalanceLanesProps) {
   const withBalance = useMemo(() => traces.filter((t) => t.balance != null), [traces]);
   const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === bestLapId) ?? null, [withBalance, bestLapId]);
 
@@ -98,6 +100,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
         height={120}
         domain={domain}
         cornerFracs={cornerFracs}
+        annotationMarkers={annotationMarkers}
         cursorFrac={cursorFrac}
         onCursorFrac={onCursorFrac}
         tooltip={(f) => {
