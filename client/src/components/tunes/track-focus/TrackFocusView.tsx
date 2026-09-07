@@ -14,8 +14,10 @@ import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom"
 import { useAlignedTelemetry } from "../../../hooks/aligned-telemetry";
 import { type SemanticTuneSample } from "../semantic-tune";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
-import { Button } from "../../ui/button";
+import { formatLapTime } from "../../../lib/format";
+import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
+import { Button } from "../../ui/button";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
@@ -303,21 +305,23 @@ export function TrackFocusViewInner({
     <div className="flex flex-col h-full min-h-0 p-4 gap-4">
       {/* Stat strip */}
       <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
-        <StatCell label="Consistency" value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
-        <StatCell label="Std dev" value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} />
-        <StatCell label="Best" value={stats.bestS != null ? stats.bestS.toFixed(3) : "—"} unit={stats.bestS != null ? "s" : undefined} />
-        <StatCell label="Mean" value={stats.meanS != null ? stats.meanS.toFixed(3) : "—"} unit={stats.meanS != null ? "s" : undefined} />
+        <StatCell label={m.trackfocus_consistency()} value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
+        <StatCell label={m.trackfocus_lap_variation()} value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} title={m.trackfocus_lap_variation_tooltip()} />
+        <StatCell label={m.trackfocus_best()} value={stats.bestS != null ? formatLapTime(stats.bestS) : "—"} />
+        <StatCell label={m.trackfocus_mean()} value={stats.meanS != null ? formatLapTime(stats.meanS) : "—"} />
         <StatCell
-          label="Degradation"
+          label={m.trackfocus_degradation()}
           value={stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—"}
           unit={stats.degSlopeSPerLap != null ? "s/lap" : undefined}
         />
-        <StatCell label="Issues" value={String(issues.length)} />
+        <StatCell label={m.trackfocus_issues()} value={String(issues.length)} />
       </div>
+
+
 
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
         <p className="flex-none text-xs text-muted-foreground -mt-2">
-          Stats, line + consistency views all use the {shownLapCount} fastest of {totalLapCount} laps.
+          {m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}
         </p>
       )}
 
@@ -441,9 +445,9 @@ export function TrackFocusViewInner({
   );
 }
 
-function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function StatCell({ label, value, unit, title }: { label: string; value: string; unit?: string; title?: string }) {
   return (
-    <div className="rounded bg-app-surface border border-app-border px-3 py-2">
+    <div className="rounded bg-app-surface border border-app-border px-3 py-2" title={title}>
       <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{label}</div>
       <div className="text-base font-mono tabular-nums text-app-text">
         {value}

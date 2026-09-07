@@ -13,6 +13,8 @@ export function useAlignedTelemetry(lapIds: readonly number[], request: AlignedT
     queryKey: ["aligned-telemetry", ids, request],
     enabled: ids.length > 0,
     staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
     queryFn: async ({ signal }) => {
       const res = await client.api.laps["aligned-telemetry"].$post({ json: { ids, ...request } }, { init: { signal } });
       if (!res.ok) throw await errorFromResponse(res);

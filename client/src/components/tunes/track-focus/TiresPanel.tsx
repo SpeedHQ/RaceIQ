@@ -47,7 +47,7 @@ const METRICS: MetricConfig[] = [
     avgUnit: "°C",
     laneUnit: "temp per lap (°C)",
     defaultDomain: [60, 120],
-    fixedAvgDomain: [60, 120],
+    fixedAvgDomain: null,
     refLines: REF_LINES_TEMP,
     pad: 2,
     fmt: (v) => `${v.toFixed(1)}°C`,

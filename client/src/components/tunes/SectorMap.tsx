@@ -108,9 +108,6 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
           onMouseMove={onMove}
           onMouseLeave={onLeave}
         >
-          {geom.leftEdge && <polyline points={geom.leftEdge} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={1.5} opacity={0.5} />}
-          {geom.rightEdge && <polyline points={geom.rightEdge} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={1.5} opacity={0.5} />}
-          <polyline points={geom.allPoints} fill="none" stroke="currentColor" className="text-app-border" strokeWidth={4} strokeLinejoin="round" strokeLinecap="round" opacity={0.3} />
           {geom.segments.map((seg, i) => {
             const dim = highlight != null && highlight !== i;
             return (
@@ -119,9 +116,9 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
                 points={seg}
                 fill="none"
                 stroke={dim ? "currentColor" : SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length]}
-                className={dim ? "text-app-border" : undefined}
-                strokeWidth={dim ? 2 : 3}
-                opacity={dim ? 0.4 : 1}
+                className={dim ? "text-app-text-muted" : undefined}
+                strokeWidth={dim ? 2.5 : 3}
+                opacity={dim ? 0.8 : 1}
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />

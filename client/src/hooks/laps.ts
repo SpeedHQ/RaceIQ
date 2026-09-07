@@ -138,8 +138,9 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       return body;
     },
     enabled: lapId != null && gameId != null,
-    gcTime: 0,
-    staleTime: 0,
+    gcTime: Number.POSITIVE_INFINITY,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
   });
 }
 

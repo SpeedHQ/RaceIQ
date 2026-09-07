@@ -8,6 +8,7 @@ import { TireGrid } from "@/components/telemetry/TireGrid";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
@@ -19,6 +20,7 @@ import { IssuePill } from "./ReviewIssues";
 import { tireSnapshot } from "./tire-snapshot";
 import { semanticSamples, type SemanticTuneSample, wheelValue } from "../semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
+import { formatLapTime } from "@/lib/format";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
@@ -60,6 +62,7 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  */
 export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
 
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
@@ -68,6 +71,13 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
   const focusLap = validLaps.find((l) => l.id === selectedLapId) ?? validLaps[0];
   const view = search.view ?? "overview";
   const trackTab = search.trackTab ?? "consistency";
+  const lapOptions = useMemo(
+    () => [
+      ...((stayOnSessionReview || view === "track") ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
+      ...validLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
+    ],
+    [bestLap, stayOnSessionReview, validLaps, view],
+  );
   const setFocus = useCallback((id: number) => {
     if (stayOnSessionReview) setReviewLapId(id);
     else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
@@ -132,7 +142,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
         lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : (typeof previous.lap === "number" ? previous.lap : focusLap?.id),
       }),
     } as never);
-  // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
+  // In the track view, no ?lap= means "Best lap"; a stale id also counts as Best lap.
   const trackFocusId = view === "track" && (stayOnSessionReview ? reviewLapId : validLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
@@ -200,25 +210,20 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
               ← Session
             </Button>
           )}
-          <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
-          <select
-            value={stayOnSessionReview && view !== "track" ? (reviewLapId ?? "all") : view === "track" ? (trackFocusId ?? "all") : focusLap.id}
-            onChange={(e) => {
-              if (e.target.value === "all") {
+          <SearchSelect
+            value={stayOnSessionReview && view !== "track" ? (reviewLapId != null ? String(reviewLapId) : "all") : view === "track" ? (trackFocusId != null ? String(trackFocusId) : "all") : String(focusLap.id)}
+            onChange={(value) => {
+              if (value === "all") {
                 if (stayOnSessionReview) setReviewLapId(null);
-                else navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
+                else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
               } else {
-                setFocus(Number(e.target.value));
+                setFocus(Number(value));
               }
             }}
-          >
-            {(stayOnSessionReview || view === "track") && <option value="all">All laps</option>}
-            {validLaps.map((l) => (
-              <option key={l.id} value={l.id}>
-                Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
-              </option>
-            ))}
-          </select>
+            options={lapOptions}
+            ariaLabel="Select lap"
+            className="w-56"
+          />
           {!(stayOnSessionReview && reviewLapId == null) && !(view === "track" && trackFocusId == null) && (
             <span className="text-status-success text-sm" title="valid lap">
               ✓
@@ -237,7 +242,6 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
               </Button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}</div>
         </div>
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
@@ -279,8 +283,8 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-3 p-3 @3xl/workspace:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)]">
-              <div className="min-w-0 rounded border border-app-border bg-app-surface/20">
+            <div className="grid grid-cols-1 @3xl/workspace:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)]">
+              <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r">
                 {telemetry.length > 0 ? (
                   <SectorMap
                     telemetry={telemetry}
@@ -295,7 +299,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
                   <div className="p-4 text-xs text-app-text-dim">{loadingTel ? "Loading…" : "No telemetry"}</div>
                 )}
               </div>
-              <div className="min-w-0 divide-y divide-app-border rounded border border-app-border bg-app-surface/20">
+              <div className="min-w-0 divide-y divide-app-border">
                 {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
                   <div key={label} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 p-3">
                     <div>
@@ -359,7 +363,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
                   <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
                     {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
                       <div key={label} className={`border-t border-app-border px-3 py-2 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
-                        <div className="flex items-center gap-1.5 mb-1.5">
+                        <div className="sticky top-0 z-10 flex items-center gap-1.5 mb-1.5 bg-app-bg">
                           <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                           <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
                         </div>
