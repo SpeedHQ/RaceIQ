@@ -32,7 +32,7 @@ export interface AlignedLapTrace {
   yaw: Float32Array;
   elapsedTimeS: Float32Array;
   fuel: Float32Array;
-  tireWear: Float32Array | null;
+  tireWear: WheelTrace<Float32Array> | null;
   tireTemp: WheelTrace<Float32Array> | null;
   tirePressure: WheelTrace<Float32Array> | null;
   brakeTemp: WheelTrace<Float32Array> | null;
@@ -44,6 +44,8 @@ export interface AlignedLapTrace {
   tireAverages: WheelAverages | null;
   pressureAverages: WheelAverages | null;
   brakeTempAverages: WheelAverages | null;
+  sectorTimes: number[] | null;
+  sectorStarts: number[] | null;
 }
 
 export interface AlignedLapSet {
@@ -81,7 +83,7 @@ export interface EncodedAlignedLapTrace {
   yaw: string;
   elapsedTimeS: string;
   fuel: string;
-  tireWear: string | null;
+  tireWear: EncodedWheelTrace | null;
   tireTemp: EncodedWheelTrace | null;
   tirePressure: EncodedWheelTrace | null;
   brakeTemp: EncodedWheelTrace | null;
@@ -93,6 +95,8 @@ export interface EncodedAlignedLapTrace {
   tireAverages: WheelAverages | null;
   pressureAverages: WheelAverages | null;
   brakeTempAverages: WheelAverages | null;
+  sectorTimes: number[] | null;
+  sectorStarts: number[] | null;
 }
 
 export interface EncodedAlignedLapSet {

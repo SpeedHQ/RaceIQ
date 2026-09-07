@@ -125,7 +125,11 @@ export const resourceRoutes = new Hono()
     if (laps.some((lap) => lap.gameId !== first.gameId || lap.trackOrdinal !== first.trackOrdinal)) return c.json({ error: "Laps must belong to the same game and track" }, 400);
     const inputs: AlignmentLapInput[] = request.ids.map((id) => {
       const lap = byId.get(id)!;
-      return { lapId: lap.id, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, telemetry: lap.telemetry };
+      return {
+        lapId: lap.id, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, telemetry: lap.telemetry,
+        sectorTimes: lap.sectorTimes ?? null,
+        sectorStarts: getGame(lap.gameId as GameId).getNativeSectorLayout?.(lap.telemetry[0]!)?.starts ?? null,
+      };
     });
     const cachedIndex = lapSetAlignmentIndexCacheGet(request.ids);
     const alignmentIndex = cachedIndex ?? prepareLapSetAlignmentIndex(inputs, { gridStepMeters: request.step });

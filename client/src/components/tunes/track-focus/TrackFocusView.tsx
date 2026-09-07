@@ -1,4 +1,3 @@
-import { selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMeasuredWidth } from "./use-measured-width";
 import { useCallback, useMemo, useState } from "react";
@@ -12,8 +11,7 @@ import type { TrackCorner } from "../../../hooks/track-queries";
 import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/track-queries";
 import { useLapIssues } from "../../../hooks/tunes";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
-import { useAlignedTelemetry } from "../../../hooks/aligned-telemetry";
-import { type SemanticTuneSample } from "../semantic-tune";
+import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
 import { type LapTrace } from "../../../lib/stint-traces";
 import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -41,32 +39,15 @@ function alignedToLapTrace(t: AlignedLapTrace): LapTrace {
     brakeTemp: averages(t.brakeTempAverages), brakeTempTrace: t.brakeTemp,
   };
 }
-function alignedToSemantic(t: AlignedLapTrace, gameId: GameId, trackOrdinal: number | undefined, span: number): SemanticTuneSample[] {
-  return Array.from({ length: t.speedMps.length }, (_, i) => ({
-    gameId,
-    trackOrdinal,
-    distanceM: t.frac[i] * span,
-    speedMps: t.speedMps[i],
-    positionM: Number.isFinite(t.positionX[i]) && Number.isFinite(t.positionZ[i]) ? { x: t.positionX[i], z: t.positionZ[i] } : undefined,
-    fuel: t.fuel[i],
-    fuelUnit: "litre" as const,
-    tireWearFraction: t.tireWear ? { fl: t.tireWear[i], fr: t.tireWear[i], rl: t.tireWear[i], rr: t.tireWear[i] } : undefined,
-    tireTemperatureC: t.tireTemp ? { fl: t.tireTemp.FL[i], fr: t.tireTemp.FR[i], rl: t.tireTemp.RL[i], rr: t.tireTemp.RR[i] } : undefined,
-    tirePressurePsi: t.tirePressure ? { fl: t.tirePressure.FL[i], fr: t.tirePressure.FR[i], rl: t.tirePressure.RL[i], rr: t.tirePressure.RR[i] } : undefined,
-    brakeTemperatureC: t.brakeTemp ? { fl: t.brakeTemp.FL[i], fr: t.brakeTemp.FR[i], rl: t.brakeTemp.RL[i], rr: t.brakeTemp.RR[i] } : undefined,
-  }));
-}
 
 interface TrackFocusViewProps {
   gameId: GameId;
   laps: LapMeta[];
+  alignedSet: import("@shared/racing/laps/alignment/types").AlignedLapSet | undefined;
+  evaluationLapIds: readonly number[];
   trackOrdinal?: number;
-  /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). Omit for internal state. */
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
-  /** Experiment id, when this view is hosted inside an experiment
-   *  review (drives the /line-spread racing-line consistency query). Omit for
-   *  Storybook, non-tuning contexts. */
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;
   activeTab?: Tab;
@@ -80,10 +61,12 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId, lineSpreadOverride, activeTab, onActiveTabChange }: TrackFocusViewProps) {
+export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId, lineSpreadOverride, activeTab, onActiveTabChange }: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
+  const reviewLaps = laps;
+  const zoom = useAlignedTelemetryZoom(evaluationLapIds, alignedSet);
   // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
   // N clean laps — bounds decode + payload on long tracks. Header stats read
   // the same pool. Matches the server /line-spread pool.
@@ -93,10 +76,6 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the old local fastestLaps() trim could disagree when auto-exclude had
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
-  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const reviewLapIds = useMemo(() => reviewLaps.map((lap) => lap.id), [reviewLaps]);
-  const { data: alignedSet } = useAlignedTelemetry(reviewLapIds, { step: 1 });
-  const zoom = useAlignedTelemetryZoom(reviewLapIds, alignedSet);
   const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
   const visibleLaneRange = useMemo(() => {
     if (!zoom.visibleRange || !alignedSet || alignedSet.nominalSpanMeters <= 0) return null;
@@ -127,7 +106,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
   const focusTelemetry = useMemo(() => {
     const lap = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
-    return lap ? alignedToSemantic(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
+    return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
   }, [alignedSet, effectiveFocusId, gameId, trackOrdinal]);
   const { data: issues } = useLapIssues(effectiveFocusId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);

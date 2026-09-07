@@ -14,13 +14,13 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
-import { useLapSemanticTelemetry } from "@/hooks/laps";
+import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { ArmHeadline, ReviewOverviewSkeleton, ReviewTrackStats } from "./OverviewSkeleton";
 import { IssuePill } from "./ReviewIssues";
-import { tireSnapshot } from "./tire-snapshot";
-import { semanticSamples, type SemanticTuneSample, wheelValue } from "../semantic-tune";
+import { tireSnapshotFromAlignedTrace } from "./tire-snapshot";
+import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValue } from "../semantic-tune";
 import { buildOpenLapContext } from "./open-lap-context";
 import { formatLapTime } from "@/lib/format";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
@@ -64,53 +64,50 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  */
 export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
+  const evaluationLapIds = useMemo(() => evaluationLaps.map((lap) => lap.id), [evaluationLaps]);
   const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
+  const aligned = useAlignedTelemetry(evaluationLapIds, evaluationLapIds.length ? { step: 1 } : null);
 
   const navigate = useNavigate();
   const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
   const [reviewLapId, setReviewLapId] = useState<number | null>(null);
   const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
-  const focusLap = validLaps.find((l) => l.id === selectedLapId) ?? validLaps[0];
+  const focusLap = evaluationLaps.find((l) => l.id === selectedLapId) ?? evaluationLaps[0];
   const view = search.view ?? "overview";
   const trackTab = search.trackTab ?? "consistency";
-  const lapOptions = useMemo(
-    () => [
-      ...((stayOnSessionReview || view === "track") ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
-      ...validLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
-    ],
-    [bestLap, stayOnSessionReview, validLaps, view],
-  );
+  const lapOptions = useMemo(() => [
+    ...((stayOnSessionReview || view === "track") ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
+    ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
+  ], [bestLap, stayOnSessionReview, evaluationLaps, view]);
   const setFocus = useCallback((id: number) => {
     if (stayOnSessionReview) setReviewLapId(id);
     else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
   }, [navigate, stayOnSessionReview]);
-  const setTrackTab = useCallback((tab: TrackTab) => {
-    void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never);
-  }, [navigate]);
-
-  // Point the URL at a real lap when it's missing or stale for this session.
-  // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
+  const setTrackTab = useCallback((tab: TrackTab) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never); }, [navigate]);
   useEffect(() => {
-    if (stayOnSessionReview || !autoSelectLap || validLaps.length === 0) return;
+    if (stayOnSessionReview || !autoSelectLap || evaluationLaps.length === 0) return;
     if (search.view === "track" && search.lap == null) return;
-    if (validLaps.some((l) => l.id === search.lap)) return;
-    navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: validLaps[0].id }) } as never);
-  }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, validLaps]);
-  const { data: lapTel, isLoading: loadingTel } = useLapSemanticTelemetry(view === "track" ? null : focusLap?.id ?? null);
+    if (evaluationLaps.some((l) => l.id === search.lap)) return;
+    navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: evaluationLaps[0]!.id }) } as never);
+  }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, evaluationLaps]);
+  const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
+  const telemetry = useMemo(() => selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : [], [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace]);
+  const sectorTimes = selectedTrace?.sectorTimes ? {
+    times: selectedTrace.sectorTimes,
+    boundaryIndices: (selectedTrace.sectorStarts ?? []).filter((start) => start > 0 && start < 1).slice(0, Math.max(0, selectedTrace.sectorTimes.length - 1)).map((start) => Math.round(start * Math.max(0, telemetry.length - 1))),
+  } : null;
+  const sectorCount = sectorTimes?.times.length ?? 3;
+  const corners = useMemo(() => selectedTrace ? tireSnapshotFromAlignedTrace(selectedTrace) : null, [selectedTrace]);
+  const game = tryGetGame(gameId);
+  const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
+  const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
+  const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
+  const reviewStats = useMemo(() => stintStats(evaluationLaps, { dropOutLap: false }), [evaluationLaps]);
+  const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
 
-  const telemetry = useMemo(() => semanticSamples(gameId, lapTel?.envelopes), [gameId, lapTel]);
-  const sectorTimes = lapTel?.sectorTimes ? { times: lapTel.sectorTimes, boundaryIndices: lapTel.sectorStarts ?? [] } : null;
-  const sectorCount = sectorTimes?.times.length ?? 3;
-  const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
-  const game = tryGetGame(gameId);
-  const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
-
-  const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
-  const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
-  const reviewStats = useMemo(() => stintStats(selectEvaluationLaps(laps).chosen, { dropOutLap: false }), [laps]);
-  const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
     const count = sectorTimes?.times.length ?? 3;
@@ -300,7 +297,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
                     markFraction={markedIssue ? markedIssue.frac : null}
                   />
                 ) : (
-                  <div className="p-4 text-xs text-app-text-dim">{loadingTel ? "Loading…" : "No telemetry"}</div>
+                  <div className="p-4 text-xs text-app-text-dim">{aligned.isLoading ? "Loading…" : "No telemetry"}</div>
                 )}
               </div>
               <div className="min-w-0 divide-y divide-app-border">
@@ -332,7 +329,9 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
         {view === "track" ? (
           <TrackFocusView
             gameId={gameId}
-            laps={laps}
+            laps={evaluationLaps}
+            alignedSet={aligned.data}
+            evaluationLapIds={evaluationLapIds}
             trackOrdinal={focusLap.trackOrdinal}
             focusLapId={trackFocusId}
             onFocusLap={setFocus}
@@ -401,7 +400,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, stayOn
                     healthAvailable={tireHealthAvailable}
                   />
                 ) : (
-                  <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
+                  <div className="p-3 text-xs text-app-text-dim">{aligned.isLoading ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
                 )}
               </div>
             </div>

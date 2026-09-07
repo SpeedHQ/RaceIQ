@@ -30,3 +30,19 @@ export function tireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" 
   }
   return snapshots;
 }
+
+import type { AlignedLapTrace } from "@shared/racing/laps/alignment/types";
+export function tireSnapshotFromAlignedTrace(trace: AlignedLapTrace): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
+  if (trace.speedMps.length === 0) return null;
+  const corners = ["FL", "FR", "RL", "RR"] as const;
+  const snapshots = {} as Record<(typeof corners)[number], CornerSnap>;
+  for (const corner of corners) {
+    snapshots[corner] = {
+      tempC: trace.tireAverages?.[corner],
+      wear: trace.tireWear?.[corner][trace.tireWear[corner].length - 1],
+      pressure: trace.pressureAverages?.[corner],
+      brakeTemp: trace.brakeTempAverages?.[corner],
+    };
+  }
+  return snapshots;
+}

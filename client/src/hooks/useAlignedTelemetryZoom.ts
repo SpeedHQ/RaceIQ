@@ -10,7 +10,7 @@ export function useAlignedTelemetryZoom(lapIds: readonly number[], base: Aligned
   const [optimistic, setOptimistic] = useState<AlignedLapSet | null>(null);
   const current = stack.at(-1);
   const request = useMemo(
-    () => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : { step: 1 as const }),
+    () => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : null),
     [detail],
   );
   const query = useAlignedTelemetry(lapIds, request);

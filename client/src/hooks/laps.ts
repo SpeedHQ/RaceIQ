@@ -73,7 +73,7 @@ function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): Co
     steerA: [...a.steer], steerB: [...b.steer], gearA: [...a.gear], gearB: [...b.gear], rpmA: [...a.rpm], rpmB: [...b.rpm],
     positionXA: [...a.positionX], positionXB: [...b.positionX], positionZA: [...a.positionZ], positionZB: [...b.positionZ],
     yawA: [...a.yaw], yawB: [...b.yaw], elapsedTimeA: [...a.elapsedTimeS], elapsedTimeB: [...b.elapsedTimeS],
-    tireWearA: a.tireWear ? [...a.tireWear] : undefined, tireWearB: b.tireWear ? [...b.tireWear] : undefined,
+    tireWearA: a.tireWear ? Array.from(a.tireWear.FL, (v, i) => (v + a.tireWear!.FR[i]! + a.tireWear!.RL[i]! + a.tireWear!.RR[i]!) / 4) : undefined, tireWearB: b.tireWear ? Array.from(b.tireWear.FL, (v, i) => (v + b.tireWear!.FR[i]! + b.tireWear!.RL[i]! + b.tireWear!.RR[i]!) / 4) : undefined,
   };
   return { lapA, lapB, traces, timeDelta: traces.elapsedTimeA.map((v, i) => v - traces.elapsedTimeB[i]), corners: [], gameId: lapA.gameId };
 }
