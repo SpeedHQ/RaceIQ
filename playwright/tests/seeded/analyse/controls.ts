@@ -53,7 +53,8 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
   });
   await page.getByTitle("Play (Space)").click();
   await page.waitForTimeout(2000);
-  await page.getByTitle("Pause (Space)").click({ force: true });
+  // Timeline rerenders every frame; dispatch pause without waiting on replaced DOM.
+  await page.getByTitle("Pause (Space)").evaluate((button) => (button as HTMLButtonElement).click());
   const pausedFrame = Number(await slider.getAttribute("aria-valuenow"));
   expect(await page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
   expect(pausedFrame).toBeGreaterThan(startFrame);
