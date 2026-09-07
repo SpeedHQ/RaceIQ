@@ -6,6 +6,9 @@ pre-commit:
 
     - name: test shards
       run: bun run test:shards
+    - name: theme contract
+      run: bun run test:theme-contract
+
     - name: lint
       run: bun run lint
 

@@ -7,6 +7,7 @@
 ### Fixes
 
 ### Internal
+- Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
 
 ## v0.16.0 - 2026-09-06
