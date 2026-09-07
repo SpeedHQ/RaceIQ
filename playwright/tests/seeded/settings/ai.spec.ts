@@ -34,7 +34,9 @@ test("AI settings classify empty models and recover from controlled API error", 
     await page.getByRole("button", { name: "Settings" }).click();
     await page.getByRole("button", { name: "AI Analysis" }).click();
     await expect(page.getByRole("heading", { name: "AI Analysis Provider" })).toBeVisible();
-    await page.getByLabel("Provider").first().selectOption("openai-compatible");
+    await page.getByLabel("Provider").first().click();
+    await page.getByRole("option", { name: "OpenAI-compatible" }).click();
+    await page.getByRole("button", { name: "Edit" }).last().click();
     await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toBeVisible();
     await page.getByLabel("OpenAI-compatible API Key (optional)").fill("gateway-secret");
     await page.waitForTimeout(100);
