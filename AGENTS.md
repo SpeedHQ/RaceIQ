@@ -230,6 +230,15 @@ ran v39 before the `car`/`driver` rename.
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
+### Branch and PR targeting
+
+- If user names an existing PR, work only on that PR's head branch.
+- Before committing or pushing, inspect current branch and target PR head.
+- Do not create a new branch or PR when target PR exists.
+- Push changes to target PR head branch; update its description in place.
+- If checkout branch differs from target head, switch to target head before editing.
+- Never force-push target PR branch unless user explicitly requests it.
+
 ### Dependency inspection
 
 - Do not read, search, or inspect `node_modules/` source files. Treat installed dependencies as opaque; use repository code, package manifests, lockfiles, and official upstream documentation when dependency behavior matters.
