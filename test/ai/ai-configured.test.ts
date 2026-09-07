@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isAiAnalysisConfigured, isAiConfigured, launchAiFeature } from "../../client/src/lib/is-ai-configured";
+import { isAiAnalysisConfigured, isAiChatConfigured, isAiConfigured, launchAiFeature } from "../../client/src/lib/is-ai-configured";
 
 describe("isAiConfigured", () => {
   test("treats local provider as configured without API keys", () => {
@@ -32,6 +32,19 @@ describe("isAiAnalysisConfigured", () => {
     expect(isAiAnalysisConfigured({ aiProvider: "gemini", geminiApiKeySet: true, aiModel: "gemini-2.5-flash" })).toBe(true);
     expect(isAiAnalysisConfigured({ aiProvider: "openai", openaiApiKeySet: true, aiModel: "gpt-5" })).toBe(true);
     expect(isAiAnalysisConfigured({ aiProvider: "openai-compatible", aiModel: "qwen3" })).toBe(true);
+  });
+});
+
+describe("isAiChatConfigured", () => {
+  test("requires chat provider and model", () => {
+    expect(isAiChatConfigured({ chatProvider: "", chatModel: "" })).toBe(false);
+    expect(isAiChatConfigured({ chatProvider: "openai-compatible", chatModel: "" })).toBe(false);
+    expect(isAiChatConfigured({ chatProvider: "openai-compatible", chatModel: "qwen3" })).toBe(true);
+  });
+
+  test("requires credentials for hosted chat providers", () => {
+    expect(isAiChatConfigured({ chatProvider: "openai", chatModel: "gpt-5", openaiApiKeySet: false })).toBe(false);
+    expect(isAiChatConfigured({ chatProvider: "openai", chatModel: "gpt-5", openaiApiKeySet: true })).toBe(true);
   });
 });
 

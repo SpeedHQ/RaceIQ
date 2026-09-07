@@ -19,7 +19,7 @@ test("AI settings classify empty models and recover from controlled API error", 
     await route.fulfill({ response, json: body });
   });
   await page.route("**/api/ai-key", async (route) => {
-    savedKeyPayload = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+    savedKeyPayload = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
   await page.route("**/api/ai-models**", async (route) => {
@@ -37,7 +37,8 @@ test("AI settings classify empty models and recover from controlled API error", 
     await page.getByLabel("Provider").first().selectOption("openai-compatible");
     await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toBeVisible();
     await page.getByLabel("OpenAI-compatible API Key (optional)").fill("gateway-secret");
-    await page.getByRole("button", { name: "Save", exact: true }).first().click();
+    await page.waitForTimeout(100);
+    await page.getByLabel("OpenAI-compatible API Key (optional)").press("Tab");
     await expect.poll(() => savedKeyPayload).toEqual({ provider: "openai-compatible", apiKey: "gateway-secret" });
     await expect(page.getByLabel("OpenAI-compatible API Key (optional)")).toHaveAttribute("placeholder", /.+/);
     await expect(page.getByTitle("Clear stored key").first()).toBeVisible();

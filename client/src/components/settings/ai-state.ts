@@ -1,6 +1,15 @@
 type ProviderInfo = { id: string; name: string };
-export type ModelInfo = { id: string; name: string; contextLength?: number };
 type AsyncAction = { mutate: () => void; isPending: boolean; isError: boolean };
+export type ProviderSetupState = {
+  keys: Record<string, string>;
+  setKey: (provider: string, value: string) => void;
+  saveKey: (provider: string, value: string) => Promise<void>;
+  localEndpoint: string;
+  setLocalEndpoint: (value: string) => void;
+  saveEndpoint: (value: string) => Promise<void>;
+  keyStatus: Record<string, boolean>;
+};
+export type ModelInfo = { id: string; name: string };
 
 type KeyInfo = { label: string; placeholder: string; helpText: string; helpUrl?: string };
 

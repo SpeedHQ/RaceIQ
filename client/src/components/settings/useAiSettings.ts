@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSaveSettings, useSettings } from "@/hooks/settings";
 import { m } from "@/paraglide/messages";
-import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileState } from "./ai-state";
+import type { AiAnalysisState, AiAutoTuneState, AiChatState, AiDriverProfileState, ProviderSetupState } from "./ai-state";
 import { PROVIDER_KEY_LABELS, PROVIDER_KEY_MAP } from "./ai-state";
 import { isAiProvider, useAiModelData } from "./useAiModelData";
 
@@ -18,6 +18,7 @@ type DriverProfileSettings = {
 
 export interface AiSettingsState {
   settingsLoaded: boolean;
+  providerSetup: ProviderSetupState;
   analysis: AiAnalysisState;
   chat: AiChatState;
   autoTune: AiAutoTuneState;
@@ -40,6 +41,11 @@ export function useAiSettings(): AiSettingsState {
   const [thinkingBudget, setThinkingBudget] = useState<number | null>(displaySettings.aiThinkingBudget ?? null);
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
+  const apiKeyRef = useRef("");
+  const setApiKeyValue = (value: string) => {
+    apiKeyRef.current = value;
+    setApiKey(value);
+  };
   const [saveError, setSaveError] = useState<string | null>(null);
   const [analysisBaseline, setAnalysisBaseline] = useState<SavedAnalysisBaseline>(() => ({
     provider: displaySettings.aiProvider ?? "",
@@ -67,6 +73,11 @@ export function useAiSettings(): AiSettingsState {
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatThinkingBudget, setChatThinkingBudget] = useState<number | null>(displaySettings.chatThinkingBudget ?? null);
+  const chatApiKeyRef = useRef("");
+  const setChatApiKeyValue = (value: string) => {
+    chatApiKeyRef.current = value;
+    setChatApiKey(value);
+  };
   const [chatSaveError, setChatSaveError] = useState<string | null>(null);
   const [chatBaseline, setChatBaseline] = useState<SavedChatBaseline>(() => ({
     provider: displaySettings.chatProvider ?? "",
@@ -90,6 +101,11 @@ export function useAiSettings(): AiSettingsState {
   const [autoTuneModel, setAutoTuneModel] = useState(displaySettings.autoTuneModel ?? "");
   const [autoTuneApiKey, setAutoTuneApiKey] = useState("");
   const [autoTuneSaveError, setAutoTuneSaveError] = useState<string | null>(null);
+  const autoTuneApiKeyRef = useRef("");
+  const setAutoTuneApiKeyValue = (value: string) => {
+    autoTuneApiKeyRef.current = value;
+    setAutoTuneApiKey(value);
+  };
   const [autoTuneBaseline, setAutoTuneBaseline] = useState<{ provider: string; model: string }>(() => ({
     provider: displaySettings.autoTuneProvider ?? "",
     model: displaySettings.autoTuneModel ?? "",
@@ -112,6 +128,11 @@ export function useAiSettings(): AiSettingsState {
   const [driverProfileThinkingBudget, setDriverProfileThinkingBudget] = useState<number | null>(driverProfileSettings.driverProfileThinkingBudget ?? null);
   const [driverProfileApiKey, setDriverProfileApiKey] = useState("");
   const [driverProfileSaveError, setDriverProfileSaveError] = useState<string | null>(null);
+  const driverProfileApiKeyRef = useRef("");
+  const setDriverProfileApiKeyValue = (value: string) => {
+    driverProfileApiKeyRef.current = value;
+    setDriverProfileApiKey(value);
+  };
   const [driverProfileBaseline, setDriverProfileBaseline] = useState(() => ({
     backgroundEnabled: Boolean(driverProfileSettings.driverProfileBackgroundEnabled ?? false),
     provider: driverProfileSettings.driverProfileProvider ?? "",
@@ -206,6 +227,22 @@ export function useAiSettings(): AiSettingsState {
   const canSaveAnalysis = analysisConfigDirty || apiKey.trim().length > 0;
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
   const chatConfigDirty = chatProvider !== chatBaseline.provider || chatModel !== chatBaseline.model || nextChatThinkingBudget !== chatBaseline.thinkingBudget;
+  const [providerSetupKeys, setProviderSetupKeys] = useState<Record<string, string>>({});
+  const saveProviderKey = useCallback(async (providerKeyId: string, apiKey: string) => {
+    const res = await fetch("/api/ai-key", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerKeyId, apiKey }),
+    });
+    if (!res.ok) throw new Error(m.ai_save_key_failed());
+    updateKeyStatusInSettingsCache(providerKeyId, apiKey.trim().length > 0);
+    setProviderSetupKeys((previous) => ({ ...previous, [providerKeyId]: "" }));
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  }, [qc]);
+  const saveProviderEndpoint = useCallback(async (endpoint: string) => {
+    updateSettingsInCache({ localEndpoint: endpoint });
+    await saveSettings.mutateAsync({ localEndpoint: endpoint });
+  }, [saveSettings]);
   const canSaveChat = chatConfigDirty || chatApiKey.trim().length > 0;
   const autoTuneConfigDirty = autoTuneProvider !== autoTuneBaseline.provider || autoTuneModel !== autoTuneBaseline.model;
   const canSaveAutoTune = autoTuneConfigDirty || autoTuneApiKey.trim().length > 0;
@@ -226,23 +263,20 @@ export function useAiSettings(): AiSettingsState {
   });
   const isSaving = saveSettings.isPending;
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaveError(null);
     const startedAt = performance.now();
     try {
       const providerKeyId = PROVIDER_KEY_MAP[provider];
-      const keyPromise = apiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey }) : null;
+      const keyPromise = apiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: apiKeyRef.current }) : null;
       const updates: Record<string, unknown> = { aiProvider: provider, aiModel: model, aiThinkingBudget: nextThinkingBudget };
       if (provider === "openai-compatible") updates.localEndpoint = localEndpoint;
       updateSettingsInCache(updates);
-      await saveSettings.mutateAsync(updates);
+      await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
-        keyPromise
-          .then(() => {
-            updateKeyStatusInSettingsCache(providerKeyId, true);
-            setApiKey("");
-          })
-          .catch((err: unknown) => setSaveError(err instanceof Error ? err.message : m.ai_save_key_failed()));
+        updateKeyStatusInSettingsCache(providerKeyId, true);
+        apiKeyRef.current = "";
+        setApiKey("");
       }
       console.info(`[AI Settings] analysis save completed in ${Math.round(performance.now() - startedAt)}ms`);
       qc.invalidateQueries({ queryKey: ["settings"] });
@@ -251,55 +285,66 @@ export function useAiSettings(): AiSettingsState {
       console.error(`[AI Settings] analysis save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
-  };
-  const handleChatSave = async () => {
+  }, [analysisBaseline.localEndpoint, apiKey, localEndpoint, model, nextThinkingBudget, provider, qc, saveApiKey, saveSettings]);
+  useEffect(() => {
+    if (!settingsLoaded || !canSaveAnalysis) return;
+    const timeout = setTimeout(() => void handleSave(), 500);
+    return () => clearTimeout(timeout);
+  }, [apiKey, canSaveAnalysis, handleSave, localEndpoint, model, provider, settingsLoaded, thinkingBudget]);
+  const handleChatSave = useCallback(async () => {
     setChatSaveError(null);
     try {
       const providerKeyId = PROVIDER_KEY_MAP[chatProvider];
-      const keyPromise = chatApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKey }) : null;
+      const keyPromise = chatApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKeyRef.current }) : null;
       const updates = { chatProvider, chatModel, chatThinkingBudget: nextChatThinkingBudget };
       updateSettingsInCache(updates);
-      await saveSettings.mutateAsync(updates);
-      if (keyPromise)
-        keyPromise
-          .then(() => {
-            updateKeyStatusInSettingsCache(providerKeyId, true);
-            setChatApiKey("");
-          })
-          .catch((err: unknown) => setChatSaveError(err instanceof Error ? err.message : m.ai_save_key_failed()));
+      await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
+      if (keyPromise) {
+        updateKeyStatusInSettingsCache(providerKeyId, true);
+        chatApiKeyRef.current = "";
+        setChatApiKey("");
+      }
       qc.invalidateQueries({ queryKey: ["settings"] });
       setChatBaseline({ provider: chatProvider, model: chatModel, thinkingBudget: nextChatThinkingBudget });
     } catch (err) {
       setChatSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
     }
-  };
-  const handleAutoTuneSave = async () => {
+  }, [chatApiKey, chatModel, chatProvider, nextChatThinkingBudget, qc, saveApiKey, saveSettings]);
+  useEffect(() => {
+    if (!settingsLoaded || !canSaveChat) return;
+    const timeout = setTimeout(() => void handleChatSave(), 500);
+    return () => clearTimeout(timeout);
+  }, [canSaveChat, chatApiKey, chatModel, chatProvider, chatThinkingBudget, handleChatSave, settingsLoaded]);
+  const handleAutoTuneSave = useCallback(async () => {
     setAutoTuneSaveError(null);
     try {
       const providerKeyId = PROVIDER_KEY_MAP[autoTuneProvider];
-      const keyPromise = autoTuneApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKey }) : null;
+      const keyPromise = autoTuneApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKeyRef.current }) : null;
       const updates = { autoTuneProvider, autoTuneModel };
       updateSettingsInCache(updates);
-      await saveSettings.mutateAsync(updates);
-      if (keyPromise)
-        keyPromise
-          .then(() => {
-            updateKeyStatusInSettingsCache(providerKeyId, true);
-            setAutoTuneApiKey("");
-          })
-          .catch((err: unknown) => setAutoTuneSaveError(err instanceof Error ? err.message : m.ai_save_key_failed()));
+      await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
+      if (keyPromise) {
+        updateKeyStatusInSettingsCache(providerKeyId, true);
+        autoTuneApiKeyRef.current = "";
+        setAutoTuneApiKey("");
+      }
       qc.invalidateQueries({ queryKey: ["settings"] });
       setAutoTuneBaseline({ provider: autoTuneProvider, model: autoTuneModel });
     } catch (err) {
       setAutoTuneSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
     }
-  };
-  const handleDriverProfileSave = async () => {
+  }, [autoTuneApiKey, autoTuneModel, autoTuneProvider, qc, saveApiKey, saveSettings]);
+  useEffect(() => {
+    if (!settingsLoaded || !canSaveAutoTune) return;
+    const timeout = setTimeout(() => void handleAutoTuneSave(), 500);
+    return () => clearTimeout(timeout);
+  }, [autoTuneApiKey, autoTuneModel, autoTuneProvider, canSaveAutoTune, handleAutoTuneSave, settingsLoaded]);
+  const handleDriverProfileSave = useCallback(async () => {
     setDriverProfileSaveError(null);
     const startedAt = performance.now();
     try {
       const providerKeyId = PROVIDER_KEY_MAP[driverProfileProvider];
-      const keyPromise = driverProfileApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: driverProfileApiKey }) : null;
+      const keyPromise = driverProfileApiKeyRef.current && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: driverProfileApiKeyRef.current }) : null;
       const updates: Record<string, unknown> = {
         driverProfileBackgroundEnabled,
         driverProfileProvider,
@@ -308,14 +353,11 @@ export function useAiSettings(): AiSettingsState {
         driverProfileMaxOutputTokens,
       };
       updateSettingsInCache(updates);
-      await saveSettings.mutateAsync(updates);
+      await Promise.all([saveSettings.mutateAsync(updates), keyPromise]);
       if (keyPromise) {
-        keyPromise
-          .then(() => {
-            updateKeyStatusInSettingsCache(providerKeyId, true);
-            setDriverProfileApiKey("");
-          })
-          .catch((err: unknown) => setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_key_failed()));
+        updateKeyStatusInSettingsCache(providerKeyId, true);
+        driverProfileApiKeyRef.current = "";
+        setDriverProfileApiKey("");
       }
       qc.invalidateQueries({ queryKey: ["settings"] });
       setDriverProfileBaseline({
@@ -330,7 +372,31 @@ export function useAiSettings(): AiSettingsState {
       console.error(`[AI Settings] driver profile save failed in ${Math.round(performance.now() - startedAt)}ms`, err instanceof Error ? err.message : String(err));
       setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
-  };
+  }, [
+    driverProfileApiKey,
+    driverProfileBackgroundEnabled,
+    driverProfileMaxOutputTokens,
+    driverProfileModel,
+    driverProfileProvider,
+    nextDriverProfileThinkingBudget,
+    qc,
+    saveApiKey,
+    saveSettings,
+  ]);
+  useEffect(() => {
+    if (!settingsLoaded || !canSaveDriverProfile) return;
+    const timeout = setTimeout(() => void handleDriverProfileSave(), 500);
+    return () => clearTimeout(timeout);
+  }, [
+    canSaveDriverProfile,
+    driverProfileApiKey,
+    driverProfileBackgroundEnabled,
+    driverProfileMaxOutputTokens,
+    driverProfileModel,
+    driverProfileProvider,
+    driverProfileThinkingBudget,
+    handleDriverProfileSave,
+  ]);
   const clearKey = async (providerKeyId: string) => {
     setSaveError(null);
     try {
@@ -354,6 +420,15 @@ export function useAiSettings(): AiSettingsState {
 
   return {
     settingsLoaded,
+    providerSetup: {
+      keys: providerSetupKeys,
+      setKey: (provider: string, value: string) => setProviderSetupKeys((previous) => ({ ...previous, [provider]: value })),
+      saveKey: saveProviderKey,
+      localEndpoint,
+      setLocalEndpoint,
+      saveEndpoint: saveProviderEndpoint,
+      keyStatus,
+    },
     analysis: {
       provider,
       setProvider,
@@ -362,7 +437,7 @@ export function useAiSettings(): AiSettingsState {
       thinkingBudget,
       setThinkingBudget,
       apiKey,
-      setApiKey,
+      setApiKey: setApiKeyValue,
       localEndpoint,
       setLocalEndpoint,
       keyInfo: PROVIDER_KEY_LABELS[provider],
@@ -392,7 +467,7 @@ export function useAiSettings(): AiSettingsState {
       chatThinkingBudget,
       setChatThinkingBudget,
       chatApiKey,
-      setChatApiKey,
+      setChatApiKey: setChatApiKeyValue,
       keyStatus,
       hasChatProviderKey,
       chatModels,
@@ -417,7 +492,7 @@ export function useAiSettings(): AiSettingsState {
       autoTuneModel,
       setAutoTuneModel,
       autoTuneApiKey,
-      setAutoTuneApiKey,
+      setAutoTuneApiKey: setAutoTuneApiKeyValue,
       keyStatus,
       hasAutoTuneProviderKey,
       autoTuneModels,
@@ -446,7 +521,7 @@ export function useAiSettings(): AiSettingsState {
       setDriverProfileMaxOutputTokens,
       driverProfileModelContextLength,
       driverProfileApiKey,
-      setDriverProfileApiKey,
+      setDriverProfileApiKey: setDriverProfileApiKeyValue,
       keyStatus,
       hasDriverProfileProviderKey,
       driverProfileKeyInfo: PROVIDER_KEY_LABELS[driverProfileProvider],
