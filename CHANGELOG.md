@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
 

@@ -3,6 +3,9 @@ import type { Page } from "@playwright/test";
 const STORY_ROOT_CHILD = "#storybook-root > *";
 const REQUIRED_THEME_TOKENS = ["--app-bg", "--app-text", "--app-accent", "--font-sans", "--font-mono"];
 const SNAPSHOT_STYLE = `
+  html[data-visual-test] [data-visual-test-hidden] {
+    visibility: hidden !important;
+  }
   html[data-visual-test] *,
   html[data-visual-test] *::before,
   html[data-visual-test] *::after {
