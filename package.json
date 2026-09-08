@@ -24,6 +24,7 @@
     "assets:optimize:gt3": "bun scripts/assets/optimize-gt3-model.ts",
     "assets:optimize:f1": "bun scripts/assets/optimize-f1-model.ts",
     "test:shards": "bun scripts/test/check-shards.ts",
+    "test:theme-contract": "bun test test/tooling/theme-contract.test.ts --timeout 60000",
     "test:unit": "bun scripts/test/run-suite.ts unit",
     "test:integration": "bun scripts/test/run-suite.ts integration",
     "test:e2e:recordings": "bun scripts/test/run-suite.ts e2e",

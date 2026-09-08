@@ -309,8 +309,8 @@ export function TrackFocusViewInner({
         </p>
       )}
 
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
-        {/* Left column: track map (static) + issues list (own scroll). */}
+      <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
+        {/* Track map and issues scroll away with lane content. */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="relative mx-auto w-full max-w-[28rem] flex-none">
             <Button

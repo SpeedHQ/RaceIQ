@@ -17,7 +17,7 @@ test("settings persist through reload and can be restored", async ({ page, reque
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Units" }).click();
     await page.getByRole("button", { name: nextUnit === "metric" ? "Metric" : "Imperial" }).click();
     await page.getByRole("button", { name: `°${nextTemperature}` }).click();

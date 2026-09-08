@@ -17,12 +17,13 @@ import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import { withOnboardingOverride } from "../runtime/options";
 
-import { getGeminiModelsDetailed, getLocalModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
+import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
+import { getLocalApiKey } from "../ai/openai-compatible-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
-let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
-let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
+let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
+let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
   id: string;
   name: string;
@@ -71,14 +72,17 @@ export const settingsRoutes = new Hono()
     let hasGeminiKey = false;
     let hasOpenaiKey = false;
     let hasAnthropicKey = false;
+    let hasOpenAiCompatibleKey = false;
     if (shouldCheckCredentialStatus()) {
       hasGeminiKey = !!(await getSecret("gemini-api-key"));
       hasOpenaiKey = !!(await getSecret("openai-api-key"));
       hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
+      hasOpenAiCompatibleKey = !!(await getLocalApiKey());
     }
     return c.json({
       ...settings,
       udpPort: udpListener.port,
+      openaiCompatibleApiKeySet: hasOpenAiCompatibleKey,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
@@ -99,7 +103,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "local"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "openai-compatible"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -142,21 +146,25 @@ export const settingsRoutes = new Hono()
     }
 
     const shouldFetchLocal = useRequestedProviders
-      ? requestedProviders.has("local")
-      : settings.aiProvider === "local" || settings.chatProvider === "local";
+      ? requestedProviders.has("openai-compatible")
+      : settings.aiProvider === "openai-compatible" || settings.chatProvider === "openai-compatible";
     let localModels: { id: string; name: string; contextLength?: number }[] = [];
     let localError: string | null = null;
     if (shouldFetchLocal) {
       const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
+      const localKey = await getLocalApiKey();
+      const localCacheKey = localKey || "";
       const localCacheHit = !forceRefresh
         && cachedLocalModels
         && cachedLocalModels.endpoint === endpoint
+        && cachedLocalModels.key === localCacheKey
         && (Date.now() - cachedLocalModels.at) < MODELS_CACHE_TTL_MS;
       const localEmptyRecent = !forceRefresh
         && cachedLocalEmpty
         && cachedLocalEmpty.endpoint === endpoint
+        && cachedLocalEmpty.key === localCacheKey
         && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
-      let fetchedLocal: Awaited<ReturnType<typeof getLocalModelsDetailed>>;
+      let fetchedLocal: Awaited<ReturnType<typeof getOpenAiCompatibleModelsDetailed>>;
       if (localCacheHit && cachedLocalModels) {
         console.info("[AI] ai-models local cache hit");
         fetchedLocal = { models: cachedLocalModels.models, error: null };
@@ -165,18 +173,18 @@ export const settingsRoutes = new Hono()
         fetchedLocal = { models: [], error: localError };
       } else {
         console.info("[AI] ai-models local cache miss");
-        fetchedLocal = await getLocalModelsDetailed(endpoint);
+        fetchedLocal = await getOpenAiCompatibleModelsDetailed(endpoint, localKey || undefined);
       }
       localError = fetchedLocal.error;
       const fetchedLocalModels = fetchedLocal.models;
       localModels = fetchedLocalModels.length > 0
         ? fetchedLocalModels
-        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint ? cachedLocalModels.models : []);
+        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint && cachedLocalModels.key === localCacheKey ? cachedLocalModels.models : []);
       if (fetchedLocalModels.length > 0) {
-        cachedLocalModels = { endpoint, models: localModels, at: Date.now() };
+        cachedLocalModels = { endpoint, key: localCacheKey, models: localModels, at: Date.now() };
         cachedLocalEmpty = null;
       } else if (!localCacheHit) {
-        cachedLocalEmpty = { endpoint, at: Date.now() };
+        cachedLocalEmpty = { endpoint, key: localCacheKey, at: Date.now() };
       }
     } else {
       console.info("[AI] ai-models local fetch skipped (provider not local)");
@@ -185,8 +193,8 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
-      "local": localModels,
-      "_errors": { gemini: geminiError, openai: null, local: localError },
+      "openai-compatible": localModels,
+      "_errors": { gemini: geminiError, openai: null, "openai-compatible": localError },
     });
   })
 

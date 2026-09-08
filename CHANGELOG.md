@@ -6,6 +6,8 @@
 ### Features
 - Review recorded sessions from bounded metadata summaries and surface only top laps before opening detailed analysis
 - Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
+- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
+- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
@@ -17,6 +19,7 @@
 - Keep tire and grip crosshairs responsive while reviewing long recorded sessions
 
 ### Internal
+- Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
 
 ## v0.16.0 - 2026-09-06

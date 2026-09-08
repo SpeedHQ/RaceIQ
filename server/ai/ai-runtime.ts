@@ -1,4 +1,4 @@
-import { getSecret } from "../runtime/platform/keystore";
+import { getAiProviderApiKey } from "./openai-compatible-provider";
 import { loadSettings, type AppSettings } from "../runtime/config/settings";
 import { AI_FEATURES, type AiFeature, type AiProvider } from "./ai-features";
 import {
@@ -6,13 +6,12 @@ import {
 } from "./provider-error";
 import {
   GeminiProviderAdapter,
-  LocalProviderAdapter,
+  OpenAiCompatibleProviderAdapter,
   OpenAiProviderAdapter,
   resolvedAiFromAdapter,
 } from "./provider-adapters";
-import type { ResolvedAi } from "./ai-types";
 
-export type { AiFeature, AiProvider, ResolvedAi } from "./ai-types";
+import type { ResolvedAi } from "./ai-types";
 
 function sectionFor(feature: AiFeature): "Chat" | "Analysis" {
   return feature === "chat" || feature === "compaction" ? "Chat" : "Analysis";
@@ -42,7 +41,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   }
 
   const provider = selected.provider as AiProvider;
-  if (provider !== "gemini" && provider !== "openai" && provider !== "local") {
+  if (provider !== "gemini" && provider !== "openai" && provider !== "openai-compatible") {
     throw new AiProviderError(`Unsupported AI provider: ${selected.provider}`, {
       code: "unsupported-provider",
       provider: selected.provider,
@@ -59,7 +58,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
   const config = { feature, model, thinkingBudget: selected.thinkingBudget };
   switch (provider) {
     case "gemini": {
-      const apiKey = await getSecret("gemini-api-key");
+      const apiKey = await getAiProviderApiKey("gemini");
       if (!apiKey) {
         throw new AiProviderError(`Gemini API key not set. Add it in Settings → AI ${section}.`, {
           code: "missing-api-key",
@@ -70,7 +69,7 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
       return resolvedAiFromAdapter(new GeminiProviderAdapter({ ...config, apiKey }));
     }
     case "openai": {
-      const apiKey = await getSecret("openai-api-key");
+      const apiKey = await getAiProviderApiKey("openai");
       if (!apiKey) {
         throw new AiProviderError(`OpenAI API key not set. Add it in Settings → AI ${section}.`, {
           code: "missing-api-key",
@@ -80,10 +79,13 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
       }
       return resolvedAiFromAdapter(new OpenAiProviderAdapter({ ...config, apiKey }));
     }
-    case "local":
-      return resolvedAiFromAdapter(new LocalProviderAdapter({
+    case "openai-compatible": {
+      const apiKey = await getAiProviderApiKey("openai-compatible");
+      return resolvedAiFromAdapter(new OpenAiCompatibleProviderAdapter({
         ...config,
         endpoint: settings.localEndpoint || "http://localhost:1234/v1",
+        apiKey,
       }));
+    }
   }
 }
