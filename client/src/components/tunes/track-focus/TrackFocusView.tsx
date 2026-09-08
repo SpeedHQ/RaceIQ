@@ -1,6 +1,8 @@
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMeasuredWidth } from "./use-measured-width";
 import { useCallback, useMemo, useState } from "react";
+import { Settings2 } from "lucide-react";
+import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
@@ -16,6 +18,7 @@ import { type LapTrace } from "../../../lib/stint-traces";
 import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
@@ -224,6 +227,9 @@ export function TrackFocusViewInner({
     onActiveTabChange?.(tab);
   };
   const [zoomActive, setZoomActive] = useState(false);
+  const [zoomBehavior, setZoomBehavior] = useLocalStorage<"default" | "zoomed" | "disabled">("analyse-hoverZoom", "default");
+  const [zoomSettingsOpen, setZoomSettingsOpen] = useState(false);
+  const zoomBehaviorLabels = { default: "Default", zoomed: "Always", disabled: "Never" } as const;
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
   const zoomLines = useMemo(() => resolvedTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [resolvedTraces]);
@@ -306,16 +312,51 @@ export function TrackFocusViewInner({
       <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
-          <div className="mx-auto w-full max-w-[28rem] flex-none">
-            {(zoomActive ? zoomLines : scopeZoomLines).length > 0 && (zoomActive || visibleLaneRange) && (cursorFrac != null || visibleLaneRange != null) ? (
+          <div className="relative mx-auto w-full max-w-[28rem] flex-none">
+            <Button
+              type="button"
+              variant="app-outline"
+              size="icon-sm"
+              aria-label="Track display settings"
+              title="Track display settings"
+              onClick={() => setZoomSettingsOpen(true)}
+              className="absolute top-2 right-2 z-10"
+            >
+              <Settings2 className="size-4" />
+            </Button>
+            <Dialog open={zoomSettingsOpen} onOpenChange={setZoomSettingsOpen}>
+              <DialogContent size="sm">
+                <DialogHeader>
+                  <DialogTitle className="text-app-heading font-semibold">Track display settings</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-2">
+                  <p className="text-app-detail text-app-text-muted">Hover zoom</p>
+                  {(["default", "zoomed", "disabled"] as const).map((behavior) => (
+                    <Button
+                      key={behavior}
+                      type="button"
+                      variant={zoomBehavior === behavior ? "selected-toggle" : "app-outline"}
+                      className="justify-start"
+                      onClick={() => {
+                        setZoomBehavior(behavior);
+                        setZoomSettingsOpen(false);
+                      }}
+                    >
+                      {zoomBehaviorLabels[behavior]}
+                    </Button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+            {(zoomBehavior === "zoomed" ? zoomLines : zoomBehavior === "default" ? (zoomActive ? zoomLines : scopeZoomLines) : []).length > 0 && zoomBehavior !== "disabled" && (zoomBehavior === "zoomed" || zoomActive || visibleLaneRange) && (cursorFrac != null || visibleLaneRange != null) ? (
               <TrackFocusZoom
-                lapLines={zoomActive ? zoomLines : scopeZoomLines}
+                lapLines={zoomBehavior === "zoomed" || zoomActive ? zoomLines : scopeZoomLines}
                 issues={issues}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}
                 bestLapId={bestLapId}
                 cursorFrac={cursorFrac ?? ((visibleLaneRange?.start ?? 0) + (visibleLaneRange?.end ?? 1)) / 2}
-                radiusM={zoomActive ? undefined : visibleLaneRange ? Math.max(2, ((visibleLaneRange.end - visibleLaneRange.start) * nominalSpanMeters) / 2) : undefined}
+                radiusM={zoomBehavior === "zoomed" || zoomActive ? undefined : visibleLaneRange ? Math.max(2, ((visibleLaneRange.end - visibleLaneRange.start) * nominalSpanMeters) / 2) : undefined}
                 edges={edges}
               />
             ) : (

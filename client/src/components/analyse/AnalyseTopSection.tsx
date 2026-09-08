@@ -2,7 +2,7 @@ import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays } from "./track-map/types";
+import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays, TrackZoomBehavior } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -39,9 +39,11 @@ interface AnalyseTopSectionProps {
   rotateWithCar: boolean;
   trackOverlays: TrackOverlays;
   mapZoom: number;
+  zoomBehavior: TrackZoomBehavior;
   onRotateWithCarToggle: () => void;
   onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
+  onZoomBehaviorChange: () => void;
 
   // Viz
   vizMode: "2d" | "3d";
@@ -75,9 +77,11 @@ export function AnalyseTopSection({
   rotateWithCar,
   trackOverlays,
   mapZoom,
+  zoomBehavior,
   onRotateWithCarToggle,
   onTrackOverlayChange,
   onMapZoomChange,
+  onZoomBehaviorChange,
   vizMode,
   onVizModeChange,
   trackMapRef,
@@ -170,6 +174,8 @@ export function AnalyseTopSection({
           rotateWithCar={rotateWithCar}
           trackOverlays={trackOverlays}
           mapZoom={mapZoom}
+          zoomBehavior={zoomBehavior}
+          onZoomBehaviorChange={onZoomBehaviorChange}
           onRotateWithCarToggle={onRotateWithCarToggle}
           onTrackOverlayChange={onTrackOverlayChange}
           onMapZoomChange={onMapZoomChange}

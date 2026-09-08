@@ -2,7 +2,8 @@ import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
-import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform } from "./types";
+import type { GameId } from "../../../../../shared/games/ids";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform, type TrackZoomBehavior } from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
   good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
@@ -14,7 +15,7 @@ export interface StaticTrackOptions {
   canvas: HTMLCanvasElement;
   bufferCanvas: HTMLCanvasElement | null;
   telemetry: SemanticAnalysisFrame[];
-  gameId?: import("../../../../../shared/games/ids").GameId;
+  gameId?: GameId;
   resolvedPositions: Point[];
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
@@ -27,9 +28,10 @@ export interface StaticTrackOptions {
   showTrace: boolean;
   rotateWithCar: boolean;
   zoom: number;
+  zoomBehavior?: TrackZoomBehavior;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom } = options;
+  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom, zoomBehavior = "default" } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -67,7 +69,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const rangeZ = maxZ - minZ || 1;
   const padding = 40;
   const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
-  const scale = baseScale * zoom * (rotateWithCar ? 3 : 1);
+  const scale = baseScale * zoom * (zoomBehavior === "zoomed" || (zoomBehavior === "default" && rotateWithCar) ? 3 : 1);
   const trackW = rangeX * scale + padding * 2;
   const trackH = rangeZ * scale + padding * 2;
   const offW = Math.max(w, trackW);

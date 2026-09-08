@@ -1,5 +1,6 @@
 import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { GameId } from "../../../../../shared/games/ids";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
@@ -80,8 +81,9 @@ export interface TrackMapBoundaries {
   coordSystem: string;
 }
 
+export type TrackZoomBehavior = "default" | "zoomed" | "disabled";
 export interface TrackMapProps {
-  gameId?: import("../../../../../shared/games/ids").GameId;
+  gameId?: GameId;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
@@ -95,6 +97,7 @@ export interface TrackMapProps {
   showTrace?: boolean;
   rotateWithCar: boolean;
   zoom?: number;
+  zoomBehavior?: TrackZoomBehavior;
 }
 
 export interface TrackTransform {
