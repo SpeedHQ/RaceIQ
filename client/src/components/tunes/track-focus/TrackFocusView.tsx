@@ -457,6 +457,7 @@ export function TrackFocusViewInner({
           {/* Lane content owns its own scroll on wide layouts. */}
           <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
             <TrackZoomHint />
+            {activeTab === "consistency" && <SpeedRangeLegend />}
             <div className="sticky top-0 z-20 bg-app-bg/95">
               <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
               <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
@@ -464,6 +465,7 @@ export function TrackFocusViewInner({
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
+                  traces={resolvedTraces}
                   bestLapId={bestLapId}
                   cornerFracs={effectiveCorners.fracs}
                   corners={effectiveCorners.corners}

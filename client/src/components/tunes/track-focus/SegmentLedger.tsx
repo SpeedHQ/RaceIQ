@@ -298,6 +298,6 @@ export function SegmentLedger({ traces, bestLapId, cornerFracs, corners, cursorF
           </TBody>
         </Table>
       </div>
+    </div>
   );
 }
-    </div>
