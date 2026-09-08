@@ -9,10 +9,7 @@ export function useAlignedTelemetryZoom(lapIds: readonly number[], base: Aligned
   const [resolvedDetail, setResolvedDetail] = useState<AlignedLapSet | null>(null);
   const [optimistic, setOptimistic] = useState<AlignedLapSet | null>(null);
   const current = stack.at(-1);
-  const request = useMemo(
-    () => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : null),
-    [detail],
-  );
+  const request = useMemo(() => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : null), [detail]);
   const query = useAlignedTelemetry(lapIds, request);
   useEffect(() => {
     setStack([null]);
@@ -33,25 +30,28 @@ export function useAlignedTelemetryZoom(lapIds: readonly number[], base: Aligned
     if (optimistic) return optimistic;
     return cropAlignedLapSet(base, current.start, current.end);
   }, [base, current, optimistic, resolvedDetail]);
-  const selectRangeMeters = useCallback((start: number, end: number) => {
-    if (!base) return;
-    const domain = current ? current.end - current.start : base.nominalSpanMeters;
-    const selected = Math.abs(end - start);
-    if (!shouldLoadHighFidelity(selected, domain)) {
-      setStack((levels) => [...levels, null]);
-      setDetail(null);
+  const selectRangeMeters = useCallback(
+    (start: number, end: number) => {
+      if (!base) return;
+      const domain = current ? current.end - current.start : base.nominalSpanMeters;
+      const selected = Math.abs(end - start);
+      if (!shouldLoadHighFidelity(selected, domain)) {
+        setStack((levels) => [...levels, null]);
+        setDetail(null);
+        setResolvedDetail(null);
+        setOptimistic(null);
+        return;
+      }
+      const range = normalizeFidelityRange(Math.min(start, end), Math.max(start, end), base.nominalSpanMeters);
+      setStack((levels) => [...levels, range]);
       setResolvedDetail(null);
-      setOptimistic(null);
-      return;
-    }
-    const range = normalizeFidelityRange(Math.min(start, end), Math.max(start, end), base.nominalSpanMeters);
-    setStack((levels) => [...levels, range]);
-    setResolvedDetail(null);
-    setOptimistic(cropAlignedLapSet(base, range.start, range.end));
-    setDetail(range);
-  }, [base, current]);
+      setOptimistic(cropAlignedLapSet(base, range.start, range.end));
+      setDetail(range);
+    },
+    [base, current],
+  );
   const zoomOut = useCallback(() => {
-    setStack((levels) => levels.length > 1 ? levels.slice(0, -1) : levels);
+    setStack((levels) => (levels.length > 1 ? levels.slice(0, -1) : levels));
     setDetail(null);
     setResolvedDetail(null);
     setOptimistic(null);

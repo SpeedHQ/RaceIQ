@@ -100,10 +100,7 @@ export function pathForwardOffsets(points: readonly Point[]): ([number, number] 
   return directions;
 }
 
-export function resolveFrameDirection(
-  frame: SemanticAnalysisFrame,
-  pathDirection: [number, number] | null,
-): [number, number] | null {
+export function resolveFrameDirection(frame: SemanticAnalysisFrame, pathDirection: [number, number] | null): [number, number] | null {
   const yaw = number(frame, "motion.yaw");
   const state = frame.states["motion.yaw"];
   const freshness = frame.freshness["motion.yaw"];

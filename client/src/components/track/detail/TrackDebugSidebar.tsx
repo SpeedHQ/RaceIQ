@@ -212,29 +212,13 @@ export function TrackDebugSidebar(props: TrackDebugSidebarProps) {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
                 <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
-                <AppInput
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  max={editS2 - 1}
-                  value={editS1.toFixed(1)}
-                  onChange={(e) => setEditS1(Number(e.target.value))}
-                  className="w-16 text-center font-mono"
-                />
+                <AppInput type="number" step="0.1" min="1" max={editS2 - 1} value={editS1.toFixed(1)} onChange={(e) => setEditS1(Number(e.target.value))} className="w-16 text-center font-mono" />
                 <span className="text-app-label text-app-text-dim">%</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
                 <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
-                <AppInput
-                  type="number"
-                  step="0.1"
-                  min={editS1 + 1}
-                  max="99"
-                  value={editS2.toFixed(1)}
-                  onChange={(e) => setEditS2(Number(e.target.value))}
-                  className="w-16 text-center font-mono"
-                />
+                <AppInput type="number" step="0.1" min={editS1 + 1} max="99" value={editS2.toFixed(1)} onChange={(e) => setEditS2(Number(e.target.value))} className="w-16 text-center font-mono" />
                 <span className="text-app-label text-app-text-dim">%</span>
               </div>
               <div className="flex items-center gap-2 mt-1">

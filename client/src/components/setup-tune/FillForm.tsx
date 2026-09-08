@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 // `settings` is the source of truth; every edit calls `onChange` with a
 // cloned-and-patched object so unknown keys in the original are preserved.
 
-
 function cloneObj(obj: Record<string, unknown>): Record<string, unknown> {
   return JSON.parse(JSON.stringify(obj));
 }
@@ -118,7 +117,11 @@ function SectionCard({
       {open && (
         <div className="space-y-3 border-t border-app-border px-3 pb-3 pt-1">
           {section.fields.map((field) =>
-            field.cardinality.kind === "scalar" ? <ScalarInput key={field.path} field={field} settings={settings} onChange={onChange} /> : <ArrayInput key={field.path} field={field} settings={settings} onChange={onChange} />,
+            field.cardinality.kind === "scalar" ? (
+              <ScalarInput key={field.path} field={field} settings={settings} onChange={onChange} />
+            ) : (
+              <ArrayInput key={field.path} field={field} settings={settings} onChange={onChange} />
+            ),
           )}
         </div>
       )}

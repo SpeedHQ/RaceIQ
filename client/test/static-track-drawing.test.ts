@@ -42,7 +42,11 @@ test("projects telemetry without world coordinates onto the track outline", () =
     states: {},
     freshness: {},
   });
-  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+  const outline = [
+    { x: 0, z: 0 },
+    { x: 100, z: 0 },
+    { x: 100, z: 100 },
+  ];
 
   expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
     { x: 0, z: 0 },
@@ -59,10 +63,18 @@ test("prefers recorded world coordinates over lap-fraction projection", () => {
     freshness: {},
   });
 
-  expect(resolveTrackPositions(
-    [frame(20, 30, 0), frame(40, 50, 1)],
-    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
-  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
+  expect(
+    resolveTrackPositions(
+      [frame(20, 30, 0), frame(40, 50, 1)],
+      [
+        { x: 0, z: 0 },
+        { x: 100, z: 0 },
+      ],
+    ),
+  ).toEqual([
+    { x: 20, z: 30 },
+    { x: 40, z: 50 },
+  ]);
 });
 
 test("draws throttle input traces in the throttle channel color", () => {
@@ -239,7 +251,12 @@ test("keeps telemetry traces open while closing reference outlines", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
   try {
-    const resolvedPositions = [{ x: 1, z: 1 }, { x: 2, z: 2 }, { x: 3, z: 3 }, { x: 4, z: 4 }];
+    const resolvedPositions = [
+      { x: 1, z: 1 },
+      { x: 2, z: 2 },
+      { x: 3, z: 3 },
+      { x: 4, z: 4 },
+    ];
     const trace = createDrawingHarness();
     drawStaticTrack({
       canvas: trace.canvas,
@@ -280,7 +297,6 @@ test("keeps telemetry traces open while closing reference outlines", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
 });
-
 
 test("draws input, segment, and racing-line overlays together", () => {
   const previousWindow = globalThis.window;

@@ -56,27 +56,32 @@ export function SessionsPage() {
     [navigate],
   );
 
-  const runExport = useCallback(async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
-    if (selectionIncludesMotec(selection, sessions, allLaps) &&
-      !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
-      return;
-    }
-    setExporting(true);
-    try {
-      await exportLapsZip(selection);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setExporting(false);
-    }
-  }, [allLaps, sessions]);
+  const runExport = useCallback(
+    async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
+      if (selectionIncludesMotec(selection, sessions, allLaps) && !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
+        return;
+      }
+      setExporting(true);
+      try {
+        await exportLapsZip(selection);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      } finally {
+        setExporting(false);
+      }
+    },
+    [allLaps, sessions],
+  );
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
-  const analyseSession = useCallback((session: SessionMeta) => {
-    if (!gameId) return;
-    const routePrefix = routePrefixForGameId(gameId);
-    if (!routePrefix) return;
-    void navigate({ to: `/${routePrefix}/sessions/analyse` as never, search: { session: session.id } as never });
-  }, [gameId, navigate]);
+  const analyseSession = useCallback(
+    (session: SessionMeta) => {
+      if (!gameId) return;
+      const routePrefix = routePrefixForGameId(gameId);
+      if (!routePrefix) return;
+      void navigate({ to: `/${routePrefix}/sessions/analyse` as never, search: { session: session.id } as never });
+    },
+    [gameId, navigate],
+  );
   useEffect(() => {
     const trackOrdinals = new Set<number>();
     const carOrdinals = new Set<number>();

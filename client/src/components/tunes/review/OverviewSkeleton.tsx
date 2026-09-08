@@ -69,10 +69,19 @@ export function ReviewTrackStats({
 }) {
   const cells = [
     { label: "Consistency", value: stats.consistency != null ? stats.consistency.toFixed(0) : "—", unit: stats.consistency != null ? "%" : undefined },
-    { label: "Lap variation", value: stats.sdS != null ? stats.sdS.toFixed(3) : "—", unit: stats.sdS != null ? "s" : undefined, title: "Typical lap-time difference from the mean. Lower is more consistent." },
+    {
+      label: "Lap variation",
+      value: stats.sdS != null ? stats.sdS.toFixed(3) : "—",
+      unit: stats.sdS != null ? "s" : undefined,
+      title: "Typical lap-time difference from the mean. Lower is more consistent.",
+    },
     { label: "Best", value: stats.bestS != null ? formatLapTime(stats.bestS) : "—" },
     { label: "Mean", value: stats.meanS != null ? formatLapTime(stats.meanS) : "—" },
-    { label: "Degradation", value: stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—", unit: stats.degSlopeSPerLap != null ? "s/lap" : undefined },
+    {
+      label: "Degradation",
+      value: stats.degSlopeSPerLap != null ? `${stats.degSlopeSPerLap >= 0 ? "+" : ""}${stats.degSlopeSPerLap.toFixed(3)}` : "—",
+      unit: stats.degSlopeSPerLap != null ? "s/lap" : undefined,
+    },
     { label: "Issues", value: String(issueCount) },
   ];
 
@@ -90,7 +99,6 @@ export function ReviewTrackStats({
     </div>
   );
 }
-
 
 export function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
   return (

@@ -22,7 +22,6 @@ interface SectorDetailViewProps {
   issues: TuneIssue[];
 }
 
-
 /**
  * SectorDetailView — deep dive on a single sector: a large hover-scrubbable map
  * of the lap with this sector lit, every metric's per-corner range for the

@@ -17,10 +17,13 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
   const resolvedTrackOrdinal = trackOrdinal ?? selectedSession?.trackOrdinal;
   const resolvedCarOrdinal = carOrdinal ?? selectedSession?.carOrdinal;
-  const groupSessions = useMemo(() => sessions.filter((session) => session.trackOrdinal === resolvedTrackOrdinal && session.carOrdinal === resolvedCarOrdinal), [resolvedCarOrdinal, resolvedTrackOrdinal, sessions]);
+  const groupSessions = useMemo(
+    () => sessions.filter((session) => session.trackOrdinal === resolvedTrackOrdinal && session.carOrdinal === resolvedCarOrdinal),
+    [resolvedCarOrdinal, resolvedTrackOrdinal, sessions],
+  );
   const groupQuery = useReviewLaps(resolvedTrackOrdinal ?? null, resolvedCarOrdinal ?? null);
   const sessionQuery = useSessionReviewLaps(sessionId ?? null);
-  const reviewLaps = sessionId != null ? sessionQuery.data ?? [] : groupQuery.data ?? [];
+  const reviewLaps = sessionId != null ? (sessionQuery.data ?? []) : (groupQuery.data ?? []);
   const lapsLoading = sessionId != null ? sessionQuery.isLoading : groupQuery.isLoading;
   const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null, search.view === "track" && (search.trackTab ?? "consistency") === "consistency");
   const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackOrdinal ?? undefined);
@@ -48,16 +51,57 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
   const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · Selected session · ${selectedSession?.lapCount ?? evaluationLaps.length} laps`;
   const backToSession = () => void navigate({ to: ".." });
-  if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading) return <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">Loading Analyse review…</div>;
+  if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)
+    return (
+      <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
+        Loading Analyse review…
+      </div>
+    );
 
-
-  if (sessionRedirectId != null) return <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">Opening session review…</div>;
+  if (sessionRedirectId != null)
+    return (
+      <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
+        Opening session review…
+      </div>
+    );
   if (sessionId == null) {
-    return <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center"><p role="alert" className="text-sm text-app-text-muted">Session selection required for Analyse.</p><Button variant="app-outline" size="app-sm" onClick={backToSession}>Back to Sessions</Button></div>;
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p role="alert" className="text-sm text-app-text-muted">
+          Session selection required for Analyse.
+        </p>
+        <Button variant="app-outline" size="app-sm" onClick={backToSession}>
+          Back to Sessions
+        </Button>
+      </div>
+    );
   }
   if (evaluationLaps.length === 0) {
-    return <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center"><p role="status" className="text-sm text-app-text-muted">{groupSessions.length === 0 ? "No recorded session matches this selection." : "No valid laps are available for review."}</p><Button variant="app-outline" size="app-sm" onClick={backToSession}>Back to Sessions</Button></div>;
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+        <p role="status" className="text-sm text-app-text-muted">
+          {groupSessions.length === 0 ? "No recorded session matches this selection." : "No valid laps are available for review."}
+        </p>
+        <Button variant="app-outline" size="app-sm" onClick={backToSession}>
+          Back to Sessions
+        </Button>
+      </div>
+    );
   }
 
-  return <div className="flex h-full min-h-0 flex-col"><SessionReviewDashboard gameId={gameId} stayOnSessionReview autoSelectLap={false} laps={evaluationLaps} trackName={resolvedTrackName} sessionLabel={sessionLabel} onBack={backToSession} onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)} lineSpread={sessionLineSpread ?? null} /></div>;
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <SessionReviewDashboard
+        gameId={gameId}
+        stayOnSessionReview
+        autoSelectLap={false}
+        laps={evaluationLaps}
+        trackName={resolvedTrackName}
+        sessionLabel={sessionLabel}
+        onBack={backToSession}
+        onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)}
+        lineSpread={sessionLineSpread ?? null}
+      />
+    </div>
+  );
 }

@@ -94,9 +94,16 @@ export function parseAnalyseLapIds(value: string | undefined): number[] | null |
   return ids;
 }
 
-
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
-  const trackTab = search.trackTab === "consistency" || search.trackTab === "braking" || search.trackTab === "throttle" || search.trackTab === "dynamics" || search.trackTab === "fuel" || search.trackTab === "suspension" ? search.trackTab : undefined;
+  const trackTab =
+    search.trackTab === "consistency" ||
+    search.trackTab === "braking" ||
+    search.trackTab === "throttle" ||
+    search.trackTab === "dynamics" ||
+    search.trackTab === "fuel" ||
+    search.trackTab === "suspension"
+      ? search.trackTab
+      : undefined;
   return {
     session: parseOptionalNumber(search.session),
     track: parseOptionalNumber(search.track),
@@ -138,7 +145,15 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
-  const trackTab = search.trackTab === "consistency" || search.trackTab === "braking" || search.trackTab === "throttle" || search.trackTab === "dynamics" || search.trackTab === "fuel" || search.trackTab === "suspension" ? search.trackTab : undefined;
+  const trackTab =
+    search.trackTab === "consistency" ||
+    search.trackTab === "braking" ||
+    search.trackTab === "throttle" ||
+    search.trackTab === "dynamics" ||
+    search.trackTab === "fuel" ||
+    search.trackTab === "suspension"
+      ? search.trackTab
+      : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),

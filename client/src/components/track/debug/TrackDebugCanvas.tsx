@@ -115,9 +115,7 @@ export function TrackDebugCanvas({
       minZ = Infinity,
       maxZ = -Infinity;
     const currentCalibrationPath = calibrationComparison?.current ? transformCalibrationPath(outline, calibrationComparison.current) : null;
-    const historicalCalibrationPaths = showCalibrationHistory
-      ? calibrationComparison?.history.map((entry) => transformCalibrationPath(outline, entry.transform)) ?? []
-      : [];
+    const historicalCalibrationPaths = showCalibrationHistory ? (calibrationComparison?.history.map((entry) => transformCalibrationPath(outline, entry.transform)) ?? []) : [];
     const allPts: Point[][] = [outline];
     if (boundaries) {
       allPts.push(boundaries.leftEdge, boundaries.rightEdge);

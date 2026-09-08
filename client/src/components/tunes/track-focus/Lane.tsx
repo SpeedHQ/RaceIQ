@@ -97,10 +97,7 @@ export function Lane({
   onCursorFracRef.current = onCursorFrac;
   overlayRef.current = { cornerFracs, annotationMarkers, horizontalLines, segments };
 
-  const styleKey = useMemo(
-    () => series.map((item) => `${item.color}:${item.width ?? 1}:${item.dash?.join(",") ?? ""}`).join("|"),
-    [series],
-  );
+  const styleKey = useMemo(() => series.map((item) => `${item.color}:${item.width ?? 1}:${item.dash?.join(",") ?? ""}`).join("|"), [series]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -305,7 +302,11 @@ export function Lane({
       {tooltip && cursorFrac != null && (
         <div
           className="absolute z-10 pointer-events-none bg-app-surface border border-app-border rounded px-2 py-1.5 shadow-lg text-app-compact"
-          style={{ left: `${((cursorFrac - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * 100}%`, top: title ? 20 : 0, transform: cursorFrac > (rangeStart + rangeEnd) / 2 ? "translate(-105%, 0)" : "translate(5%, 0)" }}
+          style={{
+            left: `${((cursorFrac - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * 100}%`,
+            top: title ? 20 : 0,
+            transform: cursorFrac > (rangeStart + rangeEnd) / 2 ? "translate(-105%, 0)" : "translate(5%, 0)",
+          }}
         >
           {tooltip(cursorFrac)}
         </div>

@@ -72,7 +72,11 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   }
 
   if (gameId !== "acc" && gameId !== "ac-evo") {
-    return <div role="alert" className="p-8 text-sm text-app-text-muted">Review is unavailable for this game.</div>;
+    return (
+      <div role="alert" className="p-8 text-sm text-app-text-muted">
+        Review is unavailable for this game.
+      </div>
+    );
   }
 
   return (

@@ -65,7 +65,11 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, logoSrc, onC
   const content = (
     <>
       {logoSrc ? (
-        <span aria-hidden="true" className="h-4 w-5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]" style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }} />
+        <span
+          aria-hidden="true"
+          className="h-4 w-5 shrink-0 bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
+          style={{ maskImage: `url(${logoSrc})`, WebkitMaskImage: `url(${logoSrc})` }}
+        />
       ) : (
         <Icon className="size-4 shrink-0" />
       )}
@@ -268,7 +272,11 @@ export function AppSidebar({
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Positioner className="z-50" alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
-                    <Select.Popup onPointerEnter={openOnHover} onPointerLeave={scheduleClose} className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text">
+                    <Select.Popup
+                      onPointerEnter={openOnHover}
+                      onPointerLeave={scheduleClose}
+                      className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text"
+                    >
                       <Select.List>
                         {visibleGames.map((game) => (
                           <Select.Item

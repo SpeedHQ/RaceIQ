@@ -55,7 +55,17 @@ export function AnalyseWorkspaceModals({
 
       {setup && <F1SetupModal setup={setup} onClose={onCloseSetup} />}
 
-      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} ownership={ownership} onOwnershipChange={onOwnershipChange} onImport={onCommitIbt} onClose={onCancelIbt} />}
+      {ibtPreview && (
+        <IbtImportPreviewModal
+          token={ibtPreview.token}
+          preview={ibtPreview.preview}
+          importing={importingBin}
+          ownership={ownership}
+          onOwnershipChange={onOwnershipChange}
+          onImport={onCommitIbt}
+          onClose={onCancelIbt}
+        />
+      )}
 
       {importResult &&
         (() => {

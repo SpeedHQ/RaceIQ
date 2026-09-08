@@ -42,27 +42,41 @@ interface ChartsPanelProps {
   tempLabel: string;
 }
 
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
+const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
+  const value = frame.values[id];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
 
-const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => { const value = frame.values[id];
-if (Array.isArray(value)) {
-  const item = value[index];
-  return typeof item === "number" && Number.isFinite(item) ? item : null;
-}
-return numeric(frame, id); }
+const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => {
+  const value = frame.values[id];
+  if (Array.isArray(value)) {
+    const item = value[index];
+    return typeof item === "number" && Number.isFinite(item) ? item : null;
+  }
+  return numeric(frame, id);
+};
 
 function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
   if (displayTelemetry.length === 0) return null;
-  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
-  const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
+  const speed: number[] = [],
+    throttle: number[] = [],
+    brake: number[] = [],
+    rpm: number[] = [],
+    steering: number[] = [];
+  const tireTempFL: number[] = [],
+    tireTempFR: number[] = [],
+    tireTempRL: number[] = [],
+    tireTempRR: number[] = [];
   const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
   const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
   let hasBrakeTemp = false;
-  const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
+  const brakeTempFL: number[] = [],
+    brakeTempFR: number[] = [],
+    brakeTempRL: number[] = [],
+    brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {
     speed.push(numeric(frame, "motion.speed") ?? NaN);
     throttle.push(numeric(frame, "inputs.accel") ?? NaN);
@@ -74,11 +88,13 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
     tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
     const brakes = (["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"] as const).map((id, i) => wheel(frame, id, i));
-    brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
+    brakeTempFL.push(brakes[0] ?? NaN);
+    brakeTempFR.push(brakes[1] ?? NaN);
+    brakeTempRL.push(brakes[2] ?? NaN);
+    brakeTempRR.push(brakes[3] ?? NaN);
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
-  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
-    ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
+  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR, ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
 }
 
 export const AnalyseChartsPanel = memo(

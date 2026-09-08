@@ -21,10 +21,10 @@ export function AiSection() {
     <section>
       <ProviderSetupSection state={providerSetup} />
       <div className="mt-8 border-t border-app-border-input pt-8">
-      <AiAnalysisSection state={analysis} />
-      <AiChatSection state={chat} />
-      <AiAutoTuneSection state={autoTune} />
-      <AiDriverProfileSection state={driverProfile} />
+        <AiAnalysisSection state={analysis} />
+        <AiChatSection state={chat} />
+        <AiAutoTuneSection state={autoTune} />
+        <AiDriverProfileSection state={driverProfile} />
       </div>
     </section>
   );

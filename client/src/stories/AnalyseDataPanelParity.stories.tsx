@@ -43,7 +43,13 @@ const meta: Meta<typeof AnalyseDataPanel> = {
   title: "Screens/AnalyseDataPanelParity",
   component: AnalyseDataPanel,
   parameters: { layout: "fullscreen", viewport: { defaultViewport: "1080p" } },
-  decorators: [(Story) => <QueryClientProvider client={queryClient}><Story /></QueryClientProvider>],
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={queryClient}>
+        <Story />
+      </QueryClientProvider>
+    ),
+  ],
 };
 export default meta;
 type Story = StoryObj<typeof AnalyseDataPanel>;

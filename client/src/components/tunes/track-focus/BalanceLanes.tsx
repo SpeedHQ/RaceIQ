@@ -18,7 +18,6 @@ interface BalanceLanesProps {
   visibleRange?: { start: number; end: number } | null;
   onRangeSelect?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
-
 }
 /** Magnitude thresholds (degrees) for the severity banding — tuned to
  *  typical GT3-class axle slip deltas rather than a formal spec. */
@@ -33,7 +32,6 @@ function verdict(deg: number): string {
   if (Math.abs(deg) < 0.5) return "neutral";
   return deg > 0 ? "understeer" : "oversteer";
 }
-
 
 /** Linear-interpolate a trace's `balance` channel at fraction `f`. */
 function balanceAt(t: LapTrace, f: number): number {

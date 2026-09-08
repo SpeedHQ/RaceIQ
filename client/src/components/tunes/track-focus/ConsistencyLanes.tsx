@@ -24,7 +24,6 @@ interface ConsistencyLanesProps {
   visibleRange?: { start: number; end: number } | null;
   onRangeSelect?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
-
 }
 // Same threshold as server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M.
 const LINE_SPREAD_THRESHOLD_M = 1.5;
@@ -38,7 +37,6 @@ function scoreColor(score: number): string {
   return severityRangeColor(100 - score, [20, 40]);
 }
 
-
 function spreadSegments(trace: LineSpreadTrace): LaneSegment[] {
   const segments: LaneSegment[] = [];
   const thresholds = [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2];
@@ -47,10 +45,14 @@ function spreadSegments(trace: LineSpreadTrace): LaneSegment[] {
     const f1 = trace.fracs[index];
     const v0 = trace.spreadM[index - 1];
     const v1 = trace.spreadM[index];
-    const cuts = [0, ...thresholds.flatMap((threshold) => {
-      const t = (threshold - v0) / (v1 - v0);
-      return t > 0 && t < 1 ? [t] : [];
-    }), 1].sort((a, b) => a - b);
+    const cuts = [
+      0,
+      ...thresholds.flatMap((threshold) => {
+        const t = (threshold - v0) / (v1 - v0);
+        return t > 0 && t < 1 ? [t] : [];
+      }),
+      1,
+    ].sort((a, b) => a - b);
     for (let cut = 1; cut < cuts.length; cut++) {
       const t0 = cuts[cut - 1];
       const t1 = cuts[cut];
@@ -88,7 +90,6 @@ const CHANNELS = [
   { key: "throttle" as const, label: "Throttle", domain: [0, 1.05] as [number, number], color: "var(--ch-throttle)", issueKinds: new Set<string>() },
 ];
 
-
 /**
  * Input-consistency lanes (steer/brake/throttle) — every lap drawn dim, the
  * stint's best (fastest, scored) lap in accent. Invalid laps are excluded
@@ -96,7 +97,20 @@ const CHANNELS = [
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
-export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread, onZoomHover, visibleRange, onRangeSelect, onZoomOut }: ConsistencyLanesProps) {
+export function ConsistencyLanes({
+  traces,
+  bestLapId,
+  cornerFracs,
+  corners = [],
+  issues,
+  cursorFrac,
+  onCursorFrac,
+  lineSpread,
+  onZoomHover,
+  visibleRange,
+  onRangeSelect,
+  onZoomOut,
+}: ConsistencyLanesProps) {
   // Wrap onCursorFrac so a lane that drives the zoom also toggles zoomActive.
   const zoomCursor = (f: number | null) => {
     onCursorFrac(f);
@@ -160,19 +174,22 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     });
   }, [issues]);
   const channelSeries = useMemo(
-    () => Object.fromEntries(CHANNELS.map((channel) => [
-      channel.key,
-      [
-        ...traces
-          .filter((trace) => trace.lapId !== bestLapId)
-          .map((trace): LaneSeries => ({
-            x: trace.frac,
-            values: trace[channel.key],
-            color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
-          })),
-        ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace[channel.key], color: "var(--app-accent)", width: 1.8 }] : []),
-      ],
-    ])) as Record<(typeof CHANNELS)[number]["key"], LaneSeries[]>,
+    () =>
+      Object.fromEntries(
+        CHANNELS.map((channel) => [
+          channel.key,
+          [
+            ...traces
+              .filter((trace) => trace.lapId !== bestLapId)
+              .map((trace): LaneSeries => ({
+                x: trace.frac,
+                values: trace[channel.key],
+                color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+              })),
+            ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace[channel.key], color: "var(--app-accent)", width: 1.8 }] : []),
+          ],
+        ]),
+      ) as Record<(typeof CHANNELS)[number]["key"], LaneSeries[]>,
     [bestLapId, bestTrace, traces],
   );
   const speedSeries = useMemo(
@@ -189,27 +206,26 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     [bestLapId, bestTrace, traces],
   );
   const deltaSeries = useMemo(
-    () => traces
-      .filter((trace) => deltas.has(trace.lapId))
-      .map((trace): LaneSeries => ({
-        x: trace.frac,
-        values: deltas.get(trace.lapId)!,
-        color: trace.isValid ? "color-mix(in srgb, var(--delta-focus) 50%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
-      })),
+    () =>
+      traces
+        .filter((trace) => deltas.has(trace.lapId))
+        .map((trace): LaneSeries => ({
+          x: trace.frac,
+          values: deltas.get(trace.lapId)!,
+          color: trace.isValid ? "color-mix(in srgb, var(--delta-focus) 50%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+        })),
     [deltas, traces],
   );
-  const spreadLaneSegments = useMemo(() => lineSpread ? spreadSegments(lineSpread) : [], [lineSpread]);
-  const spreadSeries = useMemo<LaneSeries[]>(
-    () => lineSpread ? [{ x: lineSpread.fracs, values: lineSpread.spreadM, color: "transparent" }] : [],
-    [lineSpread],
-  );
+  const spreadLaneSegments = useMemo(() => (lineSpread ? spreadSegments(lineSpread) : []), [lineSpread]);
+  const spreadSeries = useMemo<LaneSeries[]>(() => (lineSpread ? [{ x: lineSpread.fracs, values: lineSpread.spreadM, color: "transparent" }] : []), [lineSpread]);
 
   return (
     <div className="space-y-3">
       {CHANNELS.map((ch) => {
         return (
           <div key={ch.key}>
-            <Lane title={ch.label}
+            <Lane
+              title={ch.label}
               bgFill="transparent"
               height={100}
               domain={ch.domain}
@@ -316,7 +332,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         />
       </div>
       <div>
-      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs primary (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs primary (s, cumulative)</div>
         <Lane
           bgFill="transparent"
           height={100}

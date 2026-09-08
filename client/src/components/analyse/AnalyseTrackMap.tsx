@@ -7,7 +7,23 @@ import { drawStaticTrack } from "./track-map/static-drawing";
 import type { TrackMapHandle, TrackMapProps, TrackTransform } from "./track-map/types";
 
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
-  const { gameId, telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace = true, rotateWithCar, zoom = 1, zoomBehavior = "default" } = props;
+  const {
+    gameId,
+    telemetry,
+    cursorIdx,
+    outline,
+    mapLabels,
+    boundaries,
+    sectors,
+    segments,
+    highlights,
+    showInputs,
+    showRaceLine = false,
+    showTrace = true,
+    rotateWithCar,
+    zoom = 1,
+    zoomBehavior = "default",
+  } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);

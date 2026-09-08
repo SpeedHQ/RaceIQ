@@ -69,7 +69,6 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
     ctx.setTransform(canvas.width / bw, 0, 0, canvas.height / H, 0, 0);
     ctx.clearRect(0, 0, bw, H);
 
-
     ctx.strokeStyle = "var(--app-border)";
     ctx.lineWidth = 1;
     for (const g of RINGS) {

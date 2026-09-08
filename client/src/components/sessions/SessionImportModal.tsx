@@ -17,7 +17,6 @@ type ImportResult = {
   packetCount?: number;
 };
 
-
 function formatLabel(format: DetectedFormat): string {
   switch (format) {
     case "zip":
@@ -122,11 +121,12 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
           {result ? (
             <>
               <p className="text-app-text">
-                Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"}.
-                {result.skipped ? ` Skipped ${result.skipped}.` : ""}
+                Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"}.{result.skipped ? ` Skipped ${result.skipped}.` : ""}
               </p>
               <div className="flex justify-end">
-                <Button variant="app-outline" size="app-md" onClick={closeImport}>Done</Button>
+                <Button variant="app-outline" size="app-md" onClick={closeImport}>
+                  Done
+                </Button>
               </div>
             </>
           ) : (
@@ -135,7 +135,9 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
               <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
               <input ref={inputRef} type="file" accept=".zip,.bin,.bin.gz,.ibt,.ld" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
               <div className="flex items-center gap-2">
-                <Button variant="app-outline" size="app-md" onClick={() => inputRef.current?.click()} disabled={busy}>Choose file</Button>
+                <Button variant="app-outline" size="app-md" onClick={() => inputRef.current?.click()} disabled={busy}>
+                  Choose file
+                </Button>
                 <span className="truncate text-app-text-dim">{file?.name ?? "No file selected"}</span>
               </div>
               {file && (
@@ -150,17 +152,29 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
                       </div>
                       {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? "File contents are not supported."}</p>}
                       {detected.supported && detected.format === "bin" && <p className="mt-1">Game detected from telemetry content.</p>}
-                      {detected.supported && detected.format === "zip" && <p className="mt-1">{detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.</p>}
+                      {detected.supported && detected.format === "zip" && (
+                        <p className="mt-1">
+                          {detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.
+                        </p>
+                      )}
                       {detected.format === "ibt" && <p className="mt-1">iRacing imports require preview and confirmation from Analyse.</p>}
                       {detected.format === "motec" && <p className="mt-1">MoTeC imports require game, car, and track setup from Analyse.</p>}
                     </>
                   ) : null}
                 </div>
               )}
-              {error && <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
+              {error && (
+                <div role="alert" className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">
+                  {error}
+                </div>
+              )}
               <div className="flex justify-end gap-2">
-                <Button variant="app-outline" size="app-md" onClick={closeImport} disabled={busy}>Cancel</Button>
-                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>{busy ? "Importing…" : "Import"}</Button>
+                <Button variant="app-outline" size="app-md" onClick={closeImport} disabled={busy}>
+                  Cancel
+                </Button>
+                <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>
+                  {busy ? "Importing…" : "Import"}
+                </Button>
               </div>
             </>
           )}

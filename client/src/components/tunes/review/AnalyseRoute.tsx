@@ -11,7 +11,9 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
     <div className="flex min-h-[18rem] items-center justify-center p-8 text-center">
       <div>
         <h1 className="text-lg font-semibold text-app-text">Invalid Analyse selection</h1>
-        <p role="alert" className="mt-2 text-sm text-app-text-muted">{message}</p>
+        <p role="alert" className="mt-2 text-sm text-app-text-muted">
+          {message}
+        </p>
         <Button variant="app-outline" size="app-sm" className="mt-4" onClick={() => void navigate({ to: ".." })}>
           Back to Sessions
         </Button>
@@ -33,7 +35,8 @@ export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   const validLap = !hasLap || (Number.isInteger(search.lap!) && search.lap! > 0);
 
   if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection message="Track, car, and lap must be positive numeric selections." />;
-  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0)) return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
+  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0))
+    return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
   if (hasSession) {
     if (!Number.isInteger(search.session!) || search.session! <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
       return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID." />;

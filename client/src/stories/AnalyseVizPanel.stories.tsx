@@ -55,14 +55,23 @@ const segments = [
   { type: "corner", name: "Turn 1", startFrac: 0.08, endFrac: 0.16 },
   { type: "straight", name: "Back straight", startFrac: 0.42, endFrac: 0.58 },
 ];
-const mapLabels = [{ x: 300, z: 20, text: "T1" }, { x: -40, z: 180, text: "T2" }];
+const mapLabels = [
+  { x: 300, z: 20, text: "T1" },
+  { x: -40, z: 180, text: "T2" },
+];
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
 
 const meta: Meta<typeof AnalyseVizPanel> = {
   title: "Screens/AnalyseVizPanel",
   component: AnalyseVizPanel,
   parameters: { layout: "fullscreen", viewport: { defaultViewport: "1080p" } },
-  decorators: [(Story) => <QueryClientProvider client={queryClient}><Story /></QueryClientProvider>],
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={queryClient}>
+        <Story />
+      </QueryClientProvider>
+    ),
+  ],
 };
 
 export default meta;

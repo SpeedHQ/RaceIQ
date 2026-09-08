@@ -4,7 +4,17 @@ import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { projectPointOntoPath } from "./path";
 import type { GameId } from "../../../../../shared/games/ids";
-import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform, type TrackZoomBehavior } from "./types";
+import {
+  semanticNumber,
+  type Point,
+  type SemanticAnalysisFrame,
+  type SectorBoundaries,
+  type TrackHighlight,
+  type TrackMapBoundaries,
+  type TrackMapLabel,
+  type TrackTransform,
+  type TrackZoomBehavior,
+} from "./types";
 
 const HIGHLIGHT_COLORS: Record<TrackHighlight["color"], { stroke: string; width: number }> = {
   good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
@@ -32,7 +42,24 @@ export interface StaticTrackOptions {
   zoomBehavior?: TrackZoomBehavior;
 }
 export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HTMLCanvasElement | null; transform: TrackTransform | null } {
-  const { canvas, telemetry, gameId, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace, rotateWithCar, zoom, zoomBehavior = "default" } = options;
+  const {
+    canvas,
+    telemetry,
+    gameId,
+    resolvedPositions,
+    outline,
+    mapLabels,
+    boundaries,
+    sectors,
+    segments,
+    highlights,
+    showInputs,
+    showRaceLine = false,
+    showTrace,
+    rotateWithCar,
+    zoom,
+    zoomBehavior = "default",
+  } = options;
   const rect = canvas.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const w = rect.width;
@@ -43,18 +70,23 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const telemetryPoints = telemetryPointsWithIdx as Point[];
   const flip = needsTrackFlip(gameId);
   const displayTrackOutline = outline && flip ? flipPoints(outline) : outline;
-  const displayOutline: Point[] = !showTrace ? (displayTrackOutline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (displayTrackOutline ?? []);
+  const displayOutline: Point[] = !showTrace
+    ? (displayTrackOutline ?? (telemetryPoints.length > 2 ? telemetryPoints : []))
+    : telemetryPoints.length > 2
+      ? telemetryPoints
+      : (displayTrackOutline ?? []);
   const drawingReferenceOutline = displayTrackOutline !== null && displayOutline === displayTrackOutline;
   if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const canonicalCenterLine = flip && boundaries?.centerLine?.length ? flipPoints(boundaries.centerLine) : boundaries?.centerLine;
   const overlayOutline = canonicalCenterLine && canonicalCenterLine.length > 1 ? canonicalCenterLine : displayOutline;
-  const displayMapLabels = mapLabels?.map((label) => {
-    const displayLabel = flip ? { ...label, x: -label.x } : label;
-    const anchored = projectPointOntoPath(displayLabel, overlayOutline);
-    return anchored ? { ...displayLabel, ...anchored } : displayLabel;
-  }) ?? null;
+  const displayMapLabels =
+    mapLabels?.map((label) => {
+      const displayLabel = flip ? { ...label, x: -label.x } : label;
+      const anchored = projectPointOntoPath(displayLabel, overlayOutline);
+      return anchored ? { ...displayLabel, ...anchored } : displayLabel;
+    }) ?? null;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,

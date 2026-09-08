@@ -9,8 +9,7 @@ interface Props {
 const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
   const value = frame.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
+};
 
 export function AnalyseSteeringOverlay({ frame }: Props) {
   const steer = number(frame, "inputs.steer");

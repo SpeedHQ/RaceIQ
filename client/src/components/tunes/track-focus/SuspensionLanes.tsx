@@ -15,7 +15,6 @@ interface SuspensionLanesProps {
   visibleRange?: { start: number; end: number } | null;
   onRangeSelect?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
-
 }
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
   { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
@@ -24,14 +23,23 @@ const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
   { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
-
 /**
  * Suspension tab: four per-corner lanes (FL/FR/RL/RR) from the `suspTravel`
  * channel, mirroring the Tyres tab's per-corner layout — every lap dim, best
  * lap in accent, invalid laps red. Empty state when the game has no
  * suspension-travel data (e.g. F1, which doesn't expose it).
  */
-export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], annotationMarkers, cursorFrac = null, onCursorFrac = () => {}, visibleRange, onRangeSelect, onZoomOut }: SuspensionLanesProps) {
+export function SuspensionLanes({
+  traces,
+  bestLapId = null,
+  cornerFracs = [],
+  annotationMarkers,
+  cursorFrac = null,
+  onCursorFrac = () => {},
+  visibleRange,
+  onRangeSelect,
+  onZoomOut,
+}: SuspensionLanesProps) {
   const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
   const lapsWithTrace = useMemo(() => laps.filter((t) => t.suspTravel != null), [laps]);
 
@@ -53,21 +61,22 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], an
     return [lo - pad, hi + pad];
   }, [lapsWithTrace]);
   const seriesByCorner = useMemo(
-    () => Object.fromEntries(CORNERS.map((corner) => [
-      corner.key,
-      [
-        ...lapsWithTrace
-          .filter((trace) => trace.lapId !== bestLapId)
-          .map((trace): LaneSeries => ({
-            x: trace.frac,
-            values: trace.suspTravel![corner.key],
-            color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
-          })),
-        ...lapsWithTrace
-          .filter((trace) => trace.lapId === bestLapId)
-          .map((trace): LaneSeries => ({ x: trace.frac, values: trace.suspTravel![corner.key], color: corner.color, width: 1.8 })),
-      ],
-    ])) as Record<keyof TireAverages, LaneSeries[]>,
+    () =>
+      Object.fromEntries(
+        CORNERS.map((corner) => [
+          corner.key,
+          [
+            ...lapsWithTrace
+              .filter((trace) => trace.lapId !== bestLapId)
+              .map((trace): LaneSeries => ({
+                x: trace.frac,
+                values: trace.suspTravel![corner.key],
+                color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+              })),
+            ...lapsWithTrace.filter((trace) => trace.lapId === bestLapId).map((trace): LaneSeries => ({ x: trace.frac, values: trace.suspTravel![corner.key], color: corner.color, width: 1.8 })),
+          ],
+        ]),
+      ) as Record<keyof TireAverages, LaneSeries[]>,
     [bestLapId, lapsWithTrace],
   );
 

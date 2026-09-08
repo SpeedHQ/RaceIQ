@@ -16,9 +16,7 @@ describe("comparison loading state", () => {
     expect(markup).toContain(m.compare_loading());
   });
   test("renders reusable page-level loading indicator next to actual pointer", () => {
-    const markup = renderToStaticMarkup(
-      createElement(PointerLoadingIndicator, { loading: true, position: { x: 420, y: 160 }, label: "Fetching higher-fidelity datapoints" }),
-    );
+    const markup = renderToStaticMarkup(createElement(PointerLoadingIndicator, { loading: true, position: { x: 420, y: 160 }, label: "Fetching higher-fidelity datapoints" }));
     expect(markup).toContain("pointer-loading-indicator");
     expect(markup).toContain("fixed");
     expect(markup).toContain("left:432px");

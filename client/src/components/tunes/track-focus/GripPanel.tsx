@@ -50,7 +50,6 @@ function valueAt(t: LapTrace, arr: Float32Array, f: number): number {
   return arr[lo] + (arr[hi] - arr[lo]) * t2;
 }
 
-
 function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null): [number, number] {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -117,9 +116,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
   const latSeries = useMemo(() => lapSeries(withLatG, bestLatG, (trace) => trace.latG!), [bestLapId, bestLatG, withLatG]);
   const longSeries = useMemo(() => lapSeries(withLongG, bestLongG, (trace) => trace.longG!), [bestLapId, bestLongG, withLongG]);
   const slipSeries = useMemo(
-    () => bestSlip
-      ? SLIP_CORNERS.map((corner): LaneSeries => ({ x: bestSlip.frac, values: bestSlip.combinedSlip![corner.key], color: corner.color, width: 1.6 }))
-      : [],
+    () => (bestSlip ? SLIP_CORNERS.map((corner): LaneSeries => ({ x: bestSlip.frac, values: bestSlip.combinedSlip![corner.key], color: corner.color, width: 1.6 })) : []),
     [bestSlip],
   );
 

@@ -101,11 +101,7 @@ export function sortLaps(laps: LapMeta[], sortKey: LapSortKey, sortDir: SortDir)
     return sortDir === "asc" ? comparison : -comparison;
   });
 }
-export function selectionIncludesMotec(
-  selection: { lapIds?: readonly number[]; sessionIds?: readonly number[] },
-  sessions: readonly SessionMeta[],
-  laps: readonly LapMeta[],
-): boolean {
+export function selectionIncludesMotec(selection: { lapIds?: readonly number[]; sessionIds?: readonly number[] }, sessions: readonly SessionMeta[], laps: readonly LapMeta[]): boolean {
   const sessionIds = new Set(selection.sessionIds ?? []);
   const lapIds = new Set(selection.lapIds ?? []);
   for (const lap of laps) {

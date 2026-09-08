@@ -95,7 +95,7 @@ function LapAnalyseInner() {
     if (search.ai === 1) setAiPanelOpen(true);
   }, [search.ai, setAiPanelOpen]);
   const handleZoomBehaviorChange = useCallback(() => {
-    setZoomBehavior((behavior) => behavior === "default" ? "zoomed" : behavior === "zoomed" ? "disabled" : "default");
+    setZoomBehavior((behavior) => (behavior === "default" ? "zoomed" : behavior === "zoomed" ? "disabled" : "default"));
   }, []);
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const [setup, setSetup] = useState<F1CarSetup | null>(null);
@@ -247,7 +247,6 @@ function LapAnalyseInner() {
     setPlaying((p) => !p);
   }, []);
 
-
   const currentFrame = telemetry[cursorIdx] ?? null;
   const wearRate = useMemo(() => {
     if (!currentFrame || telemetry.length < 2) return null;
@@ -372,7 +371,8 @@ function LapAnalyseInner() {
             trackName,
             selectedLap,
             selectedLapId,
-          )}
+          )
+        }
         onExportBin={() => handleExportBin(selectedLapId)}
         selectedTrack={selectedTrack}
         selectedCar={selectedCar}

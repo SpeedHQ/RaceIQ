@@ -219,7 +219,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
     if (Math.abs(x - center.x) > radiusM * 1.1 || Math.abs(z - center.z) > radiusM * 1.1) return null;
     return { x: px(x), y: py(z) };
   };
-  const issueColor = (severity: string) => severity === "critical" ? "var(--status-danger)" : severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+  const issueColor = (severity: string) => (severity === "critical" ? "var(--status-danger)" : severity === "warn" ? "var(--status-warning)" : "var(--status-info)");
   const dotPx = px(dot.x);
   const dotPy = py(dot.z);
   const edgePolyline = (pts: ZoomPoint[]) => pts.map((p) => `${px(p.x).toFixed(1)},${py(p.z).toFixed(1)}`).join(" ");

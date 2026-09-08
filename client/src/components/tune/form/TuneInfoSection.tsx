@@ -52,23 +52,11 @@ export function TuneInfoSection({
     <div className="p-6 grid grid-cols-2 gap-4 max-w-2xl">
       <label className="col-span-2 space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-        <AppInput
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          className="w-full"
-        />
+        <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full" />
       </label>
       <label className="space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-        <AppInput
-          type="text"
-          value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-          required
-          className="w-full"
-        />
+        <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full" />
       </label>
       <div className="space-y-1 relative">
         <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
@@ -136,12 +124,7 @@ export function TuneInfoSection({
       </label>
       <label className="col-span-2 space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
-        <AppInput
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full"
-        />
+        <AppInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full" />
       </label>
       {(() => {
         const carData = allCars.find((c) => c.ordinal === carOrdinal);

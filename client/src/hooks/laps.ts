@@ -51,7 +51,6 @@ export function useSessionReviewLaps(sessionId: number | null, limit = 5) {
   });
 }
 
-
 export function useSessionLineSpread(sessionId: number | null, enabled = true) {
   const gameId = useGameId();
   return useQuery({
@@ -65,15 +64,34 @@ export function useSessionLineSpread(sessionId: number | null, enabled = true) {
   });
 }
 function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {
-  const a = set.laps[0]!, b = set.laps[1]!;
+  const a = set.laps[0]!,
+    b = set.laps[1]!;
   const traces: AlignedTrace = {
-    distance: [...set.distanceMeters], sourceIndicesA: [...a.sourceIndices], sourceIndicesB: [...b.sourceIndices],
-    speedA: [...a.speedMps].map((v) => v * 2.236936), speedB: [...b.speedMps].map((v) => v * 2.236936),
-    throttleA: [...a.throttle], throttleB: [...b.throttle], brakeA: [...a.brake], brakeB: [...b.brake],
-    steerA: [...a.steer], steerB: [...b.steer], gearA: [...a.gear], gearB: [...b.gear], rpmA: [...a.rpm], rpmB: [...b.rpm],
-    positionXA: [...a.positionX], positionXB: [...b.positionX], positionZA: [...a.positionZ], positionZB: [...b.positionZ],
-    yawA: [...a.yaw], yawB: [...b.yaw], elapsedTimeA: [...a.elapsedTimeS], elapsedTimeB: [...b.elapsedTimeS],
-    tireWearA: a.tireWear ? Array.from(a.tireWear.FL, (v, i) => (v + a.tireWear!.FR[i]! + a.tireWear!.RL[i]! + a.tireWear!.RR[i]!) / 4) : undefined, tireWearB: b.tireWear ? Array.from(b.tireWear.FL, (v, i) => (v + b.tireWear!.FR[i]! + b.tireWear!.RL[i]! + b.tireWear!.RR[i]!) / 4) : undefined,
+    distance: [...set.distanceMeters],
+    sourceIndicesA: [...a.sourceIndices],
+    sourceIndicesB: [...b.sourceIndices],
+    speedA: [...a.speedMps].map((v) => v * 2.236936),
+    speedB: [...b.speedMps].map((v) => v * 2.236936),
+    throttleA: [...a.throttle],
+    throttleB: [...b.throttle],
+    brakeA: [...a.brake],
+    brakeB: [...b.brake],
+    steerA: [...a.steer],
+    steerB: [...b.steer],
+    gearA: [...a.gear],
+    gearB: [...b.gear],
+    rpmA: [...a.rpm],
+    rpmB: [...b.rpm],
+    positionXA: [...a.positionX],
+    positionXB: [...b.positionX],
+    positionZA: [...a.positionZ],
+    positionZB: [...b.positionZ],
+    yawA: [...a.yaw],
+    yawB: [...b.yaw],
+    elapsedTimeA: [...a.elapsedTimeS],
+    elapsedTimeB: [...b.elapsedTimeS],
+    tireWearA: a.tireWear ? Array.from(a.tireWear.FL, (v, i) => (v + a.tireWear!.FR[i]! + a.tireWear!.RL[i]! + a.tireWear!.RR[i]!) / 4) : undefined,
+    tireWearB: b.tireWear ? Array.from(b.tireWear.FL, (v, i) => (v + b.tireWear!.FR[i]! + b.tireWear!.RL[i]! + b.tireWear!.RR[i]!) / 4) : undefined,
   };
   return { lapA, lapB, traces, timeDelta: traces.elapsedTimeA.map((v, i) => v - traces.elapsedTimeB[i]), corners: [], gameId: lapA.gameId };
 }
@@ -85,16 +103,28 @@ export function useLapComparison(lapAId: number | null, lapBId: number | null) {
   const lapB = laps.find((lap) => lap.id === lapBId);
   return { ...aligned, data: aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, isLoading: aligned.isLoading, error: aligned.error };
 }
-export function useLapComparisonRange(
-  lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null,
-) {
+export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
   const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
   const aligned = useAlignedTelemetry(ids, stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 });
   const laps = useLaps().data ?? [];
   const lapA = laps.find((lap) => lap.id === lapAId);
   const lapB = laps.find((lap) => lap.id === lapBId);
   const data = aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
-  return { data: data ? { distanceStart: data.traces.distance[0] ?? 0, distanceEnd: data.traces.distance.at(-1) ?? 0, stepMeters: data.traces.distance[1] - data.traces.distance[0], traces: data.traces, timeDelta: data.timeDelta } : undefined, isLoading: aligned.isLoading, isFetching: aligned.isFetching, isPlaceholderData: false, error: aligned.error };
+  return {
+    data: data
+      ? {
+          distanceStart: data.traces.distance[0] ?? 0,
+          distanceEnd: data.traces.distance.at(-1) ?? 0,
+          stepMeters: data.traces.distance[1] - data.traces.distance[0],
+          traces: data.traces,
+          timeDelta: data.timeDelta,
+        }
+      : undefined,
+    isLoading: aligned.isLoading,
+    isFetching: aligned.isFetching,
+    isPlaceholderData: false,
+    error: aligned.error,
+  };
 }
 
 export interface SemanticReplayFrame {

@@ -4,7 +4,21 @@ import { m } from "@/paraglide/messages";
 import { useAiRunAction, useInputsAnalysis, useLapAnalysis } from "./compare-ai-hooks";
 import type { AnalysisSummary, InputsAnalysis, LapHeader } from "./compare-ai-types";
 
-export function InputsSection({ lapAId, lapBId, panelOpen, aiConfigured, configureAi, onView }: { lapAId: number; lapBId: number; panelOpen: boolean; aiConfigured: boolean; configureAi: () => void; onView: (analysis: InputsAnalysis) => void }) {
+export function InputsSection({
+  lapAId,
+  lapBId,
+  panelOpen,
+  aiConfigured,
+  configureAi,
+  onView,
+}: {
+  lapAId: number;
+  lapBId: number;
+  panelOpen: boolean;
+  aiConfigured: boolean;
+  configureAi: () => void;
+  onView: (analysis: InputsAnalysis) => void;
+}) {
   const { analysis, loading, error, deleting, run, remove } = useInputsAnalysis(lapAId, lapBId, panelOpen);
   const runAi = useAiRunAction(aiConfigured, run, configureAi);
 
@@ -25,12 +39,30 @@ export function InputsSection({ lapAId, lapBId, panelOpen, aiConfigured, configu
       deleteLabel="Delete inputs comparison"
       actionsDisabled={loading || deleting}
     >
-      {analysis && <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />}
+      {analysis && (
+        <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />
+      )}
     </AnalysisResultCard>
   );
 }
 
-export function LapSection({ lap, dotClass, panelOpen, aiConfigured, configureAi, onAnalysisChange, onView }: { lap: LapHeader; dotClass: string; panelOpen: boolean; aiConfigured: boolean; configureAi: () => void; onAnalysisChange: (hasAnalysis: boolean) => void; onView: (label: string, summary: AnalysisSummary) => void }) {
+export function LapSection({
+  lap,
+  dotClass,
+  panelOpen,
+  aiConfigured,
+  configureAi,
+  onAnalysisChange,
+  onView,
+}: {
+  lap: LapHeader;
+  dotClass: string;
+  panelOpen: boolean;
+  aiConfigured: boolean;
+  configureAi: () => void;
+  onAnalysisChange: (hasAnalysis: boolean) => void;
+  onView: (label: string, summary: AnalysisSummary) => void;
+}) {
   const { summary, loading, error, deleting, run, remove } = useLapAnalysis(lap.id, panelOpen);
   const runAi = useAiRunAction(aiConfigured, run, configureAi);
 

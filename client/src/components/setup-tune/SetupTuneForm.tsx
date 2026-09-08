@@ -16,12 +16,10 @@ export interface SetupTuneData {
   settings: Record<string, unknown>;
 }
 
-
 export interface CategoryOption {
   value: string;
   label: string;
 }
-
 
 // The four in-game ACC setup types plus a wet flag. Matches the four session
 // categories Kunos exposes in the setup menu.
@@ -31,7 +29,6 @@ export const ACC_CATEGORIES: CategoryOption[] = [
   { value: "safe", label: "Safe" },
   { value: "wet", label: "Wet" },
 ];
-
 
 // AC EVO covers road and track driving, so the categories include a broader
 // mix than ACC's four in-game types.
@@ -44,7 +41,6 @@ export const AC_EVO_CATEGORIES: CategoryOption[] = [
   { value: "trackday", label: "Track Day" },
   { value: "road", label: "Road" },
 ];
-
 
 export function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   if (gameId === "acc") return ACC_CATEGORIES;
@@ -224,24 +220,12 @@ export function SetupTuneForm({
 
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-          <AppInput
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full"
-          />
+          <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full" />
         </label>
 
         <label className="space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-          <AppInput
-            type="text"
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            required
-            className="w-full"
-          />
+          <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full" />
         </label>
 
         <label className="space-y-1">
@@ -276,12 +260,7 @@ export function SetupTuneForm({
 
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
-          <AppInput
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full"
-          />
+          <AppInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full" />
         </label>
 
         {schema.length > 0 && (

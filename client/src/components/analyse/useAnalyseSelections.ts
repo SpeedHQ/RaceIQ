@@ -163,10 +163,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   useEffect(() => {
     const pendingKey = pendingRouteSelectionKey.current;
     if (pendingKey != null) {
-      const routeMatchesState =
-        selectedTrack === (search.track ?? null) &&
-        selectedCar === (search.car ?? null) &&
-        selectedLapId === (search.lap ?? null);
+      const routeMatchesState = selectedTrack === (search.track ?? null) && selectedCar === (search.car ?? null) && selectedLapId === (search.lap ?? null);
       if (!routeMatchesState) return;
       pendingRouteSelectionKey.current = null;
       return;

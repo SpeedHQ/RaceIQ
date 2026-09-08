@@ -57,7 +57,10 @@ export function TokenUsageFooter({
     enabled: provider === "openai-compatible",
     staleTime: 60_000,
   });
-  const openAiCompatibleContext = provider === "openai-compatible" ? (openAiCompatibleModels?.find((m) => m.id === model) ?? (openAiCompatibleModels?.length === 1 ? openAiCompatibleModels[0] : undefined))?.contextLength : undefined;
+  const openAiCompatibleContext =
+    provider === "openai-compatible"
+      ? (openAiCompatibleModels?.find((m) => m.id === model) ?? (openAiCompatibleModels?.length === 1 ? openAiCompatibleModels[0] : undefined))?.contextLength
+      : undefined;
   const limit = contextWindowFor(provider, model, openAiCompatibleContext);
   const estimatedTokens = useAuiState((s) => {
     let chars = s.composer.text.length;

@@ -105,7 +105,7 @@ export function SessionMobileList({
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
                         {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      {session.source === "motec" && <MotecBadge />}
+                        {session.source === "motec" && <MotecBadge />}
                       </div>
                       <Button
                         variant="app-outline"

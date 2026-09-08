@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/settings";
 import { isAiChatConfigured } from "@/lib/is-ai-configured";
 import { m } from "@/paraglide/messages";
-import { uiStore, } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 import { type ChatGeneration, fetchChatGenerations, fetchChatRunStatus } from "./chat-history";
 import { ChatPanelThread } from "./chat-runtime";
 import { resolvedResumableThreadId } from "./resumable-chat";
