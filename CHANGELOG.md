@@ -9,6 +9,7 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Rename Session Analyse Track tab to Analyse
 - Show per-lap peak tire and brake telemetry as distance-aligned charts while preserving per-wheel detail
 - Keep Analyse track maps visible when aligned telemetry has no direct world-position samples
 - Show synchronized cursor tooltips across Compare and Analyse charts

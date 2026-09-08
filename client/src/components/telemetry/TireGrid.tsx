@@ -28,6 +28,7 @@ interface TireGridProps {
   brakeTempThresholds?: BrakeTempThresholds;
   compound?: string;
   freshnessNote?: string;
+  title?: string;
   temperatureAvailable?: boolean;
   healthAvailable?: boolean;
 }
@@ -46,6 +47,7 @@ export function TireGrid({
   freshnessNote,
   temperatureAvailable = true,
   healthAvailable = true,
+  title,
 }: TireGridProps) {
   const flData = corners?.FL ?? fl!;
   const frData = corners?.FR ?? fr!;
@@ -71,7 +73,7 @@ export function TireGrid({
   return (
     <div>
       <div className="p-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_tires()}</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{title ?? m.label_tires()}</h2>
         <div className="flex items-center gap-2">
           {freshnessNote && <span className="text-app-caption text-app-text-dim">{freshnessNote}</span>}
           {compound && (

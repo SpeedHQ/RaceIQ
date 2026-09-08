@@ -32,6 +32,8 @@ interface SectorMapProps {
   /** Reports the hovered telemetry index (or null) so a parent can sync other
    *  views — e.g. draw the cursor value on the range bars. */
   onHover?: (idx: number | null) => void;
+  /** Externally supplied issue dots, positioned by lap fraction. */
+  issueMarkers?: Array<{ fraction: number; color: string }>;
   /** Externally-driven marker at a lap fraction (0-1) — e.g. an issue's
    *  location, highlighted when its list item is hovered. */
   markFraction?: number | null;
@@ -43,7 +45,7 @@ interface SectorMapProps {
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
-export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, markFraction }: SectorMapProps) {
+export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true, trackOrdinal, gameId, readout, onHover, issueMarkers = [], markFraction }: SectorMapProps) {
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const edges = useMemo(() => {
     const extracted = extractEdges(bounds);
@@ -88,6 +90,21 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
   const hoverFrame = hover ? telemetry[hover.idx] : null;
   const rows = hover && hoverFrame && readout ? readout(hoverFrame, hover.idx / Math.max(1, total - 1)) : [];
 
+  const issuePts = issueMarkers.flatMap((marker) => {
+    if (!Number.isFinite(marker.fraction) || marker.fraction < 0 || marker.fraction > 1) return [];
+    const target = marker.fraction * Math.max(1, total - 1);
+    let nearest: ProjPt | null = null;
+    let distance = Number.POSITIVE_INFINITY;
+    for (const p of geom.pts) {
+      const d = Math.abs(p.idx - target);
+      if (d < distance) {
+        distance = d;
+        nearest = p;
+      }
+    }
+    return nearest ? [{ ...marker, point: nearest }] : [];
+  });
+
   // External marker (e.g. an issue's location) at a lap fraction.
   let markPt: ProjPt | null = null;
   if (markFraction != null && markFraction >= 0) {
@@ -131,6 +148,9 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
               />
             );
           })}
+          {issuePts.map(({ point, color }, index) => (
+            <circle key={`${point.idx}-${index}`} cx={point.x} cy={point.y} r={4} fill={color} stroke="var(--app-bg)" strokeWidth={1.25} />
+          ))}
           {markPt && (
             <>
               <circle cx={markPt.x} cy={markPt.y} r={7} fill="none" stroke="var(--map-highlight)" strokeWidth={2} />

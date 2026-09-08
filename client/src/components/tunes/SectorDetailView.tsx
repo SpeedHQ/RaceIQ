@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { GameId } from "@shared/games/ids";
 import { formatLapTime } from "@/lib/format";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
@@ -32,6 +32,16 @@ interface SectorDetailViewProps {
 export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, gameId, issues }: SectorDetailViewProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [markFrac, setMarkFrac] = useState<number | null>(null);
+  const issueMarkers = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.flatMap((issue) => {
+      const fraction = issue.distanceFrac;
+      if (fraction == null || !Number.isFinite(fraction) || seen.has(fraction)) return [];
+      seen.add(fraction);
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ fraction, color }];
+    });
+  }, [issues]);
   const cursorFrame = hoverIdx != null ? telemetry[hoverIdx] : null;
 
   const readout = (frame: SemanticTuneSample) =>
@@ -76,6 +86,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               highlight={sectorIndex}
               showTimes={false}
               trackOrdinal={trackOrdinal}
+              issueMarkers={issueMarkers}
               readout={readout}
               onHover={setHoverIdx}
               markFraction={markFrac}

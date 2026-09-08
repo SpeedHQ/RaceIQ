@@ -134,6 +134,16 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
     }
     return { bySector, wholeLap };
   }, [issues, telemetry.length, sectorTimes]);
+  const issueMarkers = useMemo(() => {
+    const seen = new Set<number>();
+    return (issues ?? []).flatMap((issue) => {
+      const fraction = issue.distanceFrac;
+      if (fraction == null || !Number.isFinite(fraction) || seen.has(fraction)) return [];
+      seen.add(fraction);
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ fraction, color }];
+    });
+  }, [issues]);
 
   // Hover position: which sector column is being scrubbed, and the frame index.
   // Only the hovered sector's bars show the cursor line.
@@ -207,10 +217,9 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
   const isOverview = view !== "track" && sectorIndex == null;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5.5rem)]">
-      {/* Static header — toolbar, driver/engineer notes, and (in Overview) the
-          sector "track display". Stays put; it does NOT scroll over the detail
-          body — instead the issues / tyres content owns its own scroll below. */}
+    <div className={`flex h-full min-h-0 flex-col ${view !== "track" ? "overflow-y-auto" : ""}`}>
+      {/* Header and detail content share one page scroll in Overview and Sector
+          views; Track keeps its own internal panel layout. */}
       <div className="flex-none bg-app-bg">
         {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
@@ -252,7 +261,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                 onClick={() => setView(v)}
                 className={`!border text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
-                {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
+                {v === "overview" ? "Overview" : v === "track" ? m.label_analyse() : `Sector ${v.slice(1)}`}
               </Button>
             ))}
           </div>
@@ -308,6 +317,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                     sectorTimes={sectorTimes}
                     showTimes={false}
                     trackOrdinal={focusLap.trackOrdinal}
+                    issueMarkers={issueMarkers}
                     readout={readout}
                     onHover={(idx) => setHoverPos(idx == null ? null : { sector: -1, idx })}
                     markFraction={markedIssue ? markedIssue.frac : null}
@@ -341,7 +351,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
         </div>
 
       {/* Detail body — track panels own their internal scroll; other views use the body scroll. */}
-      <div className={`flex-1 min-h-0 ${view === "track" ? "overflow-hidden" : "overflow-y-auto"}`}>
+      <div className={`min-h-0 ${view === "track" ? "flex-1 overflow-hidden" : "flex-none overflow-visible"}`}>
         {view === "track" ? (
           <TrackFocusView
             gameId={gameId}
@@ -404,10 +414,10 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
 
             {/* Tyres */}
             <div>
-              <div className="px-3 pt-3 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
               <div>
                 {corners ? (
                   <TireGrid
+                    title={m.analyse_tires_end_of_lap()}
                     corners={corners}
                     healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
                     tempThresholds={{ blue: 70, orange: 100, red: 110 }}
