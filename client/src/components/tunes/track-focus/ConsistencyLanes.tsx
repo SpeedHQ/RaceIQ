@@ -302,7 +302,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                       <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                       <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                         <div>
-                          best: <span className="text-app-accent">{bestSpeed != null ? `${bestSpeed.toFixed(0)}km/h` : "—"}</span>
+                          primary: <span className="text-app-accent">{bestSpeed != null ? `${bestSpeed.toFixed(0)}km/h` : "—"}</span>
                         </div>
                         <div>
                           spread: <span className="text-app-text-muted">{hasSpeed ? `${minSpeed.toFixed(0)}–${maxSpeed.toFixed(0)}km/h` : "—"}</span>
@@ -316,7 +316,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         />
       </div>
       <div>
-        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs primary (s, cumulative)</div>
         <Lane
           bgFill="transparent"
           height={100}

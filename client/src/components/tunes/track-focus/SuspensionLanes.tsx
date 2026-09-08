@@ -109,7 +109,7 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], an
               const v = best.suspTravel[c.key][idx];
               return (
                 <span>
-                  best lap {c.label}: {v.toFixed(2)}
+                  primary lap {c.label}: {v.toFixed(2)}
                 </span>
               );
             }}

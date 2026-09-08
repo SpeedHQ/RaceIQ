@@ -151,7 +151,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
               return (
                 <div className="space-y-1">
                   <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
-                  <div className="font-mono tabular-nums text-app-text-dim">best: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
+                  <div className="font-mono tabular-nums text-app-text-dim">primary: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
                 </div>
               );
             }}
@@ -185,7 +185,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
               return (
                 <div className="space-y-1">
                   <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
-                  <div className="font-mono tabular-nums text-app-text-dim">best: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
+                  <div className="font-mono tabular-nums text-app-text-dim">primary: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
                 </div>
               );
             }}

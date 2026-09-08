@@ -1,7 +1,7 @@
 export interface ChartTooltipRow {
   lapNumber: number;
   color: string;
-  isBest?: boolean;
+  isPrimary?: boolean;
   isInvalid?: boolean;
   speedKmh?: number | null;
   throttlePct?: number | null;
@@ -35,9 +35,9 @@ export function ChartTooltip({ frac, cornerLabel, rows }: ChartTooltipProps) {
       {rows.map((r) => (
         <div key={r.lapNumber} className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: r.isInvalid ? "var(--status-danger)" : r.color }} />
-          <span className={r.isBest ? "text-app-accent" : "text-app-text"}>
+          <span className={r.isPrimary ? "text-app-accent" : "text-app-text"}>
             L{r.lapNumber}
-            {r.isBest ? "*" : ""}
+            {r.isPrimary ? "*" : ""}
           </span>
           {r.speedKmh != null && <span className="text-app-text-muted">{r.speedKmh.toFixed(0)}km/h</span>}
           {r.throttlePct != null && <span style={{ color: "var(--ch-throttle)" }}>{r.throttlePct.toFixed(0)}%T</span>}

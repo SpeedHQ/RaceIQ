@@ -131,7 +131,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
               <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                 {bestDeg != null && (
                   <div>
-                    best: <span style={{ color: magnitudeColor(Math.abs(bestDeg)) }}>{`${bestDeg >= 0 ? "+" : ""}${bestDeg.toFixed(1)}°`}</span>{" "}
+                    primary: <span style={{ color: magnitudeColor(Math.abs(bestDeg)) }}>{`${bestDeg >= 0 ? "+" : ""}${bestDeg.toFixed(1)}°`}</span>{" "}
                     <span className="text-app-text-muted">{verdict(bestDeg)}</span>
                   </div>
                 )}

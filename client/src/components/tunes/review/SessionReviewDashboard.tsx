@@ -96,7 +96,7 @@ export function SessionReviewDashboard({
   const trackTab = search.trackTab ?? "consistency";
   const lapOptions = useMemo(
     () => [
-      ...(stayOnSessionReview || view === "track" ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
+      ...(stayOnSessionReview || view === "track" ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []),
       ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
     ],
     [bestLap, stayOnSessionReview, evaluationLaps, view],
