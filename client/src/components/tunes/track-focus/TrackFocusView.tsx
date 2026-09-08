@@ -77,6 +77,7 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
   const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
+  const baseTraces = useMemo(() => alignedSet?.laps.map(alignedToLapTrace) ?? [], [alignedSet]);
   const visibleLaneRange = useMemo(() => {
     if (!zoom.visibleRange || !alignedSet || alignedSet.nominalSpanMeters <= 0) return null;
     return {
@@ -150,6 +151,8 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
       totalLapCount={stintLaps.length}
       activeTab={activeTab}
       onActiveTabChange={onActiveTabChange}
+      baseTraces={baseTraces}
+      nominalSpanMeters={alignedSet?.nominalSpanMeters ?? 0}
       visibleLaneRange={visibleLaneRange}
       selectLaneRange={selectLaneRange}
       onZoomOut={zoom.zoomOut}
@@ -159,6 +162,7 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
 
 export interface TrackFocusViewInnerProps {
   laps: LapMeta[];
+  baseTraces: LapTrace[];
   traces: (LapTrace | undefined)[];
   bestLapId: number | null;
   focusLapId: number | null;
@@ -174,6 +178,7 @@ export interface TrackFocusViewInnerProps {
   /** Authoritative sector boundary fractions from track meta, when available.
    *  Falls back to the focus lap's per-lap sector-index split. */
   metaSectors?: { s1End: number; s2End: number } | null;
+  nominalSpanMeters: number;
   /** Laps actually analysed in the per-frame views (fastest N). */
   shownLapCount?: number;
   /** Total eligible laps in the stint (for the "showing N of M" caption). */
@@ -191,6 +196,7 @@ export interface TrackFocusViewInnerProps {
  *  passed in already resolved. */
 export function TrackFocusViewInner({
   traces,
+  baseTraces,
   bestLapId,
   focusTelemetry,
   focusSectorTimes,
@@ -204,6 +210,7 @@ export function TrackFocusViewInner({
   activeTab: controlledActiveTab,
   onActiveTabChange,
   visibleLaneRange = null,
+  nominalSpanMeters,
   selectLaneRange,
   onZoomOut,
 }: TrackFocusViewInnerProps) {
@@ -220,6 +227,10 @@ export function TrackFocusViewInner({
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
   const zoomLines = useMemo(() => resolvedTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [resolvedTraces]);
+  // Scope zoom uses the cached 1 m base, not the merged 0.1 m detail trace.
+  // Hover windows are fixed at ±30 m; rendering an entire high-fidelity range
+  // would create an unnecessarily large SVG DOM.
+  const scopeZoomLines = useMemo(() => baseTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [baseTraces]);
 
   // Corners are now returned as lap fractions (0..1) by the server — either
   // from curated track meta or meters-converted-to-fraction DB corners. No
@@ -296,8 +307,17 @@ export function TrackFocusViewInner({
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="mx-auto w-full max-w-[28rem] flex-none">
-            {zoomActive && zoomLines.length > 0 && cursorFrac != null ? (
-              <TrackFocusZoom lapLines={zoomLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
+            {(zoomActive ? zoomLines : scopeZoomLines).length > 0 && (zoomActive || visibleLaneRange) && (cursorFrac != null || visibleLaneRange != null) ? (
+              <TrackFocusZoom
+                lapLines={zoomActive ? zoomLines : scopeZoomLines}
+                issues={issues}
+                corners={effectiveCorners.corners}
+                cornerFracs={effectiveCorners.fracs}
+                bestLapId={bestLapId}
+                cursorFrac={cursorFrac ?? ((visibleLaneRange?.start ?? 0) + (visibleLaneRange?.end ?? 1)) / 2}
+                radiusM={zoomActive ? undefined : visibleLaneRange ? Math.max(2, ((visibleLaneRange.end - visibleLaneRange.start) * nominalSpanMeters) / 2) : undefined}
+                edges={edges}
+              />
             ) : (
               <TrackFocusMap
                 telemetry={focusTelemetry}
@@ -311,6 +331,7 @@ export function TrackFocusViewInner({
                 overlayPoints={hoverPoints}
                 highlightRange={hoverRange}
                 lineSpread={activeTab === "consistency" ? lineSpread : null}
+                visibleRange={visibleLaneRange}
               />
             )}
           </div>

@@ -52,6 +52,8 @@ interface TrackFocusMapProps {
   /** Racing-line consistency trace (Consistency tab only, null while loading,
    *  no session, or too few clean laps — lane + map overlay render empty). */
   lineSpread?: LineSpreadTrace | null;
+  /** Fraction of lap currently selected in a lane zoom. */
+  visibleRange?: { start: number; end: number } | null;
 }
 
 const SEV_COLOR: Record<string, string> = {
@@ -67,7 +69,7 @@ const SEV_COLOR: Record<string, string> = {
  * that tracks the cursor (or the lap
  * average when no cursor is set).
  */
-export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, highlightRange, lineSpread }: TrackFocusMapProps) {
+export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, highlightRange, lineSpread, visibleRange = null }: TrackFocusMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const geometry = useMemo(() => (telemetry ? buildGeometry(telemetry, sectorTimes, edges) : null), [telemetry, sectorTimes, edges]);
@@ -130,6 +132,37 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
     }
     return segs;
   }, [geometry, telemetry, normDist, lineSpread]);
+  // Keep the complete lap as context, but emphasize only lane scope when a
+  // range is selected. Segment rendering avoids a second projection.
+  const scopedSegments = useMemo(() => {
+    if (!visibleRange || !geometry || geometry.pts.length < 2) return [];
+    const start = Math.max(0, Math.min(1, visibleRange.start));
+    const end = Math.max(start, Math.min(1, visibleRange.end));
+    const boundaries = sectorTimes?.boundaryIndices ?? [];
+    const lastIdx = Math.max(1, (telemetry?.length ?? 1) - 1);
+    return geometry.pts.slice(1).flatMap((point, index) => {
+      const previous = geometry.pts[index];
+      const frac = normDist?.[point.idx] ?? point.idx / lastIdx;
+      if (frac < start || frac > end) return [];
+      let sector = 0;
+      while (sector < boundaries.length && point.idx >= boundaries[sector]) sector++;
+      return [{ x1: previous.x, y1: previous.y, x2: point.x, y2: point.y, color: SECTOR_COLOR_VARS[sector % SECTOR_COLOR_VARS.length] }];
+    });
+  }, [geometry, normDist, sectorTimes, telemetry, visibleRange]);
+  const mapViewBox = useMemo(() => {
+    if (!visibleRange || scopedSegments.length === 0) return `0 0 ${VIEW} ${VIEW}`;
+    const points = scopedSegments.flatMap(({ x1, y1, x2, y2 }) => [{ x: x1, y: y1 }, { x: x2, y: y2 }]);
+    const minX = Math.min(...points.map((point) => point.x));
+    const maxX = Math.max(...points.map((point) => point.x));
+    const minY = Math.min(...points.map((point) => point.y));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const width = Math.max(20, maxX - minX);
+    const height = Math.max(20, maxY - minY);
+    const padding = Math.max(10, Math.max(width, height) * 0.2);
+    return `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`;
+  }, [scopedSegments, visibleRange]);
+
+
 
 
   function fracToPoint(frac: number): { x: number; y: number } | null {
@@ -203,7 +236,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
       <div className="relative">
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${VIEW} ${VIEW}`}
+          viewBox={mapViewBox}
           width="100%"
           className="aspect-[1.1/1]"
           style={{ cursor: geometry ? "crosshair" : "default" }}
@@ -217,12 +250,17 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           )}
           {geometry?.leftEdge && <polyline points={geometry.leftEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
-          {heatSegments
-            ? heatSegments.map((s) => <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />)
-            : (["s1", "s2", "s3"] as const).map((segKey, i) => (
-                <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-              ))}
-          {highlightedLine && <polyline points={highlightedLine} fill="none" stroke="var(--app-accent)" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />}
+          <g opacity={visibleRange ? 0.2 : 1} style={visibleRange ? { filter: "grayscale(1)" } : undefined}>
+            {heatSegments
+              ? heatSegments.map((s) => <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={visibleRange ? 1.6 : 2.5} strokeLinecap="round" />)
+              : (["s1", "s2", "s3"] as const).map((segKey, i) => (
+                  <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={visibleRange ? 1.6 : 2} strokeLinejoin="round" strokeLinecap="round" />
+                ))}
+          </g>
+          {scopedSegments.map((segment, index) => (
+            <line key={`scope-${index}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} stroke={segment.color} strokeWidth={1.6} strokeLinecap="round" />
+          ))}
+          {highlightedLine && <polyline points={highlightedLine} fill="none" stroke="var(--app-accent)" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" opacity={0.55} />}
           {startMarker && (
             <g>
               <line x1={startMarker.x} y1={startMarker.y} x2={startMarker.tipX} y2={startMarker.tipY} stroke="var(--track-start)" strokeWidth={1.5} />
