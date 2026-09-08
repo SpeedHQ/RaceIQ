@@ -49,7 +49,7 @@ export function getMastraModelId(
       return `google/${aiModel || "gemini-flash-latest"}`;
     case "openai":
       return `openai/${aiModel || "gpt-4o-mini"}`;
-    case "local": {
+    case "openai-compatible": {
       // Local models use OpenAI-compatible API; model ID passed through
       return `openai/${aiModel || "local-model"}`;
     }

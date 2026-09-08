@@ -1,10 +1,11 @@
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiDriverProfileState } from "./ai-state";
-import { GEMINI_THINKING_BUDGET_OPTIONS, PROVIDER_KEY_MAP } from "./ai-state";
+import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
 export function AiDriverProfileSection({ state }: { state: AiDriverProfileState }) {
   const {
     driverProfileBackgroundEnabled,
@@ -17,15 +18,11 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
     driverProfileMaxOutputTokens,
     setDriverProfileMaxOutputTokens,
     driverProfileModelContextLength,
-    driverProfileApiKey,
-    setDriverProfileApiKey,
-    driverProfileKeyInfo,
-    keyStatus,
-    hasDriverProfileProviderKey,
     driverProfileModels,
+    hasDriverProfileProviderKey,
     canShowDriverProfileModelPicker,
-    driverProfileModelSupportsThinking,
     effectiveDriverProfileThinkingBudget,
+    driverProfileModelSupportsThinking,
     aiProviders,
     aiModelsFetching,
     modelsRefreshing,
@@ -33,9 +30,6 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
     isSaving,
     driverProfileProviderModelError,
     aiModelsError,
-    canSaveDriverProfile,
-    clearDriverProfileKey,
-    handleDriverProfileSave,
     driverProfileSaveError,
   } = state;
   return (
@@ -57,58 +51,19 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
           <Label htmlFor="ai-driver-profile-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
           </Label>
-          <select
+          <SearchSelect
             id="ai-driver-profile-provider"
             value={driverProfileProvider}
-            onChange={(e) => {
-              setDriverProfileProvider(e.target.value);
+            onChange={(value) => {
+              setDriverProfileProvider(value);
               setDriverProfileModel("");
               setDriverProfileThinkingBudget(null);
             }}
-            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
-          >
-            <option value="">{m.ai_provider_none()}</option>
-            {(aiProviders ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            options={[{ value: "", label: m.ai_provider_none() }, ...(aiProviders ?? []).map((p) => ({ value: p.id, label: p.name, disabled: !state.keyStatus[p.id] }))]}
+            className="w-full max-w-xs"
+            ariaLabel={m.ai_provider_label()}
+          />
         </div>
-        {driverProfileKeyInfo && (
-          <div>
-            <Label htmlFor="ai-driver-profile-api-key" className="block text-xs text-app-text-muted mb-1">
-              {driverProfileKeyInfo.label}
-            </Label>
-            <div className="flex items-center gap-1.5 max-w-xs">
-              <Input
-                id="ai-driver-profile-api-key"
-                type="password"
-                value={driverProfileApiKey}
-                onChange={(e) => setDriverProfileApiKey(e.target.value)}
-                placeholder={(keyStatus[driverProfileProvider] ?? false) ? m.ai_key_stored_placeholder() : driverProfileKeyInfo.placeholder}
-                className="w-full font-mono"
-              />
-              {(keyStatus[driverProfileProvider] ?? false) && (
-                <Button
-                  variant="app-ghost"
-                  size="icon-sm"
-                  onClick={() => clearDriverProfileKey(PROVIDER_KEY_MAP[driverProfileProvider])}
-                  title={m.ai_clear_key_title()}
-                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
-                >
-                  <X className="size-3.5" />
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-app-text-muted mt-1">
-              {driverProfileKeyInfo.helpText}{" "}
-              <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:text-app-accent-hover hover:underline">
-                {new URL(driverProfileKeyInfo.helpUrl).hostname}
-              </a>
-            </p>
-          </div>
-        )}
         {canShowDriverProfileModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
@@ -128,22 +83,17 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
               </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
-            <select
+            <SearchSelect
               id="ai-driver-profile-model"
               value={driverProfileModel}
-              onChange={(e) => {
-                setDriverProfileModel(e.target.value);
+              onChange={(value) => {
+                setDriverProfileModel(value);
                 setDriverProfileThinkingBudget(null);
               }}
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
-            >
-              <option value="">{m.ai_model_default()}</option>
-              {driverProfileModels.map((mm: { id: string; name: string }) => (
-                <option key={mm.id} value={mm.id}>
-                  {mm.name}
-                </option>
-              ))}
-            </select>
+              options={[{ value: "", label: m.ai_model_default() }, ...driverProfileModels.map((item) => ({ value: item.id, label: item.name }))]}
+              ariaLabel={m.ai_model_label()}
+              className="w-full max-w-xs"
+            />
           </div>
         )}
         <div>
@@ -201,9 +151,6 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && (driverProfileProviderModelError || aiModelsError) && (
           <p className="text-xs text-status-danger">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
         )}
-        <Button variant="app-primary" size="app-md" onClick={handleDriverProfileSave} disabled={isSaving || !canSaveDriverProfile}>
-          {isSaving ? m.common_saving() : m.common_save()}
-        </Button>
         {driverProfileSaveError && <p className="text-xs text-status-danger">{driverProfileSaveError}</p>}
       </div>
     </div>

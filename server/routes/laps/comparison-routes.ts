@@ -31,7 +31,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { getSecret } from "../../runtime/platform/keystore";
+import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema, ComparisonRangeQuerySchema } from "./support";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
@@ -335,18 +335,7 @@ export const comparisonRoutes = new Hono()
     if (!settings.aiProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
     }
-    if (settings.aiProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.OPENAI_API_KEY = key;
-    } else if (settings.aiProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    } else {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-    }
+    await configureAiProviderEnvironment(settings.aiProvider, settings.localEndpoint || "http://localhost:1234/v1");
     const inputsRunKey = inputsAnalysisRunKey(id1, id2);
     if (!beginAnalysisRun(inputsRunKey)) {
       return c.json({ error: "Inputs comparison already in progress" }, 409);
@@ -364,7 +353,7 @@ export const comparisonRoutes = new Hono()
           // Prompt injection keeps the answer on the plain-text channel, which
           // those models fill normally. Hosted providers parse native structured
           // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
+          ...(settings.aiProvider === "openai-compatible" ? { jsonPromptInjection: true } : {}),
         },
         // Every other AI route already caps output and disables reasoning on
         // local models (analyse, lap chat, compare chat). This one did not, so
@@ -385,7 +374,7 @@ export const comparisonRoutes = new Hono()
       const object = (result as any).object;
       if (!object) {
         throw new Error(
-          settings.aiProvider === "local"
+          settings.aiProvider === "openai-compatible"
             ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
             : "Compare engineer returned no structured object",
         );
@@ -512,25 +501,12 @@ export const comparisonRoutes = new Hono()
     if (!chatProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    }
+    await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "local"
+        : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
 

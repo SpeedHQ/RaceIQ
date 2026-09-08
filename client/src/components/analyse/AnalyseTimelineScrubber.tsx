@@ -47,6 +47,7 @@ const PlaybackControls = memo(function PlaybackControls({
         onClick={onTogglePlay}
         className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
         title={playing ? "Pause (Space)" : "Play (Space)"}
+        aria-label={playing ? "Pause playback" : "Play playback"}
       >
         {playing ? "\u275A\u275A" : "\u25B6"}
       </Button>

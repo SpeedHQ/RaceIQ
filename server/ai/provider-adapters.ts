@@ -109,27 +109,31 @@ export class OpenAiProviderAdapter {
   }
 }
 
-export class LocalProviderAdapter {
+export class OpenAiCompatibleProviderAdapter {
   readonly feature: AiFeature;
-  readonly provider: AiProvider = "local";
+  readonly provider: AiProvider = "openai-compatible";
   readonly model: string;
   readonly mastraModel: BoundMastraModel;
   readonly #endpoint: string;
+  readonly #apiKey?: string;
 
-  constructor(config: ProviderAdapterConfig & { endpoint: string }) {
+  constructor(config: ProviderAdapterConfig & { endpoint: string; apiKey?: string }) {
     this.feature = config.feature;
     this.model = config.model;
     this.#endpoint = config.endpoint;
+    this.#apiKey = config.apiKey;
     this.mastraModel = getMastraModelId({
       provider: this.provider,
       model: this.model,
       localEndpoint: this.#endpoint,
+      apiKey: this.#apiKey,
     });
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
     return runOpenAiCompatible({
       prompt: promptFor(input),
+      apiKey: this.#apiKey,
       endpoint: this.#endpoint,
       model: this.model,
       temperature: input.temperature,
@@ -140,6 +144,7 @@ export class LocalProviderAdapter {
   generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult> {
     return runOpenAiCompatible({
       prompt: promptFor(input),
+      apiKey: this.#apiKey,
       endpoint: this.#endpoint,
       model: this.model,
       schema: input.schema as unknown as object,
@@ -154,7 +159,7 @@ export class LocalProviderAdapter {
 export type AnyProviderAdapter =
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
-  | LocalProviderAdapter;
+  | OpenAiCompatibleProviderAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   const resolved: ResolvedAi = {
