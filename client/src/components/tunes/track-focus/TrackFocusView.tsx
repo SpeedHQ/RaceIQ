@@ -28,6 +28,8 @@ import { IssuesList } from "./IssuesList";
 import { BrakingPanel } from "./BrakingPanel";
 import { ThrottleExitPanel } from "./ThrottleExitPanel";
 import { SectorLedger } from "./SectorLedger";
+import { SpeedRangeLegend } from "./SpeedRangeLegend";
+import { TrackZoomHint } from "./TrackZoomHint";
 import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
@@ -454,6 +456,7 @@ export function TrackFocusViewInner({
 
           {/* Lane content owns its own scroll on wide layouts. */}
           <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
+            <TrackZoomHint />
             <div className="sticky top-0 z-20 bg-app-bg/95">
               <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
               <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
@@ -461,7 +464,6 @@ export function TrackFocusViewInner({
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
-                  traces={resolvedTraces}
                   bestLapId={bestLapId}
                   cornerFracs={effectiveCorners.fracs}
                   corners={effectiveCorners.corners}

@@ -4,7 +4,6 @@ import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
-import { SpeedRangeLegend } from "./SpeedRangeLegend";
 import { BRAKE_ACTIVE_THRESHOLD, THROTTLE_PICKUP_THRESHOLD } from "./input-analysis";
 
 interface SegmentLedgerProps {
@@ -299,9 +298,6 @@ export function SegmentLedger({ traces, bestLapId, cornerFracs, corners, cursorF
           </TBody>
         </Table>
       </div>
-      <div className="mt-2">
-        <SpeedRangeLegend />
-      </div>
-    </div>
   );
 }
+    </div>
