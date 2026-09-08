@@ -297,7 +297,7 @@ export function Lane({
       <div
         data-track-telemetry-lane
         className={`relative w-full overflow-hidden rounded ${className ?? ""}`}
-        style={{ height, cursor: onRangeSelect ? "crosshair" : "default", background: bgFill ?? "color-mix(in srgb, var(--app-surface-alt) 35%, transparent)" }}
+        style={{ height, cursor: onRangeSelect ? "crosshair" : "default", background: bgFill ?? "transparent" }}
       >
         <div ref={containerRef} className="h-full w-full" />
         {dragRange && <div className="pointer-events-none absolute inset-y-1.5 bg-app-accent/10" style={{ left: `${dragLeft}%`, width: `${dragWidth}%` }} />}
