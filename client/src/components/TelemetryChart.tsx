@@ -137,6 +137,11 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
               const legendEl = upl.root.querySelector(".u-legend") as HTMLElement | null;
               if (legendEl) legendEl.style.fontSize = "var(--text-app-caption)";
+              const cursorLine = upl.root.querySelector(".u-cursor-x") as HTMLElement | null;
+              if (cursorLine) {
+                cursorLine.style.borderLeftStyle = "dotted";
+                cursorLine.style.borderLeftWidth = "1px";
+              }
 
               // Drag start line overlay
               const over = upl.over;

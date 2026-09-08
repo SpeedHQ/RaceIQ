@@ -116,6 +116,8 @@ function LapAnalyseInner() {
   const seekRef = useRef(0);
   const trackMapRef = useRef<TrackMapHandle>(null);
   const lastStateUpdateRef = useRef(0);
+  const cursorStateRafRef = useRef<number | null>(null);
+  const pendingCursorStateRef = useRef<number | null>(null);
   const interpolatedTimeRef = useRef(0);
   const thumbRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -150,16 +152,12 @@ function LapAnalyseInner() {
     speedChangeRef.current++;
   }, [playbackSpeed]);
 
-  // Draw initial cursor overlays after URL cursor is applied
+  // Draw initial cursor overlays after URL cursor is applied.
   useEffect(() => {
     if (!appliedInitialCursor.current) return;
     if (cursorIdx > 0 && telemetry.length > 1) {
-      // Delay to let charts mount
-      const timer = setTimeout(() => {
-        trackMapRef.current?.updateCursor(cursorIdx);
-        chartsPanelRef.current?.updateCursor(cursorIdx);
-      }, 500);
-      return () => clearTimeout(timer);
+      trackMapRef.current?.updateCursor(cursorIdx);
+      chartsPanelRef.current?.updateCursor(cursorIdx);
     }
   }, [cursorIdx, telemetry.length]);
 
@@ -220,10 +218,19 @@ function LapAnalyseInner() {
 
   const handleChartClick = useCallback(
     (idx: number) => {
-      setCursorIdx(idx);
+      // Keep imperative overlays on input event; defer heavy React consumers to
+      // one render per frame so chart dragging cannot queue stale renders.
       cursorRef.current = idx;
       seekRef.current++;
       updateOverlays(idx);
+      pendingCursorStateRef.current = idx;
+      if (cursorStateRafRef.current == null) {
+        cursorStateRafRef.current = requestAnimationFrame(() => {
+          cursorStateRafRef.current = null;
+          const pending = pendingCursorStateRef.current;
+          if (pending != null) setCursorIdx(pending);
+        });
+      }
     },
     [updateOverlays],
   );

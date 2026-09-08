@@ -1,7 +1,5 @@
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
@@ -90,57 +88,33 @@ export const AnalyseChartsPanel = memo(
   ) {
     const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const cursorOverlayRef = useRef<HTMLCanvasElement>(null);
-
-    // Keep a ref so the imperative handle always returns current data
+    const cursorLineRef = useRef<HTMLDivElement>(null);
     const chartDataRef = useRef(chartData);
     chartDataRef.current = chartData;
 
-    // Draw a single shared cursor line across all charts
+    // Move shared cursor with a DOM style update; canvas resize/redraw per frame
+    // made chart scrubbing wait behind a full overlay repaint.
     const drawSharedCursor = useCallback(
       (idx: number) => {
-        const overlay = cursorOverlayRef.current;
+        const line = cursorLineRef.current;
         const scroll = scrollRef.current;
-        if (!overlay || !scroll) return;
+        if (!line || !scroll) return;
 
         const w = scroll.clientWidth;
-        const h = scroll.scrollHeight;
-        if (w <= 0 || h <= 0) return;
-        syncCanvasSize(overlay, w, h, window.devicePixelRatio || 1);
-        const ctx = getSemanticCanvasContext(overlay);
-        if (!ctx) return;
-        ctx.setTransform(overlay.width / w, 0, 0, overlay.height / h, 0, 0);
-        ctx.clearRect(0, 0, w, h);
-
-        const timeFracs = chartDataRef.current?.timeFracs;
         const totalPackets = displayTelemetry.length;
-        if (totalPackets < 2) return;
+        const timeFracs = chartDataRef.current?.timeFracs;
+        if (w <= 0 || totalPackets < 2) {
+          line.style.display = "none";
+          return;
+        }
 
         const xFrac = timeFracs && idx < timeFracs.length ? timeFracs[idx] : idx / (totalPackets - 1);
-
-        // Chart canvases live inside a parent with `p-3` padding (12px each
-        // side), so the overlay — which stretches edge-to-edge of the scroll
-        // container — must add that container padding to the chart's own
-        // leftPad/rightPad to land exactly where the chart data draws.
-        const CONTAINER_PAD = 12; // p-3
-        const CHART_LEFT_PAD = 40;
-        const CHART_RIGHT_PAD = 8;
-        const leftPad = CONTAINER_PAD + CHART_LEFT_PAD;
-        const rightPad = CONTAINER_PAD + CHART_RIGHT_PAD;
+        const leftPad = 12 + 40;
+        const rightPad = 12 + 8;
         const chartW = w - leftPad - rightPad;
-        const MIN_INSET = 2;
-        const rawCx = leftPad + xFrac * chartW;
-        const cx = Math.max(rawCx, leftPad + MIN_INSET);
-
-        // Draw a single vertical line spanning the full scroll height
-        ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 50%, transparent)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, h);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const cx = Math.max(leftPad + 2, leftPad + xFrac * chartW);
+        line.style.display = "";
+        line.style.left = `${Math.round(cx)}px`;
       },
       [displayTelemetry.length],
     );
@@ -164,7 +138,6 @@ export const AnalyseChartsPanel = memo(
     const common = {
       totalPackets,
       timeFracs: chartData.timeFracs,
-      times: chartData.times,
       visualTimeFrac,
       onVisualFracChange,
       onClickIndex,
@@ -173,7 +146,7 @@ export const AnalyseChartsPanel = memo(
 
     return (
       <div className="relative flex-none overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto" ref={scrollRef}>
-        <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
+        <div ref={cursorLineRef} className="pointer-events-none absolute top-0 bottom-0 z-10 border-l border-dotted border-app-text/50" style={{ display: "none" }} aria-hidden="true" />
         <div className="p-3 space-y-2">
           <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart
