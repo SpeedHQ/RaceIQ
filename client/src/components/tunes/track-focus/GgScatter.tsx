@@ -1,5 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { LapTrace } from "../../../lib/stint-traces";
+import { syncCanvasSize } from "../../../lib/rendering/canvas-size";
+import { getSemanticCanvasContext } from "../../../lib/rendering/css-canvas";
 import { useMeasuredWidth } from "./use-measured-width";
 
 interface GgScatterProps {
@@ -46,7 +48,10 @@ function nearestIndex(t: LapTrace, f: number): number {
  */
 export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>(320);
+  const staticCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cursorCanvasRef = useRef<HTMLCanvasElement>(null);
   const withG = useMemo(() => traces.filter((t) => t.latG != null && t.longG != null), [traces]);
+  const cursorActive = cursorFrac != null;
 
   const size = Math.min(bw, H);
   const cx = bw / 2;
@@ -54,6 +59,96 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
   const r = (size / 2 - 16) / G_RANGE;
   const px = (latG: number) => cx + latG * r;
   const py = (longG: number) => cy - longG * r;
+
+  useEffect(() => {
+    const canvas = staticCanvasRef.current;
+    if (!canvas || withG.length === 0) return;
+    const ctx = getSemanticCanvasContext(canvas);
+    if (!ctx) return;
+    syncCanvasSize(canvas, bw, H, window.devicePixelRatio || 1, false);
+    ctx.setTransform(canvas.width / bw, 0, 0, canvas.height / H, 0, 0);
+    ctx.clearRect(0, 0, bw, H);
+
+    ctx.fillStyle = "color-mix(in srgb, var(--app-surface-alt) 35%, transparent)";
+    ctx.beginPath();
+    ctx.roundRect(0, 0, bw, H, 4);
+    ctx.fill();
+
+    ctx.strokeStyle = "var(--app-border)";
+    ctx.lineWidth = 1;
+    for (const g of RINGS) {
+      ctx.beginPath();
+      ctx.setLineDash([2, 4]);
+      ctx.arc(cx, cy, g * r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(0, cy);
+    ctx.lineTo(bw, cy);
+    ctx.moveTo(cx, 0);
+    ctx.lineTo(cx, H);
+    ctx.stroke();
+
+    ctx.fillStyle = "var(--app-text-dim)";
+    ctx.font = "9px sans-serif";
+    for (const g of RINGS) ctx.fillText(`${g}g`, cx + g * r + 2, cy - 2);
+    ctx.fillText("right", bw - 30, cy - 4);
+    ctx.fillText("left", 4, cy - 4);
+    ctx.fillText("accel", cx + 4, 12);
+    ctx.fillText("brake", cx + 4, H - 4);
+
+    const drawTrace = (trace: LapTrace, radius: number, fill: string, alpha: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < trace.n; i++) {
+        ctx.moveTo(px(trace.latG![i]) + radius, py(trace.longG![i]));
+        ctx.arc(px(trace.latG![i]), py(trace.longG![i]), radius, 0, Math.PI * 2);
+      }
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    };
+    for (const trace of withG) {
+      if (trace.lapId === bestLapId) continue;
+      drawTrace(trace, 1.1, trace.isValid ? "var(--app-text-dim)" : "var(--status-danger)", trace.isValid ? 0.3 : 0.45);
+    }
+    const best = withG.find((trace) => trace.lapId === bestLapId);
+    if (best) drawTrace(best, 1.3, cursorActive ? "var(--app-text-dim)" : "var(--app-accent)", cursorActive ? 0.3 : 0.85);
+  }, [bestLapId, bw, cursorActive, cx, cy, r, withG]);
+
+  useEffect(() => {
+    const canvas = cursorCanvasRef.current;
+    if (!canvas) return;
+    const ctx = getSemanticCanvasContext(canvas);
+    if (!ctx) return;
+    syncCanvasSize(canvas, bw, H, window.devicePixelRatio || 1, false);
+    ctx.setTransform(canvas.width / bw, 0, 0, canvas.height / H, 0, 0);
+    ctx.clearRect(0, 0, bw, H);
+    if (cursorFrac == null) return;
+
+    let bestCursor: { x: number; y: number } | null = null;
+    ctx.lineWidth = 1.5;
+    for (const trace of withG) {
+      const idx = nearestIndex(trace, cursorFrac);
+      const x = px(trace.latG![idx]);
+      const y = py(trace.longG![idx]);
+      if (trace.lapId === bestLapId) {
+        bestCursor = { x, y };
+        continue;
+      }
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.strokeStyle = "var(--app-text)";
+      ctx.stroke();
+    }
+    if (bestCursor) {
+      ctx.beginPath();
+      ctx.arc(bestCursor.x, bestCursor.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "var(--app-accent)";
+      ctx.fill();
+    }
+  }, [bestLapId, bw, cursorFrac, cx, cy, r, withG]);
 
   if (withG.length === 0) {
     return (
@@ -67,66 +162,10 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
   return (
     <div ref={wrapRef} className="space-y-1">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle (lat vs long)</div>
-      <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H}>
-        <rect x={0} y={0} width={bw} height={H} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
-        {RINGS.map((g) => (
-          <circle key={g} cx={cx} cy={cy} r={g * r} fill="none" stroke="var(--app-border)" strokeDasharray="2 4" />
-        ))}
-        {RINGS.map((g) => (
-          <text key={`label-${g}`} x={cx + g * r + 2} y={cy - 2} fontSize={9} fill="var(--app-text-dim)">
-            {g}g
-          </text>
-        ))}
-        <line x1={0} x2={bw} y1={cy} y2={cy} stroke="var(--app-border)" strokeWidth={1} />
-        <line x1={cx} x2={cx} y1={0} y2={H} stroke="var(--app-border)" strokeWidth={1} />
-        <text x={bw - 30} y={cy - 4} fontSize={9} fill="var(--app-text-dim)">
-          right
-        </text>
-        <text x={4} y={cy - 4} fontSize={9} fill="var(--app-text-dim)">
-          left
-        </text>
-        <text x={cx + 4} y={12} fontSize={9} fill="var(--app-text-dim)">
-          accel
-        </text>
-        <text x={cx + 4} y={H - 4} fontSize={9} fill="var(--app-text-dim)">
-          brake
-        </text>
-
-        {withG
-          .filter((t) => t.lapId !== bestLapId)
-          .map((t) => (
-            <g key={t.lapId} opacity={t.isValid ? 0.3 : 0.45}>
-              {Array.from(t.frac.slice(0, t.n), (fraction, i) => (
-                <circle key={`${t.lapId}-${fraction}`} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.1} fill={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"} />
-              ))}
-            </g>
-          ))}
-        {withG
-          .filter((t) => t.lapId === bestLapId)
-          .map((t) => (
-            <g key={t.lapId} opacity={0.85}>
-              {Array.from(t.frac.slice(0, t.n), (fraction, i) => (
-                <circle key={`${t.lapId}-${fraction}`} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.3} fill="var(--app-accent)" />
-              ))}
-            </g>
-          ))}
-
-        {cursorFrac != null &&
-          withG.map((t) => {
-            const idx = nearestIndex(t, cursorFrac);
-            return (
-              <circle
-                key={`cursor-${t.lapId}`}
-                cx={px(t.latG![idx])}
-                cy={py(t.longG![idx])}
-                r={4}
-                fill="none"
-                stroke={t.lapId === bestLapId ? "var(--app-accent)" : "var(--app-text)"}
-                strokeWidth={1.5}
-              />
-            );
-          })}
-      </svg>
+      <div className="relative" style={{ height: H }}>
+        <canvas ref={staticCanvasRef} className="absolute inset-0 h-full w-full" aria-label="G-G friction circle" />
+        <canvas ref={cursorCanvasRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />
+      </div>
     </div>
   );
 }
