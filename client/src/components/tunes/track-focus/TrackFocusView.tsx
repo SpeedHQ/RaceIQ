@@ -478,6 +478,7 @@ export function TrackFocusViewInner({
                   onRangeSelect={selectLaneRange}
                   onZoomOut={onZoomOut}
                 />
+                <SpeedRangeLegend />
                 <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <SegmentLedger
                   traces={resolvedTraces}
