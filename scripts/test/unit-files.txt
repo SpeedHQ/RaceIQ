@@ -52,6 +52,7 @@ test/client/car-wireframe.test.ts
 test/client/chat-footer.test.tsx
 test/client/client-game-routes.test.ts
 test/client/connection-status-logic.test.ts
+test/client/aligned-telemetry-fidelity.test.ts
 test/client/lap-analysis-display-data.test.ts
 test/client/reprocess-state.test.ts
 test/client/resumable-chat.test.ts

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../shared/games/init";
 import type { AlignedLapSet, AlignedLapTrace, WheelTrace } from "../../shared/racing/laps/alignment/types";
-import { semanticTuneSamplesFromAlignedTrace } from "../src/components/tunes/semantic-tune";
-import { cropAlignedLapSet, mergeAlignedLapRange, normalizeFidelityRange, shouldLoadHighFidelity } from "../src/lib/aligned-telemetry-fidelity";
+import { semanticTuneSamplesFromAlignedTrace } from "../../client/src/components/tunes/semantic-tune";
+import { cropAlignedLapSet, mergeAlignedLapRange, normalizeFidelityRange, shouldLoadHighFidelity } from "../../client/src/lib/aligned-telemetry-fidelity";
 
 initGameAdapters();
 
@@ -88,5 +88,24 @@ describe("aligned telemetry fidelity", () => {
   test("aligned semantic adapter exposes per-wheel pressure", () => {
     const samples = semanticTuneSamplesFromAlignedTrace(set([0, 1, 2]).laps[0]!, "acc", 2, 4);
     expect(samples[1]!.tirePressurePsi).toEqual({ fl: 1, fr: 2, rl: 3, rr: 4 });
+  });
+  test("normalizes reversed and out-of-domain ranges", () => {
+    expect(normalizeFidelityRange(90, -10, 100)).toEqual({ start: 0, end: 99, step: 0.1 });
+    expect(normalizeFidelityRange(40, 20, 100, 5)).toEqual({ start: 15, end: 45, step: 0.1 });
+  });
+
+  test("keeps singleton crops and empty detail responses safe", () => {
+    const base = set([0, 1, 2]);
+    const singleton = cropAlignedLapSet(base, 1, 1);
+    expect([...singleton.distanceMeters]).toEqual([1]);
+    expect(singleton.laps[0]!.speedMps.length).toBe(1);
+    expect(mergeAlignedLapRange(base, { ...base, distanceMeters: new Float32Array(), laps: [] })).toBe(base);
+  });
+
+  test("only requests detail for a materially narrower positive range", () => {
+    expect(shouldLoadHighFidelity(1, 100)).toBe(true);
+    expect(shouldLoadHighFidelity(98, 100)).toBe(false);
+    expect(shouldLoadHighFidelity(0, 100)).toBe(false);
+    expect(shouldLoadHighFidelity(-1, 100)).toBe(false);
   });
 });

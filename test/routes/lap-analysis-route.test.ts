@@ -118,6 +118,26 @@ describe("POST /api/laps/aligned-telemetry", () => {
   });
 });
 
+  test("rejects malformed and missing alignment requests and returns empty spread", async () => {
+    const malformed = await lapRoutes.request("/api/laps/aligned-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [], step: 1 }),
+    });
+    expect(malformed.status).toBe(400);
+
+    const missing = await lapRoutes.request("/api/laps/aligned-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [999999], step: 1 }),
+    });
+    expect(missing.status).toBe(404);
+
+    const emptyReview = await lapRoutes.request("/api/laps/review-line-spread?gameId=acc&sessionId=999999");
+    expect(emptyReview.status).toBe(200);
+    expect(await emptyReview.json()).toMatchObject({ lapCount: 0, spreadM: [] });
+  });
+
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {
     const response = await lapRoutes.request(

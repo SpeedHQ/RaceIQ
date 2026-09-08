@@ -61,6 +61,10 @@ for (const game of REVIEW_GAMES) {
     await expect(page.getByText("Issues in this sector", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Analyse", exact: true }).click();
     await expect(page.getByRole("button", { name: "Consistency", exact: true })).toBeVisible();
+    for (const tab of ["Tires & grip", "Balance", "Suspension", "Consistency"]) {
+      await page.getByRole("button", { name: tab, exact: true }).click();
+      await expect(page.getByRole("button", { name: tab, exact: true })).toBeVisible();
+    }
     await page.getByRole("button", { name: "Overview", exact: true }).click();
 
     if (evaluationLaps.length > 1) {
@@ -79,8 +83,15 @@ for (const game of REVIEW_GAMES) {
     const detail = alignedRequests.findLast((entry) => entry.step === 0.1);
     expect(detail?.ids).toEqual(expectedIds);
     expect(detail?.start).toBeLessThan(detail?.end ?? 0);
+
     expect(alignedRequests.filter((entry) => entry.step === 1)).toHaveLength(1);
     expect(semanticRequests).toBe(0);
     expect(browserErrors.errors, `unexpected browser errors for ${game.gameId} review`).toEqual([]);
   });
 }
+ 
+test("Analyse session route rejects mixed session and lap selections", async ({ page }) => {
+  await page.goto("/acc/sessions/analyse?session=1&lap=2", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Invalid Analyse selection" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText("Session selection must contain only a positive session ID.");
+});
