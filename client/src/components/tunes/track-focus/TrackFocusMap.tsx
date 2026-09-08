@@ -341,57 +341,6 @@ export function TrackFocusMap({
             })()
           : null}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
-        {heatSegments ? (
-          <>
-            <span className="font-semibold text-app-text-muted">Line spread</span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(0) }} /> tight line
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(1) }} /> ~1-2x spread
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(3) }} /> {`>2x spread`}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[0] }} /> S1
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[1] }} /> S2
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[2] }} /> S3
-            </span>
-          </>
-        )}
-        <span className="basis-full h-0" aria-hidden="true" />
-        <span className="font-semibold text-app-text-muted">Issues</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.critical }} /> critical
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.warn }} /> warn
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full inline-block" style={{ background: SEV_COLOR.info }} /> info
-        </span>
-        {overlayPoints && (
-          <>
-            <span className="basis-full h-0" aria-hidden="true" />
-            <span className="font-semibold text-app-text-muted">Corner points</span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-0.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--ch-brake)" }} /> brake points
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="w-0.5 h-2.5 rounded-sm inline-block" style={{ background: "var(--ch-throttle)" }} /> throttle points
-            </span>
-          </>
-        )}
-      </div>
     </div>
   );
 }

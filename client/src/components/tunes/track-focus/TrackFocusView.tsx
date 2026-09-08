@@ -456,7 +456,6 @@ export function TrackFocusViewInner({
 
           {/* Lane content owns its own scroll on wide layouts. */}
           <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
-            {activeTab === "consistency" && <SpeedRangeLegend />}
             <div className="sticky top-0 z-20 bg-app-bg/95">
               <TrackZoomHint />
               <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
