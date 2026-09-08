@@ -5,8 +5,9 @@ import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
 import { SpeedRangeLegend } from "./SpeedRangeLegend";
+import { BRAKE_ACTIVE_THRESHOLD, THROTTLE_PICKUP_THRESHOLD } from "./input-analysis";
 
-interface CornerLedgerProps {
+interface SegmentLedgerProps {
   traces: LapTrace[];
   bestLapId: number | null;
   cornerFracs: number[];
@@ -66,9 +67,7 @@ function medianOver(arr: Float32Array, idxs: number[]): number | null {
 /** First index (within the zone) where brake exceeds a light threshold —
  *  approximates the driver's brake application point for that corner. */
 function brakeOnsetFrac(trace: LapTrace, idxs: number[]): number | null {
-  for (const i of idxs) {
-    if (trace.brake[i] > 0.3) return trace.frac[i];
-  }
+  for (const i of idxs) if (trace.brake[i] > BRAKE_ACTIVE_THRESHOLD) return trace.frac[i];
   return null;
 }
 
@@ -88,7 +87,7 @@ function throttleOnsetFrac(trace: LapTrace, idxs: number[]): number | null {
   }
   for (let k = apexPos; k < idxs.length; k++) {
     const i = idxs[k];
-    if (trace.throttle[i] > 0.3) return trace.frac[i];
+    if (trace.throttle[i] > THROTTLE_PICKUP_THRESHOLD) return trace.frac[i];
   }
   return null;
 }
@@ -195,14 +194,13 @@ function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; 
 }
 
 /**
- * Corner-by-corner ledger: focus/best lap min speed, spread vs the worst lap
+ * Segment-by-segment ledger: focus/best lap min speed, spread vs the worst lap
  * in the stint, brake-point variance across the stint, an input sparkline for
- * the zone, estimated time loss, and a verdict pill. Mirrors
- * `design-mockups/tune-review/4-corner-ledger.html`, adapted to the traces
- * and corner data already resolved for Track Focus.
+ * the zone, estimated time loss, and a verdict pill. Uses track segment data
+ * resolved for Track Focus.
  */
-export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: CornerLedgerProps) {
-  // When the track has no corner metadata, fall back to detecting apex zones
+export function SegmentLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: SegmentLedgerProps) {
+  // When the track has no segment metadata, fall back to detecting apex zones
   // from the best lap's speed trace (as the mockup did from raw telemetry).
   const effective = useMemo(() => {
     if (corners.length > 0 || traces.length === 0) return { corners, fracs: cornerFracs };
@@ -223,16 +221,16 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
   };
 
   if (effective.corners.length === 0 || traces.length === 0) {
-    return <div className="text-app-text-dim text-sm">No corner data available for this track.</div>;
+    return <div className="text-app-text-dim text-sm">No segment data available for this track.</div>;
   }
 
   return (
     <div className="space-y-2">
-      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Corner Ledger</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Segment Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
         <Table density="compact" fit>
           <THead>
-            {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
+            {["Segment", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
               <TH key={h} nowrap>
                 {h}
               </TH>

@@ -14,32 +14,54 @@ import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from ".
 import { useLapIssues } from "../../../hooks/tunes";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
-import { type LapTrace } from "../../../lib/stint-traces";
+import type { TuneReviewTrackTab } from "../../../lib/game-routes";
 import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
-import { CornerLedger } from "./CornerLedger";
+import { SegmentLedger } from "./SegmentLedger";
 import { detectCorners } from "./detect-corners";
 import { GripPanel } from "./GripPanel";
 import { IssuesList } from "./IssuesList";
+import { BrakingPanel } from "./BrakingPanel";
+import { ThrottleExitPanel } from "./ThrottleExitPanel";
 import { SectorLedger } from "./SectorLedger";
 import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
+import { tryGetGame } from "@shared/games/registry";
+import type { TrackFocusTrace } from "./types";
 import { TrackFocusZoom } from "./TrackFocusZoom";
-
-function alignedToLapTrace(t: AlignedLapTrace): LapTrace {
-  const averages = (value: WheelAverages | null) => value ? { FL: value.FL, FR: value.FR, RL: value.RL, RR: value.RR } : null;
+function alignedToLapTrace(t: AlignedLapTrace): TrackFocusTrace {
+  const averages = (value: WheelAverages | null) => (value ? { FL: value.FL, FR: value.FR, RL: value.RL, RR: value.RR } : null);
   return {
-    lapId: t.lapId, lapNumber: t.lapNumber, isValid: t.isValid, n: t.speedMps.length, frac: t.frac,
-    throttle: t.throttle, brake: t.brake, steer: t.steer, speedKmh: Float32Array.from(t.speedMps, (v) => v * 3.6), timeS: t.elapsedTimeS,
-    posX: t.positionX, posZ: t.positionZ,
-    tire: averages(t.tireAverages), pressure: averages(t.pressureAverages), tireTempTrace: t.tireTemp, pressureTrace: t.tirePressure,
-    balance: t.balanceDeg, latG: t.latG, longG: t.longG, suspTravel: t.suspTravel, combinedSlip: t.combinedSlip,
-    brakeTemp: averages(t.brakeTempAverages), brakeTempTrace: t.brakeTemp,
+    lapId: t.lapId,
+    lapNumber: t.lapNumber,
+    isValid: t.isValid,
+    n: t.speedMps.length,
+    frac: t.frac,
+    throttle: t.throttle,
+    brake: t.brake,
+    steer: t.steer,
+    speedKmh: Float32Array.from(t.speedMps, (v) => v * 3.6),
+    timeS: t.elapsedTimeS,
+    posX: t.positionX,
+    posZ: t.positionZ,
+    fuel: t.fuel,
+    tireWearTrace: t.tireWear,
+    tire: averages(t.tireAverages),
+    pressure: averages(t.pressureAverages),
+    tireTempTrace: t.tireTemp,
+    pressureTrace: t.tirePressure,
+    balance: t.balanceDeg,
+    latG: t.latG,
+    longG: t.longG,
+    suspTravel: t.suspTravel,
+    combinedSlip: t.combinedSlip,
+    brakeTemp: averages(t.brakeTempAverages),
+    brakeTempTrace: t.brakeTemp,
   };
 }
 
@@ -53,18 +75,35 @@ interface TrackFocusViewProps {
   onFocusLap?: (lapId: number) => void;
   experimentId?: number | null;
   lineSpreadOverride?: LineSpreadTrace | null;
-  activeTab?: Tab;
-  onActiveTabChange?: (tab: Tab) => void;
+  activeTab?: TuneReviewTrackTab;
+  onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
 }
 
-const TABS = ["consistency", "tires", "balance", "suspension"] as const;
-type Tab = (typeof TABS)[number];
-const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Tires & grip", balance: "Balance", suspension: "Suspension" };
-
+const TABS = ["consistency", "braking", "throttle", "tires", "balance", "suspension"] as const;
+const TAB_LABELS: Record<TuneReviewTrackTab, string> = {
+  consistency: "Consistency",
+  braking: "Braking",
+  throttle: "Throttle & exit",
+  tires: "Tires & fuel",
+  balance: "Balance",
+  suspension: "Suspension",
+};
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId, lineSpreadOverride, activeTab, onActiveTabChange }: TrackFocusViewProps) {
+export function TrackFocusView({
+  gameId,
+  laps,
+  alignedSet,
+  evaluationLapIds,
+  trackOrdinal,
+  focusLapId: controlledFocusId,
+  onFocusLap: controlledOnFocusLap,
+  experimentId,
+  lineSpreadOverride,
+  activeTab,
+  onActiveTabChange,
+}: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
@@ -88,10 +127,13 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
       end: zoom.visibleRange.end / alignedSet.nominalSpanMeters,
     };
   }, [alignedSet, zoom.visibleRange]);
-  const selectLaneRange = useCallback((startFrac: number, endFrac: number) => {
-    if (!alignedSet) return;
-    zoom.selectRangeMeters(startFrac * alignedSet.nominalSpanMeters, endFrac * alignedSet.nominalSpanMeters);
-  }, [alignedSet, zoom.selectRangeMeters]);
+  const selectLaneRange = useCallback(
+    (startFrac: number, endFrac: number) => {
+      if (!alignedSet) return;
+      zoom.selectRangeMeters(startFrac * alignedSet.nominalSpanMeters, endFrac * alignedSet.nominalSpanMeters);
+    },
+    [alignedSet, zoom.selectRangeMeters],
+  );
   const { data: fetchedLineSpread } = useLineSpread(activeTab === "consistency" && !lineSpreadOverride ? experimentId : null);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
 
@@ -134,7 +176,13 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
     if (!(s1End > 0 && s1End < s2End && s2End < 1)) return null;
     return { s1End, s2End };
   }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
-
+  const focusSectorTimes = useMemo<SectorTimesLite | null>(() => {
+    const trace = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
+    if (!trace?.sectorTimes || trace.sectorTimes.length < 2 || !trace.sectorStarts) return null;
+    const starts = trace.sectorStarts.filter((start) => Number.isFinite(start) && start > 0 && start < 1).slice(0, trace.sectorTimes.length - 1);
+    if (starts.length !== trace.sectorTimes.length - 1) return null;
+    return { times: trace.sectorTimes, boundaryIndices: starts.map((start) => Math.round(start * Math.max(0, trace.speedMps.length - 1))) };
+  }, [alignedSet, effectiveFocusId]);
 
   return (
     <TrackFocusViewInner
@@ -143,13 +191,14 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusSectorTimes={null}
+      focusSectorTimes={focusSectorTimes}
       edges={edges}
       corners={corners ?? []}
       focusTelemetry={focusTelemetry}
       issues={issues ?? []}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
+      gameId={gameId}
       shownLapCount={reviewLaps.length}
       totalLapCount={stintLaps.length}
       activeTab={activeTab}
@@ -164,9 +213,10 @@ export function TrackFocusView({ gameId, laps, alignedSet, evaluationLapIds, tra
 }
 
 export interface TrackFocusViewInnerProps {
+  gameId: GameId;
   laps: LapMeta[];
-  baseTraces: LapTrace[];
-  traces: (LapTrace | undefined)[];
+  baseTraces: TrackFocusTrace[];
+  traces: (TrackFocusTrace | undefined)[];
   bestLapId: number | null;
   focusLapId: number | null;
   onFocusLap: (lapId: number) => void;
@@ -175,19 +225,13 @@ export interface TrackFocusViewInnerProps {
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
   issues: TuneIssue[];
-  /** Trimmed racing-line spread trace (null while loading, no session, or too
-   *  few clean laps — lane + map overlay render their empty state). */
   lineSpread: LineSpreadTrace | null;
-  /** Authoritative sector boundary fractions from track meta, when available.
-   *  Falls back to the focus lap's per-lap sector-index split. */
   metaSectors?: { s1End: number; s2End: number } | null;
   nominalSpanMeters: number;
-  /** Laps actually analysed in the per-frame views (fastest N). */
   shownLapCount?: number;
-  /** Total eligible laps in the stint (for the "showing N of M" caption). */
   totalLapCount?: number;
-  activeTab?: Tab;
-  onActiveTabChange?: (tab: Tab) => void;
+  activeTab?: TuneReviewTrackTab;
+  onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
   visibleLaneRange?: { start: number; end: number } | null;
   selectLaneRange?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
@@ -198,6 +242,7 @@ export interface TrackFocusViewInnerProps {
  *  across the map + all lanes) and `activeTab` state; everything else is
  *  passed in already resolved. */
 export function TrackFocusViewInner({
+  gameId,
   traces,
   baseTraces,
   bestLapId,
@@ -220,23 +265,34 @@ export function TrackFocusViewInner({
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [hoverRange, setHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
-  const [localActiveTab, setLocalActiveTab] = useState<Tab>("consistency");
+  const [localActiveTab, setLocalActiveTab] = useState<TuneReviewTrackTab>("consistency");
   const activeTab = controlledActiveTab ?? localActiveTab;
-  const setActiveTab = (tab: Tab) => {
+  const setActiveTab = (tab: TuneReviewTrackTab) => {
     setLocalActiveTab(tab);
     onActiveTabChange?.(tab);
   };
+
+  const game = tryGetGame(gameId);
+  const tireHealth = game?.telemetry.analysis?.tireHealth;
+  const fuelUnit = game?.telemetry.fuel.packetUnit;
+  const tireWearContinuous = tireHealth?.source === "direct" && tireHealth.freshness === "continuous";
   const [zoomActive, setZoomActive] = useState(false);
   const [zoomBehavior, setZoomBehavior] = useLocalStorage<"default" | "zoomed" | "disabled">("analyse-hoverZoom", "default");
   const [zoomSettingsOpen, setZoomSettingsOpen] = useState(false);
   const zoomBehaviorLabels = { default: "Default", zoomed: "Always", disabled: "Never" } as const;
-
-  const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
-  const zoomLines = useMemo(() => resolvedTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [resolvedTraces]);
+  const resolvedTraces = useMemo(() => traces.filter((t): t is TrackFocusTrace => !!t), [traces]);
+  const zoomLines = useMemo(
+    () =>
+      resolvedTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })),
+    [resolvedTraces],
+  );
   // Scope zoom uses the cached 1 m base, not the merged 0.1 m detail trace.
   // Hover windows are fixed at ±30 m; rendering an entire high-fidelity range
   // would create an unnecessarily large SVG DOM.
-  const scopeZoomLines = useMemo(() => baseTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })), [baseTraces]);
+  const scopeZoomLines = useMemo(
+    () => baseTraces.map((trace) => ({ lapId: trace.lapId, x: [...(trace.posX ?? [])], z: [...(trace.posZ ?? [])], brake: [...trace.brake], throttle: [...trace.throttle], frac: [...trace.frac] })),
+    [baseTraces],
+  );
 
   // Corners are now returned as lap fractions (0..1) by the server — either
   // from curated track meta or meters-converted-to-fraction DB corners. No
@@ -300,13 +356,8 @@ export function TrackFocusViewInner({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4">
-
-
-
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
-        <p className="flex-none text-xs text-muted-foreground -mt-2">
-          {m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}
-        </p>
+        <p className="flex-none text-xs text-muted-foreground -mt-2">{m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}</p>
       )}
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
@@ -348,7 +399,10 @@ export function TrackFocusViewInner({
                 </div>
               </DialogContent>
             </Dialog>
-            {(zoomBehavior === "zoomed" ? zoomLines : zoomBehavior === "default" ? (zoomActive ? zoomLines : scopeZoomLines) : []).length > 0 && zoomBehavior !== "disabled" && (zoomBehavior === "zoomed" || zoomActive || visibleLaneRange) && (cursorFrac != null || visibleLaneRange != null) ? (
+            {(zoomBehavior === "zoomed" ? zoomLines : zoomBehavior === "default" ? (zoomActive ? zoomLines : scopeZoomLines) : []).length > 0 &&
+            zoomBehavior !== "disabled" &&
+            (zoomBehavior === "zoomed" || zoomActive || visibleLaneRange) &&
+            (cursorFrac != null || visibleLaneRange != null) ? (
               <TrackFocusZoom
                 lapLines={zoomBehavior === "zoomed" || zoomActive ? zoomLines : scopeZoomLines}
                 issues={issues}
@@ -400,10 +454,10 @@ export function TrackFocusViewInner({
 
           {/* Lane content owns its own scroll on wide layouts. */}
           <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
-          <div className="sticky top-0 z-20 bg-app-bg/95">
-            <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
-            <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
-          </div>
+            <div className="sticky top-0 z-20 bg-app-bg/95">
+              <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
+              <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
+            </div>
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
@@ -421,17 +475,48 @@ export function TrackFocusViewInner({
                   onZoomOut={onZoomOut}
                 />
                 <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
-                <CornerLedger
+                <SegmentLedger
                   traces={resolvedTraces}
                   bestLapId={bestLapId}
-                  cornerFracs={cornerFracs}
-                  corners={corners}
+                  cornerFracs={effectiveCorners.fracs}
+                  corners={effectiveCorners.corners}
                   cursorFrac={cursorFrac}
                   onCursorFrac={setCursorFrac}
                   onHoverPoints={setHoverPoints}
                   onHoverRange={setHoverRange}
                 />
               </>
+            )}
+            {activeTab === "braking" && (
+              <BrakingPanel
+                traces={resolvedTraces}
+                metricTraces={baseTraces}
+                bestLapId={bestLapId}
+                corners={effectiveCorners.corners}
+                cornerFracs={effectiveCorners.fracs}
+                nominalSpanMeters={nominalSpanMeters}
+                issues={issues}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+                visibleRange={visibleLaneRange}
+                onRangeSelect={selectLaneRange}
+                onZoomOut={onZoomOut}
+              />
+            )}
+            {activeTab === "throttle" && (
+              <ThrottleExitPanel
+                traces={resolvedTraces}
+                metricTraces={baseTraces}
+                bestLapId={bestLapId}
+                corners={effectiveCorners.corners}
+                cornerFracs={effectiveCorners.fracs}
+                nominalSpanMeters={nominalSpanMeters}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+                visibleRange={visibleLaneRange}
+                onRangeSelect={selectLaneRange}
+                onZoomOut={onZoomOut}
+              />
             )}
             {activeTab === "tires" && (
               <>
@@ -445,6 +530,8 @@ export function TrackFocusViewInner({
                   visibleRange={visibleLaneRange}
                   onRangeSelect={selectLaneRange}
                   onZoomOut={onZoomOut}
+                  fuelUnit={fuelUnit}
+                  tireWearContinuous={tireWearContinuous}
                 />
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
@@ -479,7 +566,7 @@ export function TrackFocusViewInner({
             )}
             {activeTab === "suspension" && (
               <SuspensionLanes
-                traces={traces}
+                traces={resolvedTraces}
                 bestLapId={bestLapId}
                 cornerFracs={cornerFracs}
                 annotationMarkers={issueMarkers}

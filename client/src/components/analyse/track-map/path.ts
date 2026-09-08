@@ -42,6 +42,26 @@ export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outlin
     };
   });
 }
+export function projectPointOntoPath(point: Point, path: readonly Point[]): Point | null {
+  if (path.length < 2) return null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestPoint: Point | null = null;
+  for (let index = 1; index < path.length; index++) {
+    const start = path[index - 1];
+    const end = path[index];
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const lengthSquared = dx * dx + dz * dz;
+    const amount = lengthSquared > 1e-12 ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared)) : 0;
+    const projected = { x: start.x + dx * amount, z: start.z + dz * amount };
+    const distance = (point.x - projected.x) ** 2 + (point.z - projected.z) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestPoint = projected;
+    }
+  }
+  return bestPoint;
+}
 
 export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {
   const segments: ([number, number] | null)[] = Array(Math.max(0, points.length - 1)).fill(null);

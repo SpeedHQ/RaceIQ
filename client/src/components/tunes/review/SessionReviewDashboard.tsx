@@ -24,6 +24,7 @@ import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample, wheelValu
 import { buildOpenLapContext } from "./open-lap-context";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import type { TuneReviewTrackTab } from "@/lib/game-routes";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
@@ -58,7 +59,6 @@ interface TuneReviewDashboardProps {
 
 type SectorView = `s${number}`;
 type ReviewView = "overview" | "track" | SectorView;
-type TrackTab = "consistency" | "tires" | "balance" | "suspension";
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
@@ -67,7 +67,20 @@ type TrackTab = "consistency" | "tires" | "balance" | "suspension";
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDrillIntoLap, sessionLabel, stayOnSessionReview = false, autoSelectLap = true, test, experimentId, lineSpread, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function SessionReviewDashboard({
+  gameId,
+  trackName,
+  laps,
+  onBack,
+  onDrillIntoLap,
+  sessionLabel,
+  stayOnSessionReview = false,
+  autoSelectLap = true,
+  test,
+  experimentId,
+  lineSpread,
+  onOpenLapContextChange,
+}: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const evaluationLapIds = useMemo(() => evaluationLaps.map((lap) => lap.id), [evaluationLaps]);
@@ -75,21 +88,32 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
   const aligned = useAlignedTelemetry(evaluationLapIds, evaluationLapIds.length ? { step: 1 } : null);
 
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TrackTab };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TuneReviewTrackTab };
   const [reviewLapId, setReviewLapId] = useState<number | null>(null);
   const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
   const focusLap = evaluationLaps.find((l) => l.id === selectedLapId) ?? evaluationLaps[0];
   const view = search.view ?? "overview";
   const trackTab = search.trackTab ?? "consistency";
-  const lapOptions = useMemo(() => [
-    ...((stayOnSessionReview || view === "track") ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
-    ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
-  ], [bestLap, stayOnSessionReview, evaluationLaps, view]);
-  const setFocus = useCallback((id: number) => {
-    if (stayOnSessionReview) setReviewLapId(id);
-    else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
-  }, [navigate, stayOnSessionReview]);
-  const setTrackTab = useCallback((tab: TrackTab) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never); }, [navigate]);
+  const lapOptions = useMemo(
+    () => [
+      ...(stayOnSessionReview || view === "track" ? [{ value: "all", label: bestLap ? `Best lap (Lap ${bestLap.lapNumber})` : "Best lap" }] : []),
+      ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
+    ],
+    [bestLap, stayOnSessionReview, evaluationLaps, view],
+  );
+  const setFocus = useCallback(
+    (id: number) => {
+      if (stayOnSessionReview) setReviewLapId(id);
+      else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
+    },
+    [navigate, stayOnSessionReview],
+  );
+  const setTrackTab = useCallback(
+    (tab: TuneReviewTrackTab) => {
+      void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never);
+    },
+    [navigate],
+  );
   useEffect(() => {
     if (stayOnSessionReview || !autoSelectLap || evaluationLaps.length === 0) return;
     if (search.view === "track" && search.lap == null) return;
@@ -97,17 +121,23 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
     navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: evaluationLaps[0]!.id }) } as never);
   }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, evaluationLaps]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
-  const telemetry = useMemo(() => selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : [], [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace]);
-  const sectorTimes = selectedTrace?.sectorTimes ? (() => {
-    const times = selectedTrace.sectorTimes!;
-    const starts = (selectedTrace.sectorStarts ?? []).filter((start) => Number.isFinite(start) && start > 0 && start < 1).slice(0, Math.max(0, times.length - 1));
-    const boundaryIndices = starts.length === times.length - 1
-      ? starts.map((start) => Math.round(start * Math.max(0, telemetry.length - 1)))
-      : Array.from({ length: Math.max(0, times.length - 1) }, (_, index) => Math.round((index + 1) * Math.max(0, telemetry.length - 1) / times.length));
-    return { times, boundaryIndices };
-  })() : null;
+  const telemetry = useMemo(
+    () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
+    [aligned.data, focusLap?.trackOrdinal, focusLap?.id, gameId, selectedTrace],
+  );
+  const sectorTimes = selectedTrace?.sectorTimes
+    ? (() => {
+        const times = selectedTrace.sectorTimes!;
+        const starts = (selectedTrace.sectorStarts ?? []).filter((start) => Number.isFinite(start) && start > 0 && start < 1).slice(0, Math.max(0, times.length - 1));
+        const boundaryIndices =
+          starts.length === times.length - 1
+            ? starts.map((start) => Math.round(start * Math.max(0, telemetry.length - 1)))
+            : Array.from({ length: Math.max(0, times.length - 1) }, (_, index) => Math.round(((index + 1) * Math.max(0, telemetry.length - 1)) / times.length));
+        return { times, boundaryIndices };
+      })()
+    : null;
   const sectorCount = sectorTimes?.times.length ?? 3;
-  const corners = useMemo(() => selectedTrace ? tireSnapshotFromAlignedTrace(selectedTrace) : null, [selectedTrace]);
+  const corners = useMemo(() => (selectedTrace ? tireSnapshotFromAlignedTrace(selectedTrace) : null), [selectedTrace]);
   const game = tryGetGame(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
@@ -158,11 +188,12 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
       search: (previous: Record<string, unknown>) => ({
         ...previous,
         view: nextView === "overview" ? undefined : nextView,
-        lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : (typeof previous.lap === "number" ? previous.lap : focusLap?.id),
+        lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : typeof previous.lap === "number" ? previous.lap : focusLap?.id,
       }),
     } as never);
   // In the track view, no ?lap= means "Best lap"; a stale id also counts as Best lap.
-  const trackFocusId = view === "track" && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
+  const trackFocusId =
+    view === "track" && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
@@ -229,7 +260,17 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
             </Button>
           )}
           <SearchSelect
-            value={stayOnSessionReview && view !== "track" ? (reviewLapId != null ? String(reviewLapId) : "all") : view === "track" ? (trackFocusId != null ? String(trackFocusId) : "all") : String(focusLap.id)}
+            value={
+              stayOnSessionReview && view !== "track"
+                ? reviewLapId != null
+                  ? String(reviewLapId)
+                  : "all"
+                : view === "track"
+                  ? trackFocusId != null
+                    ? String(trackFocusId)
+                    : "all"
+                  : String(focusLap.id)
+            }
             onChange={(value) => {
               if (value === "all") {
                 if (stayOnSessionReview) setReviewLapId(null);
@@ -252,7 +293,8 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
               ✓
             </span>
           )}
-          <div className="flex gap-1">
+          {sessionLabel && <span className="ml-auto text-xs text-app-text-dim">Showing up to five fastest clean laps.</span>}
+          <div className="ml-auto flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
               <Button
                 key={v}
@@ -270,7 +312,6 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
 
-        {sessionLabel && <div className="px-4 py-1 text-xs text-app-text-dim">Showing up to five fastest clean laps.</div>}
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
             {test?.driverComment && (
@@ -336,7 +377,11 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
                       </div>
                       <div className="mt-1 text-sm font-mono tabular-nums text-app-text">{sectorTimes && sectorTimes.times[i] > 0 ? formatLapTime(sectorTimes.times[i]) : "—"}</div>
                     </div>
-                    {ranges ? <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} /> : <div className="text-xs text-app-text-dim">No telemetry</div>}
+                    {ranges ? (
+                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} />
+                    ) : (
+                      <div className="text-xs text-app-text-dim">No telemetry</div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -348,7 +393,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
             )}
           </div>
         )}
-        </div>
+      </div>
 
       {/* Detail body — track panels own their internal scroll; other views use the body scroll. */}
       <div className={`min-h-0 ${view === "track" ? "flex-1 overflow-hidden" : "flex-none overflow-visible"}`}>

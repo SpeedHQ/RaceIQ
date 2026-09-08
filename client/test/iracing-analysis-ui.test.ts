@@ -7,7 +7,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets, resolveFrameDirection } from "../src/components/analyse/track-map/path";
+import { pathForwardOffsets, projectPointOntoPath, resolveFrameDirection } from "../src/components/analyse/track-map/path";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
@@ -70,6 +70,11 @@ describe("iRacing analysis track marker", () => {
     expect(directions[4]).toEqual([0, 1]);
     expect(pathForwardOffsets([{ x: 4, z: 2 }, { x: 4, z: 2 }])).toEqual([null, null]);
   });
+});
+
+test("projects official turn labels onto centerline instead of leaving them on SVG label offsets", () => {
+  const projected = projectPointOntoPath({ x: 5, z: 3 }, [{ x: 0, z: 0 }, { x: 10, z: 0 }, { x: 10, z: 10 }]);
+  expect(projected).toEqual({ x: 5, z: 0 });
 });
 
 describe("iRacing analysis semantic direction", () => {

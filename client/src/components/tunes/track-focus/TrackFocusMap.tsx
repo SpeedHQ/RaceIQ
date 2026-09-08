@@ -45,7 +45,7 @@ interface TrackFocusMapProps {
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
   /** Per-lap brake/throttle onset fracs to overlay as dots on the driven
-   *  line (set while hovering a Corner Ledger row, null otherwise). */
+   *  line (set while hovering a Segment Ledger row, null otherwise). */
   overlayPoints?: { brake: number[]; throttle: number[] } | null;
   /** Corner span highlighted while hovering or pinning a ledger row. */
   highlightRange?: { startFrac: number; endFrac: number } | null;
@@ -69,7 +69,20 @@ const SEV_COLOR: Record<string, string> = {
  * that tracks the cursor (or the lap
  * average when no cursor is set).
  */
-export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, highlightRange, lineSpread, visibleRange = null }: TrackFocusMapProps) {
+export function TrackFocusMap({
+  telemetry,
+  sectorTimes,
+  edges,
+  corners,
+  cornerFracs,
+  issues,
+  cursorFrac,
+  onCursorFrac,
+  overlayPoints,
+  highlightRange,
+  lineSpread,
+  visibleRange = null,
+}: TrackFocusMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const geometry = useMemo(() => (telemetry ? buildGeometry(telemetry, sectorTimes, edges) : null), [telemetry, sectorTimes, edges]);
@@ -151,7 +164,10 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   }, [geometry, normDist, sectorTimes, telemetry, visibleRange]);
   const mapViewBox = useMemo(() => {
     if (!visibleRange || scopedSegments.length === 0) return `0 0 ${VIEW} ${VIEW}`;
-    const points = scopedSegments.flatMap(({ x1, y1, x2, y2 }) => [{ x: x1, y: y1 }, { x: x2, y: y2 }]);
+    const points = scopedSegments.flatMap(({ x1, y1, x2, y2 }) => [
+      { x: x1, y: y1 },
+      { x: x2, y: y2 },
+    ]);
     const minX = Math.min(...points.map((point) => point.x));
     const maxX = Math.max(...points.map((point) => point.x));
     const minY = Math.min(...points.map((point) => point.y));
@@ -161,9 +177,6 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
     const padding = Math.max(10, Math.max(width, height) * 0.2);
     return `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`;
   }, [scopedSegments, visibleRange]);
-
-
-
 
   function fracToPoint(frac: number): { x: number; y: number } | null {
     if (!geometry || geometry.pts.length === 0) return null;
@@ -252,7 +265,9 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           <g opacity={visibleRange ? 0.2 : 1} style={visibleRange ? { filter: "grayscale(1)" } : undefined}>
             {heatSegments
-              ? heatSegments.map((s) => <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={visibleRange ? 1.6 : 2.5} strokeLinecap="round" />)
+              ? heatSegments.map((s) => (
+                  <line key={`${s.x1}-${s.y1}-${s.x2}-${s.y2}`} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={visibleRange ? 1.6 : 2.5} strokeLinecap="round" />
+                ))
               : (["s1", "s2", "s3"] as const).map((segKey, i) => (
                   <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={visibleRange ? 1.6 : 2} strokeLinejoin="round" strokeLinecap="round" />
                 ))}
@@ -281,26 +296,26 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               );
             })}
           {issues.map((it) => {
-              if (it.distanceFrac == null) return null;
-              const pt = fracToPoint(it.distanceFrac);
-              if (!pt) return null;
-              const color = SEV_COLOR[it.severity] ?? SEV_COLOR.info;
-              return (
-                <g key={`${it.kind}-${it.corner ?? ""}-${it.distanceFrac}-${it.detail}`}>
-                  {it.severity === "critical" && <circle cx={pt.x} cy={pt.y} r={6} fill={color} opacity={0.25} />}
-                  <circle cx={pt.x} cy={pt.y} r={3} fill={color} stroke="var(--app-bg)" strokeWidth={1} />
-                </g>
-              );
-            })}
-          {overlayPoints?.brake.map((f) => {
-            const tk = fracToTick(f);
-            if (!tk) return null;
-            return <line key={`ob-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-brake)" strokeWidth={1.5} strokeLinecap="round" />;
+            if (it.distanceFrac == null) return null;
+            const pt = fracToPoint(it.distanceFrac);
+            if (!pt) return null;
+            const color = SEV_COLOR[it.severity] ?? SEV_COLOR.info;
+            return (
+              <g key={`${it.kind}-${it.corner ?? ""}-${it.distanceFrac}-${it.detail}`}>
+                {it.severity === "critical" && <circle cx={pt.x} cy={pt.y} r={6} fill={color} opacity={0.25} />}
+                <circle cx={pt.x} cy={pt.y} r={3} fill={color} stroke="var(--app-bg)" strokeWidth={1} />
+              </g>
+            );
           })}
-          {overlayPoints?.throttle.map((f) => {
+          {overlayPoints?.brake.map((f, index) => {
             const tk = fracToTick(f);
             if (!tk) return null;
-            return <line key={`ot-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-throttle)" strokeWidth={1.5} strokeLinecap="round" />;
+            return <line key={`ob-${index}-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-brake)" strokeWidth={1.5} strokeLinecap="round" />;
+          })}
+          {overlayPoints?.throttle.map((f, index) => {
+            const tk = fracToTick(f);
+            if (!tk) return null;
+            return <line key={`ot-${index}-${f}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-throttle)" strokeWidth={1.5} strokeLinecap="round" />;
           })}
           {cursorPt && <circle cx={cursorPt.x} cy={cursorPt.y} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />}
         </svg>

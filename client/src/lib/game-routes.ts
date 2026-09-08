@@ -13,6 +13,7 @@ export type AnalyseSearch = {
   viz?: string;
   ai?: number;
   view?: string;
+  trackTab?: TuneReviewTrackTab;
 };
 export type CompareSearch = {
   track?: number;
@@ -34,7 +35,7 @@ export type TuneSearch = {
 };
 
 export type TuneReviewView = "overview" | "track" | `s${number}`;
-export type TuneReviewTrackTab = "consistency" | "tires" | "balance" | "suspension";
+export type TuneReviewTrackTab = "consistency" | "braking" | "throttle" | "tires" | "balance" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
@@ -95,6 +96,7 @@ export function parseAnalyseLapIds(value: string | undefined): number[] | null |
 
 
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
+  const trackTab = search.trackTab === "consistency" || search.trackTab === "braking" || search.trackTab === "throttle" || search.trackTab === "tires" || search.trackTab === "balance" || search.trackTab === "suspension" ? search.trackTab : undefined;
   return {
     session: parseOptionalNumber(search.session),
     track: parseOptionalNumber(search.track),
@@ -105,6 +107,7 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
     viz: typeof search.viz === "string" ? search.viz : undefined,
     ai: parseOptionalNumber(search.ai),
     view: typeof search.view === "string" ? search.view : undefined,
+    trackTab,
   };
 }
 
@@ -135,7 +138,7 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
-  const trackTab = search.trackTab === "consistency" || search.trackTab === "tires" || search.trackTab === "balance" || search.trackTab === "suspension" ? search.trackTab : undefined;
+  const trackTab = search.trackTab === "consistency" || search.trackTab === "braking" || search.trackTab === "throttle" || search.trackTab === "tires" || search.trackTab === "balance" || search.trackTab === "suspension" ? search.trackTab : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),

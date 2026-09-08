@@ -2,6 +2,7 @@ import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { projectPointOntoPath } from "./path";
 import type { GameId } from "../../../../../shared/games/ids";
 import { semanticNumber, type Point, type SemanticAnalysisFrame, type SectorBoundaries, type TrackHighlight, type TrackMapBoundaries, type TrackMapLabel, type TrackTransform, type TrackZoomBehavior } from "./types";
 
@@ -49,6 +50,11 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
   const canonicalCenterLine = flip && boundaries?.centerLine?.length ? flipPoints(boundaries.centerLine) : boundaries?.centerLine;
   const overlayOutline = canonicalCenterLine && canonicalCenterLine.length > 1 ? canonicalCenterLine : displayOutline;
+  const displayMapLabels = mapLabels?.map((label) => {
+    const displayLabel = flip ? { ...label, x: -label.x } : label;
+    const anchored = projectPointOntoPath(displayLabel, overlayOutline);
+    return anchored ? { ...displayLabel, ...anchored } : displayLabel;
+  }) ?? null;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
@@ -57,7 +63,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     maxZ = -Infinity;
   const allBoundsPts: Point[][] = [displayOutline, overlayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
-  if (mapLabels?.length) allBoundsPts.push(mapLabels);
+  if (displayMapLabels?.length) allBoundsPts.push(displayMapLabels);
   for (const pts of allBoundsPts)
     for (const p of pts) {
       minX = Math.min(minX, p.x);
@@ -172,7 +178,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
         endIdx = fracToOverlayIdx(seg.endFrac);
       if (startIdx >= endIdx) continue;
       drawRange(seg.startFrac, seg.endFrac, seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)", 2.5);
-      if (!mapLabels?.length && seg.name && !labelledNames.has(seg.name)) {
+      if (seg.name && !labelledNames.has(seg.name)) {
         labelledNames.add(seg.name);
         const midIdx = Math.round((startIdx + endIdx) / 2);
         const point = overlayOutline[Math.min(midIdx, overlayN - 1)];
@@ -218,10 +224,10 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   }
 
-  if (mapLabels?.length) {
+  if (displayMapLabels?.length && !segments?.length) {
     ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
     ctx.textAlign = "center";
-    for (const label of mapLabels) {
+    for (const label of displayMapLabels) {
       const [labelX, labelY] = toCanvas(label.x, label.z);
       const width = ctx.measureText(label.text).width + 6;
       ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 82%, transparent)";

@@ -46,15 +46,17 @@ describe("game route helpers", () => {
     expect(parseOptionalNumber(true)).toBeUndefined();
   });
 
-  test("validates analysis search values", () => {
-    expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ai: "1", ignored: "x" })).toEqual({
+  test("validates analysis search values and track tabs", () => {
+    expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ai: "1", trackTab: "braking", ignored: "x" })).toEqual({
       track: 12,
       car: 34,
       lap: undefined,
       cursor: 15,
       viz: "3d",
       ai: 1,
+      trackTab: "braking",
     });
+    expect(validateAnalyseSearch({ trackTab: "unknown" }).trackTab).toBeUndefined();
   });
 
   test("validates comparison search values", () => {
@@ -91,6 +93,8 @@ describe("game route helpers", () => {
       view: undefined,
       versionId: undefined,
     });
+    expect(validateTuneReviewSearch({ view: "track", trackTab: "throttle" }).trackTab).toBe("throttle");
+    expect(validateTuneReviewSearch({ view: "track", trackTab: "unknown" }).trackTab).toBeUndefined();
   });
 
   test("gates F1 experiments by release environment", () => {

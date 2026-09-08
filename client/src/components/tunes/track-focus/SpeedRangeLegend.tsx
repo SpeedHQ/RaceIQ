@@ -1,7 +1,7 @@
 /* ── Legend for the ledgers' "Speed range" column ──
  * Explains the SetupRangeBar markers (min/max rose ticks, amber median
  * diamond, faint per-lap dots) so the bar is readable without hovering for
- * the tooltip. Shared by SectorLedger and CornerLedger. */
+ * the tooltip. Shared by SectorLedger and SegmentLedger. */
 
 export function SpeedRangeLegend() {
   return (
