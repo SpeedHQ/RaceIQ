@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMeasuredWidth } from "./use-measured-width";
 
 export interface AnnotationMarker {
@@ -44,41 +44,51 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [hoverFrac, setHoverFrac] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState<number | null>(null);
-  const [dragStartClientX, setDragStartClientX] = useState<number | null>(null);
+  const dragStartRef = useRef<{ frac: number; clientX: number } | null>(null);
   const [dragFrac, setDragFrac] = useState<number | null>(null);
   const x0 = 6, x1 = bw - 6, y0 = 6, y1 = height - 6;
   const [min, max] = domain;
   const rangeStart = visibleRange?.start ?? 0, rangeEnd = visibleRange?.end ?? 1;
   const x = (f: number) => x0 + ((f - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * (x1 - x0);
   const y = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0);
-  function fracFromEvent(e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): number {
+  function fracFromEvent(e: React.PointerEvent<SVGSVGElement>): number {
     const rect = svgRef.current!.getBoundingClientRect();
     return Math.max(0, Math.min(1, rangeStart + ((e.clientX - rect.left) / rect.width) * (rangeEnd - rangeStart)));
   }
-  useEffect(() => {
-    if (dragStart == null) return;
-    const finish = (event: MouseEvent | PointerEvent) => {
-      if (dragFrac != null && dragStartClientX != null && dragFrac > dragStart && Math.abs(event.clientX - dragStartClientX) >= 3) {
-        onRangeSelect?.(dragStart, dragFrac);
-      }
-      setDragStart(null); setDragStartClientX(null); setDragFrac(null);
-    };
-    window.addEventListener("mouseup", finish);
-    window.addEventListener("pointerup", finish);
-    return () => {
-      window.removeEventListener("mouseup", finish);
-      window.removeEventListener("pointerup", finish);
-    };
-  }, [dragStart, dragFrac, dragStartClientX, onRangeSelect, bw]);
-  function onMove(e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>) {
-    const f = fracFromEvent(e); setHoverFrac(f);
-    if (dragStart != null) setDragFrac(f); else onCursorFrac(f);
+  function beginDrag(e: React.PointerEvent<SVGSVGElement>) {
+    if (!onRangeSelect) return;
+    const frac = fracFromEvent(e);
+    dragStartRef.current = { frac, clientX: e.clientX };
+    setDragStart(frac);
+    setDragFrac(frac);
+    e.currentTarget.setPointerCapture(e.pointerId);
   }
-  function onLeave() { setHoverFrac(null); if (dragStart == null) onCursorFrac(null); }
+  function onMove(e: React.PointerEvent<SVGSVGElement>) {
+    const frac = fracFromEvent(e);
+    setHoverFrac(frac);
+    if (dragStartRef.current) setDragFrac(frac);
+    else onCursorFrac(frac);
+  }
+  function finishDrag(e: React.PointerEvent<SVGSVGElement>) {
+    const start = dragStartRef.current;
+    if (start) {
+      const end = fracFromEvent(e);
+      if (end !== start.frac && Math.abs(e.clientX - start.clientX) >= 3) {
+        onRangeSelect?.(Math.min(start.frac, end), Math.max(start.frac, end));
+      }
+    }
+    dragStartRef.current = null;
+    setDragStart(null);
+    setDragFrac(null);
+  }
+  function onLeave() {
+    setHoverFrac(null);
+    if (!dragStartRef.current) onCursorFrac(null);
+  }
   return (
     <div ref={wrapRef} className="relative">
       {title && <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{title}</div>}
-      <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onMouseMove={onMove} onPointerMove={onMove} onMouseLeave={onLeave} onMouseDown={(e) => { if (onRangeSelect) { setDragStart(fracFromEvent(e)); setDragStartClientX(e.clientX); } }} onPointerDown={(e) => { if (onRangeSelect) { setDragStart(fracFromEvent(e)); setDragStartClientX(e.clientX); } }} onDoubleClick={(e) => { e.stopPropagation(); onZoomOut?.(); }}>
+      <svg ref={svgRef} viewBox={`0 0 ${bw} ${height}`} width="100%" height={height} preserveAspectRatio="none" className={className} style={{ cursor: onRangeSelect ? "crosshair" : "default" }} onPointerMove={onMove} onPointerLeave={onLeave} onPointerDown={beginDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag} onDoubleClick={(e) => { e.stopPropagation(); onZoomOut?.(); }}>
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill ?? "var(--app-surface-alt)"} fillOpacity={bgFill == null ? 0.35 : 1} rx={4} />
         {cornerFracs?.map((f) => <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="white" strokeDasharray="2 4" opacity={0.9} />)}
         {annotationMarkers?.map((marker, index) => <line key={`annotation-${index}-${marker.frac}`} x1={x(marker.frac)} x2={x(marker.frac)} y1={y0} y2={y1} stroke={marker.color} strokeDasharray="2 4" strokeWidth={1} opacity={0.9} />)}

@@ -152,7 +152,7 @@ export function SessionReviewDashboard({ gameId, trackName, laps, onBack, onDril
       }),
     } as never);
   // In the track view, no ?lap= means "Best lap"; a stale id also counts as Best lap.
-  const trackFocusId = view === "track" && (stayOnSessionReview ? reviewLapId : validLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
+  const trackFocusId = view === "track" && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];

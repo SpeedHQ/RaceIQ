@@ -138,6 +138,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
       if (!body) throw new Error("Unable to replay telemetry");
       return body;
     },
+    enabled: lapId != null && gameId != null,
     gcTime: 0,
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnMount: false,

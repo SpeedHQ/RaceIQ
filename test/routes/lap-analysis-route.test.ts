@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
 import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { decodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "../../shared/racing/laps/alignment/types";
 
 import { deleteSession, insertSession } from "../../server/db/session-queries";
 import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
@@ -71,6 +73,46 @@ describe("GET /api/laps/review", () => {
       expect(body.map((lap) => lap.lapTime)).toEqual([57, 58, 59, 60, 61]);
       expect(body.map((lap) => lap.id)).toEqual([lapIds[5], lapIds[3], lapIds[1], lapIds[4], lapIds[0]]);
     } finally {
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+describe("POST /api/laps/aligned-telemetry", () => {
+  test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
+    const sessionId = await insertSession(10, 20, "acc");
+    const lapA = await insertLap(sessionId, 1, 61, true, null, 0, null, null, null, [20, 21, 20]);
+    const lapB = await insertLap(sessionId, 2, 60, true, null, 0, null, null, null, [19, 21, 20]);
+    const telemetry = (offset: number) => [0, 1, 2].map((distance, index) => packet("acc", {
+      DistanceTraveled: distance,
+      CurrentLap: index,
+      TimestampMS: index * 1_000,
+      PositionX: distance,
+      PositionZ: distance,
+      TireWearFL: offset + index / 10,
+      TireWearFR: offset + index / 10 + 0.01,
+      TireWearRL: offset + index / 10 + 0.02,
+      TireWearRR: offset + index / 10 + 0.03,
+    }));
+    cacheSet(lapA, telemetry(0));
+    cacheSet(lapB, telemetry(0.1));
+    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [lapB, lapA], step: 1 }) };
+    try {
+      const response = await lapRoutes.request("/api/laps/aligned-telemetry", request);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("X-RaceIQ-Cache")).toBe("MISS");
+      const set = decodeAlignedLapSet((await response.json()) as EncodedAlignedLapSet);
+      expect(set.laps.map((lap) => lap.lapId)).toEqual([lapB, lapA]);
+      expect(set.laps[0]!.sectorTimes).toEqual([19, 21, 20]);
+      expect(set.laps[0]!.tireWear).not.toBeNull();
+      expect(set.laps[0]!.tireWear!.RR.length).toBe(set.distanceMeters.length);
+
+      const repeated = await lapRoutes.request("/api/laps/aligned-telemetry", request);
+      expect(repeated.status).toBe(200);
+      expect(repeated.headers.get("X-RaceIQ-Cache")).toBe("HIT");
+    } finally {
+      cacheDelete(lapA);
+      cacheDelete(lapB);
       await deleteSession(sessionId);
     }
   });

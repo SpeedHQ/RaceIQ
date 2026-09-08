@@ -98,6 +98,7 @@ export function semanticTuneSamplesFromAlignedTrace(trace: AlignedLapTrace, game
     fuel: trace.fuel[i]!, fuelUnit,
     tireWearFraction: trace.tireWear ? { fl: trace.tireWear.FL[i]!, fr: trace.tireWear.FR[i]!, rl: trace.tireWear.RL[i]!, rr: trace.tireWear.RR[i]! } : undefined,
     tireTemperatureC: trace.tireTemp ? { fl: trace.tireTemp.FL[i]!, fr: trace.tireTemp.FR[i]!, rl: trace.tireTemp.RL[i]!, rr: trace.tireTemp.RR[i]! } : undefined,
+    tirePressurePsi: trace.tirePressure ? { fl: trace.tirePressure.FL[i]!, fr: trace.tirePressure.FR[i]!, rl: trace.tirePressure.RL[i]!, rr: trace.tirePressure.RR[i]! } : undefined,
     brakeTemperatureC: trace.brakeTemp ? { fl: trace.brakeTemp.FL[i]!, fr: trace.brakeTemp.FR[i]!, rl: trace.brakeTemp.RL[i]!, rr: trace.brakeTemp.RR[i]! } : undefined,
   }));
 }

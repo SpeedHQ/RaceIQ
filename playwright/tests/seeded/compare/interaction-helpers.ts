@@ -1,6 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import type { GameId } from "../../../../shared/games/ids";
-import { compareEndpoint, getSeededLaps, type SeededLapPair } from "./helpers";
+import { fetchAlignedSet, getSeededLaps, type SeededLapPair } from "./helpers";
 
 export type ComparisonPayload = {
   traces: {
@@ -29,22 +29,23 @@ export async function getDistinctPair(request: APIRequestContext, gameId: GameId
         continue;
       }
       const pair = { lapA, lapB };
-      const response = await request.get(compareEndpoint(pair));
-      if (!response.ok()) continue;
-      const payload = (await response.json()) as ComparisonPayload;
+      const { set } = await fetchAlignedSet(request, pair);
+      if (!set || set.laps.length !== 2) continue;
+      const [traceA, traceB] = set.laps;
       const requiredTraces = [
-        payload.traces.distance,
-        payload.traces.speedA,
-        payload.traces.speedB,
-        payload.traces.throttleA,
-        payload.traces.throttleB,
-        payload.traces.brakeA,
-        payload.traces.brakeB,
-        payload.traces.rpmA,
-        payload.traces.rpmB,
+        set.distanceMeters,
+        traceA!.speedMps,
+        traceB!.speedMps,
+        traceA!.throttle,
+        traceB!.throttle,
+        traceA!.brake,
+        traceB!.brake,
+        traceA!.rpm,
+        traceB!.rpm,
       ];
-      const hasDistinctSpeed = payload.traces.speedA.some((speed, index) => Math.abs(speed - payload.traces.speedB[index]!) > 0.0001);
-      if (requiredTraces.every((trace) => trace.length > 10) && hasDistinctSpeed && payload.timeDelta.some((delta) => Math.abs(delta) > 0.0001)) {
+      const hasDistinctSpeed = traceA!.speedMps.some((speed, index) => Math.abs(speed - traceB!.speedMps[index]!) > 0.0001);
+      const hasTimeDelta = traceA!.elapsedTimeS.some((time, index) => Math.abs(time - traceB!.elapsedTimeS[index]!) > 0.0001);
+      if (requiredTraces.every((trace) => trace.length > 10) && hasDistinctSpeed && hasTimeDelta) {
         return pair;
       }
     }

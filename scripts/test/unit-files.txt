@@ -6,6 +6,8 @@ test/client/speed.test.ts
 test/client/temperature.test.ts
 test/games/forza/forza-lzx.test.ts
 test/games/shared/win-timer-resolution.test.ts
+test/lap-analysis/aligned-telemetry-codec.test.ts
+test/lap-analysis/aligned-telemetry.test.ts
 test/lap-analysis/comparison.test.ts
 test/lap-analysis/corner-data.test.ts
 test/lap-analysis/detection/game-compat.test.ts
