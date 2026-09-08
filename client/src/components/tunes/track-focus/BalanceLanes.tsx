@@ -34,14 +34,6 @@ function verdict(deg: number): string {
   return deg > 0 ? "understeer" : "oversteer";
 }
 
-function balancePolyline(t: LapTrace, x: (f: number) => number, y: (v: number) => number): string {
-  const balance = t.balance!;
-  let s = "";
-  for (let i = 0; i < t.n; i++) {
-    s += `${i ? " " : ""}${x(t.frac[i]).toFixed(1)},${y(balance[i]).toFixed(1)}`;
-  }
-  return s;
-}
 
 /** Linear-interpolate a trace's `balance` channel at fraction `f`. */
 function balanceAt(t: LapTrace, f: number): number {
@@ -85,6 +77,20 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
     const pad = Math.max(0.3, maxAbs * 0.15);
     return [-maxAbs - pad, maxAbs + pad];
   }, [withBalance]);
+  const series = useMemo(
+    () => [
+      ...withBalance
+        .filter((trace) => trace.lapId !== bestLapId)
+        .map((trace) => ({
+          x: trace.frac,
+          values: trace.balance!,
+          color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+          width: 1,
+        })),
+      ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace.balance!, color: "var(--app-accent)", width: 1.8 }] : []),
+    ],
+    [bestLapId, bestTrace, withBalance],
+  );
 
   if (withBalance.length === 0) {
     return (
@@ -109,6 +115,8 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
         annotationMarkers={annotationMarkers}
         cursorFrac={cursorFrac}
         onCursorFrac={onCursorFrac}
+        series={series}
+        horizontalLines={[{ value: 0, color: "var(--app-accent)", width: 1, opacity: 0.5, dash: [4, 3] }]}
         tooltip={(f) => {
           const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
           let worst: { lapNumber: number; deg: number } | null = null;
@@ -137,26 +145,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
             </div>
           );
         }}
-      >
-        {({ x, y }) => (
-          <>
-            <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--app-accent)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
-            {withBalance
-              .filter((t) => t.lapId !== bestLapId)
-              .map((t) => (
-                <polyline
-                  key={t.lapId}
-                  points={balancePolyline(t, x, y)}
-                  fill="none"
-                  stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                  strokeWidth={1}
-                  opacity={t.isValid ? 0.35 : 0.55}
-                />
-              ))}
-            {bestTrace && <polyline points={balancePolyline(bestTrace, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
-          </>
-        )}
-      </Lane>
+      />
     </div>
   );
 }

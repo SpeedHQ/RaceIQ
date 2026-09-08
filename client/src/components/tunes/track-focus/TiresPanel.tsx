@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
-import { Lane, type AnnotationMarker } from "./Lane";
+import { Lane, type AnnotationMarker, type LaneSeries } from "./Lane";
 import { Button } from "../../ui/button";
 
 interface TiresPanelProps {
@@ -88,20 +88,6 @@ function tracePeakAt(t: LapTrace, mode: Mode, i: number): number | null {
   return Number.isFinite(peak) ? peak : null;
 }
 
-function peakPolyline(t: LapTrace, mode: Mode, x: (f: number) => number, y: (v: number) => number): string {
-  const points: string[] = [];
-  for (let i = 0; i < t.n; i++) {
-    const value = tracePeakAt(t, mode, i);
-    if (value != null) points.push(`${x(t.frac[i]).toFixed(1)},${y(value).toFixed(1)}`);
-  }
-  return points.join(" ");
-}
-
-function tirePolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
-  const pts: string[] = [];
-  for (let i = 0; i < t.n; i++) pts.push(`${x(t.frac[i]).toFixed(1)},${y(arr[i]).toFixed(1)}`);
-  return pts.join(" ");
-}
 
 
 /**
@@ -173,6 +159,37 @@ function TireMetricSection({
     return [lo - pad, hi + pad];
   }, [laps, cfg, mode]);
   const lapsWithTrace = useMemo(() => laps.filter((t) => traceOf(t, mode)), [laps, mode]);
+  const peakSeries = useMemo(
+    () => lapsWithTrace.map((trace): LaneSeries => {
+      const values = new Float32Array(trace.n);
+      for (let index = 0; index < trace.n; index++) values[index] = tracePeakAt(trace, mode, index) ?? Number.NaN;
+      return {
+        x: trace.frac,
+        values,
+        color: trace.lapId === bestLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+        width: trace.lapId === bestLapId ? 1.8 : 1,
+      };
+    }),
+    [bestLapId, lapsWithTrace, mode],
+  );
+  const wheelSeries = useMemo(
+    () => Object.fromEntries(CORNERS.map((corner) => [
+      corner.key,
+      [
+        ...lapsWithTrace
+          .filter((trace) => trace.lapId !== bestLapId)
+          .map((trace): LaneSeries => ({
+            x: trace.frac,
+            values: traceOf(trace, mode)![corner.key],
+            color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+          })),
+        ...lapsWithTrace
+          .filter((trace) => trace.lapId === bestLapId)
+          .map((trace): LaneSeries => ({ x: trace.frac, values: traceOf(trace, mode)![corner.key], color: corner.color, width: 1.8 })),
+      ],
+    ])) as Record<keyof TireAverages, LaneSeries[]>,
+    [bestLapId, lapsWithTrace, mode],
+  );
   if (lapsWithTrace.length === 0) return null;
 
   return (
@@ -194,17 +211,9 @@ function TireMetricSection({
           const value = tracePeakAt(best, mode, indexAtFrac(best, f));
           return <span>best lap peak: {value == null ? "—" : cfg.fmt(value)}</span>;
         }}
+        series={peakSeries}
         bgFill="transparent"
-      >
-        {({ x, y }) => (
-          <>
-            {lapsWithTrace.map((t) => {
-              const points = peakPolyline(t, mode, x, y);
-              return points ? <polyline key={t.lapId} points={points} fill="none" stroke={t.lapId === bestLapId ? "var(--app-accent)" : "var(--app-text-dim)"} strokeWidth={t.lapId === bestLapId ? 1.8 : 1} opacity={t.lapId === bestLapId ? 1 : 0.35} /> : null;
-            })}
-          </>
-        )}
-      </Lane>
+      />
       {lapsWithTrace.length > 0 && (
         <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((v) => !v)} className="flex items-center gap-1.5 uppercase tracking-wider text-app-text-dim hover:text-app-text">
           <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
@@ -240,33 +249,8 @@ function TireMetricSection({
                   </span>
                 );
               }}
-            >
-              {({ x: lx, y: ly }) => (
-                <>
-                  {lapsWithTrace
-                    .filter((t) => t.lapId !== bestLapId)
-                    .map((t) => {
-                      const tt = traceOf(t, mode);
-                      if (!tt) return null;
-                      return (
-                        <polyline
-                          key={t.lapId}
-                          points={tirePolyline(t, tt[c.key], lx, ly)}
-                          fill="none"
-                          stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                          strokeWidth={1}
-                          opacity={t.isValid ? 0.35 : 0.55}
-                        />
-                      );
-                    })}
-                  {(() => {
-                    const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
-                    const tt = best ? traceOf(best, mode) : null;
-                    return best && tt ? <polyline points={tirePolyline(best, tt[c.key], lx, ly)} fill="none" stroke={c.color} strokeWidth={1.8} /> : null;
-                  })()}
-                </>
-              )}
-            </Lane>
+              series={wheelSeries[c.key]}
+            />
           </div>
         ))}
     </div>

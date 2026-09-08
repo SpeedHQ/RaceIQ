@@ -4,7 +4,7 @@ import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
-import type { AnnotationMarker } from "./Lane";
+import type { AnnotationMarker, LaneSeries } from "./Lane";
 import { GgScatter } from "./GgScatter";
 import { Lane } from "./Lane";
 
@@ -50,11 +50,6 @@ function valueAt(t: LapTrace, arr: Float32Array, f: number): number {
   return arr[lo] + (arr[hi] - arr[lo]) * t2;
 }
 
-function gPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < t.n; i++) s += `${i ? " " : ""}${x(t.frac[i]).toFixed(1)},${y(arr[i]).toFixed(1)}`;
-  return s;
-}
 
 function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null): [number, number] {
   let min = Number.POSITIVE_INFINITY;
@@ -109,6 +104,24 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
     const pad = Math.max(0.001, (max - min) * 0.08);
     return [min - pad, max + pad];
   }, [withSlip]);
+  const lapSeries = (available: LapTrace[], best: LapTrace | null, values: (trace: LapTrace) => Float32Array): LaneSeries[] => [
+    ...available
+      .filter((trace) => trace.lapId !== bestLapId)
+      .map((trace) => ({
+        x: trace.frac,
+        values: values(trace),
+        color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+      })),
+    ...(best ? [{ x: best.frac, values: values(best), color: "var(--app-accent)", width: 1.8 }] : []),
+  ];
+  const latSeries = useMemo(() => lapSeries(withLatG, bestLatG, (trace) => trace.latG!), [bestLapId, bestLatG, withLatG]);
+  const longSeries = useMemo(() => lapSeries(withLongG, bestLongG, (trace) => trace.longG!), [bestLapId, bestLongG, withLongG]);
+  const slipSeries = useMemo(
+    () => bestSlip
+      ? SLIP_CORNERS.map((corner): LaneSeries => ({ x: bestSlip.frac, values: bestSlip.combinedSlip![corner.key], color: corner.color, width: 1.6 }))
+      : [],
+    [bestSlip],
+  );
 
   return (
     <div className="space-y-3">
@@ -131,6 +144,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
             annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={latSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               const best = bestLatG ? valueAt(bestLatG, bestLatG.latG!, f) : null;
@@ -141,25 +155,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {withLatG
-                  .filter((t) => t.lapId !== bestLapId)
-                  .map((t) => (
-                    <polyline
-                      key={t.lapId}
-                      points={gPolyline(t, t.latG!, x, y)}
-                      fill="none"
-                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                      strokeWidth={1}
-                      opacity={t.isValid ? 0.35 : 0.55}
-                    />
-                  ))}
-                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
-              </>
-            )}
-          </Lane>
+          />
         </div>
       )}
 
@@ -182,6 +178,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
             annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={longSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               const best = bestLongG ? valueAt(bestLongG, bestLongG.longG!, f) : null;
@@ -192,25 +189,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {withLongG
-                  .filter((t) => t.lapId !== bestLapId)
-                  .map((t) => (
-                    <polyline
-                      key={t.lapId}
-                      points={gPolyline(t, t.longG!, x, y)}
-                      fill="none"
-                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                      strokeWidth={1}
-                      opacity={t.isValid ? 0.35 : 0.55}
-                    />
-                  ))}
-                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
-              </>
-            )}
-          </Lane>
+          />
         </div>
       )}
 
@@ -233,6 +212,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
             annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={slipSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               if (!bestSlip) return null;
@@ -250,14 +230,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {bestSlip &&
-                  SLIP_CORNERS.map((c) => <polyline key={c.key} points={gPolyline(bestSlip, bestSlip.combinedSlip![c.key], x, y)} fill="none" stroke={c.color} strokeWidth={1.6} opacity={0.9} />)}
-              </>
-            )}
-          </Lane>
+          />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
             {SLIP_CORNERS.map((c) => (
               <span key={c.key} className="inline-flex items-center gap-1.5">

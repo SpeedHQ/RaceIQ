@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { indexAtFrac } from "../../../lib/stint-traces";
-import { Lane } from "./Lane";
-import type { AnnotationMarker } from "./Lane";
+import { Lane, type AnnotationMarker, type LaneSeries } from "./Lane";
 
 interface SuspensionLanesProps {
   /** Traces in lap order (undefined entries = not loaded yet, skipped). */
@@ -25,11 +24,6 @@ const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
   { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
-function suspPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
-  const pts: string[] = [];
-  for (let i = 0; i < t.n; i++) pts.push(`${x(t.frac[i]).toFixed(1)},${y(arr[i]).toFixed(1)}`);
-  return pts.join(" ");
-}
 
 /**
  * Suspension tab: four per-corner lanes (FL/FR/RL/RR) from the `suspTravel`
@@ -58,6 +52,24 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], an
     const pad = Math.max(0.02, (hi - lo) * 0.08);
     return [lo - pad, hi + pad];
   }, [lapsWithTrace]);
+  const seriesByCorner = useMemo(
+    () => Object.fromEntries(CORNERS.map((corner) => [
+      corner.key,
+      [
+        ...lapsWithTrace
+          .filter((trace) => trace.lapId !== bestLapId)
+          .map((trace): LaneSeries => ({
+            x: trace.frac,
+            values: trace.suspTravel![corner.key],
+            color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+          })),
+        ...lapsWithTrace
+          .filter((trace) => trace.lapId === bestLapId)
+          .map((trace): LaneSeries => ({ x: trace.frac, values: trace.suspTravel![corner.key], color: corner.color, width: 1.8 })),
+      ],
+    ])) as Record<keyof TireAverages, LaneSeries[]>,
+    [bestLapId, lapsWithTrace],
+  );
 
   if (lapsWithTrace.length === 0) {
     return (
@@ -101,28 +113,8 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], an
                 </span>
               );
             }}
-          >
-            {({ x: lx, y: ly }) => (
-              <>
-                {lapsWithTrace
-                  .filter((t) => t.lapId !== bestLapId)
-                  .map((t) => (
-                    <polyline
-                      key={t.lapId}
-                      points={suspPolyline(t, t.suspTravel![c.key], lx, ly)}
-                      fill="none"
-                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                      strokeWidth={1}
-                      opacity={t.isValid ? 0.35 : 0.55}
-                    />
-                  ))}
-                {(() => {
-                  const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
-                  return best?.suspTravel ? <polyline points={suspPolyline(best, best.suspTravel[c.key], lx, ly)} fill="none" stroke={c.color} strokeWidth={1.8} /> : null;
-                })()}
-              </>
-            )}
-          </Lane>
+            series={seriesByCorner[c.key]}
+          />
         </div>
       ))}
     </div>

@@ -12,7 +12,7 @@ function alignedBody(request: Request): { ids: number[]; step: number; start?: n
 }
 
 async function dragTelemetryLane(page: Page): Promise<void> {
-  const lanes = page.locator('svg[style*="crosshair"]');
+  const lanes = page.locator("[data-track-telemetry-lane] .u-over");
   await expect.poll(() => lanes.count(), { timeout: 30_000 }).toBeGreaterThan(1);
   const lane = lanes.nth(1);
   const box = await lane.boundingBox();
@@ -52,14 +52,14 @@ for (const game of REVIEW_GAMES) {
     await page.goto(`/${game.prefix}/sessions/analyse?session=${sessionId}`, { waitUntil: "domcontentloaded" });
     expect((await baseResponse).ok()).toBe(true);
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Track", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Analyse", exact: true })).toBeVisible();
     await expect(page.getByText("Showing up to five fastest clean laps.", { exact: true })).toBeVisible();
     expect(alignedRequests.filter((entry) => entry.step === 1)).toEqual([{ ids: expectedIds, step: 1 }]);
     expect(semanticRequests).toBe(0);
 
     await page.getByRole("button", { name: "Sector 1", exact: true }).click();
     await expect(page.getByText("Issues in this sector", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Track", exact: true }).click();
+    await page.getByRole("button", { name: "Analyse", exact: true }).click();
     await expect(page.getByRole("button", { name: "Consistency", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Overview", exact: true }).click();
 
@@ -72,7 +72,7 @@ for (const game of REVIEW_GAMES) {
     expect(alignedRequests.filter((entry) => entry.step === 1)).toHaveLength(1);
     expect(semanticRequests).toBe(0);
 
-    await page.getByRole("button", { name: "Track", exact: true }).click();
+    await page.getByRole("button", { name: "Analyse", exact: true }).click();
     const detailResponse = page.waitForResponse((response) => alignedBody(response.request())?.step === 0.1);
     await dragTelemetryLane(page);
     expect((await detailResponse).ok()).toBe(true);
