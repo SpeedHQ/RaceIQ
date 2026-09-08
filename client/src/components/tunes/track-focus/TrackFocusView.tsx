@@ -31,7 +31,7 @@ import { SectorLedger } from "./SectorLedger";
 import { SpeedRangeLegend } from "./SpeedRangeLegend";
 import { TrackZoomHint } from "./TrackZoomHint";
 import { SuspensionLanes } from "./SuspensionLanes";
-import { TiresPanel } from "./TiresPanel";
+import { FuelPanel, TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
 import { tryGetGame } from "@shared/games/registry";
 import type { TrackFocusTrace } from "./types";
@@ -81,13 +81,13 @@ interface TrackFocusViewProps {
   onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
 }
 
-const TABS = ["consistency", "braking", "throttle", "tires", "balance", "suspension"] as const;
+const TABS = ["consistency", "braking", "throttle", "dynamics", "fuel", "suspension"] as const;
 const TAB_LABELS: Record<TuneReviewTrackTab, string> = {
   consistency: "Consistency",
   braking: "Braking",
   throttle: "Throttle & exit",
-  tires: "Tires & fuel",
-  balance: "Balance",
+  dynamics: "Dynamics",
+  fuel: "Fuel",
   suspension: "Suspension",
 };
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
@@ -107,11 +107,11 @@ export function TrackFocusView({
   onActiveTabChange,
 }: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
-  // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
+  // traces, stats, best-lap, ledgers and dynamics all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const reviewLaps = laps;
   const zoom = useAlignedTelemetryZoom(evaluationLapIds, alignedSet);
-  // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
+  // Per-frame telemetry (traces, consistency lanes, dynamics) runs on the fastest
   // N clean laps — bounds decode + payload on long tracks. Header stats read
   // the same pool. Matches the server /line-spread pool.
   // Fastest valid, non-excluded laps — matches the server /line-spread clean
@@ -522,7 +522,7 @@ export function TrackFocusViewInner({
                 onZoomOut={onZoomOut}
               />
             )}
-            {activeTab === "tires" && (
+            {activeTab === "dynamics" && (
               <>
                 <TiresPanel
                   traces={traces}
@@ -534,9 +534,22 @@ export function TrackFocusViewInner({
                   visibleRange={visibleLaneRange}
                   onRangeSelect={selectLaneRange}
                   onZoomOut={onZoomOut}
-                  fuelUnit={fuelUnit}
                   tireWearContinuous={tireWearContinuous}
                 />
+                <div className="pt-3 mt-1 border-t border-app-border">
+                  <BalanceLanes
+                    traces={resolvedTraces}
+                    bestLapId={bestLapId}
+                    cornerFracs={effectiveCorners.fracs}
+                    annotationMarkers={issueMarkers}
+                    corners={effectiveCorners.corners}
+                    cursorFrac={cursorFrac}
+                    onCursorFrac={setCursorFrac}
+                    visibleRange={visibleLaneRange}
+                    onRangeSelect={selectLaneRange}
+                    onZoomOut={onZoomOut}
+                  />
+                </div>
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
                   <GripPanel
@@ -554,18 +567,16 @@ export function TrackFocusViewInner({
                 </div>
               </>
             )}
-            {activeTab === "balance" && (
-              <BalanceLanes
-                traces={resolvedTraces}
+            {activeTab === "fuel" && (
+              <FuelPanel
+                traces={traces}
                 bestLapId={bestLapId}
-                cornerFracs={effectiveCorners.fracs}
-                annotationMarkers={issueMarkers}
-                corners={effectiveCorners.corners}
                 cursorFrac={cursorFrac}
                 onCursorFrac={setCursorFrac}
                 visibleRange={visibleLaneRange}
                 onRangeSelect={selectLaneRange}
                 onZoomOut={onZoomOut}
+                fuelUnit={fuelUnit}
               />
             )}
             {activeTab === "suspension" && (
