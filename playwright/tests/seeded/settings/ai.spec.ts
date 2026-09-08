@@ -66,8 +66,7 @@ test("AI settings classify empty models and recover from controlled API error", 
       browserErrors.errors.filter((error) => !error.includes("/api/ai-models") && error !== "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"),
     ).toEqual([]);
   } finally {
-    await page.unroute("**/api/ai-models**");
-    await page.unroute("**/api/ai-key");
+    await page.unrouteAll({ behavior: "ignoreErrors" });
     await request.put("/api/settings", {
       data: {
         aiProvider: original.aiProvider,
