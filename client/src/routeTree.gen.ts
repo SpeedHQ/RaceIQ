@@ -45,6 +45,7 @@ import { Route as GameidExperimentsIndexRouteImport } from './routes/$gameid/exp
 import { Route as GameidExperimentsExperimentIdRouteImport } from './routes/$gameid/experiments.$experimentId'
 import { Route as GameidSessionsIndexRouteImport } from './routes/$gameid/sessions.index'
 import { Route as GameidSessionsAnalyseRouteImport } from './routes/$gameid/sessions.analyse'
+import { Route as GameidSessionsReplayRouteImport } from './routes/$gameid/sessions.replay'
 import { Route as GameidTracksIndexRouteImport } from './routes/$gameid/tracks.index'
 import { Route as AcEvoSetupsIndexRouteImport } from './routes/ac-evo/setups/index'
 import { Route as AcEvoSetupsImportRouteImport } from './routes/ac-evo/setups/import'
@@ -250,6 +251,11 @@ const GameidSessionsAnalyseRoute = GameidSessionsAnalyseRouteImport.update({
   path: '/analyse',
   getParentRoute: () => GameidSessionsRoute,
 } as any)
+const GameidSessionsReplayRoute = GameidSessionsReplayRouteImport.update({
+  id: '/replay',
+  path: '/replay',
+  getParentRoute: () => GameidSessionsRoute,
+} as any)
 const GameidTracksIndexRoute = GameidTracksIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -404,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/$gameid/sessions/analyse': typeof GameidSessionsAnalyseRoute
+  '/$gameid/sessions/replay': typeof GameidSessionsReplayRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/portable': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/$gameid/sessions/analyse': typeof GameidSessionsAnalyseRoute
+  '/$gameid/sessions/replay': typeof GameidSessionsReplayRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
@@ -514,6 +522,7 @@ export interface FileRoutesById {
   '/portable/': typeof PortableIndexRoute
   '/$gameid/experiments/$experimentId': typeof GameidExperimentsExperimentIdRoute
   '/$gameid/sessions/analyse': typeof GameidSessionsAnalyseRoute
+  '/$gameid/sessions/replay': typeof GameidSessionsReplayRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
@@ -577,6 +586,7 @@ export interface FileRouteTypes {
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
     | '/$gameid/sessions/analyse'
+    | '/$gameid/sessions/replay'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
@@ -625,6 +635,7 @@ export interface FileRouteTypes {
     | '/portable'
     | '/$gameid/experiments/$experimentId'
     | '/$gameid/sessions/analyse'
+    | '/$gameid/sessions/replay'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
@@ -686,6 +697,7 @@ export interface FileRouteTypes {
     | '/portable/'
     | '/$gameid/experiments/$experimentId'
     | '/$gameid/sessions/analyse'
+    | '/$gameid/sessions/replay'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
@@ -982,6 +994,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameidSessionsAnalyseRouteImport
       parentRoute: typeof GameidSessionsRoute
     }
+    '/$gameid/sessions/replay': {
+      id: '/$gameid/sessions/replay'
+      path: '/replay'
+      fullPath: '/$gameid/sessions/replay'
+      preLoaderRoute: typeof GameidSessionsReplayRouteImport
+      parentRoute: typeof GameidSessionsRoute
+    }
     '/$gameid/tracks/': {
       id: '/$gameid/tracks/'
       path: '/'
@@ -1164,11 +1183,13 @@ const GameidExperimentsRouteWithChildren =
 
 interface GameidSessionsRouteChildren {
   GameidSessionsAnalyseRoute: typeof GameidSessionsAnalyseRoute
+  GameidSessionsReplayRoute: typeof GameidSessionsReplayRoute
   GameidSessionsIndexRoute: typeof GameidSessionsIndexRoute
 }
 
 const GameidSessionsRouteChildren: GameidSessionsRouteChildren = {
   GameidSessionsAnalyseRoute: GameidSessionsAnalyseRoute,
+  GameidSessionsReplayRoute: GameidSessionsReplayRoute,
   GameidSessionsIndexRoute: GameidSessionsIndexRoute,
 }
 

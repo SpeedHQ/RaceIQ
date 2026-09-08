@@ -7,7 +7,7 @@ import type { useUnits } from "../../hooks/useUnits";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 
 interface WearRate {
   FL: number;
@@ -21,12 +21,7 @@ interface Props {
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
 }
-const WHEELS = ["FL", "FR", "RL", "RR"] as const;
 const unavailable = <span className="text-app-text-dim">—</span>;
-const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
-  const value = frame.values[id];
-  return WHEELS.map((_, index) => (Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null));
-};
 
 export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
   const adapter = getGame(gameId);
@@ -35,7 +30,7 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
   const temp = binding(analysis.tireTemperature) ? resolveWheelMetric(frame, binding(analysis.tireTemperature)!) : [null, null, null, null];
   const health = binding(analysis.tireHealth) ? resolveWheelMetric(frame, binding(analysis.tireHealth)!) : [null, null, null, null];
   const speed = binding(analysis.wheelRotation) ? resolveWheelMetric(frame, binding(analysis.wheelRotation)!) : [null, null, null, null];
-  const brake = values(frame, "brakes.brake-temp");
+  const brake = semanticWheelNumbers(frame, "brakes.brake-temp");
   const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
   const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };

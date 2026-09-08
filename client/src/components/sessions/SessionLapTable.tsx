@@ -91,10 +91,9 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       variant="app-outline"
                       size="app-sm"
                       className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate({ to: `${gameRoute}/sessions/analyse`, search: { session: session.id } });
+                        navigate({ to: `${gameRoute}/sessions/replay`, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } });
                       }}
                     >
                       {m.label_analyse()}

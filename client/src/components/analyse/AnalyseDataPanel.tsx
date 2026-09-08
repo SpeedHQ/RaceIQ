@@ -2,11 +2,12 @@ import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryVariableId } from "../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
 import { Check, Copy, Info } from "lucide-react";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";
@@ -37,14 +38,6 @@ interface Props {
   lapInsights: LapInsight[];
   onJumpToFrame: (idx: number) => void;
 }
-const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
-const wheels = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
-  const value = frame.values[id];
-  return Array.isArray(value) ? value.slice(0, 4).map((entry) => (typeof entry === "number" && Number.isFinite(entry) ? entry : null)) : [null, null, null, null];
-};
 function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
   const [open, setOpen] = useState(false);
   const available = new Set<string>();
@@ -104,7 +97,7 @@ function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; game
 export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits> }): string {
   const game = getGame(gameId);
   const display = (value: number | null, digits = 0) => (value == null ? "Unavailable" : value.toFixed(digits));
-  const value = (id: string) => number(frame, id);
+  const value = (id: TelemetryVariableId) => semanticNumber(frame, id);
   const fuel = value("fuel.fuel");
   const capacity = value("fuel.fuel-capacity") ?? undefined;
   const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, game.telemetry.fuel);
@@ -112,10 +105,10 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   const brake = value("inputs.brake");
   const steer = value("inputs.steer");
   const lock = getSteeringLock();
-  const temp = wheels(frame, "tire.temperature.average");
-  const wear = wheels(frame, "tires.tire-wear");
-  const normalized = wheels(frame, "suspension.norm-suspension-travel");
-  const millimeters = wheels(frame, "suspension.suspension-travel-m").map((entry) => (entry == null ? null : entry * 1000));
+  const temp = semanticWheelNumbers(frame, "tire.temperature.average");
+  const wear = semanticWheelNumbers(frame, "tires.tire-wear");
+  const normalized = semanticWheelNumbers(frame, "suspension.norm-suspension-travel");
+  const millimeters = semanticWheelNumbers(frame, "suspension.suspension-travel-m").map((entry) => (entry == null ? null : entry * 1000));
   const useMm = game.telemetry.analysis?.suspensionTravel?.source !== "unavailable" && game.telemetry.analysis?.suspensionTravel?.display === "millimeters";
   const lines = [
     `Speed: ${value("motion.speed") == null ? "Unavailable" : `${units.speed(value("motion.speed")!).toFixed(0)} ${units.speedLabel}`}`,

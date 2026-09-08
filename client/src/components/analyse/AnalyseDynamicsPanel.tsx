@@ -9,18 +9,15 @@ import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
 import { frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 import { Button } from "../ui/button";
-const WHEELS = ["FL", "FR", "RL", "RR"] as const;
-const number = (frame: SemanticAnalysisFrame, id: string): number | null => {
+const number = (frame: SemanticAnalysisFrame, id: Parameters<typeof semanticNumber>[1]): number | null => {
   if (frame.states[id] === "missing") return null;
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return semanticNumber(frame, id);
 };
-const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
-  if (frame.states[id] === "missing") return WHEELS.map(() => null);
-  const value = frame.values[id];
-  return WHEELS.map((_, index) => (Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null));
+const values = (frame: SemanticAnalysisFrame, id: Parameters<typeof semanticWheelNumbers>[1]): readonly [number | null, number | null, number | null, number | null] => {
+  if (frame.states[id] === "missing") return [null, null, null, null];
+  return semanticWheelNumbers(frame, id);
 };
 const bool = (frame: SemanticAnalysisFrame, id: string, index: number): boolean => {
   const value = frame.values[id];

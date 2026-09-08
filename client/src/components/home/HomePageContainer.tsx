@@ -174,7 +174,7 @@ export function HomePageContainer() {
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/sessions/analyse` as never,
+      to: `${getGameRoute(latestRecap.gameId)}/sessions/replay` as never,
       search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
     });
   };
@@ -202,7 +202,7 @@ export function HomePageContainer() {
       onAnalyseLap={(lap) => {
         if (!lap.gameId) return;
         void navigate({
-          to: `${getGameRoute(lap.gameId)}/sessions/analyse` as never,
+          to: `${getGameRoute(lap.gameId)}/sessions/replay` as never,
           search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
         });
       }}

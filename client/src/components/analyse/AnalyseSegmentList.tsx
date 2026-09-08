@@ -1,13 +1,7 @@
 import { memo, useMemo } from "react";
 import { m } from "@/paraglide/messages";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 
-export type { SemanticAnalysisFrame } from "./track-map/types";
-
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
 
 interface Segment {
   type: string;
@@ -28,21 +22,21 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
   const cumDist = new Array<number>(n);
   cumDist[0] = 0;
 
-  const firstDistance = numeric(telemetry[0], "timing.distance-traveled");
-  const lastDistance = numeric(telemetry[n - 1], "timing.distance-traveled");
+  const firstDistance = semanticNumber(telemetry[0], "timing.distance-traveled");
+  const lastDistance = semanticNumber(telemetry[n - 1], "timing.distance-traveled");
   const lapDistance = firstDistance != null && lastDistance != null ? lastDistance - firstDistance : null;
   if (lapDistance != null && lapDistance > 0) {
     for (let i = 1; i < n; i++) {
-      const distance = numeric(telemetry[i], "timing.distance-traveled");
+      const distance = semanticNumber(telemetry[i], "timing.distance-traveled");
       const relative = distance != null && firstDistance != null ? distance - firstDistance : null;
       cumDist[i] = relative != null ? Math.max(cumDist[i - 1], relative) : cumDist[i - 1];
     }
   } else {
     for (let i = 1; i < n; i++) {
-      const x = numeric(telemetry[i], "motion.position-x");
-      const z = numeric(telemetry[i], "motion.position-z");
-      const previousX = numeric(telemetry[i - 1], "motion.position-x");
-      const previousZ = numeric(telemetry[i - 1], "motion.position-z");
+      const x = semanticNumber(telemetry[i], "motion.position-x");
+      const z = semanticNumber(telemetry[i], "motion.position-z");
+      const previousX = semanticNumber(telemetry[i - 1], "motion.position-x");
+      const previousZ = semanticNumber(telemetry[i - 1], "motion.position-z");
       cumDist[i] = x != null && z != null && previousX != null && previousZ != null ? cumDist[i - 1] + Math.hypot(x - previousX, z - previousZ) : cumDist[i - 1];
     }
   }
@@ -74,7 +68,7 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
     return {
       name: displayNames[index],
       type: segment.type,
-      time: (numeric(telemetry[endIdx], "timing.current-lap") ?? 0) - (numeric(telemetry[startIdx], "timing.current-lap") ?? 0),
+      time: (semanticNumber(telemetry[endIdx], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[startIdx], "timing.current-lap") ?? 0),
       startFrac: segment.startFrac,
       endFrac: segment.endFrac,
     };
@@ -83,9 +77,9 @@ export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: S
 }
 function segmentStateSignature({ telemetry, segments, cursorIdx }: SegmentListProps): string | null {
   if (!segments || telemetry.length < 2) return null;
-  const firstDistance = numeric(telemetry[0], "timing.distance-traveled");
-  const currentDistance = numeric(telemetry[cursorIdx], "timing.distance-traveled");
-  const lastDistance = numeric(telemetry[telemetry.length - 1], "timing.distance-traveled");
+  const firstDistance = semanticNumber(telemetry[0], "timing.distance-traveled");
+  const currentDistance = semanticNumber(telemetry[cursorIdx], "timing.distance-traveled");
+  const lastDistance = semanticNumber(telemetry[telemetry.length - 1], "timing.distance-traveled");
   if (firstDistance == null || currentDistance == null || lastDistance == null || lastDistance <= firstDistance) return null;
   const cursorFraction = (currentDistance - firstDistance) / (lastDistance - firstDistance);
   let active = -1;

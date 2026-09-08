@@ -105,7 +105,7 @@ export function ChatsPage() {
         const lap = row.laps[0];
         if (lap.trackOrdinal == null || lap.carOrdinal == null) return;
         navigate({
-          to: `${routePrefix}/sessions/analyse` as never,
+          to: `${routePrefix}/sessions/replay` as never,
           search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id, ai: 1 } as never,
         });
       } else if (row.type === "compare" && row.laps.length === 2) {

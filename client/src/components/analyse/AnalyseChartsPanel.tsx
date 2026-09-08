@@ -1,6 +1,6 @@
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 
@@ -32,7 +32,7 @@ export interface ChartsPanelHandle {
 }
 
 interface ChartsPanelProps {
-  displayTelemetry: SemanticAnalysisFrame[];
+  semanticFrames: SemanticAnalysisFrame[];
   totalPackets: number;
   visualTimeFrac: number | null;
   onVisualFracChange: (frac: number | null) => void;
@@ -42,22 +42,14 @@ interface ChartsPanelProps {
   tempLabel: string;
 }
 
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
+
+const wheel = (frame: SemanticAnalysisFrame, id: Parameters<typeof semanticNumber>[1], index: number): number | null => {
   const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return Array.isArray(value) ? semanticWheelNumbers(frame, id)[index] : semanticNumber(frame, id);
 };
 
-const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => {
-  const value = frame.values[id];
-  if (Array.isArray(value)) {
-    const item = value[index];
-    return typeof item === "number" && Number.isFinite(item) ? item : null;
-  }
-  return numeric(frame, id);
-};
-
-function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
-  if (displayTelemetry.length === 0) return null;
+function buildChartData(semanticFrames: SemanticAnalysisFrame[]): ChartData | null {
+  if (semanticFrames.length === 0) return null;
   const speed: number[] = [],
     throttle: number[] = [],
     brake: number[] = [],
@@ -67,7 +59,7 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
     tireTempFR: number[] = [],
     tireTempRL: number[] = [],
     tireTempRR: number[] = [];
-  const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
+  const times = semanticFrames.map((p) => semanticNumber(p, "timing.current-lap") ?? NaN);
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
@@ -77,12 +69,12 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
     brakeTempFR: number[] = [],
     brakeTempRL: number[] = [],
     brakeTempRR: number[] = [];
-  for (const frame of displayTelemetry) {
-    speed.push(numeric(frame, "motion.speed") ?? NaN);
-    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
-    brake.push(numeric(frame, "inputs.brake") ?? NaN);
-    rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
-    steering.push(numeric(frame, "inputs.steer") ?? NaN);
+  for (const frame of semanticFrames) {
+    speed.push(semanticNumber(frame, "motion.speed") ?? NaN);
+    throttle.push(semanticNumber(frame, "inputs.accel") ?? NaN);
+    brake.push(semanticNumber(frame, "inputs.brake") ?? NaN);
+    rpm.push(semanticNumber(frame, "engine.current-engine-rpm") ?? NaN);
+    steering.push(semanticNumber(frame, "inputs.steer") ?? NaN);
     tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
     tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
@@ -99,10 +91,10 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
 
 export const AnalyseChartsPanel = memo(
   forwardRef<ChartsPanelHandle, ChartsPanelProps>(function AnalyseChartsPanel(
-    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
+    { semanticFrames, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
     ref,
   ) {
-    const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
+    const chartData = useMemo(() => buildChartData(semanticFrames), [semanticFrames]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const cursorLineRef = useRef<HTMLDivElement>(null);
     const chartDataRef = useRef(chartData);
@@ -117,7 +109,7 @@ export const AnalyseChartsPanel = memo(
         if (!line || !scroll) return;
 
         const w = scroll.clientWidth;
-        const totalPackets = displayTelemetry.length;
+        const totalPackets = semanticFrames.length;
         const timeFracs = chartDataRef.current?.timeFracs;
         if (w <= 0 || totalPackets < 2) {
           line.style.display = "none";
@@ -132,7 +124,7 @@ export const AnalyseChartsPanel = memo(
         line.style.display = "";
         line.style.left = `${Math.round(cx)}px`;
       },
-      [displayTelemetry.length],
+      [semanticFrames.length],
     );
 
     useImperativeHandle(

@@ -28,25 +28,24 @@ export interface IbtPreviewState {
 export function useAnalyseImports(args: {
   queryClient: QueryClient;
   gameId: string;
-  setSelectedTrack: (value: number) => void;
-  setSelectedCar: (value: number) => void;
-  setSelectedLapId: (value: number) => void;
+  selectLap: (trackOrdinal: number, carOrdinal: number, lapId: number) => void;
 }) {
-  const { queryClient, gameId, setSelectedTrack, setSelectedCar, setSelectedLapId } = args;
+  const { queryClient, gameId, selectLap } = args;
   const [exportingBin, setExportingBin] = useState(false);
   const [importingBin, setImportingBin] = useState(false);
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
   const [importResult, setImportResult] = useState<AnalyseImportResult | null>(null);
   const [ibtPreview, setIbtPreview] = useState<IbtPreviewState | null>(null);
-  const selectLastLap = useCallback(
-    (laps: ImportedLap[], importedGameId: string | undefined) => {
-      if (importedGameId !== gameId || laps.length === 0) return;
-      const last = laps[laps.length - 1];
-      setSelectedTrack(last.trackOrdinal);
-      setSelectedCar(last.carOrdinal);
-      setSelectedLapId(last.lapId);
+  const finalizeImport = useCallback(
+    (result: AnalyseImportResult) => {
+      void queryClient.invalidateQueries({ queryKey: ["laps"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      setImportResult(result);
+      const last = result.laps.at(-1);
+      if (last && result.gameId === gameId) selectLap(last.trackOrdinal, last.carOrdinal, last.lapId);
     },
-    [gameId, setSelectedTrack, setSelectedCar, setSelectedLapId],
+    [gameId, queryClient, selectLap],
   );
   const handleExportBin = useCallback(async (selectedLapId: number | null) => {
     if (selectedLapId == null) return;
@@ -103,19 +102,15 @@ export function useAnalyseImports(args: {
           window.alert(data?.error ?? `Import failed (${res.status})`);
           return;
         }
-        void queryClient.invalidateQueries({ queryKey: ["laps"] });
-        void queryClient.invalidateQueries({ queryKey: ["sessions"] });
-        void queryClient.invalidateQueries({ queryKey: ["tracks"] });
         const laps = data?.laps ?? [];
-        setImportResult({ fileName: file.name, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
-        selectLastLap(laps, data?.gameId);
+        finalizeImport({ fileName: file.name, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
       } catch (e) {
         window.alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setImportingBin(false);
       }
     },
-    [queryClient, ownership, selectLastLap],
+    [ownership, finalizeImport],
   );
   const handleCancelIbt = useCallback(() => {
     const token = ibtPreview?.token;
@@ -135,18 +130,14 @@ export function useAnalyseImports(args: {
         return;
       }
       setIbtPreview(null);
-      void queryClient.invalidateQueries({ queryKey: ["laps"] });
-      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       const laps = data?.laps ?? [];
-      setImportResult({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
-      selectLastLap(laps, data?.gameId);
+      finalizeImport({ fileName: staged.preview.fileName, packetCount: data?.packetCount ?? 0, laps, gameId: data?.gameId ?? "", routePrefix: data?.routePrefix ?? "" });
     } catch (e) {
       setIbtPreview(null);
       window.alert(`IBT import failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setImportingBin(false);
     }
-  }, [ibtPreview, ownership, queryClient, selectLastLap]);
+  }, [ibtPreview, ownership, finalizeImport]);
   return { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult };
 }

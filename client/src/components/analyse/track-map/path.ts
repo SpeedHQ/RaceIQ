@@ -1,20 +1,15 @@
-import type { Point, SemanticAnalysisFrame } from "./types";
-
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+import { semanticNumber, type Point, type SemanticAnalysisFrame } from "./types";
 
 const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
-  x: number(frame, "motion.position-x") ?? 0,
-  z: number(frame, "motion.position-z") ?? 0,
+  x: semanticNumber(frame, "motion.position-x") ?? 0,
+  z: semanticNumber(frame, "motion.position-z") ?? 0,
 });
 
 export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null): Point[] {
   const worldPositions = telemetry.map(worldPosition);
   if (worldPositions.some((point) => point.x !== 0 || point.z !== 0) || !outline || outline.length < 2) return worldPositions;
 
-  const fractions = telemetry.map((frame) => number(frame, "timing.lap-fraction"));
+  const fractions = telemetry.map((frame) => semanticNumber(frame, "timing.lap-fraction"));
   if (fractions.some((fraction) => fraction === null)) return worldPositions;
 
   const cumulative = [0];
@@ -101,7 +96,7 @@ export function pathForwardOffsets(points: readonly Point[]): ([number, number] 
 }
 
 export function resolveFrameDirection(frame: SemanticAnalysisFrame, pathDirection: [number, number] | null): [number, number] | null {
-  const yaw = number(frame, "motion.yaw");
+  const yaw = semanticNumber(frame, "motion.yaw");
   const state = frame.states["motion.yaw"];
   const freshness = frame.freshness["motion.yaw"];
   if (yaw !== null && (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh")) {

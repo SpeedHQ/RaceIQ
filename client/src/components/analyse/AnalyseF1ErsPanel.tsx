@@ -1,11 +1,7 @@
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
 import { m } from "../../paraglide/messages";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
 const enumIndex = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
   const value = frame.values[id];
   if (typeof value === "number" && Number.isInteger(value)) return value;
@@ -14,9 +10,9 @@ const enumIndex = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame
 };
 
 export function AnalyseF1ErsPanel({ frame }: { frame: SemanticAnalysisFrame }) {
-  const store = number(frame, "fuel.ers-store-energy") ?? 0;
-  const deployed = number(frame, "fuel.ers-deployed") ?? 0;
-  const harvested = number(frame, "fuel.ers-harvested") ?? 0;
+  const store = semanticNumber(frame, "fuel.ers-store-energy") ?? 0;
+  const deployed = semanticNumber(frame, "fuel.ers-deployed") ?? 0;
+  const harvested = semanticNumber(frame, "fuel.ers-harvested") ?? 0;
   const mode = enumIndex(frame, "fuel.ers-deploy-mode") ?? 0;
   const drsValue = frame.values["aero.drs-active"];
   const drs = drsValue === true || drsValue === 1;

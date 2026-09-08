@@ -70,7 +70,7 @@ for (const game of SEEDED_GAME_CASES) {
     expect(bestLap, `${game.gameId} recap best lap row`).toBeDefined();
     await expect(page.getByRole("button", { name: "Analyse best lap" })).toBeVisible();
     await page.getByRole("button", { name: "Analyse best lap" }).click();
-    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/analyse\\?[^#]*lap=${recap.bestLapId}(?:&|$)`));
+    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/replay\\?[^#]*lap=${recap.bestLapId}(?:&|$)`));
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
       timeout: 20_000,
     });

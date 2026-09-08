@@ -1,32 +1,28 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GameId } from "@shared/games/ids";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
 
 export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnalysisFrame; startFuel?: number; gameId: GameId }) {
   const units = useUnits();
   const telemetry = getGame(gameId).telemetry;
-  const speedMps = number(frame, "motion.speed");
+  const speedMps = semanticNumber(frame, "motion.speed");
   const speed = speedMps == null ? null : units.speed(speedMps);
-  const accel = number(frame, "inputs.accel");
-  const brake = number(frame, "inputs.brake");
-  const steer = number(frame, "inputs.steer");
-  const rpm = number(frame, "engine.current-engine-rpm");
-  const gear = number(frame, "inputs.gear");
-  const boost = number(frame, "engine.boost");
-  const power = number(frame, "engine.power");
-  const torque = number(frame, "engine.torque");
-  const fuel = number(frame, "fuel.fuel");
-  const capacity = number(frame, "fuel.fuel-capacity") ?? undefined;
+  const accel = semanticNumber(frame, "inputs.accel");
+  const brake = semanticNumber(frame, "inputs.brake");
+  const steer = semanticNumber(frame, "inputs.steer");
+  const rpm = semanticNumber(frame, "engine.current-engine-rpm");
+  const gear = semanticNumber(frame, "inputs.gear");
+  const boost = semanticNumber(frame, "engine.boost");
+  const power = semanticNumber(frame, "engine.power");
+  const torque = semanticNumber(frame, "engine.torque");
+  const fuel = semanticNumber(frame, "fuel.fuel");
+  const capacity = semanticNumber(frame, "fuel.fuel-capacity") ?? undefined;
   const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, telemetry.fuel);
   const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(startFuel - fuel, capacity, telemetry.fuel) : null;
   const value = (n: number | null) => (n == null ? "—" : `${n.toFixed(0)}`);
