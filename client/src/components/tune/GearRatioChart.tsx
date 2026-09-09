@@ -1,6 +1,20 @@
 import { useId } from "react";
 
-export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, maxRpm = 8000 }: { ratios: number[]; finalDrive: number; topSpeedKph?: number; topSpeedMph?: number; maxRpm?: number }) {
+export function GearRatioChart({
+  ratios,
+  finalDrive,
+  topSpeedKph,
+  topSpeedMph,
+  maxRpm = 8000,
+  speedUnit = "km/h",
+}: {
+  ratios: number[];
+  finalDrive: number;
+  topSpeedKph?: number;
+  topSpeedMph?: number;
+  maxRpm?: number;
+  speedUnit?: "km/h" | "mph";
+}) {
   const clipId = useId();
   if (!ratios.length) return null;
 
@@ -9,6 +23,8 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
   const tireCircumference = referenceTopSpeedKph && topGearRatio ? (referenceTopSpeedKph * topGearRatio * finalDrive) / (maxRpm / 60) / 3.6 : 2.0;
   const toKph = (rpm: number, ratio: number) => (rpm / 60 / (ratio * finalDrive)) * tireCircumference * 3.6;
   const maxSpeed = Math.ceil(toKph(maxRpm, topGearRatio) / 50) * 50;
+  const isMph = speedUnit === "mph";
+  const maxDisplaySpeed = isMph ? Math.ceil(maxSpeed / 1.60934 / 10) * 10 : maxSpeed;
 
   const width = 280;
   const height = 120;
@@ -20,7 +36,7 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
 
   const rpmStep = maxRpm <= 8000 ? 2000 : maxRpm <= 12000 ? 3000 : 4000;
   const rpmGrids = Array.from({ length: Math.floor(maxRpm / rpmStep) }, (_, index) => (index + 1) * rpmStep);
-  const speedGrids = Array.from({ length: 5 }, (_, index) => Math.round((maxSpeed / 4) * index));
+  const speedGrids = Array.from({ length: 5 }, (_, index) => Math.round((maxDisplaySpeed / 4) * index));
   const redlineY = pad.top + sy(maxRpm);
   const ratioLines = [];
   for (let gearIndex = 0; gearIndex < ratios.length; gearIndex++) {
@@ -71,15 +87,22 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
 
       {speedGrids.map((speed) => (
         <g key={speed}>
-          <line x1={pad.left + sx(speed)} y1={pad.top} x2={pad.left + sx(speed)} y2={pad.top + chartHeight} stroke="currentColor" strokeOpacity="0.1" />
-          <text x={pad.left + sx(speed)} y={pad.top + chartHeight + 10} textAnchor="middle" fontSize="7" fill="currentColor" fillOpacity="0.45">
+          <line
+            x1={pad.left + sx(isMph ? speed * 1.60934 : speed)}
+            y1={pad.top}
+            x2={pad.left + sx(isMph ? speed * 1.60934 : speed)}
+            y2={pad.top + chartHeight}
+            stroke="currentColor"
+            strokeOpacity="0.1"
+          />
+          <text x={pad.left + sx(isMph ? speed * 1.60934 : speed)} y={pad.top + chartHeight + 10} textAnchor="middle" fontSize="7" fill="currentColor" fillOpacity="0.45">
             {speed}
           </text>
         </g>
       ))}
 
       <text x={pad.left + chartWidth} y={pad.top + chartHeight + 20} textAnchor="end" fontSize="7" fill="currentColor" fillOpacity="0.35">
-        KM/H
+        {isMph ? "MPH" : "KM/H"}
       </text>
       <text x={pad.left - 4} y={pad.top - 6} textAnchor="end" fontSize="7" fill="currentColor" fillOpacity="0.35">
         RPM ×1000

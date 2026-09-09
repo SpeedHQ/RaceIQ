@@ -4,17 +4,19 @@ import { DevStateViewer } from "../components/DevStateViewer";
 import { ModelComparison } from "../components/dev/ModelComparison";
 import { DevTelemetryPanel } from "../components/dev/DevTelemetryPanel";
 import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
+import { GearingTestViewer } from "../components/dev/GearingTestViewer";
 import { E2EViewer } from "../components/settings/E2EViewer";
 import { Button } from "../components/ui/button";
 const DEV_TABS = [
   { id: "state", label: "State" },
   { id: "telemetry", label: "Native Telemetry" },
   { id: "e2e", label: "E2E Recordings" },
+  { id: "gearing", label: "FM23 Powerband" },
   { id: "import", label: "Import Dump" },
   { id: "model", label: "GT3 Model" },
 ] as const;
 function DevPage() {
-  const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import" | "telemetry" | "model">("state");
+  const [activeTab, setActiveTab] = useState<(typeof DEV_TABS)[number]["id"]>("state");
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-app-surface">
@@ -38,6 +40,11 @@ function DevPage() {
         {activeTab === "e2e" && (
           <div className="h-full overflow-y-auto p-6">
             <E2EViewer />
+          </div>
+        )}
+        {activeTab === "gearing" && (
+          <div className="h-full overflow-y-auto p-6">
+            <GearingTestViewer />
           </div>
         )}
         {activeTab === "import" && <ImportDumpPanel />}

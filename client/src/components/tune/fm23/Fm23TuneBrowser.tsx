@@ -97,7 +97,7 @@ export function Fm23TuneBrowser() {
       trackOptions={trackOptions}
       carOptions={carOptions}
       sources={SOURCES}
-      renderSettings={(row: TuneRow) => <TuneSettingsPanel settings={row.settings as TuneSettings} />}
+      renderSettings={(row: TuneRow, unit) => <TuneSettingsPanel settings={row.settings as TuneSettings} unit={unit} storedUnit={row.unitSystem} />}
       onClone={(row: TuneRow) => clone.mutate(row.id)}
       onEdit={(row: TuneRow) => {
         if (row.dbId != null) navigate({ to: `/fm23/setups/edit/${row.dbId}` });

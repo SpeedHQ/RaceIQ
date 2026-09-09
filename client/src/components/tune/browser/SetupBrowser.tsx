@@ -14,7 +14,7 @@ export interface SetupBrowserProps {
   trackOptions: Array<{ value: string; label: string }>;
   carOptions: Array<{ value: string; label: string }>;
   sources: SourceTab[];
-  renderSettings: (row: TuneRow) => ReactNode;
+  renderSettings: (row: TuneRow, unit: "metric" | "imperial") => ReactNode;
   onClone?: (row: TuneRow) => void;
   onEdit?: (row: TuneRow) => void;
   onDelete?: (row: TuneRow) => void;

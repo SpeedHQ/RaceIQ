@@ -11,6 +11,9 @@ export interface TuneSettings {
     ratios?: number[];
     topSpeedKph?: number;
     description?: string;
+    /** Saved dyno power band (RPM) captured with the tune. */
+    powerBandMinRpm?: number;
+    powerBandMaxRpm?: number;
   };
   alignment: {
     frontCamber: number;

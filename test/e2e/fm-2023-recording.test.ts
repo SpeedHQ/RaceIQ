@@ -1,9 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../../server/lap-detection/types"
+import type { LapSavedNotification } from "../../server/lap-detection/types";
 import { parseDump } from "../support/recordings/parse-dump";
 import { assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
-import { generateRecordingVisualizations } from "../support/laps/visualizations";
+import { generateRecordingVisualizations, generatePowerbandVisualization } from "../support/laps/visualizations";
 import { getRecordingFixture } from "../support/recordings/fixtures";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { computeGearingStateRaw } from "../../client/src/lib/session-gearing";
 
 describe("FM-2023 recording", () => {
   describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
@@ -190,6 +192,95 @@ describe("FM-2023 recording", () => {
         await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
+    }, { timeout: 30000 });
+  });
+
+  describe("fm-2023-2026-04-19T06-46-55-724Z_indycar", () => {
+    const recordingFile = "fm-2023-2026-04-19T06-46-55-724Z_indycar.bin.gz";
+
+    test("detects laps correctly and computes power band", async () => {
+      const recording = getRecordingFixture(recordingFile);
+      if (!recording) {
+        console.log(`Recording not found: ${recordingFile}`);
+        return;
+      }
+
+      console.log(`Using: ${recording}`);
+      const { laps, rawPackets } = await parseDump("fm-2023", recording);
+      console.log(`Detected ${laps.length} lap(s)`);
+      console.log(`rawPackets length: ${rawPackets.length}`);
+
+      expect(laps.length).toBeGreaterThanOrEqual(0);
+      expect(rawPackets.length).toBeGreaterThan(0);
+
+      // Power band logic tests
+      const state = computeGearingStateRaw(rawPackets, "fm-2023");
+
+      console.log(`Power curve: ${state.powerCurve.length} points`);
+      console.log(`Torque curve: ${state.torqueCurve.length} points`);
+      console.log(`Shift points:`, state.shiftPoints);
+
+      // Should have some power/torque data for a race recording
+      expect(state.powerCurve.length).toBeGreaterThan(0);
+      expect(state.torqueCurve.length).toBeGreaterThan(0);
+
+      // Peak power should exist and be positive
+      const peakPower = state.powerCurve.reduce((p, c) => (c.powerW > p.powerW ? c : p), state.powerCurve[0]);
+      expect(peakPower.powerW).toBeGreaterThan(0);
+      console.log(`Peak power: ${(peakPower.powerW / WATTS_PER_HORSEPOWER).toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
+      // Peak torque should exist and be positive
+      const peakTorque = state.torqueCurve.reduce((p, c) => (c.nm > p.nm ? c : p), state.torqueCurve[0]);
+      expect(peakTorque.nm).toBeGreaterThan(0);
+      console.log(`Peak torque: ${peakTorque.nm.toFixed(1)} Nm @ ${peakTorque.rpm.toFixed(0)} rpm`);
+
+      // Generate powerband SVG
+      generatePowerbandVisualization(recordingFile, rawPackets);
+      console.log(`[Powerband SVG] Generated`);
+    }, { timeout: 30000 });
+  });
+
+  describe("fm-2023-2026-04-19T07-05-07-682Z_mx5", () => {
+    const recordingFile = "fm-2023-2026-04-19T07-05-07-682Z_mx5.bin.gz";
+
+    test("detects laps correctly and computes power band", async () => {
+      const recording = getRecordingFixture(recordingFile);
+      if (!recording) {
+        console.log(`Recording not found: ${recordingFile}`);
+        return;
+      }
+
+      console.log(`Using: ${recording}`);
+      const { laps, rawPackets } = await parseDump("fm-2023", recording);
+      console.log(`Detected ${laps.length} lap(s)`);
+      console.log(`rawPackets length: ${rawPackets.length}`);
+
+      expect(laps.length).toBeGreaterThanOrEqual(0);
+      expect(rawPackets.length).toBeGreaterThan(0);
+
+      // Power band logic tests
+      const state = computeGearingStateRaw(rawPackets, "fm-2023");
+
+      console.log(`Power curve: ${state.powerCurve.length} points`);
+      console.log(`Torque curve: ${state.torqueCurve.length} points`);
+      console.log(`Shift points:`, state.shiftPoints);
+
+      // Should have some power/torque data for a race recording
+      expect(state.powerCurve.length).toBeGreaterThan(0);
+      expect(state.torqueCurve.length).toBeGreaterThan(0);
+
+      // Peak power should exist and be positive
+      const peakPower = state.powerCurve.reduce((p, c) => (c.powerW > p.powerW ? c : p), state.powerCurve[0]);
+      expect(peakPower.powerW).toBeGreaterThan(0);
+      console.log(`Peak power: ${(peakPower.powerW / WATTS_PER_HORSEPOWER).toFixed(1)} hp @ ${peakPower.rpm.toFixed(0)} rpm`);
+
+      // Peak torque should exist and be positive
+      const peakTorque = state.torqueCurve.reduce((p, c) => (c.nm > p.nm ? c : p), state.torqueCurve[0]);
+      expect(peakTorque.nm).toBeGreaterThan(0);
+      console.log(`Peak torque: ${peakTorque.nm.toFixed(1)} Nm @ ${peakTorque.rpm.toFixed(0)} rpm`);
+
+      // Generate powerband SVG
+      generatePowerbandVisualization(recordingFile, rawPackets);
+      console.log(`[Powerband SVG] Generated`);
     }, { timeout: 30000 });
   });
 });

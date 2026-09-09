@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useSettings } from "@/hooks/settings";
 import { m } from "@/paraglide/messages";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "../tune-constants";
 import type { TuneFormCar } from "./useAllCars";
@@ -48,6 +49,8 @@ export function TuneInfoSection({
   description: string;
   setDescription: Dispatch<SetStateAction<string>>;
 }) {
+  const { displaySettings } = useSettings();
+  const specsMetric = displaySettings.unit !== "imperial";
   return (
     <div className="p-6 grid grid-cols-2 gap-4 max-w-2xl">
       <label className="col-span-2 space-y-1">
@@ -180,7 +183,9 @@ export function TuneInfoSection({
               {s.topSpeedMph > 0 && (
                 <div className="flex flex-col">
                   <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_top_speed()}</span>
-                  <span className="text-xs font-mono text-app-text">{Math.round(s.topSpeedMph * 1.60934)} km/h</span>
+                  <span className="text-xs font-mono text-app-text">
+                    {specsMetric ? Math.round(s.topSpeedMph * 1.60934) : Math.round(s.topSpeedMph)} {specsMetric ? "km/h" : "mph"}
+                  </span>
                 </div>
               )}
               {s.division && (

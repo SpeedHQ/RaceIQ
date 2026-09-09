@@ -68,6 +68,21 @@ export interface TelemetryModel {
   pitStatus?: TelemetryChannelSpec;
 
   /**
+   * Power-curve sample validity. Adapters omit this when every sample is
+   * eligible; otherwise declare the gear values that carry no usable
+   * torque (neutral) or noisy telemetry (reverse), and whether samples
+   * must fall inside an active race.
+   */
+  gearing?: {
+    /** Gear value with no power transfer (neutral). */
+    neutralGear?: number;
+    /** Reverse gear value — noisy telemetry, excluded from power curves. */
+    reverseGear?: number;
+    /** Exclude samples where IsRaceOn <= 0. */
+    requireRaceOn?: boolean;
+  };
+
+  /**
    * Analysis-panel semantics. Omitted fields inherit the current cross-game
    * defaults; adapters override only genuine source or model differences.
    */

@@ -14,6 +14,7 @@ interface TuneResponse {
   category: string;
   description: string;
   settings: TuneSettings | null;
+  unitSystem: string;
 }
 
 function EditTunePage() {
@@ -36,6 +37,7 @@ function EditTunePage() {
     category: tune.category as TuneFormData["category"],
     description: tune.description,
     settings: tune.settings ?? undefined,
+    unitSystem: tune.unitSystem === "imperial" ? "imperial" : "metric",
   };
 
   return (

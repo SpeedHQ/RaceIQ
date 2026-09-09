@@ -8,7 +8,7 @@ export const LIVE_CORE_SEMANTIC_IDS = [
 ] as const;
 
 export const LIVE_GAME_SEMANTIC_IDS = {
-  "fm-2023": [],
+  "fm-2023": ["race.is-race-on"],
   acc: ["damage.brake-pad-wear", "race.pit-status", "tires.tire-compound-name", "tires.tire-radius"],
   "ac-evo": ["damage.brake-pad-wear", "race.pit-status", "tires.tire-compound-name", "tires.tire-radius"],
   iracing: ["race.on-pit-road", "timing.lap-fraction"],

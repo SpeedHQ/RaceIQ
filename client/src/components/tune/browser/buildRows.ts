@@ -11,6 +11,7 @@ export interface RawUserTune {
   trackOrdinal: number | null;
   description: string;
   settings: unknown;
+  unitSystem?: string;
 }
 
 function lapFields(description: string) {
@@ -35,6 +36,8 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     trackOrdinal: t.trackOrdinal ?? null,
     description: t.description ?? "",
     settings: t.settings,
+    // Community tunes ship with no unit metadata and are imperial-denominated.
+    unitSystem: "imperial",
     ...lapFields(t.description ?? ""),
   }));
   const usr: TuneRow[] = userTunes.map((t) => ({
@@ -49,6 +52,7 @@ export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): Tun
     trackOrdinal: t.trackOrdinal ?? null,
     description: t.description ?? "",
     settings: t.settings,
+    unitSystem: t.unitSystem === "imperial" || t.unitSystem === "metric" ? t.unitSystem : undefined,
     ...lapFields(t.description ?? ""),
   }));
   return [...cat, ...usr];
