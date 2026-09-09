@@ -4,7 +4,7 @@ import { parseAnalyseLapIds } from "@/lib/game-routes";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { useCarName, useResolveNames } from "@/hooks/catalog-queries";
-import { useReviewLaps, useSessionLineSpread, useSessionLaps } from "@/hooks/laps";
+import { useReviewLaps, useSessionLaps } from "@/hooks/laps";
 import { useSessions } from "@/hooks/session-queries";
 import { Button } from "@/components/ui/button";
 import { useTrackName } from "@/hooks/track-queries";
@@ -25,8 +25,6 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const sessionQuery = useSessionLaps(sessionId ?? null);
   const reviewLaps = sessionId != null ? (sessionQuery.data ?? []) : (groupQuery.data ?? []);
   const lapsLoading = sessionId != null ? sessionQuery.isLoading : groupQuery.isLoading;
-  const requestedLapIds = parseAnalyseLapIds(search.laps) ?? [];
-  const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null, requestedLapIds, (search.view === "track" || search.view === "analyse") && (search.tab ?? "consistency") === "consistency");
   const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackOrdinal ?? undefined);
   const { data: resolvedNames, isLoading: namesLoading } = useResolveNames(resolvedTrackOrdinal != null ? [resolvedTrackOrdinal] : [], resolvedCarOrdinal != null ? [resolvedCarOrdinal] : []);
   const { data: carName, isLoading: carLoading } = useCarName(resolvedCarOrdinal ?? undefined);
@@ -51,7 +49,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? `Track ${resolvedTrackOrdinal ?? "?"}`;
   const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
   const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · Selected session · ${selectedSession?.lapCount ?? evaluationLaps.length} laps`;
-  const backToSession = () => void navigate({ to: ".." } as never);
+  const backToSession = () => void navigate({ to: sessionId != null ? "../.." : ".." } as never);
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)
     return (
       <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">
@@ -93,15 +91,14 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   return (
     <div className="flex min-h-full flex-col">
       <SessionReviewDashboard
-        gameId={gameId}
-        stayOnSessionReview
+        stayOnSessionReview={sessionId != null}
         autoSelectLap={false}
         laps={sessionId != null ? reviewLaps : evaluationLaps}
+        gameId={gameId}
         sessionId={sessionId}
         sessionLabel={sessionLabel}
         onBack={backToSession}
         onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)}
-        lineSpread={sessionLineSpread ?? null}
       />
     </div>
   );

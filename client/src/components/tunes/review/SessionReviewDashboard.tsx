@@ -15,6 +15,7 @@ import { SessionLapSelectionDialog } from "./SessionLapSelectionDialog";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
+import { useSessionLineSpread } from "@/hooks/laps";
 import { useAlignedTelemetry } from "@/hooks/aligned-telemetry";
 import { useLapIssues } from "@/hooks/tunes";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
@@ -59,6 +60,7 @@ export function SessionReviewDashboard({
   gameId,
   trackName,
   laps,
+  sessionId,
   onBack,
   onDrillIntoLap,
   sessionLabel,
@@ -80,6 +82,11 @@ export function SessionReviewDashboard({
   const primaryLapId = stayOnSessionReview ? (selectionInvalid ? 0 : search.primary ?? displayedLaps[0]?.id ?? 0) : evaluationLaps[0]?.id ?? 0;
   const primaryLap = displayedLaps.find((lap) => lap.id === primaryLapId) ?? displayedLaps[0];
   const aligned = useAlignedTelemetry(selectionInvalid ? [] : displayedLapIds, selectionInvalid ? null : displayedLapIds.length ? { step: 1 } : null);
+  const sessionSpread = useSessionLineSpread(
+    sessionId ?? null,
+    selectionInvalid ? [] : displayedLapIds,
+    stayOnSessionReview && (search.view === "track" || search.view === "analyse") && (search.tab ?? "consistency") === "consistency",
+  );
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectedLapId = stayOnSessionReview ? (primaryLap?.id ?? null) : search.lap;
@@ -263,6 +270,7 @@ export function SessionReviewDashboard({
           </div>
         </div>
       <div className="flex-none bg-app-bg">
+        {aligned.isError && !selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">Could not load selected laps.</p>}
         {selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">Selected laps must belong to this session.</p>}
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
@@ -356,16 +364,13 @@ export function SessionReviewDashboard({
         {isTrackView ? (
           <TrackFocusView
             gameId={gameId}
-            laps={displayedLaps}
             alignedSet={aligned.data}
-            evaluationLapIds={displayedLapIds}
+            lapIds={displayedLapIds}
             trackOrdinal={focusLap.trackOrdinal}
             primaryLapId={primaryLapId}
-            focusLapId={primaryLapId}
-            onFocusLap={setFocus}
             experimentId={experimentId ?? test?.experimentId ?? null}
-            lineSpreadOverride={lineSpread}
             activeTab={tab}
+            lineSpreadOverride={sessionSpread.data ?? lineSpread}
             onActiveTabChange={setTrackTab}
           />
         ) : sectorIndex != null ? (

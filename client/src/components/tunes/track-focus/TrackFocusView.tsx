@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "../../../../../shared/games/ids";
-import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
@@ -15,7 +14,6 @@ import { useLapIssues } from "../../../hooks/tunes";
 import { useAlignedTelemetryZoom } from "../../../hooks/useAlignedTelemetryZoom";
 import { semanticTuneSamplesFromAlignedTrace, type SemanticTuneSample } from "../semantic-tune";
 import type { TuneReviewTrackTab } from "../../../lib/game-routes";
-import { m } from "../../../paraglide/messages";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { Button } from "../../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../ui/dialog";
@@ -67,20 +65,6 @@ function alignedToLapTrace(t: AlignedLapTrace): TrackFocusTrace {
   };
 }
 
-interface TrackFocusViewProps {
-  gameId: GameId;
-  laps: LapMeta[];
-  alignedSet: AlignedLapSet | undefined;
-  evaluationLapIds: readonly number[];
-  trackOrdinal?: number;
-  primaryLapId: number;
-  focusLapId?: number | null;
-  onFocusLap?: (lapId: number) => void;
-  experimentId?: number | null;
-  lineSpreadOverride?: LineSpreadTrace | null;
-  activeTab?: TuneReviewTrackTab;
-  onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
-}
 
 const TABS = ["consistency", "braking", "throttle", "dynamics", "fuel", "suspension"] as const;
 const TAB_LABELS: Record<TuneReviewTrackTab, string> = {
@@ -96,35 +80,19 @@ const TAB_LABELS: Record<TuneReviewTrackTab, string> = {
  *  everything to the presentational `TrackFocusViewInner`. */
 export function TrackFocusView({
   gameId,
-  laps,
   alignedSet,
-  evaluationLapIds,
+  lapIds,
   trackOrdinal,
   primaryLapId,
-  focusLapId: controlledFocusId,
-  onFocusLap: controlledOnFocusLap,
   experimentId,
   lineSpreadOverride,
   activeTab,
   onActiveTabChange,
 }: TrackFocusViewProps) {
-  // Invalid laps are excluded from the whole Track Focus view —
-  // traces, stats, best-lap, ledgers and dynamics all read `stintLaps`.
-  const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
-  const reviewLaps = laps;
-  const zoom = useAlignedTelemetryZoom(evaluationLapIds, alignedSet);
+  const zoom = useAlignedTelemetryZoom(lapIds, alignedSet);
   useEffect(() => {
     zoom.zoomOut();
   }, [zoom.zoomOut]);
-  // Per-frame telemetry (traces, consistency lanes, dynamics) runs on the fastest
-  // N clean laps — bounds decode + payload on long tracks. Header stats read
-  // the same pool. Matches the server /line-spread pool.
-  // Fastest valid, non-excluded laps — matches the server /line-spread clean
-  // pool. Routed through the shared selector so the traces rendered here are
-  // exactly the laps the UI badges as "Eval" (see shared/racing/laps/review-selection.ts);
-  // the old local fastestLaps() trim could disagree when auto-exclude had
-  // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
-  // applies the valid/legacy/pit rules itself and reports why each lap fell out.
   const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
   const baseTraces = useMemo(() => alignedSet?.laps.map(alignedToLapTrace) ?? [], [alignedSet]);
   const visibleLaneRange = useMemo(() => {
@@ -143,30 +111,19 @@ export function TrackFocusView({
   );
   const { data: fetchedLineSpread } = useLineSpread(activeTab === "consistency" && !lineSpreadOverride ? experimentId : null);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
-
-  const [localFocusId, setLocalFocusId] = useState<number | null>(null);
-  const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;
-  const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
-  const effectiveFocusId = focusLapId ?? primaryLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
   const focusTelemetry = useMemo(() => {
-    const lap = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
+    const lap = alignedSet?.laps.find((candidate) => candidate.lapId === primaryLapId);
     return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
-  }, [alignedSet, effectiveFocusId, gameId, trackOrdinal]);
-  const { data: issues } = useLapIssues(effectiveFocusId);
+  }, [alignedSet, gameId, primaryLapId, trackOrdinal]);
+  const { data: issues } = useLapIssues(primaryLapId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
   const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
-  // Boundary/outline data is stored in raw game coords; standard-xyz games
-  // (ACC, AC Evo) have their telemetry PositionX negated by the pipeline, so
-  // flip the edges to match — same convention AnalyseTrackMap uses. Without
-  // this the driven line (negated telemetry) and the track edges (raw) are
-  // X-mirror images of each other and don't overlay.
   const edges = useMemo(() => {
     const e = extractEdges(bounds);
     if (!e || !needsTrackFlip(gameId)) return e;
     return { left: flipPoints(e.left), right: flipPoints(e.right) };
   }, [bounds, gameId]);
-
   const metaSectors = useMemo(() => {
     const s1End = sectorBoundaries?.s1End;
     const s2End = sectorBoundaries?.s2End;
@@ -175,20 +132,16 @@ export function TrackFocusView({
     return { s1End, s2End };
   }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
   const focusSectorTimes = useMemo<SectorTimesLite | null>(() => {
-    const trace = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
+    const trace = alignedSet?.laps.find((candidate) => candidate.lapId === primaryLapId);
     if (!trace?.sectorTimes || trace.sectorTimes.length < 2 || !trace.sectorStarts) return null;
     const starts = trace.sectorStarts.filter((start) => Number.isFinite(start) && start > 0 && start < 1).slice(0, trace.sectorTimes.length - 1);
     if (starts.length !== trace.sectorTimes.length - 1) return null;
     return { times: trace.sectorTimes, boundaryIndices: starts.map((start) => Math.round(start * Math.max(0, trace.speedMps.length - 1))) };
-  }, [alignedSet, effectiveFocusId]);
-
+  }, [alignedSet, primaryLapId]);
   return (
     <TrackFocusViewInner
-      laps={stintLaps}
       traces={traces}
       primaryLapId={primaryLapId}
-      focusLapId={effectiveFocusId}
-      onFocusLap={setFocusLapId}
       focusSectorTimes={focusSectorTimes}
       edges={edges}
       corners={corners ?? []}
@@ -197,8 +150,6 @@ export function TrackFocusView({
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
       gameId={gameId}
-      shownLapCount={reviewLaps.length}
-      totalLapCount={stintLaps.length}
       activeTab={activeTab}
       onActiveTabChange={onActiveTabChange}
       baseTraces={baseTraces}
@@ -210,14 +161,27 @@ export function TrackFocusView({
   );
 }
 
+export interface TrackFocusViewProps {
+  gameId: GameId;
+  alignedSet: AlignedLapSet | undefined;
+  lapIds: readonly number[];
+  trackOrdinal?: number;
+  primaryLapId: number;
+  experimentId?: number | null;
+  lineSpreadOverride?: LineSpreadTrace | null;
+  activeTab?: TuneReviewTrackTab;
+  onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
+}
+
+/** Presentational Track Focus view — no data fetching, so it can be driven
+ *  entirely from Storybook fixtures. Owns the local `cursorFrac` (synced
+ *  across the map + all lanes) and `activeTab` state; everything else is
+ *  passed in already resolved. */
 export interface TrackFocusViewInnerProps {
   gameId: GameId;
-  laps: LapMeta[];
   baseTraces: TrackFocusTrace[];
   traces: (TrackFocusTrace | undefined)[];
   primaryLapId: number | null;
-  focusLapId: number | null;
-  onFocusLap: (lapId: number) => void;
   focusTelemetry: SemanticTuneSample[] | null;
   focusSectorTimes: SectorTimesLite | null;
   edges: { left: Pt[]; right: Pt[] } | null;
@@ -226,19 +190,12 @@ export interface TrackFocusViewInnerProps {
   lineSpread: LineSpreadTrace | null;
   metaSectors?: { s1End: number; s2End: number } | null;
   nominalSpanMeters: number;
-  shownLapCount?: number;
-  totalLapCount?: number;
   activeTab?: TuneReviewTrackTab;
   onActiveTabChange?: (tab: TuneReviewTrackTab) => void;
   visibleLaneRange?: { start: number; end: number } | null;
   selectLaneRange?: (startFrac: number, endFrac: number) => void;
   onZoomOut?: () => void;
 }
-
-/** Presentational Track Focus view — no data fetching, so it can be driven
- *  entirely from Storybook fixtures. Owns the local `cursorFrac` (synced
- *  across the map + all lanes) and `activeTab` state; everything else is
- *  passed in already resolved. */
 export function TrackFocusViewInner({
   gameId,
   traces,
@@ -251,8 +208,6 @@ export function TrackFocusViewInner({
   issues,
   lineSpread,
   metaSectors,
-  shownLapCount,
-  totalLapCount,
   activeTab: controlledActiveTab,
   onActiveTabChange,
   visibleLaneRange = null,
@@ -366,9 +321,6 @@ export function TrackFocusViewInner({
     <div className="flex min-h-full flex-col gap-4 px-4 pb-4" onPointerMove={(event) => {
       if (!(event.target as Element).closest("[data-track-telemetry-lane]")) setZoomActive(false);
     }}>
-      {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
-        <p className="flex-none text-xs text-muted-foreground -mt-2">{m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}</p>
-      )}
 
       <div className="grid min-w-0 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3 @5xl/workspace:sticky @5xl/workspace:top-[2.8125rem] @5xl/workspace:h-[calc(100dvh-3.8125rem)] @5xl/workspace:min-h-0" onMouseEnter={() => setZoomActive(false)} onPointerMove={() => setZoomActive(false)}>
