@@ -10,7 +10,7 @@ import { Lane } from "./Lane";
 
 interface GripPanelProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   cursorFrac: number | null;
@@ -73,14 +73,14 @@ function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null):
  * for the two scalar lanes and the corner lane, plus the standalone
  * `GgScatter` for the friction circle.
  */
-export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
+export function GripPanel({ traces, primaryLapId: primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
   const withLatG = useMemo(() => traces.filter((t) => t.latG != null), [traces]);
   const withLongG = useMemo(() => traces.filter((t) => t.longG != null), [traces]);
   const withSlip = useMemo(() => traces.filter((t) => t.combinedSlip != null), [traces]);
 
-  const bestLatG = withLatG.find((t) => t.lapId === bestLapId) ?? null;
-  const bestLongG = withLongG.find((t) => t.lapId === bestLapId) ?? null;
-  const bestSlip = withSlip.find((t) => t.lapId === bestLapId) ?? null;
+  const bestLatG = withLatG.find((t) => t.lapId === primaryLapId) ?? null;
+  const bestLongG = withLongG.find((t) => t.lapId === primaryLapId) ?? null;
+  const bestSlip = withSlip.find((t) => t.lapId === primaryLapId) ?? null;
 
   const latDomain = useMemo(() => gDomain(withLatG, (t) => t.latG), [withLatG]);
   const longDomain = useMemo(() => gDomain(withLongG, (t) => t.longG), [withLongG]);
@@ -105,7 +105,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
   }, [withSlip]);
   const lapSeries = (available: LapTrace[], best: LapTrace | null, values: (trace: LapTrace) => Float32Array): LaneSeries[] => [
     ...available
-      .filter((trace) => trace.lapId !== bestLapId)
+      .filter((trace) => trace.lapId !== primaryLapId)
       .map((trace) => ({
         x: trace.frac,
         values: values(trace),
@@ -113,8 +113,8 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
       })),
     ...(best ? [{ x: best.frac, values: values(best), color: "var(--app-accent)", width: 1.8 }] : []),
   ];
-  const latSeries = useMemo(() => lapSeries(withLatG, bestLatG, (trace) => trace.latG!), [bestLapId, bestLatG, withLatG]);
-  const longSeries = useMemo(() => lapSeries(withLongG, bestLongG, (trace) => trace.longG!), [bestLapId, bestLongG, withLongG]);
+  const latSeries = useMemo(() => lapSeries(withLatG, bestLatG, (trace) => trace.latG!), [primaryLapId, bestLatG, withLatG]);
+  const longSeries = useMemo(() => lapSeries(withLongG, bestLongG, (trace) => trace.longG!), [primaryLapId, bestLongG, withLongG]);
   const slipSeries = useMemo(
     () => (bestSlip ? SLIP_CORNERS.map((corner): LaneSeries => ({ x: bestSlip.frac, values: bestSlip.combinedSlip![corner.key], color: corner.color, width: 1.6 })) : []),
     [bestSlip],
@@ -239,7 +239,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], annota
         </div>
       )}
 
-      <GgScatter traces={traces} bestLapId={bestLapId} cursorFrac={cursorFrac} />
+      <GgScatter traces={traces} primaryLapId={primaryLapId} cursorFrac={cursorFrac} />
     </div>
   );
 }

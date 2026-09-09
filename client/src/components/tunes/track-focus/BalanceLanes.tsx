@@ -9,7 +9,7 @@ import { Lane } from "./Lane";
 
 interface BalanceLanesProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   cursorFrac: number | null;
@@ -61,9 +61,9 @@ function balanceAt(t: LapTrace, f: number): number {
  * more). Every lap dim, best lap in accent, dashed zero line. Empty state
  * when the game reports no slip-angle data at all.
  */
-export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
+export function BalanceLanes({ traces, primaryLapId: primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
   const withBalance = useMemo(() => traces.filter((t) => t.balance != null), [traces]);
-  const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === bestLapId) ?? null, [withBalance, bestLapId]);
+  const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === primaryLapId) ?? null, [withBalance, primaryLapId]);
 
   const domain = useMemo<[number, number]>(() => {
     let maxAbs = 0;
@@ -78,7 +78,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
   const series = useMemo(
     () => [
       ...withBalance
-        .filter((trace) => trace.lapId !== bestLapId)
+        .filter((trace) => trace.lapId !== primaryLapId)
         .map((trace) => ({
           x: trace.frac,
           values: trace.balance!,
@@ -87,7 +87,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], ann
         })),
       ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace.balance!, color: "var(--app-accent)", width: 1.8 }] : []),
     ],
-    [bestLapId, bestTrace, withBalance],
+    [primaryLapId, bestTrace, withBalance],
   );
 
   if (withBalance.length === 0) {

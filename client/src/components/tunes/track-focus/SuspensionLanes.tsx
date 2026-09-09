@@ -7,7 +7,7 @@ import { Lane, type AnnotationMarker, type LaneSeries } from "./Lane";
 interface SuspensionLanesProps {
   /** Traces in lap order (undefined entries = not loaded yet, skipped). */
   traces: (LapTrace | undefined)[];
-  bestLapId?: number | null;
+  primaryLapId?: number | null;
   cornerFracs?: number[];
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
@@ -31,7 +31,7 @@ const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
  */
 export function SuspensionLanes({
   traces,
-  bestLapId = null,
+  primaryLapId: primaryLapId = null,
   cornerFracs = [],
   annotationMarkers,
   cursorFrac = null,
@@ -67,17 +67,17 @@ export function SuspensionLanes({
           corner.key,
           [
             ...lapsWithTrace
-              .filter((trace) => trace.lapId !== bestLapId)
+              .filter((trace) => trace.lapId !== primaryLapId)
               .map((trace): LaneSeries => ({
                 x: trace.frac,
                 values: trace.suspTravel![corner.key],
                 color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
               })),
-            ...lapsWithTrace.filter((trace) => trace.lapId === bestLapId).map((trace): LaneSeries => ({ x: trace.frac, values: trace.suspTravel![corner.key], color: corner.color, width: 1.8 })),
+            ...lapsWithTrace.filter((trace) => trace.lapId === primaryLapId).map((trace): LaneSeries => ({ x: trace.frac, values: trace.suspTravel![corner.key], color: corner.color, width: 1.8 })),
           ],
         ]),
       ) as Record<keyof TireAverages, LaneSeries[]>,
-    [bestLapId, lapsWithTrace],
+    [primaryLapId, lapsWithTrace],
   );
 
   if (lapsWithTrace.length === 0) {
@@ -112,7 +112,7 @@ export function SuspensionLanes({
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
             tooltip={(f) => {
-              const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
+              const best = lapsWithTrace.find((t) => t.lapId === primaryLapId);
               if (!best?.suspTravel) return null;
               const idx = indexAtFrac(best, f);
               const v = best.suspTravel[c.key][idx];

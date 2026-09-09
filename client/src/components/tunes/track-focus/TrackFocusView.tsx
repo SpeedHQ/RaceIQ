@@ -142,7 +142,7 @@ export function TrackFocusView({
   const { data: fetchedLineSpread } = useLineSpread(activeTab === "consistency" && !lineSpreadOverride ? experimentId : null);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
 
-  const bestLapId = useMemo(() => {
+  const primaryLapId = useMemo(() => {
     let best: LapMeta | null = null;
     for (const l of stintLaps) {
       if (!l.isValid || l.experimentExcluded) continue;
@@ -154,7 +154,7 @@ export function TrackFocusView({
   const [localFocusId, setLocalFocusId] = useState<number | null>(null);
   const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;
   const setFocusLapId = controlledOnFocusLap ?? setLocalFocusId;
-  const effectiveFocusId = focusLapId ?? bestLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
+  const effectiveFocusId = focusLapId ?? primaryLapId ?? stintLaps[stintLaps.length - 1]?.id ?? null;
   const focusTelemetry = useMemo(() => {
     const lap = alignedSet?.laps.find((candidate) => candidate.lapId === effectiveFocusId) ?? alignedSet?.laps[0];
     return lap ? semanticTuneSamplesFromAlignedTrace(lap, gameId, trackOrdinal, alignedSet?.nominalSpanMeters ?? 0) : null;
@@ -193,7 +193,7 @@ export function TrackFocusView({
     <TrackFocusViewInner
       laps={stintLaps}
       traces={traces}
-      bestLapId={bestLapId}
+      primaryLapId={primaryLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
       focusSectorTimes={focusSectorTimes}
@@ -222,7 +222,7 @@ export interface TrackFocusViewInnerProps {
   laps: LapMeta[];
   baseTraces: TrackFocusTrace[];
   traces: (TrackFocusTrace | undefined)[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   focusLapId: number | null;
   onFocusLap: (lapId: number) => void;
   focusTelemetry: SemanticTuneSample[] | null;
@@ -250,7 +250,7 @@ export function TrackFocusViewInner({
   gameId,
   traces,
   baseTraces,
-  bestLapId,
+  primaryLapId,
   focusTelemetry,
   focusSectorTimes,
   edges,
@@ -289,6 +289,10 @@ export function TrackFocusViewInner({
   const tireWearContinuous = tireHealth?.source === "direct" && tireHealth.freshness === "continuous";
   const [zoomActive, setZoomActive] = useState(false);
   const [zoomBehavior, setZoomBehavior] = useLocalStorage<"default" | "zoomed" | "disabled">("analyse-hoverZoom", "default");
+  const setChartCursor = useCallback((frac: number | null) => {
+    setZoomActive(frac != null);
+    setCursorFrac(frac);
+  }, []);
   const [zoomSettingsOpen, setZoomSettingsOpen] = useState(false);
   const zoomBehaviorLabels = { default: "Default", zoomed: "Always", disabled: "Never" } as const;
   const resolvedTraces = useMemo(() => traces.filter((t): t is TrackFocusTrace => !!t), [traces]);
@@ -313,7 +317,7 @@ export function TrackFocusViewInner({
   const cornerFracs = useMemo(() => {
     if (corners.length === 0) return [];
     const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
-    const bestTrace = resolvedTraces.find((t) => t.lapId === bestLapId) ?? resolvedTraces[0];
+    const bestTrace = resolvedTraces.find((t) => t.lapId === primaryLapId) ?? resolvedTraces[0];
 
     return corners.map((c) => {
       if (c.apexDistance != null) return clamp01(c.apexDistance);
@@ -334,7 +338,7 @@ export function TrackFocusViewInner({
       }
       return clamp01(apexFrac ?? (start + end) / 2);
     });
-  }, [corners, resolvedTraces, bestLapId]);
+  }, [corners, resolvedTraces, primaryLapId]);
 
   // Sector boundary fractions: prefer authoritative track meta, else fall
   // back to the focus lap's source-defined sector split indices so the sector ledger's rows line up
@@ -351,10 +355,10 @@ export function TrackFocusViewInner({
   // detection the ledger falls back to, so both surfaces agree.
   const effectiveCorners = useMemo(() => {
     if (corners.length > 0) return { corners, fracs: cornerFracs };
-    const bestTrace = resolvedTraces.find((t) => t.lapId === bestLapId) ?? resolvedTraces[0];
+    const bestTrace = resolvedTraces.find((t) => t.lapId === primaryLapId) ?? resolvedTraces[0];
     if (!bestTrace) return { corners: [], fracs: [] };
     return detectCorners(bestTrace);
-  }, [corners, cornerFracs, resolvedTraces, bestLapId]);
+  }, [corners, cornerFracs, resolvedTraces, primaryLapId]);
   const issueMarkers = useMemo(() => {
     const seen = new Set<number>();
     return issues.flatMap((issue) => {
@@ -375,7 +379,7 @@ export function TrackFocusViewInner({
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Track map and issues scroll away with lane content. */}
-        <div className="flex flex-col gap-3 min-h-0 min-w-0" onMouseEnter={() => setZoomActive(false)}>
+        <div className="flex flex-col gap-3 min-h-0 min-w-0" onMouseEnter={() => setZoomActive(false)} onPointerMove={() => setZoomActive(false)}>
           <div className="relative mx-auto w-full max-w-[28rem] flex-none">
             <Button
               type="button"
@@ -414,13 +418,13 @@ export function TrackFocusViewInner({
             </Dialog>
             {(zoomBehavior === "zoomed" ? zoomLines : zoomBehavior === "default" ? (zoomActive ? zoomLines : scopeZoomLines) : []).length > 0 &&
             zoomBehavior !== "disabled" &&
-            (visibleLaneRange != null || (cursorFrac != null && (zoomBehavior === "zoomed" || zoomActive))) ? (
+            (visibleLaneRange != null || (cursorFrac != null && zoomActive)) ? (
               <TrackFocusZoom
                 lapLines={zoomBehavior === "zoomed" || zoomActive ? zoomLines : scopeZoomLines}
                 issues={issues}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}
-                bestLapId={bestLapId}
+                primaryLapId={primaryLapId}
                 cursorFrac={cursorFrac ?? ((visibleLaneRange?.start ?? 0) + (visibleLaneRange?.end ?? 1)) / 2}
                 radiusM={zoomBehavior === "zoomed" || zoomActive ? undefined : visibleLaneRange ? Math.max(2, ((visibleLaneRange.end - visibleLaneRange.start) * nominalSpanMeters) / 2) : undefined}
                 edges={edges}
@@ -478,12 +482,12 @@ export function TrackFocusViewInner({
               <>
                 <ConsistencyLanes
                   traces={resolvedTraces}
-                  bestLapId={bestLapId}
+                  primaryLapId={primaryLapId}
                   cornerFracs={effectiveCorners.fracs}
                   corners={effectiveCorners.corners}
                   issues={issues}
                   cursorFrac={cursorFrac}
-                  onCursorFrac={setCursorFrac}
+                  onCursorFrac={setChartCursor}
                   lineSpread={lineSpread}
                   onZoomHover={setZoomActive}
                   visibleRange={visibleLaneRange}
@@ -491,10 +495,10 @@ export function TrackFocusViewInner({
                   onZoomOut={onZoomOut}
                 />
                 <SpeedRangeLegend />
-                <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                <SectorLedger traces={resolvedTraces} primaryLapId={primaryLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <SegmentLedger
                   traces={resolvedTraces}
-                  bestLapId={bestLapId}
+                  primaryLapId={primaryLapId}
                   cornerFracs={effectiveCorners.fracs}
                   corners={effectiveCorners.corners}
                   cursorFrac={cursorFrac}
@@ -507,14 +511,13 @@ export function TrackFocusViewInner({
             {activeTab === "braking" && (
               <BrakingPanel
                 traces={resolvedTraces}
-                metricTraces={baseTraces}
-                bestLapId={bestLapId}
-                corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}
+                primaryLapId={primaryLapId}
+                corners={effectiveCorners.corners}
                 nominalSpanMeters={nominalSpanMeters}
                 issues={issues}
                 cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
+                onCursorFrac={setChartCursor}
                 visibleRange={visibleLaneRange}
                 onRangeSelect={selectLaneRange}
                 onZoomOut={onZoomOut}
@@ -523,13 +526,13 @@ export function TrackFocusViewInner({
             {activeTab === "throttle" && (
               <ThrottleExitPanel
                 traces={resolvedTraces}
+                primaryLapId={primaryLapId}
                 metricTraces={baseTraces}
-                bestLapId={bestLapId}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}
                 nominalSpanMeters={nominalSpanMeters}
                 cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
+                onCursorFrac={setChartCursor}
                 visibleRange={visibleLaneRange}
                 onRangeSelect={selectLaneRange}
                 onZoomOut={onZoomOut}
@@ -539,11 +542,10 @@ export function TrackFocusViewInner({
               <>
                 <TiresPanel
                   traces={traces}
-                  bestLapId={bestLapId}
                   cornerFracs={cornerFracs}
                   annotationMarkers={issueMarkers}
                   cursorFrac={cursorFrac}
-                  onCursorFrac={setCursorFrac}
+                  onCursorFrac={setChartCursor}
                   visibleRange={visibleLaneRange}
                   onRangeSelect={selectLaneRange}
                   onZoomOut={onZoomOut}
@@ -552,12 +554,12 @@ export function TrackFocusViewInner({
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <BalanceLanes
                     traces={resolvedTraces}
-                    bestLapId={bestLapId}
                     cornerFracs={effectiveCorners.fracs}
+                    primaryLapId={primaryLapId}
                     annotationMarkers={issueMarkers}
                     corners={effectiveCorners.corners}
                     cursorFrac={cursorFrac}
-                    onCursorFrac={setCursorFrac}
+                    onCursorFrac={setChartCursor}
                     visibleRange={visibleLaneRange}
                     onRangeSelect={selectLaneRange}
                     onZoomOut={onZoomOut}
@@ -566,13 +568,13 @@ export function TrackFocusViewInner({
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
                   <GripPanel
+                    primaryLapId={primaryLapId}
                     traces={resolvedTraces}
-                    bestLapId={bestLapId}
                     cornerFracs={effectiveCorners.fracs}
                     annotationMarkers={issueMarkers}
                     corners={effectiveCorners.corners}
                     cursorFrac={cursorFrac}
-                    onCursorFrac={setCursorFrac}
+                    onCursorFrac={setChartCursor}
                     visibleRange={visibleLaneRange}
                     onRangeSelect={selectLaneRange}
                     onZoomOut={onZoomOut}
@@ -583,9 +585,9 @@ export function TrackFocusViewInner({
             {activeTab === "fuel" && (
               <FuelPanel
                 traces={traces}
-                bestLapId={bestLapId}
+                primaryLapId={primaryLapId}
                 cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
+                onCursorFrac={setChartCursor}
                 visibleRange={visibleLaneRange}
                 onRangeSelect={selectLaneRange}
                 onZoomOut={onZoomOut}
@@ -595,11 +597,10 @@ export function TrackFocusViewInner({
             {activeTab === "suspension" && (
               <SuspensionLanes
                 traces={resolvedTraces}
-                bestLapId={bestLapId}
                 cornerFracs={cornerFracs}
                 annotationMarkers={issueMarkers}
                 cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
+                onCursorFrac={setChartCursor}
                 visibleRange={visibleLaneRange}
                 onRangeSelect={selectLaneRange}
                 onZoomOut={onZoomOut}
@@ -644,15 +645,17 @@ function TurnMarkers({ corners, cornerFracs, cursorFrac, nominalSpanMeters }: { 
         ))}
       </div>
       <div className="relative h-5 border-t border-app-border/50" aria-label="Track position">
-        <span
-          className="absolute top-0 text-app-caption text-app-accent font-mono tabular-nums whitespace-nowrap"
-          style={{
-            left: `clamp(44px, calc(6px + ${(cursorFrac ?? 0) * 100}% - ${(cursorFrac ?? 0) * 12}px), calc(100% - 44px))`,
-            transform: "translateX(-50%)",
-          }}
-        >
-          {cursorFrac == null ? "—" : `${(cursorFrac * 100).toFixed(1)}% ${(cursorFrac * nominalSpanMeters).toFixed(0)}m`}
-        </span>
+        {cursorFrac != null && (
+          <span
+            className="absolute top-0 text-app-caption text-app-accent font-mono tabular-nums whitespace-nowrap"
+            style={{
+              left: `clamp(44px, ${cursorFrac * 100}%, calc(100% - 44px))`,
+              transform: "translateX(-50%)",
+            }}
+          >
+            {`${(cursorFrac * 100).toFixed(1)}% ${(cursorFrac * nominalSpanMeters).toFixed(0)}m`}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { useMeasuredWidth } from "./use-measured-width";
 
 interface GgScatterProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   /** Shared cursor fraction (0..1) — the point nearest this fraction on each
    *  lap is highlighted so the scatter stays in sync with the lanes. */
   cursorFrac: number | null;
@@ -46,7 +46,7 @@ function nearestIndex(t: LapTrace, f: number): number {
  * at the shared cursor fraction is highlighted on every lap so this chart and
  * the lat/long lanes stay in sync while scrubbing.
  */
-export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
+export function GgScatter({ traces, primaryLapId: primaryLapId, cursorFrac }: GgScatterProps) {
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>(320);
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const cursorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,12 +105,12 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
       ctx.globalAlpha = 1;
     };
     for (const trace of withG) {
-      if (trace.lapId === bestLapId) continue;
+      if (trace.lapId === primaryLapId) continue;
       drawTrace(trace, 1.1, trace.isValid ? "var(--app-text-dim)" : "var(--status-danger)", trace.isValid ? 0.3 : 0.45);
     }
-    const best = withG.find((trace) => trace.lapId === bestLapId);
+    const best = withG.find((trace) => trace.lapId === primaryLapId);
     if (best) drawTrace(best, 1.3, cursorActive ? "var(--app-text-dim)" : "var(--app-accent)", cursorActive ? 0.3 : 0.85);
-  }, [bestLapId, bw, cursorActive, cx, cy, r, withG]);
+  }, [primaryLapId, bw, cursorActive, cx, cy, r, withG]);
 
   useEffect(() => {
     const canvas = cursorCanvasRef.current;
@@ -128,7 +128,7 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
       const idx = nearestIndex(trace, cursorFrac);
       const x = px(trace.latG![idx]);
       const y = py(trace.longG![idx]);
-      if (trace.lapId === bestLapId) {
+      if (trace.lapId === primaryLapId) {
         bestCursor = { x, y };
         continue;
       }
@@ -143,7 +143,7 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
       ctx.fillStyle = "var(--app-accent)";
       ctx.fill();
     }
-  }, [bestLapId, bw, cursorFrac, cx, cy, r, withG]);
+  }, [primaryLapId, bw, cursorFrac, cx, cy, r, withG]);
 
   if (withG.length === 0) {
     return (

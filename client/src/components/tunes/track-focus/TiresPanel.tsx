@@ -7,7 +7,7 @@ import { Button } from "../../ui/button";
 
 interface SharedPanelProps {
   traces: (TrackFocusTrace | undefined)[];
-  bestLapId?: number | null;
+  primaryLapId?: number | null;
   cornerFracs?: number[];
   annotationMarkers?: AnnotationMarker[];
   cursorFrac?: number | null;
@@ -33,19 +33,19 @@ function peak(trace: TireTraces | null, index: number): number {
   return Math.max(...WHEELS.map((wheel) => trace[wheel][index] ?? Number.NaN));
 }
 
-function lineSeries(laps: TrackFocusTrace[], getTrace: (lap: TrackFocusTrace) => TireTraces | null, bestLapId: number | null, wheel?: keyof TireAverages): LaneSeries[] {
+function lineSeries(laps: TrackFocusTrace[], getTrace: (lap: TrackFocusTrace) => TireTraces | null, primaryLapId: number | null, wheel?: keyof TireAverages): LaneSeries[] {
   return laps.map((lap) => ({
     x: lap.frac,
     values: wheel ? (getTrace(lap)?.[wheel] ?? new Float32Array(lap.n)) : Float32Array.from({ length: lap.n }, (_, index) => peak(getTrace(lap), index)),
-    color: lap.lapId === bestLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
-    width: lap.lapId === bestLapId ? 1.8 : 1,
+    color: lap.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+    width: lap.lapId === primaryLapId ? 1.8 : 1,
   }));
 }
 
 function TireMetricSection({
   title,
   laps,
-  bestLapId,
+  primaryLapId,
   getTrace,
   cornerFracs,
   annotationMarkers,
@@ -57,7 +57,7 @@ function TireMetricSection({
 }: {
   title: string;
   laps: TrackFocusTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   getTrace: (lap: TrackFocusTrace) => TireTraces | null;
   cornerFracs: number[];
   annotationMarkers?: AnnotationMarker[];
@@ -71,7 +71,7 @@ function TireMetricSection({
   const available = useMemo(() => laps.filter((lap) => getTrace(lap)), [getTrace, laps]);
   if (!available.length) return null;
   const domain: [number, number] = [0, Math.max(1, ...available.flatMap((lap) => Array.from(getTrace(lap)!.FL)))];
-  const best = available.find((lap) => lap.lapId === bestLapId) ?? available[0];
+  const best = available.find((lap) => lap.lapId === primaryLapId) ?? available[0];
   const tooltip = (wheel?: keyof TireAverages) => (frac: number) => {
     const trace = getTrace(best);
     if (!trace) return null;
@@ -99,7 +99,7 @@ function TireMetricSection({
         onRangeSelect={onRangeSelect}
         onZoomOut={onZoomOut}
         tooltip={tooltip()}
-        series={lineSeries(available, getTrace, bestLapId)}
+        series={lineSeries(available, getTrace, primaryLapId)}
       />
       <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((value) => !value)}>
         {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
@@ -117,7 +117,7 @@ function TireMetricSection({
             onRangeSelect={onRangeSelect}
             onZoomOut={onZoomOut}
             tooltip={tooltip(wheel)}
-            series={lineSeries(available, getTrace, bestLapId, wheel)}
+            series={lineSeries(available, getTrace, primaryLapId, wheel)}
           />
         ))}
     </div>
@@ -130,7 +130,7 @@ function panelTraces(traces: (TrackFocusTrace | undefined)[]) {
 
 export function TiresPanel({
   traces,
-  bestLapId = null,
+  primaryLapId = null,
   cornerFracs = [],
   annotationMarkers,
   cursorFrac = null,
@@ -154,7 +154,7 @@ export function TiresPanel({
           key={title}
           title={title}
           laps={laps}
-          bestLapId={bestLapId}
+          primaryLapId={primaryLapId}
           getTrace={getTrace}
           cornerFracs={cornerFracs}
           annotationMarkers={annotationMarkers}
@@ -174,7 +174,7 @@ export function TiresPanel({
           visibleRange={visibleRange}
           onRangeSelect={onRangeSelect}
           onZoomOut={onZoomOut}
-          series={lineSeries(wearLaps, (lap) => lap.tireWearTrace, bestLapId).map((item) => ({ ...item, values: Float32Array.from(item.values, (value) => value * 100) }))}
+          series={lineSeries(wearLaps, (lap) => lap.tireWearTrace, primaryLapId).map((item) => ({ ...item, values: Float32Array.from(item.values, (value) => value * 100) }))}
         />
       ) : (
         <div className="text-app-text-dim text-sm">Tyre wear unavailable for this game/source.</div>
@@ -183,7 +183,7 @@ export function TiresPanel({
   );
 }
 
-export function FuelPanel({ traces, bestLapId = null, cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut, fuelUnit = "litre" }: FuelPanelProps) {
+export function FuelPanel({ traces, primaryLapId = null, cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut, fuelUnit = "litre" }: FuelPanelProps) {
   const laps = useMemo(() => panelTraces(traces), [traces]);
   const fuelLaps = laps.filter((lap) => Array.from(lap.fuel).filter((value) => Number.isFinite(value) && value >= 0).length >= 2 && lap.fuel.some((value) => Number.isFinite(value) && value > 0));
   return (
@@ -200,8 +200,8 @@ export function FuelPanel({ traces, bestLapId = null, cursorFrac = null, onCurso
           series={fuelLaps.map((lap) => ({
             x: lap.frac,
             values: fuelUnit === "fraction" ? Float32Array.from(lap.fuel, (value) => value * 100) : lap.fuel,
-            color: lap.lapId === bestLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
-            width: lap.lapId === bestLapId ? 1.8 : 1,
+            color: lap.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+            width: lap.lapId === primaryLapId ? 1.8 : 1,
           }))}
         />
       ) : (

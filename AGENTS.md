@@ -15,6 +15,10 @@ feature flows before broad code searches. Use DeepWiki for orientation, then
 verify implementation details against the current checkout because its content
 may be stale or unavailable. Fall back to repository search when needed.
 
+## Completion Verification
+
+Always run `bun run typecheck` before handing work back to user as complete.
+
 ## Commands
 
 ```bash

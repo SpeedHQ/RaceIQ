@@ -127,7 +127,7 @@ function windowPoints(x: number[], z: number[], center: ZoomPoint, radiusM: numb
  * the bin nearest `cursorFrac`, and each lap's points that fall inside a
  * ±radiusM box around that center. No React, no DOM — safe to unit test.
  */
-export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radiusM: number = DEFAULT_RADIUS_M, edges?: { left: Pt[]; right: Pt[] } | null, bestLapId?: number | null): ZoomViewport {
+export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radiusM: number = DEFAULT_RADIUS_M, edges?: { left: Pt[]; right: Pt[] } | null, primaryLapId?: number | null): ZoomViewport {
   if (lapLines.length === 0 || (lapLines[0]?.x.length ?? 0) === 0) return { center: { x: 0, z: 0 }, dot: { x: 0, z: 0 }, inWindow: [], edges: null };
 
   // Raw laps differ in frame count AND are uniform in time (not distance), so
@@ -140,8 +140,8 @@ export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radius
     const idx = idxAtFrac(l, cursorFrac);
     sx += l.x[idx];
     sz += l.z[idx];
-    // Anchor the dot to the best lap's point so it lands on the thick, visible line.
-    if (bestLapId != null && l.lapId === bestLapId) dot = { x: l.x[idx], z: l.z[idx] };
+    // Anchor dot to primary lap's point so it lands on thick, visible line.
+    if (primaryLapId != null && l.lapId === primaryLapId) dot = { x: l.x[idx], z: l.z[idx] };
   }
   const center = { x: sx / lapLines.length, z: sz / lapLines.length };
 
@@ -169,7 +169,7 @@ export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radius
 
 interface TrackFocusZoomProps {
   lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac?: number[] }[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   /** 0..1, drives the window center point. */
   cursorFrac: number;
   /** Half-window in metres (window is radiusM * 2 across). Default 60. */
@@ -190,8 +190,8 @@ interface TrackFocusZoomProps {
  * and where each lap brakes/accelerates are directly visible. The best lap is
  * drawn thicker. Pure/presentational — no data fetching.
  */
-export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFAULT_RADIUS_M, edges, issues = [], corners = [], cornerFracs = [] }: TrackFocusZoomProps) {
-  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges, bestLapId) : null), [lapLines, cursorFrac, radiusM, edges, bestLapId]);
+export function TrackFocusZoom({ lapLines, primaryLapId, cursorFrac, radiusM = DEFAULT_RADIUS_M, edges, issues = [], corners = [], cornerFracs = [] }: TrackFocusZoomProps) {
+  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges, primaryLapId) : null), [lapLines, cursorFrac, radiusM, edges, primaryLapId]);
 
   const totalPoints = viewport ? viewport.inWindow.reduce((sum, l) => sum + l.points.length, 0) : 0;
 
@@ -211,7 +211,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
 
   // Dot sits on the best-lap line; window stays framed on the mean.
   const markerPoint = (frac: number): { x: number; y: number } | null => {
-    const line = lapLines.find((candidate) => candidate.lapId === bestLapId) ?? lapLines[0];
+    const line = lapLines.find((candidate) => candidate.lapId === primaryLapId) ?? lapLines[0];
     if (!line || line.x.length === 0) return null;
     const index = idxAtFrac(line, Math.max(0, Math.min(1, frac)));
     const x = line.x[index];
@@ -230,7 +230,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
         {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {inWindow.map((l) => {
-          const isBest = l.lapId === bestLapId;
+          const isBest = l.lapId === primaryLapId;
           const w = 1.6;
           const op = isBest ? 1 : 0.55;
           // One <line> per consecutive pair, colored by the segment's leading

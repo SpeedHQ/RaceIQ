@@ -5,7 +5,7 @@ import { type LapTrace, consistencyAt, sampleAt } from "../../../lib/stint-trace
 
 interface SectorLedgerProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   sectorBoundaryFracs: number[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
@@ -54,9 +54,9 @@ function deltaColor(value: number | null): string {
   if (value > 0.1) return "text-(--severity-caution)";
   return "text-(--severity-nominal)";
 }
-export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
+export function SectorLedger({ traces, primaryLapId: primaryLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
   const defs = useMemo(() => sectors(sectorBoundaryFracs), [sectorBoundaryFracs]);
-  const best = traces.find((trace) => trace.lapId === bestLapId) ?? traces[0];
+  const best = traces.find((trace) => trace.lapId === primaryLapId) ?? traces[0];
   const rows = useMemo<SectorRow[]>(() => {
     if (!best) return [];
     return defs.map((sector) => {

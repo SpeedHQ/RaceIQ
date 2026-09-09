@@ -10,7 +10,7 @@ import { Lane, type LaneSegment, type LaneSeries } from "./Lane";
 
 interface ConsistencyLanesProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   issues: TuneIssue[];
@@ -99,7 +99,7 @@ const CHANNELS = [
  */
 export function ConsistencyLanes({
   traces,
-  bestLapId,
+  primaryLapId: primaryLapId,
   cornerFracs,
   corners = [],
   issues,
@@ -111,7 +111,7 @@ export function ConsistencyLanes({
   onRangeSelect,
   onZoomOut,
 }: ConsistencyLanesProps) {
-  const bestTrace = useMemo(() => traces.find((t) => t.lapId === bestLapId) ?? null, [traces, bestLapId]);
+  const bestTrace = useMemo(() => traces.find((t) => t.lapId === primaryLapId) ?? null, [traces, primaryLapId]);
 
   // Speed domain across every lap so all traces share one scale.
   const speedDomain = useMemo<[number, number]>(() => {
@@ -175,7 +175,7 @@ export function ConsistencyLanes({
           channel.key,
           [
             ...traces
-              .filter((trace) => trace.lapId !== bestLapId)
+              .filter((trace) => trace.lapId !== primaryLapId)
               .map((trace): LaneSeries => ({
                 x: trace.frac,
                 values: trace[channel.key],
@@ -185,12 +185,12 @@ export function ConsistencyLanes({
           ],
         ]),
       ) as Record<(typeof CHANNELS)[number]["key"], LaneSeries[]>,
-    [bestLapId, bestTrace, traces],
+    [primaryLapId, bestTrace, traces],
   );
   const speedSeries = useMemo(
     () => [
       ...traces
-        .filter((trace) => trace.lapId !== bestLapId)
+        .filter((trace) => trace.lapId !== primaryLapId)
         .map((trace): LaneSeries => ({
           x: trace.frac,
           values: trace.speedKmh,
@@ -198,7 +198,7 @@ export function ConsistencyLanes({
         })),
       ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace.speedKmh, color: "var(--app-accent)", width: 1.8 }] : []),
     ],
-    [bestLapId, bestTrace, traces],
+    [primaryLapId, bestTrace, traces],
   );
   const deltaSeries = useMemo(
     () =>

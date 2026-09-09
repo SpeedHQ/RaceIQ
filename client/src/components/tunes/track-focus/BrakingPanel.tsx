@@ -9,7 +9,7 @@ import { nearestCornerLabel } from "./detect-corners";
 export function BrakingPanel({
   traces,
   metricTraces = traces,
-  bestLapId,
+  primaryLapId: primaryLapId,
   corners,
   cornerFracs,
   nominalSpanMeters,
@@ -22,7 +22,7 @@ export function BrakingPanel({
 }: {
   traces: LapTrace[];
   metricTraces?: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   corners: TrackCorner[];
   cornerFracs: number[];
   nominalSpanMeters: number;
@@ -34,13 +34,13 @@ export function BrakingPanel({
   onZoomOut?: () => void;
 }) {
   if (corners.length === 0) return <div className="text-app-text-dim text-sm">No braking segments available for this track.</div>;
-  const metrics = buildCornerInputMetrics(metricTraces, bestLapId, corners, cornerFracs, nominalSpanMeters);
+  const metrics = buildCornerInputMetrics(metricTraces, primaryLapId, corners, cornerFracs, nominalSpanMeters);
   const series = (channel: "brake" | "speedKmh"): LaneSeries[] =>
     traces.map((trace) => ({
       x: trace.frac,
       values: trace[channel],
-      color: trace.lapId === bestLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
-      width: trace.lapId === bestLapId ? 1.8 : 1,
+      color: trace.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+      width: trace.lapId === primaryLapId ? 1.8 : 1,
     }));
   const markers = issues
     .filter((issue) => issue.kind === "brake-lockup" || issue.kind === "bottoming")
@@ -51,8 +51,8 @@ export function BrakingPanel({
       cornerLabel={nearestCornerLabel(corners, cornerFracs, frac)}
       rows={traces.map((trace) => ({
         lapNumber: trace.lapNumber,
-        color: trace.lapId === bestLapId ? "var(--app-accent)" : "var(--app-text-dim)",
-        isBest: trace.lapId === bestLapId,
+        color: trace.lapId === primaryLapId ? "var(--app-accent)" : "var(--app-text-dim)",
+        isBest: trace.lapId === primaryLapId,
         isInvalid: !trace.isValid,
         speedKmh: channel === "speedKmh" ? sampleAt(trace, "speedKmh", frac) : null,
         brakePct: channel === "brake" ? sampleAt(trace, "brake", frac) * 100 : null,

@@ -8,7 +8,7 @@ import { BRAKE_ACTIVE_THRESHOLD, THROTTLE_PICKUP_THRESHOLD } from "./input-analy
 
 interface SegmentLedgerProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners: TrackCorner[];
   cursorFrac: number | null;
@@ -98,9 +98,9 @@ function stdDev(vals: number[]): number | null {
   return Math.sqrt(variance);
 }
 
-function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: number[], corners: TrackCorner[]): LedgerRow[] {
+function buildRows(traces: LapTrace[], primaryLapId: number | null, cornerFracs: number[], corners: TrackCorner[]): LedgerRow[] {
   if (traces.length === 0 || corners.length === 0) return [];
-  const bestTrace = traces.find((t) => t.lapId === bestLapId) ?? traces[0];
+  const bestTrace = traces.find((t) => t.lapId === primaryLapId) ?? traces[0];
   const others = traces.filter((t) => t.lapId !== bestTrace.lapId && t.isValid);
 
   return corners.map((corner, i) => {
@@ -198,17 +198,17 @@ function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; 
  * the zone, estimated time loss, and a verdict pill. Uses track segment data
  * resolved for Track Focus.
  */
-export function SegmentLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: SegmentLedgerProps) {
+export function SegmentLedger({ traces, primaryLapId: primaryLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: SegmentLedgerProps) {
   // When the track has no segment metadata, fall back to detecting apex zones
   // from the best lap's speed trace (as the mockup did from raw telemetry).
   const effective = useMemo(() => {
     if (corners.length > 0 || traces.length === 0) return { corners, fracs: cornerFracs };
-    const bestTrace = traces.find((t) => t.lapId === bestLapId) ?? traces[0];
+    const bestTrace = traces.find((t) => t.lapId === primaryLapId) ?? traces[0];
     const detected = detectCorners(bestTrace);
     return { corners: detected.corners, fracs: detected.fracs };
-  }, [traces, bestLapId, cornerFracs, corners]);
+  }, [traces, primaryLapId, cornerFracs, corners]);
 
-  const rows = useMemo(() => buildRows(traces, bestLapId, effective.fracs, effective.corners), [traces, bestLapId, effective]);
+  const rows = useMemo(() => buildRows(traces, primaryLapId, effective.fracs, effective.corners), [traces, primaryLapId, effective]);
 
   // Clicking a row pins its brake/throttle overlay on the track; hovering
   // another row previews it, and leaving falls back to the pinned corner
