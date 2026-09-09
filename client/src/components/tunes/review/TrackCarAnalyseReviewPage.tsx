@@ -11,8 +11,8 @@ import { useTrackName } from "@/hooks/track-queries";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, sessionId }: { gameId: GameId; trackOrdinal?: number; carOrdinal?: number; sessionId?: number }) {
-  const navigate = useNavigate({ from: "/$gameid/sessions/analyse" });
-  const search = useSearch({ strict: false }) as { laps?: string; view?: string; trackTab?: string };
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { laps?: string; view?: string; tab?: string };
   const { data: sessions = [], isLoading: sessionsLoading } = useSessions();
   const selectedSession = sessionId == null ? undefined : sessions.find((session) => session.id === sessionId);
   const resolvedTrackOrdinal = trackOrdinal ?? selectedSession?.trackOrdinal;
@@ -25,7 +25,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   const sessionQuery = useSessionReviewLaps(sessionId ?? null);
   const reviewLaps = sessionId != null ? (sessionQuery.data ?? []) : (groupQuery.data ?? []);
   const lapsLoading = sessionId != null ? sessionQuery.isLoading : groupQuery.isLoading;
-  const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null, search.view === "track" && (search.trackTab ?? "consistency") === "consistency");
+  const { data: sessionLineSpread } = useSessionLineSpread(sessionId ?? null, (search.view === "track" || search.view === "analyse") && (search.tab ?? "consistency") === "consistency");
   const { data: trackName, isLoading: trackLoading } = useTrackName(resolvedTrackOrdinal ?? undefined);
   const { data: resolvedNames, isLoading: namesLoading } = useResolveNames(resolvedTrackOrdinal != null ? [resolvedTrackOrdinal] : [], resolvedCarOrdinal != null ? [resolvedCarOrdinal] : []);
   const { data: carName, isLoading: carLoading } = useCarName(resolvedCarOrdinal ?? undefined);
@@ -45,12 +45,12 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
   }, [comparisonCandidates, search.laps, sessionId]);
   useEffect(() => {
     if (sessionRedirectId == null) return;
-    void navigate({ search: { session: sessionRedirectId } });
+    void navigate({ search: { session: sessionRedirectId } } as never);
   }, [navigate, sessionRedirectId]);
   const resolvedTrackName = trackName ?? (resolvedTrackOrdinal != null ? resolvedNames?.trackNames[String(resolvedTrackOrdinal)] : undefined) ?? `Track ${resolvedTrackOrdinal ?? "?"}`;
   const resolvedCarName = carName ?? (resolvedCarOrdinal != null ? resolvedNames?.carNames[String(resolvedCarOrdinal)] : undefined) ?? `Car ${resolvedCarOrdinal ?? "?"}`;
   const sessionLabel = `${resolvedTrackName} · ${resolvedCarName} · Selected session · ${selectedSession?.lapCount ?? evaluationLaps.length} laps`;
-  const backToSession = () => void navigate({ to: ".." });
+  const backToSession = () => void navigate({ to: ".." } as never);
   if (sessionsLoading || lapsLoading || trackLoading || carLoading || namesLoading)
     return (
       <div role="status" aria-live="polite" className="flex h-full items-center p-8 text-sm text-app-text-muted">

@@ -1,6 +1,6 @@
 import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMeasuredWidth } from "./use-measured-width";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "../../../../../shared/games/ids";
@@ -111,6 +111,9 @@ export function TrackFocusView({
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const reviewLaps = laps;
   const zoom = useAlignedTelemetryZoom(evaluationLapIds, alignedSet);
+  useEffect(() => {
+    zoom.zoomOut();
+  }, [zoom.zoomOut]);
   // Per-frame telemetry (traces, consistency lanes, dynamics) runs on the fastest
   // N clean laps — bounds decode + payload on long tracks. Header stats read
   // the same pool. Matches the server /line-spread pool.
@@ -269,6 +272,12 @@ export function TrackFocusViewInner({
   const [hoverRange, setHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
   const [localActiveTab, setLocalActiveTab] = useState<TuneReviewTrackTab>("consistency");
   const activeTab = controlledActiveTab ?? localActiveTab;
+  useEffect(() => {
+    setZoomActive(false);
+  }, [activeTab]);
+  useEffect(() => {
+    if (cursorFrac == null) setZoomActive(false);
+  }, [cursorFrac]);
   const setActiveTab = (tab: TuneReviewTrackTab) => {
     setLocalActiveTab(tab);
     onActiveTabChange?.(tab);
@@ -357,14 +366,16 @@ export function TrackFocusViewInner({
   }, [issues]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4" onPointerMove={(event) => {
+      if (!(event.target as Element).closest("[data-track-telemetry-lane]")) setZoomActive(false);
+    }}>
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
         <p className="flex-none text-xs text-muted-foreground -mt-2">{m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}</p>
       )}
 
       <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Track map and issues scroll away with lane content. */}
-        <div className="flex flex-col gap-3 min-h-0 min-w-0">
+        <div className="flex flex-col gap-3 min-h-0 min-w-0" onMouseEnter={() => setZoomActive(false)}>
           <div className="relative mx-auto w-full max-w-[28rem] flex-none">
             <Button
               type="button"
@@ -398,13 +409,12 @@ export function TrackFocusViewInner({
                       {zoomBehaviorLabels[behavior]}
                     </Button>
                   ))}
-                </div>
+            </div>
               </DialogContent>
             </Dialog>
             {(zoomBehavior === "zoomed" ? zoomLines : zoomBehavior === "default" ? (zoomActive ? zoomLines : scopeZoomLines) : []).length > 0 &&
             zoomBehavior !== "disabled" &&
-            (zoomBehavior === "zoomed" || zoomActive || visibleLaneRange) &&
-            (cursorFrac != null || visibleLaneRange != null) ? (
+            (visibleLaneRange != null || (cursorFrac != null && (zoomBehavior === "zoomed" || zoomActive))) ? (
               <TrackFocusZoom
                 lapLines={zoomBehavior === "zoomed" || zoomActive ? zoomLines : scopeZoomLines}
                 issues={issues}
@@ -424,7 +434,10 @@ export function TrackFocusViewInner({
                 cornerFracs={effectiveCorners.fracs}
                 issues={issues}
                 cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
+                onCursorFrac={(frac) => {
+                  if (frac != null) setZoomActive(false);
+                  setCursorFrac(frac);
+                }}
                 overlayPoints={hoverPoints}
                 highlightRange={hoverRange}
                 lineSpread={activeTab === "consistency" ? lineSpread : null}
@@ -455,10 +468,10 @@ export function TrackFocusViewInner({
           </div>
 
           {/* Lane content owns its own scroll on wide layouts. */}
-          <div className="min-w-0 min-h-0 flex-1 overflow-y-auto">
+          <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" onMouseLeave={() => setZoomActive(false)}>
             <div className="sticky top-0 z-20 bg-app-bg/95">
               <TrackZoomHint />
-              <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} />
+              <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} cursorFrac={cursorFrac} nominalSpanMeters={nominalSpanMeters} />
               <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />
             </div>
             {activeTab === "consistency" && (
@@ -599,7 +612,7 @@ export function TrackFocusViewInner({
   );
 }
 
-function TurnMarkers({ corners, cornerFracs }: { corners: TrackCorner[]; cornerFracs: number[] }) {
+function TurnMarkers({ corners, cornerFracs, cursorFrac, nominalSpanMeters }: { corners: TrackCorner[]; cornerFracs: number[]; cursorFrac: number | null; nominalSpanMeters: number }) {
   const { ref, width } = useMeasuredWidth<HTMLDivElement>();
   const markers = useMemo(() => {
     const labels = cornerFracs.map((frac, index) => ({ frac, label: corners[index]?.label ?? `T${index + 1}` }));
@@ -629,6 +642,17 @@ function TurnMarkers({ corners, cornerFracs }: { corners: TrackCorner[]; cornerF
             {marker.label}
           </span>
         ))}
+      </div>
+      <div className="relative h-5 border-t border-app-border/50" aria-label="Track position">
+        <span
+          className="absolute top-0 text-app-caption text-app-accent font-mono tabular-nums whitespace-nowrap"
+          style={{
+            left: `clamp(44px, calc(6px + ${(cursorFrac ?? 0) * 100}% - ${(cursorFrac ?? 0) * 12}px), calc(100% - 44px))`,
+            transform: "translateX(-50%)",
+          }}
+        >
+          {cursorFrac == null ? "—" : `${(cursorFrac * 100).toFixed(1)}% ${(cursorFrac * nominalSpanMeters).toFixed(0)}m`}
+        </span>
       </div>
     </div>
   );

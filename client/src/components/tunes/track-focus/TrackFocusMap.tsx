@@ -332,7 +332,7 @@ export function TrackFocusMap({
                   style={{
                     left: `${leftPct}%`,
                     top: `${topPct}%`,
-                    transform: `translate(${flipX ? "-110%" : "10px"}, ${flipY ? "calc(-100% - 10px)" : "10px"})`,
+                    transform: `translate(${flipX ? "-110%" : "32px"}, ${flipY ? "calc(-100% - 32px)" : "32px"})`,
                   }}
                 >
                   {(cursorFrac * 100).toFixed(0)}%{speed ? ` · ${speed}` : ""}

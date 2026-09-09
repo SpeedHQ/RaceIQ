@@ -22,13 +22,14 @@ function InvalidAnalyseSelection({ message }: { message: string }) {
   );
 }
 
-export function AnalyseRoute({ gameId }: { gameId: GameId }) {
+export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?: number }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
-  const hasSession = search.session != null;
   const hasTrack = search.track != null;
   const hasCar = search.car != null;
   const hasLap = search.lap != null;
   const hasComparison = search.laps != null;
+  const hasSession = search.session != null || (sessionId != null && !hasTrack && !hasCar && !hasLap && !hasComparison);
+  const selectedSessionId = search.session ?? sessionId;
   const comparisonLapIds = parseAnalyseLapIds(search.laps);
   const validTrack = !hasTrack || (Number.isInteger(search.track!) && search.track! > 0);
   const validCar = !hasCar || (Number.isInteger(search.car!) && search.car! > 0);
@@ -38,10 +39,10 @@ export function AnalyseRoute({ gameId }: { gameId: GameId }) {
   if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0))
     return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
   if (hasSession) {
-    if (!Number.isInteger(search.session!) || search.session! <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
+    if (selectedSessionId == null || !Number.isInteger(selectedSessionId) || selectedSessionId <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
       return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID." />;
     }
-    return <TrackCarAnalyseReviewPage gameId={gameId} sessionId={search.session!} />;
+    return <TrackCarAnalyseReviewPage gameId={gameId} sessionId={selectedSessionId} />;
   }
   if (hasTrack !== hasCar) return <InvalidAnalyseSelection message="Choose both track and car before selecting laps." />;
   if (!hasTrack && !hasCar) return <InvalidAnalyseSelection message="Session selection required for Analyse." />;

@@ -13,7 +13,7 @@ export type AnalyseSearch = {
   viz?: string;
   ai?: number;
   view?: string;
-  trackTab?: TuneReviewTrackTab;
+  tab?: TuneReviewTrackTab;
 };
 export type CompareSearch = {
   track?: number;
@@ -40,7 +40,7 @@ export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
   view?: TuneReviewView;
-  trackTab?: TuneReviewTrackTab;
+  tab?: TuneReviewTrackTab;
   versionId?: number;
 };
 
@@ -95,14 +95,14 @@ export function parseAnalyseLapIds(value: string | undefined): number[] | null |
 }
 
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
-  const trackTab =
-    search.trackTab === "consistency" ||
-    search.trackTab === "braking" ||
-    search.trackTab === "throttle" ||
-    search.trackTab === "dynamics" ||
-    search.trackTab === "fuel" ||
-    search.trackTab === "suspension"
-      ? search.trackTab
+  const tab =
+    search.tab === "consistency" ||
+    search.tab === "braking" ||
+    search.tab === "throttle" ||
+    search.tab === "dynamics" ||
+    search.tab === "fuel" ||
+    search.tab === "suspension"
+      ? search.tab
       : undefined;
   return {
     session: parseOptionalNumber(search.session),
@@ -112,9 +112,8 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
     laps: typeof search.laps === "string" ? search.laps : undefined,
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
-    ai: parseOptionalNumber(search.ai),
     view: typeof search.view === "string" ? search.view : undefined,
-    trackTab,
+    tab,
   };
 }
 
@@ -145,20 +144,20 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
-  const trackTab =
-    search.trackTab === "consistency" ||
-    search.trackTab === "braking" ||
-    search.trackTab === "throttle" ||
-    search.trackTab === "dynamics" ||
-    search.trackTab === "fuel" ||
-    search.trackTab === "suspension"
-      ? search.trackTab
+  const tab =
+    search.tab === "consistency" ||
+    search.tab === "braking" ||
+    search.tab === "throttle" ||
+    search.tab === "dynamics" ||
+    search.tab === "fuel" ||
+    search.tab === "suspension"
+      ? search.tab
       : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),
     view: view as TuneReviewView | undefined,
-    trackTab,
+    tab,
     versionId: parseOptionalNumber(search.versionId),
   };
 }

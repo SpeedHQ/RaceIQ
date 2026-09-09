@@ -43,6 +43,7 @@ export interface LaneProps {
   title?: React.ReactNode;
   series: LaneSeries[];
   tooltip?: (f: number) => React.ReactNode;
+  onHoverChange?: (active: boolean) => void;
   className?: string;
   annotationMarkers?: AnnotationMarker[];
   bgFill?: string;
@@ -76,6 +77,7 @@ export function Lane({
   title,
   series,
   tooltip,
+  onHoverChange,
   className,
   annotationMarkers = [],
   bgFill,
@@ -288,8 +290,17 @@ export function Lane({
   const dragLeft = dragRange == null ? 0 : ((Math.min(dragRange.start, dragRange.end) - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * 100;
   const dragWidth = dragRange == null ? 0 : (Math.abs(dragRange.end - dragRange.start) / Math.max(1e-9, rangeEnd - rangeStart)) * 100;
 
+  const handlePointerLeave = () => {
+    onHoverChange?.(false);
+    if (dragRef.current) return;
+    if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+    frameRef.current = null;
+    pendingCursorRef.current = null;
+    onCursorFracRef.current(null);
+  };
+
   return (
-    <div className="relative">
+    <div className="relative" onPointerEnter={() => onHoverChange?.(true)} onPointerLeave={handlePointerLeave}>
       {title && <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{title}</div>}
       <div
         data-track-telemetry-lane
@@ -305,7 +316,7 @@ export function Lane({
           style={{
             left: `${((cursorFrac - rangeStart) / Math.max(1e-9, rangeEnd - rangeStart)) * 100}%`,
             top: title ? 20 : 0,
-            transform: cursorFrac > (rangeStart + rangeEnd) / 2 ? "translate(-105%, 0)" : "translate(5%, 0)",
+            transform: cursorFrac > (rangeStart + rangeEnd) / 2 ? "translate(calc(-100% - 32px), 0)" : "translate(32px, 0)",
           }}
         >
           {tooltip(cursorFrac)}

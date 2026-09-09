@@ -17,9 +17,9 @@ const PAGES = [
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
   { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
   { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
-  { name: "experiments-review-track-dynamics", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=dynamics" },
-  { name: "experiments-review-track-fuel", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=fuel" },
-  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=suspension" },
+  { name: "experiments-review-track-dynamics", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=dynamics" },
+  { name: "experiments-review-track-fuel", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=fuel" },
+  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=suspension" },
   { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 

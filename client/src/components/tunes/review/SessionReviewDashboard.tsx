@@ -58,7 +58,7 @@ interface TuneReviewDashboardProps {
 }
 
 type SectorView = `s${number}`;
-type ReviewView = "overview" | "track" | SectorView;
+type ReviewView = "overview" | "track" | "analyse" | SectorView;
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
@@ -88,18 +88,23 @@ export function SessionReviewDashboard({
   const aligned = useAlignedTelemetry(evaluationLapIds, evaluationLapIds.length ? { step: 1 } : null);
 
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; trackTab?: TuneReviewTrackTab };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; tab?: TuneReviewTrackTab };
   const [reviewLapId, setReviewLapId] = useState<number | null>(null);
   const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
   const focusLap = evaluationLaps.find((l) => l.id === selectedLapId) ?? evaluationLaps[0];
   const view = search.view ?? "overview";
-  const trackTab = search.trackTab ?? "consistency";
+  const isTrackView = view === "track" || view === "analyse";
+  const tab = search.tab ?? "consistency";
+  useEffect(() => {
+    if (!stayOnSessionReview || search.view !== "track") return;
+    void navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, view: "analyse" }) } as never);
+  }, [navigate, search.view, stayOnSessionReview]);
   const lapOptions = useMemo(
     () => [
-      ...(stayOnSessionReview || view === "track" ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []),
+      ...(stayOnSessionReview || isTrackView ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []),
       ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
     ],
-    [bestLap, stayOnSessionReview, evaluationLaps, view],
+    [bestLap, isTrackView, stayOnSessionReview, evaluationLaps],
   );
   const setFocus = useCallback(
     (id: number) => {
@@ -109,17 +114,17 @@ export function SessionReviewDashboard({
     [navigate, stayOnSessionReview],
   );
   const setTrackTab = useCallback(
-    (tab: TuneReviewTrackTab) => {
-      void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: "track", trackTab: tab }) } as never);
+    (nextTab: TuneReviewTrackTab) => {
+      void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: stayOnSessionReview ? "analyse" : "track", tab: nextTab }) } as never);
     },
-    [navigate],
+    [navigate, stayOnSessionReview],
   );
   useEffect(() => {
     if (stayOnSessionReview || !autoSelectLap || evaluationLaps.length === 0) return;
-    if (search.view === "track" && search.lap == null) return;
+    if (isTrackView && search.lap == null) return;
     if (evaluationLaps.some((l) => l.id === search.lap)) return;
     navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: evaluationLaps[0]!.id }) } as never);
-  }, [autoSelectLap, navigate, search.lap, search.view, stayOnSessionReview, evaluationLaps]);
+  }, [autoSelectLap, isTrackView, navigate, search.lap, stayOnSessionReview, evaluationLaps]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
   const telemetry = useMemo(
     () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
@@ -187,13 +192,13 @@ export function SessionReviewDashboard({
     navigate({
       search: (previous: Record<string, unknown>) => ({
         ...previous,
-        view: nextView === "overview" ? undefined : nextView,
+        view: nextView === "overview" ? undefined : stayOnSessionReview && nextView === "track" ? "analyse" : nextView,
         lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : typeof previous.lap === "number" ? previous.lap : focusLap?.id,
       }),
     } as never);
   // In the track view, no ?lap= means "Best lap"; a stale id also counts as Best lap.
   const trackFocusId =
-    view === "track" && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
+    isTrackView && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
@@ -245,10 +250,10 @@ export function SessionReviewDashboard({
     return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
-  const isOverview = view !== "track" && sectorIndex == null;
+  const isOverview = !isTrackView && sectorIndex == null;
 
   return (
-    <div className={`flex h-full min-h-0 flex-col ${view !== "track" ? "overflow-y-auto" : ""}`}>
+    <div className={`flex h-full min-h-0 flex-col ${!isTrackView ? "overflow-y-auto" : ""}`}>
       {/* Header and detail content share one page scroll in Overview and Sector
           views; Track keeps its own internal panel layout. */}
       <div className="flex-none bg-app-bg">
@@ -261,11 +266,11 @@ export function SessionReviewDashboard({
           )}
           <SearchSelect
             value={
-              stayOnSessionReview && view !== "track"
+              stayOnSessionReview && !isTrackView
                 ? reviewLapId != null
                   ? String(reviewLapId)
                   : "all"
-                : view === "track"
+                : isTrackView
                   ? trackFocusId != null
                     ? String(trackFocusId)
                     : "all"
@@ -288,22 +293,22 @@ export function SessionReviewDashboard({
               {m.analyse_lap_button()}
             </Button>
           )}
-          {!(stayOnSessionReview && reviewLapId == null) && !(view === "track" && trackFocusId == null) && (
+          {!(stayOnSessionReview && reviewLapId == null) && !(isTrackView && trackFocusId == null) && (
             <span className="text-status-success text-sm" title="valid lap">
               ✓
             </span>
           )}
           {sessionLabel && <span className="ml-auto text-xs text-app-text-dim">Showing up to five fastest clean laps.</span>}
           <div className="ml-auto flex gap-1">
-            {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
+            {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), stayOnSessionReview ? "analyse" : "track"] as ReviewView[]).map((v) => (
               <Button
                 key={v}
                 variant="app-ghost"
                 size="app-sm"
                 onClick={() => setView(v)}
-                className={`!border text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!border text-xs ${(view === v || (stayOnSessionReview && v === "analyse" && isTrackView)) ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
-                {v === "overview" ? "Overview" : v === "track" ? m.label_analyse() : `Sector ${v.slice(1)}`}
+                {v === "overview" ? "Overview" : v === "track" || v === "analyse" ? m.label_analyse() : `Sector ${v.slice(1)}`}
               </Button>
             ))}
           </div>
@@ -396,8 +401,8 @@ export function SessionReviewDashboard({
       </div>
 
       {/* Detail body — track panels own their internal scroll; other views use the body scroll. */}
-      <div className={`min-h-0 ${view === "track" ? "flex-1 overflow-hidden" : "flex-none overflow-visible"}`}>
-        {view === "track" ? (
+      <div className={`min-h-0 ${isTrackView ? "flex-1 overflow-hidden" : "flex-none overflow-visible"}`}>
+        {isTrackView ? (
           <TrackFocusView
             gameId={gameId}
             laps={evaluationLaps}
@@ -408,7 +413,7 @@ export function SessionReviewDashboard({
             onFocusLap={setFocus}
             experimentId={experimentId ?? test?.experimentId ?? null}
             lineSpreadOverride={lineSpread}
-            activeTab={trackTab}
+            activeTab={tab}
             onActiveTabChange={setTrackTab}
           />
         ) : sectorIndex != null ? (

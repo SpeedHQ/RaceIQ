@@ -25,13 +25,9 @@ interface ChartTooltipProps {
  * fraction + nearest corner header, then one color-swatched row per visible
  * lap with whichever fields it was given.
  */
-export function ChartTooltip({ frac, cornerLabel, rows }: ChartTooltipProps) {
+export function ChartTooltip({ rows }: ChartTooltipProps) {
   return (
     <div className="font-mono tabular-nums space-y-1 min-w-[135px]">
-      <div className="text-app-text-dim whitespace-nowrap">
-        {cornerLabel ? `${cornerLabel} · ` : ""}
-        {(frac * 100).toFixed(1)}% lap
-      </div>
       {rows.map((r) => (
         <div key={r.lapNumber} className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: r.isInvalid ? "var(--status-danger)" : r.color }} />

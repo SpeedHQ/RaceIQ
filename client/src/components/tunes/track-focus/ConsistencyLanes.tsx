@@ -111,11 +111,6 @@ export function ConsistencyLanes({
   onRangeSelect,
   onZoomOut,
 }: ConsistencyLanesProps) {
-  // Wrap onCursorFrac so a lane that drives the zoom also toggles zoomActive.
-  const zoomCursor = (f: number | null) => {
-    onCursorFrac(f);
-    onZoomHover?.(f != null);
-  };
   const bestTrace = useMemo(() => traces.find((t) => t.lapId === bestLapId) ?? null, [traces, bestLapId]);
 
   // Speed domain across every lap so all traces share one scale.
@@ -234,7 +229,8 @@ export function ConsistencyLanes({
               onZoomOut={onZoomOut}
               cornerFracs={cornerFracs}
               cursorFrac={cursorFrac}
-              onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
+              onCursorFrac={onCursorFrac}
+              onHoverChange={ch.key === "brake" || ch.key === "throttle" ? onZoomHover : undefined}
               annotationMarkers={issueMarkers}
               series={channelSeries[ch.key]}
               tooltip={(f) => {
@@ -297,7 +293,8 @@ export function ConsistencyLanes({
           onZoomOut={onZoomOut}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
-          onCursorFrac={zoomCursor}
+          onCursorFrac={onCursorFrac}
+          onHoverChange={onZoomHover}
           series={speedSeries}
           tooltip={
             traces.length > 0
@@ -408,7 +405,8 @@ export function ConsistencyLanes({
             onRangeSelect={onRangeSelect}
             onZoomOut={onZoomOut}
             annotationMarkers={issueMarkers}
-            onCursorFrac={zoomCursor}
+            onCursorFrac={onCursorFrac}
+            onHoverChange={onZoomHover}
             series={spreadSeries}
             segments={spreadLaneSegments}
             horizontalLines={[

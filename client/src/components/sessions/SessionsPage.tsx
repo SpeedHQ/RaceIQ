@@ -78,7 +78,7 @@ export function SessionsPage() {
       if (!gameId) return;
       const routePrefix = routePrefixForGameId(gameId);
       if (!routePrefix) return;
-      void navigate({ to: `/${routePrefix}/sessions/analyse` as never, search: { session: session.id } as never });
+      void navigate({ to: `/${routePrefix}/sessions/${session.id}/analyse` as never });
     },
     [gameId, navigate],
   );

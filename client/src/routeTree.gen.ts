@@ -64,6 +64,7 @@ import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
 import { Route as IracingLiveDriverRouteImport } from './routes/iracing/live/driver'
 import { Route as IracingLivePitRouteImport } from './routes/iracing/live/pit'
 import { Route as GameidExperimentsExperimentIdReviewRouteImport } from './routes/$gameid/experiments.$experimentId_.review'
+import { Route as GameidSessionsSessionIdAnalyseRouteImport } from './routes/$gameid/sessions/$sessionId/analyse'
 import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
 import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gameid/tracks.$trackOrdinal.$tab'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
@@ -347,6 +348,12 @@ const GameidExperimentsExperimentIdReviewRoute =
     path: '/$experimentId/review',
     getParentRoute: () => GameidExperimentsRoute,
   } as any)
+const GameidSessionsSessionIdAnalyseRoute =
+  GameidSessionsSessionIdAnalyseRouteImport.update({
+    id: '/$sessionId/analyse',
+    path: '/$sessionId/analyse',
+    getParentRoute: () => GameidSessionsRoute,
+  } as any)
 const GameidTracksTrackOrdinalIndexRoute =
   GameidTracksTrackOrdinalIndexRouteImport.update({
     id: '/$trackOrdinal/',
@@ -431,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
+  '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
@@ -480,6 +488,7 @@ export interface FileRoutesByTo {
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId/review': typeof GameidExperimentsExperimentIdReviewRoute
+  '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
@@ -543,6 +552,7 @@ export interface FileRoutesById {
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/$gameid/experiments/$experimentId_/review': typeof GameidExperimentsExperimentIdReviewRoute
+  '/$gameid/sessions/$sessionId/analyse': typeof GameidSessionsSessionIdAnalyseRoute
   '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
@@ -607,6 +617,7 @@ export interface FileRouteTypes {
     | '/f125/tunes/'
     | '/fm23/setups/'
     | '/$gameid/experiments/$experimentId/review'
+    | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
@@ -656,6 +667,7 @@ export interface FileRouteTypes {
     | '/f125/tunes'
     | '/fm23/setups'
     | '/$gameid/experiments/$experimentId/review'
+    | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
@@ -718,6 +730,7 @@ export interface FileRouteTypes {
     | '/f125/tunes/'
     | '/fm23/setups/'
     | '/$gameid/experiments/$experimentId_/review'
+    | '/$gameid/sessions/$sessionId/analyse'
     | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
@@ -1127,6 +1140,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameidExperimentsExperimentIdReviewRouteImport
       parentRoute: typeof GameidExperimentsRoute
     }
+    '/$gameid/sessions/$sessionId/analyse': {
+      id: '/$gameid/sessions/$sessionId/analyse'
+      path: '/$sessionId/analyse'
+      fullPath: '/$gameid/sessions/$sessionId/analyse'
+      preLoaderRoute: typeof GameidSessionsSessionIdAnalyseRouteImport
+      parentRoute: typeof GameidSessionsRoute
+    }
     '/$gameid/tracks/$trackOrdinal/': {
       id: '/$gameid/tracks/$trackOrdinal/'
       path: '/$trackOrdinal'
@@ -1185,12 +1205,14 @@ interface GameidSessionsRouteChildren {
   GameidSessionsAnalyseRoute: typeof GameidSessionsAnalyseRoute
   GameidSessionsReplayRoute: typeof GameidSessionsReplayRoute
   GameidSessionsIndexRoute: typeof GameidSessionsIndexRoute
+  GameidSessionsSessionIdAnalyseRoute: typeof GameidSessionsSessionIdAnalyseRoute
 }
 
 const GameidSessionsRouteChildren: GameidSessionsRouteChildren = {
   GameidSessionsAnalyseRoute: GameidSessionsAnalyseRoute,
   GameidSessionsReplayRoute: GameidSessionsReplayRoute,
   GameidSessionsIndexRoute: GameidSessionsIndexRoute,
+  GameidSessionsSessionIdAnalyseRoute: GameidSessionsSessionIdAnalyseRoute,
 }
 
 const GameidSessionsRouteWithChildren = GameidSessionsRoute._addFileChildren(

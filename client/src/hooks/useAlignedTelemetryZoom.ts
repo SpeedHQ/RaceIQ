@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
 import { cropAlignedLapSet, mergeAlignedLapRange, normalizeFidelityRange, shouldLoadHighFidelity } from "../lib/aligned-telemetry-fidelity";
 import { useAlignedTelemetry } from "./aligned-telemetry";
@@ -8,7 +8,14 @@ export function useAlignedTelemetryZoom(lapIds: readonly number[], base: Aligned
   const [detail, setDetail] = useState<{ start: number; end: number } | null>(null);
   const [resolvedDetail, setResolvedDetail] = useState<AlignedLapSet | null>(null);
   const [optimistic, setOptimistic] = useState<AlignedLapSet | null>(null);
-  const current = stack.at(-1);
+  const lapKey = lapIds.join(",");
+  const previousLapKey = useRef(lapKey);
+  const previousBase = useRef(base);
+  const staleForLap = previousLapKey.current !== lapKey;
+  const staleForBase = previousBase.current !== base;
+  previousLapKey.current = lapKey;
+  previousBase.current = base;
+  const current = staleForLap || staleForBase ? null : stack.at(-1);
   const request = useMemo(() => (detail ? { step: 0.1 as const, start: detail.start, end: detail.end } : null), [detail]);
   const query = useAlignedTelemetry(lapIds, request);
   useEffect(() => {
