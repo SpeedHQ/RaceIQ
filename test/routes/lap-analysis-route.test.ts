@@ -133,9 +133,8 @@ describe("POST /api/laps/aligned-telemetry", () => {
     });
     expect(missing.status).toBe(404);
 
-    const emptyReview = await lapRoutes.request("/api/laps/review-line-spread?gameId=acc&sessionId=999999");
-    expect(emptyReview.status).toBe(200);
-    expect(await emptyReview.json()).toMatchObject({ lapCount: 0, spreadM: [] });
+    const malformedSpread = await lapRoutes.request("/api/laps/review-line-spread?gameId=acc&sessionId=999999&lapIds=1,1");
+    expect(malformedSpread.status).toBe(400);
   });
 
 describe("POST /api/laps/:id/analyse", () => {

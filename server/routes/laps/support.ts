@@ -16,6 +16,9 @@ export const CompareParamsSchema = z.object({
 
 export const LapsQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
+  sessionId: z.coerce.number().int().positive().optional(),
+}).refine((value) => value.sessionId == null || value.gameId != null, {
+  message: "gameId required with sessionId",
 });
 
 export const ReviewLapsQuerySchema = z.object({
@@ -30,6 +33,7 @@ export const ReviewLapsQuerySchema = z.object({
 export const ReviewLineSpreadQuerySchema = z.object({
   gameId: GameIdSchema,
   sessionId: z.coerce.number().int().positive(),
+  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number)).refine((ids) => ids.length >= 1 && ids.length <= 5 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain 1–5 unique positive IDs"),
 });
 
 const AlignedLapIdsSchema = z.array(z.number().int().positive()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, "Lap IDs must be unique");

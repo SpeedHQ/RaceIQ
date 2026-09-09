@@ -9,11 +9,13 @@ export type AnalyseSearch = {
   car?: number;
   lap?: number;
   laps?: string;
+  primary?: number;
   cursor?: number;
   viz?: string;
   ai?: number;
   view?: string;
   tab?: TuneReviewTrackTab;
+  trackTab?: TuneReviewTrackTab;
 };
 export type CompareSearch = {
   track?: number;
@@ -41,6 +43,7 @@ export type TuneReviewSearch = {
   lap?: number;
   view?: TuneReviewView;
   tab?: TuneReviewTrackTab;
+  trackTab?: TuneReviewTrackTab;
   versionId?: number;
 };
 
@@ -95,14 +98,15 @@ export function parseAnalyseLapIds(value: string | undefined): number[] | null |
 }
 
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
+  const requestedTab = search.tab ?? search.trackTab;
   const tab =
-    search.tab === "consistency" ||
-    search.tab === "braking" ||
-    search.tab === "throttle" ||
-    search.tab === "dynamics" ||
-    search.tab === "fuel" ||
-    search.tab === "suspension"
-      ? search.tab
+    requestedTab === "consistency" ||
+    requestedTab === "braking" ||
+    requestedTab === "throttle" ||
+    requestedTab === "dynamics" ||
+    requestedTab === "fuel" ||
+    requestedTab === "suspension"
+      ? requestedTab
       : undefined;
   return {
     session: parseOptionalNumber(search.session),
@@ -110,10 +114,13 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
     car: parseOptionalNumber(search.car),
     lap: parseOptionalNumber(search.lap),
     laps: typeof search.laps === "string" ? search.laps : undefined,
+    primary: parseOptionalNumber(search.primary),
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
+    ai: parseOptionalNumber(search.ai),
     view: typeof search.view === "string" ? search.view : undefined,
     tab,
+    trackTab: tab,
   };
 }
 
@@ -144,20 +151,22 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
+  const requestedTab = search.tab ?? search.trackTab;
   const tab =
-    search.tab === "consistency" ||
-    search.tab === "braking" ||
-    search.tab === "throttle" ||
-    search.tab === "dynamics" ||
-    search.tab === "fuel" ||
-    search.tab === "suspension"
-      ? search.tab
+    requestedTab === "consistency" ||
+    requestedTab === "braking" ||
+    requestedTab === "throttle" ||
+    requestedTab === "dynamics" ||
+    requestedTab === "fuel" ||
+    requestedTab === "suspension"
+      ? requestedTab
       : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),
     view: view as TuneReviewView | undefined,
     tab,
+    trackTab: tab,
     versionId: parseOptionalNumber(search.versionId),
   };
 }

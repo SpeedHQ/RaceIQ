@@ -5,7 +5,7 @@ import { Settings2 } from "lucide-react";
 import { useLocalStorage } from "../../../hooks/useLocalStorage";
 import type { GameId } from "../../../../../shared/games/ids";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
-import type { AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
+import type { AlignedLapSet, AlignedLapTrace, WheelAverages } from "@shared/racing/laps/alignment/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
@@ -70,9 +70,10 @@ function alignedToLapTrace(t: AlignedLapTrace): TrackFocusTrace {
 interface TrackFocusViewProps {
   gameId: GameId;
   laps: LapMeta[];
-  alignedSet: import("@shared/racing/laps/alignment/types").AlignedLapSet | undefined;
+  alignedSet: AlignedLapSet | undefined;
   evaluationLapIds: readonly number[];
   trackOrdinal?: number;
+  primaryLapId: number;
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
   experimentId?: number | null;
@@ -99,6 +100,7 @@ export function TrackFocusView({
   alignedSet,
   evaluationLapIds,
   trackOrdinal,
+  primaryLapId,
   focusLapId: controlledFocusId,
   onFocusLap: controlledOnFocusLap,
   experimentId,
@@ -141,15 +143,6 @@ export function TrackFocusView({
   );
   const { data: fetchedLineSpread } = useLineSpread(activeTab === "consistency" && !lineSpreadOverride ? experimentId : null);
   const lineSpread = lineSpreadOverride ?? fetchedLineSpread ?? null;
-
-  const primaryLapId = useMemo(() => {
-    let best: LapMeta | null = null;
-    for (const l of stintLaps) {
-      if (!l.isValid || l.experimentExcluded) continue;
-      if (best == null || l.lapTime < best.lapTime) best = l;
-    }
-    return best?.id ?? null;
-  }, [stintLaps]);
 
   const [localFocusId, setLocalFocusId] = useState<number | null>(null);
   const focusLapId = controlledFocusId !== undefined ? controlledFocusId : localFocusId;
@@ -370,17 +363,16 @@ export function TrackFocusViewInner({
   }, [issues]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-4" onPointerMove={(event) => {
+    <div className="flex min-h-full flex-col gap-4 px-4 pb-4" onPointerMove={(event) => {
       if (!(event.target as Element).closest("[data-track-telemetry-lane]")) setZoomActive(false);
     }}>
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
         <p className="flex-none text-xs text-muted-foreground -mt-2">{m.trackfocus_stats_subset({ shown: String(shownLapCount), total: String(totalLapCount) })}</p>
       )}
 
-      <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
-        {/* Track map and issues scroll away with lane content. */}
-        <div className="flex flex-col gap-3 min-h-0 min-w-0" onMouseEnter={() => setZoomActive(false)} onPointerMove={() => setZoomActive(false)}>
-          <div className="relative mx-auto w-full max-w-[28rem] flex-none">
+      <div className="grid min-w-0 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-3 @5xl/workspace:sticky @5xl/workspace:top-[2.8125rem] @5xl/workspace:h-[calc(100dvh-3.8125rem)] @5xl/workspace:min-h-0" onMouseEnter={() => setZoomActive(false)} onPointerMove={() => setZoomActive(false)}>
+          <div className="relative w-full flex-none bg-app-bg pt-4">
             <Button
               type="button"
               variant="app-outline"
@@ -449,15 +441,15 @@ export function TrackFocusViewInner({
               />
             )}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col @5xl/workspace:flex-none @5xl/workspace:overflow-y-auto">
-            <div className="flex-none text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-0 flex-col">
+            <div className="mb-1 flex-none text-app-compact font-semibold uppercase tracking-wider text-app-text-muted">Issues</div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} />
             </div>
           </div>
         </div>
-        <div className="flex min-h-0 min-w-0 flex-col">
-          <div className="flex-none flex gap-1 flex-wrap">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex flex-none flex-wrap gap-1 bg-app-bg pt-4 @5xl/workspace:sticky @5xl/workspace:top-[2.8125rem] @5xl/workspace:z-20">
             {TABS.map((t) => (
               <Button
                 key={t}
@@ -471,9 +463,9 @@ export function TrackFocusViewInner({
             ))}
           </div>
 
-          {/* Lane content owns its own scroll on wide layouts. */}
-          <div className="min-w-0 min-h-0 flex-1 overflow-y-auto" onMouseLeave={() => setZoomActive(false)}>
-            <div className="sticky top-0 z-20 bg-app-bg/95">
+          {/* Lane content participates in the page scroll. */}
+          <div className="min-w-0" onMouseLeave={() => setZoomActive(false)}>
+            <div className="bg-app-bg/95 @5xl/workspace:sticky @5xl/workspace:top-[5.1875rem] @5xl/workspace:z-10">
               <TrackZoomHint />
               <TurnMarkers corners={effectiveCorners.corners} cornerFracs={effectiveCorners.fracs} cursorFrac={cursorFrac} nominalSpanMeters={nominalSpanMeters} />
               <IssueMarkers issues={issues} onCursorFrac={setCursorFrac} />

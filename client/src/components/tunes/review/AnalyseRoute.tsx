@@ -28,7 +28,8 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   const hasCar = search.car != null;
   const hasLap = search.lap != null;
   const hasComparison = search.laps != null;
-  const hasSession = search.session != null || (sessionId != null && !hasTrack && !hasCar && !hasLap && !hasComparison);
+  const hasPrimary = search.primary != null;
+  const hasSession = search.session != null || (sessionId != null && !hasTrack && !hasCar && !hasLap);
   const selectedSessionId = search.session ?? sessionId;
   const comparisonLapIds = parseAnalyseLapIds(search.laps);
   const validTrack = !hasTrack || (Number.isInteger(search.track!) && search.track! > 0);
@@ -36,14 +37,19 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   const validLap = !hasLap || (Number.isInteger(search.lap!) && search.lap! > 0);
 
   if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection message="Track, car, and lap must be positive numeric selections." />;
-  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0))
-    return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
   if (hasSession) {
-    if (selectedSessionId == null || !Number.isInteger(selectedSessionId) || selectedSessionId <= 0 || hasTrack || hasCar || hasLap || hasComparison) {
-      return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID." />;
+    if (selectedSessionId == null || !Number.isInteger(selectedSessionId) || selectedSessionId <= 0 || hasTrack || hasCar || hasLap) {
+      return <InvalidAnalyseSelection message="Session selection must contain only a positive session ID, laps, and primary." />;
     }
+    if (hasComparison !== hasPrimary || (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0 || comparisonLapIds.length > 5 || !comparisonLapIds.includes(search.primary!)))) {
+      return <InvalidAnalyseSelection message="Session selection must provide 1–5 unique laps and a primary lap included in them." />;
+    }
+    if (!hasComparison && hasPrimary) return <InvalidAnalyseSelection message="Session selection must provide laps and primary together." />;
     return <TrackCarAnalyseReviewPage gameId={gameId} sessionId={selectedSessionId} />;
   }
+  if (hasPrimary) return <InvalidAnalyseSelection message="Primary lap is only valid for session Analyse." />;
+  if (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0))
+    return <InvalidAnalyseSelection message="Comparison laps must be a comma-separated list of positive, unique lap IDs." />;
   if (hasTrack !== hasCar) return <InvalidAnalyseSelection message="Choose both track and car before selecting laps." />;
   if (!hasTrack && !hasCar) return <InvalidAnalyseSelection message="Session selection required for Analyse." />;
   if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection message="A lap selection must include its track and car." />;

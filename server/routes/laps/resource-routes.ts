@@ -12,7 +12,7 @@ import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyz
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
-import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps } from "../../db/lap-read-queries";
+import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "../../db/lap-read-queries";
 import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "../../db/telemetry-replay-storage";
 import { loadSessionSource } from "../../session-capture/source-loader";
 import { loadRawCaptureIdentity } from "../../session-capture/identity";
@@ -38,8 +38,8 @@ const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
-    const { gameId } = c.req.valid("query");
-    const lapList = await getLaps(gameId);
+    const { gameId, sessionId } = c.req.valid("query");
+    const lapList = sessionId != null ? await getSessionLaps(gameId!, sessionId) : await getLaps(gameId);
     return c.json(lapList);
   })
   .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
@@ -47,10 +47,13 @@ export const resourceRoutes = new Hono()
     return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId));
   })
   .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
-    const { gameId, sessionId } = c.req.valid("query");
-    const topLaps = await getReviewLaps(gameId, null, null, 5, sessionId);
-    const loaded = await getLapsByIds(topLaps.map((lap) => lap.id));
-    const usable = loaded.filter((lap) => lap.telemetry.length >= 30);
+    const { gameId, sessionId, lapIds } = c.req.valid("query");
+    const loaded = await getLapsByIds(lapIds);
+    if (loaded.length !== lapIds.length || loaded.some((lap) => lap.gameId !== gameId || lap.sessionId !== sessionId)) {
+      return c.json({ error: "Selected laps must belong to session." }, 400);
+    }
+    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
+    const usable = ordered.filter((lap) => lap.telemetry.length >= 30);
     if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0 });
     const first = usable[0]!;
     const corners = await resolveLapCorners(first.trackOrdinal, gameId, first.telemetry);

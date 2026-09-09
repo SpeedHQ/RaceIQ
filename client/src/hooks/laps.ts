@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
@@ -38,29 +39,30 @@ export function useReviewLaps(trackOrdinal: number | null, carOrdinal: number | 
   });
 }
 
-export function useSessionReviewLaps(sessionId: number | null, limit = 5) {
+export function useSessionLaps(sessionId: number | null) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["session-review-laps", gameId ?? null, sessionId, limit],
+    queryKey: ["session-laps", gameId ?? null, sessionId],
     queryFn: async () => {
       if (!gameId || sessionId == null) return [];
-      const res = await client.api.laps.review.$get({ query: { gameId, sessionId: String(sessionId), limit: String(limit) } });
+      const res = await client.api.laps.$get({ query: { gameId, sessionId: String(sessionId) } });
       return rpcJson<LapMeta[]>(res);
     },
     enabled: !!gameId && sessionId != null,
   });
 }
 
-export function useSessionLineSpread(sessionId: number | null, enabled = true) {
+export function useSessionLineSpread(sessionId: number | null, lapIds: readonly number[], enabled = true) {
   const gameId = useGameId();
+  const orderedIds = useMemo(() => [...lapIds], [lapIds]);
   return useQuery({
-    queryKey: ["session-review-line-spread", gameId ?? null, sessionId],
+    queryKey: ["session-review-line-spread", gameId ?? null, sessionId, orderedIds],
     queryFn: async () => {
-      if (!gameId || sessionId == null) return null;
-      const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId) } });
+      if (!gameId || sessionId == null || orderedIds.length === 0) return null;
+      const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId), lapIds: orderedIds.join(",") } });
       return rpcJson<LineSpreadTrace>(res);
     },
-    enabled: enabled && !!gameId && sessionId != null,
+    enabled: enabled && !!gameId && sessionId != null && orderedIds.length > 0,
   });
 }
 function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {

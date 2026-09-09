@@ -67,7 +67,7 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
  * Optionally filter by profileId.
  */
 
-export async function getLaps(gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
+export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: number): Promise<LapMeta[]> {
   const query = db
     .select({
       id: laps.id,
@@ -104,14 +104,20 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .orderBy(desc(laps.id))
-    .limit(limit);
+    .orderBy(sessionId != null ? laps.lapNumber : desc(laps.id))
+    .limit(sessionId != null ? 1_000_000 : limit);
 
-  const rows = gameId
-    ? await query.where(eq(sessions.gameId, gameId)).all()
-    : await query.all();
+  const rows = sessionId != null
+    ? await query.where(and(eq(sessions.gameId, gameId!), eq(laps.sessionId, sessionId))).all()
+    : gameId
+      ? await query.where(eq(sessions.gameId, gameId)).all()
+      : await query.all();
 
   return rows.map(toLapMeta);
+}
+
+export async function getSessionLaps(gameId: GameId, sessionId: number): Promise<LapMeta[]> {
+  return getLaps(gameId, 1_000_000, sessionId);
 }
 /**
  * Top valid laps for Analyse session review. SQL ranks and limits before

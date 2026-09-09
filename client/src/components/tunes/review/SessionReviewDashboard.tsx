@@ -11,6 +11,7 @@ import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
 import { SearchSelect } from "@/components/ui/SearchSelect";
+import { SessionLapSelectionDialog } from "./SessionLapSelectionDialog";
 import { Button } from "@/components/ui/button";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentVersion, LineSpreadTrace } from "@/hooks/experiments";
@@ -26,34 +27,21 @@ import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import type { TuneReviewTrackTab } from "@/lib/game-routes";
 import { TrackFocusView } from "../track-focus/TrackFocusView";
-
 interface TuneReviewDashboardProps {
   gameId: GameId;
   trackName?: string;
   laps: LapMeta[];
+  sessionId?: number;
   /** When set, renders a "Back to session" button in the toolbar. */
   /** Optional metadata row shown directly beneath review controls. */
   sessionLabel?: string;
   onBack?: () => void;
-  /** When set, exposes direct navigation into selected lap's detailed Analyse view. */
   onDrillIntoLap?: (lap: LapMeta) => void;
-  /** Keep lap selection local so session review never routes into LapAnalyse. */
   stayOnSessionReview?: boolean;
   autoSelectLap?: boolean;
-  /** The version node being reviewed (resolved by the route from ?versionId or
-   *  the session HEAD). Used to display its driver comment / engineer notes
-   *  read-only — editing stays in VersionGraph. */
   test?: ExperimentVersion;
-  /** The experiment being reviewed (from the route param). Drives the
-   *  Track Focus line-spread lane + map heat. Passed straight through rather
-   *  than read off `test` so it survives an orphaned/missing test row. */
   experimentId?: number | null;
   lineSpread?: LineSpreadTrace | null;
-  /** Fires whenever the compact text summary of the currently-open lap review
-   *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
-   *  parent pipe "what the user is currently looking at" into the Setup
-   *  Engineer chat's request context. Fires with `null` when nothing is open
-   *  (no laps yet). */
   onOpenLapContextChange?: (text: string | null) => void;
 }
 
@@ -75,7 +63,6 @@ export function SessionReviewDashboard({
   onDrillIntoLap,
   sessionLabel,
   stayOnSessionReview = false,
-  autoSelectLap = true,
   test,
   experimentId,
   lineSpread,
@@ -83,48 +70,31 @@ export function SessionReviewDashboard({
 }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
   const evaluationLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
-  const evaluationLapIds = useMemo(() => evaluationLaps.map((lap) => lap.id), [evaluationLaps]);
-  const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
-  const aligned = useAlignedTelemetry(evaluationLapIds, evaluationLapIds.length ? { step: 1 } : null);
-
+  const fallbackLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber).slice(0, 5), [laps]);
+  const search = useSearch({ strict: false }) as { lap?: number; laps?: string; primary?: number; view?: ReviewView; tab?: TuneReviewTrackTab };
+  const requestedIds = search.laps?.split(",").map(Number);
+  const defaultDisplayedLaps = evaluationLaps.length > 0 ? evaluationLaps : fallbackLaps;
+  const displayedLaps = stayOnSessionReview ? (requestedIds && requestedIds.every(Number.isInteger) ? laps.filter((lap) => requestedIds.includes(lap.id)) : defaultDisplayedLaps) : evaluationLaps;
+  const displayedLapIds = useMemo(() => displayedLaps.map((lap) => lap.id), [displayedLaps]);
+  const selectionInvalid = stayOnSessionReview && (requestedIds != null && (requestedIds.length === 0 || requestedIds.length > 5 || requestedIds.some((id) => !Number.isInteger(id) || id <= 0) || displayedLaps.length !== requestedIds.length || (search.primary != null && !requestedIds.includes(search.primary))));
+  const primaryLapId = stayOnSessionReview ? (selectionInvalid ? 0 : search.primary ?? displayedLaps[0]?.id ?? 0) : evaluationLaps[0]?.id ?? 0;
+  const primaryLap = displayedLaps.find((lap) => lap.id === primaryLapId) ?? displayedLaps[0];
+  const aligned = useAlignedTelemetry(selectionInvalid ? [] : displayedLapIds, selectionInvalid ? null : displayedLapIds.length ? { step: 1 } : null);
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView; tab?: TuneReviewTrackTab };
-  const [reviewLapId, setReviewLapId] = useState<number | null>(null);
-  const selectedLapId = stayOnSessionReview ? reviewLapId : search.lap;
-  const focusLap = evaluationLaps.find((l) => l.id === selectedLapId) ?? evaluationLaps[0];
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const selectedLapId = stayOnSessionReview ? (primaryLap?.id ?? null) : search.lap;
+  const focusLap = displayedLaps.find((l) => l.id === selectedLapId) ?? primaryLap;
   const view = search.view ?? "overview";
   const isTrackView = view === "track" || view === "analyse";
   const tab = search.tab ?? "consistency";
+  const bestLap = useMemo(() => validLaps.reduce<LapMeta | null>((best, lap) => (best == null || lap.lapTime < best.lapTime ? lap : best), null), [validLaps]);
+  const lapOptions = useMemo(() => [...(isTrackView ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []), ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` }))], [bestLap, isTrackView, evaluationLaps]);
+  const setFocus = useCallback((id: number) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never); }, [navigate]);
+  const setTrackTab = useCallback((nextTab: TuneReviewTrackTab) => { void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: stayOnSessionReview ? "analyse" : "track", tab: nextTab }) } as never); }, [navigate, stayOnSessionReview]);
   useEffect(() => {
-    if (!stayOnSessionReview || search.view !== "track") return;
-    void navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, view: "analyse" }) } as never);
-  }, [navigate, search.view, stayOnSessionReview]);
-  const lapOptions = useMemo(
-    () => [
-      ...(stayOnSessionReview || isTrackView ? [{ value: "all", label: bestLap ? `Primary lap (Lap ${bestLap.lapNumber})` : "Primary lap" }] : []),
-      ...evaluationLaps.map((l) => ({ value: String(l.id), label: `Lap ${l.lapNumber} — ${formatLapTime(l.lapTime)}` })),
-    ],
-    [bestLap, isTrackView, stayOnSessionReview, evaluationLaps],
-  );
-  const setFocus = useCallback(
-    (id: number) => {
-      if (stayOnSessionReview) setReviewLapId(id);
-      else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: id }) } as never);
-    },
-    [navigate, stayOnSessionReview],
-  );
-  const setTrackTab = useCallback(
-    (nextTab: TuneReviewTrackTab) => {
-      void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, view: stayOnSessionReview ? "analyse" : "track", tab: nextTab }) } as never);
-    },
-    [navigate, stayOnSessionReview],
-  );
-  useEffect(() => {
-    if (stayOnSessionReview || !autoSelectLap || evaluationLaps.length === 0) return;
-    if (isTrackView && search.lap == null) return;
-    if (evaluationLaps.some((l) => l.id === search.lap)) return;
-    navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, lap: evaluationLaps[0]!.id }) } as never);
-  }, [autoSelectLap, isTrackView, navigate, search.lap, stayOnSessionReview, evaluationLaps]);
+    if (!stayOnSessionReview || search.laps != null || displayedLaps.length === 0) return;
+    void navigate({ replace: true, search: (previous: Record<string, unknown>) => ({ ...previous, laps: displayedLapIds.join(","), primary: displayedLapIds[0] }) } as never);
+  }, [displayedLapIds, displayedLaps.length, navigate, search.laps, stayOnSessionReview]);
   const selectedTrace = aligned.data?.laps.find((trace) => trace.lapId === focusLap?.id);
   const telemetry = useMemo(
     () => (selectedTrace ? semanticTuneSamplesFromAlignedTrace(selectedTrace, gameId, focusLap?.trackOrdinal, aligned.data?.nominalSpanMeters ?? 0) : []),
@@ -145,9 +115,9 @@ export function SessionReviewDashboard({
   const corners = useMemo(() => (selectedTrace ? tireSnapshotFromAlignedTrace(selectedTrace) : null), [selectedTrace]);
   const game = tryGetGame(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
+  const reviewStats = useMemo(() => stintStats(displayedLaps, { dropOutLap: false }), [displayedLaps]);
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
   const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
-  const reviewStats = useMemo(() => stintStats(evaluationLaps, { dropOutLap: false }), [evaluationLaps]);
   const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
@@ -196,9 +166,6 @@ export function SessionReviewDashboard({
         lap: stayOnSessionReview ? undefined : nextView === "track" ? undefined : typeof previous.lap === "number" ? previous.lap : focusLap?.id,
       }),
     } as never);
-  // In the track view, no ?lap= means "Best lap"; a stale id also counts as Best lap.
-  const trackFocusId =
-    isTrackView && (stayOnSessionReview ? reviewLapId : evaluationLaps.some((l) => l.id === search.lap) ? search.lap : null) ? (stayOnSessionReview ? reviewLapId : search.lap) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
@@ -253,52 +220,34 @@ export function SessionReviewDashboard({
   const isOverview = !isTrackView && sectorIndex == null;
 
   return (
-    <div className={`flex h-full min-h-0 flex-col ${!isTrackView ? "overflow-y-auto" : ""}`}>
-      {/* Header and detail content share one page scroll in Overview and Sector
-          views; Track keeps its own internal panel layout. */}
-      <div className="flex-none bg-app-bg">
-        {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
+    <div className="flex min-h-full flex-col">
+      {/* ResponsiveWorkspace owns vertical scrolling for every review view. */}
+      {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
+      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-app-border bg-app-bg px-4 py-2.5">
           {onBack && (
             <Button variant="app-outline" size="app-sm" onClick={onBack}>
               ← Session
             </Button>
           )}
-          <SearchSelect
-            value={
-              stayOnSessionReview && !isTrackView
-                ? reviewLapId != null
-                  ? String(reviewLapId)
-                  : "all"
-                : isTrackView
-                  ? trackFocusId != null
-                    ? String(trackFocusId)
-                    : "all"
-                  : String(focusLap.id)
-            }
-            onChange={(value) => {
-              if (value === "all") {
-                if (stayOnSessionReview) setReviewLapId(null);
-                else void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, lap: undefined }) } as never);
-              } else {
-                setFocus(Number(value));
-              }
-            }}
-            options={lapOptions}
-            ariaLabel="Select lap"
-            className="w-56"
-          />
-          {onDrillIntoLap && focusLap && (!stayOnSessionReview || reviewLapId != null) && (
+          {stayOnSessionReview ? (
+            <Button variant="app-outline" size="app-sm" onClick={() => setDialogOpen(true)}>
+              Laps: {displayedLaps.length} · Primary: Lap {primaryLap?.lapNumber ?? "—"}
+            </Button>
+          ) : (
+            <SearchSelect
+              value={isTrackView ? String(focusLap.id) : String(focusLap.id)}
+              onChange={(value) => setFocus(Number(value))}
+              options={lapOptions}
+              ariaLabel="Select lap"
+              className="w-56"
+            />
+          )}
+          {onDrillIntoLap && focusLap && (
             <Button variant="app-outline" size="app-sm" onClick={() => onDrillIntoLap(focusLap)}>
               {m.analyse_lap_button()}
             </Button>
           )}
-          {!(stayOnSessionReview && reviewLapId == null) && !(isTrackView && trackFocusId == null) && (
-            <span className="text-status-success text-sm" title="valid lap">
-              ✓
-            </span>
-          )}
-          {sessionLabel && <span className="ml-auto text-xs text-app-text-dim">Showing up to five fastest clean laps.</span>}
+          {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? "valid lap" : "invalid lap"}>{focusLap.isValid ? "✓" : "!"}</span>}
           <div className="ml-auto flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), stayOnSessionReview ? "analyse" : "track"] as ReviewView[]).map((v) => (
               <Button
@@ -313,6 +262,8 @@ export function SessionReviewDashboard({
             ))}
           </div>
         </div>
+      <div className="flex-none bg-app-bg">
+        {selectionInvalid && <p role="alert" className="border-b border-app-border px-4 py-2 text-sm text-status-danger">Selected laps must belong to this session.</p>}
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
         {isOverview && <ReviewTrackStats stats={reviewStats} issueCount={issues?.length ?? 0} />}
@@ -400,16 +351,17 @@ export function SessionReviewDashboard({
         )}
       </div>
 
-      {/* Detail body — track panels own their internal scroll; other views use the body scroll. */}
-      <div className={`min-h-0 ${isTrackView ? "flex-1 overflow-hidden" : "flex-none overflow-visible"}`}>
+      {/* Detail body participates in the page scroll. */}
+      <div className="min-h-0 flex-none overflow-visible">
         {isTrackView ? (
           <TrackFocusView
             gameId={gameId}
-            laps={evaluationLaps}
+            laps={displayedLaps}
             alignedSet={aligned.data}
-            evaluationLapIds={evaluationLapIds}
+            evaluationLapIds={displayedLapIds}
             trackOrdinal={focusLap.trackOrdinal}
-            focusLapId={trackFocusId}
+            primaryLapId={primaryLapId}
+            focusLapId={primaryLapId}
             onFocusLap={setFocus}
             experimentId={experimentId ?? test?.experimentId ?? null}
             lineSpreadOverride={lineSpread}
@@ -483,6 +435,18 @@ export function SessionReviewDashboard({
           </>
         )}
       </div>
+      {stayOnSessionReview && (
+        <SessionLapSelectionDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          laps={laps}
+          selectedLapIds={displayedLapIds}
+          primaryLapId={primaryLapId}
+          onApply={({ lapIds, primaryLapId: nextPrimary }) =>
+            void navigate({ search: (previous: Record<string, unknown>) => ({ ...previous, laps: lapIds.join(","), primary: nextPrimary }) } as never)
+          }
+        />
+      )}
     </div>
   );
 }
