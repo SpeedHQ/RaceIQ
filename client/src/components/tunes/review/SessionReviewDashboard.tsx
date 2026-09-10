@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, sectorIndexForTelemetryIndex, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { SessionLapSelectionDialog } from "./SessionLapSelectionDialog";
 import { Button } from "@/components/ui/button";
@@ -324,7 +324,16 @@ export function SessionReviewDashboard({
                     trackOrdinal={focusLap.trackOrdinal}
                     issueMarkers={issueMarkers}
                     readout={readout}
-                    onHover={(idx) => setHoverPos(idx == null ? null : { sector: -1, idx })}
+                    onHover={(idx) =>
+                      setHoverPos(
+                        idx == null
+                          ? null
+                          : {
+                              sector: sectorTimes ? sectorIndexForTelemetryIndex(idx, sectorTimes.boundaryIndices, sectorCount) : 0,
+                              idx,
+                            },
+                      )
+                    }
                     markFraction={markedIssue ? markedIssue.frac : null}
                   />
                 ) : (
@@ -352,7 +361,7 @@ export function SessionReviewDashboard({
             </div>
             {ranges && (
               <div className="px-4 py-1.5 text-app-compact text-app-text-dim border-t border-app-border">
-                {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
+                {metric.label}: bars span min→max, tick = median · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
               </div>
             )}
           </div>

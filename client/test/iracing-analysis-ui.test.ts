@@ -8,6 +8,7 @@ import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspens
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
 import { pathForwardOffsets, projectPointOntoPath, resolveFrameDirection } from "../src/components/analyse/track-map/path";
+import { sectorIndexForTelemetryIndex } from "../src/components/tunes/SectorRangeBreakdown";
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import type { useUnits } from "../src/hooks/useUnits";
 
@@ -157,5 +158,15 @@ describe("iRacing analysis segment timing", () => {
     const result = buildSegmentData(telemetry, segments);
     expect(result?.staticSegments.map((segment) => segment.time)).toEqual([12.5, 12.5, 12.5, 12.5]);
     expect(result?.staticSegments.map((segment) => segment.name)).toEqual(["S1", "T1", "S2", "T2"]);
+  });
+});
+
+describe("session Analyse map hover sectors", () => {
+  test("routes hovered samples to same sectors used by range bars", () => {
+    expect(sectorIndexForTelemetryIndex(0, [4, 8], 3)).toBe(0);
+    expect(sectorIndexForTelemetryIndex(3, [4, 8], 3)).toBe(0);
+    expect(sectorIndexForTelemetryIndex(4, [4, 8], 3)).toBe(1);
+    expect(sectorIndexForTelemetryIndex(8, [4, 8], 3)).toBe(2);
+    expect(sectorIndexForTelemetryIndex(99, [4, 8], 3)).toBe(2);
   });
 });

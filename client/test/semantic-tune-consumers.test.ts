@@ -99,8 +99,8 @@ describe("canonical tuning telemetry consumers", () => {
     );
     const wearMetric = METRICS.find((metric) => metric.key === "wear")!;
     const model = buildSectorRanges(samples, null, wearMetric)!;
-    expect(model.sectors[0].FL).toEqual({ min: 0, avg: 0, max: 0, n: 2 });
-    expect(model.sectors[0].FR.avg).toBeCloseTo(10);
+    expect(model.sectors[0].FL).toEqual({ min: 0, median: 0, max: 0, n: 2 });
+    expect(model.sectors[0].FR.median).toBeCloseTo(10);
   });
 
   test("requires canonical position and tire values instead of fabricated zeroes", () => {
