@@ -1,10 +1,13 @@
 import { run } from "mitata";
 
+// Keep enough samples for stable comparisons without forcing each benchmark
+// through long allocation-heavy runs. Pipeline benchmarks already exercise
+// their detector state with bounded synthetic laps.
 const BENCHMARK_OPTIONS = {
-  min_samples: 20,
-  max_samples: 40,
-  batch_samples: 10,
-  min_cpu_time: 1_000_000_000,
+  min_samples: 10,
+  max_samples: 20,
+  batch_samples: 5,
+  min_cpu_time: 100_000_000,
 };
 
 export async function runMitataBenchmarks(outputPath: string): Promise<void> {

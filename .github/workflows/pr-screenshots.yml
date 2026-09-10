@@ -35,6 +35,10 @@ permissions:
 jobs:
   render:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on:
       - mars-windows-x64
       - 4VCPU
@@ -90,12 +94,15 @@ jobs:
       - name: Prepare base comparison worktree
         env:
           BASE_SHA: ${{ steps.pull-request.outputs.base-sha }}
-        run: git worktree add --detach "$RUNNER_TEMP/raceiq-base" "$BASE_SHA"
+        run: git worktree add --detach "$env:RUNNER_TEMP/raceiq-base" "$env:BASE_SHA"
 
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
 
       - name: Install dependencies
         run: bun install
@@ -106,21 +113,27 @@ jobs:
       - name: Pin Playwright Chromium
         working-directory: playwright
         run: bunx playwright install chromium
+      - name: Download current compiled artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: raceiq-dist-windows
+          path: dist
+
 
       - name: Capture current responsive screenshots
         id: current-responsive
         continue-on-error: true
         env:
           E2E_SERVER_MODE: compiled
+          PW_SCREENSHOT_WORKERS: "1"
+          PW_SERVER_SET: seeded
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
         shell: powershell
         run: |
-          $ErrorActionPreference = "Stop"
-          bun run build
           Push-Location playwright
           $ErrorActionPreference = "Continue"
-          & bunx playwright test --project=mobile-screenshots
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots "--shard=${{ matrix.shard }}/2"
           $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           Pop-Location
@@ -134,8 +147,11 @@ jobs:
       - name: Capture base responsive screenshots with current tests
         id: base-responsive
         continue-on-error: true
+        timeout-minutes: 15
         env:
+          PW_SCREENSHOT_WORKERS: "1"
           E2E_SERVER_MODE: compiled
+          PW_SERVER_SET: seeded
           PW_SCREENSHOT_ONLY: "1"
           PW_SEED_SCREENSHOTS: "1"
         shell: powershell
@@ -147,12 +163,16 @@ jobs:
           }
           Push-Location $base
           bun install
-          bun run build
+          bun --env-file=.env.development run build
           Remove-Item (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force -ErrorAction SilentlyContinue
           Copy-Item "dist" (Join-Path $env:GITHUB_WORKSPACE "dist") -Recurse -Force
-          Set-Location (Join-Path $env:GITHUB_WORKSPACE "playwright")
+          $basePlaywright = Join-Path $base "playwright"
+          $currentScreenshotDir = Join-Path $env:GITHUB_WORKSPACE "playwright/screenshots/mobile"
+          New-Item -ItemType Directory -Path $currentScreenshotDir -Force | Out-Null
+          Set-Location $basePlaywright
+          $env:RACEIQ_SCREENSHOT_DIR = $currentScreenshotDir
           $ErrorActionPreference = "Continue"
-          & bunx playwright test --project=mobile-screenshots
+          & bun run ../scripts/playwright-ci.ts test --project=mobile-screenshots --grep=desktop "--shard=${{ matrix.shard }}/2"
           $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
@@ -161,38 +181,82 @@ jobs:
             Move-Item "screenshots/mobile" $output
           }
           exit $status
+      - name: Save shard render outputs
+        if: always()
+        shell: powershell
+        run: |
+          $artifact = Join-Path $env:RUNNER_TEMP "screenshot-render-${{ matrix.shard }}"
+          New-Item -ItemType Directory -Path $artifact -Force | Out-Null
+          foreach ($name in @("current-responsive", "base-responsive")) {
+            $source = Join-Path $env:RUNNER_TEMP $name
+            if (Test-Path $source) {
+              Copy-Item $source (Join-Path $artifact $name) -Recurse -Force
+            }
+          }
+          "${{ steps.current-responsive.outcome }}" | Set-Content (Join-Path $artifact "current-status.txt")
+          "${{ steps.base-responsive.outcome }}" | Set-Content (Join-Path $artifact "base-status.txt")
+          "${{ github.event.pull_request.number || inputs.pr }}" | Set-Content (Join-Path $artifact "pr-number.txt")
+          "${{ steps.pull-request.outputs.base-ref }}" | Set-Content (Join-Path $artifact "base-ref.txt")
 
-      - name: Collect diffs
+      - name: Upload shard render outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-screenshot-render-${{ matrix.shard }}
+          path: ${{ runner.temp }}/screenshot-render-${{ matrix.shard }}/
+          retention-days: 14
+      - name: Fail incomplete render shard
+        if: always()
+        shell: powershell
+        run: |
+          if ("${{ steps.current-responsive.outcome }}" -ne "success" -or
+              "${{ steps.base-responsive.outcome }}" -ne "success") {
+            Write-Error "Responsive screenshot shard incomplete."
+            exit 1
+          }
+
+
+  collect:
+    if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    needs: render
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Download shard render outputs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: pr-screenshot-render-*
+          path: ${{ runner.temp }}/screenshot-renders
+          merge-multiple: false
+
+      - name: Collect responsive diffs
         id: collect
-        working-directory: client
-        # Container default shell is sh; this step uses bash process substitution.
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $out = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          "${{ github.event.pull_request.number || inputs.pr }}" | Set-Content (Join-Path $out "pr-number.txt")
-          "${{ steps.pull-request.outputs.base-ref }}" | Set-Content (Join-Path $out "base-ref.txt")
-
-          $diffArgs = @(
-            "--base", (Join-Path $env:RUNNER_TEMP "base-responsive"),
-            "--current", (Join-Path $env:RUNNER_TEMP "current-responsive"),
-            "--out", $out,
-            "--prefix", "responsive"
-          )
-          & bun (Join-Path $env:GITHUB_WORKSPACE "scripts/ui/collect-screenshot-diffs.ts") @diffArgs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          if ("${{ steps.current-responsive.outcome }}" -eq "failure" -or "${{ steps.base-responsive.outcome }}" -eq "failure") {
-            Write-Output "::warning::Responsive screenshot comparison is partial because one render failed."
-          }
-
-          $afterFiles = Get-ChildItem (Join-Path $out "*-after.png") -ErrorAction SilentlyContinue
-          if ($afterFiles) {
-            "changed=1" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          } else {
-            "changed=0" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
-          }
+          $renderRoot = Join-Path $env:RUNNER_TEMP "screenshot-renders"
+          $preview = Join-Path $env:GITHUB_WORKSPACE "pr-preview"
+          & bun scripts/ui/merge-screenshot-renders.ts `
+            --input $renderRoot `
+            --output $preview
+          & bun scripts/ui/collect-screenshot-diffs.ts `
+            --base (Join-Path $preview "base-responsive") `
+            --current (Join-Path $preview "current-responsive") `
+            --out $preview `
+            --prefix responsive
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -200,9 +264,3 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
-      - name: Fail when responsive render fails
-        if: steps.current-responsive.outcome == 'failure' || steps.base-responsive.outcome == 'failure'
-        shell: powershell
-        run: |
-          Write-Error "Responsive screenshot render failed."
-          exit 1

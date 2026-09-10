@@ -232,6 +232,10 @@ function LapAnalyseInner() {
     setPlaying(false);
     playRef.current = false;
   }, []);
+  const handleTogglePlay = useCallback(() => {
+    setPlaying((p) => !p);
+  }, []);
+
 
   const currentFrame = telemetry[cursorIdx] ?? null;
   const wearRate = useMemo(() => {
@@ -437,7 +441,7 @@ function LapAnalyseInner() {
             visualTimeFrac,
             progressRef,
             thumbRef,
-            onTogglePlay: () => setPlaying((p) => !p),
+            onTogglePlay: handleTogglePlay,
             onSpeedChange: setPlaybackSpeed,
             onSeek: handleChartClick,
             onVisualFracChange: setVisualTimeFrac,

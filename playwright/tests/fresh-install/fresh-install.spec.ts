@@ -189,7 +189,7 @@ test.describe
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
       await page.getByRole("button", { name: /TestDriver/ }).click();
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await assertImagesLoaded(page);
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
     });

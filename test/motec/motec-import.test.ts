@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { unzipSync, zipSync } from "fflate";
 
 import { initGameAdapters } from "../../shared/games/init";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
@@ -15,6 +16,7 @@ import {
 } from "../../server/motec/kunos-synthesis";
 import { normalizeTelemetryPacket } from "../../server/telemetry/normalization";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../../server/motec/import";
+import { buildLapsZip, importLapsZip } from "../../server/laps/archive";
 import { getMotecTargets, initMotecTargets, resolveMotecTarget } from "../../server/motec/targets";
 import { transferRoutes } from "../../server/routes/laps/transfer-routes";
 import { db } from "../../server/db";
@@ -575,6 +577,33 @@ describe("importMotec end to end", () => {
       expect(row?.source).toBe(MOTEC_SESSION_SOURCE);
     }
   }, 30_000);
+
+  test("exports and imports complete MoTeC source session", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    const imported = await importMotec(buildLd(spec), Buffer.from(buildLdx(beacons)), {
+      gameId: "ac-evo",
+    });
+    const sourceSessionId = imported.laps[0]!.sessionId;
+    const sourceSession = await db.select().from(sessions).where(eq(sessions.id, sourceSessionId)).get();
+    const sourceRows = await db.select().from(lapsTable).where(eq(lapsTable.sessionId, sourceSessionId)).all();
+    const sourceArchive = readFileSync(sourceSession!.rawFile!);
+
+    const exported = await buildLapsZip([sourceRows[0]!.id]);
+    expect(exported.manifest.version).toBe(4);
+    expect(exported.manifest.entries).toHaveLength(1);
+    expect(exported.manifest.entries[0]!.file).toEndWith(".motec.zip");
+    expect(exported.manifest.entries[0]!.laps).toHaveLength(sourceRows.length);
+    const outer = unzipSync(exported.bytes);
+    expect([...outer[exported.manifest.entries[0]!.file]!]).toEqual([...sourceArchive]);
+
+    const roundTrip = await importLapsZip(exported.bytes);
+    expect(roundTrip.errors).toEqual([]);
+    expect(roundTrip.skipped).toBe(0);
+    expect(roundTrip.imported).toBe(sourceRows.length);
+    expect(new Set(roundTrip.laps.map((lap) => lap.sessionId)).size).toBe(1);
+    const roundTripSession = await db.select().from(sessions).where(eq(sessions.id, roundTrip.laps[0]!.sessionId)).get();
+    expect(roundTripSession?.gameId).toBe("ac-evo");
+  }, 60_000);
 
   test("files laps under the user's chosen track, not the header's", async () => {
     const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
