@@ -70,8 +70,8 @@ const stories: StoryCase[] = [
     // the experiment name is not on it, so assert on what actually renders.
     name: "review (car focus)",
     id: "dashboards-experiments-flow--review-car-focus",
-    expectText: "Rotates earlier, no snap. Happier.",
-    forbidText: ["Experiment not found"],
+    expectText: ["Rotates earlier, no snap. Happier.", "Tyres · end of lap"],
+    forbidText: ["Experiment not found", "No telemetry", "No stored telemetry for this lap."],
   },
   {
     name: "review (driver focus)",

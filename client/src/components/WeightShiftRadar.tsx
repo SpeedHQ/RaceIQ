@@ -5,25 +5,27 @@ import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
  * Uses the 4 normalized suspension travel values (0-1) to compute
  * where weight is concentrated. More compression = more load on that corner.
  * Dot position is the weighted centroid of the four corners.
  */
-export function WeightShiftRadar({ packet, frame }: { packet?: TelemetryPacket; frame?: SemanticAnalysisFrame }) {
+export function WeightShiftRadar({ frame }: { frame: SemanticAnalysisFrame }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 85;
 
-  const suspension = frame?.values["suspension.norm-suspension-travel"];
-  const semanticLoads = Array.isArray(suspension)
-    ? suspension.map((value) => (typeof value === "number" && Number.isFinite(value) ? value : 0))
-    : frame?.values["suspension.suspension-travel-m"] && Array.isArray(frame.values["suspension.suspension-travel-m"])
-      ? normalizeSuspensionTravel(frame.values["suspension.suspension-travel-m"])
-      : null;
+  const suspension = frame.values["suspension.norm-suspension-travel"];
+  const normalizedMeters = frame.values["suspension.suspension-travel-m"];
+  const semanticLoads =
+    Array.isArray(suspension) && suspension.length >= 4 && suspension.slice(0, 4).every((value) => typeof value === "number" && Number.isFinite(value))
+      ? (suspension.slice(0, 4) as number[])
+      : Array.isArray(normalizedMeters)
+        ? normalizeSuspensionTravel(normalizedMeters)
+        : null;
 
   useEffect(() => {
+    if (!semanticLoads || semanticLoads.length < 4) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = getSemanticCanvasContext(canvas);
@@ -70,7 +72,7 @@ export function WeightShiftRadar({ packet, frame }: { packet?: TelemetryPacket; 
     ctx.lineTo(cx, cy + r * 0.6);
     ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 10%, transparent)";
     ctx.stroke();
-    const loads = semanticLoads ?? (packet ? [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR] : [0, 0, 0, 0]);
+    const loads = semanticLoads;
     // Suspension loads (0-1 normalized, higher = more compressed = more load)
 
     const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
@@ -116,8 +118,9 @@ export function WeightShiftRadar({ packet, frame }: { packet?: TelemetryPacket; 
     ctx.fillStyle = dotColor;
     ctx.fill();
     ctx.globalAlpha = 1;
-  }, [packet, semanticLoads]);
+  }, [semanticLoads]);
 
+  if (!semanticLoads || semanticLoads.length < 4) return null;
   return (
     <div className="relative flex flex-col items-center">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />

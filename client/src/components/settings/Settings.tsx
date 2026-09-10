@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { isDevelopment } from "@/lib/env";
 import { m } from "@/paraglide/messages";
-import { useUiStore } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 import { AboutSection } from "./AboutSection";
 import { AiSection } from "./AiSection";
 import { ConnectionSection } from "./connection/ConnectionSection";
@@ -20,7 +20,7 @@ import { UpdatesSection } from "./UpdatesSection";
 import { WheelSection } from "./wheel/WheelSection";
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
-  const { openOnboarding } = useUiStore();
+  const { openOnboarding } = uiStore.actions;
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? "general");
   const filteredNavItems = NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

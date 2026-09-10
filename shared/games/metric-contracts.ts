@@ -1,9 +1,12 @@
 import type { GameId } from "./ids";
+import type { AnalysisTelemetryModel, GameAdapter } from "./types";
 import type {
   TelemetryCatalogData,
   TelemetryVariableDefinition,
 } from "../telemetry/catalog/contracts";
 import type { TelemetryVariableId } from "../telemetry/catalog/generated/telemetry-catalog.types";
+import { TELEMETRY_CATALOG } from "../telemetry/catalog/data";
+import { resolveAnalysisTelemetry } from "../racing/analysis/telemetry-capabilities";
 
 export type SemanticValueBinding = {
   kind: "value";
@@ -172,4 +175,103 @@ export function requiredSemanticIds(
     if (spec.source !== "unavailable") add(spec.binding);
   }
   return [...ids];
+}
+const ANALYSE_BASE_SEMANTIC_IDS = [
+  "engine.current-engine-rpm",
+  "inputs.gear",
+  "inputs.accel",
+  "inputs.brake",
+  "inputs.steer",
+  "motion.speed",
+  "motion.acceleration-x",
+  "motion.angular-velocity-y",
+  "motion.pitch",
+  "motion.roll",
+  "motion.position-x",
+  "motion.position-z",
+  "motion.yaw",
+  "timing.current-lap",
+  "timing.current-race-time",
+  "timing.distance-traveled",
+  "timing.lap-fraction",
+  "aero.drs-active",
+  "weather.air-temp",
+  "fuel.ers-store-energy",
+  "fuel.ers-deploy-mode",
+  "brakes.brake-bias",
+  "fuel.ers-deployed",
+  "fuel.ers-harvested",
+  "fuel.fuel-capacity",
+  "identity.car-ordinal",
+  "identity.player-track-surface",
+  "tires.tire-radius",
+] as const satisfies readonly TelemetryVariableId[];
+
+/** Semantic channels consumed by Analyse for one game's adapter. */
+export function analyseSemanticIds(
+  adapter: import("./types").GameAdapter,
+): readonly TelemetryVariableId[] {
+  return [...new Set([
+    ...ANALYSE_BASE_SEMANTIC_IDS,
+    ...requiredSemanticIds(adapter),
+  ])];
+}
+
+
+export interface UnavailableAnalysisFeature {
+  feature: keyof AnalysisTelemetryModel;
+  missingSemanticIds: readonly TelemetryVariableId[];
+}
+
+function requiredIds(binding: SemanticMetricBinding): readonly TelemetryVariableId[] {
+  if (binding.kind === "value") return [binding.semanticId];
+  if (binding.kind === "group") return binding.required;
+  return binding.requires;
+}
+
+
+export function unavailableAnalysisFeatures(
+  adapter: GameAdapter,
+  availableSemanticIds: ReadonlySet<string>,
+): UnavailableAnalysisFeature[] {
+  const analysisKeys = new Set(Object.keys(resolveAnalysisTelemetry(adapter)));
+  return unavailableAnalyseFeatures(adapter, availableSemanticIds)
+    .filter(({ feature }) => analysisKeys.has(feature))
+    .map(({ feature, missingSemanticIds }) => ({ feature: feature as keyof AnalysisTelemetryModel, missingSemanticIds }));
+}
+export interface UnavailableAnalyseFeature {
+  feature: string;
+  label: string;
+  missingSemanticIds: readonly TelemetryVariableId[];
+}
+
+function titleCaseFeature(feature: string): string {
+  return feature.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
+}
+
+/** Resolve every Analyse-visible adapter feature from canonical frame availability. */
+export function unavailableAnalyseFeatures(
+  adapter: GameAdapter,
+  availableSemanticIds: ReadonlySet<string>,
+): UnavailableAnalyseFeature[] {
+  const features = new Map<string, { label: string; binding?: SemanticMetricBinding }>();
+  const add = (feature: string, spec: { binding?: SemanticMetricBinding; source?: string }) => {
+    if (spec.source === "unavailable" || spec.binding) {
+      const binding = spec.binding;
+      const catalogLabel = binding?.kind === "value"
+        ? TELEMETRY_CATALOG.variables.find((variable) => variable.id === binding.semanticId)?.label
+        : undefined;
+      features.set(feature, { label: catalogLabel ?? titleCaseFeature(feature), binding });
+    }
+  };
+  for (const [feature, spec] of Object.entries(adapter.telemetry)) {
+    if (spec && typeof spec === "object" && "binding" in spec) add(feature, spec);
+  }
+  for (const [feature, spec] of Object.entries(adapter.telemetry.analysis ?? {})) add(feature, spec);
+
+  return [...features].flatMap(([feature, { label, binding }]) => {
+    if (!binding) return [{ feature, label, missingSemanticIds: [] }];
+    const missingSemanticIds = requiredIds(binding).filter((id) => !availableSemanticIds.has(id));
+    return missingSemanticIds.length > 0 ? [{ feature, label, missingSemanticIds }] : [];
+  });
 }

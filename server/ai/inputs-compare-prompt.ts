@@ -11,6 +11,8 @@ import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
 import { segmentPromptNames } from "../../shared/racing/tracks/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics";
+import { tryGetGame } from "../../shared/games/registry";
+import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -71,6 +73,29 @@ export interface PromptSegment {
 
 function pct(n: number) {
   return `${(n * 100).toFixed(1)}%`;
+}
+
+function tireHealthLine(
+  startWear: number | undefined,
+  endWear: number | undefined,
+  available: boolean,
+): string {
+  if (
+    !available ||
+    startWear === undefined ||
+    !Number.isFinite(startWear) ||
+    startWear < 0 ||
+    startWear > 1 ||
+    endWear === undefined ||
+    !Number.isFinite(endWear) ||
+    endWear < 0 ||
+    endWear > 1
+  ) {
+    return "Unavailable";
+  }
+  const startHealth = 1 - startWear;
+  const endHealth = 1 - endWear;
+  return `${pct(startHealth)}→${pct(endHealth)} (Δ${pct(startHealth - endHealth)})`;
 }
 
 function mOrDash(v: number | null): string {
@@ -184,6 +209,14 @@ export function buildInputsComparePrompt(
   // game's convention (the two laps can come from different games).
   const steerScaleA = steerScaleFor(lapA.gameId);
   const steerScaleB = steerScaleFor(lapB.gameId);
+  const adapterA = lapA.gameId ? tryGetGame(lapA.gameId) : undefined;
+  const adapterB = lapB.gameId ? tryGetGame(lapB.gameId) : undefined;
+  const tireWearAvailableA =
+    !adapterA ||
+    resolveAnalysisTelemetry(adapterA).tireHealth.source !== "unavailable";
+  const tireWearAvailableB =
+    !adapterB ||
+    resolveAnalysisTelemetry(adapterB).tireHealth.source !== "unavailable";
 
   const distances = comparison.distances;
   const totalDist = distances[distances.length - 1] - distances[0] || 1;
@@ -225,15 +258,21 @@ export function buildInputsComparePrompt(
     const sA = computeStatsRange(comparison.lapA.throttle, comparison.lapA.brake, comparison.lapA.steer, comparison.lapA.speed, distances, lo, hi, steerScaleA);
     const sB = computeStatsRange(comparison.lapB.throttle, comparison.lapB.brake, comparison.lapB.steer, comparison.lapB.speed, distances, lo, hi, steerScaleB);
 
-    // Fuel + tire health snapshot at segment start/end (tire health = 1 - wear)
+    // Fuel + tire health snapshot at segment start/end.
     const fuelStartA = comparison.lapA.fuel[lo] ?? 0;
     const fuelEndA = comparison.lapA.fuel[hi - 1] ?? 0;
     const fuelStartB = comparison.lapB.fuel[lo] ?? 0;
     const fuelEndB = comparison.lapB.fuel[hi - 1] ?? 0;
-    const tireStartA = 1 - (comparison.lapA.tireWear[lo] ?? 0);
-    const tireEndA = 1 - (comparison.lapA.tireWear[hi - 1] ?? 0);
-    const tireStartB = 1 - (comparison.lapB.tireWear[lo] ?? 0);
-    const tireEndB = 1 - (comparison.lapB.tireWear[hi - 1] ?? 0);
+    const tireHealthA = tireHealthLine(
+      comparison.lapA.tireWear[lo],
+      comparison.lapA.tireWear[hi - 1],
+      tireWearAvailableA,
+    );
+    const tireHealthB = tireHealthLine(
+      comparison.lapB.tireWear[lo],
+      comparison.lapB.tireWear[hi - 1],
+      tireWearAvailableB,
+    );
 
     tableRows.push({
       name: segLabel,
@@ -251,7 +290,7 @@ export function buildInputsComparePrompt(
   ${statsLine("A", sA)}
   ${statsLine("B", sB)}
   Fuel:        A ${pct(fuelStartA)}→${pct(fuelEndA)} (Δ${pct(fuelStartA - fuelEndA)})  |  B ${pct(fuelStartB)}→${pct(fuelEndB)} (Δ${pct(fuelStartB - fuelEndB)})
-  Tire health: A ${pct(tireStartA)}→${pct(tireEndA)} (Δ${pct(tireStartA - tireEndA)})  |  B ${pct(tireStartB)}→${pct(tireEndB)} (Δ${pct(tireStartB - tireEndB)})`,
+  Tire health: A ${tireHealthA}  |  B ${tireHealthB}`,
     );
   }
 
@@ -306,7 +345,7 @@ Per-segment notes:
 - "events" row: brake_on / brake_off / peak_brake (with %) / full_throttle / lift_off_throttle — each with an absolute lap distance in meters. Subtract A's value from B's to compute concrete deltas like "brake 12m later" or "reach full throttle 9m earlier".
 - "speed" row: minimum and maximum speed in km/h with the distance where each occurred. Use these to say "carry 4 km/h more minimum corner speed" type actions.
 - "Fuel" lines show fuel level at the start and end of the segment plus consumption Δ. Use these to comment on whether one driver is burning more fuel through a section.
-- "Tire health" lines show tire health at the start and end of the segment (100% = fresh). Comment on differences in degradation if meaningful.
+- "Tire health" lines show tire health at segment start and end (100% = fresh). "Unavailable" means simulator does not provide usable tire-wear telemetry; do not infer degradation.
 
 To produce a concrete "action", you MUST diff the events/speed rows between Lap A and Lap B for the same segment and quote the resulting numbers. If the slower lap brakes 120m into a corner and the faster lap brakes at 132m, the action is "Brake 12m later into T1 (current brake point 120m, target 132m)." Do not produce actions without such numeric evidence.
 

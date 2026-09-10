@@ -127,4 +127,80 @@ describe("lap telemetry cache (byte-budget LRU)", () => {
     expect(cache.size()).toBe(0);
     expect(cache.bytesUsed()).toBe(0);
   });
+  test("stores ordered comparison bodies and returns exact string", () => {
+    const body = JSON.stringify({ lapA: 1, lapB: 2 });
+    cache.comparisonSet(1, 2, body);
+    expect(cache.comparisonGet(1, 2)).toBe(body);
+    expect(cache.comparisonGet(2, 1)).toBeUndefined();
+  });
+
+  test("comparison entries share byte budget and refresh global recency", () => {
+    const oneEntryBytes = cache.estimateBytes(stub(1, 1000));
+    cache.setMaxBytes(oneEntryBytes * 2);
+    cache.set(1, stub(1, 1000));
+    cache.comparisonSet(2, 3, "x".repeat(oneEntryBytes));
+    expect(cache.comparisonGet(2, 3)).toBeDefined();
+    cache.set(4, stub(4, 1000));
+    expect(cache.get(1)).toBeUndefined();
+    expect(cache.comparisonGet(2, 3)).toBeDefined();
+    expect(cache.get(4)).toBeDefined();
+  });
+
+  test("oversize comparison entry is not retained", () => {
+    cache.setMaxBytes(10);
+    cache.comparisonSet(1, 2, "01234567890");
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.bytesUsed()).toBe(0);
+  });
+
+  test("deleting lap invalidates comparison pairs containing it", () => {
+    cache.comparisonSet(1, 2, "a");
+    cache.comparisonSet(2, 3, "b");
+    cache.comparisonSet(3, 4, "c");
+    cache.delete(2);
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.comparisonGet(2, 3)).toBeUndefined();
+    expect(cache.comparisonGet(3, 4)).toBe("c");
+  });
+  test("stores alignment index independently and preserves both fields", () => {
+    const index = { distancesA: [0, 1, 2], distancesB: [0, 2], nominalSpan: 2 };
+    const body = "body";
+    cache.comparisonAlignmentIndexSet(1, 2, index);
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBe(index);
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    cache.comparisonSet(1, 2, body);
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBe(index);
+    expect(cache.comparisonGet(1, 2)).toBe(body);
+    expect(cache.bytesUsed()).toBe(Buffer.byteLength(body) + 8 * 5);
+  });
+
+  test("preserves body when index is added after body", () => {
+    const index = { distancesA: [0, 1], distancesB: [0, 1, 2], nominalSpan: 2 };
+    cache.comparisonSet(3, 4, "payload");
+    cache.comparisonAlignmentIndexSet(3, 4, index);
+    expect(cache.comparisonGet(3, 4)).toBe("payload");
+    expect(cache.comparisonAlignmentIndexGet(3, 4)).toBe(index);
+  });
+
+  test("alignment index getter refreshes ordered comparison recency", () => {
+    const indexBytes = 8 * 20;
+    cache.setMaxBytes(indexBytes * 2);
+    cache.comparisonAlignmentIndexSet(1, 2, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    cache.comparisonAlignmentIndexSet(3, 4, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeDefined();
+    cache.comparisonAlignmentIndexSet(5, 6, { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 });
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeDefined();
+    expect(cache.comparisonAlignmentIndexGet(3, 4)).toBeUndefined();
+  });
+
+  test("combined index and body entry evicts as one oversize entry", () => {
+    const index = { distancesA: Array(10), distancesB: Array(10), nominalSpan: 1 };
+    cache.setMaxBytes(8 * 20 + 3);
+    cache.comparisonAlignmentIndexSet(1, 2, index);
+    cache.comparisonSet(1, 2, "body");
+    expect(cache.comparisonGet(1, 2)).toBeUndefined();
+    expect(cache.comparisonAlignmentIndexGet(1, 2)).toBeUndefined();
+    expect(cache.bytesUsed()).toBe(0);
+  });
+
 });

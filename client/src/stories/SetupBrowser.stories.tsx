@@ -118,7 +118,7 @@ const meta: Meta<typeof SetupBrowser> = {
 export default meta;
 type Story = StoryObj<typeof SetupBrowser>;
 
-export const Default: Story = {
+export const AllData: Story = {
   args: {
     rows,
     carNames,
@@ -135,9 +135,9 @@ export const Default: Story = {
   },
 };
 
-export const ReadOnly: Story = {
+export const AllDataReadOnly: Story = {
   args: {
-    ...Default.args,
+    ...AllData.args,
     readOnly: true,
   },
 };

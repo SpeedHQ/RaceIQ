@@ -1,11 +1,13 @@
 import { resolve } from "node:path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { LapIndexPacket } from "../../lap-detection/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"
 import { parseAccBuffers } from "./parser";
+import { parseAccLapIndex } from "../kunos/lap-index";
 import { STATIC } from "./structs";
 import { readWString } from "./utils";
 import { ACC_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";
@@ -115,6 +117,14 @@ export const accServerAdapter: ServerGameAdapter = {
       carOrdinal,
       trackOrdinal,
     });
+  },
+  tryParseLapIndex(buf, _state): LapIndexPacket | null {
+    const triplet = unpackTriplet(buf);
+    return triplet ? parseAccLapIndex(triplet.physics, triplet.graphics, triplet.staticData, triplet.carOrdinal, triplet.trackOrdinal) : null;
+  },
+
+  primeParserState(_buf, _state): void {
+    // ACC frames are self-contained; no cross-frame decoder state exists.
   },
 
   createParserState(): null {

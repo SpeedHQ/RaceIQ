@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { GearRatioChart } from "@/components/tune/GearRatioChart";
 import type { TuneSettings } from "@/data/tune-catalog";
 import { m } from "@/paraglide/messages";
@@ -93,7 +94,7 @@ export function TuneSettingsFields({
                 <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
                 <div className="flex items-center gap-1">
                   <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
-                  <input
+                  <AppInput
                     type="number"
                     value={ratio}
                     step={0.01}
@@ -105,7 +106,7 @@ export function TuneSettingsFields({
                         gearing: { ...s.gearing, ratios },
                       }));
                     }}
-                    className="w-20 bg-app-bg border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+                    className="w-20 font-mono text-right"
                   />
                   <span className="text-app-caption text-app-text-muted w-8">:1</span>
                 </div>

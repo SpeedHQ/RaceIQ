@@ -3,9 +3,9 @@ import type { ServerWebSocket } from "bun";
 import { WebSocketManager, type WSData } from "../../server/runtime/websocket-manager";
 import type { LiveProjection } from "../../server/telemetry/live-projector";
 
-function socket() {
+function socket(send: (value: string) => void = () => {}) {
   const sent: string[] = [];
-  return { data: { createdAt: Date.now(), devTelemetrySubscribed: false } satisfies WSData, sent, send: (value: string) => { sent.push(value); }, close() {} } as unknown as ServerWebSocket<WSData> & { sent: string[] };
+  return { data: { createdAt: Date.now(), devTelemetrySubscribed: false } satisfies WSData, sent, send: (value: string) => { sent.push(value); send(value); }, close() {} } as unknown as ServerWebSocket<WSData> & { sent: string[] };
 }
 
 const schema = { type: "telemetry-schema", protocolVersion: 1, schemaId: "schema-1", simulator: "iracing", catalogVersion: "catalog", catalogHash: "hash", catalogSchemaVersion: "1", parserVersion: "parser", resolverVersion: "resolver", derivationVersion: "derivation", definitions: [] } as const satisfies NonNullable<LiveProjection["schema"]>;
@@ -34,5 +34,26 @@ describe("WebSocketManager controls", () => {
     manager.broadcastStatus({ udpPps: 0, telemetryPps: 60, isRaceOn: true, droppedPackets: 0, udpPort: 5301, detectedGame: { id: "iracing", name: "iRacing" }, currentSession: null });
     expect(JSON.parse(ws.sent.at(-1)!)).toMatchObject({ type: "status", telemetryPps: 60 });
     manager.removeClient(ws);
+  });
+
+  test("removes clients whose transport fails during status broadcast", () => {
+    const manager = new WebSocketManager();
+    const ws = socket(() => { throw new Error("socket closed"); });
+
+    manager.addClient(ws);
+    manager.broadcastStatus({ udpPps: 0, telemetryPps: 0, isRaceOn: false, droppedPackets: 0, udpPort: 5301, detectedGame: null, currentSession: null });
+
+    expect(manager.connectedClients).toBe(0);
+  });
+
+  test("ignores duplicate disconnect callbacks", () => {
+    const manager = new WebSocketManager();
+    const ws = socket();
+
+    manager.addClient(ws);
+    manager.removeClient(ws);
+    manager.removeClient(ws);
+
+    expect(manager.connectedClients).toBe(0);
   });
 });

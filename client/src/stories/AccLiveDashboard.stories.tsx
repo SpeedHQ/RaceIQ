@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
-import { useGameStore } from "../stores/game";
-import { useTelemetryStore } from "../stores/telemetry";
-import { fakeAccDisplayPacket, fakeAccPacket, fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { gameStore } from "../stores/game";
+import { telemetryStore } from "../stores/telemetry";
+import { fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
@@ -13,13 +13,11 @@ queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeAccSemanticFixture;
-  useTelemetryStore.setState({
+  telemetryStore.setState({
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
     telemetryView: view,
-    rawPacket: fakeAccPacket,
-    packet: fakeAccDisplayPacket,
     sectors: fakeSectors,
     pit: fakePit,
     sessionLaps: fakeSessionLaps,
@@ -37,7 +35,7 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
     },
   });
 
-  useGameStore.setState({ gameId: "acc" });
+  gameStore.setState((prev) => ({ ...prev, gameId: "acc" }));
 
   return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
@@ -54,4 +52,4 @@ const meta: Meta<typeof AccLiveDashboard> = {
 export default meta;
 type Story = StoryObj<typeof AccLiveDashboard>;
 
-export const Default: Story = {};
+export const VisualContract: Story = {};

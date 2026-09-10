@@ -1,5 +1,6 @@
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useMemo, useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { FocusPicker } from "@/components/tunes/FocusPicker";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -81,7 +82,7 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
         <div className="flex gap-2">
           <label className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
-            <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
+            <AppInput value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="text-xs" />
           </label>
           <div className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
@@ -91,12 +92,12 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <input
+          <AppInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={car && track ? `${car} @ ${track}` : "Session name"}
             maxLength={120}
-            className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
+            className="text-xs"
           />
         </label>
 

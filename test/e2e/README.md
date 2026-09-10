@@ -21,7 +21,13 @@ as having moved when only test code is reorganized.
 
 ## Commands
 
-Run recording E2E suites directly:
+Run recording E2E suites through the dedicated manifest:
+
+```sh
+bun run test:e2e:recordings
+```
+
+For focused iteration, run a path directly:
 
 ```sh
 bun test test/e2e --timeout 30000

@@ -12,7 +12,7 @@ import { formatLapTime } from "./LiveTelemetry";
  * "Avg" = mean of last 4 laps (recent rolling pace).
  * Dot colors come from the theme's best/on-target/off-target lap roles.
  *
- * Data source: sessionLaps from Zustand (server-pushed via WS).
+ * Data source: sessionLaps from TanStack Store (server-pushed via WS).
  */
 export function LapTimeChart({
   sessionLaps,

@@ -42,6 +42,8 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
   const totalLaps = view?.timing.totalLaps;
   const health = tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const tires = view?.tires;
+  const temperatureAvailable = tires?.temperatureC !== undefined;
+  const healthAvailable = tires?.wear !== undefined;
   const hasTelemetry = !!view;
 
   return (
@@ -111,11 +113,34 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
               <FitToViewport padding={4} maxScale={5}>
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
-                    fl={{ tempC: Math.round(tires.temperatureC?.fl ?? 0), wear: tires.wear?.fl ?? 0, brakeTemp: tires.brakeTemperatureC?.fl ?? 0, pressure: tires.pressurePsi?.fl ?? 0 }}
-                    fr={{ tempC: Math.round(tires.temperatureC?.fr ?? 0), wear: tires.wear?.fr ?? 0, brakeTemp: tires.brakeTemperatureC?.fr ?? 0, pressure: tires.pressurePsi?.fr ?? 0 }}
-                    rl={{ tempC: Math.round(tires.temperatureC?.rl ?? 0), wear: tires.wear?.rl ?? 0, brakeTemp: tires.brakeTemperatureC?.rl ?? 0, pressure: tires.pressurePsi?.rl ?? 0 }}
-                    rr={{ tempC: Math.round(tires.temperatureC?.rr ?? 0), wear: tires.wear?.rr ?? 0, brakeTemp: tires.brakeTemperatureC?.rr ?? 0, pressure: tires.pressurePsi?.rr ?? 0 }}
-                    healthThresholds={health} tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+                    fl={{
+                      tempC: Math.round(tires.temperatureC?.fl ?? 0),
+                      wear: tires.wear?.fl ?? 0,
+                      ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.fl } : {}),
+                      ...(tires.pressurePsi ? { pressure: tires.pressurePsi.fl } : {}),
+                    }}
+                    fr={{
+                      tempC: Math.round(tires.temperatureC?.fr ?? 0),
+                      wear: tires.wear?.fr ?? 0,
+                      ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.fr } : {}),
+                      ...(tires.pressurePsi ? { pressure: tires.pressurePsi.fr } : {}),
+                    }}
+                    rl={{
+                      tempC: Math.round(tires.temperatureC?.rl ?? 0),
+                      wear: tires.wear?.rl ?? 0,
+                      ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.rl } : {}),
+                      ...(tires.pressurePsi ? { pressure: tires.pressurePsi.rl } : {}),
+                    }}
+                    rr={{
+                      tempC: Math.round(tires.temperatureC?.rr ?? 0),
+                      wear: tires.wear?.rr ?? 0,
+                      ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.rr } : {}),
+                      ...(tires.pressurePsi ? { pressure: tires.pressurePsi.rr } : {}),
+                    }}
+                    healthThresholds={health}
+                    tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+                    temperatureAvailable={temperatureAvailable}
+                    healthAvailable={healthAvailable}
                   />
                 </div>
               </FitToViewport>

@@ -14,43 +14,21 @@ concurrency:
 
 jobs:
   update-readme:
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-windows-x64
+      - 4VCPU
+      - 15G
     permissions:
       contents: write
 
     steps:
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
       - uses: actions/checkout@v7
 
       - name: Append dashboard screenshots to assets/screenshots/README.md
-        run: |
-          python3 - <<'PYEOF'
-          import re, pathlib
-
-          readme = pathlib.Path("assets/screenshots/README.md").read_text()
-          block = (
-            "\n### F1 2025 Live Dashboard\n\n"
-            "![F1 2025 Live Dashboard](F1LiveDashboard.png)\n\n"
-            "### Forza Motorsport Live Dashboard\n\n"
-            "![Forza Motorsport Live Dashboard](ForzaLiveDashboard.png)\n\n"
-            "### Assetto Corsa Competizione Live Dashboard\n\n"
-            "![Assetto Corsa Competizione Live Dashboard](AccLiveDashboard.png)\n"
-          )
-
-          marker_start = "<!-- dashboard-screenshots-start -->"
-          marker_end = "<!-- dashboard-screenshots-end -->"
-
-          if marker_start in readme:
-            updated = re.sub(
-              r"<!-- dashboard-screenshots-start -->.*?<!-- dashboard-screenshots-end -->",
-              f"{marker_start}{block}{marker_end}",
-              readme,
-              flags=re.DOTALL,
-            )
-          else:
-            updated = readme.rstrip("\n") + f"\n\n{marker_start}{block}{marker_end}\n"
-
-          pathlib.Path("assets/screenshots/README.md").write_text(updated)
-          PYEOF
+        run: bun scripts/ci/update-dashboard-readme.ts
 
       - name: Commit and push
         run: |

@@ -47,7 +47,7 @@ interface UpdateState {
   downloadUrl: string | null;
   /** All releases newer than current version */
   newReleases: ReleaseInfo[];
-  /** Full public release history from releasenotes.md for the latest release. */
+  /** Deprecated compatibility field; release history now comes from API bodies. */
   fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
@@ -68,10 +68,10 @@ let state: UpdateState = {
   checked: false,
 };
 
-// Tag associated with the release-note artifacts held in `state`.
+// Tag associated with the release-note data held in `state`.
 let releaseArtifactsTag: string | null = null;
 
-// Release metadata is cheap to poll; attached markdown assets are not.
+// Release metadata and bodies are fetched only when latest tag changes.
 export function shouldFetchReleaseArtifacts(cachedTag: string | null, latestTag: string): boolean {
   return cachedTag !== latestTag;
 }
@@ -101,26 +101,38 @@ function notifyUpdateAvailable(version: string): void {
 
 interface GitHubRelease {
   tag_name: string;
+  body?: string | null;
   published_at?: string;
   assets: { name: string; browser_download_url: string }[];
 }
 
-export function findReleaseAsset(release: GitHubRelease, filename: string): string | null {
-  return release.assets.find((candidate) => candidate.name.toLowerCase() === filename.toLowerCase())?.browser_download_url ?? null;
+export function getReleaseNotes(release: GitHubRelease): string | null {
+  const body = release.body?.trim();
+  return body || null;
 }
 
-async function fetchReleaseAsset(release: GitHubRelease, filename: string): Promise<string | null> {
-  const url = findReleaseAsset(release, filename);
-  if (!url) return null;
-  const response = await fetch(url, { headers: GH_HEADERS });
-  if (!response.ok) return null;
-  const notes = (await response.text()).trim();
-  return notes || null;
-}
+export function collectReleaseNotes(releases: GitHubRelease[], currentVersion: string): {
+  newReleases: ReleaseInfo[];
+  currentReleaseNotes: string | null;
+  currentReleaseDate: string | null;
+} {
+  const newReleases: ReleaseInfo[] = [];
+  let currentReleaseNotes: string | null = null;
+  let currentReleaseDate: string | null = null;
 
-/** Fetch the complete curated release note asset attached to a GitHub release. */
-async function fetchReleaseNotes(release: GitHubRelease): Promise<string | null> {
-  return fetchReleaseAsset(release, "releasenote.md");
+  for (const release of releases) {
+    const version = release.tag_name.replace(/^v/, "");
+    if (version !== currentVersion && !isNewer(version, currentVersion)) continue;
+    const notes = getReleaseNotes(release);
+    if (version === currentVersion) {
+      currentReleaseNotes = notes;
+      currentReleaseDate = release.published_at ?? null;
+    } else if (notes) {
+      newReleases.push({ version, notes, date: release.published_at ?? "" });
+    }
+  }
+
+  return { newReleases, currentReleaseNotes, currentReleaseDate };
 }
 
 /** Fetch all releases from GitHub and split into new/current. */
@@ -129,35 +141,23 @@ export function mergeLatestRelease(releases: GitHubRelease[], latest?: GitHubRel
   return [latest, ...releases];
 }
 
-async function fetchReleases(currentVersion: string, latest?: GitHubRelease): Promise<{
+export async function fetchReleases(currentVersion: string, latest?: GitHubRelease): Promise<{
   newReleases: ReleaseInfo[];
   fullReleaseNotes: string | null;
   currentReleaseNotes: string | null;
   currentReleaseDate: string | null;
 }> {
-  const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=50`, { headers: GH_HEADERS });
-  if (!res.ok) throw new Error(`Release list fetch failed: ${res.status}`);
-
-  const releases = mergeLatestRelease(await res.json() as GitHubRelease[], latest);
-  const fullReleaseNotes = latest ? await fetchReleaseAsset(latest, "releasenotes.md") : null;
-  const newReleases: ReleaseInfo[] = [];
-  let currentReleaseNotes: string | null = null;
-  let currentReleaseDate: string | null = null;
-
-
-  for (const r of releases) {
-    const ver = r.tag_name.replace(/^v/, "");
-    if (ver !== currentVersion && !isNewer(ver, currentVersion)) continue;
-    const notes = await fetchReleaseNotes(r);
-    if (ver === currentVersion) {
-      currentReleaseNotes = notes;
-      currentReleaseDate = r.published_at ?? null;
-    } else if (notes) {
-      newReleases.push({ version: ver, notes, date: r.published_at ?? "" });
-    }
+  const releases: GitHubRelease[] = [];
+  for (let page = 1; ; page += 1) {
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=50&page=${page}`, { headers: GH_HEADERS });
+    if (!res.ok) throw new Error(`Release list fetch failed: ${res.status}`);
+    const pageReleases = await res.json() as GitHubRelease[];
+    releases.push(...pageReleases);
+    if (pageReleases.length < 50) break;
   }
 
-  return { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate };
+  const mergedReleases = mergeLatestRelease(releases, latest);
+  return { ...collectReleaseNotes(mergedReleases, currentVersion), fullReleaseNotes: null };
 }
 
 

@@ -18,6 +18,7 @@ const trace = {
   gear: [1, 2, 3],
   posX: [0, 0, 0],
   posZ: [0, 0, 0],
+  yaw: [0, 0, 0],
   sourceIndices: [0, 1, 2],
 };
 
@@ -41,5 +42,32 @@ describe("inputs compare prompt", () => {
 
     expect(prompt).toContain("Brake before Turn 1.");
     expect(prompt).toContain("[Turn 1]");
+  });
+
+  test("marks ACC tire health unavailable for legacy zero-filled laps", () => {
+    const prompt = buildInputsComparePrompt(
+      {
+        lapNumber: 1,
+        lapTime: 1,
+        isValid: true,
+        gameId: "acc",
+      },
+      {
+        lapNumber: 2,
+        lapTime: 1.02,
+        isValid: true,
+        gameId: "acc",
+      },
+      {
+        ...comparison,
+        lapA: { ...trace, tireWear: [0, 0, 0] },
+        lapB: { ...trace, tireWear: [0, 0, 0] },
+      },
+      [{ name: "Turn 1", type: "corner", startFrac: 0, endFrac: 1 }],
+    );
+
+    expect(prompt).toContain("Tire health: A Unavailable  |  B Unavailable");
+    expect(prompt).not.toContain("Tire health: A 100.0%");
+    expect(prompt).toContain("do not infer degradation");
   });
 });

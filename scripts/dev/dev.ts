@@ -26,7 +26,7 @@ const developmentProcesses = Bun.spawn(
     "bunx",
     "concurrently",
     serverCommand.join(" "),
-    "cd client && portless raceiq bun run dev",
+    "bun scripts/dev/client.ts",
   ],
   {
     stdin: "inherit",

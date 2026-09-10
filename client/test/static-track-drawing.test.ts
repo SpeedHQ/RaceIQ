@@ -235,6 +235,53 @@ function drawRaceLineCase(boundaries: TrackMapBoundaries | null, showRaceLine: b
   return { ...harness, ...result };
 }
 
+test("keeps telemetry traces open while closing reference outlines", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const resolvedPositions = [{ x: 1, z: 1 }, { x: 2, z: 2 }, { x: 3, z: 3 }, { x: 4, z: 4 }];
+    const trace = createDrawingHarness();
+    drawStaticTrack({
+      canvas: trace.canvas,
+      bufferCanvas: trace.canvas,
+      telemetry: [],
+      gameId: "acc",
+      resolvedPositions,
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: true,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const traceStroke = trace.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
+    expect(traceStroke.commands.filter((command) => command.kind === "moveTo")).toHaveLength(1);
+    expect(traceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(resolvedPositions.length - 1);
+
+    const reference = createDrawingHarness();
+    drawStaticTrack({
+      canvas: reference.canvas,
+      bufferCanvas: reference.canvas,
+      telemetry: [],
+      gameId: "acc",
+      resolvedPositions: [],
+      outline: outlineFixture,
+      boundaries: null,
+      sectors: null,
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+    const referenceStroke = reference.strokes.find((stroke) => stroke.color === "var(--track-outline)")!;
+    expect(referenceStroke.commands.filter((command) => command.kind === "lineTo")).toHaveLength(outlineFixture.length);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+
 test("draws input, segment, and racing-line overlays together", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
@@ -269,6 +316,76 @@ test("draws input, segment, and racing-line overlays together", () => {
     expect(strokes.some((stroke) => stroke.color === "var(--ch-throttle)")).toBe(true);
     expect(strokes.some((stroke) => stroke.color === "var(--track-corner-marker)")).toBe(true);
     expect(strokes.some((stroke) => stroke.color === "var(--track-racing-line)")).toBe(true);
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("places segment overlays on canonical centerline instead of replay trace", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const { canvas, strokes } = createDrawingHarness();
+    const centerLine = [
+      { x: 0, z: 10 },
+      { x: 0, z: 0 },
+      { x: 10, z: 0 },
+    ];
+    const result = drawStaticTrack({
+      canvas,
+      bufferCanvas: canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: [
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+        { x: 10, z: 10 },
+      ],
+      boundaries: { ...boundaryFixture(), centerLine },
+      sectors: null,
+      segments: [{ type: "corner", name: "", startFrac: 0, endFrac: 0.5 }],
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    const marker = strokes.find((stroke) => stroke.color === "var(--track-corner-marker)");
+    expect(marker?.commands[0]).toEqual({
+      kind: "moveTo",
+      values: [result.transform!.offsetX + result.transform!.maxX * result.transform!.scale, result.transform!.offsetZ + 10 * result.transform!.scale],
+    });
+  } finally {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
+  }
+});
+
+test("places sector boundary markers on canonical centerline instead of replay trace", () => {
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
+  try {
+    const { canvas, strokes } = createDrawingHarness();
+    const centerLine = Array.from({ length: 11 }, (_, z) => ({ x: 0, z }));
+    const result = drawStaticTrack({
+      canvas,
+      bufferCanvas: canvas,
+      telemetry: [],
+      resolvedPositions: [],
+      outline: Array.from({ length: 11 }, (_, x) => ({ x, z: 10 })),
+      boundaries: { ...boundaryFixture(), centerLine },
+      sectors: { sectorCount: 2, sectorStarts: [0, 0.5] },
+      segments: null,
+      showTrace: false,
+      rotateWithCar: false,
+      zoom: 1,
+    });
+
+    const marker = strokes.find((stroke) => stroke.color === "var(--sector-1)" && stroke.width === 2);
+    const markerX = result.transform!.offsetX + result.transform!.maxX * result.transform!.scale;
+    const markerY = result.transform!.offsetZ + 5 * result.transform!.scale;
+    expect(marker?.commands).toEqual([
+      { kind: "moveTo", values: [markerX - 8, markerY] },
+      { kind: "lineTo", values: [markerX + 8, markerY] },
+    ]);
   } finally {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }

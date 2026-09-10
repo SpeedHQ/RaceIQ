@@ -6,7 +6,7 @@ interface LiveLapCardsProps {
   laps: LapMeta[];
   trackOrdinal?: number;
   sectors: LiveSectorData | null;
-  /** In-progress lap's number (TelemetryPacket.LapNumber), for the leading card's label. */
+  /** Canonical in-progress lap number for the leading card label. */
   currentLapNumber: number | null;
   maxLaps?: number;
 }

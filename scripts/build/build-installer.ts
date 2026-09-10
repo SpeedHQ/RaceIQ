@@ -30,6 +30,7 @@ console.log("→ Copied client assets to dist/public");
 
 // 4. Copy shared data
 run("bun scripts/build/copy-shared-data.ts", "Copying shared data");
+run("bun scripts/build/optimize-client-images.ts", "Optimizing packaged images");
 
 // 5. Compile server binary
 run(

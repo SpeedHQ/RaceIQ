@@ -1,20 +1,22 @@
-import type { ComparisonData } from "@shared/racing/comparison/types";
-const semanticNumber = (sample: ComparisonData["telemetryA"][number], id: keyof ComparisonData["telemetryA"][number]["values"]): number | undefined => { const value = sample.values[id]; return typeof value === "number" ? value : undefined; }
+import type { ComparisonRangeData } from "@shared/racing/comparison/types";
 import type { LapMeta } from "@shared/racing/sessions/types";
+import { useLapComparison, useLapComparisonRange, useLaps } from "@/hooks/laps";
 import { useNavigate } from "@tanstack/react-router";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLaps } from "@/hooks/laps";
 import { useTrackOutline, useTrackSectors } from "@/hooks/track-queries";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useUnits } from "@/hooks/useUnits";
 import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "@/lib/comparison-layout";
-import type { Point } from "@/lib/comparison-utils";
 import { formatLapTime } from "@/lib/format";
+import type { Point } from "@/lib/comparison-utils";
+import type { ChartRange } from "@/lib/chart-range";
+import { cropComparisonData, cropComparisonRange, mergeComparisonRange, normalizeFidelityRange, rangeComparison, selectFidelity } from "@/lib/comparison-fidelity";
 import type { CompareSearch } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import type { CompareAiPanelHandle } from "./CompareAiPanel";
+import { PointerLoadingIndicator } from "@/components/PointerLoadingIndicator";
 import { CompareAiSidebar } from "./CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./CompareTrackMap";
 import { ComparisonCharts } from "./ComparisonCharts";
@@ -36,6 +38,16 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
   );
 }
 
+export function ComparisonCursorLoadingIndicator({
+  loading,
+  position,
+}: {
+  loading: boolean;
+  position: { x: number; y: number } | null;
+}) {
+  return <PointerLoadingIndicator loading={loading} position={position} label="Fetching higher-fidelity datapoints" />;
+}
+
 export function LapComparison({ initialSearch }: { initialSearch?: CompareSearch } = {}) {
   return <LapComparisonInner initialSearch={initialSearch} />;
 }
@@ -53,10 +65,55 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [carBOrd, setCarBOrd] = useState<number | null>(search.carB ?? null);
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [lapBId, setLapBId] = useState<number | null>(search.lapB ?? null);
-  const [comparison, setComparison] = useState<ComparisonData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(lapAId, lapBId);
+  const error = comparisonError
+    ? comparisonError.message.includes("no telemetry")
+      ? m.compare_telemetry_unavailable()
+      : comparisonError.message || m.compare_load_failed()
+    : null;
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
+  const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
+  const [detailRange, setDetailRange] = useState<{ start: number; end: number; stepMeters: 0.1 } | null>(null);
+  const [optimisticRange, setOptimisticRange] = useState<ComparisonRangeData | null>(null);
+  const fullDistance = comparison?.traces.distance.at(-1) ?? 0;
+  const {
+    data: comparisonRange,
+    isPlaceholderData: comparisonRangeIsPlaceholder,
+    isFetching: comparisonRangeIsFetching,
+  } = useLapComparisonRange(
+    lapAId,
+    lapBId,
+    detailRange?.stepMeters ?? null,
+    detailRange?.start ?? null,
+    detailRange?.end ?? null,
+  );
+  const detailLoading = detailRange != null && comparisonRangeIsFetching;
+  const pointerPositionRef = useRef({ x: 0, y: 0 });
+  const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      pointerPositionRef.current = { x: event.clientX, y: event.clientY };
+      if (detailLoading) setPointerPosition(pointerPositionRef.current);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    return () => window.removeEventListener("pointermove", onPointerMove);
+  }, [detailLoading]);
+  useEffect(() => {
+    setPointerPosition(detailLoading ? pointerPositionRef.current : null);
+  }, [detailLoading]);
+  const visibleRange = zoomLevels.at(-1) ?? null;
+  const activeRange = visibleRange == null ? null : optimisticRange ?? comparisonRange;
+  const mergedComparison = useMemo(
+    () => (comparison && activeRange ? mergeComparisonRange(comparison, activeRange) : comparison),
+    [comparison, activeRange],
+  );
+  const chartComparison = useMemo(
+    () => (comparison && activeRange ? rangeComparison(comparison, activeRange) : comparison),
+    [comparison, activeRange],
+  );
+  useEffect(() => {
+    if (comparisonRange && !comparisonRangeIsPlaceholder) setOptimisticRange(null);
+  }, [comparisonRange, comparisonRangeIsPlaceholder]);
   const { data: outlineData } = useTrackOutline(selectedTrack ?? undefined);
   const trackOutline = useMemo(() => {
     if (!outlineData) return null;
@@ -99,6 +156,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       return next;
     });
   }, []);
+  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
+  const handleCursorMove = useCallback((d: number | null) => {
+    hoveredDistanceRef.current = d;
+    // Directly redraw the map canvas without React re-render
+    mapRedrawRef.current?.();
+  }, []);
   useEffect(() => {
     const layout = comparisonLayoutRef.current;
     if (!layout) return;
@@ -115,15 +178,41 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     },
     [],
   );
-  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
-  const handleCursorMove = useCallback((d: number | null) => {
-    hoveredDistanceRef.current = d;
-    // Directly redraw the map canvas without React re-render
-    mapRedrawRef.current?.();
-  }, []);
+  const handleRangeSelect = useCallback(
+    (start: number, end: number) => {
+      if (!comparison || fullDistance <= 0) return;
+      const currentStart = activeRange?.distanceStart ?? comparison.traces.distance[0] ?? 0;
+      const currentEnd = activeRange?.distanceEnd ?? fullDistance;
+      const fidelity = selectFidelity(end - start, Math.max(1, currentEnd - currentStart + 1));
+      if (!fidelity) {
+        setZoomLevels([null]);
+        setOptimisticRange(null);
+        setDetailRange(null);
+        return;
+      }
+      const nextRange = normalizeFidelityRange(start, end, fullDistance);
+      setZoomLevels((previous) => [...previous, { min: start, max: end }]);
+      setOptimisticRange(activeRange ? cropComparisonRange(activeRange, start, end) : cropComparisonData(comparison, start, end));
+      setDetailRange(nextRange);
+    },
+    [activeRange, comparison, fullDistance],
+  );
+  const handleZoomOut = useCallback(() => {
+    if (zoomLevels.length <= 1) return;
+    const previous = zoomLevels[zoomLevels.length - 2];
+    setZoomLevels((current) => current.slice(0, -1));
+    if (previous == null) {
+      setOptimisticRange(null);
+      setDetailRange(null);
+      return;
+    }
+    if (!comparison) return;
+    setOptimisticRange(cropComparisonData(comparison, previous.min, previous.max));
+    setDetailRange(normalizeFidelityRange(previous.min, previous.max, fullDistance));
+  }, [comparison, fullDistance, zoomLevels]);
   const handleJumpToFrac = useCallback(
     (frac: number) => {
-      const distances = comparison?.telemetryA.map((sample) => semanticNumber(sample, "timing.distance-traveled")).filter((value): value is number => value != null);
+      const distances = comparison?.traces.distance;
       if (!distances || distances.length === 0) return;
       const idx = Math.max(0, Math.min(distances.length - 1, Math.floor(frac * distances.length)));
       hoveredDistanceRef.current = distances[idx];
@@ -136,8 +225,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const appliedInitialCursor = useRef(false);
   useEffect(() => {
     if (appliedInitialCursor.current) return;
-    if (search.cursor != null && comparison?.telemetryA) {
-      const distances = comparison.telemetryA.map((sample) => semanticNumber(sample, "timing.distance-traveled")).filter((value): value is number => value != null);
+    const distances = comparison?.traces.distance;
+    if (search.cursor != null && distances) {
       if (distances.length === 0) return;
       const idx = Math.min(search.cursor, distances.length - 1);
       hoveredDistanceRef.current = distances[idx];
@@ -176,14 +265,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         byTrack.get(t)!.push(lap);
       }
 
-      const groups: TrackGroup[] = [];
-      for (const [ordinal, trackLaps] of byTrack) {
-        let name = `${m.compare_track_fallback()} ${ordinal}`;
-        try {
-          name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
-        } catch {}
-        groups.push({ trackOrdinal: ordinal, trackName: name, laps: trackLaps });
-      }
+      const groups = await Promise.all(
+        Array.from(byTrack, async ([ordinal, trackLaps]) => {
+          let name = `${m.compare_track_fallback()} ${ordinal}`;
+          try {
+            name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
+          } catch {}
+          return { trackOrdinal: ordinal, trackName: name, laps: trackLaps };
+        }),
+      );
       groups.sort((a, b) => a.trackName.localeCompare(b.trackName));
 
       const carOrds = new Set<number>(laps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
@@ -212,12 +302,10 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     if (prevTrackRef.current === undefined) {
       prevTrackRef.current = selectedTrack;
     } else if (prevTrackRef.current !== selectedTrack) {
-      prevTrackRef.current = selectedTrack;
       setCarAOrd(null);
       setCarBOrd(null);
       setLapAId(null);
       setLapBId(null);
-      setComparison(null);
     }
   }, [selectedTrack]);
 
@@ -228,7 +316,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     } else if (prevCarARef.current !== carAOrd) {
       prevCarARef.current = carAOrd;
       setLapAId(null);
-      setComparison(null);
       if (carAOrd != null && carBOrd == null) {
         setCarBOrd(carAOrd);
       }
@@ -242,9 +329,14 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     } else if (prevCarBRef.current !== carBOrd) {
       prevCarBRef.current = carBOrd;
       setLapBId(null);
-      setComparison(null);
     }
   }, [carBOrd]);
+
+  useEffect(() => {
+    setZoomLevels([null]);
+    setDetailRange(null);
+    setOptimisticRange(null);
+  }, [lapAId, lapBId]);
 
   // Laps filtered to selected track
   const trackLaps = selectedTrack != null ? (trackGroups.find((g) => g.trackOrdinal === selectedTrack)?.laps ?? []) : [];
@@ -256,49 +348,17 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const carALaps = trackLaps.filter((l) => l.carOrdinal === carAOrd);
   const carBLaps = trackLaps.filter((l) => l.carOrdinal === carBOrd);
 
-  // Fetch comparison when both laps selected
-  const fetchComparison = useCallback(async () => {
-    if (!lapAId || !lapBId || lapAId === lapBId) {
-      setComparison(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        const msg = body.error ?? m.compare_load_failed();
-        setError(msg.includes("no telemetry") ? m.compare_telemetry_unavailable() : msg);
-        setComparison(null);
-        return;
-      }
-      setComparison((await res.json()) as unknown as ComparisonData);
-    } catch {
-      setError(m.compare_load_failed());
-      setComparison(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [lapAId, lapBId]);
-
-  useEffect(() => {
-    fetchComparison();
-  }, [fetchComparison]);
-
-  // Synthetic outline fallback: use telemetryA world positions when no track
-  // outline exists. Keeps CompareTrackMap's Overview/Zoomed layout rendering
-  // at the same dimensions for games without track edge data (e.g. ACC).
+  // Synthetic outline fallback: use aligned world positions when no track outline exists.
   const syntheticOutline = useMemo<Point[]>(() => {
     if (!comparison) return [];
-    const tel = comparison.telemetryA;
-    if (!tel || tel.length < 2) return [];
-    const step = Math.max(1, Math.floor(tel.length / 400));
+    const { distance, positionXA, positionZA } = comparison.traces;
+    if (distance.length < 2) return [];
+    const step = Math.max(1, Math.floor(distance.length / 400));
     const out: Point[] = [];
-    for (let i = 0; i < tel.length; i += step) {
-      const x = semanticNumber(tel[i], "motion.position-x");
-      const z = semanticNumber(tel[i], "motion.position-z");
-      if (x != null && z != null) out.push({ x, z });
+    for (let i = 0; i < distance.length; i += step) {
+      const x = positionXA[i];
+      const z = positionZA[i];
+      if (Number.isFinite(x) && Number.isFinite(z) && (x !== 0 || z !== 0)) out.push({ x, z });
     }
     return out;
   }, [comparison]);
@@ -306,9 +366,8 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   // Compute per-segment times for both laps
   const segmentTimings = useMemo((): SegmentTiming[] => {
     if (!trackSegments || trackSegments.length === 0 || !comparison) return [];
-    const telA = comparison.telemetryA;
-    const telB = comparison.telemetryB;
-    if (telA.length < 10 || telB.length < 10) return [];
+    const { distance, elapsedTimeA, elapsedTimeB } = comparison.traces;
+    if (distance.length < 10) return [];
 
     let sNum = 1;
     return trackSegments.map((seg) => {
@@ -318,20 +377,18 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         sNum++;
       }
 
-      const computeTime = (tel: typeof telA) => {
-        const n = tel.length;
+      const computeTime = (times: number[]) => {
+        const n = times.length;
         const startIdx = Math.round(seg.startFrac * (n - 1));
         const endIdx = Math.min(Math.round(seg.endFrac * (n - 1)), n - 1);
-        const startTime = semanticNumber(tel[startIdx], "timing.current-lap") ?? 0;
-        const endTime = semanticNumber(tel[endIdx], "timing.current-lap") ?? 0;
-        return Math.round((endTime - startTime) * 1000) / 1000;
+        return Math.round((times[endIdx] - times[startIdx]) * 1000) / 1000;
       };
 
       return {
         name: displayName,
         type: seg.type as "corner" | "straight",
-        timeA: computeTime(telA),
-        timeB: computeTime(telB),
+        timeA: computeTime(elapsedTimeA),
+        timeB: computeTime(elapsedTimeB),
         startFrac: seg.startFrac,
         endFrac: seg.endFrac,
       };
@@ -340,6 +397,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
 
   return (
     <div data-testid="lap-compare-workspace" className="flex min-h-full min-w-0 flex-col gap-4 p-3 @3xl/workspace:p-4 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
+      <ComparisonCursorLoadingIndicator loading={detailLoading} position={pointerPosition} />
       <ComparisonSelectors
         trackGroups={trackGroups}
         selectedTrack={selectedTrack}
@@ -368,8 +426,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_two_laps()}</div>
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
-      ) : comparison?.telemetryA?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) &&
-        comparison.telemetryB?.some((sample) => Number.isFinite(semanticNumber(sample, "timing.distance-traveled"))) ? (
+      ) : comparison?.traces.distance.length ? (
         <div
           ref={comparisonLayoutRef}
           className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"
@@ -381,8 +438,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
           >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
-              telemetryA={comparison.telemetryA}
-              telemetryB={comparison.telemetryB}
+              traces={mergedComparison?.traces ?? comparison.traces}
               labelA={`${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
               labelB={`${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}
@@ -431,8 +487,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               window.addEventListener("mouseup", onUp);
             }}
           />
-
-          <ComparisonCharts comparison={comparison} units={units} onCursorMove={handleCursorMove} />
+          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} visibleRange={visibleRange} onZoomOut={handleZoomOut} />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && (

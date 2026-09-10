@@ -16,6 +16,7 @@ export const f1Adapter: GameAdapter = {
     weather: { source: "direct", freshness: "continuous", binding: { kind: "group", required: ["weather.air-temp"] } },
     analysis: {
       balance: { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } },
+      brakeBias: { source: "direct", freshness: "continuous", binding: { kind: "value", semanticId: "brakes.brake-bias" } },
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "derived", confidence: "high", display: "per-wheel", binding: { kind: "derived", derivation: "friction-circle-v1", requires: ["motion.speed", "tires.wheel-rotation-speed", "tires.tire-slip-angle"] } },
       traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } },

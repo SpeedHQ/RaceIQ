@@ -1,8 +1,9 @@
-import { bench, group, run } from "mitata";
+import { bench, group } from "mitata";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { runMitataBenchmarks } from "./mitata-harness";
 
 const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
   simulator: "acc",
@@ -48,7 +49,7 @@ group("telemetry resolver", () => {
     derivedFrame.readNumber(fuelPercent);
   }).gc("inner");
 
-  bench("reusable frame and four allocation-free reads", () => {
+  bench("reusable frame and four reads", () => {
     packet.TimestampMS = sequence += 1;
     frame = resolver.createFrameView(packet, { timestamp: { domain: "session", milliseconds: packet.TimestampMS }, updateSequence: BigInt(packet.TimestampMS) }, frame);
     frame.readNumber(speed);
@@ -64,4 +65,4 @@ group("telemetry resolver", () => {
   }).gc("inner");
 });
 
-await run();
+await runMitataBenchmarks("telemetry-resolver-results.json");

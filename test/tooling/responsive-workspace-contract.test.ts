@@ -46,7 +46,7 @@ describe("responsive workspace contract", () => {
   test("blocking rotation and unsupported helpers stay removed", () => {
     const root = read("client/src/routes/__root.tsx");
     const sessions = read("client/src/components/sessions/SessionsPage.tsx");
-    const dash = read("client/src/routes/dash.index.tsx");
+    const dash = read("client/src/routes/portable.index.tsx");
 
     expect(root).not.toContain("function MobileNotSupported");
     expect(root).not.toContain("function RotatePrompt");
@@ -88,7 +88,7 @@ describe("responsive workspace contract", () => {
       "client/src/components/acc/AccLiveDashboard.tsx",
       "client/src/components/tunes/experiment/ExperimentList.tsx",
       "client/src/components/tunes/ExperimentWorkspace.tsx",
-      "client/src/routes/dash.index.tsx",
+      "client/src/routes/portable.index.tsx",
     ];
 
     for (const path of pageOwners) {

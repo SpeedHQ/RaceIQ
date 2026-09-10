@@ -1,40 +1,12 @@
 import { useGLTF } from "@react-three/drei";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
 import { classifyMesh } from "./classify-mesh";
 
-function mergeStaticModelMeshes(root: THREE.Object3D): THREE.BufferGeometry | null {
-  root.updateMatrixWorld(true);
-  const geometries: THREE.BufferGeometry[] = [];
-  root.traverse((child) => {
-    if (!(child as THREE.Mesh).isMesh) return;
-    const mesh = child as THREE.Mesh;
-    let geometry = mesh.geometry.clone();
-    if (!geometry.getAttribute("position")) {
-      geometry.dispose();
-      return;
-    }
-    if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-    geometry.applyMatrix4(mesh.matrixWorld);
-    for (const attribute of Object.keys(geometry.attributes)) {
-      if (attribute !== "position" && attribute !== "normal") geometry.deleteAttribute(attribute);
-    }
-    geometry.morphAttributes = {};
-    geometry.morphTargetsRelative = false;
-    if (geometry.index) {
-      const nonIndexed = geometry.toNonIndexed();
-      geometry.dispose();
-      geometry = nonIndexed;
-    }
-    geometries.push(geometry);
-  });
-  if (geometries.length === 0) return null;
-  const merged = mergeGeometries(geometries);
-  for (const geometry of geometries) geometry.dispose();
-  return merged;
+export function canonicalModelYawAlignment(modelPath: string): number {
+  return modelPath === "/models/f1_2025_mclaren_mcl39_optimised.glb" ? Math.PI / 2 : 0;
 }
 
 export function CarBody({
@@ -42,17 +14,16 @@ export function CarBody({
   carModel,
   modelOffsetX,
   hideModelWheels,
-  mergeMeshes,
 }: {
   solid: "wire" | "solid" | "hidden";
   carModel: CarModelEnrichment & { hasModel: boolean };
   modelOffsetX: number;
   hideModelWheels?: boolean;
-  mergeMeshes?: boolean;
 }) {
   const { scene } = useGLTF(carModel.modelPath);
+  const yawAlignment = canonicalModelYawAlignment(carModel.modelPath);
 
-  const { model, modelMaterial, modelGeometry } = useMemo(() => {
+  const { model, modelMaterial } = useMemo(() => {
     const clone = scene.clone(true);
     const toRemove: THREE.Object3D[] = [];
     const modelMaterial =
@@ -84,16 +55,8 @@ export function CarBody({
     });
     for (const object of toRemove) object.parent?.remove(object);
 
-    if (mergeMeshes && modelMaterial) {
-      const modelGeometry = mergeStaticModelMeshes(clone);
-      if (modelGeometry) {
-        const mergedModel = new THREE.Mesh(modelGeometry, modelMaterial);
-        mergedModel.name = "Merged car body";
-        return { model: mergedModel, modelMaterial, modelGeometry };
-      }
-    }
-    return { model: clone, modelMaterial, modelGeometry: null };
-  }, [scene, solid, hideModelWheels, carModel, mergeMeshes]);
+    return { model: clone, modelMaterial };
+  }, [scene, solid, hideModelWheels, carModel]);
 
   // Scale GLB to match our coordinate system.
   // If glbWheelbase is set, scale so it matches our wheelbase exactly.
@@ -114,10 +77,9 @@ export function CarBody({
     }
 
     const off = center.multiplyScalar(-s);
-    // When model is rotated, model-local X becomes sideways — only apply offset if no rotation
-    if (!carModel.glbRotationY) off.x += modelOffsetX;
+    if (yawAlignment === 0) off.x += modelOffsetX;
     return { scale: s, offset: off };
-  }, [scene, carModel, modelOffsetX]);
+  }, [scene, carModel, modelOffsetX, yawAlignment]);
 
   const [highlightedMesh, setHighlightedMesh] = useState<string | null>(null);
 
@@ -176,14 +138,13 @@ export function CarBody({
 
   useEffect(
     () => () => {
-      modelGeometry?.dispose();
       modelMaterial?.dispose();
     },
-    [modelGeometry, modelMaterial],
+    [modelMaterial],
   );
 
   return (
-    <group rotation={[0, carModel.glbRotationY ?? 0, 0]}>
+    <group rotation={[0, yawAlignment, 0]}>
       <group scale={autoScale} position={[offset.x, offset.y + 0.25 + (carModel.glbOffsetY ?? 0), offset.z + (carModel.glbOffsetZ ?? 0)]}>
         {/* oxlint-disable-next-line a11y/noStaticElementInteractions: react-three primitive handles scene interaction rather than DOM interaction */}
         <primitive object={model} onDoubleClick={handleDoubleClick} dispose={null} />

@@ -9,7 +9,7 @@
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
@@ -45,6 +45,11 @@ for (const suffix of ["", "-wal", "-shm"]) {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
   }
+}
+if (resolve(process.env.DATA_DIR) === TEST_DATA_DIR) {
+  // Start each default test run from valid settings, even after an interrupted
+  // test left behind an intentionally invalid fixture value.
+  writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
 }
 
 /**

@@ -1,5 +1,6 @@
 import { type FieldDef, readSetupField, readSetupSection, type SectionDef, SETUP_FORM_TAB_ORDER, writeSetupField } from "@shared/racing/setups/schema";
 import { useState } from "react";
+import { AppInput } from "../ui/AppInput";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -32,7 +33,7 @@ function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings:
   return (
     <label className="space-y-1 block">
       <span className="text-xs font-medium text-app-text-muted">{field.label}</span>
-      <input
+      <AppInput
         type="number"
         step={field.step ?? "any"}
         value={displayValue(value)}
@@ -42,7 +43,7 @@ function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings:
           writeSetupField(next, field, n === "" ? undefined : n);
           onChange(next);
         }}
-        className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+        className="w-full"
       />
       {field.hint && <span className="text-app-caption text-app-text-muted">{field.hint}</span>}
     </label>
@@ -65,7 +66,7 @@ function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: 
         {labels.map((label, i) => (
           <label key={label} className="space-y-0.5 block">
             <span className="text-app-caption text-app-text-muted">{label}</span>
-            <input
+            <AppInput
               type="number"
               step={field.step ?? "any"}
               aria-label={`${field.label} ${label}`}
@@ -79,7 +80,7 @@ function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: 
                 writeSetupField(next, field, nextArr.slice(0, len));
                 onChange(next);
               }}
-              className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+              className="w-full"
             />
           </label>
         ))}

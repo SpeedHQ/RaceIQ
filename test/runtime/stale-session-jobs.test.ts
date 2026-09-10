@@ -16,7 +16,6 @@ import { startSyncAndStaleSessionJobs } from "../../server/runtime/startup-jobs"
 
 const NOOP_STARTUP_JOBS = {
   startCommunityTunesSync: () => {},
-  startLaptimesSync: () => {},
   startSessionCompressor: () => {},
   startUpdateCheckSchedule: () => {},
 };

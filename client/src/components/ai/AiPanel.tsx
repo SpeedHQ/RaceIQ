@@ -10,7 +10,7 @@ import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured"
 import { resolveCssColor } from "@/lib/rendering/css-values";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { useUiStore } from "@/stores/ui";
+import { uiStore, } from "@/stores/ui";
 import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
 import { PanelSectionHeader } from "../ui/panel-section-header";
 import { AnalysisDisplay } from "./analysis-display";
@@ -77,7 +77,7 @@ export interface AiPanelHandle {
 
 export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
   const { displaySettings } = useSettings();
-  const openSettings = useUiStore((s) => s.openSettings);
+  const openSettings = uiStore.actions.openSettings;
   const aiConfigured = isAiAnalysisConfigured(displaySettings);
 
   // Analysis state

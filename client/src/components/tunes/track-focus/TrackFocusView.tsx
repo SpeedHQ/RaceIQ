@@ -3,8 +3,6 @@ import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useMemo, useState } from "react";
 import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
-import type { SemanticAnalysisFrame } from "../../analyse/track-map/types";
-import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
 import type { LineSpreadTrace } from "../../../hooks/experiments";
 import { useLineSpread } from "../../../hooks/experiments";
 import type { TrackCorner } from "../../../hooks/track-queries";
@@ -12,6 +10,7 @@ import { useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from ".
 import { useLapIssues } from "../../../hooks/tunes";
 import { useLapSemanticTelemetry } from "../../../hooks/laps";
 import { useStintTraces } from "../../../hooks/useStintTraces";
+import { semanticSamples, type SemanticTuneSample } from "../semantic-tune";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -117,7 +116,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       bestLapId={bestLapId}
       focusLapId={effectiveFocusId}
       onFocusLap={setFocusLapId}
-      focusTelemetry={focusTel?.envelopes.map((e) => ({ values: Object.fromEntries(e.values.map((v) => [v.semanticId, v.value])), states: {}, freshness: {} })) ?? null}
+      focusTelemetry={semanticSamples(gameId, focusTel?.envelopes)}
       focusSectorTimes={focusTel?.sectorTimes ? { times: focusTel.sectorTimes, boundaryIndices: focusTel.sectorStarts ?? [] } : null}
       edges={edges}
       corners={corners ?? []}
@@ -139,7 +138,7 @@ export interface TrackFocusViewInnerProps {
   bestLapId: number | null;
   focusLapId: number | null;
   onFocusLap: (lapId: number) => void;
-  focusTelemetry: SemanticAnalysisFrame[] | null;
+  focusTelemetry: SemanticTuneSample[] | null;
   focusSectorTimes: SectorTimesLite | null;
   edges: { left: Pt[]; right: Pt[] } | null;
   corners: TrackCorner[];
@@ -264,16 +263,16 @@ export function TrackFocusViewInner({
         </p>
       )}
 
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
-        {/* Left column: track map (static) + issues list (own scroll). */}
+      <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
+        {/* Track map and issues scroll away with lane content. */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none">
             {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
               <TrackFocusMap
-                telemetry={focusTelemetry as unknown as TelemetryPacket[]}
-                sectorTimes={focusSectorTimes as unknown as SectorTimesLite}
+                telemetry={focusTelemetry}
+                sectorTimes={focusSectorTimes}
                 edges={edges}
                 corners={effectiveCorners.corners}
                 cornerFracs={effectiveCorners.fracs}
@@ -287,7 +286,7 @@ export function TrackFocusViewInner({
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
             <div className="flex-none text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} />
             </div>
           </div>
@@ -309,8 +308,8 @@ export function TrackFocusViewInner({
             ))}
           </div>
 
-          {/* Lane content owns its own scroll. */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+          {/* Lane content shares main scroll with map and issues. */}
+          <div className="flex-1 min-h-0 space-y-3">
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes

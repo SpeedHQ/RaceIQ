@@ -1,6 +1,7 @@
 import path from "node:path";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import react from "@vitejs/plugin-react";
 import { createLogger, defineConfig } from "vite";
@@ -44,21 +45,21 @@ export default defineConfig(({ command }) => {
     envDir: path.resolve(import.meta.dirname, ".."),
     envPrefix: ["VITE_", "RACEIQ_"],
     plugins: [
+      devtools(),
       react(),
       tailwindcss(),
       TanStackRouterVite(),
-      paraglideVitePlugin({
-        project: "./project.inlang",
-        outdir: "./src/paraglide",
-        // Skip declaration generation during dev to keep startup fast.
-        // Production builds emit declarations before the TypeScript check.
-        emitTsDeclarations: isBuild,
-        outputStructure: isBuild ? "message-modules" : "locale-modules",
-        // Locale is driven by the server-persisted `language` setting; the client
-        // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
-        // the runtime cache; baseLocale ("en") is the fallback.
-        strategy: ["localStorage", "baseLocale"],
-      }),
+      ...(isBuild
+        ? [
+            paraglideVitePlugin({
+              project: "./project.inlang",
+              outdir: "./src/paraglide",
+              emitTsDeclarations: true,
+              outputStructure: "message-modules",
+              strategy: ["localStorage", "baseLocale"],
+            }),
+          ]
+        : []),
     ],
     customLogger: logger,
     define: {
@@ -74,6 +75,7 @@ export default defineConfig(({ command }) => {
       chunkSizeWarningLimit: 2000,
     },
     server: {
+      open: false,
       port: parseInt(process.env.PORT || "5173", 10),
       host: true,
       proxy: {

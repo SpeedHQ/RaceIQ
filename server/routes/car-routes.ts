@@ -49,11 +49,22 @@ try {
 
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
+export const CarModelConfigUpdateSchema = z.object({ glbOffsetX: z.number() }).strict();
+
 
 function loadCarModelConfigs(): Record<string, any> {
   if (!existsSync(CAR_MODEL_CONFIGS_PATH)) return {};
   try {
-    return JSON.parse(readFileSync(CAR_MODEL_CONFIGS_PATH, "utf-8"));
+    const configs = JSON.parse(readFileSync(CAR_MODEL_CONFIGS_PATH, "utf-8")) as Record<string, any>;
+    let migrated = false;
+    for (const config of Object.values(configs)) {
+      if (config && typeof config === "object" && "glbRotationY" in config) {
+        delete config.glbRotationY;
+        migrated = true;
+      }
+    }
+    if (migrated) writeFileSync(CAR_MODEL_CONFIGS_PATH, JSON.stringify(configs, null, 2));
+    return configs;
   } catch {
     return {};
   }
@@ -215,7 +226,7 @@ export const carRoutes = new Hono()
   .put(
     "/api/car-model-configs/:ordinal",
     zValidator("param", OrdinalParamSchema),
-    zValidator("json", z.object({ glbOffsetX: z.number() })),
+    zValidator("json", CarModelConfigUpdateSchema),
     async (c) => {
       const { ordinal } = c.req.valid("param");
       const key = String(ordinal);

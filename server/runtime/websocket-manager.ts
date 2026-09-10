@@ -133,37 +133,46 @@ export class WebSocketManager {
 
   addClient(ws: ServerWebSocket<WSData>): void {
     this.clients.add(ws);
-    if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch {} }
-    if (this.lastFrameJson) { try { ws.send(this.lastFrameJson); } catch {} }
-    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch {} }
+    let sendFailed = false;
+    if (this.lastSchemaJson) { try { ws.send(this.lastSchemaJson); } catch { sendFailed = true; } }
+    if (this.lastFrameJson) { try { ws.send(this.lastFrameJson); } catch { sendFailed = true; } }
+    if (this.lastDevPacketJson && ws.data.devTelemetrySubscribed) { try { ws.send(this.lastDevPacketJson); } catch { sendFailed = true; } }
     // Send current session laps so recorded laps survive refresh
     const laps = this._getSessionLaps?.();
     if (laps && laps.length > 0) {
-      try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch {}
+      try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch { sendFailed = true; }
     }
     // Send stale lap detection notification if any sessions need reprocessing
     if (this._staleSessionsNotification) {
-      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch {}
+      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch { sendFailed = true; }
     }
     if (this._staleRaceResultsNotification) {
-      try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch {}
+      try { ws.send(JSON.stringify(this._staleRaceResultsNotification)); } catch { sendFailed = true; }
+    }
+    if (sendFailed) {
+      this.dropClient(ws);
+      return;
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
   }
 
   removeClient(ws: ServerWebSocket<WSData>): void {
-    this.clients.delete(ws);
-    if (this.clients.size === 0) this.stopBroadcastTimer(); // no clients — stop pushing
-    console.log(`[WS] Client disconnected. Active: ${this.clients.size}`
-    );
+    this.dropClient(ws);
   }
+
+  private dropClient(ws: ServerWebSocket<WSData>): void {
+    if (!this.clients.delete(ws)) return;
+    if (this.clients.size === 0) this.stopBroadcastTimer(); // no clients — stop pushing
+    console.log(`[WS] Client disconnected. Active: ${this.clients.size}`);
+  }
+
   disconnectClients(code = 1012, reason = "Server restart simulation"): void {
     for (const client of this.clients) {
       try {
         client.close(code, reason);
       } catch {
-        this.clients.delete(client);
+        this.dropClient(client);
       }
     }
   }
@@ -192,7 +201,7 @@ export class WebSocketManager {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });
     for (const client of this.clients) {
-      try { client.send(json); } catch { /* cleaned up on next telemetry broadcast */ }
+      try { client.send(json); } catch { this.dropClient(client); }
     }
   }
 
@@ -204,14 +213,14 @@ export class WebSocketManager {
     if (this.clients.size === 0) return;
     const json = JSON.stringify(payload);
     for (const client of this.clients) {
-      try { client.send(json); } catch {}
+      try { client.send(json); } catch { this.dropClient(client); }
     }
   }
 
   broadcastDevState(payload: Record<string, unknown>): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "dev-state", ...payload });
-    for (const client of this.clients) { try { client.send(json); } catch {} }
+    for (const client of this.clients) { try { client.send(json); } catch { this.dropClient(client); } }
   }
 
   publishTelemetry(projection: LiveProjection): void {
@@ -308,16 +317,14 @@ export class WebSocketManager {
 
   private _pushToClients(): void {
     const schemaJson = this.pendingSchemaJson;
-    const deadClients: ServerWebSocket<WSData>[] = [];
     for (const client of this.clients) {
       try {
         if (schemaJson) client.send(schemaJson);
         if (this.lastFrameJson) client.send(this.lastFrameJson);
         if (this.lastDevPacketJson && client.data.devTelemetrySubscribed) client.send(this.lastDevPacketJson);
-      } catch { deadClients.push(client); }
+      } catch { this.dropClient(client); }
     }
     this.pendingSchemaJson = null;
-    for (const dead of deadClients) this.clients.delete(dead);
   }
 }
 

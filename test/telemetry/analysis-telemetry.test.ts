@@ -4,6 +4,7 @@ import {
   hasTireTemperatureData,
   resolveAnalysisTelemetry,
 } from "../../shared/racing/analysis/telemetry-capabilities";
+import { unavailableAnalyseFeatures } from "../../shared/games/metric-contracts";
 import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
 import { suspensionCompression } from "../../shared/racing/analysis/laps/physics/vehicle";
@@ -92,6 +93,14 @@ describe("analysis telemetry capabilities", () => {
       source: "unavailable",
       reason: "source-limitation",
     });
+    expect(resolveAnalysisTelemetry(getGame("acc")).tireHealth).toEqual({
+      source: "unavailable",
+      reason: "source-limitation",
+    });
+    expect(resolveAnalysisTelemetry(getGame("acc")).tireWearRate).toEqual({
+      source: "unavailable",
+      reason: "source-limitation",
+    });
     expect(resolveAnalysisTelemetry(getGame("ac-evo")).suspensionTravel).toEqual({
       source: "direct",
       freshness: "continuous",
@@ -114,7 +123,7 @@ describe("analysis telemetry capabilities", () => {
     const supported = {
       "fm-2023": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "surface", "slipRatio", "lateralSlip", "wheelRotation", "tireHealth", "tireWearRate", "suspensionTravel", "suspensionCompressionBias"],
       "f1-2025": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel"],
-      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
+      acc: ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       "ac-evo": ["balance", "gForce", "gripDemand", "traction", "tireTemperature", "slipRatio", "slipAngle", "wheelRotation", "tireHealth", "tireWearRate", "tirePressure", "suspensionTravel", "suspensionCompressionBias"],
       iracing: ["balance", "gForce", "tireTemperature", "surface", "tireHealth", "tirePressure", "suspensionTravel"],
     } as const;
@@ -125,6 +134,11 @@ describe("analysis telemetry capabilities", () => {
         expect(analysis[metric].source, `${gameId}.${metric}`).not.toBe("unavailable");
       }
     }
+  });
+
+  test("reports unavailable Analyse features from adapter telemetry contracts", () => {
+    const unavailable = unavailableAnalyseFeatures(getGame("ac-evo"), new Set<string>());
+    expect(unavailable.map(({ label }) => label)).toEqual(expect.arrayContaining(["Brake Temp", "Front brake bias", "Tire Slip Ratio"]));
   });
 });
 
