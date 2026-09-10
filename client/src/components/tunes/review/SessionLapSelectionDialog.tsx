@@ -8,7 +8,7 @@ import { formatLapTime } from "@/lib/format";
 import { evaluationReasonLabel, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 
 type Selection = { lapIds: number[]; primaryLapId: number };
-type SortMode = "lapNumber" | "lapTime" | `sector:${number}`;
+type SortMode = "lapNumber" | "lapTime" | "status" | `sector:${number}`;
 
 export interface SessionLapSelectionDialogProps {
   open: boolean;
@@ -47,11 +47,16 @@ export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLa
       !query || `lap ${lap.lapNumber} ${lap.invalidReason ?? ""} ${lap.isValid ? "valid" : "invalid"}`.toLowerCase().includes(query),
     );
     return [...filtered].sort((a, b) => {
+      if (sortMode === "status") {
+        const aStatus = evaluationReasonLabel(reasons.get(a.id) ?? "invalid");
+        const bStatus = evaluationReasonLabel(reasons.get(b.id) ?? "invalid");
+        return aStatus.localeCompare(bStatus) * (sortDescending ? -1 : 1) || a.lapNumber - b.lapNumber;
+      }
       const aValue = sortMode === "lapTime" ? a.lapTime : sortMode === "lapNumber" ? a.lapNumber : a.sectorTimes?.[Number(sortMode.slice(7))] ?? Number.POSITIVE_INFINITY;
       const bValue = sortMode === "lapTime" ? b.lapTime : sortMode === "lapNumber" ? b.lapNumber : b.sectorTimes?.[Number(sortMode.slice(7))] ?? Number.POSITIVE_INFINITY;
       return (aValue - bValue) * (sortDescending ? -1 : 1) || a.lapNumber - b.lapNumber;
     });
-  }, [filter, laps, sortDescending, sortMode]);
+  }, [filter, laps, reasons, sortDescending, sortMode]);
   const gridTemplateColumns = `2rem 4rem 6rem 8rem 4rem repeat(${sectorCount}, minmax(4.5rem, 1fr))`;
   const chooseSort = (next: SortMode) => {
     setSortDescending(sortMode === next ? !sortDescending : false);
@@ -80,8 +85,7 @@ export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLa
           <fieldset><legend className="sr-only">Session laps</legend>
             <div className="overflow-x-auto rounded border border-app-border">
               <div className="grid min-w-max gap-x-2 border-b border-app-border px-3 py-1 text-xs tracking-wider text-app-text-dim" style={{ gridTemplateColumns }}>
-                <div /><div className="text-center">Primary</div><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapTime")}>Time {sortMode === "lapTime" ? (sortDescending ? "↓" : "↑") : ""}</button><div>Status</div><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapNumber")}>Lap {sortMode === "lapNumber" ? (sortDescending ? "↓" : "↑") : ""}</button>
-                {Array.from({ length: sectorCount }, (_, index) => <button type="button" key={index} className="text-right hover:text-app-text" onClick={() => chooseSort(`sector:${index}`)}>S{index + 1} {sortMode === `sector:${index}` ? (sortDescending ? "↓" : "↑") : ""}</button>)}
+                <div /><div className="text-center">Primary</div><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapTime")}>Time {sortMode === "lapTime" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-left hover:text-app-text" onClick={() => chooseSort("status")}>Status {sortMode === "status" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapNumber")}>Lap {sortMode === "lapNumber" ? (sortDescending ? "↓" : "↑") : ""}</button>
               </div>
               <div className="divide-y divide-app-border/30">
                 {visibleLaps.map((lap) => {
