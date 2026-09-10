@@ -88,9 +88,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       </span>
                     )}
                     <Button
-                      variant="app-outline"
+                      variant="app-primary"
                       size="app-sm"
-                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       onClick={(event) => {
                         event.stopPropagation();
                         navigate({ to: `${gameRoute}/sessions/replay`, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } });
