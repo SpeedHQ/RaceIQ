@@ -251,7 +251,7 @@ export function SessionReviewDashboard({
           )}
           {onDrillIntoLap && focusLap && (
             <Button variant="app-outline" size="app-sm" onClick={() => onDrillIntoLap(focusLap)}>
-              {m.analyse_lap_button()}
+              {m.analyse_lap_button({ lap: focusLap.lapNumber })}
             </Button>
           )}
           {focusLap && <span className={`text-sm ${focusLap.isValid ? "text-status-success" : "text-status-danger"}`} title={focusLap.isValid ? "valid lap" : "invalid lap"}>{focusLap.isValid ? "✓" : "!"}</span>}
