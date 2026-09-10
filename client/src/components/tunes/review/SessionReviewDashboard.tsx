@@ -313,6 +313,23 @@ export function SessionReviewDashboard({
                 ))}
               </div>
             </div>
+            <div className="border-b border-app-border px-3 py-2 text-app-micro text-app-text-dim">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold uppercase tracking-wider text-app-text-muted">Legend</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-2 w-3 rounded-sm border border-app-border bg-app-text-muted/40" aria-hidden="true" />
+                  Range
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-px w-3 bg-app-text-muted" aria-hidden="true" />
+                  Median
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="h-0.5 w-3 rounded bg-app-accent" aria-hidden="true" />
+                  Current value on map hover
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-1 @3xl/workspace:grid-cols-2">
               <div className="min-w-0 border-b border-app-border @3xl/workspace:border-b-0 @3xl/workspace:border-r aspect-square">
                 {telemetry.length > 0 ? (
