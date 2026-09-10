@@ -632,7 +632,7 @@
   "analyse_loading_telemetry": "Rundentelemetrie wird geladen...",
   "analyse_no_telemetry_data": "Keine Telemetriedaten für diese Runde.",
   "analyse_select_to_start": "Wähle Strecke, Fahrzeug und Runde zum Analysieren.",
-  "analyse_lap_button": "Runde {lap} wiedergeben",
+  "analyse_lap_button": "Runde {lap} analysieren",
   "analyse_session_button": "Session analysieren",
   "analyse_search_tracks_placeholder": "Strecken suchen...",
   "analyse_search_cars_placeholder": "Fahrzeuge suchen...",
