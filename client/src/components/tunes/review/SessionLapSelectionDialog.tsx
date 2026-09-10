@@ -83,8 +83,8 @@ export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLa
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <label className="mb-3 block max-w-sm"><span className="sr-only">Search laps</span><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Search laps…" className="h-8 w-full rounded border border-app-border bg-app-surface px-2 text-sm text-app-text outline-none focus:border-app-accent" /></label>
           <fieldset><legend className="sr-only">Session laps</legend>
-            <div className="overflow-x-auto rounded border border-app-border">
-              <div className="grid min-w-max gap-x-2 border-b border-app-border px-3 py-1 text-xs tracking-wider text-app-text-dim" style={{ gridTemplateColumns }}>
+            <div className="max-h-[55vh] overflow-auto overscroll-contain rounded border border-app-border">
+              <div className="sticky top-0 z-10 grid min-w-max gap-x-2 border-b border-app-border bg-app-bg px-3 py-1 text-xs tracking-wider text-app-text-dim" style={{ gridTemplateColumns }}>
                 <div /><div className="text-center">Primary</div><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapTime")}>Time {sortMode === "lapTime" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-left hover:text-app-text" onClick={() => chooseSort("status")}>Status {sortMode === "status" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapNumber")}>Lap {sortMode === "lapNumber" ? (sortDescending ? "↓" : "↑") : ""}</button>
               </div>
               <div className="divide-y divide-app-border/30">
