@@ -250,7 +250,7 @@ export function SessionReviewDashboard({
             />
           )}
           {onDrillIntoLap && focusLap && (
-            <Button variant="app-outline" size="app-sm" onClick={() => onDrillIntoLap(focusLap)}>
+            <Button variant="app-primary" size="app-sm" onClick={() => onDrillIntoLap(focusLap)}>
               {m.analyse_lap_button({ lap: focusLap.lapNumber })}
             </Button>
           )}
