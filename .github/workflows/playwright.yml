@@ -29,6 +29,10 @@ on:
         type: string
         default: playwright-results
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   playwright:
     runs-on: ${{ inputs.runs-on }}

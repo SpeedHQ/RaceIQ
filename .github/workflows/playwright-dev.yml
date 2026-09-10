@@ -3,6 +3,10 @@ name: Playwright E2E (dev server)
 on:
   workflow_call:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   playwright-dev:
     uses: ./.github/workflows/playwright.yml

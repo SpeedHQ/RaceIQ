@@ -23,7 +23,7 @@ on:
 
 concurrency:
   group: update-baselines-${{ inputs.target_ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
