@@ -22,7 +22,7 @@ test("global landing cards, period filters, and recent laps navigate", async ({ 
   const recentRows = page.locator("tbody tr");
   await expect(recentRows.first()).toBeVisible();
   await recentRows.first().click();
-  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/analyse\?/);
+  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/replay\?/);
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
     timeout: 20_000,
   });

@@ -31,7 +31,7 @@ const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
  */
 export function SuspensionLanes({
   traces,
-  primaryLapId: primaryLapId = null,
+  primaryLapId = null,
   cornerFracs = [],
   annotationMarkers,
   cursorFrac = null,

@@ -9,7 +9,7 @@ import { nearestCornerLabel } from "./detect-corners";
 export function BrakingPanel({
   traces,
   metricTraces = traces,
-  primaryLapId: primaryLapId,
+  primaryLapId,
   corners,
   cornerFracs,
   nominalSpanMeters,

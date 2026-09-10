@@ -61,7 +61,7 @@ function balanceAt(t: LapTrace, f: number): number {
  * more). Every lap dim, best lap in accent, dashed zero line. Empty state
  * when the game reports no slip-angle data at all.
  */
-export function BalanceLanes({ traces, primaryLapId: primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
+export function BalanceLanes({ traces, primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
   const withBalance = useMemo(() => traces.filter((t) => t.balance != null), [traces]);
   const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === primaryLapId) ?? null, [withBalance, primaryLapId]);
 

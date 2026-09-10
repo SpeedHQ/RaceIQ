@@ -9,7 +9,7 @@ import { nearestCornerLabel } from "./detect-corners";
 export function ThrottleExitPanel({
   traces,
   metricTraces = traces,
-  primaryLapId: primaryLapId,
+  primaryLapId,
   corners,
   cornerFracs,
   nominalSpanMeters,

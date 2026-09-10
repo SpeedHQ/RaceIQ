@@ -40,7 +40,7 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection nested={nested} message="Track, car, and lap must be positive numeric selections." />;
   if (hasSession) {
     if (selectedSessionId == null || !Number.isInteger(selectedSessionId) || selectedSessionId <= 0 || hasTrack || hasCar || hasLap) {
-      return <InvalidAnalyseSelection nested={nested} message="Session selection must contain only a positive session ID, laps, and primary." />;
+      return <InvalidAnalyseSelection nested={nested} message="Session selection must contain only a positive session ID." />;
     }
     if (hasComparison !== hasPrimary || (hasComparison && (comparisonLapIds == null || comparisonLapIds.length === 0 || comparisonLapIds.length > 5 || !comparisonLapIds.includes(search.primary!)))) {
       return <InvalidAnalyseSelection nested={nested} message="Session selection must provide 1–5 unique laps and a primary lap included in them." />;

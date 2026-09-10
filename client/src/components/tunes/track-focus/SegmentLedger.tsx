@@ -198,7 +198,7 @@ function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; 
  * the zone, estimated time loss, and a verdict pill. Uses track segment data
  * resolved for Track Focus.
  */
-export function SegmentLedger({ traces, primaryLapId: primaryLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: SegmentLedgerProps) {
+export function SegmentLedger({ traces, primaryLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints, onHoverRange }: SegmentLedgerProps) {
   // When the track has no segment metadata, fall back to detecting apex zones
   // from the best lap's speed trace (as the mockup did from raw telemetry).
   const effective = useMemo(() => {

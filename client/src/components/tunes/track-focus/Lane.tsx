@@ -130,7 +130,7 @@ export function Lane({
         const px = x(frac);
         ctx.beginPath();
         ctx.setLineDash([2 * ratio, 4 * ratio]);
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.strokeStyle = resolveCssColor("color-mix(in srgb, var(--app-text) 90%, transparent)");
         ctx.lineWidth = ratio;
         ctx.moveTo(px, top);
         ctx.lineTo(px, bottom);

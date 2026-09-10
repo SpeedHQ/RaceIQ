@@ -99,7 +99,7 @@ const CHANNELS = [
  */
 export function ConsistencyLanes({
   traces,
-  primaryLapId: primaryLapId,
+  primaryLapId,
   cornerFracs,
   corners = [],
   issues,

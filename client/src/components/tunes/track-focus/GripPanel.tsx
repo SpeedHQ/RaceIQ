@@ -73,7 +73,7 @@ function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null):
  * for the two scalar lanes and the corner lane, plus the standalone
  * `GgScatter` for the friction circle.
  */
-export function GripPanel({ traces, primaryLapId: primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
+export function GripPanel({ traces, primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
   const withLatG = useMemo(() => traces.filter((t) => t.latG != null), [traces]);
   const withLongG = useMemo(() => traces.filter((t) => t.longG != null), [traces]);
   const withSlip = useMemo(() => traces.filter((t) => t.combinedSlip != null), [traces]);

@@ -54,7 +54,7 @@ function deltaColor(value: number | null): string {
   if (value > 0.1) return "text-(--severity-caution)";
   return "text-(--severity-nominal)";
 }
-export function SectorLedger({ traces, primaryLapId: primaryLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
+export function SectorLedger({ traces, primaryLapId, sectorBoundaryFracs, cursorFrac, onCursorFrac }: SectorLedgerProps) {
   const defs = useMemo(() => sectors(sectorBoundaryFracs), [sectorBoundaryFracs]);
   const best = traces.find((trace) => trace.lapId === primaryLapId) ?? traces[0];
   const rows = useMemo<SectorRow[]>(() => {

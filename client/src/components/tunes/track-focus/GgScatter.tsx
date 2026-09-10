@@ -46,7 +46,7 @@ function nearestIndex(t: LapTrace, f: number): number {
  * at the shared cursor fraction is highlighted on every lap so this chart and
  * the lat/long lanes stay in sync while scrubbing.
  */
-export function GgScatter({ traces, primaryLapId: primaryLapId, cursorFrac }: GgScatterProps) {
+export function GgScatter({ traces, primaryLapId, cursorFrac }: GgScatterProps) {
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>(320);
   const staticCanvasRef = useRef<HTMLCanvasElement>(null);
   const cursorCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,7 +86,7 @@ export function GgScatter({ traces, primaryLapId: primaryLapId, cursorFrac }: Gg
     ctx.stroke();
 
     ctx.fillStyle = "var(--app-text-dim)";
-    ctx.font = "9px sans-serif";
+    ctx.font = "var(--text-app-caption) var(--font-sans)";
     for (const g of RINGS) ctx.fillText(`${g}g`, cx + g * r + 2, cy - 2);
     ctx.fillText("right", bw - 30, cy - 4);
     ctx.fillText("left", 4, cy - 4);

@@ -120,7 +120,7 @@ describe("local UI diff report", () => {
     expect(screenshots).toContain("RESPONSIVE_VIEWPORTS");
     expect(screenshotCases).toContain('{ name: "mobile", width: 390, height: 844 }');
     expect(screenshotCases).toContain('{ name: "home", path: "/" }');
-    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/analyse" }');
+    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/sessions/analyse" }');
     expect(screenshotCases).toContain('{ name: "acc-setups", path: "/acc/setups" }');
     expect(screenshotCases).toContain('name: "iracing-track-detail"');
     expect(screenshotCases).toContain('path: "/iracing/tracks/18/info"');
