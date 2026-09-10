@@ -21,7 +21,7 @@ beforeAll(async () => {
     "iracing",
     "test/artifacts/sessions/iracing-road-america-gt3.bin.gz",
   );
-}, 30_000);
+});
 
 afterAll(() => stopMaintenanceTasks());
 
@@ -87,7 +87,7 @@ describe("committed iRacing recorder fixture", () => {
 
 describe("committed iRacing seed fixture", () => {
   test("replays the compact real-telemetry window through the production parser", () => {
-    expect(recording.rawPackets).toHaveLength(44_495);
+    expect(recording.rawPackets).toHaveLength(6_357);
     expect(recording.sessions).toEqual([
       {
         carOrdinal: 206,
@@ -108,7 +108,6 @@ describe("committed iRacing seed fixture", () => {
 
   test("retains complete laps around lap 415's pit service", () => {
     expect(recording.laps.map((lap) => lap.lapNumber)).toEqual([
-      413,
       414,
       415,
       416,

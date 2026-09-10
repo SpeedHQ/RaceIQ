@@ -25,9 +25,15 @@ test("developer AC Evo raw inspector decodes replay telemetry values", async ({ 
 
   const speedRow = page.locator('[data-telemetry-field="Speed"]');
   await expect(speedRow).toBeVisible();
-  const speedText = await speedRow.locator("span").last().innerText();
-  expect(Number.isFinite(Number(speedText)), `decoded Speed value: ${speedText}`).toBe(true);
-  expect(decodedSpeedValues.has(Number(speedText).toFixed(3)), `Speed ${speedText} came from replay source`).toBe(true);
+  await expect
+    .poll(
+      async () => {
+        const speedText = await speedRow.locator("span").last().innerText();
+        return { speedText, matchesReplay: decodedSpeedValues.has(Number(speedText).toFixed(3)) };
+      },
+      { message: "Speed should settle on a value from replay source" },
+    )
+    .toMatchObject({ matchesReplay: true });
 
   for (const field of ["CurrentEngineRpm", "Gear", "Accel", "Brake", "Steer"]) {
     const row = page.locator(`[data-telemetry-field="${field}"]`);

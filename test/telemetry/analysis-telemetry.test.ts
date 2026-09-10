@@ -4,6 +4,7 @@ import {
   hasTireTemperatureData,
   resolveAnalysisTelemetry,
 } from "../../shared/racing/analysis/telemetry-capabilities";
+import { unavailableAnalyseFeatures } from "../../shared/games/metric-contracts";
 import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
 import { suspensionCompression } from "../../shared/racing/analysis/laps/physics/vehicle";
@@ -133,6 +134,11 @@ describe("analysis telemetry capabilities", () => {
         expect(analysis[metric].source, `${gameId}.${metric}`).not.toBe("unavailable");
       }
     }
+  });
+
+  test("reports unavailable Analyse features from adapter telemetry contracts", () => {
+    const unavailable = unavailableAnalyseFeatures(getGame("ac-evo"), new Set<string>());
+    expect(unavailable.map(({ label }) => label)).toEqual(expect.arrayContaining(["Brake Temp", "Front brake bias", "Tire Slip Ratio"]));
   });
 });
 

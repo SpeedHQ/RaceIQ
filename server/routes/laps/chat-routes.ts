@@ -21,7 +21,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { getSecret } from "../../runtime/platform/keystore";
+import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 
@@ -91,25 +91,12 @@ export const chatRoutes = new Hono()
     if (!chatProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    }
+    await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "local"
+        : chatProvider === "openai-compatible"
           ? "local-model"
           : "gemini-flash-latest");
 

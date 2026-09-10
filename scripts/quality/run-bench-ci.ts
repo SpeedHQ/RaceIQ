@@ -9,14 +9,17 @@ const currentDir = resolve(option("--current") ?? root);
 const baseDir = resolve(option("--base") ?? join(root, "../RaceIQ-base"));
 const reportsDir = resolve(option("--reports") ?? join(root, "reports"));
 const bun = process.execPath;
+// Keep CI within runner memory/time limits while retaining paired comparisons.
+// Each child reloads a large replay fixture, so excessive retained-heap samples
+// multiply setup cost without improving the median enough to justify it.
 const common = [
-  "--processes=3",
-  "--retained-processes=15",
+  "--processes=2",
+  "--retained-processes=5",
   "--retained-warmups=1",
-  "--warmup-ms=3000",
-  "--measurement-ms=5000",
-  "--min-samples=20",
-  "--max-samples=200",
+  "--warmup-ms=1000",
+  "--measurement-ms=2000",
+  "--min-samples=10",
+  "--max-samples=100",
 ];
 const filesToSync = [
   "scripts/quality/process-bench.ts",

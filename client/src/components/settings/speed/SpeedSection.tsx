@@ -34,10 +34,10 @@ export function SpeedSection() {
       <p className="text-sm text-app-text-muted mb-4">{m.settings_units_desc()}</p>
       <div className="flex items-center gap-2">
         <Label className="text-app-text-secondary mr-2">{m.settings_units_system_label()}</Label>
-        <Button size="sm" variant={unitSystem === "imperial" ? "default" : "outline"} onClick={() => setUnitSystem("imperial")}>
+        <Button size="sm" variant={unitSystem === "imperial" ? "selected-toggle" : "outline"} aria-pressed={unitSystem === "imperial"} onClick={() => setUnitSystem("imperial")}>
           {m.settings_units_imperial()}
         </Button>
-        <Button size="sm" variant={unitSystem === "metric" ? "default" : "outline"} onClick={() => setUnitSystem("metric")}>
+        <Button size="sm" variant={unitSystem === "metric" ? "selected-toggle" : "outline"} aria-pressed={unitSystem === "metric"} onClick={() => setUnitSystem("metric")}>
           {m.settings_units_metric()}
         </Button>
       </div>
@@ -46,10 +46,10 @@ export function SpeedSection() {
         <p className="text-xs text-app-text-muted mb-3">{m.settings_temperature_desc()}</p>
         <div className="flex items-center gap-2">
           <Label className="text-app-text-secondary mr-2">{m.settings_temperature_unit_label()}</Label>
-          <Button size="sm" variant={temperatureUnit === "F" ? "default" : "outline"} onClick={() => setTemperatureUnit("F")}>
+          <Button size="sm" variant={temperatureUnit === "F" ? "selected-toggle" : "outline"} aria-pressed={temperatureUnit === "F"} onClick={() => setTemperatureUnit("F")}>
             °F
           </Button>
-          <Button size="sm" variant={temperatureUnit === "C" ? "default" : "outline"} onClick={() => setTemperatureUnit("C")}>
+          <Button size="sm" variant={temperatureUnit === "C" ? "selected-toggle" : "outline"} aria-pressed={temperatureUnit === "C"} onClick={() => setTemperatureUnit("C")}>
             °C
           </Button>
         </div>

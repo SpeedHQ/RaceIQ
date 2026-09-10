@@ -17,7 +17,7 @@ import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { parseRawLapFramesForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 initGameAdapters();
@@ -110,7 +110,7 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     }
     expect(rawPackets.length).toBe(N);
 
-    const normalized = await parseRawLapFramesForTest(FIXTURE, startOffset, N, "ac-evo");
+    const normalized = parseRawLapFramesFromBuffer(raw, startOffset, N, "ac-evo", FIXTURE);
     expect(normalized.length).toBe(N);
 
     for (let i = 0; i < N; i++) {

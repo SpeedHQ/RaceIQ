@@ -7,16 +7,22 @@ test("sessions loading and API error states remain visible", async ({ page, requ
   const browserErrors = collectBrowserErrors(page);
   const seeded = await sessionsFor(request, "fm-2023");
   let releaseLoading!: () => void;
+  let requestStartedResolve!: () => void;
+  const requestStarted = new Promise<void>((resolve) => {
+    requestStartedResolve = resolve;
+  });
   const loading = new Promise<void>((resolve) => {
     releaseLoading = resolve;
   });
   await page.route("**/api/sessions**", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname !== "/api/sessions" || url.searchParams.get("gameId") !== "fm-2023") return route.continue();
+    requestStartedResolve();
     await loading;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(seeded) });
   });
   const navigation = page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
+  await requestStarted;
   await expect(page.getByText("Loading...", { exact: true }).last()).toBeVisible();
   releaseLoading();
   await navigation;

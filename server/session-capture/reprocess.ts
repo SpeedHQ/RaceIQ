@@ -5,17 +5,14 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/games/ids";
-import {
-  gunzipBuffer,
-  iterateSessionFrameRecords,
-  readFrameStreamStart,
-} from "./framing";
+import { loadSessionSource } from "./source-loader";
+import { packetIndexToLegacyMotecOffset } from "../motec/source-archive";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-
+import { readFrameStreamStart, iterateSessionCaptureRecords } from "./framing";
 interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
@@ -46,59 +43,82 @@ export class SessionNotFoundError extends Error {
  * Updates lap frame indexes and metadata in the DB.
  */
 export async function reprocessSession(sessionId: number): Promise<ReprocessResult> {
-  const session = await db
-    .select({ rawFile: sessions.rawFile, gameId: sessions.gameId })
+  const sessionRows = await db
+    .select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
-    .get();
-
+    .all();
+  const session = sessionRows[0];
   if (!session) {
     throw new SessionNotFoundError(sessionId);
   }
   if (!session.rawFile) {
     throw new SessionRawFileMissingError(sessionId);
   }
+  if (!(await Bun.file(session.rawFile).exists())) {
+    throw new SessionRawFileMissingError(sessionId, session.rawFile);
+  }
 
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
   const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
-  // Read the raw session file
-  const rawFileHandle = Bun.file(session.rawFile);
-  if (!(await rawFileHandle.exists())) {
-    throw new SessionRawFileMissingError(sessionId, session.rawFile);
-  }
-  const rawBuffer = Buffer.from(await rawFileHandle.arrayBuffer());
-  // Decompress if file is gzipped
-  const buf = session.rawFile.endsWith(".gz")
-    ? await gunzipBuffer(rawBuffer)
-    : rawBuffer;
-
-  const frameStreamStart = readFrameStreamStart(buf);
-
-  // Replay all frames through a capturing lap detector
-  const capturingDb = new CapturingDbAdapter();
-  const detector = serverGame.createLapDetector({
-    db: capturingDb,
-    bypassPacketRateFilter: true,
+  const loaded = await loadSessionSource({
+    rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
+    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
   });
-  const parserState = serverGame.createParserState?.() ?? null;
+  const existingLaps = await getLapsForSession(sessionId);
+  if (loaded.kind === "capture") {
+    const frameStreamStart = readFrameStreamStart(loaded.buffer);
+    const hasSegmentBoundaries = [...iterateSessionCaptureRecords(loaded.buffer, frameStreamStart)]
+      .some((record) => record.kind === "segment-boundary");
+    if (hasSegmentBoundaries) {
+      return {
+        sessionId,
+        lapsDetected: existingLaps.length,
+        lapsUpdated: existingLaps.length,
+        strategy: "in-place",
+      };
+    }
+  }
 
-  for (const { offset, frame } of iterateSessionFrameRecords(
-    buf,
-    frameStreamStart,
-    { skipMetaFrames: true, allowEmptyFrames: true },
-  )) {
-    const packet = serverGame.tryParse(frame, parserState);
-    if (packet) {
-      await detector.feed(packet, offset);
+  const capturingDb = new CapturingDbAdapter();
+  const detector = serverGame.createLapDetector({ db: capturingDb, bypassPacketRateFilter: true });
+  if (loaded.kind === "packets") {
+    for (let index = 0; index < loaded.packets.length; index++) {
+      const offset = loaded.offsetEncoding === "packet-index"
+        ? index
+        : packetIndexToLegacyMotecOffset(gameId, index);
+      await detector.feed(loaded.packets[index], offset);
+    }
+  } else {
+    const buf = loaded.buffer;
+    const frameStreamStart = readFrameStreamStart(buf);
+    let parserState = serverGame.createParserState?.() ?? null;
+    let inContext = false;
+    for (const record of iterateSessionCaptureRecords(buf, frameStreamStart)) {
+      if (record.kind === "segment-boundary") {
+        parserState = serverGame.createParserState?.() ?? null;
+        inContext = false;
+        continue;
+      }
+      if (record.kind === "segment-context") {
+        inContext = true;
+        continue;
+      }
+      if (record.kind === "segment-context-end") {
+        inContext = false;
+        continue;
+      }
+      if (record.kind !== "frame") continue;
+      const packet = serverGame.tryParse(record.frame, parserState);
+      if (packet && !inContext) await detector.feed(packet, record.offset);
     }
   }
 
   await detector.flushIncompleteLap?.();
 
   const detectedLaps = capturingDb.laps;
-  const existingLaps = await getLapsForSession(sessionId);
 
   let strategy: "in-place" | "replace";
   let lapsUpdated = 0;

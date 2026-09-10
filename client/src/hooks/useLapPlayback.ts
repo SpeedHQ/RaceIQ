@@ -1,8 +1,7 @@
-import { startTransition, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
 import { type SemanticAnalysisFrame, semanticNumber, type TrackMapHandle } from "../components/analyse/track-map/types";
-// Offer React-owned gauges playback updates at display cadence. Transition
-// scheduling may coalesce them under load so canvas animation stays smooth.
+// React-owned gauges publish at display cadence while canvas animation stays smooth.
 export const REACT_STATE_INTERVAL_MS = 1000 / 60;
 interface UseLapPlaybackOptions {
   playing: boolean;
@@ -100,7 +99,7 @@ export function useLapPlayback({
         updateOverlays(nextIdx);
         if (now - lastStateUpdateRef.current > REACT_STATE_INTERVAL_MS) {
           lastStateUpdateRef.current = now;
-          startTransition(() => setCursorIdx(nextIdx));
+          setCursorIdx(nextIdx);
         }
       }
 

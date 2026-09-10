@@ -172,8 +172,8 @@ describe("local UI diff report", () => {
     expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(5);
     expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(98);
     expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
-    expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(13);
-    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(21);
-    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(119);
+    expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(17);
+    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(25);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(123);
   });
 });

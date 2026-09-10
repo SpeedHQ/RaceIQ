@@ -1,17 +1,17 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { resetTestDatabase } from "./reset-test-database";
 import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
 // Cross-platform launcher for Playwright projects that target the compiled
 // raceiq binary.
 //
-// 1. Wipes the DATA_DIR passed in from playwright.config.ts (defaults to
-//    playwright/test-data for the fresh-install project) and seeds
-//    settings.json so the server reads a fresh state at startup:
+// 1. Ensures the DATA_DIR exists and seeds settings.json so the server reads
+//    deterministic test settings at startup:
 //      - udpPort: non-default (avoids colliding with a running dev server) —
-//        controlled by UDP_PORT env var so multiple projects can run in
-//        parallel without fighting for the same socket.
+//        controlled by UDP_PORT env var so multiple projects can run
+//        in parallel without fighting for the same socket.
 //      - settings.json existence: skips the binary's first-run "open browser"
 //        branch (spawn("open") currently kills the compiled macOS binary)
 //      - onboardingComplete is left unset → schema default false → wizard shows
@@ -29,23 +29,11 @@ const binary = resolve(distDir, binaryName);
 if (!existsSync(binary)) {
   throw new Error(`Compiled E2E server binary not found at "${binary}". Run "bun run build" first.`);
 }
-// Guard against a misconfigured DATA_DIR pointing at real user data — this
-// directory gets wiped unconditionally on every run.
-const dirSegments = dir.split(/[\\/]+/);
-if (!dirSegments.some((segment) => segment.includes("test-data"))) {
-  throw new Error(`Refusing to wipe DATA_DIR "${dir}": path must contain a "test-data" segment.`);
-}
-
-try {
-  rmSync(dir, { recursive: true, force: true });
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
-  if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
-  seedScreenshotData(repoDir, dir);
-} catch (error) {
-  rmSync(dir, { recursive: true, force: true });
-  throw error;
-}
+resetTestDatabase(dir);
+mkdirSync(dir, { recursive: true });
+writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
+if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
+seedScreenshotData(repoDir, dir);
 
 // cwd = dist/ so the binary resolves its native libsql addon from
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded
@@ -57,24 +45,17 @@ const child = spawn(binary, {
   env: { ...process.env, RACEIQ_APP_ROOT: repoDir },
 });
 
-let shuttingDown = false;
-
-function cleanup(): void {
-  rmSync(dir, { recursive: true, force: true });
-}
-
 child.on("error", (error) => {
   console.error(`[E2E] Failed to start compiled server: ${error.message}`);
-  cleanup();
   process.exit(1);
 });
 
 child.on("exit", (code, signal) => {
-  cleanup();
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
 });
 
+let shuttingDown = false;
 const forward = (sig: NodeJS.Signals) => {
   if (shuttingDown) return;
   shuttingDown = true;

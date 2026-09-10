@@ -38,18 +38,22 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
 
   const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
   const telemetryPoints = telemetryPointsWithIdx as Point[];
-  const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
-  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flip = needsTrackFlip(gameId);
+  const displayTrackOutline = outline && flip ? flipPoints(outline) : outline;
+  const displayOutline: Point[] = !showTrace ? (displayTrackOutline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (displayTrackOutline ?? []);
+  const drawingReferenceOutline = displayTrackOutline !== null && displayOutline === displayTrackOutline;
+  if (displayOutline.length === 0) return { bufferCanvas: options.bufferCanvas, transform: null };
   const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
   const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
+  const canonicalCenterLine = flip && boundaries?.centerLine?.length ? flipPoints(boundaries.centerLine) : boundaries?.centerLine;
+  const overlayOutline = canonicalCenterLine && canonicalCenterLine.length > 1 ? canonicalCenterLine : displayOutline;
   const raceLine = showRaceLine && Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1 ? (flip ? flipPoints(boundaries.raceLine) : boundaries.raceLine) : null;
   const hasBounds = !!(boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2);
   let minX = Infinity,
     maxX = -Infinity,
     minZ = Infinity,
     maxZ = -Infinity;
-  const allBoundsPts: Point[][] = [displayOutline];
+  const allBoundsPts: Point[][] = [displayOutline, overlayOutline];
   if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
   if (mapLabels?.length) allBoundsPts.push(mapLabels);
   for (const pts of allBoundsPts)
@@ -110,7 +114,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
   const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
   ctx.moveTo(sx, sy);
   for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-  if (outline) ctx.lineTo(sx, sy);
+  if (drawingReferenceOutline) ctx.lineTo(sx, sy);
   ctx.stroke();
 
   if (raceLine) {
@@ -126,35 +130,35 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.stroke();
   }
 
-  const n = displayOutline.length;
-  const cumDist = [0];
-  for (let i = 1; i < n; i++) cumDist.push(cumDist[i - 1] + Math.hypot(displayOutline[i].x - displayOutline[i - 1].x, displayOutline[i].z - displayOutline[i - 1].z));
-  const totalDist = cumDist[n - 1] || 1;
-  const fracToIdx = (frac: number) => {
-    const targetDist = frac * totalDist;
+  const overlayN = overlayOutline.length;
+  const overlayCumDist = [0];
+  for (let i = 1; i < overlayN; i++) overlayCumDist.push(overlayCumDist[i - 1] + Math.hypot(overlayOutline[i].x - overlayOutline[i - 1].x, overlayOutline[i].z - overlayOutline[i - 1].z));
+  const overlayTotalDist = overlayCumDist[overlayN - 1] || 1;
+  const fracToOverlayIdx = (frac: number) => {
+    const targetDist = frac * overlayTotalDist;
     let lo = 0,
-      hi = n - 1;
+      hi = overlayN - 1;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (cumDist[mid] < targetDist) lo = mid + 1;
+      if (overlayCumDist[mid] < targetDist) lo = mid + 1;
       else hi = mid;
     }
     return lo;
   };
   const drawRange = (startFrac: number, endFrac: number, strokeStyle: string, lineWidth: number) => {
-    const startIdx = fracToIdx(startFrac),
-      endIdx = fracToIdx(endFrac);
+    const startIdx = fracToOverlayIdx(startFrac),
+      endIdx = fracToOverlayIdx(endFrac);
     if (startIdx >= endIdx) return;
     ctx.beginPath();
     ctx.strokeStyle = strokeStyle;
     ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
-    ctx.moveTo(...toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z));
-    for (let i = startIdx + 1; i <= endIdx && i < n; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
+    ctx.moveTo(...toCanvas(overlayOutline[startIdx].x, overlayOutline[startIdx].z));
+    for (let i = startIdx + 1; i <= endIdx && i < overlayN; i++) ctx.lineTo(...toCanvas(overlayOutline[i].x, overlayOutline[i].z));
     ctx.stroke();
   };
 
-  if (sectors && displayOutline.length > 10) {
+  if (sectors && overlayOutline.length > 10) {
     const bounds = [...sectors.sectorStarts, 1];
     for (let si = 0; si < sectors.sectorCount; si++) drawRange(bounds[si], bounds[si + 1], SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length], 2.5);
   }
@@ -162,16 +166,16 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     const labelCandidates: { text: string; x: number; y: number; priority: number }[] = [];
     const labelledNames = new Set<string>();
     for (const seg of segments) {
-      const startIdx = fracToIdx(seg.startFrac),
-        endIdx = fracToIdx(seg.endFrac);
+      const startIdx = fracToOverlayIdx(seg.startFrac),
+        endIdx = fracToOverlayIdx(seg.endFrac);
       if (startIdx >= endIdx) continue;
       drawRange(seg.startFrac, seg.endFrac, seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)", 2.5);
       if (!mapLabels?.length && seg.name && !labelledNames.has(seg.name)) {
         labelledNames.add(seg.name);
         const midIdx = Math.round((startIdx + endIdx) / 2);
-        const point = displayOutline[Math.min(midIdx, n - 1)];
-        const previous = displayOutline[Math.max(0, midIdx - 2)],
-          next = displayOutline[Math.min(n - 1, midIdx + 2)];
+        const point = overlayOutline[Math.min(midIdx, overlayN - 1)];
+        const previous = overlayOutline[Math.max(0, midIdx - 2)],
+          next = overlayOutline[Math.min(overlayN - 1, midIdx + 2)];
         const dx = next.x - previous.x,
           dz = next.z - previous.z,
           length = Math.hypot(dx, dz) || 1;
@@ -208,7 +212,7 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.lineWidth = 2;
     ctx.moveTo(sx, sy);
     for (let i = 1; i < displayOutline.length; i++) ctx.lineTo(...toCanvas(displayOutline[i].x, displayOutline[i].z));
-    if (outline) ctx.lineTo(sx, sy);
+    if (drawingReferenceOutline) ctx.lineTo(sx, sy);
     ctx.stroke();
   }
 
@@ -242,13 +246,14 @@ export function drawStaticTrack(options: StaticTrackOptions): { bufferCanvas: HT
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
-  if (sectors && displayOutline.length > 10) {
+  if (sectors && overlayOutline.length > 10) {
     for (let si = 0; si < sectors.sectorStarts.slice(1).length; si++) {
-      const pt = displayOutline[fracToIdx(sectors.sectorStarts.slice(1)[si])];
+      const markerIdx = fracToOverlayIdx(sectors.sectorStarts.slice(1)[si]),
+        pt = overlayOutline[markerIdx];
       if (!pt) continue;
       const [mx, my] = toCanvas(pt.x, pt.z);
-      const prev = displayOutline[Math.max(0, fracToIdx(sectors.sectorStarts.slice(1)[si]) - 3)],
-        next = displayOutline[Math.min(displayOutline.length - 1, fracToIdx(sectors.sectorStarts.slice(1)[si]) + 3)];
+      const prev = overlayOutline[Math.max(0, markerIdx - 3)],
+        next = overlayOutline[Math.min(overlayN - 1, markerIdx + 3)];
       const dx = next.x - prev.x,
         dz = next.z - prev.z,
         len = Math.hypot(dx, dz);

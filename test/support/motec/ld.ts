@@ -164,7 +164,7 @@ export function syntheticStint(opts: {
   const gLat: number[] = [];
   const gLon: number[] = [];
   const roty: number[] = [];
-
+  const wheelSpeed: number[] = [];
   // One full rotation per lap → the path closes on itself each lap.
   const yawRate = (2 * Math.PI) / lapSeconds;
   const v = speedKmh / 3.6;
@@ -183,6 +183,7 @@ export function syntheticStint(opts: {
     gLat.push((yawRate * v) / 9.80665);
     gLon.push(slow ? -0.8 : 0.2);
     roty.push(yawRate);
+    wheelSpeed.push(s / 3.6);
   }
 
   const ch = (name: string, samples: number[], unit?: string): LdChannelSpec => ({
@@ -204,6 +205,10 @@ export function syntheticStint(opts: {
         ch("G_LAT", gLat),
         ch("G_LON", gLon),
         ch("ROTY", roty, "rad/s"),
+        ch("WHEEL_SPEED_LF", wheelSpeed, "m/s"),
+        ch("WHEEL_SPEED_RF", wheelSpeed, "m/s"),
+        ch("WHEEL_SPEED_LR", wheelSpeed, "m/s"),
+        ch("WHEEL_SPEED_RR", wheelSpeed, "m/s"),
       ],
     },
     beacons: Array.from({ length: laps - 1 }, (_, i) => (i + 1) * lapSeconds),

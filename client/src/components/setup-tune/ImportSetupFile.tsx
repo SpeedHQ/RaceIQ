@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { m } from "@/paraglide/messages";
 import { useImportTuneFile, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
@@ -84,12 +85,12 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
         <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div className="rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden flex flex-col min-h-0">
             <div className="px-3 py-2 border-b border-app-border">
-              <input
+              <AppInput
                 type="text"
                 placeholder={m.import_filter_car()}
                 value={carFilter}
                 onChange={(e) => setCarFilter(e.target.value)}
-                className="w-full bg-app-bg border border-app-border rounded px-2 py-1 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                className="w-full"
               />
             </div>
             <div className="overflow-auto max-h-96">
@@ -126,20 +127,20 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                 </div>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-                  <input
+                  <AppInput
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                    className="w-full"
                   />
                 </label>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-                  <input
+                  <AppInput
                     type="text"
                     value={author}
                     onChange={(e) => setAuthor(e.target.value)}
-                    className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                    className="w-full"
                   />
                 </label>
                 <label className="space-y-1 block">

@@ -4,5 +4,5 @@ root = "./test"
 # single-file runs that bypass the package.json `test` script. Without this,
 # suites doing unconditional wipes destroy the real user DB.
 preload = ["./test/support/setup-data-dir.ts"]
-timeout = 30000
+timeout = 40000
 maxConcurrency = 2

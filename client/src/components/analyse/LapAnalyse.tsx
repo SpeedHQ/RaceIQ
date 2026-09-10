@@ -232,6 +232,10 @@ function LapAnalyseInner() {
     setPlaying(false);
     playRef.current = false;
   }, []);
+  const handleTogglePlay = useCallback(() => {
+    setPlaying((p) => !p);
+  }, []);
+
 
   const currentFrame = telemetry[cursorIdx] ?? null;
   const wearRate = useMemo(() => {
@@ -346,6 +350,7 @@ function LapAnalyseInner() {
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
+        gameId={gameId}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),
@@ -436,7 +441,7 @@ function LapAnalyseInner() {
             visualTimeFrac,
             progressRef,
             thumbRef,
-            onTogglePlay: () => setPlaying((p) => !p),
+            onTogglePlay: handleTogglePlay,
             onSpeedChange: setPlaybackSpeed,
             onSeek: handleChartClick,
             onVisualFracChange: setVisualTimeFrac,

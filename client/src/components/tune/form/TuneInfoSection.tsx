@@ -1,5 +1,6 @@
 import type { TuneCategory } from "@shared/racing/tuning/types";
 import type { Dispatch, SetStateAction } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { m } from "@/paraglide/messages";
@@ -51,27 +52,27 @@ export function TuneInfoSection({
     <div className="p-6 grid grid-cols-2 gap-4 max-w-2xl">
       <label className="col-span-2 space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-        <input
+        <AppInput
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+          className="w-full"
         />
       </label>
       <label className="space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-        <input
+        <AppInput
           type="text"
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
           required
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+          className="w-full"
         />
       </label>
       <div className="space-y-1 relative">
         <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
-        <input
+        <AppInput
           type="text"
           value={carDropOpen ? carSearchQuery : selectedCarName || m.tune_form_select_car_placeholder()}
           onChange={(e) => {
@@ -84,7 +85,7 @@ export function TuneInfoSection({
           }}
           onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
           placeholder={m.tune_form_search_car_placeholder()}
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+          className="w-full"
         />
         {carDropOpen && (
           <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
@@ -135,11 +136,11 @@ export function TuneInfoSection({
       </label>
       <label className="col-span-2 space-y-1">
         <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
-        <input
+        <AppInput
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+          className="w-full"
         />
       </label>
       {(() => {

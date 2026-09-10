@@ -96,7 +96,6 @@ export function CarScene({
   modelOffsetX,
   fmtTemp,
   hideModelWheels,
-  mergeBodyMeshes,
   suspThresholds,
   autoOrbit,
   tireColors,
@@ -112,9 +111,8 @@ export function CarScene({
   carModel: CarModelEnrichment & { hasModel: boolean };
   modelOffsetX: number;
   fmtTemp: (f: number) => string;
-  hideModelWheels?: boolean;
   suspThresholds: number[];
-  mergeBodyMeshes?: boolean;
+  hideModelWheels?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
 }) {
@@ -153,7 +151,6 @@ export function CarScene({
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
   const bodyRoll = (rightAvg - leftAvg) * 0.1;
-
   // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
@@ -161,6 +158,7 @@ export function CarScene({
 
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
+
   useFrame(() => {
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
@@ -361,9 +359,7 @@ export function CarScene({
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>
-          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} mergeMeshes={mergeBodyMeshes} />}
-        </Suspense>
+        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}

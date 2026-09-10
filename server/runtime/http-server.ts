@@ -7,6 +7,16 @@ import { IS_WINDOWS } from "./platform/shell";
 
 type HttpApp = Pick<AppType, "fetch">;
 
+export function staticAssetHeaders(filePath: string): HeadersInit | undefined {
+  if (!filePath.endsWith(".gz")) return undefined;
+  const contentPath = filePath.slice(0, -".gz".length);
+  return {
+    "content-encoding": "gzip",
+    "content-type": contentPath.endsWith(".json") ? "application/json" : "application/octet-stream",
+  };
+}
+
+
 export interface HttpServerOptions {
   app: HttpApp;
   port: number;
@@ -71,7 +81,7 @@ export function startHttpServer({
         if (filePath.startsWith(staticDir)) {
           const file = Bun.file(filePath);
           if (await file.exists()) {
-            return new Response(file);
+            return new Response(file, { headers: staticAssetHeaders(filePath) });
           }
         }
         return new Response(Bun.file(resolve(staticDir, "index.html")));

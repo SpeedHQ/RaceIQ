@@ -14,7 +14,7 @@ import { formatTokens, meterLevel } from "./token-usage-format";
 const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
   gemini: { in: 0.1, out: 0.4 },
   openai: { in: 0.15, out: 0.6 },
-  local: { in: 0, out: 0 },
+  "openai-compatible": { in: 0, out: 0 },
 };
 
 export function TokenUsageFooter({
@@ -46,19 +46,19 @@ export function TokenUsageFooter({
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
   const provider = settings.chatProvider ?? settings.aiProvider ?? "";
   const model = settings.chatModel ?? settings.aiModel ?? "";
-  const { data: localModels } = useQuery({
-    queryKey: ["ai-models", "local-context"],
+  const { data: openAiCompatibleModels } = useQuery({
+    queryKey: ["ai-models", "openai-compatible-context"],
     queryFn: async () => {
-      const res = await fetch("/api/ai-models?providers=local");
+      const res = await fetch("/api/ai-models?providers=openai-compatible");
       if (!res.ok) throw new Error(`ai-models failed (${res.status})`);
-      const body = (await res.json()) as { local?: { id: string; contextLength?: number }[] };
-      return body.local ?? [];
+      const body = (await res.json()) as { "openai-compatible"?: { id: string; contextLength?: number }[] };
+      return body["openai-compatible"] ?? [];
     },
-    enabled: provider === "local",
+    enabled: provider === "openai-compatible",
     staleTime: 60_000,
   });
-  const localContext = provider === "local" ? (localModels?.find((m) => m.id === model) ?? (localModels?.length === 1 ? localModels[0] : undefined))?.contextLength : undefined;
-  const limit = contextWindowFor(provider, model, localContext);
+  const openAiCompatibleContext = provider === "openai-compatible" ? (openAiCompatibleModels?.find((m) => m.id === model) ?? (openAiCompatibleModels?.length === 1 ? openAiCompatibleModels[0] : undefined))?.contextLength : undefined;
+  const limit = contextWindowFor(provider, model, openAiCompatibleContext);
   const estimatedTokens = useAuiState((s) => {
     let chars = s.composer.text.length;
     for (const m of s.thread.messages) {
