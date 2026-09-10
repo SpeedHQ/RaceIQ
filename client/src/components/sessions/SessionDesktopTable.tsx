@@ -157,7 +157,7 @@ export function SessionDesktopTable({
                           Recap
                         </Button>
                         <Button
-                          variant="app-outline"
+                          variant="app-primary"
                           size="app-sm"
                           disabled={false}
                           onClick={(event) => {
