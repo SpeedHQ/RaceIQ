@@ -1,5 +1,6 @@
 import { getSchemaForGame, readSetupSection } from "@shared/racing/setups/schema";
 import { useEffect, useMemo, useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import { Button } from "../ui/button";
@@ -223,23 +224,23 @@ export function SetupTuneForm({
 
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-          <input
+          <AppInput
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+            className="w-full"
           />
         </label>
 
         <label className="space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-          <input
+          <AppInput
             type="text"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
             required
-            className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+            className="w-full"
           />
         </label>
 
@@ -275,11 +276,11 @@ export function SetupTuneForm({
 
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
-          <input
+          <AppInput
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+            className="w-full"
           />
         </label>
 

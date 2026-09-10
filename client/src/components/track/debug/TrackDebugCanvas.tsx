@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
+import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
 
 type TrackDebugCanvasProps = {
   outline: Point[] | null;
@@ -18,6 +19,8 @@ type TrackDebugCanvasProps = {
   trackCreatedAt?: string;
   corners?: number;
   straights?: number;
+  calibrationComparison?: CalibrationComparison | null;
+  showCalibrationHistory?: boolean;
 };
 
 export function TrackDebugCanvas({
@@ -33,6 +36,8 @@ export function TrackDebugCanvas({
   trackCreatedAt,
   corners,
   straights,
+  calibrationComparison,
+  showCalibrationHistory = false,
 }: TrackDebugCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -109,10 +114,16 @@ export function TrackDebugCanvas({
       maxX = -Infinity,
       minZ = Infinity,
       maxZ = -Infinity;
+    const currentCalibrationPath = calibrationComparison?.current ? transformCalibrationPath(outline, calibrationComparison.current) : null;
+    const historicalCalibrationPaths = showCalibrationHistory
+      ? calibrationComparison?.history.map((entry) => transformCalibrationPath(outline, entry.transform)) ?? []
+      : [];
     const allPts: Point[][] = [outline];
     if (boundaries) {
       allPts.push(boundaries.leftEdge, boundaries.rightEdge);
     }
+    if (currentCalibrationPath) allPts.push(currentCalibrationPath);
+    allPts.push(...historicalCalibrationPaths);
     for (const pts of allPts) {
       for (const p of pts) {
         minX = Math.min(minX, p.x);
@@ -340,6 +351,32 @@ export function TrackDebugCanvas({
       ctx.globalAlpha = 1;
     }
 
+    const drawCalibrationPath = (points: Point[], strokeStyle: string, lineWidth: number, alpha: number, dash: number[] = []) => {
+      if (points.length < 2) return;
+      ctx.beginPath();
+      const [x0, y0] = toCanvas(points[0].x, points[0].z);
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i < points.length; i++) {
+        const [x, y] = toCanvas(points[i].x, points[i].z);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      ctx.globalAlpha = alpha;
+      ctx.setLineDash(dash);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    };
+
+    for (const historyPath of historicalCalibrationPaths) {
+      drawCalibrationPath(historyPath, "var(--status-warning)", 1.25, 0.4, [4, 4]);
+    }
+    if (currentCalibrationPath) {
+      drawCalibrationPath(currentCalibrationPath, "var(--app-accent)", 2, 0.9);
+    }
+
     // Start/finish marker
     ctx.beginPath();
     ctx.arc(sx, sy, 5, 0, Math.PI * 2);
@@ -374,7 +411,7 @@ export function TrackDebugCanvas({
       ctx.fillRect(340, legendY - 5, 14, 2);
       ctx.fillText("Pit lane", 358, legendY);
     }
-  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors]);
+  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors, calibrationComparison, showCalibrationHistory]);
 
   return (
     <div className="bg-app-bg rounded-lg border border-app-border relative min-h-0">

@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { registerDiscoveredCar } from "../../server/db/discovered-cars";
 import { db } from "../../server/db/index";
 import { discoveredCars } from "../../server/db/schema";
-import { carRoutes } from "../../server/routes/car-routes";
+import { CarModelConfigUpdateSchema, carRoutes } from "../../server/routes/car-routes";
 
 const CAR_ID = 987_654_321;
 
@@ -22,6 +22,10 @@ async function cleanup(): Promise<void> {
 
 beforeEach(cleanup);
 afterEach(cleanup);
+
+test("rejects consumer model orientation overrides", () => {
+  expect(CarModelConfigUpdateSchema.safeParse({ glbOffsetX: 0, glbRotationY: Math.PI }).success).toBe(false);
+});
 
 describe("GET /api/cars game context", () => {
   test("requires X-Game-Id", async () => {

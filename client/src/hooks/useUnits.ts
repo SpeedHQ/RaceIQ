@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import type { GameId } from "../../../shared/games/ids";
 import { tryGetGame } from "../../../shared/games/registry";
 import { getTireTemperatureSourceUnit } from "../../../shared/games/telemetry";
 import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
@@ -16,10 +17,11 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  * `temp` and `toTempC` handle source-unit semantic replay frames; canonical
  * `LiveTelemetryView.temperatureC` values are already Celsius.
  */
-export function useUnits() {
+export function useUnits(gameIdOverride?: GameId) {
   const { displaySettings } = useSettings();
   const setDisplayUnits = telemetryStore.actions.setDisplayUnits;
-  const gameId = useGameId();
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
 
   const unit = displaySettings.unit;
   const su = unit === "metric" ? ("kmh" as const) : ("mph" as const);

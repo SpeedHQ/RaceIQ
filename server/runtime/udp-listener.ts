@@ -17,6 +17,7 @@ import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telem
 import { getRunningGame } from "../games/registry";
 import { SessionRecorder } from "../session-capture/recorder";
 import type { GameId } from "../../shared/games/ids";
+import { timestampForFilename } from "../session-capture/filename";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
@@ -72,7 +73,7 @@ class UdpListener {
 
     if (this._recordingGameId && !this._recorder) {
       const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const timestamp = timestampForFilename();
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
       this._recorder = new SessionRecorder();
       this._recorder.start(filePath);

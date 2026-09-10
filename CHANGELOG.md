@@ -1,8 +1,48 @@
 ## Unreleased
 
+### Features
+- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
+- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
+- Export one or multiple selected laps directly from Sessions toolbar
+
+### Fixes
+
+### Internal
+- Run frontend theme-contract checks automatically during pre-commit.
+- Regenerate and commit telemetry catalog artifacts during release finalization.
+
+## v0.16.0 - 2026-09-06
+
+### Features
+- Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+- Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
+- Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
+
+### Fixes
+- Keep Analyse Data panel content and layout complete across supported views
+- Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+- Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
+
+### Internal
+- Narrow client response helper contracts to the fields each RPC and download path uses
+- Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
+- Fail responsive screenshot CI when either render fails
+- Compile all release feature code once and enable runtime overrides for Playwright E2E
+
+## v0.15.1 - 2026-09-01
+
+### Fixes
+- Start RaceIQ successfully after installing a Windows release
+
+### Internal
+- Increase seeded Playwright E2E CI coverage from five to seven shards
+
+## v0.15.0 - 2026-09-01
+
 ### Breaking
 
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+- Rename dashboard routes from `/dash` to `/portable` and reorganize sidebar game navigation.
 
 ### Features
 
@@ -16,8 +56,10 @@
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+- Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
+- Improve lap-line fitting to track boundaries
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
 - Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
@@ -59,6 +101,7 @@
 - Keep Analyse 3D playback at configured 60 or 120 FPS while telemetry panels update
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
+- Keep the welcome wizard responsive and show throttle and brake input lines in its preview
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
@@ -93,6 +136,7 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+- Read release notes from GitHub release bodies instead of downloading release-note assets
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
 - Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs

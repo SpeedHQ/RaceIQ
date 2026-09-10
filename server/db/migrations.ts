@@ -530,7 +530,6 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
 
   // ── v34: auto-exclude source tracking for fastest-5 curation ───────────────
-  // (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md)
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:

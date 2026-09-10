@@ -29,38 +29,36 @@ export function lapOptionLabel(lap: SeededLapMeta): string {
 }
 
 export function findTrackCarPairWithTwoLaps(laps: readonly SeededLapMeta[]): TrackCarLapPair | null {
-  const byTrack = new Map<number, Map<number, SeededLapMeta[]>>();
-  for (const lap of laps) {
-    if (!lap.trackOrdinal || !lap.carOrdinal) continue;
-    if (!lap.isValid) continue;
-    let cars = byTrack.get(lap.trackOrdinal);
-    if (!cars) {
-      cars = new Map();
-      byTrack.set(lap.trackOrdinal, cars);
+  const findPair = (requireValid: boolean): TrackCarLapPair | null => {
+    const byTrack = new Map<number, Map<number, SeededLapMeta[]>>();
+    for (const lap of laps) {
+      if (!lap.trackOrdinal || !lap.carOrdinal || (requireValid && !lap.isValid)) continue;
+      let cars = byTrack.get(lap.trackOrdinal);
+      if (!cars) {
+        cars = new Map();
+        byTrack.set(lap.trackOrdinal, cars);
+      }
+      const list = cars.get(lap.carOrdinal) ?? [];
+      list.push(lap);
+      cars.set(lap.carOrdinal, list);
     }
-    const list = cars.get(lap.carOrdinal) ?? [];
-    list.push(lap);
-    cars.set(lap.carOrdinal, list);
-  }
 
-  const tracks = Array.from(byTrack.keys()).sort((a, b) => a - b);
-  for (const trackOrdinal of tracks) {
-    const cars = byTrack.get(trackOrdinal);
-    if (!cars) continue;
-    const carOrdinals = Array.from(cars.keys()).sort((a, b) => a - b);
-    for (const carOrdinal of carOrdinals) {
-      const candidate =
-        cars
-          .get(carOrdinal)
-          ?.slice()
-          .sort((a, b) => a.lapNumber - b.lapNumber || a.id - b.id) ?? [];
-      if (candidate.length >= 2) {
-        return { trackOrdinal, carOrdinal, lapA: candidate[0], lapB: candidate[1] };
+    const tracks = Array.from(byTrack.keys()).sort((a, b) => a - b);
+    for (const trackOrdinal of tracks) {
+      const cars = byTrack.get(trackOrdinal);
+      if (!cars) continue;
+      const carOrdinals = Array.from(cars.keys()).sort((a, b) => a - b);
+      for (const carOrdinal of carOrdinals) {
+        const candidate = cars.get(carOrdinal)?.slice().sort((a, b) => a.lapNumber - b.lapNumber || a.id - b.id) ?? [];
+        if (candidate.length >= 2) return { trackOrdinal, carOrdinal, lapA: candidate[0], lapB: candidate[1] };
       }
     }
-  }
+    return null;
+  };
 
-  return null;
+  // Prefer clean laps; invalid complete recordings remain useful for
+  // deterministic compare UI coverage when no clean pair exists.
+  return findPair(true) ?? findPair(false);
 }
 
 export function getFirstSeededLap(laps: readonly SeededLapMeta[]): SeededLapMeta | null {

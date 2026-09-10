@@ -5,6 +5,7 @@ import { frictionCircleUtil, steerBalanceFromSignals, wheelDynamicsFrame } from 
 
 export interface SemanticMetricFrame {
   readonly values: Readonly<Record<string, unknown>>;
+  readonly states?: Readonly<Record<string, string | undefined>>;
 }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -57,8 +58,19 @@ export function resolveWheelStates(frame: SemanticMetricFrame, metric: AnalysisT
   return physicalWheelStates(frame);
 }
 
+function requiredBalanceSignalsAvailable(frame: SemanticMetricFrame, requires: readonly string[]): boolean {
+  return requires.every((id) => {
+    const state = frame.states?.[id];
+    if (state !== undefined && state !== "ok") return false;
+    const value = frame.values[id];
+    if (Array.isArray(value)) return value.length >= 4 && value.slice(0, 4).every(finite);
+    return finite(value);
+  });
+}
+
 export function resolveBalance(frame: SemanticMetricFrame, metric: AnalysisTelemetryMetric): SteerBalance | null {
   if (metric.source === "unavailable" || !metric.binding || metric.binding.kind !== "derived" || metric.binding.derivation !== "physical-balance-v1") return null;
+  if (!requiredBalanceSignalsAvailable(frame, metric.binding.requires)) return null;
   const slipAngleId = metric.binding.requires.find((id) =>
     id === "tires.tire-slip-angle" || id === "tires.normalized-tire-slip-angle",
   );

@@ -75,6 +75,7 @@ export default defineConfig(({ command }) => {
       chunkSizeWarningLimit: 2000,
     },
     server: {
+      open: false,
       port: parseInt(process.env.PORT || "5173", 10),
       host: true,
       proxy: {

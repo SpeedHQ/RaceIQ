@@ -15,13 +15,13 @@ describe("contextWindowFor", () => {
     expect(contextWindowFor("whoknows", "x")).toBeUndefined();
   });
   test("local without a reported context length is undefined", () => {
-    expect(contextWindowFor("local", "local-model")).toBeUndefined();
+    expect(contextWindowFor("openai-compatible", "local-model")).toBeUndefined();
   });
   test("local uses the context length reported by the local server", () => {
-    expect(contextWindowFor("local", "local-model", 8_192)).toBe(8_192);
+    expect(contextWindowFor("openai-compatible", "local-model", 8_192)).toBe(8_192);
   });
   test("local ignores a non-positive reported context length", () => {
-    expect(contextWindowFor("local", "local-model", 0)).toBeUndefined();
+    expect(contextWindowFor("openai-compatible", "local-model", 0)).toBeUndefined();
   });
 
 });

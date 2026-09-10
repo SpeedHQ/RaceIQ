@@ -47,13 +47,14 @@ export function assessLapRecording(
     return { valid: false, reason: "starting lap" };
   }
 
-  // Start and end positions must be close (circuit lap should return to start/finish).
+  // Start and end positions must be within 20m of one another. A relative
+  // tolerance lets long laps accept large gaps and misclassify outlaps.
   // Skip for ACC — carCoordinates are in a different scale to DistanceTraveled.
   if (first.gameId !== "acc") {
     const dx = last.PositionX - first.PositionX;
     const dz = last.PositionZ - first.PositionZ;
     const gap = Math.sqrt(dx * dx + dz * dz);
-    if (gap > lapDistance * 0.15 && gap > 100) {
+    if (gap > 20) {
       return { valid: false, reason: "start/end positions too far apart" };
     }
   }

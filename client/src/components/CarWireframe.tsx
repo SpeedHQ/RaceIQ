@@ -22,8 +22,8 @@ import { DropdownMenu } from "./ui/DropdownMenu";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
-useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
-useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");
+useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
+useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
@@ -83,7 +83,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
-  const units = useUnits();
+  const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;
@@ -102,7 +102,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   const toggles: ViewToggles = {
     ...DEFAULT_TOGGLES,
     ...storedToggles,
-    ...(hideControls ? { wheelInfo: false } : {}),
+    ...(hideControls ? { wheelInfo: false, inputs: true } : {}),
   };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
@@ -242,7 +242,6 @@ export const CarWireframe = React.memo(function CarWireframe({
           modelOffsetX={modelOffsetX}
           fmtTemp={fmtTemp}
           hideModelWheels={!minimal}
-          mergeBodyMeshes={!minimal}
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
@@ -253,7 +252,7 @@ export const CarWireframe = React.memo(function CarWireframe({
           ]}
         />
       </Canvas>
-      <span ref={fpsRef} className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
+      <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}
       {!hideControls && (

@@ -16,6 +16,7 @@ import {
   cleanupOrphanSessionFiles,
   listSessionCaptureFiles,
 } from "./cleanup";
+import { cleanupExpiredStagedMotec } from "../motec/import-staging";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -129,12 +130,18 @@ async function runMaintenance(): Promise<void> {
   await runCompression();
   // Re-check activity inside the async orphan sweep so a session that starts
   // during file enumeration cannot have its capture removed.
-  const removed = await cleanupOrphanSessionFiles(isSessionActive);
+  const [orphanCount, stagedMotecCount] = await Promise.all([
+    cleanupOrphanSessionFiles(isSessionActive),
+    cleanupExpiredStagedMotec(),
+  ]);
   console.debug(
-    removed > 0
-      ? `[Cleanup] Removed ${removed} orphan session file(s)`
-      : "[Cleanup] No orphan session files found"
+    orphanCount > 0
+      ? `[Cleanup] Removed ${orphanCount} orphan session file(s)`
+      : "[Cleanup] No orphan session files found",
   );
+  if (stagedMotecCount > 0) {
+    console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
+  }
 }
 
 export function startSessionCompressor(): void {

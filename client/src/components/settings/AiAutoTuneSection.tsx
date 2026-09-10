@@ -1,17 +1,15 @@
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchSelect } from "@/components/ui/SearchSelect";
+import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
 import type { AiAutoTuneState } from "./ai-state";
-import { PROVIDER_KEY_LABELS } from "./ai-state";
 export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
   const {
     autoTuneProvider,
     setAutoTuneProvider,
     autoTuneModel,
     setAutoTuneModel,
-    autoTuneApiKey,
-    setAutoTuneApiKey,
-    keyStatus,
     hasAutoTuneProviderKey,
     autoTuneModels,
     canShowAutoTuneModelPicker,
@@ -22,8 +20,6 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
     isSaving,
     autoTuneProviderModelError,
     aiModelsError,
-    canSaveAutoTune,
-    handleAutoTuneSave,
     autoTuneSaveError,
   } = state;
   return (
@@ -33,55 +29,27 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
+          <Label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
-          </label>
-          <select
+          </Label>
+          <SearchSelect
             id="ai-auto-tune-provider"
             value={autoTuneProvider}
-            onChange={(e) => {
-              setAutoTuneProvider(e.target.value as string);
+            onChange={(value) => {
+              setAutoTuneProvider(value);
               setAutoTuneModel("");
             }}
-            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
-          >
-            <option value="">{m.ai_provider_none()}</option>
-            {(aiProviders ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            options={[{ value: "", label: m.ai_provider_none() }, ...(aiProviders ?? []).map((p) => ({ value: p.id, label: p.name, disabled: !state.keyStatus[p.id] }))]}
+            className="w-full max-w-xs"
+            ariaLabel={m.ai_provider_label()}
+          />
         </div>
-        {PROVIDER_KEY_LABELS[autoTuneProvider] && (
-          <div>
-            <label htmlFor="ai-auto-tune-api-key" className="block text-xs text-app-text-muted mb-1">
-              {PROVIDER_KEY_LABELS[autoTuneProvider].label}
-            </label>
-            <div className="flex items-center gap-1.5 max-w-xs">
-              <input
-                id="ai-auto-tune-api-key"
-                type="password"
-                value={autoTuneApiKey}
-                onChange={(e) => setAutoTuneApiKey(e.target.value)}
-                placeholder={(keyStatus[autoTuneProvider] ?? false) ? m.ai_key_stored_placeholder() : PROVIDER_KEY_LABELS[autoTuneProvider].placeholder}
-                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
-              />
-            </div>
-            <p className="text-app-compact text-app-text-muted mt-1">
-              {PROVIDER_KEY_LABELS[autoTuneProvider].helpText}{" "}
-              <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
-                {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
-              </a>
-            </p>
-          </div>
-        )}
         {canShowAutoTuneModelPicker && (
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <label htmlFor="ai-auto-tune-model" className="block text-xs text-app-text-muted">
+              <Label htmlFor="ai-auto-tune-model" className="block text-xs text-app-text-muted">
                 {m.ai_model_label()}
-              </label>
+              </Label>
               <Button
                 variant="app-ghost"
                 size="app-sm"
@@ -94,19 +62,14 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
               </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
-            <select
+            <SearchSelect
               id="ai-auto-tune-model"
               value={autoTuneModel}
-              onChange={(e) => setAutoTuneModel(e.target.value)}
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
-            >
-              <option value="">{m.ai_model_default()}</option>
-              {autoTuneModels.map((mm: { id: string; name: string }) => (
-                <option key={mm.id} value={mm.id}>
-                  {mm.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAutoTuneModel}
+              options={[{ value: "", label: m.ai_model_default() }, ...autoTuneModels.map((item) => ({ value: item.id, label: item.name }))]}
+              ariaLabel={m.ai_model_label()}
+              className="w-full max-w-xs"
+            />
           </div>
         )}
         {autoTuneProvider !== "" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
@@ -122,9 +85,6 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && (
           <p className="text-xs text-status-danger">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
         )}
-        <Button variant="app-primary" size="app-md" onClick={handleAutoTuneSave} disabled={isSaving || !canSaveAutoTune}>
-          {isSaving ? m.common_saving() : m.common_save()}
-        </Button>
         {autoTuneSaveError && <p className="text-xs text-status-danger">{autoTuneSaveError}</p>}
       </div>
     </div>

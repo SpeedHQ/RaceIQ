@@ -5,6 +5,7 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { DevStateContent } from "../components/DevStateViewer";
+import { TanStackStoreDevtoolsPanel, type StoreDescriptor } from "./TanStackStoreDevtoolsPanel";
 import { devTelemetryStore, type DevTelemetryState } from "../stores/dev-telemetry";
 import { gameStore, type GameState } from "../stores/game";
 import { telemetryStore, type TelemetryState } from "../stores/telemetry";
@@ -73,6 +74,13 @@ function RaceIqRuntimePanel() {
   return <DevStateContent server={runtime.server} stores={runtime.stores} paused={runtime.stores.telemetry.devStatePaused} onTogglePause={() => raceIqRuntimeEventClient.emit("toggle-server-state-pause", undefined)} />;
 }
 
+const tanStackStoreDescriptors = {
+  telemetry: { name: "Telemetry", store: telemetryStore },
+  game: { name: "Game", store: gameStore },
+  ui: { name: "UI", store: uiStore },
+  devTelemetry: { name: "Dev Telemetry", store: devTelemetryStore },
+} satisfies Record<"telemetry" | "game" | "ui" | "devTelemetry", StoreDescriptor<unknown>>;
+
 export default function RaceIqDevtools({ router, queryClient }: { router: Router; queryClient: QueryClient }) {
   return (
     <>
@@ -80,6 +88,11 @@ export default function RaceIqDevtools({ router, queryClient }: { router: Router
       <TanStackDevtools plugins={[
         { id: "tanstack-query", name: "TanStack Query", render: <ReactQueryDevtoolsPanel client={queryClient} /> },
         { id: "tanstack-router", name: "TanStack Router", render: <TanStackRouterDevtoolsPanel router={router} /> },
+        {
+          id: "tanstack-store",
+          name: "TanStack Store",
+          render: <TanStackStoreDevtoolsPanel {...tanStackStoreDescriptors} />,
+        },
         { id: "raceiq-runtime", name: "RaceIQ Runtime", render: <RaceIqRuntimePanel /> },
       ]} />
     </>

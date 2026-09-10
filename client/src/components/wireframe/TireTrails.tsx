@@ -28,7 +28,7 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
   // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
   // TireSlipRatio field which uses per-game scaling).
   const angleFns = useMemo(
-    () => [(p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][0]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][1]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][2]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.tire-slip-angle"]) ? Number(p.values["tires.tire-slip-angle"][3]) || 0 : 0)],
+    () => [(p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][0]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][1]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][2]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][3]) || 0 : 0)],
     [],
   );
   const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);

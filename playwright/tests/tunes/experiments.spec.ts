@@ -211,9 +211,9 @@ test.describe("Setup Engineer experiments", () => {
     await completeOnboarding(page);
     const settingsResponse = await page.request.put("/api/settings", {
       data: {
-        aiProvider: "local",
+        aiProvider: "openai-compatible",
         aiModel: "playwright-stream",
-        chatProvider: "local",
+        chatProvider: "openai-compatible",
         chatModel: "playwright-stream",
         localEndpoint: "http://127.0.0.1:9/v1",
       },
@@ -258,9 +258,9 @@ test.describe("Setup Engineer experiments", () => {
 
     const settingsResponse = await page.request.put("/api/settings", {
       data: {
-        aiProvider: "local",
+        aiProvider: "openai-compatible",
         aiModel: "playwright-input",
-        chatProvider: "local",
+        chatProvider: "openai-compatible",
         chatModel: "playwright-input",
         localEndpoint: "http://127.0.0.1:9/v1",
       },

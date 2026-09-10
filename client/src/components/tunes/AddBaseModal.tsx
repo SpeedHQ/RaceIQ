@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AppInput } from "@/components/ui/AppInput";
 import { useAddBase } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -54,7 +55,7 @@ export function AddBaseModal({
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Label (optional)</span>
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="base" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
+          <AppInput value={label} onChange={(e) => setLabel(e.target.value)} placeholder="base" maxLength={200} className="text-xs" />
         </label>
 
         <label className="flex items-center gap-2 text-xs text-app-text-dim">
