@@ -226,7 +226,7 @@ export function TrackFocusZoom({ lapLines, primaryLapId, cursorFrac, radiusM = D
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-square">
+      <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-[1.1/1]">
         {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {inWindow.map((l) => {
@@ -260,17 +260,6 @@ export function TrackFocusZoom({ lapLines, primaryLapId, cursorFrac, radiusM = D
         })}
         <circle cx={dotPx} cy={dotPy} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />
       </svg>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_BRAKE }} /> brake
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_COAST }} /> coast
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_THROTTLE }} /> throttle
-        </span>
-      </div>
     </div>
   );
 }

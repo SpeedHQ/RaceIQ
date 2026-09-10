@@ -218,6 +218,7 @@ export function TrackFocusViewInner({
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [hoverRange, setHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
+  const [issueHoverRange, setIssueHoverRange] = useState<{ startFrac: number; endFrac: number } | null>(null);
   const [localActiveTab, setLocalActiveTab] = useState<TuneReviewTrackTab>("consistency");
   const activeTab = controlledActiveTab ?? localActiveTab;
   useEffect(() => {
@@ -316,6 +317,33 @@ export function TrackFocusViewInner({
       return [{ frac: issue.distanceFrac, color }];
     });
   }, [issues]);
+  const handleIssueHover = useCallback(
+    (issue: TuneIssue | null) => {
+      if (issue?.distanceFrac == null) {
+        setIssueHoverRange(null);
+        return;
+      }
+      setCursorFrac(issue.distanceFrac);
+      const corner = issue.corner == null ? null : corners.find((candidate) => candidate.label === issue.corner);
+      if (corner) {
+        setIssueHoverRange({ startFrac: corner.distanceStart, endFrac: corner.distanceEnd });
+        return;
+      }
+      const radius = 0.02;
+      setIssueHoverRange({ startFrac: Math.max(0, issue.distanceFrac - radius), endFrac: Math.min(1, issue.distanceFrac + radius) });
+    },
+    [corners],
+  );
+  const highlightedIssueKey = useMemo(() => {
+    if (cursorFrac == null) return null;
+    for (const issue of issues) {
+      if (issue.distanceFrac == null) continue;
+      const corner = issue.corner == null ? null : corners.find((candidate) => candidate.label === issue.corner);
+      const inArea = corner ? cursorFrac >= corner.distanceStart && cursorFrac <= corner.distanceEnd : Math.abs(cursorFrac - issue.distanceFrac) <= 0.02;
+      if (inArea) return `${issue.kind}-${issue.corner ?? "General"}-${issue.detail}`;
+    }
+    return null;
+  }, [corners, cursorFrac, issues]);
 
   return (
     <div className="flex min-h-full flex-col gap-4 px-4 pb-4" onPointerMove={(event) => {
@@ -325,6 +353,7 @@ export function TrackFocusViewInner({
       <div className="grid min-w-0 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-3 @5xl/workspace:sticky @5xl/workspace:top-[2.8125rem] @5xl/workspace:h-[calc(100dvh-3.8125rem)] @5xl/workspace:min-h-0" onMouseEnter={() => setZoomActive(false)} onPointerMove={() => setZoomActive(false)}>
           <div className="relative w-full flex-none bg-app-bg pt-4">
+            <InputLegend />
             <Button
               type="button"
               variant="app-outline"
@@ -387,7 +416,7 @@ export function TrackFocusViewInner({
                   setCursorFrac(frac);
                 }}
                 overlayPoints={hoverPoints}
-                highlightRange={hoverRange}
+                highlightRange={issueHoverRange ?? hoverRange}
                 lineSpread={activeTab === "consistency" ? lineSpread : null}
                 visibleRange={visibleLaneRange}
               />
@@ -396,7 +425,7 @@ export function TrackFocusViewInner({
           <div className="flex min-h-0 flex-col">
             <div className="mb-1 flex-none text-app-compact font-semibold uppercase tracking-wider text-app-text-muted">Issues</div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              <IssuesList issues={issues} onIssueClick={setCursorFrac} />
+              <IssuesList issues={issues} onIssueClick={setCursorFrac} onIssueHover={handleIssueHover} highlightedIssueKey={highlightedIssueKey} />
             </div>
           </div>
         </div>
@@ -553,6 +582,16 @@ export function TrackFocusViewInner({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InputLegend() {
+  return (
+    <div className="pointer-events-none absolute top-5 left-2 z-10 flex gap-3 rounded bg-app-bg/85 px-2 py-1 text-app-caption text-app-text-dim">
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-1 w-2.5 rounded-sm" style={{ background: "var(--ch-brake)" }} />brake</span>
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-1 w-2.5 rounded-sm" style={{ background: "var(--app-text-dim)" }} />coast</span>
+      <span className="inline-flex items-center gap-1.5"><span className="inline-block h-1 w-2.5 rounded-sm" style={{ background: "var(--ch-throttle)" }} />throttle</span>
     </div>
   );
 }
