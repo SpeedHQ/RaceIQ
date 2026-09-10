@@ -9,7 +9,7 @@ A child process loads one selected fixture, runs optional `setup()` once, perfor
 Timing and retained-heap sampling are independent:
 
 - `--processes` controls timing children.
-- `--retained-processes` controls retained-heap children and defaults to 7; CI passes 7 explicitly.
+- `--retained-processes` controls retained-heap children and defaults to 5; CI uses 5 to bound fixture reload cost.
 - The parent computes p50/p99 per timing child, then takes the median of those child summaries. Raw samples remain in the report.
 - Retained-heap children with invalid or negative deltas are rejected, not clipped. The parent retries until the requested valid quota is met, up to `retainedProcesses * 4` attempts per alias. Rejections are recorded under `rawProcesses[*].retainedHeapErrors`; quota failure reports alias, quota, attempts, and rejection details.
 

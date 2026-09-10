@@ -28,7 +28,7 @@ async function openSettings(page: Page, viewportWidth: number) {
     await page.getByLabel("Open navigation").click();
   }
   await page.getByRole("button", { name: /Settings|TestDriver/ }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 }
 
 for (const viewport of RESPONSIVE_VIEWPORTS) {

@@ -10,6 +10,7 @@ export interface StorybookSnapshotCase {
   clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
+  viewport?: { width: number; height: number };
 }
 
 // Single screenshot inventory for CI and `bun run ui:diff`.

@@ -6,14 +6,15 @@ import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
-import { getAllGames, getGame, tryGetGame } from "../../../shared/games/registry";
+import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
 import { downsampleLap } from "../../../shared/racing/laps/trace/build";
 import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
 import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
-import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
 import { loadSessionSource } from "../../session-capture/source-loader";
+import { loadRawCaptureIdentity } from "../../session-capture/identity";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
@@ -21,12 +22,12 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
-import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
+import { resolveTelemetryReplay } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
-export function semanticReplayIds(): readonly string[] {
-  return [...new Set(getAllGames().flatMap((adapter) => analyseSemanticIds(adapter)))];
+export function semanticReplayIds(gameId: GameId): readonly string[] {
+  return analyseSemanticIds(getGame(gameId));
 }
 const timestampMilliseconds = (timestamp: { domain: string; milliseconds?: number; nanoseconds?: bigint }) =>
   timestamp.domain === "monotonic" ? Number(timestamp.nanoseconds ?? 0n) / 1_000_000 : timestamp.milliseconds ?? 0;
@@ -44,29 +45,30 @@ export const resourceRoutes = new Hono()
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
     if (!gameIdResult.success) return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
     try {
+      const meta = await getLapMetaById(id);
+      if (!meta || meta.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
       const lap = await getLapById(id);
-      if (!lap || lap.gameId !== gameIdResult.data) return c.json({ error: "Lap not found" }, 404);
+      if (!lap) return c.json({ error: "Lap not found" }, 404);
       if (lap.parseError) {
         return c.json({
-          lapId: id,
-          requestedSemanticIds: [],
-          sectorTimes: lap.sectorTimes ?? null,
-          sectorStarts: null,
-          insights: [],
-          parseError: lap.parseError,
-          envelopes: [],
+          lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
+          sectorStarts: null, insights: [], parseError: lap.parseError, envelopes: [],
         });
       }
-      const replay = await queryLapTelemetryBySemanticId(id, semanticReplayIds());
-      if (!replay) return c.json({ error: "Lap not found" }, 404);
-      const nativeLayout = getGame(lap.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const source = {
+        id: meta.id, sessionId: meta.sessionId, createdAt: meta.createdAt, gameId: meta.gameId,
+        rawFile: meta.rawFile, rawByteOffset: meta.rawByteOffset, rawFrameCount: meta.rawFrameCount,
+        versionIdentity: meta.catalogVersion && meta.catalogHash && meta.catalogSchemaVersion && meta.parserVersion && meta.resolverVersion && meta.derivationVersion
+          ? { catalogVersion: meta.catalogVersion, catalogHash: meta.catalogHash, catalogSchemaVersion: meta.catalogSchemaVersion, parserVersion: meta.parserVersion, resolverVersion: meta.resolverVersion, derivationVersion: meta.derivationVersion }
+          : undefined,
+      };
+      const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
+      const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
+      const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
       return c.json({
-        lapId: replay.lapId,
-        requestedSemanticIds: replay.requestedSemanticIds,
-        sectorTimes: lap.sectorTimes ?? null,
-        sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, lap.gameId),
-        parseError: lap.parseError ?? null,
+        lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
+        sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
+        insights: analyzeLap(lap.telemetry, meta.gameId), parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },

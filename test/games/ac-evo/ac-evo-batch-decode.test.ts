@@ -14,7 +14,10 @@ import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
 import { LapDetectorAcEvo } from "../../../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatchedForTest } from "../../../server/db/telemetry-replay-storage";
+import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
+import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
+import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 import { loadSessionCapture } from "../../../server/session-capture/source-loader";
 
 initGameAdapters();
@@ -23,9 +26,37 @@ initServerGameAdapters();
 afterAll(() => stopMaintenanceTasks());
 
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
+test("direct AC Evo lap index coordinates match full parser", () => {
+  const buf = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
+  const fullCache = createAcEvoParserCache();
+  const indexCache = createAcEvoParserCache();
+  let offset = 0;
 
-/** Replay the fixture through the lap detector to recover real per-lap byte
- *  offsets + frame counts (same values production stores on the laps table). */
+  while (offset + 4 <= buf.length) {
+    const frameLen = buf.readUInt32LE(offset);
+    if (frameLen === META_FRAME_MAGIC) {
+      if (offset + 8 > buf.length) break;
+      offset += 8 + buf.readUInt32LE(offset + 4);
+      continue;
+    }
+    offset += 4;
+    if (offset + frameLen > buf.length) break;
+    const triplet = unpackTriplet(buf.subarray(offset, offset + frameLen));
+    offset += frameLen;
+    if (!triplet) continue;
+
+    const full = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, fullCache);
+    const index = parseAcEvoLapIndex(triplet.physics, triplet.graphics, triplet.staticData, indexCache);
+    if (full && index && full.PositionX !== 0 && full.PositionZ !== 0) {
+      expect(index.PositionX).toBe(full.PositionX);
+      expect(index.PositionZ).toBe(full.PositionZ);
+      return;
+    }
+  }
+  throw new Error("fixture had no non-zero AC Evo player coordinates");
+});
+
+/** Replay fixture through lap detector to recover real persisted offsets/counts. */
 async function detectLaps(): Promise<{ rawByteOffset: number; rawFrameCount: number }[]> {
   const buf = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
   const serverGame = getServerGame("ac-evo");
@@ -59,32 +90,30 @@ async function detectLaps(): Promise<{ rawByteOffset: number; rawFrameCount: num
 
 describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", () => {
   test("batch decode of a stint matches lap-by-lap decode exactly", async () => {
-    const laps = await detectLaps();
-    expect(laps.length).toBeGreaterThanOrEqual(3);
+    const originalNow = Date.now;
+    Date.now = () => 1_000_000_000;
+    try {
+      const laps = await detectLaps();
+      expect(laps.length).toBeGreaterThanOrEqual(3);
+      const sample = laps.slice(0, 6);
+      const metas = sample.map((l, i) => ({ id: i + 1, rawByteOffset: l.rawByteOffset, rawFrameCount: l.rawFrameCount }));
 
-    // Take up to the first 6 laps — enough to exercise the O(N²) warm-up path.
-    const sample = laps.slice(0, 6);
-    const metas = sample.map((l, i) => ({ id: i + 1, rawByteOffset: l.rawByteOffset, rawFrameCount: l.rawFrameCount }));
+      const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+      const canonical = await loadSessionCapture(source);
+      const batch = await parseSessionLapsBatchedForTest(source, metas);
 
-    const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
-    const canonical = await loadSessionCapture(source);
-    const batch = await parseSessionLapsBatchedForTest(source, metas);
-
-    for (const meta of metas) {
-      const perLap = parseRawLapFramesFromBuffer(canonical, meta.rawByteOffset, meta.rawFrameCount, "ac-evo", FIXTURE);
-      const batched = batch.get(meta.id);
-      expect(batched).toBeDefined();
-      expect(batched!.length).toBe(perLap.length);
-
-      // Sample fields across the lap incl. state-dependent DistanceTraveled.
-      const idxs = [0, Math.floor(perLap.length / 2), perLap.length - 1];
-      for (const i of idxs) {
-        expect(batched![i].PositionX).toBeCloseTo(perLap[i].PositionX, 6);
-        expect(batched![i].PositionZ).toBeCloseTo(perLap[i].PositionZ, 6);
-        expect(batched![i].DistanceTraveled).toBeCloseTo(perLap[i].DistanceTraveled, 6);
-        expect(batched![i].CurrentLap).toBeCloseTo(perLap[i].CurrentLap, 6);
-        expect(batched![i].Speed).toBeCloseTo(perLap[i].Speed, 6);
+      for (const meta of metas) {
+        const buffered = parseRawLapFramesFromBuffer(canonical, meta.rawByteOffset, meta.rawFrameCount, "ac-evo", FIXTURE);
+        const streamed = await parseRawLapFrames(source, meta.rawByteOffset, meta.rawFrameCount);
+        const batched = batch.get(meta.id);
+        expect(batched).toBeDefined();
+        expect(streamed.length).toBe(buffered.length);
+        expect(batched!.length).toBe(buffered.length);
+        expect(streamed).toEqual(buffered);
+        expect(batched).toEqual(buffered);
       }
+    } finally {
+      Date.now = originalNow;
     }
   }, { timeout: 90_000 });
 });

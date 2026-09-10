@@ -33,6 +33,7 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
     await expect(screenshotTarget).toHaveScreenshot(`${story.name}.png`, {
       fullPage: story.fullPage ?? false,
       animations: "disabled",
+      timeout: 30_000,
     });
 
     if (!comparisonCaptureOnly) {

@@ -3,10 +3,11 @@ import { AiAnalysisSection } from "./AiAnalysisSection";
 import { AiAutoTuneSection } from "./AiAutoTuneSection";
 import { AiChatSection } from "./AiChatSection";
 import { AiDriverProfileSection } from "./AiDriverProfileSection";
+import { ProviderSetupSection } from "./ProviderSetupSection";
 import { useAiSettings } from "./useAiSettings";
 
 export function AiSection() {
-  const { settingsLoaded, analysis, chat, autoTune, driverProfile } = useAiSettings();
+  const { settingsLoaded, providerSetup, analysis, chat, autoTune, driverProfile } = useAiSettings();
 
   if (!settingsLoaded) {
     return (
@@ -18,10 +19,13 @@ export function AiSection() {
   }
   return (
     <section>
+      <ProviderSetupSection state={providerSetup} />
+      <div className="mt-8 border-t border-app-border-input pt-8">
       <AiAnalysisSection state={analysis} />
       <AiChatSection state={chat} />
       <AiAutoTuneSection state={autoTune} />
       <AiDriverProfileSection state={driverProfile} />
+      </div>
     </section>
   );
 }

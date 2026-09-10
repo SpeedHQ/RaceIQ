@@ -1,15 +1,33 @@
 ## Unreleased
 
 ### Features
+- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
+- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
+- Export one or multiple selected laps directly from Sessions toolbar
+
+### Fixes
+
+### Internal
+- Run frontend theme-contract checks automatically during pre-commit.
+- Regenerate and commit telemetry catalog artifacts during release finalization.
+
+## v0.16.0 - 2026-09-06
+
+### Features
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
+- Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
+- Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
 
 ### Fixes
 - Keep Analyse Data panel content and layout complete across supported views
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
+- Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
 
 ### Internal
 - Narrow client response helper contracts to the fields each RPC and download path uses
 - Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
+- Fail responsive screenshot CI when either render fails
+- Compile all release feature code once and enable runtime overrides for Playwright E2E
 
 ## v0.15.1 - 2026-09-01
 

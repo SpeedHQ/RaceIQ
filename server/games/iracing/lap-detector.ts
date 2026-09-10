@@ -34,6 +34,7 @@ export class LapDetectorIRacing implements ILapDetector {
   private sessionKey: string | undefined;
   private physicalLap: number | null = null;
   private skipFirstCompletion = true;
+  private completeInitialLapExpected = false;
   private deferred: DeferredPacket[] = [];
   private pendingUnexpectedLap: DeferredPacket | null = null;
   private staleLastLap = 0;
@@ -64,6 +65,10 @@ export class LapDetectorIRacing implements ILapDetector {
 
   setCurrentLapByteOffset(offset: number): void {
     this.detector.setCurrentLapByteOffset(offset);
+  }
+
+  expectCompleteLapStart(): void {
+    this.completeInitialLapExpected = true;
   }
 
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
@@ -137,6 +142,14 @@ export class LapDetectorIRacing implements ILapDetector {
     await this.detector.flushStaleLap();
   }
 
+  async flushIncompleteLap(): Promise<void> {
+    if (this.deferred.length === 0) return;
+    const lapTime = this.staleLastLap > 0
+      ? this.staleLastLap
+      : this.deferred[0]?.packet.LastLap ?? 0;
+    if (lapTime > 0) await this.releaseDeferred(lapTime);
+    else this.deferred = [];
+  }
   async finalizeCurrentSession(): Promise<void> {
     this.deferred = [];
     this.pendingUnexpectedLap = null;
@@ -162,7 +175,8 @@ export class LapDetectorIRacing implements ILapDetector {
   private resetGate(packet: TelemetryPacket): void {
     this.sessionKey = packet.sessionUID;
     this.physicalLap = packet.LapNumber;
-    this.skipFirstCompletion = true;
+    this.skipFirstCompletion = !this.completeInitialLapExpected;
+    this.completeInitialLapExpected = false;
     this.deferred = [];
     this.pendingUnexpectedLap = null;
     this.staleLastLap = packet.LastLap;
