@@ -93,8 +93,8 @@ export function TrackFocusView({
   useEffect(() => {
     zoom.zoomOut();
   }, [zoom.zoomOut]);
-  const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.filter((lap) => lap.isValid).map(alignedToLapTrace) ?? [], [alignedSet, zoom.data]);
-  const baseTraces = useMemo(() => alignedSet?.laps.filter((lap) => lap.isValid).map(alignedToLapTrace) ?? [], [alignedSet]);
+  const traces = useMemo(() => (zoom.data ?? alignedSet)?.laps.filter((lap) => lap.isValid || lap.lapId === primaryLapId).map(alignedToLapTrace) ?? [], [alignedSet, primaryLapId, zoom.data]);
+  const baseTraces = useMemo(() => alignedSet?.laps.filter((lap) => lap.isValid || lap.lapId === primaryLapId).map(alignedToLapTrace) ?? [], [alignedSet, primaryLapId]);
   const visibleLaneRange = useMemo(() => {
     if (!zoom.visibleRange || !alignedSet || alignedSet.nominalSpanMeters <= 0) return null;
     return {
