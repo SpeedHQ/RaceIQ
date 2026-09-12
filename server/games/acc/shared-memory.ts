@@ -71,7 +71,7 @@ export class AccSharedMemoryReader {
     });
     const enableMetrics = config.enableMetrics ??
       (process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1");
-    this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
+    this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics, "ACC");
     this._pipeline = new TripletPipeline();
     this._recorder = config.recorder ?? accRecorder;
     this._recordingDir = config.recordingDir;

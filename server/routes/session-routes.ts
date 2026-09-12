@@ -18,6 +18,7 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { backfillRaceResults, reconcileSessionResult, RACE_RESULT_PROCESSOR_ID } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
+import { recoverDeletedSessions } from "../telemetry/live-pipeline";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_ACC_ID, LAP_DETECTOR_AC_EVO_ID, LAP_DETECTOR_IRACING_ID];
 
@@ -122,5 +123,6 @@ export const sessionRoutes = new Hono()
     const { ids } = c.req.valid("json");
     let lapCount = 0;
     for (const sessionId of ids) lapCount += await deleteSession(sessionId);
+    await recoverDeletedSessions(ids);
     return c.json({ deleted: lapCount, sessions: ids.length });
   });

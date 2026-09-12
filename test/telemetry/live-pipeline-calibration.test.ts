@@ -65,3 +65,22 @@ describe("LiveTelemetryPipeline track calibration integration", () => {
     }
   });
 });
+describe("LiveTelemetryPipeline deleted-session recovery", () => {
+  test("creates a fresh session from next packet when active session is deleted", async () => {
+    const db = new CapturingDbAdapter();
+    const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+    });
+
+    await pipeline.processPacket(packet("acc", 100));
+    expect(db.sessions).toHaveLength(1);
+    expect(await pipeline.recoverDeletedSessions([1])).toBe(true);
+
+    await pipeline.processPacket(packet("acc", 101));
+    expect(db.sessions).toHaveLength(2);
+    expect(pipeline.lapDetector?.session?.sessionId).toBe(2);
+  });
+});

@@ -243,8 +243,7 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   if (!game.appendsDelayedFinishFrame || !trailing || !last) return;
 
   const finishTime = trailing.LastLap ?? 0;
-  if (finishTime <= (last.CurrentLap ?? 0)) return;
-
+  if (finishTime <= (last.CurrentLap ?? 0) || finishTime === last.LastLap) return;
   packets.push({
     ...trailing,
     CurrentLap: finishTime,

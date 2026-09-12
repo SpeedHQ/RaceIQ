@@ -57,7 +57,6 @@ export class LiveTelemetryPipeline {
   private _expectCompleteLapStart = false;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
-  private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
   private _calibrationBoundary: TrackBoundary | null = null;
 
@@ -106,28 +105,6 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
   }
 
-  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): void {
-    const reconcile = this._onSessionFinalized;
-    if (!reconcile) return;
-    const previous = this._lapReconciliations.get(sessionId) ?? Promise.resolve();
-    let current: Promise<void>;
-    current = previous
-      .catch(() => {})
-      .then(() => reconcile(sessionId, gameId))
-      .catch((error) => {
-        console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
-      })
-      .finally(() => {
-        if (this._lapReconciliations.get(sessionId) === current) {
-          this._lapReconciliations.delete(sessionId);
-        }
-      });
-    this._lapReconciliations.set(sessionId, current);
-  }
-
-  private async _drainLapReconciliations(sessionId: number): Promise<void> {
-    await this._lapReconciliations.get(sessionId);
-  }
 
   private _reconcileRecordedSession(
     session: { sessionId: number; gameId: GameId },
@@ -138,7 +115,6 @@ export class LiveTelemetryPipeline {
     const pending = this._resultFinalizations.get(session.sessionId);
     if (pending) return pending;
     const finalization = (async () => {
-      await this._drainLapReconciliations(session.sessionId);
       await this._onSessionFinalized?.(session.sessionId, session.gameId);
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -162,6 +138,9 @@ export class LiveTelemetryPipeline {
       }
       await this.recorder.stop();
     });
+    // Reconciliation parses and hashes complete capture. Run only after recorder
+    // closes; doing this after every lap blocks shared-memory polling and corrupts
+    // following lap's opening frames.
     if (session) await this._reconcileRecordedSession(session);
   }
 
@@ -262,7 +241,6 @@ export class LiveTelemetryPipeline {
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
         if (session) {
-          this._scheduleLapReconciliation(session.sessionId, session.gameId);
           this._sessionLaps.push({
             id: event.lapId,
             sessionId: session.sessionId,
@@ -536,6 +514,26 @@ export class LiveTelemetryPipeline {
     this._pendingSessionContextFrames.push(contextRecord);
   }
 
+  /**
+   * Drop in-memory ownership of a session deleted through the API.
+   * Next packet creates a fresh DB session and capture without restarting game source.
+   */
+  async recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
+    const activeSessionId = this._lapDetector?.session?.sessionId;
+    if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
+
+    this._lapDetector = null;
+    this._lapDetectorGameId = null;
+    this._recordingSession = null;
+    this._continuingSegment = false;
+    this._pendingSessionContextFrames = [];
+    this._pendingLapIssues = null;
+    this._sessionLaps = [];
+    await this.recorder.stop();
+    this._broadcastSessionLaps();
+    return true;
+  }
+
   /** Start next offline capture segment without rotating canonical session. */
   beginSessionSegment(): void {
     if (!this.recorder.active || !this._recordingSession) {
@@ -590,6 +588,11 @@ export const lapDetector = {
   get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
   async finalizeCurrentSession() { await _default.finalizeCurrentSession(); },
 };
+
+/** Reset live ownership when user deletes active session. */
+export function recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
+  return _default.recoverDeletedSessions(sessionIds);
+}
 
 
 /** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */

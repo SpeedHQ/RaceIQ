@@ -25,6 +25,11 @@ import { updateLapCarSetup } from "../db/lap-mutation-queries";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
+import { logger } from "../runtime/logger";
+
+function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
+  logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
+}
 
 
 export interface SessionState {
@@ -313,6 +318,7 @@ export class LapDetector implements ILapDetector {
       this.resetLapState(newLapFirstPacket);
       return;
     }
+    const traceStartedAt = performance.now();
 
 
     // Record fuel usage
@@ -349,6 +355,13 @@ export class LapDetector implements ILapDetector {
 
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
+    traceCapture(this.currentSession.gameId, "lap-boundary-start", {
+      sessionId: this.currentSession.sessionId,
+      lapNumber: this.currentLapNumber,
+      lapTimeMs: Math.round(lapTime * 1000),
+      frames: this.lapBuffer.length,
+    });
+    let traceStageAt = performance.now();
 
 
     // Running-start trim: strip pre-start-line packets
@@ -359,6 +372,12 @@ export class LapDetector implements ILapDetector {
       console.log(
         `[Lap] Skipping lap ${this.currentLapNumber} with time ${lapTime.toFixed(3)}s (< 10s)`
       );
+      traceCapture(this.currentSession.gameId, "lap-boundary-end", {
+        sessionId: this.currentSession.sessionId,
+        lapNumber: this.currentLapNumber,
+        status: "skipped",
+        totalMs: performance.now() - traceStartedAt,
+      });
       this.resetLapState(newLapFirstPacket);
       return;
     }
@@ -370,6 +389,13 @@ export class LapDetector implements ILapDetector {
         this.currentSession.trackOrdinal
       );
       const tuneId = tuneAssignment?.tuneId ?? null;
+      traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
+        sessionId: this.currentSession.sessionId,
+        lapNumber: this.currentLapNumber,
+        stage: "tune-assignment",
+        durationMs: performance.now() - traceStageAt,
+      });
+      traceStageAt = performance.now();
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
 
@@ -379,8 +405,24 @@ export class LapDetector implements ILapDetector {
       const quality = assessLapRecording(this.lapBuffer, lapTime);
       const valid = this.lapIsValid && pitReason === null && quality.valid;
       const invalidReason = this.invalidReason ?? pitReason ?? (!quality.valid ? quality.reason : null);
+      traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
+        sessionId: this.currentSession.sessionId,
+        lapNumber: this.currentLapNumber,
+        stage: "quality",
+        durationMs: performance.now() - traceStageAt,
+        valid,
+        reason: invalidReason,
+      });
+      traceStageAt = performance.now();
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+      traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
+        sessionId: this.currentSession.sessionId,
+        lapNumber: this.currentLapNumber,
+        stage: "sectors",
+        durationMs: performance.now() - traceStageAt,
+      });
+      traceStageAt = performance.now();
 
       // iRacing exposes heading, speed, and native LapDistPct but no public
       // world position. Keep RaceIQ's existing recorded-outline fallback warm
@@ -422,10 +464,19 @@ export class LapDetector implements ILapDetector {
           sectors,
         });
       }
+      traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
+        sessionId: this.currentSession.sessionId,
+        lapNumber: this.currentLapNumber,
+        stage: "completion-callback",
+        durationMs: performance.now() - traceStageAt,
+        ran: valid,
+      });
+      traceStageAt = performance.now();
 
       // Capture the frame buffer before resetLapState reassigns it — the insert
       // below is fire-and-forget, so persistLapMetrics runs after the reset.
       const lapPackets = this.lapBuffer;
+      const insertStartedAt = performance.now();
       this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -438,6 +489,11 @@ export class LapDetector implements ILapDetector {
         invalidReason,
         sectors
       ).then(async (lapId) => {
+        traceCapture(lapPackets[0]?.gameId ?? "unknown", "lap-insert", {
+          lapId,
+          lapNumber: lapNum,
+          durationMs: performance.now() - insertStartedAt,
+        });
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
         await this.persistLapFollowups(lapId, lapPackets);
@@ -465,6 +521,18 @@ export class LapDetector implements ILapDetector {
         recordCurbData(this.currentSession.trackOrdinal, curbSegments, this.currentSession.gameId);
       }
     }
+    traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
+      sessionId: this.currentSession.sessionId,
+      lapNumber: this.currentLapNumber,
+      stage: "curb-recording",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceCapture(this.currentSession.gameId, "lap-boundary-end", {
+      sessionId: this.currentSession.sessionId,
+      lapNumber: this.currentLapNumber,
+      status: "saved",
+      totalMs: performance.now() - traceStartedAt,
+    });
 
     this.resetLapState(newLapFirstPacket);
   }
@@ -612,6 +680,13 @@ export class LapDetector implements ILapDetector {
     lapId: number,
     lapPackets: TelemetryPacket[],
   ): Promise<void> {
+    const traceGameId = lapPackets[0]?.gameId ?? "unknown";
+    const traceStartedAt = performance.now();
+    let traceStageAt = traceStartedAt;
+    traceCapture(traceGameId, "lap-followups-start", {
+      lapId,
+      frames: lapPackets.length,
+    });
     const setup = lapPackets.find((packet) => packet.f1?.setup)?.f1?.setup;
     if (setup) {
       try {
@@ -620,16 +695,37 @@ export class LapDetector implements ILapDetector {
         console.error("[Lap] updateLapCarSetup failed:", error);
       }
     }
+    traceCapture(traceGameId, "lap-followups-stage", {
+      lapId,
+      stage: "setup",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
     try {
       await persistLapMetrics(this.db, lapId, lapPackets);
     } catch (error) {
       console.error("[Lap] persistLapMetrics failed:", error);
     }
+    traceCapture(traceGameId, "lap-followups-stage", {
+      lapId,
+      stage: "metrics",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceStageAt = performance.now();
     try {
       await reconcileAutoExclusionsForLap(this.db, lapId);
     } catch (error) {
       console.error("[Lap] reconcileAutoExclusionsForLap failed:", error);
     }
+    traceCapture(traceGameId, "lap-followups-stage", {
+      lapId,
+      stage: "auto-exclusion",
+      durationMs: performance.now() - traceStageAt,
+    });
+    traceCapture(traceGameId, "lap-followups-end", {
+      lapId,
+      totalMs: performance.now() - traceStartedAt,
+    });
   }
 
   private invalidateLap(reason: string): void {

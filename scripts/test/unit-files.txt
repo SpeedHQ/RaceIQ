@@ -1,5 +1,6 @@
 # Explicit DB-free unit tests
 test/archive/bounded-unzip.test.ts
+test/client/analyse-chart-data.test.ts
 test/client/compare-segment-key.test.ts
 test/client/parse-lap-time.test.ts
 test/client/speed.test.ts

@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { initServerGameAdapters } from "../../../server/games/init";
 import {
   normalizeIRacingFrame,
@@ -14,8 +17,12 @@ import {
   type IRacingSourceFrameV3,
 } from "../../../server/games/iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
+import { getServerGame } from "../../../server/games/registry";
 import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
-import { IRacingRecorder } from "../../../server/games/iracing/recorder";
+import {
+  IRacingRecorder,
+  readIRacingFrames,
+} from "../../../server/games/iracing/recorder";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   iracingAdapter,
@@ -25,6 +32,10 @@ import {
 initGameAdapters();
 initServerGameAdapters();
 import { sampleFrame, } from "../../support/games/iracing-sdk";
+import { ReplayedIRacingFrameReader } from "../../support/recordings/replayed-iracing-frame-reader";
+
+const IRACING_FIXTURE =
+  "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";
 class CapturingIRacingRecorder extends IRacingRecorder {
   readonly frames: Buffer[] = [];
   stopped = false;
@@ -181,6 +192,46 @@ DriverInfo:
       FuelCapacity: 105,
       iracing: { sectorStarts: [0, 0.34, 0.67] },
     });
+  });
+
+  test("replays a healthy recording through the SDK source and recorder", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "iracing-source-replay-"));
+    const input = readIRacingFrames(IRACING_FIXTURE, 12);
+    const reader = new ReplayedIRacingFrameReader(
+      IRACING_FIXTURE,
+      input.length,
+    );
+    const recorder = new IRacingRecorder();
+    const source = new IRacingTelemetrySource({
+      reader,
+      recorder,
+      recordingEnabled: true,
+      recordingDir: dir,
+      pollIntervalMs: 60_000,
+      dispatchRawFrame: async () => {},
+    });
+
+    source.start();
+    try {
+      for (let index = 0; index < reader.frameCount; index++) {
+        expect(await source.pollOnce()).toBe(true);
+      }
+      await source.stop();
+
+      const output = readIRacingFrames(recorder.path!);
+      expect(output).toHaveLength(input.length);
+      const adapter = getServerGame("iracing");
+      const inputState = adapter.createParserState();
+      const outputState = adapter.createParserState();
+      for (let index = 0; index < input.length; index++) {
+        expect(adapter.tryParse(output[index]!, outputState)).toEqual(
+          adapter.tryParse(input[index]!, inputState),
+        );
+      }
+    } finally {
+      await source.stop();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("captures SDK ticks while downstream processing is busy", async () => {

@@ -10,6 +10,7 @@
 
 import type { IRealtimeKunosMemoryReader } from "./memory-reader";
 import type { Triplet } from "./triplet-pipeline";
+import { logger } from "../../runtime/logger";
 
 interface PollingMetrics {
   callbackDurationMs: number[];
@@ -87,31 +88,46 @@ export class TripletAssembler {
   private _lastPollTime = 0;
   private _metricsInterval: ReturnType<typeof setInterval> | null = null;
   private _enableMetrics = false;
+  private readonly _logPrefix: string;
+  private _lastPhysicsPacketId: number | null = null;
+  private _lastGraphicsPacketId: number | null = null;
 
-  constructor(memoryReader: IRealtimeKunosMemoryReader, enableMetrics = false) {
+  constructor(memoryReader: IRealtimeKunosMemoryReader, enableMetrics = false, logPrefix = "Kunos") {
     this._memoryReader = memoryReader;
     this._enableMetrics = enableMetrics;
+    this._logPrefix = logPrefix;
   }
 
   start(callback: (triplet: Triplet) => Promise<void>): void {
     if (this._running) return;
     this._running = true;
-    this._lastPollTime = Date.now();
+    this._lastPollTime = performance.now();
     this._dispatcher = new OrderedTripletDispatcher(
       async (triplet) => {
-        const callbackStartTime = Date.now();
+        const callbackStartTime = performance.now();
         await callback(triplet);
+
+        const callbackDurationMs = performance.now() - callbackStartTime;
+        if (callbackDurationMs >= 50) {
+          logger.trace(
+            {
+              component: "capture",
+              event: "downstream-slow",
+              game: this._logPrefix,
+              durationMs: callbackDurationMs,
+              queueDepth: this._dispatcher?.pendingCount ?? 0,
+            },
+            "Kunos capture downstream processing slow",
+          );
+        } else if (this._enableMetrics && callbackDurationMs > 5) {
+          console.warn(
+            `[TripletAssembler] Slow callback: ${callbackDurationMs.toFixed(1)}ms (target: <10ms)`,
+          );
+        }
 
         if (this._enableMetrics) {
           this._metrics.successfulTriplets++;
-          const callbackDurationMs = Date.now() - callbackStartTime;
           this._metrics.callbackDurationMs.push(callbackDurationMs);
-
-          if (callbackDurationMs > 5) {
-            console.warn(
-              `[TripletAssembler] Slow callback: ${callbackDurationMs}ms (target: <10ms)`,
-            );
-          }
         }
       },
       (error) => console.error("[TripletAssembler] Error in callback:", error),
@@ -120,15 +136,55 @@ export class TripletAssembler {
     // Poll at 100Hz (every 10ms). Snapshot references synchronously so polling
     // never waits for downstream persistence; the dispatcher owns FIFO drain.
     this._pollingTimer = setInterval(() => {
-      const pollStartTime = Date.now();
+      const pollStartTime = performance.now();
+      const intervalMs = pollStartTime - this._lastPollTime;
 
       if (this._enableMetrics) {
-        const intervalMs = pollStartTime - this._lastPollTime;
         this._metrics.pollIntervalMs.push(intervalMs);
       }
 
       const buffers = this._memoryReader.getLatestBuffers();
       if (buffers.physics && buffers.graphics && buffers.staticData) {
+        const physicsPacketId = buffers.physics.length >= 4 ? buffers.physics.readInt32LE(0) : null;
+        const graphicsPacketId = buffers.graphics.length >= 4 ? buffers.graphics.readInt32LE(0) : null;
+        const physicsDelta = physicsPacketId !== null && this._lastPhysicsPacketId !== null
+          ? physicsPacketId - this._lastPhysicsPacketId
+          : 0;
+        const graphicsDelta = graphicsPacketId !== null && this._lastGraphicsPacketId !== null
+          ? graphicsPacketId - this._lastGraphicsPacketId
+          : 0;
+
+        if (intervalMs >= 50) {
+          logger.trace(
+            {
+              component: "capture",
+              event: "assembler-gap",
+              game: this._logPrefix,
+              intervalMs,
+              queueDepth: this._dispatcher!.pendingCount,
+              physicsPacketDelta: physicsDelta,
+              graphicsPacketDelta: graphicsDelta,
+            },
+            "Kunos capture assembler polling gap",
+          );
+        }
+        if (physicsDelta > 30 || graphicsDelta > 20) {
+          logger.trace(
+            {
+              component: "capture",
+              event: "source-gap",
+              game: this._logPrefix,
+              physicsPacketId,
+              physicsPacketDelta: physicsDelta,
+              graphicsPacketId,
+              graphicsPacketDelta: graphicsDelta,
+            },
+            "Kunos source packet sequence gap",
+          );
+        }
+
+        this._lastPhysicsPacketId = physicsPacketId;
+        this._lastGraphicsPacketId = graphicsPacketId;
         this._dispatcher!.enqueue({
           physics: buffers.physics,
           graphics: buffers.graphics,
