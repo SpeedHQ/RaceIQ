@@ -5,6 +5,7 @@ import {
   parseOptionalNumber,
   routePrefixForGameId,
   setupEngineerGameIdForRoutePrefix,
+  setupManagerGameIdForRoutePrefix,
   supportsGameFeature,
   validateAnalyseSearch,
   validateCompareSearch,
@@ -102,6 +103,11 @@ describe("game route helpers", () => {
     expect(setupEngineerGameIdForRoutePrefix("f125", production)).toBeUndefined();
     expect(supportsGameFeature("acc", "experiments", production)).toBe(true);
     expect(supportsGameFeature("ac-evo", "experiments", production)).toBe(true);
+    expect(setupManagerGameIdForRoutePrefix("acc")).toBe("acc");
+    expect(setupManagerGameIdForRoutePrefix("ac-evo")).toBe("ac-evo");
+    expect(setupManagerGameIdForRoutePrefix("fm23")).toBeUndefined();
+    expect(setupManagerGameIdForRoutePrefix("f125")).toBeUndefined();
+    expect(setupManagerGameIdForRoutePrefix("iracing")).toBeUndefined();
   });
 
   test("keeps feature support explicit", () => {

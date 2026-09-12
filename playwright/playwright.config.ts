@@ -11,6 +11,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
   expect: { timeout: 10_000 },
+  snapshotPathTemplate: "{projectDir}/../../artifacts/pr-330/{arg}{ext}",
   use: {
     ...devices["Desktop Chrome"],
     ignoreHTTPSErrors: true,

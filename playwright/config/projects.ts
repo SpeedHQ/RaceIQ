@@ -35,6 +35,13 @@ export function createProjects(runtime: E2ERuntime): NonNullable<PlaywrightTestC
       use: { baseURL: seededBaseURL },
     },
     {
+      name: "ui-screenshots",
+      testMatch: "seeded/setups/catalogue.spec.ts",
+      testIgnore: ["**/node_modules/**"],
+      grep: /visual baseline/,
+      use: { baseURL: "http://localhost:5173", viewport: { width: 1440, height: 900 } },
+    },
+    {
       name: "tunes",
       testMatch: "tunes/**/*.spec.ts",
       grepInvert: /import page renders empty state when Documents folder absent/,
