@@ -6,6 +6,7 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Fix ACC and Assetto Corsa Evo recording behavior that produced corrupt captures
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.

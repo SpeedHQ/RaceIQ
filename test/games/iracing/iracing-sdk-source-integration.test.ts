@@ -15,6 +15,7 @@ import {
 } from "../../../server/games/iracing/source-frame";
 import { parsePacket } from "../../../server/games/packet-dispatch";
 import { timerResolutionRefCount } from "../../../server/games/shared/win-timer-resolution";
+import { IRacingRecorder } from "../../../server/games/iracing/recorder";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   iracingAdapter,
@@ -24,6 +25,27 @@ import {
 initGameAdapters();
 initServerGameAdapters();
 import { sampleFrame, } from "../../support/games/iracing-sdk";
+class CapturingIRacingRecorder extends IRacingRecorder {
+  readonly frames: Buffer[] = [];
+  stopped = false;
+
+  override get recording(): boolean {
+    return true;
+  }
+
+  override start(): string {
+    return "memory://iracing.bin";
+  }
+
+  override writeFrame(frame: Buffer): void {
+    this.frames.push(Buffer.from(frame));
+  }
+
+  override async stop(): Promise<void> {
+    this.stopped = true;
+  }
+}
+
 describe("iRacing source ownership integration", () => {
   test.skipIf(process.platform !== "win32")("holds high-resolution timer while polling iRacing", async () => {
     const initialRefCount = timerResolutionRefCount();
@@ -205,6 +227,7 @@ DriverInfo:
       signalDispatchStarted = resolve;
     });
     const delivered: Buffer[] = [];
+    const recorder = new CapturingIRacingRecorder();
     const source = new IRacingTelemetrySource({
       reader,
       dispatchRawFrame: async (raw) => {
@@ -214,13 +237,17 @@ DriverInfo:
         }
         delivered.push(raw);
       },
+      recordingEnabled: true,
+      recorder,
     });
 
     const first = source.pollOnce();
     await dispatchStarted;
     const second = source.pollOnce();
     const third = source.pollOnce();
-
+    const stop = source.stop();
+    await Promise.resolve();
+    expect(recorder.stopped).toBe(false);
     expect(reads).toBe(3);
     expect(delivered).toHaveLength(0);
     releaseDispatch();
@@ -229,6 +256,7 @@ DriverInfo:
       true,
       true,
     ]);
+    await stop;
 
     const decoder = createIRacingSourceDecoderState();
     expect(
@@ -236,6 +264,13 @@ DriverInfo:
         (raw) => decodeIRacingSourceFrame(raw, decoder)?.values.SessionTick,
       ),
     ).toEqual([7530, 7531, 7532]);
+    const recordedDecoder = createIRacingSourceDecoderState();
+    expect(
+      recorder.frames.map(
+        (raw) => decodeIRacingSourceFrame(raw, recordedDecoder)?.values.SessionTick,
+      ),
+    ).toEqual([7530, 7531, 7532]);
+    expect(recorder.stopped).toBe(true);
   });
 
   test("reparses session YAML when raw content or revision changes", async () => {

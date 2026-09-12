@@ -9,6 +9,7 @@
  */
 
 import type { IRealtimeKunosMemoryReader } from "./memory-reader";
+import type { Triplet } from "./triplet-pipeline";
 
 interface PollingMetrics {
   callbackDurationMs: number[];
@@ -17,16 +18,63 @@ interface PollingMetrics {
   successfulTriplets: number;
   totalPolls: number;
 }
+export class OrderedTripletDispatcher {
+  private readonly process: (triplet: Triplet) => Promise<void>;
+  private readonly onError?: (error: unknown) => void;
+  private readonly queue: Triplet[] = [];
+  private accepting = true;
+  private drainPromise: Promise<void> | null = null;
+  private _pendingCount = 0;
+
+  constructor(
+    process: (triplet: Triplet) => Promise<void>,
+    onError?: (error: unknown) => void,
+  ) {
+    this.process = process;
+    this.onError = onError;
+  }
+
+  get pendingCount(): number {
+    return this._pendingCount;
+  }
+
+  enqueue(triplet: Triplet): boolean {
+    if (!this.accepting) return false;
+    this.queue.push(triplet);
+    this._pendingCount++;
+    this.drainPromise ??= this.drain();
+    return true;
+  }
+
+  async close(): Promise<void> {
+    this.accepting = false;
+    await this.drainPromise;
+  }
+
+  private async drain(): Promise<void> {
+    while (this.queue.length > 0) {
+      const triplet = this.queue.shift()!;
+      try {
+        await this.process(triplet);
+      } catch (error) {
+        try {
+          this.onError?.(error);
+        } catch (reportingError) {
+          console.error("[OrderedTripletDispatcher] Error reporter failed:", reportingError);
+        }
+      } finally {
+        this._pendingCount--;
+      }
+    }
+    this.drainPromise = null;
+  }
+}
 
 export class TripletAssembler {
   private _memoryReader: IRealtimeKunosMemoryReader;
   private _pollingTimer: ReturnType<typeof setInterval> | null = null;
   private _running = false;
-  private _callback: ((triplet: {
-    physics: Buffer;
-    graphics: Buffer;
-    staticData: Buffer;
-  }) => Promise<void>) | null = null;
+  private _dispatcher: OrderedTripletDispatcher | null = null;
 
   // Observability
   private _metrics: PollingMetrics = {
@@ -45,14 +93,33 @@ export class TripletAssembler {
     this._enableMetrics = enableMetrics;
   }
 
-  start(callback: (triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }) => Promise<void>): void {
+  start(callback: (triplet: Triplet) => Promise<void>): void {
     if (this._running) return;
     this._running = true;
-    this._callback = callback;
     this._lastPollTime = Date.now();
+    this._dispatcher = new OrderedTripletDispatcher(
+      async (triplet) => {
+        const callbackStartTime = Date.now();
+        await callback(triplet);
 
-    // Poll at 100Hz (every 10ms)
-    this._pollingTimer = setInterval(async () => {
+        if (this._enableMetrics) {
+          this._metrics.successfulTriplets++;
+          const callbackDurationMs = Date.now() - callbackStartTime;
+          this._metrics.callbackDurationMs.push(callbackDurationMs);
+
+          if (callbackDurationMs > 5) {
+            console.warn(
+              `[TripletAssembler] Slow callback: ${callbackDurationMs}ms (target: <10ms)`,
+            );
+          }
+        }
+      },
+      (error) => console.error("[TripletAssembler] Error in callback:", error),
+    );
+
+    // Poll at 100Hz (every 10ms). Snapshot references synchronously so polling
+    // never waits for downstream persistence; the dispatcher owns FIFO drain.
+    this._pollingTimer = setInterval(() => {
       const pollStartTime = Date.now();
 
       if (this._enableMetrics) {
@@ -62,31 +129,13 @@ export class TripletAssembler {
 
       const buffers = this._memoryReader.getLatestBuffers();
       if (buffers.physics && buffers.graphics && buffers.staticData) {
-        try {
-          await this._callback!(buffers as {
-            physics: Buffer;
-            graphics: Buffer;
-            staticData: Buffer;
-          });
-
-          if (this._enableMetrics) {
-            this._metrics.successfulTriplets++;
-            const callbackDurationMs = Date.now() - pollStartTime;
-            this._metrics.callbackDurationMs.push(callbackDurationMs);
-
-            if (callbackDurationMs > 5) {
-              console.warn(
-                `[TripletAssembler] Slow callback: ${callbackDurationMs}ms (target: <10ms)`
-              );
-            }
-          }
-        } catch (err) {
-          console.error("[TripletAssembler] Error in callback:", err);
-        }
-      } else {
-        if (this._enableMetrics) {
-          this._metrics.missedTriplets++;
-        }
+        this._dispatcher!.enqueue({
+          physics: buffers.physics,
+          graphics: buffers.graphics,
+          staticData: buffers.staticData,
+        });
+      } else if (this._enableMetrics) {
+        this._metrics.missedTriplets++;
       }
 
       this._lastPollTime = pollStartTime;
@@ -106,6 +155,11 @@ export class TripletAssembler {
     if (this._pollingTimer) {
       clearInterval(this._pollingTimer);
       this._pollingTimer = null;
+    }
+    const dispatcher = this._dispatcher;
+    if (dispatcher) {
+      await dispatcher.close();
+      if (this._dispatcher === dispatcher) this._dispatcher = null;
     }
     if (this._metricsInterval) {
       clearInterval(this._metricsInterval);

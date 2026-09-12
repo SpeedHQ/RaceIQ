@@ -33,10 +33,9 @@ export abstract class KunosLapDetector implements ILapDetector {
   // Flag: if true, discard the next reset (recording started mid-lap)
   private firstLapIsPartial = false;
 
-  // Duplicate-emit guard: TripletAssembler's setInterval fires at 100Hz without
-  // waiting for the previous async callback. If emitLap is still awaiting DB writes
-  // when the next tick arrives, the same lap could be saved twice. Track the last
-  // emitted lap number — if emitLap is triggered again for the same number, ignore it.
+  // Duplicate-emit guard for repeated boundary frames from live or imported
+  // sources. Ordered live ingress prevents callback overlap, but the detector
+  // still owns idempotence at its semantic boundary.
   private _lastEmittedLapNumber = -1;
   private _lapByteOffset: number | null = null;
   private _lapFrameCount = 0;

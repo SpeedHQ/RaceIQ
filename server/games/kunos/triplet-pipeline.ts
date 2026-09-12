@@ -44,3 +44,28 @@ export class TripletPipeline extends AsyncProcessorPipeline<
   Triplet,
   TripletProcessor
 > {}
+
+export interface KunosTripletPipelineOptions {
+  recordingEnabled: boolean;
+  recorder: TripletRecorder;
+  parser: TripletProcessor;
+  gate?: TripletProcessor;
+}
+
+/**
+ * Builds mutually exclusive raw-recording and semantic-processing paths.
+ * Recording mode must never invoke parser or persistence work.
+ */
+export function createKunosTripletPipeline({
+  recordingEnabled,
+  recorder,
+  parser,
+  gate,
+}: KunosTripletPipelineOptions): TripletPipeline {
+  const pipeline = new TripletPipeline();
+  if (gate) pipeline.register(gate);
+  pipeline.register(
+    recordingEnabled ? new DumpToBinProcessor(recorder) : parser,
+  );
+  return pipeline;
+}

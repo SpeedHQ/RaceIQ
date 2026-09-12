@@ -6,19 +6,49 @@
  *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
  *   - Uses AcEvoParsingProcessor which resolves car/track ordinals from
  *     STATIC display names via the AC Evo CSV lookups
+ *   - Live capture accepts AC_LIVE/AC_PAUSE; recording writes raw buffers only
  */
 
 import { processPacket } from "../../telemetry/live-pipeline";
 import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import type { IRealtimeKunosMemoryReader } from "../kunos/memory-reader";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import { TripletAssembler } from "../kunos/triplet-assembler";
-import type { TripletProcessor } from "../kunos/triplet-pipeline";
-import { DumpToBinProcessor, TripletPipeline } from "../kunos/triplet-pipeline";
+import {
+  createKunosTripletPipeline,
+  TripletPipeline,
+  type TripletProcessor,
+} from "../kunos/triplet-pipeline";
 import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
 import type { AcEvoParserCache } from "./parser";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "./parser";
 import { acEvoRecorder } from "./recorder";
-import { GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "./structs";
+import { KunosRecorder } from "../kunos/recorder";
+import { ACEVO_STATUS, GRAPHICS_EVO, PHYSICS, STATIC_EVO } from "./structs";
+
+/** Gates live capture while AC Evo is outside a live or paused session. */
+export class AcEvoStatusCheckProcessor implements TripletProcessor {
+  private loggedInvalidStatus = false;
+
+  async process(triplet: { graphics: Buffer }): Promise<boolean> {
+    const status = triplet.graphics.readInt32LE(GRAPHICS_EVO.status.offset);
+    if (status !== ACEVO_STATUS.AC_LIVE && status !== ACEVO_STATUS.AC_PAUSE) {
+      if (!this.loggedInvalidStatus) {
+        console.log(
+          `[AC Evo StatusCheck] Pausing pipeline, status=${status} ` +
+            `(AC_OFF=${ACEVO_STATUS.AC_OFF}, AC_REPLAY=${ACEVO_STATUS.AC_REPLAY})`,
+        );
+        this.loggedInvalidStatus = true;
+      }
+      return false;
+    }
+    if (this.loggedInvalidStatus) {
+      console.log(`[AC Evo StatusCheck] Status=${status} — pipeline resuming`);
+    }
+    this.loggedInvalidStatus = false;
+    return true;
+  }
+}
 
 class AcEvoParsingProcessor implements TripletProcessor {
   private cache: AcEvoParserCache = createAcEvoParserCache();
@@ -40,18 +70,34 @@ class AcEvoParsingProcessor implements TripletProcessor {
   }
 }
 
+export interface AcEvoSharedMemoryReaderOptions {
+  recordingEnabled?: boolean;
+  memoryReader?: IRealtimeKunosMemoryReader;
+  recorder?: KunosRecorder;
+  recordingDir?: string;
+  parser?: TripletProcessor;
+  enableMetrics?: boolean;
+}
+
 export class AcEvoSharedMemoryReader {
-  private _bufferedReader: BufferedKunosMemoryReader;
+  private _bufferedReader: IRealtimeKunosMemoryReader;
   private _tripletAssembler: TripletAssembler;
   private _pipeline: TripletPipeline;
   private _running = false;
   private _connected = false;
   private _recordingEnabled: boolean;
+  private readonly _recorder: KunosRecorder;
+  private readonly _recordingDir: string | undefined;
+  private readonly _parser: TripletProcessor;
   /** True while we hold a timer-resolution reference, so stop() releases exactly one. */
   private _holdsTimerResolution = false;
 
-  constructor(recordingEnabled = false) {
-    this._bufferedReader = new BufferedKunosMemoryReader({
+  constructor(options: boolean | AcEvoSharedMemoryReaderOptions = false) {
+    const config = typeof options === "boolean"
+      ? { recordingEnabled: options }
+      : options;
+    this._recordingEnabled = config.recordingEnabled ?? false;
+    this._bufferedReader = config.memoryReader ?? new BufferedKunosMemoryReader({
       // AC Evo v0.6 uses acevo_pmf_* names (confirmed via handle.exe against
       // AssettoCorsaEVO.exe — ACC's acpmf_* names are not owned by the game).
       physicsName: "Local\\acevo_pmf_physics",
@@ -60,18 +106,19 @@ export class AcEvoSharedMemoryReader {
       physicsSize: PHYSICS.SIZE,
       graphicsSize: GRAPHICS_EVO.SIZE,
       staticSize: STATIC_EVO.SIZE,
-      // AC Evo v0.6 graphics offset 8 is uint64 focused_car_id_a (not stable),
-      // so disable change-based static re-read and just read static once.
       sessionIdOffset: null,
       logPrefix: "AC Evo",
     });
-    const enableMetrics = process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1";
+    const enableMetrics = config.enableMetrics ??
+      (process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1");
     this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
     this._pipeline = new TripletPipeline();
-    this._recordingEnabled = recordingEnabled;
+    this._recorder = config.recorder ?? acEvoRecorder;
+    this._recordingDir = config.recordingDir;
+    this._parser = config.parser ?? new AcEvoParsingProcessor();
 
     if (this._recordingEnabled) {
-      const recordPath = acEvoRecorder.start(undefined, "ac-evo");
+      const recordPath = this._recorder.start(this._recordingDir, "ac-evo");
       console.log(`[AC Evo] Recording mode: bin file created at ${recordPath}`);
     }
   }
@@ -113,7 +160,7 @@ export class AcEvoSharedMemoryReader {
     // close it when the reader goes down (game exit / shutdown). Finalizes the
     // frameCount header instead of relying on the killed-process scan path.
     if (this._recordingEnabled) {
-      await acEvoRecorder.stop();
+      await this._recorder.stop();
     }
     console.log("[AC Evo] Shared memory reader stopped");
   }
@@ -137,17 +184,17 @@ export class AcEvoSharedMemoryReader {
     this._bufferedReader.start();
     this._connected = true;
 
-    // StatusCheck is skipped for AC Evo v0.6: the `status` byte at offset 4 in
-    // Local\acpmf_graphics stays at 0 even during live sessions (page appears
-    // to be a legacy stub), so using it as a gate silences every real packet.
-    // Always parse — let the UI show whatever the page has so we can diagnose.
-    if (this._recordingEnabled) {
-      this._pipeline.register(new DumpToBinProcessor(acEvoRecorder), new AcEvoParsingProcessor());
-      console.log("[AC Evo] Triplet pipeline: DumpToBinProcessor → AcEvoParsingProcessor");
-    } else {
-      this._pipeline.register(new AcEvoParsingProcessor());
-      console.log("[AC Evo] Triplet pipeline: AcEvoParsingProcessor");
-    }
+    this._pipeline = createKunosTripletPipeline({
+      recordingEnabled: this._recordingEnabled,
+      recorder: this._recorder,
+      parser: this._parser,
+      gate: new AcEvoStatusCheckProcessor(),
+    });
+    console.log(
+      this._recordingEnabled
+        ? "[AC Evo] Triplet pipeline: AcEvoStatusCheckProcessor → DumpToBinProcessor"
+        : "[AC Evo] Triplet pipeline: AcEvoStatusCheckProcessor → AcEvoParsingProcessor",
+    );
 
     this._tripletAssembler.start(this._pipeline.process.bind(this._pipeline));
 
