@@ -4,9 +4,10 @@ import { getLapById } from "../db/lap-read-queries";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { listExperimentVersions, updateExperimentVersionSetupSnapshot } from "../db/experiment-version-queries";
-import { resolveGuardedSetupFile, type AccGameId } from "../setups/file-guard";
+import { resolveGuardedSetupFile } from "../setups/file-guard";
+import type { SetupGameId } from "../../shared/racing/setups/file-formats";
 
-export type ExperimentGameId = AccGameId | "f1-2025";
+export type ExperimentGameId = SetupGameId | "f1-2025";
 
 /** Only ACC/AC-EVO write a real setup file the user loads from the setup menu. */
 export function gameHasSetupFile(gameId: ExperimentGameId): boolean {

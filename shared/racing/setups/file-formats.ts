@@ -19,6 +19,11 @@ import { z } from "zod";
  */
 
 export type SetupGameId = "acc" | "ac-evo";
+export type SetupNativeFormat = "acc-json" | "ac-evo-carsetup";
+
+export function setupNativeFormat(gameId: SetupGameId): SetupNativeFormat {
+  return gameId === "acc" ? "acc-json" : "ac-evo-carsetup";
+}
 
 export interface SetupFileFormat {
   /** The only accepted extension, lowercase, leading dot. */

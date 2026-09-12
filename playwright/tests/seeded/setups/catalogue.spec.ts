@@ -59,6 +59,45 @@ async function assertPaginationAndFilters(page: Page, firstAuthor?: string) {
   }
 }
 
+async function mockSetupManagerApis(page: Page) {
+  await page.route("**/api/tunes/setup-files*", (route) => route.fulfill({
+    json: {
+      baseDir: "C:\\Setups",
+      files: [{
+        carModel: "ferrari_296_gt3",
+        trackName: "spa",
+        fileName: "Race.json",
+        absolutePath: "C:\\Setups\\ferrari_296_gt3\\spa\\Race.json",
+      }],
+    },
+  }));
+  await page.route("**/api/setup-backups*", (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/setup-backups/google/status") {
+      return route.fulfill({ json: { status: "connected" } });
+    }
+    if (route.request().method() === "POST") {
+      return route.fulfill({
+        status: 409,
+        json: { error: "A backup with this name already exists.", code: "duplicate-name" },
+      });
+    }
+    return route.fulfill({
+      json: {
+        backups: [{
+          valid: true,
+          id: "backup-1",
+          gameId: "acc",
+          carId: "ferrari_296_gt3",
+          trackId: "spa",
+          setupName: "Race",
+          updatedAt: "2026-08-20T10:00:00.000Z",
+        }],
+      },
+    });
+  });
+}
+
 test("F1 2025 setup catalogue supports filters and pagination without unsupported CRUD controls", async ({ page }) => {
   const game = SEEDED_GAME_CASES.find(({ gameId }) => gameId === "f1-2025");
   if (!game) throw new Error("Missing canonical F1 seeded game case");
@@ -104,4 +143,33 @@ test("ACC setup catalogue supports filters and pagination and classifies provide
   await page.goto("/acc/setups/import", { waitUntil: "domcontentloaded" });
   await expect(page.getByText(/could not find your acc setups folder/i)).toBeVisible({ timeout: 10_000 });
   expect(browserErrors.errors, "unexpected browser errors on ACC setup catalogue").toEqual([]);
+});
+
+test("setup manager opens conflict choices when backup already exists", async ({ page }) => {
+  await mockSetupManagerApis(page);
+  await page.goto("/acc/setup-manager", { waitUntil: "domcontentloaded" });
+
+  await page.getByRole("button", { name: "Back up", exact: true }).click();
+
+  await expect(page.getByRole("dialog", { name: "A setup with this name already exists" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Replace", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save copy", exact: true })).toBeVisible();
+});
+
+test("setup manager exposes its active Updated sort", async ({ page }) => {
+  await mockSetupManagerApis(page);
+  await page.goto("/acc/setup-manager", { waitUntil: "domcontentloaded" });
+
+  const drivePanel = page.getByRole("heading", { name: "Google Drive" }).locator("..").locator("..");
+  const sort = drivePanel.getByRole("combobox");
+  await expect(sort).toHaveValue("updated");
+  await expect(sort.locator('option[value="updated"]')).toHaveText("Updated");
+});
+
+test("setup manager panel header separates title and sort control", async ({ page }) => {
+  await mockSetupManagerApis(page);
+  await page.goto("/acc/setup-manager", { waitUntil: "domcontentloaded" });
+
+  const panelHeader = page.getByRole("heading", { name: "Google Drive" }).locator("..");
+  await expect(panelHeader).toHaveCSS("justify-content", "space-between");
 });
