@@ -28,13 +28,11 @@ test/lap-analysis/stints/stint-stats.test.ts
 test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
-test/marketing-track-wall.test.ts
 test/session-capture/filename.test.ts
 test/tracks/calibration.test.ts
 test/tooling/test-shards.test.ts
 test/tooling/paraglide-cache.test.ts
 test/tooling/release-version.test.ts
-test/tooling/bench-compare.test.ts
 # Moved from integration: deterministic DB-free tests
 test/ai/ai-configured.test.ts
 test/ai/chat/chat-generations.test.ts
@@ -43,7 +41,6 @@ test/ai/context-window.test.ts
 test/ai/extract-json.test.ts
 test/ai/providers/google-provider-options.test.ts
 test/ai/providers/lm-studio-context.test.ts
-test/ai/providers/local-provider-auth.test.ts
 test/ai/providers/provider-error.test.ts
 test/analysis/data-panel-parity.test.ts
 test/analysis/suspension-compression.test.ts
@@ -74,10 +71,6 @@ test/tooling/collect-screenshot-diffs.test.ts
 test/tooling/storybook-ready.test.ts
 test/tooling/version-label.test.ts
 test/routes/place-setup-sanitise.test.ts
-test/routes/runtime-features.test.ts
 test/visualization/suspension.test.ts
 test/tooling/playwright-setup-seed.test.ts
-test/tooling/optimize-gt3-model.test.ts
-test/tooling/dev-model-routes.test.ts
-test/tooling/optimize-f1-model.test.ts
-test/tooling/pipeline-bench-support.test.ts
+test/ai/evals/model-eval-recommendation.test.ts

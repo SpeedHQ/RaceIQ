@@ -12,7 +12,7 @@ import { computeNativeSectorTimeline, computeLapSectors } from "../lap-analysis/
 import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema } from "./schemas";
-import { buildGoogleProviderOptions } from "./google-provider-options";
+import { buildLapAnalystExecutionOptions } from "./analysis-agent-options";
 import { extractJson } from "./extract-json";
 import { toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
@@ -245,24 +245,11 @@ export async function generateLapAnalysis(
       maxOutputTokens: 8192,
       temperature: 0,
     };
-    const generationOptions: Record<string, unknown> = {
-      maxSteps: 5,
-      modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-      providerOptions: {
-        openai: {
-          reasoningEffort: "medium",
-          responseFormat: {
-            type: "json_schema",
-            jsonSchema: { name: "analyst_output", strict: true, schema },
-          },
-        },
-        google: buildGoogleProviderOptions(
-          model,
-          schema,
-          settings.aiThinkingBudget,
-        ),
-      },
-    };
+    const generationOptions = buildLapAnalystExecutionOptions({
+      provider: settings.aiProvider ?? "",
+      model,
+      thinkingBudget: settings.aiThinkingBudget ?? undefined,
+    });
     const generate =
       deps.generate ??
       ((requestPrompt, requestOptions) =>
