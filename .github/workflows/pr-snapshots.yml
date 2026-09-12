@@ -35,8 +35,8 @@ permissions:
 
 jobs:
   render:
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: ubuntu-latest
+    runs-on:
+      - mars-any
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
