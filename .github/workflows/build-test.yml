@@ -17,7 +17,28 @@ concurrency:
   group: build-test-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
+
 jobs:
+  unit-tests:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on:
+      - mars-any
+      - 4VCPU
+      - 10G
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run unit tests
+        run: bun run test:unit
   build-test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     # Always retain compiled dist for downstream E2E diagnostics and reruns.
@@ -72,8 +93,6 @@ jobs:
             bun run telemetry:catalog:check
           }
 
-      - name: Run unit tests
-        run: bun run test:unit
 
       - name: Run integration tests
         run: bun run test:integration
