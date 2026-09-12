@@ -1,0 +1,23 @@
+[
+  {"lineId": "fastest-class", "spokenText": "Fastest in class.", "kind": "pace", "relation": "fastest-in-class", "scope": "class"},
+  {"lineId": "fastest-overall", "spokenText": "Fastest overall.", "kind": "pace", "relation": "fastest-in-class", "scope": "overall"},
+  {"lineId": "setting-race-pace", "spokenText": "You are setting the current race pace.", "kind": "pace", "relation": "setting-race-pace", "scope": "class"},
+  {"lineId": "within-class-pace", "spokenText": "You are point three seconds from class pace.", "kind": "pace", "relation": "within-class-pace", "scope": "class"},
+  {"lineId": "within-overall-pace", "spokenText": "You are point three seconds from overall pace.", "kind": "pace", "relation": "within-class-pace", "scope": "overall"},
+  {"lineId": "off-class-pace", "spokenText": "You are point three seconds off class pace.", "kind": "pace", "relation": "off-class-pace", "scope": "class"},
+  {"lineId": "off-overall-pace", "spokenText": "You are point three seconds off overall pace.", "kind": "pace", "relation": "off-class-pace", "scope": "overall"},
+  {"lineId": "outlier-class", "spokenText": "That lap is point three seconds off class pace.", "kind": "pace", "relation": "outlier-lap", "scope": "class"},
+  {"lineId": "outlier-overall", "spokenText": "That lap is point three seconds off overall pace.", "kind": "pace", "relation": "outlier-lap", "scope": "overall"},
+  {"lineId": "lap-time", "spokenText": "Your lap was one minute thirty two point four one seven.", "kind": "lap-time"},
+  {"lineId": "opponent-faster-last-lap", "spokenText": "Opponent was point three seconds faster last lap.", "kind": "opponent-lap-pace"},
+  {"lineId": "driver-faster-last-lap", "spokenText": "You were point three seconds faster last lap.", "kind": "opponent-lap-pace"},
+  {"lineId": "tires-cold", "spokenText": "Tires are cold. Be careful.", "kind": "preview-line"},
+  {"lineId": "tires-optimal", "spokenText": "Tires are optimal.", "kind": "preview-line"},
+  {"lineId": "pit-this-lap", "spokenText": "Pit this lap.", "kind": "preview-line"},
+  {"lineId": "pit-pit-pit", "spokenText": "Pit pit pit.", "kind": "preview-line"},
+  {"lineId": "car-left", "spokenText": "Car left.", "kind": "spotter"},
+  {"lineId": "car-right", "spokenText": "Car right.", "kind": "spotter"},
+  {"lineId": "still-there", "spokenText": "Still there.", "kind": "spotter"},
+  {"lineId": "clear-left", "spokenText": "Clear left.", "kind": "spotter"},
+  {"lineId": "clear-right", "spokenText": "Clear right.", "kind": "spotter"}
+]

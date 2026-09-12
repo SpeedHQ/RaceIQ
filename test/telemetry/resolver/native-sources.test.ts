@@ -164,4 +164,35 @@ describe("compiled telemetry resolver native sources", () => {
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
   });
+  test("resolves canonical ACC and iRacing Live Engineer extensions", () => {
+    const accResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "acc",
+      requested: [
+        { semanticId: "identity.player-car-index" },
+        { semanticId: "identity.player-car-class-id" },
+        { semanticId: "session.session-type" },
+        { semanticId: "race.competitor.connected" },
+      ],
+    });
+    const accFrame = accResolver.createFrameView(packet("acc", { acc: { broadcastPlayerCarIndex: 4, broadcastPlayerCarClassId: "gt3", broadcastSessionType: "race", broadcastConnected: [true, false] } } as never), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
+    expect(accFrame.readValue<unknown>(accResolver.slot("identity.player-car-index"))).toBe(4);
+    expect(accFrame.readValue<unknown>(accResolver.slot("identity.player-car-class-id"))).toBe("gt3");
+    expect(accFrame.readValue<unknown>(accResolver.slot("session.session-type"))).toBe("race");
+    expect(accFrame.readValue<unknown>(accResolver.slot("race.competitor.connected"))).toEqual([true, false]);
+
+    const iracingResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [
+        { semanticId: "identity.player-car-class-id" },
+        { semanticId: "session.session-type" },
+        { semanticId: "race.competitor.pit-status" },
+        { semanticId: "race.competitor.track-location" },
+      ],
+    });
+    const iracingFrame = iracingResolver.createFrameView(packet("iracing", { iracing: { playerCarClassId: "1", sessionType: "practice", competitorPitStatus: ["out"], competitorTrackLocationName: ["track"] } } as never), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("identity.player-car-class-id"))).toBe("1");
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("session.session-type"))).toBe("practice");
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.pit-status"))).toEqual(["out"]);
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.track-location"))).toEqual(["track"]);
+  });
 });

@@ -50,6 +50,10 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
+  radioSpotterEnabled: z.boolean().default(false),
+  radioRaceEngineerEnabled: z.boolean().default(false),
+  radioTextCalloutsEnabled: z.boolean().default(true),
+  radioVolume: z.number().min(0).max(1).default(0.8),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
   // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
@@ -58,9 +62,10 @@ const AppSettingsSchema = z.object({
   communityTunesSyncedAt: z.string().nullable().default(null),
 });
 
+const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
+
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
 
-const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
 
 function ensureSettingsDir(): void {
   if (!existsSync(SETTINGS_DIR)) {

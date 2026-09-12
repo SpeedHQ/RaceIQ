@@ -1,5 +1,26 @@
 import type { IRacingSessionSnapshot } from "./source-frame";
 
+export interface IRacingDriverSnapshot {
+  carIndex: number;
+  userId?: number;
+  displayName?: string;
+  carClassId?: number;
+  carClassShortName?: string;
+  isSpectator?: boolean;
+  carIsPaceCar?: boolean;
+}
+
+const optionalNumber = (value: string | undefined): number | undefined => {
+  const parsed = value === undefined ? Number.NaN : Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const optionalBoolean = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) return undefined;
+  if (["1", "true", "yes"].includes(value.toLowerCase())) return true;
+  if (["0", "false", "no"].includes(value.toLowerCase())) return false;
+  return undefined;
+};
 function unquote(value: string): string {
   const trimmed = value.trim();
   if (trimmed.length >= 2) {
@@ -122,6 +143,40 @@ function parseDrivers(lines: readonly string[]): Array<Record<string, string>> {
   }
 
   return drivers;
+}
+export function parseIRacingDrivers(yaml: string): IRacingDriverSnapshot[] {
+  const lines = yaml.replace(/\r\n/g, "\n").split("\n");
+  return parseDrivers(lines)
+    .map((entry): IRacingDriverSnapshot | null => {
+      const carIndex = optionalNumber(entry.CarIdx);
+      if (carIndex === undefined || !Number.isInteger(carIndex) || carIndex < 0) return null;
+      return {
+        carIndex,
+        userId: optionalNumber(entry.UserID),
+        displayName: entry.UserName ?? entry.AbbrevName ?? entry.Initials,
+        carClassId: optionalNumber(entry.CarClassID),
+        carClassShortName: entry.CarClassShortName,
+        isSpectator: optionalBoolean(entry.IsSpectator),
+        carIsPaceCar: optionalBoolean(entry.CarIsPaceCar),
+      };
+    })
+    .filter((entry): entry is IRacingDriverSnapshot => entry !== null);
+}
+export function parseIRacingSessionType(yaml: string, sessionNum: number): string {
+  const lines = yaml.replace(/\r\n/g, "\n").split("\n");
+  let matching = false;
+  for (const line of lines) {
+    const session = line.match(/^\s*-\s*SessionNum:\s*(-?\d+)/);
+    if (session) {
+      matching = Number(session[1]) === sessionNum;
+      continue;
+    }
+    if (matching) {
+      const type = line.match(/^\s*SessionType:\s*(?:"([^"]*)"|'([^']*)'|(.+?))\s*$/);
+      if (type) return (type[1] ?? type[2] ?? type[3] ?? "unknown").trim().toLowerCase().replace(/\s+/g, "_");
+    }
+  }
+  return "unknown";
 }
 
 export function parseIRacingSessionInfo(

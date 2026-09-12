@@ -17,6 +17,7 @@ import {
   IRACING_SESSION_INFO_CATALOG_FIELDS,
 } from "../../shared/games/iracing/session-info/catalog";
 import { getSchemaForGame } from "../../shared/racing/setups/schema";
+import { CREWCHIEF_CALLOUT_SEMANTIC_IDS } from "../../shared/telemetry/live/crewchief-callout-contract";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
@@ -510,7 +511,15 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
 
   addCrossSourceProjections(variables, groups);
-  addSectorDerivedVariables(variables, groups);
+  const semanticCapabilityIds = new Set([...CREWCHIEF_CALLOUT_SEMANTIC_IDS, "timing.sector.current-lap.times"]);
+  for (const id of semanticCapabilityIds) {
+    if (variables.has(id)) continue;
+    const definition = SEMANTIC_DEFINITIONS[id];
+    if (!definition) continue;
+    const variable: CatalogVariable = { id, ...definition, games: unavailableGames("No source mapping is currently exposed by RaceIQ.") };
+    variables.set(id, variable);
+    attachChild(groups, variable.parentId, id);
+  }
 
   for (const group of groups.values()) {
     if (group.parentId) attachChild(groups, group.parentId, group.id);

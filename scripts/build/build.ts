@@ -1,5 +1,6 @@
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const root = process.cwd();
 const distDir = join(root, "dist");
@@ -79,13 +80,19 @@ function copyLibsqlAddon() {
   cpSync(join(pkgDir, "package.json"), join(destDir, "package.json"));
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
+
 async function main() {
+  releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
+  });
   mkdirSync(distDir, { recursive: true });
   await run(["bun", "scripts/telemetry/generate-demo-fixture.ts"]);
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
   await run(["bun", "scripts/build/copy-shared-data.ts"]);
   await run(["bun", "scripts/build/copy-client-dist.ts"]);
-  await run(["bun", "scripts/build/optimize-client-images.ts"]);
 
   const compileArgs = [
     "bun",
@@ -94,6 +101,17 @@ async function main() {
     "--define",
     'process.env.NODE_ENV="production"',
   ];
+  compileArgs.push(
+    "--define",
+    `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=${JSON.stringify(process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS=${JSON.stringify(process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS)}`,
+  );
+
   if (process.platform === "win32") {
     const iconPath = join(root, "assets", "raceiq.ico");
     if (existsSync(iconPath)) {

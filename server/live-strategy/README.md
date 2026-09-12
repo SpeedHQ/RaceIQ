@@ -17,6 +17,12 @@ Computes live sector timing and pit-strategy estimates from normalized telemetry
 - Pit history seeding reads laps through `server/db`, but the active game policy decides whether fuel and tire histories are comparable. Estimates preserve five-lap fuel, three-lap tire, three-curve wear, and existing outlier windows.
 - Lap boundaries, teleport recovery, threshold rounding, and unavailable-value sentinels are observable behavior. Keep reset and fallback semantics unchanged.
 
+## Live Engineer boundary
+
+`server/telemetry/live-projector.ts` resolves semantic frames; `live-engineer-semantic-input.ts` owns availability and alignment; voice and spotter trackers consume semantic values only. Browser clients own Radio switches, queueing, preemption, playback, and volume.
+
+Opponent pace is source-backed for F1 25 UDP Session History validity, iRacing SDK/YAML completed-lap facts, and ACC Broadcasting Protocol realtime car updates. iRacing Spotter uses native `CarLeftRight`; ACC Spotter uses registered Broadcasting Protocol positions. AC Evo and FM opponent pace/spotter remain unavailable when required real competitor feeds or stable upstream identity are absent.
+
 ## Testing
 
 Focused coverage lives in `test/sector-tracker.test.ts` and `test/pit-tracker.test.ts`. Use their test seams for deterministic tracker state, and cover boundary packets, reference interpolation, rolling histories, outlier rejection, and reset transitions when behavior changes.
