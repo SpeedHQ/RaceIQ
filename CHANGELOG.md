@@ -6,10 +6,17 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Fix issue causing ACC lap replays to show the wrong time at the finish line
+- Fix issue causing ACC and Assetto Corsa Evo recording files to be unreadable
+- Fix issue adding a short pit-lane timer to the beginning of ACC and Assetto Corsa Evo laps
+- Fix issue preventing live recording from restarting after the active session is deleted
+- Fix issue causing Analyse charts to draw backward at the end of a lap
+- Fix issue leaving recording files unfinished when RaceIQ closes immediately after the simulator
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
+- Add diagnostic logs that reveal missed telemetry and slow lap saving
 
 ## v0.16.0 - 2026-09-06
 
