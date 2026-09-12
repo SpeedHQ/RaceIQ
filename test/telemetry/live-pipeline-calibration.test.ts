@@ -18,6 +18,14 @@ function packet(gameId: TelemetryPacket["gameId"], distance: number): TelemetryP
   } as unknown as TelemetryPacket;
 }
 
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 function pipelineWithSession() {
   const pipeline = new LiveTelemetryPipeline(new CapturingDbAdapter(), new CapturingWsAdapter(), {
     bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true,
@@ -81,6 +89,43 @@ describe("LiveTelemetryPipeline deleted-session recovery", () => {
 
     await pipeline.processPacket(packet("acc", 101));
     expect(db.sessions).toHaveLength(2);
+    expect(pipeline.lapDetector?.session?.sessionId).toBe(2);
+  });
+
+  test("waits for in-flight telemetry before dropping deleted session ownership", async () => {
+    const db = new CapturingDbAdapter();
+    const pipeline = new LiveTelemetryPipeline(db, new CapturingWsAdapter(), {
+      bypassPacketRateFilter: true,
+      skipHistorySeeding: true,
+      skipDevState: true,
+      recorder: new NullSessionRecorderAdapter(),
+    });
+    await pipeline.processPacket(packet("acc", 100));
+
+    const detector = pipeline.lapDetector!;
+    const originalFeed = detector.feed.bind(detector);
+    const feedStarted = deferred();
+    const releaseFeed = deferred();
+    detector.feed = async (nextPacket, rawByteOffset) => {
+      feedStarted.resolve();
+      await releaseFeed.promise;
+      await originalFeed(nextPacket, rawByteOffset);
+    };
+
+    const inFlight = pipeline.processPacket(packet("acc", 101));
+    await feedStarted.promise;
+    let recovered = false;
+    const recovery = pipeline.recoverDeletedSessions([1]).then((result) => {
+      recovered = result;
+    });
+    await Promise.resolve();
+    expect(recovered).toBe(false);
+
+    releaseFeed.resolve();
+    await Promise.all([inFlight, recovery]);
+    expect(recovered).toBe(true);
+
+    await pipeline.processPacket(packet("acc", 102));
     expect(pipeline.lapDetector?.session?.sessionId).toBe(2);
   });
 });

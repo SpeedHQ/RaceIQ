@@ -59,6 +59,8 @@ export class LiveTelemetryPipeline {
   private _finalizedResultSessions = new Set<number>();
   private _resultFinalizations = new Map<number, Promise<void>>();
   private _calibrationBoundary: TrackBoundary | null = null;
+  private _ingressBarrier: Promise<void> | null = null;
+  private _activePacketProcessing = new Set<Promise<void>>();
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -342,6 +344,17 @@ export class LiveTelemetryPipeline {
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
+    while (this._ingressBarrier) await this._ingressBarrier;
+    const processing = this._processPacket(packet, source);
+    this._activePacketProcessing.add(processing);
+    try {
+      await processing;
+    } finally {
+      this._activePacketProcessing.delete(processing);
+    }
+  }
+
+  private async _processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
     this._totalProcessed++;
 
     let rawByteOffset: number | undefined;
@@ -519,19 +532,31 @@ export class LiveTelemetryPipeline {
    * Next packet creates a fresh DB session and capture without restarting game source.
    */
   async recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
+    while (this._ingressBarrier) await this._ingressBarrier;
     const activeSessionId = this._lapDetector?.session?.sessionId;
     if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
 
-    this._lapDetector = null;
-    this._lapDetectorGameId = null;
-    this._recordingSession = null;
-    this._continuingSegment = false;
-    this._pendingSessionContextFrames = [];
-    this._pendingLapIssues = null;
-    this._sessionLaps = [];
-    await this.recorder.stop();
-    this._broadcastSessionLaps();
-    return true;
+    let releaseIngress!: () => void;
+    const ingressBarrier = new Promise<void>((resolve) => {
+      releaseIngress = resolve;
+    });
+    this._ingressBarrier = ingressBarrier;
+    try {
+      await Promise.allSettled([...this._activePacketProcessing]);
+      this._lapDetector = null;
+      this._lapDetectorGameId = null;
+      this._recordingSession = null;
+      this._continuingSegment = false;
+      this._pendingSessionContextFrames = [];
+      this._pendingLapIssues = null;
+      this._sessionLaps = [];
+      await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
+      this._broadcastSessionLaps();
+      return true;
+    } finally {
+      if (this._ingressBarrier === ingressBarrier) this._ingressBarrier = null;
+      releaseIngress();
+    }
   }
 
   /** Start next offline capture segment without rotating canonical session. */

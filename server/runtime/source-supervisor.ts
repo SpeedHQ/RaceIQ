@@ -10,9 +10,9 @@ function errorMessage(error: unknown): unknown {
 function stopSource(
   source: SupervisedTelemetrySource,
   label: string,
-): void {
+): Promise<void> {
   try {
-    source.stop().catch((error) => {
+    return source.stop().catch((error) => {
       console.error(
         `[Server] ${label} source stop failed:`,
         errorMessage(error),
@@ -23,6 +23,7 @@ function stopSource(
       `[Server] ${label} source stop failed:`,
       errorMessage(error),
     );
+    return Promise.resolve();
   }
 }
 
@@ -32,7 +33,7 @@ export function superviseSource<R extends SupervisedTelemetrySource>(
   factory: () => R,
   getCurrent: () => R | null,
   setCurrent: (source: R | null) => void,
-): void {
+): Promise<void> | null {
   const current = getCurrent();
   if (running && !current) {
     console.log(
@@ -49,13 +50,14 @@ export function superviseSource<R extends SupervisedTelemetrySource>(
         errorMessage(error),
       );
       setCurrent(null);
-      if (source) stopSource(source, label);
+      if (source) return stopSource(source, label);
     }
   } else if (!running && current) {
     console.log(
       `[Server] ${label} process lost — stopping telemetry source`,
     );
     setCurrent(null);
-    stopSource(current, label);
+    return stopSource(current, label);
   }
+  return null;
 }

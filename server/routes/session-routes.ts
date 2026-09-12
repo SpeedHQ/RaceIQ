@@ -121,8 +121,8 @@ export const sessionRoutes = new Hono()
   })
   .post("/api/sessions/bulk-delete", zValidator("json", z.object({ ids: z.array(z.number().int()) })), async (c) => {
     const { ids } = c.req.valid("json");
+    await recoverDeletedSessions(ids);
     let lapCount = 0;
     for (const sessionId of ids) lapCount += await deleteSession(sessionId);
-    await recoverDeletedSessions(ids);
     return c.json({ deleted: lapCount, sessions: ids.length });
   });

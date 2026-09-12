@@ -6,16 +6,10 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
-- Fix ACC lap replay from including stale prior-lap finish times at lap boundaries
-- Fix ACC and Assetto Corsa Evo recording behavior that produced corrupt captures
-- Fix ACC and Assetto Corsa Evo laps that included a short pit-lane timer prefix before the timed lap
-- Start a fresh live recording automatically when its active session is deleted
-- Fix Analyse charts drawing backward across a lap when final boundary telemetry resets its timer
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
-- Add leveled structured telemetry-capture diagnostics for polling gaps and lap-boundary work.
 
 ## v0.16.0 - 2026-09-06
 
