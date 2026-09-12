@@ -107,6 +107,23 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
   }
 
+  private async _withIngressPaused<T>(operation: () => Promise<T>): Promise<T> {
+    while (this._ingressBarrier) await this._ingressBarrier;
+
+    let releaseIngress!: () => void;
+    const ingressBarrier = new Promise<void>((resolve) => {
+      releaseIngress = resolve;
+    });
+    this._ingressBarrier = ingressBarrier;
+    try {
+      await Promise.allSettled([...this._activePacketProcessing]);
+      return await operation();
+    } finally {
+      if (this._ingressBarrier === ingressBarrier) this._ingressBarrier = null;
+      releaseIngress();
+    }
+  }
+
 
   private _reconcileRecordedSession(
     session: { sessionId: number; gameId: GameId },
@@ -295,20 +312,23 @@ export class LiveTelemetryPipeline {
 
   /** Finalize detector, durable capture, then authoritative session result. */
   async finalizeCurrentSession(): Promise<void> {
-    const session = this._recordingSession;
-    await this._lapDetector?.finalizeCurrentSession?.();
-    await this._finishRecordedSession(session);
+    await this._withIngressPaused(async () => {
+      const session = this._recordingSession;
+      await this._lapDetector?.finalizeCurrentSession?.();
+      await this._finishRecordedSession(session);
+    });
   }
 
   /** Detect game-specific stale finalization and finish its durable capture. */
   async flushStaleSession(): Promise<void> {
-    const session = this._recordingSession;
-    await this._lapDetector?.flushStaleLap?.();
-    if (session && !this._lapDetector?.session) {
-      await this._finishRecordedSession(session);
-    }
+    await this._withIngressPaused(async () => {
+      const session = this._recordingSession;
+      await this._lapDetector?.flushStaleLap?.();
+      if (session && !this._lapDetector?.session) {
+        await this._finishRecordedSession(session);
+      }
+    });
   }
-
   /** Seed in-memory session laps from DB (called once on session start). */
   private async _seedSessionLaps(
     sessionId: number,
@@ -532,17 +552,10 @@ export class LiveTelemetryPipeline {
    * Next packet creates a fresh DB session and capture without restarting game source.
    */
   async recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
-    while (this._ingressBarrier) await this._ingressBarrier;
-    const activeSessionId = this._lapDetector?.session?.sessionId;
-    if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
+    return this._withIngressPaused(async () => {
+      const activeSessionId = this._lapDetector?.session?.sessionId;
+      if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
 
-    let releaseIngress!: () => void;
-    const ingressBarrier = new Promise<void>((resolve) => {
-      releaseIngress = resolve;
-    });
-    this._ingressBarrier = ingressBarrier;
-    try {
-      await Promise.allSettled([...this._activePacketProcessing]);
       this._lapDetector = null;
       this._lapDetectorGameId = null;
       this._recordingSession = null;
@@ -553,10 +566,7 @@ export class LiveTelemetryPipeline {
       await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
       this._broadcastSessionLaps();
       return true;
-    } finally {
-      if (this._ingressBarrier === ingressBarrier) this._ingressBarrier = null;
-      releaseIngress();
-    }
+    });
   }
 
   /** Start next offline capture segment without rotating canonical session. */

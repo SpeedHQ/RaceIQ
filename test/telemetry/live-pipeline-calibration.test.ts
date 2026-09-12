@@ -128,4 +128,38 @@ describe("LiveTelemetryPipeline deleted-session recovery", () => {
     await pipeline.processPacket(packet("acc", 102));
     expect(pipeline.lapDetector?.session?.sessionId).toBe(2);
   });
+
+  test("waits for active finalization before recovering a deleted session", async () => {
+    const pipeline = new LiveTelemetryPipeline(
+      new CapturingDbAdapter(),
+      new CapturingWsAdapter(),
+      {
+        bypassPacketRateFilter: true,
+        skipHistorySeeding: true,
+        skipDevState: true,
+        recorder: new NullSessionRecorderAdapter(),
+      },
+    );
+    await pipeline.processPacket(packet("acc", 100));
+
+    const finalizationStarted = deferred();
+    const releaseFinalization = deferred();
+    pipeline.lapDetector!.finalizeCurrentSession = async () => {
+      finalizationStarted.resolve();
+      await releaseFinalization.promise;
+    };
+
+    const finalization = pipeline.finalizeCurrentSession();
+    await finalizationStarted.promise;
+    let recovered = false;
+    const recovery = pipeline.recoverDeletedSessions([1]).then((result) => {
+      recovered = result;
+    });
+    await Promise.resolve();
+    expect(recovered).toBe(false);
+
+    releaseFinalization.resolve();
+    await Promise.all([finalization, recovery]);
+    expect(recovered).toBe(true);
+  });
 });

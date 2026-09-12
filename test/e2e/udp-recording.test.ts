@@ -39,6 +39,7 @@ async function killAndWait(
   signal: NodeJS.Signals,
   timeoutMs = 10_000,
 ): Promise<void> {
+  if (proc.exitCode !== null || proc.signalCode !== null) return;
   const { promise, resolve: resolveExit, reject } = Promise.withResolvers<void>();
   const timer = setTimeout(
     () => reject(new Error(`process did not exit within ${timeoutMs}ms`)),

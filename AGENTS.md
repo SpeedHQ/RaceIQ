@@ -344,6 +344,7 @@ When creating or updating a pull request:
 2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
 3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
 4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
+5. Do not list files in the PR description. Describe behavior, motivation, risk, and verification instead.
 
 ### Pull Request Changelog
 

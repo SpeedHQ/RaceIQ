@@ -80,7 +80,11 @@ function makeStaticBuf(overrides: { carModel?: string; track?: string; maxRpm?: 
   return buf;
 }
 
-function frameAccTriplet(overrides: { currentLapMs: number; lastLapMs: number }): Buffer {
+function frameAccTriplet(overrides: {
+  currentLapMs: number;
+  lastLapMs: number;
+  completedLaps?: number;
+}): Buffer {
   const triplet = packTriplet(
     ACC_PACKED_MAGIC,
     0,
@@ -89,6 +93,7 @@ function frameAccTriplet(overrides: { currentLapMs: number; lastLapMs: number })
     makeGraphicsBuf({
       iCurrentTime: overrides.currentLapMs,
       iLastTime: overrides.lastLapMs,
+      completedLaps: overrides.completedLaps ?? 3,
     }),
     makeStaticBuf(),
   );
@@ -115,6 +120,18 @@ describe("parseRawLapFrames — delayed ACC finish", () => {
     const raw = Buffer.concat([
       frameAccTriplet({ currentLapMs: 89522, lastLapMs: 97200 }),
       frameAccTriplet({ currentLapMs: 2, lastLapMs: 89540 }),
+    ]);
+
+    const packets = parseRawLapFramesFromBuffer(raw, 0, 1, "acc");
+
+    expect(packets).toHaveLength(2);
+    expect(packets[1]!.CurrentLap).toBeCloseTo(89.54);
+  });
+
+  test("appends tied LastLap when boundary advances the lap number", () => {
+    const raw = Buffer.concat([
+      frameAccTriplet({ currentLapMs: 89522, lastLapMs: 89540, completedLaps: 3 }),
+      frameAccTriplet({ currentLapMs: 2, lastLapMs: 89540, completedLaps: 4 }),
     ]);
 
     const packets = parseRawLapFramesFromBuffer(raw, 0, 1, "acc");
