@@ -23,9 +23,7 @@ interface AnalyseWorkspaceModalsProps {
   onCancelIbt: () => void;
   importResult: AnalyseImportResult | null;
   gameId: string;
-  setSelectedTrack: (value: number) => void;
-  setSelectedCar: (value: number) => void;
-  setSelectedLapId: (value: number) => void;
+  selectLap: (trackOrdinal: number, carOrdinal: number, lapId: number) => void;
   onCloseImport: () => void;
 }
 
@@ -42,9 +40,7 @@ export function AnalyseWorkspaceModals({
   onCancelIbt,
   importResult,
   gameId,
-  setSelectedTrack,
-  setSelectedCar,
-  setSelectedLapId,
+  selectLap,
   onCloseImport,
 }: AnalyseWorkspaceModalsProps) {
   const navigate = useNavigate();
@@ -55,7 +51,17 @@ export function AnalyseWorkspaceModals({
 
       {setup && <F1SetupModal setup={setup} onClose={onCloseSetup} />}
 
-      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} ownership={ownership} onOwnershipChange={onOwnershipChange} onImport={onCommitIbt} onClose={onCancelIbt} />}
+      {ibtPreview && (
+        <IbtImportPreviewModal
+          token={ibtPreview.token}
+          preview={ibtPreview.preview}
+          importing={importingBin}
+          ownership={ownership}
+          onOwnershipChange={onOwnershipChange}
+          onImport={onCommitIbt}
+          onClose={onCancelIbt}
+        />
+      )}
 
       {importResult &&
         (() => {
@@ -72,11 +78,9 @@ export function AnalyseWorkspaceModals({
                 lastLap
                   ? () => {
                       if (sameGame) {
-                        setSelectedTrack(lastLap.trackOrdinal);
-                        setSelectedCar(lastLap.carOrdinal);
-                        setSelectedLapId(lastLap.lapId);
+                        selectLap(lastLap.trackOrdinal, lastLap.carOrdinal, lastLap.lapId);
                       } else {
-                        navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
+                        navigate({ to: `/${importResult.routePrefix}/sessions/replay`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
                       }
                       onCloseImport();
                     }

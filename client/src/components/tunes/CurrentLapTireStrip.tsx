@@ -11,8 +11,8 @@ import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSample[] }) {
   const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);
 
-  // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
-  // single tyre corner bar so it aligns in the row.
+  // Fuel: min→median→max over trace, on padded domain — same math/visual as a
+  // single tyre corner bar so it aligns in row.
   const fuel = useMemo(() => {
     const fuelUnit = telemetry.find((sample) => sample.fuel !== undefined)?.fuelUnit;
     const values = telemetry
@@ -21,11 +21,13 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
     if (values.length === 0) return null;
     const min = Math.min(...values);
     const max = Math.max(...values);
-    const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+    values.sort((a, b) => a - b);
+    const middle = values.length >> 1;
+    const median = values.length % 2 === 0 ? (values[middle - 1] + values[middle]) / 2 : values[middle];
     const pad = Math.max(fuelUnit === "litre" ? 1 : 5, (max - min) * 0.15);
     return {
       min,
-      avg,
+      median,
       max,
       domain: [Math.floor(min - pad), Math.ceil(max + pad)] as [number, number],
       unit: fuelUnit === "litre" ? "L" : "%",
@@ -53,7 +55,7 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
           <span className="text-app-micro text-app-text-dim">{fuel?.unit ?? "—"}</span>
         </div>
         {fuel ? (
-          <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} unit={fuel.unit} />
+          <FuelCell min={fuel.min} median={fuel.median} max={fuel.max} domain={fuel.domain} unit={fuel.unit} />
         ) : (
           <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>
         )}
@@ -62,9 +64,9 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
   );
 }
 
-/** Single fuel bar mirroring one CornerBars cell (min→max fill, avg tick), so it
- * lines up with the tyre bars in the same row. */
-function FuelCell({ min, avg, max, domain, unit }: { min: number; avg: number; max: number; domain: [number, number]; unit: string }) {
+/** Single fuel bar mirroring one CornerBars cell (min→median→max), so it
+ * lines up with tyre bars in same row. */
+function FuelCell({ min, median, max, domain, unit }: { min: number; median: number; max: number; domain: [number, number]; unit: string }) {
   const [lo, hi] = domain;
   const span = hi - lo || 1;
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - lo) / span) * 100));
@@ -74,10 +76,10 @@ function FuelCell({ min, avg, max, domain, unit }: { min: number; avg: number; m
       <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
         <div className="relative w-full max-w-[15px] rounded bg-app-progress-track border border-app-border" style={{ height: 64 }}>
           <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(min)}%`, top: `${100 - pct(max)}%` }} />
-          <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(avg)}%` }} />
+          <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(median)}%` }} />
         </div>
         <span className="text-app-caption font-mono tabular-nums" style={{ color }}>
-          {Math.round(avg)}
+          {Math.round(median)}
         </span>
         <span className="text-app-micro text-app-text-dim uppercase">{unit}</span>
       </div>

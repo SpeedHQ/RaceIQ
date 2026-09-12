@@ -5,21 +5,46 @@ import type { ComparisonData, ComparisonRangeData } from "../../shared/racing/co
 
 const trace = (distance: number[]) => ({
   distance,
-  sourceIndicesA: distance.map((_, i) => i), sourceIndicesB: distance.map((_, i) => i),
-  speedA: distance, speedB: distance.map((value) => value + 1),
-  throttleA: distance, throttleB: distance, brakeA: distance, brakeB: distance,
-  steerA: distance, steerB: distance, gearA: distance, gearB: distance,
-  rpmA: distance, rpmB: distance, positionXA: distance, positionXB: distance,
-  positionZA: distance, positionZB: distance, yawA: distance, yawB: distance,
-  elapsedTimeA: distance, elapsedTimeB: distance, tireWearA: distance, tireWearB: distance,
+  sourceIndicesA: distance.map((_, i) => i),
+  sourceIndicesB: distance.map((_, i) => i),
+  speedA: distance,
+  speedB: distance.map((value) => value + 1),
+  throttleA: distance,
+  throttleB: distance,
+  brakeA: distance,
+  brakeB: distance,
+  steerA: distance,
+  steerB: distance,
+  gearA: distance,
+  gearB: distance,
+  rpmA: distance,
+  rpmB: distance,
+  positionXA: distance,
+  positionXB: distance,
+  positionZA: distance,
+  positionZB: distance,
+  yawA: distance,
+  yawB: distance,
+  elapsedTimeA: distance,
+  elapsedTimeB: distance,
+  tireWearA: distance,
+  tireWearB: distance,
 });
 
 const base: ComparisonData = {
   lapA: { lapNumber: 1, lapTime: 1, isValid: true, trackOrdinal: 1, carOrdinal: 1 },
   lapB: { lapNumber: 2, lapTime: 1, isValid: true, trackOrdinal: 1, carOrdinal: 1 },
-  traces: trace([0, 1, 2, 3, 4]), timeDelta: [0, 1, 2, 3, 4], corners: [],
+  traces: trace([0, 1, 2, 3, 4]),
+  timeDelta: [0, 1, 2, 3, 4],
+  corners: [],
 };
-const detail: ComparisonRangeData = { distanceStart: 1, distanceEnd: 3, stepMeters: 0.5, traces: { ...trace([1, 1.5, 2, 2.5, 3]), speedA: [10, 10.5, 11, 11.5, 12] }, timeDelta: [10, 10.5, 11, 11.5, 12] };
+const detail: ComparisonRangeData = {
+  distanceStart: 1,
+  distanceEnd: 3,
+  stepMeters: 0.5,
+  traces: { ...trace([1, 1.5, 2, 2.5, 3]), speedA: [10, 10.5, 11, 11.5, 12] },
+  timeDelta: [10, 10.5, 11, 11.5, 12],
+};
 
 describe("comparison fidelity", () => {
   test("allows repeated zoom within an already narrowed range", () => {

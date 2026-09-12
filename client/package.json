@@ -59,6 +59,11 @@
     "@storybook/addon-docs": "10.5.10",
     "@storybook/react": "10.5.10",
     "@storybook/react-vite": "10.5.10",
+    "@tanstack/devtools-event-client": "0.5.0",
+    "@tanstack/devtools-vite": "0.8.5",
+    "@tanstack/react-devtools": "0.10.12",
+    "@tanstack/react-query-devtools": "5.102.8",
+    "@tanstack/react-router-devtools": "1.167.1",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
@@ -68,11 +73,6 @@
     "oxlint": "1.80.0",
     "storybook": "10.5.10",
     "typescript": "7.0.2",
-    "vite": "8.2.2",
-    "@tanstack/react-devtools": "0.10.12",
-    "@tanstack/devtools-vite": "0.8.5",
-    "@tanstack/devtools-event-client": "0.5.0",
-    "@tanstack/react-query-devtools": "5.102.8",
-    "@tanstack/react-router-devtools": "1.167.1"
+    "vite": "8.2.2"
   }
 }

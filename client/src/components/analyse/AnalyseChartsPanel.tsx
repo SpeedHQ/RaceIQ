@@ -1,8 +1,6 @@
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import { syncCanvasSize } from "@/lib/rendering/canvas-size";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 
@@ -34,7 +32,7 @@ export interface ChartsPanelHandle {
 }
 
 interface ChartsPanelProps {
-  displayTelemetry: SemanticAnalysisFrame[];
+  semanticFrames: SemanticAnalysisFrame[];
   totalPackets: number;
   visualTimeFrac: number | null;
   onVisualFracChange: (frac: number | null) => void;
@@ -44,105 +42,89 @@ interface ChartsPanelProps {
   tempLabel: string;
 }
 
-const numeric = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
-const wheel = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"], index: number): number | null => { const value = frame.values[id];
-if (Array.isArray(value)) {
-  const item = value[index];
-  return typeof item === "number" && Number.isFinite(item) ? item : null;
-}
-return numeric(frame, id); }
+const wheel = (frame: SemanticAnalysisFrame, id: Parameters<typeof semanticNumber>[1], index: number): number | null => {
+  const value = frame.values[id];
+  return Array.isArray(value) ? semanticWheelNumbers(frame, id)[index] : semanticNumber(frame, id);
+};
 
-function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
-  if (displayTelemetry.length === 0) return null;
-  const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
-  const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
-  const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
+function buildChartData(semanticFrames: SemanticAnalysisFrame[]): ChartData | null {
+  if (semanticFrames.length === 0) return null;
+  const speed: number[] = [],
+    throttle: number[] = [],
+    brake: number[] = [],
+    rpm: number[] = [],
+    steering: number[] = [];
+  const tireTempFL: number[] = [],
+    tireTempFR: number[] = [],
+    tireTempRL: number[] = [],
+    tireTempRR: number[] = [];
+  const times = semanticFrames.map((p) => semanticNumber(p, "timing.current-lap") ?? NaN);
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
   const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
   let hasBrakeTemp = false;
-  const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
-  for (const frame of displayTelemetry) {
-    speed.push(numeric(frame, "motion.speed") ?? NaN);
-    throttle.push(numeric(frame, "inputs.accel") ?? NaN);
-    brake.push(numeric(frame, "inputs.brake") ?? NaN);
-    rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
-    steering.push(numeric(frame, "inputs.steer") ?? NaN);
+  const brakeTempFL: number[] = [],
+    brakeTempFR: number[] = [],
+    brakeTempRL: number[] = [],
+    brakeTempRR: number[] = [];
+  for (const frame of semanticFrames) {
+    speed.push(semanticNumber(frame, "motion.speed") ?? NaN);
+    throttle.push(semanticNumber(frame, "inputs.accel") ?? NaN);
+    brake.push(semanticNumber(frame, "inputs.brake") ?? NaN);
+    rpm.push(semanticNumber(frame, "engine.current-engine-rpm") ?? NaN);
+    steering.push(semanticNumber(frame, "inputs.steer") ?? NaN);
     tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
     tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
     tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
     tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
     const brakes = (["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"] as const).map((id, i) => wheel(frame, id, i));
-    brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
+    brakeTempFL.push(brakes[0] ?? NaN);
+    brakeTempFR.push(brakes[1] ?? NaN);
+    brakeTempRL.push(brakes[2] ?? NaN);
+    brakeTempRR.push(brakes[3] ?? NaN);
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
-  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
-    ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
+  return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR, ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
 }
 
 export const AnalyseChartsPanel = memo(
   forwardRef<ChartsPanelHandle, ChartsPanelProps>(function AnalyseChartsPanel(
-    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
+    { semanticFrames, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
     ref,
   ) {
-    const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
+    const chartData = useMemo(() => buildChartData(semanticFrames), [semanticFrames]);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const cursorOverlayRef = useRef<HTMLCanvasElement>(null);
-
-    // Keep a ref so the imperative handle always returns current data
+    const cursorLineRef = useRef<HTMLDivElement>(null);
     const chartDataRef = useRef(chartData);
     chartDataRef.current = chartData;
 
-    // Draw a single shared cursor line across all charts
+    // Move shared cursor with a DOM style update; canvas resize/redraw per frame
+    // made chart scrubbing wait behind a full overlay repaint.
     const drawSharedCursor = useCallback(
       (idx: number) => {
-        const overlay = cursorOverlayRef.current;
+        const line = cursorLineRef.current;
         const scroll = scrollRef.current;
-        if (!overlay || !scroll) return;
+        if (!line || !scroll) return;
 
         const w = scroll.clientWidth;
-        const h = scroll.scrollHeight;
-        if (w <= 0 || h <= 0) return;
-        syncCanvasSize(overlay, w, h, window.devicePixelRatio || 1);
-        const ctx = getSemanticCanvasContext(overlay);
-        if (!ctx) return;
-        ctx.setTransform(overlay.width / w, 0, 0, overlay.height / h, 0, 0);
-        ctx.clearRect(0, 0, w, h);
-
+        const totalPackets = semanticFrames.length;
         const timeFracs = chartDataRef.current?.timeFracs;
-        const totalPackets = displayTelemetry.length;
-        if (totalPackets < 2) return;
+        if (w <= 0 || totalPackets < 2) {
+          line.style.display = "none";
+          return;
+        }
 
         const xFrac = timeFracs && idx < timeFracs.length ? timeFracs[idx] : idx / (totalPackets - 1);
-
-        // Chart canvases live inside a parent with `p-3` padding (12px each
-        // side), so the overlay — which stretches edge-to-edge of the scroll
-        // container — must add that container padding to the chart's own
-        // leftPad/rightPad to land exactly where the chart data draws.
-        const CONTAINER_PAD = 12; // p-3
-        const CHART_LEFT_PAD = 40;
-        const CHART_RIGHT_PAD = 8;
-        const leftPad = CONTAINER_PAD + CHART_LEFT_PAD;
-        const rightPad = CONTAINER_PAD + CHART_RIGHT_PAD;
+        const leftPad = 12 + 40;
+        const rightPad = 12 + 8;
         const chartW = w - leftPad - rightPad;
-        const MIN_INSET = 2;
-        const rawCx = leftPad + xFrac * chartW;
-        const cx = Math.max(rawCx, leftPad + MIN_INSET);
-
-        // Draw a single vertical line spanning the full scroll height
-        ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 50%, transparent)";
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, h);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const cx = Math.max(leftPad + 2, leftPad + xFrac * chartW);
+        line.style.display = "";
+        line.style.left = `${Math.round(cx)}px`;
       },
-      [displayTelemetry.length],
+      [semanticFrames.length],
     );
 
     useImperativeHandle(
@@ -164,7 +146,6 @@ export const AnalyseChartsPanel = memo(
     const common = {
       totalPackets,
       timeFracs: chartData.timeFracs,
-      times: chartData.times,
       visualTimeFrac,
       onVisualFracChange,
       onClickIndex,
@@ -173,7 +154,7 @@ export const AnalyseChartsPanel = memo(
 
     return (
       <div className="relative flex-none overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto" ref={scrollRef}>
-        <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
+        <div ref={cursorLineRef} className="pointer-events-none absolute top-0 bottom-0 z-10 border-l border-dotted border-app-text/50" style={{ display: "none" }} aria-hidden="true" />
         <div className="p-3 space-y-2">
           <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart

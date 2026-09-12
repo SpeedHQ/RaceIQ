@@ -42,7 +42,7 @@ export async function exportImportAndDelete(page: Page, request: APIRequestConte
 
   const disposableLap = (await gameRows<LapMeta>(request, "laps")).find((lap) => importedLapIds.includes(lap.id));
   if (!disposableLap) throw new Error("Imported disposable lap missing from list");
-  await page.goto(`/fm23/analyse?track=${disposableLap.trackOrdinal}&car=${disposableLap.carOrdinal}&lap=${disposableLap.id}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/fm23/sessions/replay?track=${disposableLap.trackOrdinal}&car=${disposableLap.carOrdinal}&lap=${disposableLap.id}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
   page.once("dialog", (dialog) => dialog.accept());
   const deleteResponse = page.waitForResponse((response) => response.request().method() === "DELETE" && response.url().endsWith(`/api/laps/${disposableLap.id}`));
@@ -51,6 +51,6 @@ export async function exportImportAndDelete(page: Page, request: APIRequestConte
   await expect.poll(async () => (await gameRows<LapMeta>(request, "laps")).some((lap) => lap.id === disposableLap.id)).toBe(false);
   importedLapIds.splice(importedLapIds.indexOf(disposableLap.id), 1);
 
-  await page.goto(`/fm23/analyse?track=${selectedLap.trackOrdinal}&car=${selectedLap.carOrdinal}&lap=${selectedLapId}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`/fm23/sessions/replay?track=${selectedLap.trackOrdinal}&car=${selectedLap.carOrdinal}&lap=${selectedLapId}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
 }

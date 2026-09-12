@@ -637,7 +637,7 @@ describe("telemetry capability UI", () => {
       expect(markup, gameId).toContain("500°C");
       expect(markup, gameId).toContain("24.0 psi");
       expect(markup, gameId).not.toContain("Unavailable in Analyse");
-      expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
+      expect(markup, gameId).toContain('aria-label="Unavailable features in Analyse"');
       expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 4 : 0);
     }
   });

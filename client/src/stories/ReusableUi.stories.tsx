@@ -99,8 +99,6 @@ function SearchMultiSelectDemo() {
 const AVATAR_IMAGE_SRC =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%234f46e5'/%3E%3Ccircle cx='16' cy='12' r='6' fill='%23ffffff'/%3E%3Cpath d='M5 30c0-6.075 4.925-11 11-11s11 4.925 11 11' fill='%23ffffff'/%3E%3C/svg%3E";
 
-
-
 function ControlledCollapsibleDemo() {
   const [expanded, setExpanded] = useState(true);
   const [telemetryExpanded, setTelemetryExpanded] = useState(false);
@@ -111,11 +109,7 @@ function ControlledCollapsibleDemo() {
         <CollapsibleTrigger className="font-medium">Expanded setup details</CollapsibleTrigger>
         <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Expanded setup content.</CollapsibleContent>
       </Collapsible>
-      <Collapsible
-        open={telemetryExpanded}
-        onOpenChange={setTelemetryExpanded}
-        className="rounded border border-app-border p-3"
-      >
+      <Collapsible open={telemetryExpanded} onOpenChange={setTelemetryExpanded} className="rounded border border-app-border p-3">
         <CollapsibleTrigger className="font-medium">Collapsed telemetry details</CollapsibleTrigger>
         <CollapsibleContent className="pt-2 text-app-subtext text-app-text-secondary">Collapsed telemetry content.</CollapsibleContent>
       </Collapsible>
@@ -677,7 +671,6 @@ export const PanelSectionHeaderStates: Story = {
     (document.activeElement as HTMLElement | null)?.blur();
   },
 };
-
 
 export const SearchSelectMenu: Story = {
   render: () => <SearchSelectDemo />,

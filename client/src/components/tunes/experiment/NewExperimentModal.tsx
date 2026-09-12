@@ -444,13 +444,7 @@ export function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "ac
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <AppInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={car && track ? `${car} @ ${track}` : "Session name"}
-            maxLength={120}
-            className="text-xs"
-          />
+          <AppInput value={name} onChange={(e) => setName(e.target.value)} placeholder={car && track ? `${car} @ ${track}` : "Session name"} maxLength={120} className="text-xs" />
         </label>
 
         {/* Only when the pick came from the dropdowns — the dropped-file card

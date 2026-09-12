@@ -120,13 +120,12 @@ describe("local UI diff report", () => {
     expect(screenshots).toContain("RESPONSIVE_VIEWPORTS");
     expect(screenshotCases).toContain('{ name: "mobile", width: 390, height: 844 }');
     expect(screenshotCases).toContain('{ name: "home", path: "/" }');
-    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/analyse" }');
+    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/sessions/analyse" }');
     expect(screenshotCases).toContain('{ name: "acc-setups", path: "/acc/setups" }');
     expect(screenshotCases).toContain('name: "iracing-track-detail"');
     expect(screenshotCases).toContain('path: "/iracing/tracks/18/info"');
     expect(screenshotCases).toContain('name: "iracing-seeded-laps"');
     expect(screenshotCases).toContain('name: "f125-experiment-detail"');
-    expect(screenshotCases).toContain('name: "f125-experiment-review"');
     expect(screenshotCases).toContain('name: "ac-evo-live"');
     expect(screenshotCases).toContain('name: "nav-drawer-open"');
     expect(screenshotCases).toContain('name: "settings-modal"');
@@ -168,12 +167,12 @@ describe("local UI diff report", () => {
 
   test("keeps screenshot coverage bounded to high-value visual states", () => {
     expect(RESPONSIVE_VIEWPORTS).toHaveLength(3);
-    expect(RESPONSIVE_PAGES).toHaveLength(51);
+    expect(RESPONSIVE_PAGES).toHaveLength(50);
     expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(5);
-    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(98);
+    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
     expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
     expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(17);
     expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(25);
-    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(123);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(122);
   });
 });

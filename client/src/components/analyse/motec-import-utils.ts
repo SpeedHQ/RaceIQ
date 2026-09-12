@@ -5,13 +5,6 @@ export function formatMotecLapTime(seconds: number | null | undefined): string {
   return `${minutes}:${remainingSeconds}`;
 }
 
-export function hasCompleteMotecSource(
-  ld: File | null,
-  ldx: File | null,
-  stagedToken?: string,
-): boolean {
-  return Boolean(
-    stagedToken ||
-    (ld && (ld.name.toLowerCase().endsWith(".zip") || ldx)),
-  );
+export function hasCompleteMotecSource(ld: File | null, ldx: File | null, stagedToken?: string): boolean {
+  return Boolean(stagedToken || (ld && (ld.name.toLowerCase().endsWith(".zip") || ldx)));
 }

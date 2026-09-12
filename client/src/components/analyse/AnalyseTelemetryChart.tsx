@@ -32,11 +32,15 @@ export function TelemetryChart({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrubCleanupRef = useRef<(() => void) | null>(null);
+  const lastScrubIndexRef = useRef<number | null>(null);
+  const visualFracRafRef = useRef<number | null>(null);
+  const pendingVisualFracRef = useRef<number | null>(null);
 
   useEffect(
     () => () => {
       scrubCleanupRef.current?.();
       scrubCleanupRef.current = null;
+      if (visualFracRafRef.current != null) cancelAnimationFrame(visualFracRafRef.current);
     },
     [],
   );
@@ -184,16 +188,36 @@ export function TelemetryChart({
     (e: React.MouseEvent<HTMLDivElement>) => {
       scrubCleanupRef.current?.();
       onScrubStart?.();
-      const idx = idxFromEvent(e.clientX);
-      if (idx !== null) onClickIndex(idx);
-      onVisualFracChange?.(fracFromEvent(e.clientX));
+      lastScrubIndexRef.current = null;
+      const emitIndex = (clientX: number) => {
+        const idx = idxFromEvent(clientX);
+        if (idx !== null && idx !== lastScrubIndexRef.current) {
+          lastScrubIndexRef.current = idx;
+          onClickIndex(idx);
+        }
+      };
+      const emitVisualFrac = (frac: number | null) => {
+        pendingVisualFracRef.current = frac;
+        if (visualFracRafRef.current == null) {
+          visualFracRafRef.current = requestAnimationFrame(() => {
+            visualFracRafRef.current = null;
+            onVisualFracChange?.(pendingVisualFracRef.current);
+          });
+        }
+      };
+      emitIndex(e.clientX);
+      emitVisualFrac(fracFromEvent(e.clientX));
 
       const handleMouseMove = (ev: MouseEvent) => {
-        const i = idxFromEvent(ev.clientX);
-        if (i !== null) onClickIndex(i);
-        onVisualFracChange?.(fracFromEvent(ev.clientX));
+        emitIndex(ev.clientX);
+        emitVisualFrac(fracFromEvent(ev.clientX));
       };
       const handleMouseUp = () => {
+        if (visualFracRafRef.current != null) {
+          cancelAnimationFrame(visualFracRafRef.current);
+          visualFracRafRef.current = null;
+        }
+        pendingVisualFracRef.current = null;
         onVisualFracChange?.(null);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);

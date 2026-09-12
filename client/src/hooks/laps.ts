@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { ComparisonData, ComparisonRangeData } from "../../../shared/racing/comparison/types";
+import type { ComparisonData, AlignedTrace } from "../../../shared/racing/comparison/types";
+import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
+import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { rpcJson } from "../lib/rpc-json";
@@ -20,47 +24,109 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-export function useLapComparison(lapAId: number | null, lapBId: number | null) {
+export function useReviewLaps(trackOrdinal: number | null, carOrdinal: number | null, limit = 5) {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-comparison", lapAId, lapBId],
-    queryFn: async ({ signal }) => {
-      if (lapAId == null || lapBId == null || lapAId === lapBId) return null;
-      const res = await client.api.laps[":id1"].compare[":id2"].$get(
-        { param: { id1: String(lapAId), id2: String(lapBId) } },
-        { init: { signal } },
-      );
-      if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ComparisonData>(res);
+    queryKey: ["review-laps", gameId ?? null, trackOrdinal, carOrdinal, limit],
+    queryFn: async () => {
+      if (!gameId || trackOrdinal == null || carOrdinal == null) return [];
+      const res = await client.api.laps.review.$get({
+        query: { gameId, trackOrdinal: String(trackOrdinal), carOrdinal: String(carOrdinal), limit: String(limit) },
+      });
+      return rpcJson<LapMeta[]>(res);
     },
-    staleTime: Number.POSITIVE_INFINITY,
+    enabled: !!gameId && trackOrdinal != null && carOrdinal != null,
   });
 }
 
-
-export function useLapComparisonRange(
-  lapAId: number | null,
-  lapBId: number | null,
-  stepMeters: 0.1 | null,
-  start: number | null,
-  end: number | null,
-) {
+export function useSessionLaps(sessionId: number | null) {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-comparison-range", lapAId, lapBId, stepMeters, start, end],
-    queryFn: async ({ signal }) => {
-      if (lapAId == null || lapBId == null || lapAId === lapBId || stepMeters == null || start == null || end == null) return null;
-      const res = await client.api.laps[":id1"].compare[":id2"].range.$get(
-        {
-          param: { id1: String(lapAId), id2: String(lapBId) },
-          query: { step: String(stepMeters), start: String(start), end: String(end) },
-        },
-        { init: { signal } },
-      );
-      if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ComparisonRangeData>(res);
+    queryKey: ["session-laps", gameId ?? null, sessionId],
+    queryFn: async () => {
+      if (!gameId || sessionId == null) return [];
+      const res = await client.api.laps.$get({ query: { gameId, sessionId: String(sessionId) } });
+      return rpcJson<LapMeta[]>(res);
     },
-    placeholderData: (previousData) => previousData,
-    staleTime: Number.POSITIVE_INFINITY,
+    enabled: !!gameId && sessionId != null,
   });
+}
+
+export function useSessionLineSpread(sessionId: number | null, lapIds: readonly number[], enabled = true) {
+  const gameId = useGameId();
+  const orderedIds = useMemo(() => [...lapIds], [lapIds]);
+  return useQuery({
+    queryKey: ["session-review-line-spread", gameId ?? null, sessionId, orderedIds],
+    queryFn: async () => {
+      if (!gameId || sessionId == null || orderedIds.length === 0) return null;
+      const res = await client.api.laps["review-line-spread"].$get({ query: { gameId, sessionId: String(sessionId), lapIds: orderedIds.join(",") } });
+      return rpcJson<LineSpreadTrace>(res);
+    },
+    enabled: enabled && !!gameId && sessionId != null && orderedIds.length > 0,
+  });
+}
+function alignedComparison(set: AlignedLapSet, lapA: LapMeta, lapB: LapMeta): ComparisonData {
+  const a = set.laps[0]!,
+    b = set.laps[1]!;
+  const traces: AlignedTrace = {
+    distance: [...set.distanceMeters],
+    sourceIndicesA: [...a.sourceIndices],
+    sourceIndicesB: [...b.sourceIndices],
+    speedA: [...a.speedMps].map((v) => v * 2.236936),
+    speedB: [...b.speedMps].map((v) => v * 2.236936),
+    throttleA: [...a.throttle],
+    throttleB: [...b.throttle],
+    brakeA: [...a.brake],
+    brakeB: [...b.brake],
+    steerA: [...a.steer],
+    steerB: [...b.steer],
+    gearA: [...a.gear],
+    gearB: [...b.gear],
+    rpmA: [...a.rpm],
+    rpmB: [...b.rpm],
+    positionXA: [...a.positionX],
+    positionXB: [...b.positionX],
+    positionZA: [...a.positionZ],
+    positionZB: [...b.positionZ],
+    yawA: [...a.yaw],
+    yawB: [...b.yaw],
+    elapsedTimeA: [...a.elapsedTimeS],
+    elapsedTimeB: [...b.elapsedTimeS],
+    tireWearA: a.tireWear ? Array.from(a.tireWear.FL, (v, i) => (v + a.tireWear!.FR[i]! + a.tireWear!.RL[i]! + a.tireWear!.RR[i]!) / 4) : undefined,
+    tireWearB: b.tireWear ? Array.from(b.tireWear.FL, (v, i) => (v + b.tireWear!.FR[i]! + b.tireWear!.RL[i]! + b.tireWear!.RR[i]!) / 4) : undefined,
+  };
+  return { lapA, lapB, traces, timeDelta: traces.elapsedTimeA.map((v, i) => v - traces.elapsedTimeB[i]), corners: [], gameId: lapA.gameId };
+}
+export function useLapComparison(lapAId: number | null, lapBId: number | null) {
+  const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
+  const aligned = useAlignedTelemetry(ids, { step: 1 });
+  const laps = useLaps().data ?? [];
+  const lapA = laps.find((lap) => lap.id === lapAId);
+  const lapB = laps.find((lap) => lap.id === lapBId);
+  return { ...aligned, data: aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined, isLoading: aligned.isLoading, error: aligned.error };
+}
+export function useLapComparisonRange(lapAId: number | null, lapBId: number | null, stepMeters: 0.1 | null, start: number | null, end: number | null) {
+  const ids = lapAId != null && lapBId != null && lapAId !== lapBId ? [lapAId, lapBId] : [];
+  const aligned = useAlignedTelemetry(ids, stepMeters === 0.1 && start != null && end != null ? { step: 0.1, start, end } : { step: 1 });
+  const laps = useLaps().data ?? [];
+  const lapA = laps.find((lap) => lap.id === lapAId);
+  const lapB = laps.find((lap) => lap.id === lapBId);
+  const data = aligned.data && lapA && lapB ? alignedComparison(aligned.data, lapA, lapB) : undefined;
+  return {
+    data: data
+      ? {
+          distanceStart: data.traces.distance[0] ?? 0,
+          distanceEnd: data.traces.distance.at(-1) ?? 0,
+          stepMeters: data.traces.distance[1] - data.traces.distance[0],
+          traces: data.traces,
+          timeDelta: data.timeDelta,
+        }
+      : undefined,
+    isLoading: aligned.isLoading,
+    isFetching: aligned.isFetching,
+    isPlaceholderData: false,
+    error: aligned.error,
+  };
 }
 
 export interface SemanticReplayFrame {
@@ -91,6 +157,7 @@ export function useLapSemanticTelemetry(lapId: number | null) {
   return useQuery({
     queryKey: ["lap-semantic-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
+      if (lapId == null) throw new Error("Missing lap ID");
       if (!gameId) throw new Error("Missing game context");
       const res = await fetch(`/api/laps/${lapId}/semantic-telemetry`, { headers: { "X-Game-Id": gameId } });
       const body = (await res.json().catch(() => null)) as (SemanticLapTelemetry & { error?: string; parseError?: string }) | null;
@@ -105,7 +172,8 @@ export function useLapSemanticTelemetry(lapId: number | null) {
     },
     enabled: lapId != null && gameId != null,
     gcTime: 0,
-    staleTime: 0,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: false,
   });
 }
 

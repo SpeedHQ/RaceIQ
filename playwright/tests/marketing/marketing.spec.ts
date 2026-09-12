@@ -6,7 +6,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions/replay?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
@@ -17,9 +17,9 @@ const PAGES = [
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
   { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
   { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
-  { name: "experiments-review-track-tires", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=tires" },
-  { name: "experiments-review-track-balance", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=balance" },
-  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=suspension" },
+  { name: "experiments-review-track-dynamics", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=dynamics" },
+  { name: "experiments-review-track-fuel", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=fuel" },
+  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=suspension" },
   { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 

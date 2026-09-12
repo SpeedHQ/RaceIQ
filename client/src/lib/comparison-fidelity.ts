@@ -53,9 +53,7 @@ export function cropComparisonRange(range: ComparisonRangeData, start: number, e
     first = nearest;
     last = nearest;
   }
-  const traces = Object.fromEntries(
-    Object.entries(range.traces).map(([key, values]) => [key, values.slice(first, last + 1)]),
-  ) as ComparisonRangeData["traces"];
+  const traces = Object.fromEntries(Object.entries(range.traces).map(([key, values]) => [key, values.slice(first, last + 1)])) as ComparisonRangeData["traces"];
   return {
     ...range,
     distanceStart: traces.distance[0] ?? range.distanceStart,
@@ -80,7 +78,6 @@ export function cropComparisonData(base: ComparisonData, start: number, end: num
   );
 }
 
-
 export function mergeComparisonRange(base: ComparisonData, range: ComparisonRangeData): ComparisonData {
   const baseTrace = base.traces;
   const detail = range.traces;
@@ -89,17 +86,28 @@ export function mergeComparisonRange(base: ComparisonData, range: ComparisonRang
     ...base,
     traces: {
       distance: baseTrace.distance,
-      sourceIndicesA: merge(baseTrace.sourceIndicesA, detail.sourceIndicesA), sourceIndicesB: merge(baseTrace.sourceIndicesB, detail.sourceIndicesB),
-      speedA: merge(baseTrace.speedA, detail.speedA), speedB: merge(baseTrace.speedB, detail.speedB),
-      throttleA: merge(baseTrace.throttleA, detail.throttleA), throttleB: merge(baseTrace.throttleB, detail.throttleB),
-      brakeA: merge(baseTrace.brakeA, detail.brakeA), brakeB: merge(baseTrace.brakeB, detail.brakeB),
-      steerA: merge(baseTrace.steerA, detail.steerA), steerB: merge(baseTrace.steerB, detail.steerB),
-      gearA: merge(baseTrace.gearA, detail.gearA), gearB: merge(baseTrace.gearB, detail.gearB),
-      rpmA: merge(baseTrace.rpmA, detail.rpmA), rpmB: merge(baseTrace.rpmB, detail.rpmB),
-      positionXA: merge(baseTrace.positionXA, detail.positionXA), positionXB: merge(baseTrace.positionXB, detail.positionXB),
-      positionZA: merge(baseTrace.positionZA, detail.positionZA), positionZB: merge(baseTrace.positionZB, detail.positionZB),
-      yawA: merge(baseTrace.yawA, detail.yawA), yawB: merge(baseTrace.yawB, detail.yawB),
-      elapsedTimeA: merge(baseTrace.elapsedTimeA, detail.elapsedTimeA), elapsedTimeB: merge(baseTrace.elapsedTimeB, detail.elapsedTimeB),
+      sourceIndicesA: merge(baseTrace.sourceIndicesA, detail.sourceIndicesA),
+      sourceIndicesB: merge(baseTrace.sourceIndicesB, detail.sourceIndicesB),
+      speedA: merge(baseTrace.speedA, detail.speedA),
+      speedB: merge(baseTrace.speedB, detail.speedB),
+      throttleA: merge(baseTrace.throttleA, detail.throttleA),
+      throttleB: merge(baseTrace.throttleB, detail.throttleB),
+      brakeA: merge(baseTrace.brakeA, detail.brakeA),
+      brakeB: merge(baseTrace.brakeB, detail.brakeB),
+      steerA: merge(baseTrace.steerA, detail.steerA),
+      steerB: merge(baseTrace.steerB, detail.steerB),
+      gearA: merge(baseTrace.gearA, detail.gearA),
+      gearB: merge(baseTrace.gearB, detail.gearB),
+      rpmA: merge(baseTrace.rpmA, detail.rpmA),
+      rpmB: merge(baseTrace.rpmB, detail.rpmB),
+      positionXA: merge(baseTrace.positionXA, detail.positionXA),
+      positionXB: merge(baseTrace.positionXB, detail.positionXB),
+      positionZA: merge(baseTrace.positionZA, detail.positionZA),
+      positionZB: merge(baseTrace.positionZB, detail.positionZB),
+      yawA: merge(baseTrace.yawA, detail.yawA),
+      yawB: merge(baseTrace.yawB, detail.yawB),
+      elapsedTimeA: merge(baseTrace.elapsedTimeA, detail.elapsedTimeA),
+      elapsedTimeB: merge(baseTrace.elapsedTimeB, detail.elapsedTimeB),
       tireWearA: baseTrace.tireWearA && detail.tireWearA ? merge(baseTrace.tireWearA, detail.tireWearA) : baseTrace.tireWearA,
       tireWearB: baseTrace.tireWearB && detail.tireWearB ? merge(baseTrace.tireWearB, detail.tireWearB) : baseTrace.tireWearB,
     },

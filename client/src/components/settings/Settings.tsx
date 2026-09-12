@@ -29,12 +29,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     <div className="@container/settings flex h-full flex-col md:flex-row">
       <div className="flex shrink-0 items-center justify-between border-b border-app-border bg-app-surface-alt/50 px-3 py-2 md:hidden">
         <span className="text-app-body font-medium text-app-text">{(NAV_LABELS[activeSection] ?? (() => ""))()}</span>
-        <Button
-          variant="app-ghost"
-          size="icon-sm"
-          aria-label={mobileMenuOpen ? m.common_close() : "Open settings menu"}
-          onClick={() => setMobileMenuOpen((open) => !open)}
-        >
+        <Button variant="app-ghost" size="icon-sm" aria-label={mobileMenuOpen ? m.common_close() : "Open settings menu"} onClick={() => setMobileMenuOpen((open) => !open)}>
           {mobileMenuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
         </Button>
       </div>

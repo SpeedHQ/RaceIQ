@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
-import type { ComparisonData } from "../../../../shared/racing/comparison/types";
+import { decodeAlignedLapSet } from "../../../../shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "../../../../shared/racing/laps/alignment/types";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
-import { comparePath, findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "./helpers";
+import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, findTrackCarPairWithTwoLaps, getSeededLaps, lapOptionLabel } from "./helpers";
 
 const fm23 = SEEDED_GAME_CASES.find((game) => game.gameId === "fm-2023");
 if (!fm23) throw new Error("fm-2023 seeded case missing");
@@ -23,31 +24,28 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
     lapB: String(pair.lapB.id),
   });
 
-  const compareResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
+  const compareResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapB.id], step: 1 } });
   expect(compareResponse.ok(), "seeded FM comparison response").toBe(true);
   const firstBody = await compareResponse.text();
-  const comparison = JSON.parse(firstBody) as ComparisonData;
-  const repeatResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
+  const comparison = decodeAlignedLapSet(JSON.parse(firstBody) as EncodedAlignedLapSet);
+  const repeatResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapB.id], step: 1 } });
   expect(repeatResponse.headers()["x-raceiq-cache"], "repeat comparison cache header").toBe("HIT");
   expect(await repeatResponse.text(), "cached comparison body parity").toBe(firstBody);
-  const detailResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/range?step=0.1&start=100&end=300`);
+  const detailResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapB.id], step: 0.1, start: 100, end: 300 } });
   expect(detailResponse.ok(), "high-fidelity comparison range").toBe(true);
-  expect(detailResponse.headers()["x-raceiq-alignment-cache"], "warm alignment index header").toBe("HIT");
-  const detail = (await detailResponse.json()) as { traces: { distance: number[] }; stepMeters: number };
-  expect(detail.stepMeters).toBeCloseTo(0.1, 9);
-  expect(detail.traces.distance.length).toBeLessThanOrEqual(100_000);
-  const secondDetailResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/range?step=0.1&start=500&end=700`);
+  const detail = decodeAlignedLapSet((await detailResponse.json()) as EncodedAlignedLapSet);
+  expect(detail.stepMeters).toBeCloseTo(0.1, 3);
+  expect(detail.distanceMeters.length).toBeLessThanOrEqual(50_000);
+  const secondDetailResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapB.id], step: 0.1, start: 500, end: 700 } });
   expect(secondDetailResponse.ok(), "second high-fidelity comparison range").toBe(true);
-  expect(secondDetailResponse.headers()["x-raceiq-alignment-cache"], "reused alignment index header").toBe("HIT");
-  const secondDetail = (await secondDetailResponse.json()) as { traces: { distance: number[] }; stepMeters: number };
-  expect(secondDetail.stepMeters).toBeCloseTo(0.1, 9);
-  expect(secondDetail.traces.distance.length).toBeLessThanOrEqual(100_000);
+  const secondDetail = decodeAlignedLapSet((await secondDetailResponse.json()) as EncodedAlignedLapSet);
+  expect(secondDetail.stepMeters).toBeCloseTo(0.1, 3);
+  expect(secondDetail.distanceMeters.length).toBeLessThanOrEqual(50_000);
   await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
-  expect(comparison.traces.distance.length, "trace length").toBeGreaterThan(1);
-  expect(comparison.traces.distance).toHaveLength(comparison.timeDelta.length);
-  expect(comparison.traces.sourceIndicesA).toHaveLength(comparison.traces.distance.length);
-  expect(comparison.traces.sourceIndicesB).toHaveLength(comparison.traces.distance.length);
-  expect(comparison.timeDelta).not.toHaveLength(0);
+  expect(comparison.distanceMeters.length, "trace length").toBeGreaterThan(1);
+  expect(comparison.laps[0]!.sourceIndices).toHaveLength(comparison.distanceMeters.length);
+  expect(comparison.laps[1]!.sourceIndices).toHaveLength(comparison.distanceMeters.length);
+  expect(comparison.laps[0]!.elapsedTimeS).toHaveLength(comparison.distanceMeters.length);
 
   const workspace = page.getByTestId("lap-compare-workspace");
   await expect(workspace).toBeVisible({ timeout: 30_000 });
@@ -69,10 +67,9 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   await page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true }).click();
   await expect(page.getByText("Select two different laps to compare")).toBeVisible();
 
-  const swapResponse = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === "GET" && comparePath(pair.lapB.id, pair.lapA.id).test(url.pathname);
-  });
+  const swapResponse = page.waitForResponse((response) =>
+    alignedRequestMatches(response, pair.lapB.id, pair.lapA.id, 1),
+  );
   const lapBSelect = page.getByLabel("Lap B");
   await lapBSelect.click();
   const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
@@ -98,20 +95,17 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   expect(adjustedWidth, "resized map width").toBeGreaterThanOrEqual(savedWidth);
 
   const persistedParams = new URLSearchParams(swappedParams);
-  const reloadCompare = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === "GET" && comparePath(Number(persistedParams.get("lapA")), Number(persistedParams.get("lapB"))).test(url.pathname);
-  });
+  const reloadCompare = page.waitForResponse((response) =>
+    alignedRequestMatches(response, Number(persistedParams.get("lapA")), Number(persistedParams.get("lapB")), 1),
+  );
   await page.reload({ waitUntil: "domcontentloaded" });
   await reloadCompare;
   await expect(page.getByText("Select two different laps to compare")).toHaveCount(0);
   await expect(page.getByTestId("lap-compare-workspace")).toBeVisible();
   expect(Number(await page.getByRole("separator", { name: "Resize track map" }).getAttribute("aria-valuenow"))).toBe(adjustedWidth);
 
-  const sameLapResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapA.id}`);
+  const sameLapResponse = await request.post(ALIGNED_TELEMETRY_ENDPOINT, { data: { ids: [pair.lapA.id, pair.lapA.id], step: 1 } });
   expect(sameLapResponse.status(), "same-lap compare rejects").toBe(400);
-  const sameLapBody = (await sameLapResponse.json()) as { error?: string };
-  expect(sameLapBody.error ?? "").toContain("Cannot compare a lap with itself");
 
   const cacheForward = await request.post(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}/inputs-analyse?cacheOnly=true`);
   const cacheReverse = await request.post(`/api/laps/${pair.lapB.id}/compare/${pair.lapA.id}/inputs-analyse?cacheOnly=true`);

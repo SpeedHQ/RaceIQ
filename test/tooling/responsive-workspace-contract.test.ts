@@ -21,7 +21,7 @@ describe("responsive workspace contract", () => {
   test("app shell owns one shared container boundary for every route", () => {
     const workspace = read("client/src/components/ResponsiveWorkspace.tsx");
     const root = read("client/src/routes/__root.tsx");
-    const analyseRoute = read("client/src/routes/$gameid/analyse.tsx");
+    const analyseRoute = read("client/src/routes/$gameid/sessions.analyse.tsx");
     const compareRoute = read("client/src/routes/$gameid/compare.tsx");
 
     expect(workspace).toContain("@container/workspace");

@@ -3,8 +3,8 @@ import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
 import type { VersionInfo } from "../stores/telemetry";
-import { telemetryStore, } from "../stores/telemetry";
-import { devTelemetryStore, } from "../stores/dev-telemetry";
+import { telemetryStore } from "../stores/telemetry";
+import { devTelemetryStore } from "../stores/dev-telemetry";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
@@ -73,7 +73,7 @@ export function useWebSocket() {
       wsRef.current = ws;
 
       // Read store actions via stable references — stable, no dependency issues
-      
+
       ws.onopen = () => {
         telemetryStore.actions.setConnected(true);
         startVersionRequest();

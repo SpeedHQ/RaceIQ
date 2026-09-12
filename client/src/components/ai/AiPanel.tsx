@@ -10,7 +10,7 @@ import { isAiAnalysisConfigured, launchAiFeature } from "@/lib/is-ai-configured"
 import { resolveCssColor } from "@/lib/rendering/css-values";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { uiStore, } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 import { LapAnalysisText } from "../ai-chat/LapAnalysisText";
 import { PanelSectionHeader } from "../ui/panel-section-header";
 import { AnalysisDisplay } from "./analysis-display";

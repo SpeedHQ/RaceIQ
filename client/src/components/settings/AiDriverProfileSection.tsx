@@ -109,9 +109,7 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
             onChange={(e) => setDriverProfileMaxOutputTokens(Number(e.target.value))}
             className="w-full max-w-xs"
           />
-          <p className="text-xs text-app-text-muted mt-1">
-            {m.ai_max_output_tokens_desc({ max: String(Math.max(512, Math.min(32_768, driverProfileModelContextLength ?? 32_768))) })}
-          </p>
+          <p className="text-xs text-app-text-muted mt-1">{m.ai_max_output_tokens_desc({ max: String(Math.max(512, Math.min(32_768, driverProfileModelContextLength ?? 32_768))) })}</p>
         </div>
         {driverProfileProvider === "gemini" && canShowDriverProfileModelPicker && (
           <div>

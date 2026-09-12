@@ -3,8 +3,7 @@ import type { LapMeta } from "@shared/racing/sessions/types";
 import { buildAnalyseLapOption } from "../src/components/analyse/AnalyseLapHeader";
 import { buildComparisonLapOption } from "../src/components/comparison/ComparisonSelectors";
 
-const lap = (ownership: "mine" | "others", isValid = true) =>
-  ({ id: 42, lapNumber: 7, lapTime: 62345, ownership, isValid } as LapMeta);
+const lap = (ownership: "mine" | "others", isValid = true) => ({ id: 42, lapNumber: 7, lapTime: 62345, ownership, isValid }) as LapMeta;
 
 describe("lap ownership labels", () => {
   test("provides localized Mine and Others labels", () => {

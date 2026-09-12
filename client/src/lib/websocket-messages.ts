@@ -1,6 +1,6 @@
 import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
-import { devTelemetryStore, } from "../stores/dev-telemetry";
-import { telemetryStore, } from "../stores/telemetry";
+import { devTelemetryStore } from "../stores/dev-telemetry";
+import { telemetryStore } from "../stores/telemetry";
 
 export function handleWebSocketMessage(data: unknown): boolean {
   if (isLiveTelemetrySchemaMessageV1(data)) {

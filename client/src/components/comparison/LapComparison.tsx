@@ -38,13 +38,7 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
   );
 }
 
-export function ComparisonCursorLoadingIndicator({
-  loading,
-  position,
-}: {
-  loading: boolean;
-  position: { x: number; y: number } | null;
-}) {
+export function ComparisonCursorLoadingIndicator({ loading, position }: { loading: boolean; position: { x: number; y: number } | null }) {
   return <PointerLoadingIndicator loading={loading} position={position} label="Fetching higher-fidelity datapoints" />;
 }
 
@@ -66,11 +60,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
   const [lapAId, setLapAId] = useState<number | null>(search.lapA ?? null);
   const [lapBId, setLapBId] = useState<number | null>(search.lapB ?? null);
   const { data: comparison, isLoading: loading, error: comparisonError } = useLapComparison(lapAId, lapBId);
-  const error = comparisonError
-    ? comparisonError.message.includes("no telemetry")
-      ? m.compare_telemetry_unavailable()
-      : comparisonError.message || m.compare_load_failed()
-    : null;
+  const error = comparisonError ? (comparisonError.message.includes("no telemetry") ? m.compare_telemetry_unavailable() : comparisonError.message || m.compare_load_failed()) : null;
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
   const [zoomLevels, setZoomLevels] = useState<Array<ChartRange | null>>([null]);
   const [detailRange, setDetailRange] = useState<{ start: number; end: number; stepMeters: 0.1 } | null>(null);
@@ -80,13 +70,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     data: comparisonRange,
     isPlaceholderData: comparisonRangeIsPlaceholder,
     isFetching: comparisonRangeIsFetching,
-  } = useLapComparisonRange(
-    lapAId,
-    lapBId,
-    detailRange?.stepMeters ?? null,
-    detailRange?.start ?? null,
-    detailRange?.end ?? null,
-  );
+  } = useLapComparisonRange(lapAId, lapBId, detailRange?.stepMeters ?? null, detailRange?.start ?? null, detailRange?.end ?? null);
   const detailLoading = detailRange != null && comparisonRangeIsFetching;
   const pointerPositionRef = useRef({ x: 0, y: 0 });
   const [pointerPosition, setPointerPosition] = useState<{ x: number; y: number } | null>(null);
@@ -102,15 +86,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
     setPointerPosition(detailLoading ? pointerPositionRef.current : null);
   }, [detailLoading]);
   const visibleRange = zoomLevels.at(-1) ?? null;
-  const activeRange = visibleRange == null ? null : optimisticRange ?? comparisonRange;
-  const mergedComparison = useMemo(
-    () => (comparison && activeRange ? mergeComparisonRange(comparison, activeRange) : comparison),
-    [comparison, activeRange],
-  );
-  const chartComparison = useMemo(
-    () => (comparison && activeRange ? rangeComparison(comparison, activeRange) : comparison),
-    [comparison, activeRange],
-  );
+  const activeRange = visibleRange == null ? null : (optimisticRange ?? comparisonRange);
+  const mergedComparison = useMemo(() => (comparison && activeRange ? mergeComparisonRange(comparison, activeRange) : comparison), [comparison, activeRange]);
+  const chartComparison = useMemo(() => (comparison && activeRange ? rangeComparison(comparison, activeRange) : comparison), [comparison, activeRange]);
   useEffect(() => {
     if (comparisonRange && !comparisonRangeIsPlaceholder) setOptimisticRange(null);
   }, [comparisonRange, comparisonRangeIsPlaceholder]);
@@ -487,7 +465,14 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
               window.addEventListener("mouseup", onUp);
             }}
           />
-          <ComparisonCharts comparison={chartComparison ?? comparison} units={units} onCursorMove={handleCursorMove} onRangeSelect={handleRangeSelect} visibleRange={visibleRange} onZoomOut={handleZoomOut} />
+          <ComparisonCharts
+            comparison={chartComparison ?? comparison}
+            units={units}
+            onCursorMove={handleCursorMove}
+            onRangeSelect={handleRangeSelect}
+            visibleRange={visibleRange}
+            onZoomOut={handleZoomOut}
+          />
 
           {/* AI compare sidebar */}
           {aiPanelOpen && (
@@ -509,7 +494,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
             />
           )}
         </div>
-      ) : comparison ? <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div> : null}
+      ) : comparison ? (
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_telemetry_unavailable()}</div>
+      ) : null}
     </div>
   );
 }

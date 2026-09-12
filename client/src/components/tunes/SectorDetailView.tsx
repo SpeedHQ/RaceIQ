@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { GameId } from "@shared/games/ids";
+import { formatLapTime } from "@/lib/format";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
-import { Button } from "../ui/button";
+import { IssuePill } from "./review/ReviewIssues";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricDef, tuneMetricValue } from "./SectorRangeBreakdown";
 import type { SemanticTuneSample } from "./semantic-tune";
@@ -12,6 +14,7 @@ interface SectorTimes {
 }
 
 interface SectorDetailViewProps {
+  gameId?: GameId;
   telemetry: SemanticTuneSample[];
   sectorTimes: SectorTimes | null;
   sectorIndex: number;
@@ -19,21 +22,25 @@ interface SectorDetailViewProps {
   issues: TuneIssue[];
 }
 
-const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
-  critical: "text-status-danger border-status-danger/60 bg-status-danger/10",
-  warn: "text-status-warning border-status-warning/60 bg-status-warning/10",
-  info: "text-status-info border-status-info/60 bg-status-info/10",
-};
-
 /**
  * SectorDetailView — deep dive on a single sector: a large hover-scrubbable map
  * of the lap with this sector lit, every metric's per-corner range for the
  * sector (temps, brakes, pressure, wear), and the issues located here. Hovering
  * the map scrubs a cursor line across all the metric bars at once.
  */
-export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, issues }: SectorDetailViewProps) {
+export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, gameId, issues }: SectorDetailViewProps) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [markFrac, setMarkFrac] = useState<number | null>(null);
+  const issueMarkers = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.flatMap((issue) => {
+      const fraction = issue.distanceFrac;
+      if (fraction == null || !Number.isFinite(fraction) || seen.has(fraction)) return [];
+      seen.add(fraction);
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ fraction, color }];
+    });
+  }, [issues]);
   const cursorFrame = hoverIdx != null ? telemetry[hoverIdx] : null;
 
   const readout = (frame: SemanticTuneSample) =>
@@ -56,12 +63,12 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
     return values;
   };
 
-  const sectorTime = sectorTimes && sectorTimes.times[sectorIndex] > 0 ? sectorTimes.times[sectorIndex].toFixed(3) : "—";
+  const sectorTime = sectorTimes && sectorTimes.times[sectorIndex] > 0 ? formatLapTime(sectorTimes.times[sectorIndex]) : "—";
 
   return (
-    <div className="grid grid-cols-1 @5xl/workspace:grid-cols-2">
+    <div className="grid grid-cols-1 @3xl/workspace:grid-cols-2">
       {/* Map + issues */}
-      <div className="border-app-border @5xl/workspace:border-r">
+      <div className="border-app-border @3xl/workspace:border-r">
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length] }} />
@@ -70,52 +77,56 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
           <span className="text-lg font-mono tabular-nums text-app-text">{sectorTime}</span>
         </div>
         {telemetry.length > 0 ? (
-          <SectorMap
-            telemetry={telemetry}
-            sectorTimes={sectorTimes}
-            highlight={sectorIndex}
-            showTimes={false}
-            trackOrdinal={trackOrdinal}
-            readout={readout}
-            onHover={setHoverIdx}
-            markFraction={markFrac}
-          />
+          <div className="aspect-square">
+            <SectorMap
+              gameId={gameId}
+              telemetry={telemetry}
+              sectorTimes={sectorTimes}
+              highlight={sectorIndex}
+              showTimes={false}
+              trackOrdinal={trackOrdinal}
+              issueMarkers={issueMarkers}
+              readout={readout}
+              onHover={setHoverIdx}
+              markFraction={markFrac}
+            />
+          </div>
         ) : (
-          <div className="p-4 text-xs text-app-text-dim">No telemetry</div>
+          <div className="aspect-square p-4 text-xs text-app-text-dim">No telemetry</div>
         )}
         <div className="px-4 py-3 border-t border-app-border">
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Issues in this sector</div>
           {issues.length === 0 ? (
             <div className="text-xs text-app-text-dim">No issues located in this sector.</div>
           ) : (
-            <div className="flex flex-col gap-1.5">
-              {issues.map((it) => {
-                const locatable = it.distanceFrac != null;
-                return (
-                  <Button
-                    variant="app-ghost"
-                    size="app-sm"
-                    key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
-                    disabled={!locatable}
-                    onMouseEnter={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
-                    onMouseLeave={locatable ? () => setMarkFrac(null) : undefined}
-                    onFocus={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
-                    onBlur={locatable ? () => setMarkFrac(null) : undefined}
-                    className={`!w-full !justify-start !border !px-2 !py-1 text-left text-xs ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
-                  >
-                    <span className="font-mono uppercase mr-1.5 opacity-70">{it.kind}</span>
-                    {it.corner ? <span className="font-mono mr-1">{it.corner}</span> : null}
-                    {it.detail}
-                  </Button>
-                );
-              })}
+            <div className="flex flex-col gap-1">
+              {issues.map((it) => (
+                <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} onHover={(frac) => setMarkFrac(frac)} />
+              ))}
             </div>
           )}
         </div>
       </div>
+      <div className="divide-y divide-app-border">
 
       {/* Every metric's range for this sector; hovering the map scrubs all of them */}
-      <div className="divide-y divide-app-border">
+      <div className="border-b border-app-border px-3 py-2 text-app-micro text-app-text-dim">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="font-semibold uppercase tracking-wider text-app-text-muted">Legend</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-2 w-3 rounded-sm border border-app-border bg-app-text-muted/40" aria-hidden="true" />
+            Range
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-px w-3 bg-app-text-muted" aria-hidden="true" />
+            Median
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-0.5 w-3 rounded bg-app-accent" aria-hidden="true" />
+            Current value on map hover
+          </span>
+        </div>
+      </div>
         {METRICS.map((m) => {
           const model = buildSectorRanges(telemetry, sectorTimes, m);
           if (!model) return null;

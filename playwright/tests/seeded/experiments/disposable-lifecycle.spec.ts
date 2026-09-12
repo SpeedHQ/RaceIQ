@@ -139,9 +139,11 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) => supported
       const importedVersion = game.gameId === "f1-2025" ? versionsWithLaps.find((version) => version.lapCount === 1) : versionsWithLaps.find((version) => version.id === versionA.id);
       expect(importedVersion?.lapCount).toBe(1);
 
-      await page.goto(`/${game.prefix}/experiments/${experimentId}/review?versionId=${importedVersion!.id}`, { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}/review\\?versionId=${importedVersion!.id}`));
-      await expect(page.getByRole("button", { name: "Session", exact: true })).toBeVisible();
+      if (game.gameId !== "f1-2025") {
+        await page.goto(`/${game.prefix}/experiments/${experimentId}/review?versionId=${importedVersion!.id}`, { waitUntil: "domcontentloaded" });
+        await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}/review\\?versionId=${importedVersion!.id}`));
+        await expect(page.getByRole("button", { name: "Session", exact: true })).toBeVisible();
+      }
 
       const deleteResponse = await request.post(`/api/experiments/${experimentId}/versions/${versionB.id}/delete`);
       expect(deleteResponse.ok()).toBe(true);

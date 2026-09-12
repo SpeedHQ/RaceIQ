@@ -1,11 +1,22 @@
 ## Unreleased
 
+### Breaking
+- Move Analyse into Sessions and remove its standalone navigation entry.
+
 ### Features
+- Review recorded sessions from bounded metadata summaries and surface only top laps before opening detailed analysis
+- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
 - Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 - Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Render Analyse turn labels from centerline segment fractions for correct track-order placement
+- Rename Session Analyse Track tab to Analyse
+- Show per-lap peak tire and brake telemetry as distance-aligned charts while preserving per-wheel detail
+- Keep Analyse track maps visible when aligned telemetry has no direct world-position samples
+- Show synchronized cursor tooltips across Compare and Analyse charts
+- Keep session review telemetry, sectors, tire data, and zooms consistent while switching laps and views
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
@@ -50,6 +61,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment

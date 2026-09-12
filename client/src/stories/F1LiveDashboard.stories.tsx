@@ -17,7 +17,8 @@ queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   // Inject fake state into stores before render
   const { schema, frame, view } = fakeF1SemanticFixture;
-  telemetryStore.setState((prev) => ({ ...prev,
+  telemetryStore.setState((prev) => ({
+    ...prev,
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,

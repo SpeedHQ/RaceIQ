@@ -12,7 +12,12 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
   });
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent size="lg" showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60" className="@container/tune-view max-h-[80vh] max-w-[600px] gap-0 @sm/tune-view:p-5">
         {isLoading ? (
           <>

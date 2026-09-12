@@ -1,343 +1,225 @@
 import { useMemo, useState } from "react";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
-import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
+import { indexAtFrac, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
+import { Lane, type AnnotationMarker, type LaneSeries } from "./Lane";
+import type { TrackFocusTrace } from "./types";
+import { ChartTooltip } from "./ChartTooltip";
 import { Button } from "../../ui/button";
-import { Lane } from "./Lane";
-import { useMeasuredWidth } from "./use-measured-width";
 
-interface TiresPanelProps {
-  /** Traces in lap order (undefined entries = not loaded yet, skipped). */
-  traces: (LapTrace | undefined)[];
-  bestLapId?: number | null;
+interface SharedPanelProps {
+  traces: (TrackFocusTrace | undefined)[];
+  primaryLapId?: number | null;
   cornerFracs?: number[];
+  annotationMarkers?: AnnotationMarker[];
   cursorFrac?: number | null;
   onCursorFrac?: (f: number | null) => void;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
-const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
-  { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
-  { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
-  { key: "RL", label: "RL", color: WHEEL_COLOR_VARS[2] },
-  { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
-];
+interface TiresPanelProps extends SharedPanelProps {
+  tireWearContinuous?: boolean;
+}
 
-const REF_LINES_TEMP = [80, 90, 100];
-const H = 160;
+interface FuelPanelProps extends SharedPanelProps {
+  fuelUnit?: "litre" | "fraction";
+}
 
-type Mode = "temp" | "pressure" | "brake";
+const WHEELS: (keyof TireAverages)[] = ["FL", "FR", "RL", "RR"];
+const WHEEL_LABELS: Record<keyof TireAverages, string> = { FL: "Front left", FR: "Front right", RL: "Rear left", RR: "Rear right" };
 
-interface MetricConfig {
-  mode: Mode;
+function peak(trace: TireTraces | null, index: number): number {
+  if (!trace) return Number.NaN;
+  return Math.max(...WHEELS.map((wheel) => trace[wheel][index] ?? Number.NaN));
+}
+
+function lineSeries(laps: TrackFocusTrace[], getTrace: (lap: TrackFocusTrace) => TireTraces | null, primaryLapId: number | null, wheel?: keyof TireAverages): LaneSeries[] {
+  return laps.map((lap) => ({
+    x: lap.frac,
+    values: wheel ? (getTrace(lap)?.[wheel] ?? new Float32Array(lap.n)) : Float32Array.from({ length: lap.n }, (_, index) => peak(getTrace(lap), index)),
+    color: lap.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+    width: lap.lapId === primaryLapId ? 1.8 : 1,
+  }));
+}
+
+function TireMetricSection({
+  title,
+  laps,
+  primaryLapId,
+  getTrace,
+  cornerFracs,
+  annotationMarkers,
+  cursorFrac,
+  onCursorFrac,
+  visibleRange,
+  onRangeSelect,
+  onZoomOut,
+}: {
   title: string;
-  avgUnit: string;
-  laneUnit: string;
-  defaultDomain: [number, number];
-  /** Fixed y-domain for the avg chart (temp only); null = auto-fit. */
-  fixedAvgDomain: [number, number] | null;
-  refLines: number[] | null;
-  pad: number;
-  fmt: (v: number) => string;
-}
-
-const METRICS: MetricConfig[] = [
-  {
-    mode: "temp",
-    title: "Tyres — avg temperature (°C)",
-    avgUnit: "°C",
-    laneUnit: "temp per lap (°C)",
-    defaultDomain: [60, 120],
-    fixedAvgDomain: [60, 120],
-    refLines: REF_LINES_TEMP,
-    pad: 2,
-    fmt: (v) => `${v.toFixed(1)}°C`,
-  },
-  {
-    mode: "pressure",
-    title: "Tyres — avg pressure (bar)",
-    avgUnit: "bar",
-    laneUnit: "pressure per lap (bar)",
-    defaultDomain: [1.5, 2.5],
-    fixedAvgDomain: null,
-    refLines: null,
-    pad: 0.02,
-    fmt: (v) => `${v.toFixed(2)} bar`,
-  },
-  {
-    mode: "brake",
-    title: "Brakes — avg brake temp (°C)",
-    avgUnit: "°C",
-    laneUnit: "brake temp per lap (°C)",
-    defaultDomain: [100, 600],
-    fixedAvgDomain: null,
-    refLines: null,
-    pad: 2,
-    fmt: (v) => `${v.toFixed(0)}°C`,
-  },
-];
-
-function avgOf(t: LapTrace, mode: Mode): TireAverages | null {
-  return mode === "temp" ? t.tire : mode === "pressure" ? t.pressure : t.brakeTemp;
-}
-function traceOf(t: LapTrace, mode: Mode): TireTraces | null {
-  return mode === "temp" ? t.tireTempTrace : mode === "pressure" ? t.pressureTrace : t.brakeTempTrace;
-}
-
-function tirePolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
-  const pts: string[] = [];
-  for (let i = 0; i < t.n; i++) pts.push(`${x(t.frac[i]).toFixed(1)},${y(arr[i]).toFixed(1)}`);
-  return pts.join(" ");
-}
-
-/** OLS slope+intercept of `pts` (index -> value). Null when fewer than 2 points. */
-function olsTrend(pts: { i: number; v: number }[]): { slope: number; intercept: number } | null {
-  const n = pts.length;
-  if (n < 2) return null;
-  let sx = 0;
-  let sy = 0;
-  for (const p of pts) {
-    sx += p.i;
-    sy += p.v;
-  }
-  const mx = sx / n;
-  const my = sy / n;
-  let num = 0;
-  let den = 0;
-  for (const p of pts) {
-    num += (p.i - mx) * (p.v - my);
-    den += (p.i - mx) ** 2;
-  }
-  if (den === 0) return null;
-  const slope = num / den;
-  return { slope, intercept: my - slope * mx };
-}
-
-/**
- * Tyres tab: three always-visible metric sections (tyre temperature, tyre
- * pressure, brake temperature). Each shows a per-lap average chart at the top
- * (one line per corner, laps along x, with a dashed OLS trend line per corner
- * to read stint-wide heating/pressure drift), then one lane per corner with
- * every lap's per-distance trace — dim per lap, best lap in accent, invalid
- * laps in red, matching the Consistency tab's visual language.
- */
-export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorFrac = null, onCursorFrac = () => {} }: TiresPanelProps) {
-  const laps = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
-
+  laps: TrackFocusTrace[];
+  primaryLapId: number | null;
+  getTrace: (lap: TrackFocusTrace) => TireTraces | null;
+  cornerFracs: number[];
+  annotationMarkers?: AnnotationMarker[];
+  cursorFrac: number | null;
+  onCursorFrac: (f: number | null) => void;
+  visibleRange: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const available = useMemo(() => laps.filter((lap) => getTrace(lap)), [getTrace, laps]);
+  if (!available.length) return null;
+  const domain: [number, number] = [0, Math.max(1, ...available.flatMap((lap) => Array.from(getTrace(lap)!.FL)))];
+  const best = available.find((lap) => lap.lapId === primaryLapId) ?? available[0];
+  const tooltip = (wheel?: keyof TireAverages) => (frac: number) => {
+    const trace = getTrace(best);
+    if (!trace) return null;
+    const index = indexAtFrac(best, frac);
+    const value = wheel ? trace[wheel][index] : peak(trace, index);
+    return (
+      <div className="space-y-1">
+        <ChartTooltip frac={frac} rows={[]} />
+        <div className="font-mono tabular-nums text-app-text-dim">
+          {wheel ? WHEEL_LABELS[wheel] : "Peak"}: {Number.isFinite(value) ? value.toFixed(1) : "—"}
+        </div>
+      </div>
+    );
+  };
   return (
-    <div className="space-y-5">
-      {METRICS.map((cfg) => (
-        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} />
-      ))}
+    <div className="relative space-y-2">
+      <Lane
+        title={title}
+        domain={domain}
+        cornerFracs={cornerFracs}
+        annotationMarkers={annotationMarkers}
+        cursorFrac={cursorFrac}
+        onCursorFrac={onCursorFrac}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
+        tooltip={tooltip()}
+        series={lineSeries(available, getTrace, primaryLapId)}
+      />
+      <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((value) => !value)}>
+        {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
+      </Button>
+      {expanded &&
+        WHEELS.map((wheel) => (
+          <Lane
+            key={wheel}
+            title={WHEEL_LABELS[wheel]}
+            domain={domain}
+            cornerFracs={cornerFracs}
+            cursorFrac={cursorFrac}
+            onCursorFrac={onCursorFrac}
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
+            tooltip={tooltip(wheel)}
+            series={lineSeries(available, getTrace, primaryLapId, wheel)}
+          />
+        ))}
     </div>
   );
 }
 
-function TireMetricSection({
-  cfg,
-  laps,
-  bestLapId,
-  cornerFracs,
-  cursorFrac,
-  onCursorFrac,
-}: {
-  cfg: MetricConfig;
-  laps: LapTrace[];
-  bestLapId: number | null;
-  cornerFracs: number[];
-  cursorFrac: number | null;
-  onCursorFrac: (f: number | null) => void;
-}) {
-  const { mode } = cfg;
-  const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
-  const [expanded, setExpanded] = useState(false);
+function panelTraces(traces: (TrackFocusTrace | undefined)[]) {
+  return traces.filter((trace): trace is TrackFocusTrace => !!trace);
+}
 
-  const domain = useMemo<[number, number]>(() => {
-    if (cfg.fixedAvgDomain) return cfg.fixedAvgDomain;
-    const all: number[] = [];
-    for (const t of laps) {
-      const src = avgOf(t, mode);
-      if (src) all.push(src.FL, src.FR, src.RL, src.RR);
-    }
-    if (all.length === 0) return cfg.defaultDomain;
-    return [Math.min(...all) - cfg.pad, Math.max(...all) + cfg.pad];
-  }, [laps, cfg]);
-
-  // Shared y-domain for the per-corner lanes so all four are comparable.
-  const laneDomain = useMemo<[number, number]>(() => {
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const t of laps) {
-      const tt = traceOf(t, mode);
-      if (!tt) continue;
-      for (const c of CORNERS) {
-        const arr = tt[c.key];
-        for (let i = 0; i < arr.length; i++) {
-          const v = arr[i];
-          if (v < lo) lo = v;
-          if (v > hi) hi = v;
-        }
-      }
-    }
-    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return cfg.defaultDomain;
-    const pad = Math.max(cfg.pad, (hi - lo) * 0.08);
-    return [lo - pad, hi + pad];
-  }, [laps, cfg]);
-
-  const lapsWithTrace = useMemo(() => laps.filter((t) => traceOf(t, mode)), [laps, mode]);
-
-  // Per-corner OLS trend across laps, computed on the valid (non-zero) points.
-  const trends = useMemo(() => {
-    const out: Record<string, { slope: number; intercept: number } | null> = {};
-    for (const c of CORNERS) {
-      const pts: { i: number; v: number }[] = [];
-      laps.forEach((t, i) => {
-        const v = avgOf(t, mode)?.[c.key];
-        if (v != null && v !== 0) pts.push({ i, v });
-      });
-      out[c.key] = olsTrend(pts);
-    }
-    return out;
-  }, [laps, mode]);
-
-  const hasData = laps.some((t) => avgOf(t, mode));
-  if (!hasData) return null;
-
-  const x0 = 30;
-  const x1 = bw - 10;
-  const y0 = 10;
-  const y1 = H - 20;
-  const [min, max] = domain;
-  const x = (i: number) => (laps.length <= 1 ? (x0 + x1) / 2 : x0 + (i / (laps.length - 1)) * (x1 - x0));
-  const y = (v: number) => y1 - ((v - min) / (max - min)) * (y1 - y0);
-
+export function TiresPanel({
+  traces,
+  primaryLapId = null,
+  cornerFracs = [],
+  annotationMarkers,
+  cursorFrac = null,
+  onCursorFrac = () => {},
+  visibleRange = null,
+  onRangeSelect,
+  onZoomOut,
+  tireWearContinuous = false,
+}: TiresPanelProps) {
+  const laps = useMemo(() => panelTraces(traces), [traces]);
+  const metrics: Array<[string, (lap: TrackFocusTrace) => TireTraces | null]> = [
+    ["Tyres — peak temperature (°C)", (lap) => lap.tireTempTrace],
+    ["Tyres — peak pressure (bar)", (lap) => lap.pressureTrace],
+    ["Brakes — peak brake temperature (°C)", (lap) => lap.brakeTempTrace],
+  ];
+  const wearLaps = laps.filter((lap) => lap.tireWearTrace != null);
   return (
-    <div ref={wrapRef} className="space-y-2">
-      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
-      <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H} preserveAspectRatio="none">
-        <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
-        {cfg.refLines?.map((t) => (
-          <g key={t}>
-            <line x1={x0} x2={x1} y1={y(t)} y2={y(t)} stroke="var(--app-border)" strokeDasharray="2 4" />
-            <text x={x0 - 4} y={y(t) + 3} textAnchor="end" fontSize={9} fill="var(--app-text-dim)">
-              {t}
-            </text>
-          </g>
-        ))}
-        {CORNERS.map((c) => {
-          const segs: string[] = [];
-          let cur: string[] = [];
-          laps.forEach((t, i) => {
-            const v = avgOf(t, mode)?.[c.key];
-            if (v == null || v === 0) {
-              if (cur.length) {
-                segs.push(cur.join(" "));
-                cur = [];
-              }
-              return;
-            }
-            cur.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
-          });
-          if (cur.length) segs.push(cur.join(" "));
-          const tr = trends[c.key];
+    <div className="space-y-5">
+      {metrics.map(([title, getTrace]) => (
+        <TireMetricSection
+          key={title}
+          title={title}
+          laps={laps}
+          primaryLapId={primaryLapId}
+          getTrace={getTrace}
+          cornerFracs={cornerFracs}
+          annotationMarkers={annotationMarkers}
+          cursorFrac={cursorFrac}
+          onCursorFrac={onCursorFrac}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
+        />
+      ))}
+      {tireWearContinuous && wearLaps.length ? (
+        <Lane
+          title="Tyre wear (% worn)"
+          domain={[0, 100]}
+          cursorFrac={cursorFrac}
+          onCursorFrac={onCursorFrac}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
+          series={lineSeries(wearLaps, (lap) => lap.tireWearTrace, primaryLapId).map((item) => ({ ...item, values: Float32Array.from(item.values, (value) => value * 100) }))}
+        />
+      ) : (
+        <div className="text-app-text-dim text-sm">Tyre wear unavailable for this game/source.</div>
+      )}
+    </div>
+  );
+}
+
+export function FuelPanel({ traces, primaryLapId = null, cursorFrac = null, onCursorFrac = () => {}, visibleRange = null, onRangeSelect, onZoomOut, fuelUnit = "litre" }: FuelPanelProps) {
+  const laps = useMemo(() => panelTraces(traces), [traces]);
+  const fuelLaps = laps.filter((lap) => Array.from(lap.fuel).filter((value) => Number.isFinite(value) && value >= 0).length >= 2 && lap.fuel.some((value) => Number.isFinite(value) && value > 0));
+  return (
+    <div className="space-y-3">
+      {fuelLaps.length ? (
+        <Lane
+          title={`Fuel level (${fuelUnit === "fraction" ? "% tank" : "L"})`}
+          domain={[0, fuelUnit === "fraction" ? 100 : Math.max(...fuelLaps.flatMap((lap) => Array.from(lap.fuel)))]}
+          cursorFrac={cursorFrac}
+          onCursorFrac={onCursorFrac}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
+          series={fuelLaps.map((lap) => ({
+            x: lap.frac,
+            values: fuelUnit === "fraction" ? Float32Array.from(lap.fuel, (value) => value * 100) : lap.fuel,
+            color: lap.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+            width: lap.lapId === primaryLapId ? 1.8 : 1,
+          }))}
+        />
+      ) : (
+        <div className="text-app-text-dim text-sm">Fuel data unavailable for this session.</div>
+      )}
+      <div className="text-app-caption text-app-text-dim">
+        Stint evolution:{" "}
+        {laps.map((lap) => {
+          const values = Array.from(lap.fuel).filter((value) => Number.isFinite(value) && value >= 0);
+          const start = values[0];
+          const end = values.at(-1);
           return (
-            <g key={c.key}>
-              {segs.map((pts) => (
-                <polyline key={pts} points={pts} fill="none" stroke={c.color} strokeWidth={1.6} />
-              ))}
-              {tr && laps.length > 1 && (
-                <line
-                  x1={x(0)}
-                  y1={y(tr.intercept)}
-                  x2={x(laps.length - 1)}
-                  y2={y(tr.intercept + tr.slope * (laps.length - 1))}
-                  stroke={c.color}
-                  strokeWidth={1.2}
-                  strokeDasharray="5 4"
-                  opacity={0.55}
-                />
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
-        {CORNERS.map((c) => {
-          const tr = trends[c.key];
-          return (
-            <span key={c.key} className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
-              {c.label}
-              {tr && laps.length > 1 && (
-                <span className="tabular-nums opacity-70">
-                  {tr.slope >= 0 ? "+" : ""}
-                  {cfg.fmt(tr.slope)}/lap
-                </span>
-              )}
+            <span key={lap.lapId} className="block">
+              Lap {lap.lapNumber}: Fuel start {start == null ? "—" : start.toFixed(2)} · Fuel used {start != null && end != null && start > end ? (start - end).toFixed(2) : "—"}
             </span>
           );
         })}
       </div>
-
-      {/* Per-corner lanes: collapsed by default — the averages chart above is the summary. */}
-      {lapsWithTrace.length > 0 && (
-        <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((v) => !v)} className="flex items-center gap-1.5 uppercase tracking-wider text-app-text-dim hover:text-app-text">
-          <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
-          {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
-        </Button>
-      )}
-      {expanded &&
-        lapsWithTrace.length > 0 &&
-        CORNERS.map((c) => (
-          <div key={c.key} className="space-y-1">
-            <div className="flex items-center gap-2 text-app-caption uppercase tracking-wider text-app-text-dim">
-              <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
-              {c.label} — {cfg.laneUnit}
-            </div>
-            <Lane
-              height={80}
-              domain={laneDomain}
-              cornerFracs={cornerFracs}
-              cursorFrac={cursorFrac}
-              onCursorFrac={onCursorFrac}
-              tooltip={(f) => {
-                const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
-                const tt = best ? traceOf(best, mode) : null;
-                if (!tt) return null;
-                const idx = indexAtFrac(best!, f);
-                return (
-                  <span>
-                    best lap {c.label}: {cfg.fmt(tt[c.key][idx])}
-                  </span>
-                );
-              }}
-            >
-              {({ x: lx, y: ly }) => (
-                <>
-                  {lapsWithTrace
-                    .filter((t) => t.lapId !== bestLapId)
-                    .map((t) => {
-                      const tt = traceOf(t, mode);
-                      if (!tt) return null;
-                      return (
-                        <polyline
-                          key={t.lapId}
-                          points={tirePolyline(t, tt[c.key], lx, ly)}
-                          fill="none"
-                          stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                          strokeWidth={1}
-                          opacity={t.isValid ? 0.35 : 0.55}
-                        />
-                      );
-                    })}
-                  {(() => {
-                    const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
-                    const tt = best ? traceOf(best, mode) : null;
-                    return best && tt ? <polyline points={tirePolyline(best, tt[c.key], lx, ly)} fill="none" stroke={c.color} strokeWidth={1.8} /> : null;
-                  })()}
-                </>
-              )}
-            </Lane>
-          </div>
-        ))}
     </div>
   );
 }

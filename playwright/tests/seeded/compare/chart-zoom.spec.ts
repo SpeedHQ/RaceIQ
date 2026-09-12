@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Response } from "@playwright/test";
 
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { compareQuery, getDistinctPair } from "./interaction-helpers";
@@ -83,12 +83,16 @@ async function hoverAndAssertCursorMarkers(chart: Locator, fraction: number): Pr
 }
 
 function rangeRequest(page: Page) {
-  return page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname.endsWith("/range"));
+  return page.waitForResponse((response) => {
+    if (response.request().method() !== "POST" || new URL(response.url()).pathname !== "/api/laps/aligned-telemetry") return false;
+    const body = response.request().postDataJSON() as { step?: number } | null;
+    return body?.step === 0.1;
+  });
 }
 
-function rangeBounds(url: string): { start: number; end: number } {
-  const parsed = new URL(url);
-  return { start: Number(parsed.searchParams.get("start")), end: Number(parsed.searchParams.get("end")) };
+function rangeBounds(response: Response): { start: number; end: number } {
+  const body = response.request().postDataJSON() as { start: number; end: number };
+  return { start: body.start, end: body.end };
 }
 
 test("Compare chart supports consecutive narrower zooms", async ({ page, request }) => {
@@ -97,11 +101,11 @@ test("Compare chart supports consecutive narrower zooms", async ({ page, request
 
   const firstResponse = rangeRequest(page);
   await dragChart(page, chart, 0.2, 0.55);
-  const first = rangeBounds((await firstResponse).url());
+  const first = rangeBounds(await firstResponse);
 
   const secondResponse = rangeRequest(page);
   await dragChart(page, chart, 0.3, 0.65);
-  const second = rangeBounds((await secondResponse).url());
+  const second = rangeBounds(await secondResponse);
 
   expect(second.start).toBeGreaterThan(first.start);
   expect(second.end).toBeLessThan(first.end);
@@ -115,7 +119,7 @@ test("Compare chart double-click steps back one zoom level", async ({ page, requ
 
   const firstResponse = rangeRequest(page);
   await dragChart(page, chart, 0.2, 0.55);
-  await firstResponse;
+  const firstRange = rangeBounds(await firstResponse);
   const firstSpan = await visibleDistanceSpan(chart);
 
   const secondResponse = rangeRequest(page);
@@ -125,9 +129,10 @@ test("Compare chart double-click steps back one zoom level", async ({ page, requ
   expect(secondSpan).toBeLessThan(firstSpan);
   expect(firstSpan).toBeLessThan(fullSpan);
 
+  const previousResponse = rangeRequest(page);
   await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
-  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThanOrEqual(firstSpan * 0.9);
-  await expect.poll(() => visibleDistanceSpan(chart)).toBeLessThanOrEqual(firstSpan * 1.1);
+  expect(rangeBounds(await previousResponse)).toEqual(firstRange);
+  await expect.poll(() => visibleDistanceSpan(chart)).toBeGreaterThan(secondSpan);
   expect(await visibleDistanceSpan(chart)).toBeLessThan(fullSpan * 0.9);
 
   await chart.locator(".u-over").dblclick({ position: { x: 300, y: 60 } });
@@ -149,9 +154,11 @@ test("Compare chart click does not submit a zoom range", async ({ page, request 
   await dragChart(page, chart, 0.2, 0.55);
   await response;
 
-  const rangeRequests: string[] = [];
+  const rangeRequests: Array<{ start: number; end: number }> = [];
   page.on("request", (candidate) => {
-    if (candidate.method() === "GET" && new URL(candidate.url()).pathname.endsWith("/range")) rangeRequests.push(candidate.url());
+    if (candidate.method() !== "POST" || new URL(candidate.url()).pathname !== "/api/laps/aligned-telemetry") return;
+    const body = candidate.postDataJSON() as { step?: number; start?: number; end?: number } | null;
+    if (body?.step === 0.1 && body.start != null && body.end != null) rangeRequests.push({ start: body.start, end: body.end });
   });
   await chart.locator(".u-over").click({ position: { x: 300, y: 60 } });
   await page.waitForTimeout(500);

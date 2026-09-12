@@ -9,6 +9,7 @@ import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
 import { exportLapsZip } from "@/lib/lap-export";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
+import { routePrefixForGameId } from "@/lib/game-routes";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
@@ -16,6 +17,7 @@ import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, select
 import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
 import { SessionToolbar } from "./SessionToolbar";
+import type { SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
 
 export function SessionsPage() {
@@ -54,22 +56,32 @@ export function SessionsPage() {
     [navigate],
   );
 
-  const runExport = useCallback(async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
-    if (selectionIncludesMotec(selection, sessions, allLaps) &&
-      !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
-      return;
-    }
-    setExporting(true);
-    try {
-      await exportLapsZip(selection);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setExporting(false);
-    }
-  }, [allLaps, sessions]);
-
+  const runExport = useCallback(
+    async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
+      if (selectionIncludesMotec(selection, sessions, allLaps) && !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
+        return;
+      }
+      setExporting(true);
+      try {
+        await exportLapsZip(selection);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      } finally {
+        setExporting(false);
+      }
+    },
+    [allLaps, sessions],
+  );
   const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
+  const analyseSession = useCallback(
+    (session: SessionMeta) => {
+      if (!gameId) return;
+      const routePrefix = routePrefixForGameId(gameId);
+      if (!routePrefix) return;
+      void navigate({ to: `/${routePrefix}/sessions/${session.id}/analyse` as never });
+    },
+    [gameId, navigate],
+  );
   useEffect(() => {
     const trackOrdinals = new Set<number>();
     const carOrdinals = new Set<number>();
@@ -252,6 +264,7 @@ export function SessionsPage() {
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
         selectedSessions={selectedSessions}
+        analyseSession={analyseSession}
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
@@ -283,6 +296,7 @@ export function SessionsPage() {
         selectedSessions={selectedSessions}
         setSelectedSessions={setSelectedSessions}
         toggleSessionSelection={toggleSessionSelection}
+        analyseSession={analyseSession}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
         sectorCount={sectorCount}

@@ -15,6 +15,10 @@ feature flows before broad code searches. Use DeepWiki for orientation, then
 verify implementation details against the current checkout because its content
 may be stale or unavailable. Fall back to repository search when needed.
 
+## Completion Verification
+
+Always run `bun run typecheck` before handing work back to user as complete.
+
 ## Commands
 
 ```bash
@@ -224,11 +228,20 @@ ran v39 before the `car`/`driver` rename.
 - Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
-- **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
+- **Translations:** all user-facing client copy must use Paraglide messages from `client/messages/`; add or update every supported locale before using new text.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
+
+### Branch and PR targeting
+
+- If user names an existing PR, work only on that PR's head branch.
+- Before committing or pushing, inspect current branch and target PR head.
+- Do not create a new branch or PR when target PR exists.
+- Push changes to target PR head branch; update its description in place.
+- If checkout branch differs from target head, switch to target head before editing.
+- Never force-push target PR branch unless user explicitly requests it.
 
 ### Dependency inspection
 

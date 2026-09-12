@@ -30,6 +30,7 @@
     "test:e2e:recordings": "bun scripts/test/run-suite.ts e2e",
     "test": "bun run test:unit && bun run test:integration",
     "typecheck": "bun run --cwd client i18n:compile && bunx tsc --build client/tsconfig.json --pretty false && bunx tsc --project tsconfig.json --noEmit",
+    "i18n:compile": "bun run --cwd client i18n:compile",
     "typecheck:scripts": "bunx tsc --project scripts/tsconfig.json",
     "lint": "bun run --cwd client lint:root",
     "format": "cd client && bun run format",

@@ -183,43 +183,107 @@
   --brand-color: var(--brand-car-default);
 }
 
-[data-car-brand="Porsche"] { --brand-color: var(--brand-car-porsche); }
-[data-car-brand="Mercedes-AMG"] { --brand-color: var(--brand-car-mercedes-amg); }
-[data-car-brand="Ferrari"] { --brand-color: var(--brand-car-ferrari); }
-[data-car-brand="Audi"] { --brand-color: var(--brand-car-audi); }
-[data-car-brand="Lamborghini"] { --brand-color: var(--brand-car-lamborghini); }
-[data-car-brand="McLaren"] { --brand-color: var(--brand-car-mclaren); }
-[data-car-brand="Nissan"] { --brand-color: var(--brand-car-nissan); }
-[data-car-brand="BMW"] { --brand-color: var(--brand-car-bmw); }
-[data-car-brand="Bentley"] { --brand-color: var(--brand-car-bentley); }
-[data-car-brand="Aston Martin"] { --brand-color: var(--brand-car-aston-martin); }
-[data-car-brand="Emil Frey"] { --brand-color: var(--brand-car-emil-frey); }
-[data-car-brand="Lexus"] { --brand-color: var(--brand-car-lexus); }
-[data-car-brand="Honda"] { --brand-color: var(--brand-car-honda); }
-[data-car-brand="Alpine"] { --brand-color: var(--brand-car-alpine); }
-[data-car-brand="Chevrolet"] { --brand-color: var(--brand-car-chevrolet); }
-[data-car-brand="Ginetta"] { --brand-color: var(--brand-car-ginetta); }
-[data-car-brand="KTM"] { --brand-color: var(--brand-car-ktm); }
-[data-car-brand="Maserati"] { --brand-color: var(--brand-car-maserati); }
-[data-car-brand="Alfa Romeo"] { --brand-color: var(--brand-car-alfa-romeo); }
-[data-car-brand="Abarth"] { --brand-color: var(--brand-car-abarth); }
-[data-car-brand="Lotus"] { --brand-color: var(--brand-car-lotus); }
-[data-car-brand="Toyota"] { --brand-color: var(--brand-car-toyota); }
+[data-car-brand="Porsche"] {
+  --brand-color: var(--brand-car-porsche);
+}
+[data-car-brand="Mercedes-AMG"] {
+  --brand-color: var(--brand-car-mercedes-amg);
+}
+[data-car-brand="Ferrari"] {
+  --brand-color: var(--brand-car-ferrari);
+}
+[data-car-brand="Audi"] {
+  --brand-color: var(--brand-car-audi);
+}
+[data-car-brand="Lamborghini"] {
+  --brand-color: var(--brand-car-lamborghini);
+}
+[data-car-brand="McLaren"] {
+  --brand-color: var(--brand-car-mclaren);
+}
+[data-car-brand="Nissan"] {
+  --brand-color: var(--brand-car-nissan);
+}
+[data-car-brand="BMW"] {
+  --brand-color: var(--brand-car-bmw);
+}
+[data-car-brand="Bentley"] {
+  --brand-color: var(--brand-car-bentley);
+}
+[data-car-brand="Aston Martin"] {
+  --brand-color: var(--brand-car-aston-martin);
+}
+[data-car-brand="Emil Frey"] {
+  --brand-color: var(--brand-car-emil-frey);
+}
+[data-car-brand="Lexus"] {
+  --brand-color: var(--brand-car-lexus);
+}
+[data-car-brand="Honda"] {
+  --brand-color: var(--brand-car-honda);
+}
+[data-car-brand="Alpine"] {
+  --brand-color: var(--brand-car-alpine);
+}
+[data-car-brand="Chevrolet"] {
+  --brand-color: var(--brand-car-chevrolet);
+}
+[data-car-brand="Ginetta"] {
+  --brand-color: var(--brand-car-ginetta);
+}
+[data-car-brand="KTM"] {
+  --brand-color: var(--brand-car-ktm);
+}
+[data-car-brand="Maserati"] {
+  --brand-color: var(--brand-car-maserati);
+}
+[data-car-brand="Alfa Romeo"] {
+  --brand-color: var(--brand-car-alfa-romeo);
+}
+[data-car-brand="Abarth"] {
+  --brand-color: var(--brand-car-abarth);
+}
+[data-car-brand="Lotus"] {
+  --brand-color: var(--brand-car-lotus);
+}
+[data-car-brand="Toyota"] {
+  --brand-color: var(--brand-car-toyota);
+}
 
 [data-team-brand] {
   --brand-color: var(--brand-car-default);
 }
 
-[data-team-brand="mclaren"] { --brand-color: var(--brand-team-mclaren); }
-[data-team-brand="ferrari"] { --brand-color: var(--brand-team-ferrari); }
-[data-team-brand="red-bull-racing"] { --brand-color: var(--brand-team-red-bull); }
-[data-team-brand="mercedes"] { --brand-color: var(--brand-team-mercedes); }
-[data-team-brand="aston-martin"] { --brand-color: var(--brand-team-aston-martin); }
-[data-team-brand="alpine"] { --brand-color: var(--brand-team-alpine); }
-[data-team-brand="haas"] { --brand-color: var(--brand-team-haas); }
-[data-team-brand="racing-bulls"] { --brand-color: var(--brand-team-racing-bulls); }
-[data-team-brand="williams"] { --brand-color: var(--brand-team-williams); }
-[data-team-brand="sauber"] { --brand-color: var(--brand-team-sauber); }
+[data-team-brand="mclaren"] {
+  --brand-color: var(--brand-team-mclaren);
+}
+[data-team-brand="ferrari"] {
+  --brand-color: var(--brand-team-ferrari);
+}
+[data-team-brand="red-bull-racing"] {
+  --brand-color: var(--brand-team-red-bull);
+}
+[data-team-brand="mercedes"] {
+  --brand-color: var(--brand-team-mercedes);
+}
+[data-team-brand="aston-martin"] {
+  --brand-color: var(--brand-team-aston-martin);
+}
+[data-team-brand="alpine"] {
+  --brand-color: var(--brand-team-alpine);
+}
+[data-team-brand="haas"] {
+  --brand-color: var(--brand-team-haas);
+}
+[data-team-brand="racing-bulls"] {
+  --brand-color: var(--brand-team-racing-bulls);
+}
+[data-team-brand="williams"] {
+  --brand-color: var(--brand-team-williams);
+}
+[data-team-brand="sauber"] {
+  --brand-color: var(--brand-team-sauber);
+}
 
 .brand-color-strip,
 .brand-color-dot {

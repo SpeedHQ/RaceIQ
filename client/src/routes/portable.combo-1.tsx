@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import type { GameId } from "../../../shared/games/ids";
 import { ComboDash } from "../components/dashes/ComboDash";
-import { gameStore, } from "../stores/game";
+import { gameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 
 function ComboDash1Route() {

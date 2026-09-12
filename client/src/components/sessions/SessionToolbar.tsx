@@ -59,12 +59,23 @@ export function SessionToolbar({
     <div className="flex items-center flex-wrap gap-3">
       <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
         {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-          <Button key={nextTab} variant="app-ghost" size="app-md" onClick={() => { setTab(nextTab); setPage(0); }} className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}>
+          <Button
+            key={nextTab}
+            variant="app-ghost"
+            size="app-md"
+            onClick={() => {
+              setTab(nextTab);
+              setPage(0);
+            }}
+            className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+          >
             {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
           </Button>
         ))}
       </div>
-      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
+      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
+        {m.sessions_import()}
+      </Button>
       <AppInput
         type="search"
         value={search}
@@ -82,12 +93,7 @@ export function SessionToolbar({
       </h1>
       <div className="flex items-center flex-wrap gap-2">
         {selectedLaps.size > 0 && (
-          <Button
-            variant="app-primary"
-            size="app-md"
-            disabled={exporting}
-            onClick={() => runExport({ lapIds: [...selectedLaps] })}
-          >
+          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: [...selectedLaps] })}>
             {exporting ? m.common_loading() : m.sessions_export_lap()}
           </Button>
         )}

@@ -3,10 +3,12 @@ import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
 import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { decodeAlignedLapSet } from "../../shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "../../shared/racing/laps/alignment/types";
 
 import { deleteSession, insertSession } from "../../server/db/session-queries";
-import { insertLap } from "../../server/db/lap-mutation-queries";
 import { cacheDelete, cacheSet } from "../../server/db/telemetry-replay-storage";
+import { insertLap } from "../../server/db/lap-mutation-queries";
 import { lapRoutes } from "../../server/routes/laps";
 import { semanticReplayIds } from "../../server/routes/laps/resource-routes";
 import { packet } from "../support/telemetry/resolver";
@@ -58,6 +60,82 @@ describe("GET /api/laps/:id/semantic-telemetry", () => {
     }
   });
 });
+
+describe("GET /api/laps/review", () => {
+  test("returns only top valid metadata laps for a track/car", async () => {
+    const sessionId = await insertSession(10, 20, "acc");
+    const lapIds = await Promise.all([61, 59, 62, 58, 60, 57].map((time, index) => insertLap(sessionId, index + 1, time, true, null, 0)));
+    try {
+      const response = await lapRoutes.request("/api/laps/review?gameId=acc&trackOrdinal=20&carOrdinal=10");
+      expect(response.status).toBe(200);
+      const body = await response.json() as { id: number; lapTime: number }[];
+      expect(body).toHaveLength(5);
+      expect(body.map((lap) => lap.lapTime)).toEqual([57, 58, 59, 60, 61]);
+      expect(body.map((lap) => lap.id)).toEqual([lapIds[5], lapIds[3], lapIds[1], lapIds[4], lapIds[0]]);
+    } finally {
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+describe("POST /api/laps/aligned-telemetry", () => {
+  test("preserves requested order, wheel wear, sectors, and base cache identity", async () => {
+    const sessionId = await insertSession(10, 20, "acc");
+    const lapA = await insertLap(sessionId, 1, 61, true, null, 0, null, null, null, [20, 21, 20]);
+    const lapB = await insertLap(sessionId, 2, 60, true, null, 0, null, null, null, [19, 21, 20]);
+    const telemetry = (offset: number) => [0, 1, 2].map((distance, index) => packet("acc", {
+      DistanceTraveled: distance,
+      CurrentLap: index,
+      TimestampMS: index * 1_000,
+      PositionX: distance,
+      PositionZ: distance,
+      TireWearFL: offset + index / 10,
+      TireWearFR: offset + index / 10 + 0.01,
+      TireWearRL: offset + index / 10 + 0.02,
+      TireWearRR: offset + index / 10 + 0.03,
+    }));
+    cacheSet(lapA, telemetry(0));
+    cacheSet(lapB, telemetry(0.1));
+    const request = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [lapB, lapA], step: 1 }) };
+    try {
+      const response = await lapRoutes.request("/api/laps/aligned-telemetry", request);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("X-RaceIQ-Cache")).toBe("MISS");
+      const set = decodeAlignedLapSet((await response.json()) as EncodedAlignedLapSet);
+      expect(set.laps.map((lap) => lap.lapId)).toEqual([lapB, lapA]);
+      expect(set.laps[0]!.sectorTimes).toEqual([19, 21, 20]);
+      expect(set.laps[0]!.tireWear).not.toBeNull();
+      expect(set.laps[0]!.tireWear!.RR.length).toBe(set.distanceMeters.length);
+
+      const repeated = await lapRoutes.request("/api/laps/aligned-telemetry", request);
+      expect(repeated.status).toBe(200);
+      expect(repeated.headers.get("X-RaceIQ-Cache")).toBe("HIT");
+    } finally {
+      cacheDelete(lapA);
+      cacheDelete(lapB);
+      await deleteSession(sessionId);
+    }
+  });
+});
+
+  test("rejects malformed and missing alignment requests and returns empty spread", async () => {
+    const malformed = await lapRoutes.request("/api/laps/aligned-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [], step: 1 }),
+    });
+    expect(malformed.status).toBe(400);
+
+    const missing = await lapRoutes.request("/api/laps/aligned-telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [999999], step: 1 }),
+    });
+    expect(missing.status).toBe(404);
+
+    const malformedSpread = await lapRoutes.request("/api/laps/review-line-spread?gameId=acc&sessionId=999999&lapIds=1,1");
+    expect(malformedSpread.status).toBe(400);
+  });
 
 describe("POST /api/laps/:id/analyse", () => {
   test("keeps missing-lap HTTP error before regenerate stream", async () => {

@@ -9,9 +9,9 @@ export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysi
     const throttleColor = threeColor("var(--ch-throttle)");
     const brakeColor = threeColor("var(--ch-brake)");
     const inactiveColor = threeColor("var(--app-bg)");
-    const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
-    const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
-    const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
+    const cx = semanticNumber(packet, "motion.position-x") ?? 0;
+    const cz = semanticNumber(packet, "motion.position-z") ?? 0;
+    const yaw = semanticNumber(packet, "motion.yaw") ?? 0;
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const Y = -0.44; // match TrackOutline race-line Y

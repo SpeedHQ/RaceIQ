@@ -36,7 +36,23 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; onClose: () => void }) {
+export function UpdateModal({
+  version,
+  currentVersion,
+  newReleases,
+  fullReleaseNotes,
+  currentReleaseNotes,
+  currentReleaseDate,
+  onClose,
+}: {
+  version: string;
+  currentVersion: string;
+  newReleases: { version: string; notes: string; date: string }[];
+  fullReleaseNotes: string | null;
+  currentReleaseNotes: string | null;
+  currentReleaseDate: string | null;
+  onClose: () => void;
+}) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -82,7 +98,12 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open && !isUpdating) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open && !isUpdating) onClose();
+      }}
+    >
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto gap-0 bg-app-bg p-0">
         {/* Header */}
         <DialogHeader className="flex flex-row items-center justify-between gap-0 border-b border-app-border px-5 py-4">

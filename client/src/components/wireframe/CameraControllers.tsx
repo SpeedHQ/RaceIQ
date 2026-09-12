@@ -7,7 +7,7 @@ import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
 
 export function AutoChaseCamera({ packet }: { packet: SemanticAnalysisFrame }) {
   const { camera } = useThree();
-  const smoothYaw = useRef((semanticNumber(packet, "motion.yaw") ?? 0));
+  const smoothYaw = useRef(semanticNumber(packet, "motion.yaw") ?? 0);
 
   useFrame(() => {
     // Smooth the yaw to avoid jerky camera
