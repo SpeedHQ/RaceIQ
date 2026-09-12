@@ -228,6 +228,7 @@ ran v39 before the `car`/`driver` rename.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
+- **Changelog language is customer-facing:** use plain language that explains the user-visible problem and outcome. Prefer `Fix issue preventing <user action or result>` over implementation terms, function names, telemetry internals, or developer jargon.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Dependency inspection
@@ -343,6 +344,7 @@ When creating or updating a pull request:
 2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
 3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
 4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
+5. Do not list files in the PR description. Describe behavior, motivation, risk, and verification instead.
 
 ### Pull Request Changelog
 

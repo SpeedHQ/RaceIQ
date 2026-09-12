@@ -54,7 +54,7 @@ if (Array.isArray(value)) {
 }
 return numeric(frame, id); }
 
-function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
+export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
   if (displayTelemetry.length === 0) return null;
   const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
   const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
@@ -62,7 +62,12 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
-  const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
+  let previousTimeFrac = 0;
+  const timeFracs = times.map((time) => {
+    if (!Number.isFinite(time)) return NaN;
+    previousTimeFrac = Math.max(previousTimeFrac, Math.max(0, (time - firstTime) / lapDuration));
+    return previousTimeFrac;
+  });
   let hasBrakeTemp = false;
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {

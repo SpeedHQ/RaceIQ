@@ -11,7 +11,6 @@
 import { afterAll } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { USER_DATA_DIR } from "../../server/runtime/config/paths";
 
 async function setupDataDir() {
   const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "../..", ".env.development")).text();
@@ -26,13 +25,9 @@ for (const line of releaseEnvironment.split(/\r?\n/)) {
 const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
 process.env.RACEIQ_TEST_MODE = "1";
 
-if (!process.env.DATA_DIR) {
-  process.env.DATA_DIR = TEST_DATA_DIR;
-}
-
-if (resolve(process.env.DATA_DIR) === resolve(USER_DATA_DIR)) {
-  throw new Error("Test database DATA_DIR must not point at the real user data directory.");
-}
+// Never inherit DATA_DIR from a running development shell. Test maintenance
+// jobs treat captures missing from test.db as orphans and may delete live files.
+process.env.DATA_DIR = TEST_DATA_DIR;
 
 mkdirSync(process.env.DATA_DIR, { recursive: true });
 for (const suffix of ["", "-wal", "-shm"]) {
