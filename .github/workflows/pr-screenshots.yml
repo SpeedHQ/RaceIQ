@@ -40,7 +40,7 @@ jobs:
       matrix:
         shard: [1, 2]
     runs-on:
-      - mars-windows-x64
+      - mars-any
       - 4VCPU
       - 15G
     env:
@@ -220,7 +220,7 @@ jobs:
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
-      - mars-windows-x64
+      - mars-any
       - 4VCPU
       - 15G
     steps:
