@@ -1,9 +1,9 @@
 name: Render dashboard snapshots
 
-# Renders Storybook dashboard snapshots on pull requests that change the client
-# and compares them against the committed baselines, then compares those
-# baselines with each pull request's base branch. Any differences produce
-# before/after/diff PNGs for the companion comment workflow.
+# Renders Storybook snapshots for both the pull request and its base revision
+# in the same runner environment, then compares those renders. It also compares
+# committed baselines with the base revision so visual changes remain reviewable.
+# Any differences produce before/after/diff PNGs for the companion comment workflow.
 
 # This workflow runs the PR's code, so it deliberately uses the read-only
 # `pull_request` token — it never gets write access. All writes (comment,
@@ -37,6 +37,8 @@ jobs:
   render:
     runs-on:
       - mars-any
+      - 4VCPU
+      - 15G
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
@@ -78,24 +80,39 @@ jobs:
         working-directory: client
         run: bunx playwright install chromium
 
-      - name: Render and compare against committed baselines
+      - name: Render base snapshots
+        working-directory: ${{ runner.temp }}/raceiq-base
+        env:
+          RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/base-snapshots
+          RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
+        run: |
+          bun install
+          Set-Location client
+          bunx playwright test --update-snapshots
+
+      - name: Render PR snapshots
         id: storybook-render
-        # CI and baseline generation both use the Ubuntu renderer.
         working-directory: client
-        run: bun run snapshot:test
+        env:
+          RACEIQ_SNAPSHOT_DIR: ${{ runner.temp }}/pr-snapshots
+          RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
+        run: bunx playwright test --update-snapshots
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
       - name: Prepare PR snapshot preview
-        run: >
-          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
-          "$GITHUB_WORKSPACE/pr-preview"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
-          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
-          "${{ github.event.pull_request.number || inputs.pr }}"
-          "${{ steps.pull-request.outputs.base-ref }}"
-          "$GITHUB_OUTPUT"
+        id: snapshot-preview
+        env:
+          PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
+          PR_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
+          PR_SNAPSHOT_BASE_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories/__snapshots__
+          PR_SNAPSHOT_CURRENT_DIR: ${{ github.workspace }}/client/src/stories/__snapshots__
+          PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
+          PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
+          PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+        run: bun scripts/ui/prepare-pr-snapshot-preview.ts
+
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -105,19 +122,5 @@ jobs:
           retention-days: 14
 
       - name: Report Storybook snapshot failure
-        if: steps.storybook-render.outcome == 'failure'
-        shell: bash
-        run: |
-          shopt -s nullglob
-          diffs=(pr-preview/*-diff.png)
-          if (( ${#diffs[@]} > 0 )); then
-            echo "::error::Committed Storybook snapshots do not match (${#diffs[@]} diff(s))."
-            for diff in "${diffs[@]}"; do
-              echo "::error::Snapshot mismatch artifact: $(basename "$diff")"
-            done
-            echo "Download 'pr-screenshot-preview' artifact for before/after/diff images."
-          else
-            echo "::error::Storybook snapshot test failed without generating visual diff artifacts."
-            echo "::error::Inspect 'Render and compare against committed baselines' step for the underlying test or server failure."
-          fi
-          exit 1
+        if: steps.storybook-render.outcome == 'failure' || steps.snapshot-preview.outputs.changed == '1'
+        run: bun scripts/ui/report-snapshot-failure.ts pr-preview

@@ -229,6 +229,7 @@ ran v39 before the `car`/`driver` rename.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
+- **Changelog language is customer-facing:** use plain language that explains the user-visible problem and outcome. Prefer `Fix issue preventing <user action or result>` over implementation terms, function names, telemetry internals, or developer jargon.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Dependency inspection
@@ -328,6 +329,15 @@ Signatures live in `shared/tracks/verified.json`; edits make signatures stale.
 
 Full write-up: [track curation](docs/contributing/track-curation.md).
 
+### Command and Script Reference Checks
+
+When adding, removing, renaming, or changing a package command, script entry point, workflow invocation, or documented command:
+
+1. Search repository references to old and new command/script names, including package manifests, workflows, shell wrappers, READMEs, and CI helper scripts.
+2. Update every affected caller and documentation entry in the same change. Do not leave stale references or add a command without its documented execution path.
+3. Run changed command or non-destructive validation path. For CI commands, execute equivalent local steps and verify failure propagation; `continue-on-error` must be followed by explicit failing gate when job must fail.
+4. If command execution requires unavailable external services, run structural check proving command registration, referenced file existence, and expected exit status; report what remains unverified.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs repository-wide checks before every commit:
@@ -344,6 +354,7 @@ When creating or updating a pull request:
 2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
 3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
 4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
+5. Do not list files in the PR description. Describe behavior, motivation, risk, and verification instead.
 
 ### Pull Request Changelog
 

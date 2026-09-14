@@ -74,7 +74,12 @@ export function buildChartData(
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
-  const timeFracs = times.map((time) => (Number.isFinite(time) ? (time - firstTime) / lapDuration : NaN));
+  let previousTimeFrac = 0;
+  const timeFracs = times.map((time) => {
+    if (!Number.isFinite(time)) return NaN;
+    previousTimeFrac = Math.max(previousTimeFrac, Math.max(0, (time - firstTime) / lapDuration));
+    return previousTimeFrac;
+  });
   let hasBrakeTemp = false;
   let hasCoreTemp = false;
   let hasTireTemp = false;

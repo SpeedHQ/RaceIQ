@@ -121,7 +121,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
 
   let nativeSources: NativeSourceSupervisor | null = null;
   installShutdown({
-    recordingGameId,
     getNativeSources: () => nativeSources,
   });
 

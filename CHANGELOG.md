@@ -8,10 +8,13 @@
 
 ### Fixes
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
+- Fix issues causing unreadable or unfinished recording files and incorrect lap timing
+- Fix issue preventing live recording from restarting after deleting the active session
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
+- Add diagnostic logs that reveal missed telemetry and slow lap saving
 
 ## v0.16.0 - 2026-09-06
 

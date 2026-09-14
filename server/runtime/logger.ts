@@ -1,3 +1,4 @@
+import pino from "pino";
 import {
   appendFileSync,
   closeSync,
@@ -106,12 +107,7 @@ function truncateLine(line: string): Buffer {
   return Buffer.from(`${truncated}\n`);
 }
 
-function format(level: string, args: unknown[]): string {
-  const msg = args.map(formatArg).join(" ");
-  return `${new Date().toISOString()} [${level}] ${msg}\n`;
-}
-
-function write(line: string) {
+function writeBounded(line: string): void {
   try {
     const lineBuffer = truncateLine(line);
     if (logSizeBytes + lineBuffer.byteLength <= MAX_LOG_FILE_BYTES) {
@@ -130,23 +126,34 @@ function write(line: string) {
   } catch {}
 }
 
-export const log = {
-  info(...args: unknown[]) {
-    const line = format("INFO", args);
-    write(line);
-    try { process.stdout.write(line); } catch {}
-  },
-  warn(...args: unknown[]) {
-    const line = format("WARN", args);
-    write(line);
-    try { process.stderr.write(line); } catch {}
-  },
-  error(...args: unknown[]) {
-    const line = format("ERROR", args);
-    write(line);
-    try { process.stderr.write(line); } catch {}
+const VALID_LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug", "trace", "silent"]);
+const requestedLogLevel = process.env.RACEIQ_LOG_LEVEL ?? "info";
+const logLevel = VALID_LOG_LEVELS.has(requestedLogLevel) ? requestedLogLevel : "info";
+const boundedFileStream = {
+  write(line: string): void {
+    writeBounded(line);
   },
 };
+
+export const logger = pino(
+  {
+    level: logLevel,
+    base: { service: "raceiq" },
+  },
+  pino.multistream([
+    { level: "trace", stream: boundedFileStream },
+    { level: "trace", stream: process.stdout },
+  ]),
+);
+
+export const log = logger;
+
+if (requestedLogLevel !== logLevel) {
+  logger.warn(
+    { requestedLogLevel, fallbackLogLevel: logLevel },
+    "Invalid RACEIQ_LOG_LEVEL; using fallback",
+  );
+}
 
 /** Hono middleware that catches and logs unhandled route errors. */
 export function errorLogger(): MiddlewareHandler {
@@ -154,7 +161,7 @@ export function errorLogger(): MiddlewareHandler {
     try {
       await next();
     } catch (err) {
-      log.error(`${c.req.method} ${c.req.path}`, err);
+      log.error({ err }, `${c.req.method} ${c.req.path}`);
       throw err;
     }
   };
@@ -164,8 +171,13 @@ export function errorLogger(): MiddlewareHandler {
  * Redirect console.log/warn/error to the file logger.
  * Call once at startup so third-party code also gets captured.
  */
-export function captureConsole() {
-  console.log = (...args: unknown[]) => log.info(...args);
-  console.warn = (...args: unknown[]) => log.warn(...args);
-  console.error = (...args: unknown[]) => log.error(...args);
+function writeConsole(level: "debug" | "info" | "warn" | "error", args: unknown[]): void {
+  log[level](args.map(formatArg).join(" "));
+}
+
+export function captureConsole(): void {
+  console.debug = (...args: unknown[]) => writeConsole("debug", args);
+  console.log = (...args: unknown[]) => writeConsole("info", args);
+  console.warn = (...args: unknown[]) => writeConsole("warn", args);
+  console.error = (...args: unknown[]) => writeConsole("error", args);
 }
