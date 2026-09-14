@@ -107,18 +107,4 @@ jobs:
 
       - name: Report Storybook snapshot failure
         if: steps.storybook-render.outcome == 'failure'
-        shell: bash
-        run: |
-          shopt -s nullglob
-          diffs=(pr-preview/*-diff.png)
-          if (( ${#diffs[@]} > 0 )); then
-            echo "::error::Committed Storybook snapshots do not match (${#diffs[@]} diff(s))."
-            for diff in "${diffs[@]}"; do
-              echo "::error::Snapshot mismatch artifact: $(basename "$diff")"
-            done
-            echo "Download 'pr-screenshot-preview' artifact for before/after/diff images."
-          else
-            echo "::error::Storybook snapshot test failed without generating visual diff artifacts."
-            echo "::error::Inspect 'Render and compare against committed baselines' step for the underlying test or server failure."
-          fi
-          exit 1
+        run: bun scripts/ui/report-snapshot-failure.ts pr-preview
