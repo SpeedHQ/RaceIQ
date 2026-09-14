@@ -88,16 +88,14 @@ jobs:
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
-        shell: bash
-        run: >
-          bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
-          "$GITHUB_WORKSPACE/pr-preview"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__/results"
-          "$RUNNER_TEMP/raceiq-base/client/src/stories/__snapshots__"
-          "$GITHUB_WORKSPACE/client/src/stories/__snapshots__"
-          "${{ github.event.pull_request.number || inputs.pr }}"
-          "${{ steps.pull-request.outputs.base-ref }}"
-          "$GITHUB_OUTPUT"
+        env:
+          PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
+          PR_SNAPSHOT_RESULTS_DIR: ${{ github.workspace }}/client/src/stories/__snapshots__/results
+          PR_SNAPSHOT_BASE_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories/__snapshots__
+          PR_SNAPSHOT_CURRENT_DIR: ${{ github.workspace }}/client/src/stories/__snapshots__
+          PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+          PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
+        run: bun scripts/ui/prepare-pr-snapshot-preview.ts
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7

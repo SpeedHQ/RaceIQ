@@ -13,9 +13,24 @@ function filesNamed(root: string, suffix: string, result: string[] = []): string
   return result;
 }
 
-const [outDir, resultsDir, baseDir, currentDir, prNumber, baseRef, githubOutput] = process.argv.slice(2);
+const positional = process.argv.slice(2);
+const values = positional.length
+  ? positional
+  : [
+      process.env.PR_SNAPSHOT_OUT_DIR,
+      process.env.PR_SNAPSHOT_RESULTS_DIR,
+      process.env.PR_SNAPSHOT_BASE_DIR,
+      process.env.PR_SNAPSHOT_CURRENT_DIR,
+      process.env.PR_SNAPSHOT_NUMBER,
+      process.env.PR_SNAPSHOT_BASE_REF,
+      process.env.GITHUB_OUTPUT,
+    ];
+const [outDir, resultsDir, baseDir, currentDir, prNumber, baseRef, githubOutput] = values;
 if (!outDir || !resultsDir || !baseDir || !currentDir || !prNumber || !baseRef || !githubOutput) {
-  throw new Error("Usage: prepare-pr-snapshot-preview OUT RESULTS BASE CURRENT PR_NUMBER BASE_REF GITHUB_OUTPUT");
+  throw new Error(
+    "Usage: prepare-pr-snapshot-preview OUT RESULTS BASE CURRENT PR_NUMBER BASE_REF GITHUB_OUTPUT " +
+      "or PR_SNAPSHOT_* environment variables",
+  );
 }
 
 mkdirSync(outDir, { recursive: true });
