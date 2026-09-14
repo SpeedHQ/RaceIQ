@@ -82,8 +82,8 @@ jobs:
 
       - name: Render and compare against committed baselines
         id: storybook-render
-        # Use pinned Ubuntu renderer, regardless of runner host OS.
-        run: bun scripts/ui/run-snapshot-in-docker.ts
+        working-directory: client
+        run: bun run snapshot:test
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
