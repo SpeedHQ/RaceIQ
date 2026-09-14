@@ -38,17 +38,29 @@ await Bun.write(join(outDir, "pr-number.txt"), `${prNumber}\n`);
 await Bun.write(join(outDir, "base-ref.txt"), `${baseRef}\n`);
 
 let changed = false;
-for (const diffPath of filesNamed(resultsDir, "-diff.png")) {
-  const name = basename(diffPath).slice(0, -"-diff.png".length);
-  const dir = dirname(diffPath);
-  const before = join(dir, `${name}-expected.png`);
-  const after = join(dir, `${name}-actual.png`);
-  if (!existsSync(before) || !existsSync(after)) continue;
-  cpSync(before, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-before.png`));
-  cpSync(after, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-after.png`));
-  cpSync(diffPath, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-diff.png`));
-  console.log(`changed rendered snapshot: ${name}`);
-  changed = true;
+const baseRenderDir = process.env.PR_SNAPSHOT_BASE_RENDER_DIR;
+const currentRenderDir = process.env.PR_SNAPSHOT_CURRENT_RENDER_DIR;
+if (baseRenderDir && currentRenderDir) {
+  const renderedChanges = await collectScreenshotDiffs({
+    baseDir: baseRenderDir,
+    currentDir: currentRenderDir,
+    outDir,
+    prefix: "rendered-base-vs-pr",
+  });
+  changed ||= renderedChanges.length > 0;
+} else {
+  for (const diffPath of filesNamed(resultsDir, "-diff.png")) {
+    const name = basename(diffPath).slice(0, -"-diff.png".length);
+    const dir = dirname(diffPath);
+    const before = join(dir, `${name}-expected.png`);
+    const after = join(dir, `${name}-actual.png`);
+    if (!existsSync(before) || !existsSync(after)) continue;
+    cpSync(before, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-before.png`));
+    cpSync(after, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-after.png`));
+    cpSync(diffPath, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-diff.png`));
+    console.log(`changed rendered snapshot: ${name}`);
+    changed = true;
+  }
 }
 
 const baseChanges = await collectScreenshotDiffs({

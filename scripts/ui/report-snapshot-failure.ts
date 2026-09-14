@@ -8,7 +8,7 @@ const diffs = readdirSync(previewDir, { withFileTypes: true })
   .map((entry) => join(previewDir, entry.name));
 
 if (diffs.length > 0) {
-  console.error(`::error::Committed Storybook snapshots do not match (${diffs.length} diff(s)).`);
+  console.error(`::error::Base and PR Storybook renders differ (${diffs.length} diff(s)).`);
   for (const diff of diffs) console.error(`::error::Snapshot mismatch artifact: ${basename(diff)}`);
   console.error("Download 'pr-screenshot-preview' artifact for before/after/diff images.");
 } else {
