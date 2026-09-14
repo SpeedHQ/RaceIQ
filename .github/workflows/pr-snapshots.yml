@@ -88,6 +88,7 @@ jobs:
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
+      - name: Prepare PR snapshot preview
         env:
           PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
           PR_SNAPSHOT_RESULTS_DIR: ${{ github.workspace }}/client/src/stories/__snapshots__/results
