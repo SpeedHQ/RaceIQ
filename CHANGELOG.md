@@ -6,6 +6,7 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
