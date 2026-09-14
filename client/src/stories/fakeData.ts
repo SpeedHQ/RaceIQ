@@ -455,6 +455,12 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
         f1?.tyrePressureRL ?? raw.TirePressureRearLeft,
         f1?.tyrePressureRR ?? raw.TirePressureRearRight,
       ],
+      "brakes.brake-temp": [
+        f1?.brakeTempFL ?? raw.BrakeTempFrontLeft,
+        f1?.brakeTempFR ?? raw.BrakeTempFrontRight,
+        f1?.brakeTempRL ?? raw.BrakeTempRearLeft,
+        f1?.brakeTempRR ?? raw.BrakeTempRearRight,
+      ],
       "weather.weather-type": f1?.weather,
       "weather.track-temp": f1?.trackTemperature,
       "weather.air-temp": f1?.airTemperature,
