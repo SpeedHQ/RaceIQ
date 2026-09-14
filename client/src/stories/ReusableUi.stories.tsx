@@ -634,7 +634,7 @@ export const NoteModalOpen: Story = {
     const textbox = await body.findByRole("textbox");
     await expect(textbox).toHaveFocus();
     await userEvent.type(textbox, "Pit lane note");
-    await userEvent.keyboard("{Meta>}{Enter}{/Meta}");
+    await userEvent.click(body.getByRole("button", { name: "Save" }));
     await expect(canvas.getByText("Saved note: Pit lane note")).toBeVisible();
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
 

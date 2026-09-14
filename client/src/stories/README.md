@@ -17,6 +17,8 @@ From `client/`:
 ```sh
 bun run storybook
 bun run snapshot:test
+bun run snapshot:test:docker
+bun run snapshot:update
 bun run snapshot:docker
 ```
 
