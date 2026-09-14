@@ -176,9 +176,9 @@ jobs:
           $status = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           $output = Join-Path $env:RUNNER_TEMP "base-responsive"
-          if (Test-Path "screenshots/mobile") {
+          if (Test-Path $currentScreenshotDir) {
             Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
-            Move-Item "screenshots/mobile" $output
+            Move-Item $currentScreenshotDir $output
           }
           exit $status
       - name: Save shard render outputs
