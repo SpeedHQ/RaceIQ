@@ -88,7 +88,7 @@ jobs:
         # Keep running so diffs can be collected and posted as UI awareness.
         continue-on-error: true
 
-      - name: Prepare PR snapshot preview
+        shell: bash
         run: >
           bun "$GITHUB_WORKSPACE/scripts/ui/prepare-pr-snapshot-preview.ts"
           "$GITHUB_WORKSPACE/pr-preview"
