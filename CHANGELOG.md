@@ -4,6 +4,7 @@
 - Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 - Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
+- Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 
 ### Fixes
 

@@ -221,6 +221,7 @@ ran v39 before the `car`/`driver` rename.
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
 - **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
+- **Telemetry semantics preserve native channels one-to-one.** Never alias, average, merge, or relabel game output into a different physical concept; use `unavailable` when source lacks a semantic. Consumer projections stay explicit. Follow [telemetry semantic rules](docs/reference/semantics.md).
 - Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4

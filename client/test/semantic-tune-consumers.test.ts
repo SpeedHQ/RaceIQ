@@ -35,7 +35,7 @@ function entries(index: number, fuel: number) {
     { semanticId: "motion.position-z", value: index * 5 },
     { semanticId: "motion.speed", value: 20 + index },
     { semanticId: "timing.distance-traveled", value: index * 25 },
-    { semanticId: "tire.temperature.average", value: [80 + index, 81 + index, 82 + index, 83 + index] },
+    { semanticId: "tire.temperature.surface.representative", value: [80 + index, 81 + index, 82 + index, 83 + index] },
     { semanticId: "brakes.brake-temp", value: [300 + index, 301 + index, 250 + index, 251 + index] },
     { semanticId: "tires.tire-pressure", value: [27, 27.1, 26.5, 26.6] },
     { semanticId: "tires.tire-wear", value: [0, 0.1, 0.2, 0.3] },
@@ -61,7 +61,7 @@ describe("canonical tuning telemetry consumers", () => {
     const frame = replayFrame("acc", 1, [
       { semanticId: "motion.position-x", value: 0 },
       { semanticId: "motion.position-z", value: 0, state: "missing" },
-      { semanticId: "tire.temperature.average", value: [0, 0, 0, 0], freshness: "stale" },
+      { semanticId: "tire.temperature.surface.representative", value: [0, 0, 0, 0], freshness: "stale" },
       { semanticId: "tires.tire-wear", value: [0, 0, 0, 0] },
     ]);
     const [sample] = semanticSamples("acc", [frame]);

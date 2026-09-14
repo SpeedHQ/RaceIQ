@@ -22,7 +22,7 @@ const frame: SemanticAnalysisFrame = {
     "tires.tire-combined-slip": [0.2, 0.4, 0.6, 0.8],
     "tires.tire-slip-ratio": [0.1, 0.2, 0.3, 0.4],
     "tires.tire-slip-angle": [0.01, 0.02, 0.03, 0.04],
-    "tire.temperature.average": [90, 91, 92, 93],
+    "tire.temperature.surface.representative": [90, 91, 92, 93],
     "brakes.brake-temp": [500, 510, 300, 310],
     "tires.wheel-rotation-speed": [100, 101, 102, 103],
     "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],

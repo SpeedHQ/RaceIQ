@@ -3,6 +3,9 @@ import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "
 import type { FreshnessState, ResolutionState } from "../../../shared/telemetry/resolver/contracts";
 
 export type WheelValues<T> = Readonly<{ fl: T; fr: T; rl: T; rr: T }>;
+export type TireSurfaceBand = "representative" | "inner" | "middle" | "outer";
+export type TireCarcassBand = "left" | "middle" | "right";
+export type TireTemperatureProfile<Band extends string> = WheelValues<Readonly<Partial<Record<Band, number>>>>;
 export interface LiveCompetitorView {
   position?: number;
   name?: string;
@@ -47,7 +50,9 @@ export interface LiveTelemetryView {
     racePosition?: number;
   };
   tires: {
-    temperatureC?: WheelValues<number>;
+    surfaceTemperatureC?: TireTemperatureProfile<TireSurfaceBand>;
+    coreTemperatureC?: WheelValues<number>;
+    carcassTemperatureC?: TireTemperatureProfile<TireCarcassBand>;
     wear?: WheelValues<number>;
     pressurePsi?: WheelValues<number>;
     slipAngleRad?: WheelValues<number>;
@@ -91,6 +96,26 @@ export function readIndexedValue(indexed: Indexed, frame: LiveTelemetryFrameMess
   if (index === undefined || frame.states?.[index] || frame.freshness?.[index]) return undefined;
   return frame.values[index] ?? undefined;
 }
+
+export function primaryTireTemperatureC(
+  tires: LiveTelemetryView["tires"],
+  corner: keyof WheelValues<number>,
+): number | undefined {
+  return tires.surfaceTemperatureC?.[corner].representative
+    ?? tires.coreTemperatureC?.[corner]
+    ?? tires.carcassTemperatureC?.[corner].middle;
+}
+export function primaryTireTemperaturesC(
+  tires: LiveTelemetryView["tires"],
+): WheelValues<number> | undefined {
+  const fl = primaryTireTemperatureC(tires, "fl");
+  const fr = primaryTireTemperatureC(tires, "fr");
+  const rl = primaryTireTemperatureC(tires, "rl");
+  const rr = primaryTireTemperatureC(tires, "rr");
+  return fl === undefined || fr === undefined || rl === undefined || rr === undefined
+    ? undefined
+    : { fl, fr, rl, rr };
+}
 export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, frame: LiveTelemetryFrameMessageV1): LiveTelemetryView | undefined {
   if (frame.schemaId !== schema.schemaId) return undefined;
   const indexed = indexTelemetrySchema(schema);
@@ -125,6 +150,18 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       rl: celsius(source.rl),
       rr: celsius(source.rr),
     };
+  };
+  const temperatureProfileC = <Band extends string>(
+    channels: Readonly<Record<Band, string>>,
+  ): TireTemperatureProfile<Band> | undefined => {
+    const entries = Object.entries(channels) as [Band, string][];
+    const values = entries.map(([band, semanticId]) => [band, wheelCelsius(semanticId)] as const);
+    if (!values.some(([, wheels]) => wheels !== undefined)) return undefined;
+    const at = (corner: keyof WheelValues<number>): Readonly<Partial<Record<Band, number>>> =>
+      Object.fromEntries(
+        values.flatMap(([band, wheels]) => wheels ? [[band, wheels[corner]]] : []),
+      ) as Partial<Record<Band, number>>;
+    return { fl: at("fl"), fr: at("fr"), rl: at("rl"), rr: at("rr") };
   };
   const vector = (xId: string, zId: string): { x: number; z: number } | undefined => {
     const x = number(xId);
@@ -225,7 +262,18 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       racePosition,
     },
     tires: {
-      temperatureC: wheelCelsius("tire.temperature.average"),
+      surfaceTemperatureC: temperatureProfileC<TireSurfaceBand>({
+        representative: "tire.temperature.surface.representative",
+        inner: "tire.temperature.surface.inner",
+        middle: "tire.temperature.surface.middle",
+        outer: "tire.temperature.surface.outer",
+      }),
+      coreTemperatureC: wheelCelsius("tire.temperature.core"),
+      carcassTemperatureC: temperatureProfileC<TireCarcassBand>({
+        left: "tire.temperature.carcass.left",
+        middle: "tire.temperature.carcass.middle",
+        right: "tire.temperature.carcass.right",
+      }),
       wear: wheel("tires.tire-wear"),
       pressurePsi: wheel("tires.tire-pressure"),
       slipAngleRad: wheel("tires.tire-slip-angle"),

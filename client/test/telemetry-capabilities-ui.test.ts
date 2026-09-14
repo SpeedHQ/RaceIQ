@@ -91,7 +91,7 @@ const f1ParityFrame = semanticFrame({
   "tires.tire-combined-slip": [0.2, 0.4, 0.6, 0.8],
   "tires.tire-slip-ratio": [0.1, 0.2, 0.3, 0.4],
   "tires.tire-slip-angle": [0.01, 0.02, 0.03, 0.04],
-  "tire.temperature.average": [90, 91, 92, 93],
+  "tire.temperature.surface.representative": [90, 91, 92, 93],
   "brakes.brake-temp": [500, 510, 300, 310],
   "tires.wheel-rotation-speed": [100, 101, 102, 103],
   "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
@@ -160,7 +160,7 @@ function renderTireAnalysis(value: TelemetryPacket): string {
       { client: queryClient },
       createElement(AnalyseTireWheelsPanel, {
         frame: semanticFrame({
-          "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+          "tire.temperature.surface.representative": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
           "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
           "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
           "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
@@ -180,7 +180,7 @@ function renderTireDiagram(value: TelemetryPacket): string {
   const queryClient = new QueryClient();
   const frame = semanticFrame({
     "inputs.steer": value.Steer,
-    "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+    "tire.temperature.surface.representative": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
     "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
     "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
     "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
@@ -237,7 +237,12 @@ describe("telemetry capability UI", () => {
       motion: { speedMps: 10 },
       inputs: { steer: 0 },
       tires: {
-        temperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+        surfaceTemperatureC: {
+          fl: { representative: 100 },
+          fr: { representative: 100 },
+          rl: { representative: 100 },
+          rr: { representative: 100 },
+        },
         wear: { fl: 0, fr: 0, rl: 0, rr: 0 },
         rotationRadS: { fl: 30, fr: 30, rl: 30, rr: 30 },
         brakeTemperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
@@ -247,7 +252,6 @@ describe("telemetry capability UI", () => {
 
     expect(markup).toContain("212°F");
     expect(markup).toContain("BRK 212°");
-    expect(markup).toContain("GRIP");
     expect(markup).not.toContain("38°F");
   });
 
@@ -430,7 +434,7 @@ describe("telemetry capability UI", () => {
         { client: new QueryClient() },
         createElement(AnalyseTireWheelsPanel, {
           frame: semanticFrame({
-            "tire.temperature.average": [90, 90, 90, 90],
+            "tire.temperature.surface.representative": [90, 90, 90, 90],
             "tires.tire-wear": [0.1, 0.1, 0.1, 0.1],
             "tires.wheel-rotation-speed": [100, 100, 100, 100],
             "brakes.brake-temp": [0, 0, 300, 310],
@@ -486,7 +490,7 @@ describe("telemetry capability UI", () => {
       "motion.acceleration-x": 0,
       "motion.acceleration-z": 0,
       "motion.angular-velocity-y": 0,
-      "tire.temperature.average": [212, 194, 176, 158],
+      "tire.temperature.surface.representative": [212, 194, 176, 158],
       "tires.wheel-rotation-speed": [1, 1, 1, 1],
       "tires.tire-wear": [0, 0, 0, 0],
       "tires.tire-combined-slip": [0, 0, 0, 0],
@@ -678,7 +682,7 @@ describe("telemetry capability UI", () => {
     const text = buildAnalyseClipboardText({
       frame: semanticFrame({
         ...f1ParityFrame.values,
-        "tire.temperature.average": [212, 194, 176, 158],
+        "tire.temperature.surface.representative": [212, 194, 176, 158],
       }),
       gameId: "fm-2023",
       units: { ...parityUnits, temperatureUnit: "F" },

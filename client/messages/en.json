@@ -18,6 +18,8 @@
   "common_disabled": "Disabled",
   "common_loading": "Loading...",
   "common_error": "Error",
+  "label_surface": "Surface",
+  "label_core": "Core",
   "nav_navigation": "Navigation",
   "nav_home": "Home",
   "nav_dash": "Dash",

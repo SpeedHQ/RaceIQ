@@ -18,6 +18,8 @@
   "common_disabled": "Deaktiviert",
   "common_loading": "Laden...",
   "common_error": "Fehler",
+  "label_surface": "Oberfläche",
+  "label_core": "Kern",
   "nav_navigation": "Navigation",
   "nav_home": "Startseite",
   "nav_dash": "Dash",

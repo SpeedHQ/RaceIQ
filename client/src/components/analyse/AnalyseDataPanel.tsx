@@ -88,7 +88,8 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   const brake = value("inputs.brake");
   const steer = value("inputs.steer");
   const lock = getSteeringLock();
-  const temp = wheels(frame, "tire.temperature.average");
+  const temp = wheels(frame, "tire.temperature.surface.representative");
+  const coreTemp = wheels(frame, "tire.temperature.core");
   const wear = wheels(frame, "tires.tire-wear");
   const normalized = wheels(frame, "suspension.norm-suspension-travel");
   const millimeters = wheels(frame, "suspension.suspension-travel-m").map((entry) => entry == null ? null : entry * 1000);
@@ -107,9 +108,20 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}`);
   lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(value("motion.acceleration-x") == null ? null : -value("motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(value("motion.acceleration-z") == null ? null : -value("motion.acceleration-z")! / 9.81, 2)}g`);
   const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
-  const pitHealth = game.telemetry.analysis?.tireHealth?.source === "direct" && game.telemetry.analysis?.tireHealth.freshness === "pit-snapshot";
-  lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} ---`, `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);
-  lines.push("", `--- ${pitHealth ? "Last Pit Tire Health" : "Tire Health"} ---`, `FL: ${wear[0] == null ? "Unavailable" : `${((1 - wear[0]) * 100).toFixed(1)}%`}  FR: ${wear[1] == null ? "Unavailable" : `${((1 - wear[1]) * 100).toFixed(1)}%`}`, `RL: ${wear[2] == null ? "Unavailable" : `${((1 - wear[2]) * 100).toFixed(1)}%`}  RR: ${wear[3] == null ? "Unavailable" : `${((1 - wear[3]) * 100).toFixed(1)}%`}`);
+  if (coreTemp.some((value) => value != null)) {
+    lines.push("", "--- Surface Tire Temps ---", `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);
+    lines.push("", "--- Core Tire Temps ---", `FL: ${coreTemp[0] == null ? "Unavailable" : coreTemp[0].toFixed(0)}  FR: ${coreTemp[1] == null ? "Unavailable" : coreTemp[1].toFixed(0)}`, `RL: ${coreTemp[2] == null ? "Unavailable" : coreTemp[2].toFixed(0)}  RR: ${coreTemp[3] == null ? "Unavailable" : coreTemp[3].toFixed(0)}`);
+  } else {
+    lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} ---`, `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);
+  }
+  if (wear.some((value) => value != null)) {
+    lines.push(
+      "",
+      "--- Tire Health ---",
+      `FL: ${wear[0] == null ? "Unavailable" : `${((1 - wear[0]) * 100).toFixed(1)}%`}  FR: ${wear[1] == null ? "Unavailable" : `${((1 - wear[1]) * 100).toFixed(1)}%`}`,
+      `RL: ${wear[2] == null ? "Unavailable" : `${((1 - wear[2]) * 100).toFixed(1)}%`}  RR: ${wear[3] == null ? "Unavailable" : `${((1 - wear[3]) * 100).toFixed(1)}%`}`,
+    );
+  }
   const suspensionValue = (index: number) => useMm
     ? (millimeters[index] == null ? "Unavailable" : `${millimeters[index]!.toFixed(0)}mm`)
     : (normalized[index] == null ? "Unavailable" : `${(normalized[index]! * 100).toFixed(0)}%`);

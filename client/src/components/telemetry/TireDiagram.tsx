@@ -24,15 +24,16 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const units = useUnits();
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const temps = numericWheels(frame, "tire.temperature.average");
-  const wear = numericWheels(frame, "tires.tire-wear");
+  const surfaceTemps = numericWheels(frame, "tire.temperature.surface.representative");
+  const coreTemps = numericWheels(frame, "tire.temperature.core");
   const angles = numericWheels(frame, "tires.tire-slip-angle");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const suspensionM = numericWheels(frame, "suspension.suspension-travel-m");
   const brakes = numericWheels(frame, "brakes.brake-temp");
+  const wear = numericWheels(frame, "tires.tire-wear");
   const states = resolveWheelStates(frame, analysis.traction);
   const steering = numeric(frame, "inputs.steer");
-  const temperatureAvailable = temps.some((value) => value != null);
+  const temperatureAvailable = surfaceTemps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
   const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
   const showSlipAngle = angles.some((value) => value != null);
@@ -44,7 +45,8 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
     return (
       <WheelCard
         label={WHEELS[index]}
-        temp={temps[index] ?? 0}
+        surfaceTemp={surfaceTemps[index] ?? 0}
+        coreTemp={coreTemps[index] ?? undefined}
         wear={wear[index] ?? 0}
         slipAngle={(angles[index] ?? 0) * (180 / Math.PI)}
         outerSide={outerSide}
@@ -115,8 +117,8 @@ export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gam
     const { view } = props;
     const values: SemanticAnalysisFrame["values"] = {
       "inputs.steer": view.inputs.steer,
-      "motion.speed": view.motion.speedMps,
-      "tire.temperature.average": view.tires.temperatureC && Object.values(view.tires.temperatureC),
+      "tire.temperature.surface.representative": view.tires.surfaceTemperatureC && Object.values(view.tires.surfaceTemperatureC).map((profile) => profile.representative),
+      "tire.temperature.core": view.tires.coreTemperatureC && Object.values(view.tires.coreTemperatureC),
       "tires.tire-wear": view.tires.wear && Object.values(view.tires.wear),
       "tires.tire-slip-angle": view.tires.slipAngleRad && Object.values(view.tires.slipAngleRad),
       "tires.tire-slip-ratio": view.tires.slipRatio && Object.values(view.tires.slipRatio),

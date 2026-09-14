@@ -1,6 +1,6 @@
 import type { GameId } from "@shared/games/ids";
 import { getGame } from "@shared/games/registry";
-import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
+import { primaryTireTemperaturesC, type LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 
 export interface TuneWheelValues {
@@ -46,7 +46,7 @@ function sampleFromValues(gameId: GameId, values: Readonly<Record<string, unknow
     speedMps: finiteNumber(values["motion.speed"]),
     trackOrdinal: finiteNumber(values["identity.track-ordinal"]),
     positionM: positionX === undefined || positionZ === undefined ? undefined : { x: positionX, z: positionZ },
-    tireTemperatureC: wheelValues(values["tire.temperature.average"]),
+    tireTemperatureC: wheelValues(values["tire.temperature.surface.representative"]),
     brakeTemperatureC: wheelValues(values["brakes.brake-temp"]),
     tirePressurePsi: wheelValues(values["tires.tire-pressure"]),
     tireWearFraction: wheelValues(values["tires.tire-wear"]),
@@ -74,7 +74,7 @@ export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTun
     speedMps: view.motion.speedMps,
     trackOrdinal: view.identity.trackOrdinal,
     positionM: view.motion.position,
-    tireTemperatureC: view.tires.temperatureC,
+    tireTemperatureC: primaryTireTemperaturesC(view.tires),
     brakeTemperatureC: view.tires.brakeTemperatureC,
     tirePressurePsi: view.tires.pressurePsi,
     tireWearFraction: view.tires.wear,

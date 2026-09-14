@@ -374,7 +374,8 @@ export function CarScene({
             gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
-            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.average", i)) : ""}
+            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.surface.representative", i)) : ""}
+            displayCoreTemp={toggles.wheelInfo && Array.isArray(frame.values["tire.temperature.core"]) ? fmtTemp(wheel(frame, "tire.temperature.core", i)) : undefined}
             rimColorForDisplay={w.rimColor}
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}

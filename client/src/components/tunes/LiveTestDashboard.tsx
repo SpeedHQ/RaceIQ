@@ -29,7 +29,12 @@ function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
       "inputs.gear": view.inputs.gear,
       "timing.distance-traveled": view.motion.distanceM,
       "timing.current-lap": view.timing.currentLapS,
-      "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
+      "tire.temperature.surface.representative": view.tires.surfaceTemperatureC && [
+        view.tires.surfaceTemperatureC.fl.representative,
+        view.tires.surfaceTemperatureC.fr.representative,
+        view.tires.surfaceTemperatureC.rl.representative,
+        view.tires.surfaceTemperatureC.rr.representative,
+      ],
     },
     states: {},
     freshness: {},

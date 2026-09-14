@@ -58,8 +58,9 @@ export function F1LiveDashboard() {
     );
   }
   const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
-    tempC: Math.round(view.tires.temperatureC?.[corner] ?? 0),
-    wear: view.tires.wear?.[corner] ?? 0,
+    tempC: view.tires.surfaceTemperatureC?.[corner].representative,
+    ...(view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
+    wear: view.tires.wear?.[corner],
     ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
     ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
   });
@@ -94,7 +95,7 @@ export function F1LiveDashboard() {
               healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
               compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
-              temperatureAvailable={view.tires.temperatureC !== undefined}
+              temperatureAvailable={view.tires.surfaceTemperatureC !== undefined}
               healthAvailable={view.tires.wear !== undefined}
             />
           </div>

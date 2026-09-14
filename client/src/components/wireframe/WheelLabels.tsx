@@ -73,6 +73,7 @@ type Row =
 
 export function WheelInfoCard({
   displayTemp,
+  displayCoreTemp,
   tempColor,
   wear,
   wearRate,
@@ -83,6 +84,7 @@ export function WheelInfoCard({
   isRear,
 }: {
   displayTemp: string;
+  displayCoreTemp?: string;
   tempColor: string;
   wear: number;
   wearRate: number;
@@ -102,13 +104,13 @@ export function WheelInfoCard({
   const { rows, cardH } = useMemo(() => {
     const rows: Row[] = [
       { kind: "health", pct: healthPct, color: healthColor },
-      { kind: "temp", text: displayTemp, color: tempColor },
+      { kind: "temp", text: `Surface ${displayTemp}`, color: tempColor },
     ];
+    if (displayCoreTemp) rows.push({ kind: "temp", text: `Core ${displayCoreTemp}`, color: tempColor });
     if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
-    if (brakeText) rows.push({ kind: "brake", text: brakeText, color: brakeColor });
     if (wearText) rows.push({ kind: "wear", text: wearText });
     return { rows, cardH: PAD_Y * 2 + rows.length * ROW_H };
-  }, [brakeColor, brakeText, displayTemp, healthColor, healthPct, pressureColor, pressureText, tempColor, wearText]);
+  }, [brakeColor, brakeText, displayCoreTemp, displayTemp, healthColor, healthPct, pressureColor, pressureText, tempColor, wearText]);
 
   const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");

@@ -18,6 +18,10 @@ export interface ChartData {
   tireTempFR: number[];
   tireTempRL: number[];
   tireTempRR: number[];
+  tireCoreTempFL?: number[];
+  tireCoreTempFR?: number[];
+  tireCoreTempRL?: number[];
+  tireCoreTempRR?: number[];
   drs?: number[];
   ersStore?: number[];
   ersDeployed?: number[];
@@ -54,16 +58,18 @@ if (Array.isArray(value)) {
 }
 return numeric(frame, id); }
 
-function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
+export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
   if (displayTelemetry.length === 0) return null;
   const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
   const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
+  const tireCoreTempFL: number[] = [], tireCoreTempFR: number[] = [], tireCoreTempRL: number[] = [], tireCoreTempRR: number[] = [];
   const times = displayTelemetry.map((p) => numeric(p, "timing.current-lap") ?? NaN);
   const firstTime = times[0];
   const maxTime = Math.max(...times.filter(Number.isFinite), firstTime);
   const lapDuration = maxTime - firstTime || 1;
-  const timeFracs = times.map((time, i) => (Number.isFinite(time) ? Math.max(i ? 0 : 0, (time - firstTime) / lapDuration) : NaN));
+  const timeFracs = times.map((time) => (Number.isFinite(time) ? (time - firstTime) / lapDuration : NaN));
   let hasBrakeTemp = false;
+  let hasCoreTemp = false;
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {
     speed.push(numeric(frame, "motion.speed") ?? NaN);
@@ -71,15 +77,19 @@ function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | 
     brake.push(numeric(frame, "inputs.brake") ?? NaN);
     rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
     steering.push(numeric(frame, "inputs.steer") ?? NaN);
-    tireTempFL.push(wheel(frame, "tire.temperature.average", 0) ?? NaN);
-    tireTempFR.push(wheel(frame, "tire.temperature.average", 1) ?? NaN);
-    tireTempRL.push(wheel(frame, "tire.temperature.average", 2) ?? NaN);
-    tireTempRR.push(wheel(frame, "tire.temperature.average", 3) ?? NaN);
-    const brakes = (["brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp", "brakes.brake-temp"] as const).map((id, i) => wheel(frame, id, i));
+    tireTempFL.push(wheel(frame, "tire.temperature.surface.representative", 0) ?? NaN);
+    tireTempFR.push(wheel(frame, "tire.temperature.surface.representative", 1) ?? NaN);
+    tireTempRL.push(wheel(frame, "tire.temperature.surface.representative", 2) ?? NaN);
+    tireTempRR.push(wheel(frame, "tire.temperature.surface.representative", 3) ?? NaN);
+    const core = [0, 1, 2, 3].map((index) => wheel(frame, "tire.temperature.core", index));
+    tireCoreTempFL.push(core[0] ?? NaN); tireCoreTempFR.push(core[1] ?? NaN); tireCoreTempRL.push(core[2] ?? NaN); tireCoreTempRR.push(core[3] ?? NaN);
+    if (core.some((value) => value != null)) hasCoreTemp = true;
+    const brakes = [0, 1, 2, 3].map((index) => wheel(frame, "brakes.brake-temp", index));
     brakeTempFL.push(brakes[0] ?? NaN); brakeTempFR.push(brakes[1] ?? NaN); brakeTempRL.push(brakes[2] ?? NaN); brakeTempRR.push(brakes[3] ?? NaN);
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
   return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
+    ...(hasCoreTemp ? { tireCoreTempFL, tireCoreTempFR, tireCoreTempRL, tireCoreTempRR } : {}),
     ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
 }
 
@@ -199,14 +209,26 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `Tire FL ${tempLabel}` },
-              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `Tire FR ${tempLabel}` },
-              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `Tire RL ${tempLabel}` },
-              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `Tire RR ${tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `Surface FL ${tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `Surface FR ${tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `Surface RL ${tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `Surface RR ${tempLabel}` },
             ]}
             {...common}
             height={80}
           />
+          {chartData.tireCoreTempFL && chartData.tireCoreTempFR && chartData.tireCoreTempRL && chartData.tireCoreTempRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.tireCoreTempFL, color: WHEEL_COLOR_VARS[0], label: `Core FL ${tempLabel}` },
+                { data: chartData.tireCoreTempFR, color: WHEEL_COLOR_VARS[1], label: `Core FR ${tempLabel}` },
+                { data: chartData.tireCoreTempRL, color: WHEEL_COLOR_VARS[2], label: `Core RL ${tempLabel}` },
+                { data: chartData.tireCoreTempRR, color: WHEEL_COLOR_VARS[3], label: `Core RR ${tempLabel}` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
           {chartData.brakeTempFL && chartData.brakeTempFR && chartData.brakeTempRL && chartData.brakeTempRR && (
             <TelemetryChart
               series={[
