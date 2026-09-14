@@ -7,6 +7,7 @@ import type { GameId } from "../../shared/games/ids";
 import type { LivePitData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
+import { buildChartData } from "../src/components/analyse/AnalyseChartsPanel";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
 import { AnalyseDataPanel, buildAnalyseClipboardText } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
@@ -676,6 +677,38 @@ describe("telemetry capability UI", () => {
         "RL: 60mm  RR: 80mm",
       ].join("\n"),
     );
+  });
+  test("treats ACC temperature as one core channel", () => {
+    const frame = semanticFrame({
+      ...f1ParityFrame.values,
+      "tire.temperature.surface.representative": undefined,
+      "tire.temperature.core": [81, 82, 83, 84],
+    });
+    const chartData = buildChartData([frame], "tire.temperature.core");
+    expect(chartData?.tireTempFL).toEqual([81]);
+    expect(chartData?.tireTempRR).toEqual([84]);
+    expect(chartData?.tireCoreTempFL).toBeUndefined();
+
+    const text = buildAnalyseClipboardText({ frame, gameId: "acc", units: parityUnits });
+    expect(text).toContain("--- Tire Temps ---\nFL: 81  FR: 82\nRL: 83  RR: 84");
+    expect(text).not.toContain("Surface Tire Temps");
+    expect(text).not.toContain("Core Tire Temps");
+
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(AnalyseTireWheelsPanel, {
+          frame,
+          gameId: "acc",
+          units: parityUnits,
+          wearRate: null,
+        }),
+      ),
+    );
+    expect(markup).toContain("81°C");
+    expect(markup).not.toContain(">Surface<");
+    expect(markup).not.toContain(">Core<");
   });
 
   test("keeps clipboard tire temperatures in the recorded main packet unit", () => {

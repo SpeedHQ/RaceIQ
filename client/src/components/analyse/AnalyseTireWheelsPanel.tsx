@@ -24,6 +24,11 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
   const binding = (metric: typeof analysis.tireTemperature) => metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
   const temp = binding(analysis.tireTemperature) ? resolveWheelMetric(frame, binding(analysis.tireTemperature)!) : [null, null, null, null];
   const coreTemp = values(frame, "tire.temperature.core");
+  const dualTemperature = analysis.tireTemperature.source !== "unavailable"
+    && analysis.tireTemperature.binding?.kind === "value"
+    && analysis.tireTemperature.binding.semanticId === "tire.temperature.surface.representative"
+    && temp.some((value) => value != null)
+    && coreTemp.some((value) => value != null);
   const health = binding(analysis.tireHealth) ? resolveWheelMetric(frame, binding(analysis.tireHealth)!) : [null, null, null, null];
   const speed = binding(analysis.wheelRotation) ? resolveWheelMetric(frame, binding(analysis.wheelRotation)!) : [null, null, null, null];
   const brake = values(frame, "brakes.brake-temp");
@@ -36,8 +41,8 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
   const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
   const rows = [
     { label: m.analyse_wheels_rotation_s(), fl: speed[0]?.toFixed(1) ?? unavailable, fr: speed[1]?.toFixed(1) ?? unavailable, rl: speed[2]?.toFixed(1) ?? unavailable, rr: speed[3]?.toFixed(1) ?? unavailable },
-    { label: coreTemp.some((value) => value != null) ? m.label_surface() : (pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp()), fl: tempCell(temp[0]), fr: tempCell(temp[1]), rl: tempCell(temp[2]), rr: tempCell(temp[3]) },
-    ...(coreTemp.some((value) => value != null) ? [{ label: m.label_core(), fl: tempCell(coreTemp[0]), fr: tempCell(coreTemp[1]), rl: tempCell(coreTemp[2]), rr: tempCell(coreTemp[3]) }] : []),
+    { label: dualTemperature ? m.label_surface() : (pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp()), fl: tempCell(temp[0]), fr: tempCell(temp[1]), rl: tempCell(temp[2]), rr: tempCell(temp[3]) },
+    ...(dualTemperature ? [{ label: m.label_core(), fl: tempCell(coreTemp[0]), fr: tempCell(coreTemp[1]), rl: tempCell(coreTemp[2]), rr: tempCell(coreTemp[3]) }] : []),
     { label: pitHealth ? m.analyse_wheels_pit_health() : m.analyse_wheels_health(), fl: health[0] == null ? unavailable : <span style={{ color: tireHealthColor(health[0], hThresholds) }}>{`${((1 - health[0]) * 100).toFixed(1)}%`}</span>, fr: health[1] == null ? unavailable : <span style={{ color: tireHealthColor(health[1], hThresholds) }}>{`${((1 - health[1]) * 100).toFixed(1)}%`}</span>, rl: health[2] == null ? unavailable : <span style={{ color: tireHealthColor(health[2], hThresholds) }}>{`${((1 - health[2]) * 100).toFixed(1)}%`}</span>, rr: health[3] == null ? unavailable : <span style={{ color: tireHealthColor(health[3], hThresholds) }}>{`${((1 - health[3]) * 100).toFixed(1)}%`}</span> },
     ...(analysis.tireWearRate.source !== "unavailable" ? [{ label: m.analyse_wheels_wear_s(), fl: <span style={{ color: wearRateColor(wearRate ? wearRate.FL * 100 : null) }}>{wearRate ? `${(wearRate.FL * 100).toFixed(3)}%` : "—"}</span>, fr: <span style={{ color: wearRateColor(wearRate ? wearRate.FR * 100 : null) }}>{wearRate ? `${(wearRate.FR * 100).toFixed(3)}%` : "—"}</span>, rl: <span style={{ color: wearRateColor(wearRate ? wearRate.RL * 100 : null) }}>{wearRate ? `${(wearRate.RL * 100).toFixed(3)}%` : "—"}</span>, rr: <span style={{ color: wearRateColor(wearRate ? wearRate.RR * 100 : null) }}>{wearRate ? `${(wearRate.RR * 100).toFixed(3)}%` : "—"}</span> }] : []),
     ...((brake[0] ?? 0) > 0 || (brake[1] ?? 0) > 0 ? [{ label: m.analyse_wheels_brake(), fl: brake[0] == null ? unavailable : <span style={{ color: brakeTempColor(brake[0], false) }}>{`${brake[0].toFixed(0)}°C`}</span>, fr: brake[1] == null ? unavailable : <span style={{ color: brakeTempColor(brake[1], false) }}>{`${brake[1].toFixed(0)}°C`}</span>, rl: brake[2] == null ? unavailable : <span style={{ color: brakeTempColor(brake[2], true) }}>{`${brake[2].toFixed(0)}°C`}</span>, rr: brake[3] == null ? unavailable : <span style={{ color: brakeTempColor(brake[3], true) }}>{`${brake[3].toFixed(0)}°C`}</span> }] : []),

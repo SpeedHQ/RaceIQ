@@ -26,11 +26,13 @@ describe("live telemetry semantics", () => {
       "tire.temperature.core",
     ]));
     expect(LIVE_GAME_SEMANTIC_IDS.acc).toEqual(expect.arrayContaining([
+      "tire.temperature.core",
+    ]));
+    expect(LIVE_GAME_SEMANTIC_IDS.acc).not.toEqual(expect.arrayContaining([
       "tire.temperature.surface.representative",
       "tire.temperature.surface.inner",
       "tire.temperature.surface.middle",
       "tire.temperature.surface.outer",
-      "tire.temperature.core",
     ]));
     expect(LIVE_GAME_SEMANTIC_IDS.iracing).toEqual(expect.arrayContaining([
       "tire.temperature.carcass.left",

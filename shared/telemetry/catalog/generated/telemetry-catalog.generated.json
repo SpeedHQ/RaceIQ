@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.16.0",
-      "sourceHash": "fbbcd3fe6746817a6828316218bc69cc45265e861a24850be31f674d7f4b0350"
+      "sourceHash": "65cc2f513e3fa549fa502c13ab4e33053b856c473314970f736efd7e61632a72"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
-      "server/games/acc/parser.ts": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0",
+      "server/games/acc/parser.ts": "2f9aeab3d9e05cf214ba03ddd118416533028b9b7245a695a029a371b9391e09",
       "server/games/f1-2025/f1-state.ts": "8ea01f7b5c8a170b3b6b88cfe7af2082177b29c0a23bc82dc03725db2f83f863",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "964171ea82f9d2a8a091191f2c60c2572ebb167885e8687328850fcc4c0a92a6"
+    "contentHash": "78b824aeae9fd545f4de51f1215ed30e3cd2ad6f8f6c6db5d23f8d4065e945b5"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -46771,29 +46771,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempInnerFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempInnerFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempInnerRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempInnerRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ACC reserves this shared-memory field but does not populate it."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -46847,29 +46827,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempMiddleFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempMiddleFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempMiddleRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempMiddleRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves middle surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -46923,29 +46883,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempOuterFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempOuterFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempOuterRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempOuterRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves outer surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -47054,29 +46994,9 @@
           "limitations": []
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature."
         },
         "ac-evo": {
           "kind": "direct",
@@ -49405,18 +49325,9 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": [
-            "acc.tireInnerTemp"
-          ],
-          "freshness": "continuous",
-          "description": "acc parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves inner surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -58673,7 +58584,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Tire Inner Temp source value reported by acc in °C.",
+        "description": "ACC reserves inner surface temperatures but does not populate them.",
         "semanticId": "tires.tire-inner-temp",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -58685,7 +58596,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Middle-band surface temp per tire (°C, FL/FR/RL/RR). Read from physics offsets 384-396. With inner/outer this gives the 3-point lateral temp profile the tire symptom module uses for a camber-direction recommendation.",
+        "description": "ACC reserves middle surface temperatures but does not populate them.",
         "semanticId": "tire.temperature.surface.middle",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -58697,7 +58608,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Tire Outer Temp source value reported by acc in °C.",
+        "description": "ACC reserves outer surface temperatures but does not populate them.",
         "semanticId": "tire.temperature.surface.outer",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,

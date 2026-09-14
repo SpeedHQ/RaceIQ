@@ -1,3 +1,6 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import type { GameId } from "../../../../shared/games/ids";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
@@ -38,6 +41,7 @@ export interface ChartsPanelHandle {
 }
 
 interface ChartsPanelProps {
+  gameId: GameId;
   displayTelemetry: SemanticAnalysisFrame[];
   totalPackets: number;
   visualTimeFrac: number | null;
@@ -58,7 +62,10 @@ if (Array.isArray(value)) {
 }
 return numeric(frame, id); }
 
-export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): ChartData | null {
+export function buildChartData(
+  displayTelemetry: SemanticAnalysisFrame[],
+  tireTemperatureSemanticId = "tire.temperature.surface.representative",
+): ChartData | null {
   if (displayTelemetry.length === 0) return null;
   const speed: number[] = [], throttle: number[] = [], brake: number[] = [], rpm: number[] = [], steering: number[] = [];
   const tireTempFL: number[] = [], tireTempFR: number[] = [], tireTempRL: number[] = [], tireTempRR: number[] = [];
@@ -70,6 +77,7 @@ export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): Chart
   const timeFracs = times.map((time) => (Number.isFinite(time) ? (time - firstTime) / lapDuration : NaN));
   let hasBrakeTemp = false;
   let hasCoreTemp = false;
+  let hasTireTemp = false;
   const brakeTempFL: number[] = [], brakeTempFR: number[] = [], brakeTempRL: number[] = [], brakeTempRR: number[] = [];
   for (const frame of displayTelemetry) {
     speed.push(numeric(frame, "motion.speed") ?? NaN);
@@ -77,10 +85,12 @@ export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): Chart
     brake.push(numeric(frame, "inputs.brake") ?? NaN);
     rpm.push(numeric(frame, "engine.current-engine-rpm") ?? NaN);
     steering.push(numeric(frame, "inputs.steer") ?? NaN);
-    tireTempFL.push(wheel(frame, "tire.temperature.surface.representative", 0) ?? NaN);
-    tireTempFR.push(wheel(frame, "tire.temperature.surface.representative", 1) ?? NaN);
-    tireTempRL.push(wheel(frame, "tire.temperature.surface.representative", 2) ?? NaN);
-    tireTempRR.push(wheel(frame, "tire.temperature.surface.representative", 3) ?? NaN);
+    const temperatures = [0, 1, 2, 3].map((index) => wheel(frame, tireTemperatureSemanticId, index));
+    tireTempFL.push(temperatures[0] ?? NaN);
+    tireTempFR.push(temperatures[1] ?? NaN);
+    tireTempRL.push(temperatures[2] ?? NaN);
+    tireTempRR.push(temperatures[3] ?? NaN);
+    if (temperatures.some((value) => value != null)) hasTireTemp = true;
     const core = [0, 1, 2, 3].map((index) => wheel(frame, "tire.temperature.core", index));
     tireCoreTempFL.push(core[0] ?? NaN); tireCoreTempFR.push(core[1] ?? NaN); tireCoreTempRL.push(core[2] ?? NaN); tireCoreTempRR.push(core[3] ?? NaN);
     if (core.some((value) => value != null)) hasCoreTemp = true;
@@ -89,16 +99,23 @@ export function buildChartData(displayTelemetry: SemanticAnalysisFrame[]): Chart
     if (brakes.some((value) => value != null)) hasBrakeTemp = true;
   }
   return { speed, throttle, brake, rpm, steering, timeFracs, times, tireTempFL, tireTempFR, tireTempRL, tireTempRR,
-    ...(hasCoreTemp ? { tireCoreTempFL, tireCoreTempFR, tireCoreTempRL, tireCoreTempRR } : {}),
+    ...(hasTireTemp && hasCoreTemp && tireTemperatureSemanticId === "tire.temperature.surface.representative" ? { tireCoreTempFL, tireCoreTempFR, tireCoreTempRL, tireCoreTempRR } : {}),
     ...(hasBrakeTemp ? { brakeTempFL, brakeTempFR, brakeTempRL, brakeTempRR } : {}) };
 }
 
 export const AnalyseChartsPanel = memo(
   forwardRef<ChartsPanelHandle, ChartsPanelProps>(function AnalyseChartsPanel(
-    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
+    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel, gameId },
     ref,
   ) {
-    const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
+    const temperatureMetric = resolveAnalysisTelemetry(getGame(gameId)).tireTemperature;
+    const tireTemperatureSemanticId = temperatureMetric.source !== "unavailable" && temperatureMetric.binding?.kind === "value"
+      ? temperatureMetric.binding.semanticId
+      : "tire.temperature.surface.representative";
+    const chartData = useMemo(
+      () => buildChartData(displayTelemetry, tireTemperatureSemanticId),
+      [displayTelemetry, tireTemperatureSemanticId],
+    );
     const scrollRef = useRef<HTMLDivElement>(null);
     const cursorOverlayRef = useRef<HTMLCanvasElement>(null);
 
@@ -209,10 +226,10 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `Surface FL ${tempLabel}` },
-              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `Surface FR ${tempLabel}` },
-              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `Surface RL ${tempLabel}` },
-              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `Surface RR ${tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL ? "Surface" : "Tire Temp"} FL ${tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR ? "Surface" : "Tire Temp"} FR ${tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL ? "Surface" : "Tire Temp"} RL ${tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR ? "Surface" : "Tire Temp"} RR ${tempLabel}` },
             ]}
             {...common}
             height={80}

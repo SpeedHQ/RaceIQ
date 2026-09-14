@@ -53,7 +53,7 @@ describe("semantic telemetry catalog", () => {
       normalization: "(fahrenheit - 32) * 5 / 9",
     });
     expect(surface.games["f1-2025"].kind).toBe("direct");
-    expect(surface.games.acc.kind).toBe("direct");
+    expect(surface.games.acc).toMatchObject({ kind: "unavailable", reason: "parser-placeholder" });
     expect(surface.games["ac-evo"].kind).toBe("direct");
     expect(surface.games.iracing.kind).toBe("unavailable");
 

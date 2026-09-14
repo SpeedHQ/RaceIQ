@@ -377,6 +377,18 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
 
 const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, UnavailableExtensionSource>>> = {
   acc: {
+    "acc.tireInnerTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves inner surface temperatures but does not populate them.",
+    },
+    "acc.tireMiddleTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves middle surface temperatures but does not populate them.",
+    },
+    "acc.tireOuterTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves outer surface temperatures but does not populate them.",
+    },
     "acc.brakePadCompound": {
       reason: "parser-placeholder",
       description: "ACC parser currently emits constant 0; shared-memory source is not wired.",

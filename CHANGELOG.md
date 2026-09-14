@@ -7,6 +7,7 @@
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 
 ### Fixes
+- Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.

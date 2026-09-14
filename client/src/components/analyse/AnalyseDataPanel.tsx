@@ -88,8 +88,16 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   const brake = value("inputs.brake");
   const steer = value("inputs.steer");
   const lock = getSteeringLock();
-  const temp = wheels(frame, "tire.temperature.surface.representative");
+  const temperatureMetric = game.telemetry.analysis?.tireTemperature;
+  const primaryTemperatureId = temperatureMetric?.source !== "unavailable" && temperatureMetric?.binding?.kind === "value"
+    ? temperatureMetric.binding.semanticId
+    : "tire.temperature.surface.representative";
+  const temp = wheels(frame, primaryTemperatureId);
+  const surfaceTemp = wheels(frame, "tire.temperature.surface.representative");
   const coreTemp = wheels(frame, "tire.temperature.core");
+  const dualTemperature = primaryTemperatureId === "tire.temperature.surface.representative"
+    && surfaceTemp.some((value) => value != null)
+    && coreTemp.some((value) => value != null);
   const wear = wheels(frame, "tires.tire-wear");
   const normalized = wheels(frame, "suspension.norm-suspension-travel");
   const millimeters = wheels(frame, "suspension.suspension-travel-m").map((entry) => entry == null ? null : entry * 1000);
@@ -108,8 +116,8 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}`);
   lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(value("motion.acceleration-x") == null ? null : -value("motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(value("motion.acceleration-z") == null ? null : -value("motion.acceleration-z")! / 9.81, 2)}g`);
   const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
-  if (coreTemp.some((value) => value != null)) {
-    lines.push("", "--- Surface Tire Temps ---", `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);
+  if (dualTemperature) {
+    lines.push("", "--- Surface Tire Temps ---", `FL: ${surfaceTemp[0] == null ? "Unavailable" : surfaceTemp[0].toFixed(0)}  FR: ${surfaceTemp[1] == null ? "Unavailable" : surfaceTemp[1].toFixed(0)}`, `RL: ${surfaceTemp[2] == null ? "Unavailable" : surfaceTemp[2].toFixed(0)}  RR: ${surfaceTemp[3] == null ? "Unavailable" : surfaceTemp[3].toFixed(0)}`);
     lines.push("", "--- Core Tire Temps ---", `FL: ${coreTemp[0] == null ? "Unavailable" : coreTemp[0].toFixed(0)}  FR: ${coreTemp[1] == null ? "Unavailable" : coreTemp[1].toFixed(0)}`, `RL: ${coreTemp[2] == null ? "Unavailable" : coreTemp[2].toFixed(0)}  RR: ${coreTemp[3] == null ? "Unavailable" : coreTemp[3].toFixed(0)}`);
   } else {
     lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} ---`, `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);

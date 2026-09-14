@@ -80,6 +80,14 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
   acc: {
     DrivetrainType:
       "ACC parser assumes rear-wheel drive rather than reading drivetrain from shared memory.",
+    TireTemp:
+      "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature.",
+    TireSurfaceTempInner:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempMiddle:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempOuter:
+      "ACC reserves this shared-memory field but does not populate it.",
   },
   "ac-evo": {
     DrivetrainType:

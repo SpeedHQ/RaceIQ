@@ -110,7 +110,7 @@ describe("ACC parser", () => {
     expect(packet!.acc!.brakeBias).toBeCloseTo(0.58);
   });
 
-  test("parseAccBuffers maps tire temps correctly", () => {
+  test("maps ACC core temperature without relabeling reserved bands", () => {
     const packet = parseAccBuffers(makePhysicsBuf(), makeGraphicsBuf(), makeStaticBuf());
 
     expect(packet!.TireTempFL).toBeCloseTo(85.0);
@@ -118,9 +118,6 @@ describe("ACC parser", () => {
     expect(packet!.TireTempRL).toBeCloseTo(90.0);
     expect(packet!.TireTempRR).toBeCloseTo(91.0);
     expect(packet!.TireCarcassTempFL).toBeCloseTo(85.0);
-    expect(packet!.TireSurfaceTempInnerFL).toBeCloseTo(84.0);
-    expect(packet!.TireSurfaceTempMiddleFL).toBeCloseTo(85.0);
-    expect(packet!.TireSurfaceTempOuterFL).toBeCloseTo(86.0);
   });
 
   test("parseAccBuffers maps tire pressures correctly", () => {

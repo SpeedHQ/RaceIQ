@@ -455,6 +455,7 @@ function LapAnalyseInner() {
             onScrubStart: handleScrubStart,
             speedLabel: units.speedLabel,
             tempLabel: units.tempLabel,
+            gameId,
           }}
           chartsPanelRef={chartsPanelRef}
           displayTelemetryLength={semanticFrames.length}
