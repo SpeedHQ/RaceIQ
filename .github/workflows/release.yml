@@ -30,10 +30,7 @@ jobs:
   # --- Triggered by manual dispatch: compute version, build, create draft ---
   compute-version:
     if: github.event_name == 'workflow_dispatch'
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -55,10 +52,7 @@ jobs:
   build:
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
 
@@ -187,10 +181,7 @@ jobs:
   draft-release:
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
     needs: [compute-version, build, playwright-test]
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -220,10 +211,7 @@ jobs:
   # --- Triggered when draft is published: commit version bump + tag ---
   finalize:
     if: github.event_name == 'release'
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
         with:

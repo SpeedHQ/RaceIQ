@@ -14,10 +14,7 @@ concurrency:
 
 jobs:
   update-readme:
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     permissions:
       contents: write
 

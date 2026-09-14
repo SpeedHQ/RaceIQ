@@ -24,10 +24,7 @@ concurrency:
 
 jobs:
   replay:
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
 

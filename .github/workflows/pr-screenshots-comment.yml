@@ -27,10 +27,7 @@ jobs:
       github.event.workflow_run.event == 'workflow_dispatch' ||
       github.event.workflow_run.event == 'pull_request' ||
       github.event.workflow_run.event == 'workflow_call'
-    runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+    runs-on: mars-windows-x64-4vcpu-15g
     permissions:
       contents: write
       pull-requests: write

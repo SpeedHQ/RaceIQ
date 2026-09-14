@@ -35,10 +35,7 @@ permissions:
 
 jobs:
   render:
-    runs-on:
-      - mars-any
-      - 4VCPU
-      - 15G
+    runs-on: mars-any-4vcpu-15g
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
