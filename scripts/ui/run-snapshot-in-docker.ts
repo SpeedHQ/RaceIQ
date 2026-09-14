@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 const repoRoot = resolve(import.meta.dir, "../..");
 const update = process.argv.includes("--update");
 const image = "mcr.microsoft.com/playwright:v1.62.0-jammy";
-const command = update ? "bun run snapshot" : "bun run snapshot:test";
+const command = update ? "bun run snapshot:update" : "bun run snapshot:test";
 const bootstrap = [
   "set -euo pipefail",
   "export HOME=/tmp",

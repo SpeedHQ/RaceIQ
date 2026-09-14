@@ -1,5 +1,6 @@
 # Explicit DB-free unit tests
 test/archive/bounded-unzip.test.ts
+test/client/analyse-chart-data.test.ts
 test/client/compare-segment-key.test.ts
 test/client/parse-lap-time.test.ts
 test/client/speed.test.ts
@@ -60,6 +61,8 @@ test/client/wireframe-utils.test.ts
 test/games/ac-evo/ac-evo-car-data.test.ts
 test/games/acc/acc-shared-memory.test.ts
 test/games/f1-2025/f1-telemetry-contract.test.ts
+test/games/kunos/recording-mode-pipeline.test.ts
+test/games/kunos/triplet-assembler.test.ts
 test/runtime/runtime-options.test.ts
 test/runtime/tray.test.ts
 test/telemetry/analysis-metric-values.test.ts

@@ -10,7 +10,7 @@ import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
 import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
 import { getAccCarName } from "../../../shared/racing/cars/acc"
-import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
+import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -79,6 +79,67 @@ function makeStaticBuf(overrides: { carModel?: string; track?: string; maxRpm?: 
   buf.writeFloatLE(overrides.maxFuel ?? 120, STATIC.maxFuel.offset);
   return buf;
 }
+
+function frameAccTriplet(overrides: {
+  currentLapMs: number;
+  lastLapMs: number;
+  completedLaps?: number;
+}): Buffer {
+  const triplet = packTriplet(
+    ACC_PACKED_MAGIC,
+    0,
+    0,
+    makePhysicsBuf({}),
+    makeGraphicsBuf({
+      iCurrentTime: overrides.currentLapMs,
+      iLastTime: overrides.lastLapMs,
+      completedLaps: overrides.completedLaps ?? 3,
+    }),
+    makeStaticBuf(),
+  );
+  const frame = Buffer.alloc(4 + triplet.length);
+  frame.writeUInt32LE(triplet.length, 0);
+  triplet.copy(frame, 4);
+  return frame;
+}
+
+describe("parseRawLapFrames — delayed ACC finish", () => {
+  test("does not append stale LastLap from boundary frame", () => {
+    const raw = Buffer.concat([
+      frameAccTriplet({ currentLapMs: 89522, lastLapMs: 97200 }),
+      frameAccTriplet({ currentLapMs: 2, lastLapMs: 97200 }),
+    ]);
+
+    const packets = parseRawLapFramesFromBuffer(raw, 0, 1, "acc");
+
+    expect(packets).toHaveLength(1);
+    expect(packets[0]!.CurrentLap).toBeCloseTo(89.522);
+  });
+
+  test("appends fresh LastLap from boundary frame even when faster", () => {
+    const raw = Buffer.concat([
+      frameAccTriplet({ currentLapMs: 89522, lastLapMs: 97200 }),
+      frameAccTriplet({ currentLapMs: 2, lastLapMs: 89540 }),
+    ]);
+
+    const packets = parseRawLapFramesFromBuffer(raw, 0, 1, "acc");
+
+    expect(packets).toHaveLength(2);
+    expect(packets[1]!.CurrentLap).toBeCloseTo(89.54);
+  });
+
+  test("appends tied LastLap when boundary advances the lap number", () => {
+    const raw = Buffer.concat([
+      frameAccTriplet({ currentLapMs: 89522, lastLapMs: 89540, completedLaps: 3 }),
+      frameAccTriplet({ currentLapMs: 2, lastLapMs: 89540, completedLaps: 4 }),
+    ]);
+
+    const packets = parseRawLapFramesFromBuffer(raw, 0, 1, "acc");
+
+    expect(packets).toHaveLength(2);
+    expect(packets[1]!.CurrentLap).toBeCloseTo(89.54);
+  });
+});
 
 describe("ACC parser", () => {
   test("parseAccBuffers returns a valid TelemetryPacket", () => {
