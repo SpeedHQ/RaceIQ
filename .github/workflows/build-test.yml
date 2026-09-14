@@ -24,7 +24,9 @@ jobs:
     # Always retain compiled dist for downstream E2E diagnostics and reruns.
     # Upload step uses always() so failures before or during tests do not skip it.
     # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
-    runs-on: mars-windows-x64-10vcpu-15g
+    runs-on:
+      - mars-windows-x64-10vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
 
     steps:
       - uses: actions/checkout@v7

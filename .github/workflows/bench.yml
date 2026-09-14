@@ -15,7 +15,9 @@ concurrency:
 
 jobs:
   bench:
-    runs-on: mars-windows-x64-4vcpu-15g
+    runs-on:
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     defaults:
       run:
         shell: powershell

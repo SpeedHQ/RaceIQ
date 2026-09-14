@@ -12,7 +12,7 @@ on:
         description: "Runner label; Windows is required for compiled native binary"
         required: false
         type: string
-        default: '["mars-windows-x64-4vcpu-10g"]'
+        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
