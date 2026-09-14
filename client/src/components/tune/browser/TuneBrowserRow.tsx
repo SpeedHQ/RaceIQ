@@ -3,6 +3,7 @@ import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constan
 import { TD, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
+import { useSettings } from "../../../hooks/settings";
 import type { TuneRow } from "./types";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.
@@ -23,12 +24,14 @@ export interface TuneBrowserRowProps {
   onDelete?: (row: TuneRow) => void;
   onDuplicate?: (row: TuneRow) => void;
   isDuplicating?: boolean;
-  renderSettings: (row: TuneRow) => ReactNode;
+  renderSettings: (row: TuneRow, unit: "metric" | "imperial") => ReactNode;
   /** Read-only mode hides the per-row owner/clone actions. */
   readOnly?: boolean;
 }
 
 export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete, onDuplicate, isDuplicating, renderSettings, readOnly }: TuneBrowserRowProps) {
+  const { displaySettings } = useSettings();
+  const displayUnit: "metric" | "imperial" = displaySettings.unit === "imperial" ? "imperial" : "metric";
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
@@ -84,7 +87,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
           <TD colSpan={8} tone="primary">
             <div className="px-1 pb-2 pt-1 @3xl/workspace:px-8">
               {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
-              {renderSettings(row)}
+              {renderSettings(row, displayUnit)}
               {!readOnly && (
                 <div className="mt-3.5 flex flex-wrap gap-2">
                   {isUser ? (

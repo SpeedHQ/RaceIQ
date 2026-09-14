@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <style>
+      .grid-line { stroke: rgba(100,116,139,0.15); stroke-width: 1; }
+      .axis-text { font-family: monospace; font-size: 11px; fill: #64748b; }
+      .label-text { font-family: monospace; font-size: 12px; fill: #94a3b8; }
+      .title-text { font-family: monospace; font-size: 13px; fill: #cbd5e1; font-weight: bold; }
+      .power-line { fill: none; stroke: #22d3ee; stroke-width: 2.5; }
+      .torque-line { fill: none; stroke: #a855f7; stroke-width: 2; stroke-dasharray: 5,4; }
+      .redline { fill: none; stroke: #22c55e; stroke-width: 1; stroke-dasharray: 3,3; }
+      .peak-marker { r: 4; }
+      .band-label { font-family: monospace; font-size: 11px; fill: rgba(250,204,21,0.9); font-weight: bold; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="400" fill="#0f172a" />
+  <rect x="60" y="20" width="680" height="340" fill="rgba(255,255,255,0.03)" />
+  <rect x="461.4" y="20" width="170.0" height="340" fill="rgba(250,204,21,0.12)" />
+  <line class="grid-line" x1="60.0" y1="20" x2="60.0" y2="360" />
+  <text class="axis-text" x="60.0" y="378" text-anchor="middle">1k</text>
+  <line class="grid-line" x1="196.0" y1="20" x2="196.0" y2="360" />
+  <text class="axis-text" x="196.0" y="378" text-anchor="middle">2k</text>
+  <line class="grid-line" x1="332.0" y1="20" x2="332.0" y2="360" />
+  <text class="axis-text" x="332.0" y="378" text-anchor="middle">4k</text>
+  <line class="grid-line" x1="468.0" y1="20" x2="468.0" y2="360" />
+  <text class="axis-text" x="468.0" y="378" text-anchor="middle">5k</text>
+  <line class="grid-line" x1="604.0" y1="20" x2="604.0" y2="360" />
+  <text class="axis-text" x="604.0" y="378" text-anchor="middle">7k</text>
+  <line class="grid-line" x1="740.0" y1="20" x2="740.0" y2="360" />
+  <text class="axis-text" x="740.0" y="378" text-anchor="middle">8k</text>
+  <line class="grid-line" x1="60" y1="360.0" x2="740" y2="360.0" />
+  <text class="axis-text" x="52" y="360.0" text-anchor="end" dominant-baseline="middle">0</text>
+  <line class="grid-line" x1="60" y1="190.0" x2="740" y2="190.0" />
+  <text class="axis-text" x="52" y="190.0" text-anchor="end" dominant-baseline="middle">95</text>
+  <line class="grid-line" x1="60" y1="20.0" x2="740" y2="20.0" />
+  <text class="axis-text" x="52" y="20.0" text-anchor="end" dominant-baseline="middle">189</text>
+  <text class="axis-text" x="748" y="360.0" text-anchor="start" dominant-baseline="middle">0</text>
+  <text class="axis-text" x="748" y="190.0" text-anchor="start" dominant-baseline="middle">107</text>
+  <text class="axis-text" x="748" y="20.0" text-anchor="start" dominant-baseline="middle">214</text>
+  <text class="label-text" x="400" y="394" text-anchor="middle">RPM ×1000</text>
+  <text class="label-text" x="12" y="190" text-anchor="middle" transform="rotate(-90, 12, 190)">HP</text>
+  <text class="label-text" x="788" y="190" text-anchor="middle" transform="rotate(90, 788, 190)">Nm</text>
+  <line class="redline" x1="740.0" y1="20" x2="740.0" y2="360" />
+  <path class="power-line" d="M45.8,359.1 L55.3,355.9 L64.7,353.0 L74.2,346.3 L83.6,340.8 L93.1,336.8 L102.5,331.2 L111.9,327.9 L121.4,325.8 L130.8,321.1 L140.3,313.5 L149.7,311.8 L159.2,303.3 L168.6,293.3 L178.1,284.1 L187.5,275.4 L196.9,263.9 L206.4,256.7 L215.8,251.6 L225.3,246.1 L234.7,241.0 L244.2,235.7 L253.6,230.8 L263.1,225.9 L272.5,221.2 L281.9,216.7 L291.4,212.4 L300.8,208.0 L310.3,203.6 L319.7,198.8 L329.2,193.1 L338.6,186.7 L348.1,179.9 L357.5,172.1 L366.9,164.6 L376.4,156.6 L385.8,149.1 L395.3,141.5 L404.7,135.0 L414.2,128.7 L423.6,122.7 L433.1,116.9 L442.5,111.4 L451.9,105.9 L461.4,100.4 L470.8,95.4 L480.3,90.9 L489.7,86.1 L499.2,81.7 L508.6,77.3 L518.1,74.2 L527.5,70.1 L536.9,66.3 L546.4,62.3 L555.8,58.6 L565.3,54.0 L574.7,50.3 L584.2,46.7 L593.6,43.5 L603.1,40.5 L612.5,38.3 L621.9,36.8 L631.4,36.2 L640.8,36.5 L650.3,37.4 L659.7,38.6 L669.2,39.9 L678.6,41.5 L688.1,43.8 L697.5,45.8 L706.9,46.8 L716.4,48.2" />
+  <path class="torque-line" d="M45.8,353.5 L55.3,332.5 L64.7,315.3 L74.2,278.7 L83.6,249.6 L93.1,232.0 L102.5,212.4 L111.9,206.6 L121.4,208.9 L130.8,201.2 L140.3,180.6 L149.7,185.8 L159.2,166.1 L168.6,146.1 L178.1,128.7 L187.5,114.6 L196.9,91.5 L206.4,83.5 L215.8,81.5 L225.3,78.9 L234.7,77.3 L244.2,75.5 L253.6,74.7 L263.1,73.7 L272.5,73.4 L281.9,73.4 L291.4,73.9 L300.8,74.1 L310.3,74.4 L319.7,74.0 L329.2,72.1 L338.6,69.0 L348.1,65.5 L357.5,60.6 L366.9,56.3 L376.4,51.5 L385.8,47.6 L395.3,43.8 L404.7,41.7 L414.2,39.8 L423.6,38.6 L433.1,37.6 L442.5,37.2 L451.9,36.6 L461.4,36.2 L470.8,36.4 L480.3,37.1 L489.7,37.6 L499.2,38.4 L508.6,39.1 L518.1,41.3 L527.5,42.4 L536.9,43.8 L546.4,44.8 L555.8,46.3 L565.3,46.7 L574.7,47.9 L584.2,49.3 L593.6,50.9 L603.1,52.8 L612.5,55.3 L621.9,58.4 L631.4,62.2 L640.8,66.8 L650.3,71.8 L659.7,76.9 L669.2,82.0 L678.6,87.1 L688.1,92.6 L697.5,97.7 L706.9,100.2 L716.4,103.0" />
+  <text class="title-text" x="64" y="34" fill="#22d3ee">Power</text>
+  <text class="title-text" x="110" y="34" fill="#a855f7">Torque</text>
+  <circle class="peak-marker" cx="631.4" cy="36.2" fill="#22d3ee" />
+  <rect x="584.4" y="14.2" width="94" height="18" rx="4" fill="rgba(0,0,0,0.6)" />
+  <text class="axis-text" x="631.4" y="27.2" text-anchor="middle" fill="#22d3ee" font-weight="bold" font-size="10px">P 180 @ 6850</text>
+  <circle class="peak-marker" cx="461.4" cy="36.2" fill="#a855f7" />
+  <rect x="414.4" y="14.2" width="94" height="18" rx="4" fill="rgba(0,0,0,0.6)" />
+  <text class="axis-text" x="461.4" y="27.2" text-anchor="middle" fill="#a855f7" font-weight="bold" font-size="10px">T 204 @ 5050</text>
+  <line stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="2,2" x1="579.2" y1="20" x2="579.2" y2="360" />
+  <rect x="532.2" y="336.0" width="94" height="18" rx="4" fill="rgba(0,0,0,0.6)" />
+  <text class="axis-text" x="579.2" y="349.0" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-weight="bold" font-size="10px">cross @ 6298</text>
+  <text class="band-label" x="546.4" y="34" text-anchor="middle">POWER BAND</text>
+  <rect x="60" y="20" width="680" height="340" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+  <text class="title-text" x="400" y="14" text-anchor="middle">Power Band</text>
+  <text class="axis-text" x="60" y="408" text-anchor="start">Samples: 20403</text>
+  <text class="axis-text" x="220" y="408" text-anchor="start">Power curve: 72 pts</text>
+  <text class="axis-text" x="400" y="408" text-anchor="start">Torque curve: 72 pts</text>
+</svg>

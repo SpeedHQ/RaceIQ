@@ -113,6 +113,7 @@
   --telemetry-ers-mode-overtake: var(--color-red-400);
   --telemetry-power: var(--color-orange-400);
   --telemetry-torque: var(--color-amber-400);
+  --telemetry-power-band: var(--color-yellow-400);
   --metric-tire-temperature: var(--color-emerald-400);
   --metric-brake-temperature: var(--color-orange-400);
   --metric-pressure: var(--color-cyan-400);
@@ -191,6 +192,16 @@
   --wheel-fr: var(--color-pink-400);
   --wheel-rl: var(--color-yellow-400);
   --wheel-rr: var(--color-emerald-400);
+
+  /* Gear identity: ratio sawtooth and track-speed traces share one palette. */
+  --telemetry-gear-1: var(--color-cyan-400);
+  --telemetry-gear-2: var(--color-purple-500);
+  --telemetry-gear-3: var(--color-amber-400);
+  --telemetry-gear-4: var(--color-emerald-400);
+  --telemetry-gear-5: var(--color-pink-400);
+  --telemetry-gear-6: var(--color-blue-400);
+  --telemetry-gear-7: var(--color-orange-400);
+  --telemetry-gear-8: var(--color-neutral-400);
 
   /* Track-map identities. */
   --track-start: var(--color-emerald-500);

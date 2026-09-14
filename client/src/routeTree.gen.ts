@@ -55,6 +55,7 @@ import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
 import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
+import { Route as Fm23LiveGearingRouteImport } from './routes/fm23/live/gearing'
 import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
@@ -299,6 +300,11 @@ const Fm23LiveDriverRoute = Fm23LiveDriverRouteImport.update({
   path: '/driver',
   getParentRoute: () => Fm23LiveRoute,
 } as any)
+const Fm23LiveGearingRoute = Fm23LiveGearingRouteImport.update({
+  id: '/gearing',
+  path: '/gearing',
+  getParentRoute: () => Fm23LiveRoute,
+} as any)
 const Fm23LivePitRoute = Fm23LivePitRouteImport.update({
   id: '/pit',
   path: '/pit',
@@ -404,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
+  '/fm23/live/gearing': typeof Fm23LiveGearingRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
+  '/fm23/live/gearing': typeof Fm23LiveGearingRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
@@ -513,6 +521,7 @@ export interface FileRoutesById {
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
+  '/fm23/live/gearing': typeof Fm23LiveGearingRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/acc/setups/new'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
+    | '/fm23/live/gearing'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
@@ -623,6 +633,7 @@ export interface FileRouteTypes {
     | '/acc/setups/new'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
+    | '/fm23/live/gearing'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
@@ -683,6 +694,7 @@ export interface FileRouteTypes {
     | '/acc/setups/new'
     | '/fm23/cars_/$carOrdinal'
     | '/fm23/live/driver'
+    | '/fm23/live/gearing'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
@@ -1042,6 +1054,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23LiveDriverRouteImport
       parentRoute: typeof Fm23LiveRoute
     }
+    '/fm23/live/gearing': {
+      id: '/fm23/live/gearing'
+      path: '/gearing'
+      fullPath: '/fm23/live/gearing'
+      preLoaderRoute: typeof Fm23LiveGearingRouteImport
+      parentRoute: typeof Fm23LiveRoute
+    }
     '/fm23/live/pit': {
       id: '/fm23/live/pit'
       path: '/pit'
@@ -1288,11 +1307,13 @@ const F125RouteWithChildren = F125Route._addFileChildren(F125RouteChildren)
 
 interface Fm23LiveRouteChildren {
   Fm23LiveDriverRoute: typeof Fm23LiveDriverRoute
+  Fm23LiveGearingRoute: typeof Fm23LiveGearingRoute
   Fm23LivePitRoute: typeof Fm23LivePitRoute
 }
 
 const Fm23LiveRouteChildren: Fm23LiveRouteChildren = {
   Fm23LiveDriverRoute: Fm23LiveDriverRoute,
+  Fm23LiveGearingRoute: Fm23LiveGearingRoute,
   Fm23LivePitRoute: Fm23LivePitRoute,
 }
 

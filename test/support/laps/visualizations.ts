@@ -2,6 +2,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { generateLapSvg, generateRawSvg } from "./svg";
+import { generatePowerbandSvg } from "../../helpers/powerband-svg";
 
 const OUTPUT_DIR = "test/e2e/output";
 
@@ -41,4 +42,19 @@ export function generateRecordingVisualizations(
     };
     generateLapSvg(lap.packets, lap.lapNumber, outputDir, undefined, meta);
   }
+}
+
+/**
+ * Generate a powerband SVG visualization for a recording.
+ *
+ * Output goes to `test/e2e/output/<recording-basename>/powerband.svg`.
+ * Directory is created if missing.
+ */
+export function generatePowerbandVisualization(
+  recordingFile: string,
+  rawPackets: TelemetryPacket[]
+): void {
+  const outputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin(\.gz)?$/, ""));
+  mkdirSync(outputDir, { recursive: true });
+  generatePowerbandSvg(rawPackets, outputDir);
 }

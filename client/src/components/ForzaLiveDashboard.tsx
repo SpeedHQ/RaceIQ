@@ -41,6 +41,19 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
         >
           {m.label_pit_crew()}
         </Link>
+        <Link
+          to={
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            `${prefix}/live/gearing` as any
+          }
+          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${
+            dashMode === "gearing"
+              ? "bg-app-accent/20 text-app-accent"
+              : "text-app-text-muted hover:text-app-text"
+          }`}
+        >
+          Gearing
+        </Link>
       </div>
       {import.meta.env.DEV && (
         <Button
@@ -94,6 +107,30 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
         {/* Right column: Race (with sectors) + Lap Chart + Recorded Laps */}
         <div data-live-dashboard-race className="min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
+          <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+          <div className="shrink-0 h-[240px]">
+            <LapTimeChart sessionLaps={sessionLaps} />
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <RecordedLaps laps={sessionLaps} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── GEARING MODE ─────────────────────────────────────────────
+  if (mode === "gearing") {
+    return (
+      <div className="flex-1 grid grid-cols-1 @5xl/workspace:grid-cols-2 gap-0 h-full">
+        {/* Left column: Gearing telemetry */}
+        <div className="border-r border-app-border overflow-auto">
+          <PageHeader dashMode={mode} demo={demo} />
+          <LiveTelemetry view={view} mode={mode} />
+        </div>
+
+        {/* Right column: Race HUD + laps */}
+        <div className="overflow-y-auto overflow-x-hidden flex flex-col">
           <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
           <div className="shrink-0 h-[240px]">
             <LapTimeChart sessionLaps={sessionLaps} />

@@ -1,0 +1,612 @@
+import { CopyIcon, PencilIcon } from "lucide-react";
+import type { TuneSettings } from "@shared/racing/tuning/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCreateTune, useDuplicateTune, useUpdateTune, useUserTunes } from "../../hooks/tunes";
+import { GEAR_COLORS } from "../../lib/colors";
+import type { GearingSample } from "../../lib/gearing-telemetry";
+import { ceilTo, findPeakRpm, kphToSpeedUnit, setupSpeedAtRpm, speedUnitFactor, speedUnitToKph, tireCircumferenceM } from "../../lib/gearing-ratios";
+import { m } from "../../paraglide/messages";
+import { defaultTuneSettings } from "../tune/form/defaults";
+import { AppInput } from "../ui/AppInput";
+import { Button } from "../ui/button";
+import { SearchSelect } from "../ui/SearchSelect";
+
+interface Props {
+  packet: GearingSample | null;
+  powerCurve: { rpm: number; powerW: number }[];
+  /** Car spec top speed in the user's unit (0 = unknown) — fallback V_top and axis bound. */
+  targetMaxSpeed: number;
+  speedLabel: string;
+  /** RPM where the power band's power/torque curves cross (null = unknown). */
+  crossRpm?: number | null;
+}
+
+interface RatioRow {
+  id: number;
+  value: number;
+}
+
+interface GearingDraft {
+  finalDrive: number;
+  ratios: RatioRow[];
+  /** The setup's top speed in km/h — unit-independent so drafts survive unit switches. */
+  topSpeedKph: number;
+}
+
+interface CarTune {
+  id: number;
+  name: string;
+  settings: TuneSettings;
+  gearing: GearingDraft;
+}
+
+/** Monotonic ids for ratio rows — stable React keys, never renumbered. */
+let nextRatioId = 1;
+
+/** Extract the gearing part of a stored setup; null when the shape doesn't fit. */
+function gearingOf(settings: unknown): GearingDraft | null {
+  if (!settings || typeof settings !== "object" || !("gearing" in settings)) return null;
+  const g = settings.gearing;
+  if (!g || typeof g !== "object" || !("finalDrive" in g)) return null;
+  const finalDrive = g.finalDrive;
+  if (typeof finalDrive !== "number" || !Number.isFinite(finalDrive) || finalDrive <= 0) return null;
+  const ratiosRaw = "ratios" in g ? g.ratios : undefined;
+  const ratios = Array.isArray(ratiosRaw) ? ratiosRaw.filter((r): r is number => typeof r === "number" && Number.isFinite(r) && r > 0).map((value) => ({ id: nextRatioId++, value })) : [];
+  const storedTopSpeed = "topSpeedKph" in g ? g.topSpeedKph : undefined;
+  const topSpeedKph = typeof storedTopSpeed === "number" && Number.isFinite(storedTopSpeed) && storedTopSpeed > 0 ? storedTopSpeed : 0;
+  return { finalDrive, ratios, topSpeedKph };
+}
+
+/** Saved power band (RPM) stored in a tune's gearing — null when absent or invalid. */
+function savedBandOf(tune: CarTune | null): { min: number; max: number } | null {
+  const lo = tune?.settings.gearing.powerBandMinRpm;
+  const hi = tune?.settings.gearing.powerBandMaxRpm;
+  return typeof lo === "number" && typeof hi === "number" && lo > 0 && hi > lo ? { min: lo, max: hi } : null;
+}
+
+/**
+ * Gear Ratio Chart of the user's setup: loads the current car's tune, shows
+ * its gearing (final drive + gear ratios), draws the speed-per-gear sawtooth
+ * chart derived from the setup's stored top speed, and saves edits back.
+ * The power band range (cross → peak power RPM) and redline come from the
+ * live dyno, or from the band saved with the tune (Live/Saved toggle).
+ */
+export function GearRatioCharts({ packet, powerCurve, targetMaxSpeed, speedLabel, crossRpm = null }: Props) {
+  const { data: tunes = [], isPending: tunesLoading } = useUserTunes(packet?.gameId);
+  const updateTune = useUpdateTune();
+  const renameTune = useUpdateTune();
+  const createTune = useCreateTune();
+  const duplicateTune = useDuplicateTune();
+
+  const carTunes = useMemo<CarTune[]>(() => {
+    return (tunes as { id: number; name: string; carOrdinal: number; settings: unknown }[])
+      .filter((t) => t.carOrdinal === (packet?.CarOrdinal ?? -1))
+      .map((t) => ({ id: t.id, name: t.name, settings: t.settings as TuneSettings, gearing: gearingOf(t.settings) }))
+      .filter((t): t is CarTune => t.gearing !== null);
+  }, [tunes, packet?.CarOrdinal]);
+  const setupOptions = useMemo(() => carTunes.map((t) => ({ value: String(t.id), label: t.name })), [carTunes]);
+
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // A freshly created/duplicated tune id waiting for the tunes refetch to
+  // include it — selected (instead of the first tune) once it shows up.
+  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<GearingDraft | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  // Which power band the chart draws — and what Save captures into the tune.
+  const [bandMode, setBandMode] = useState<"live" | "saved">("live");
+  const redlineRpm = packet && packet.EngineMaxRpm > 0 ? packet.EngineMaxRpm : 8000;
+  const userFactor = speedUnitFactor(speedLabel === "mph" ? "mph" : "km/h");
+  // The setup's top speed in km/h: stored topSpeedKph, else car spec. The car
+  // spec arrives in the user's unit and is normalised to kph so the draft is
+  // unit-independent and survives display-unit switches without corrupting.
+  const fallbackTopSpeedKph = targetMaxSpeed > 0 ? speedUnitToKph(targetMaxSpeed, userFactor) : 0;
+  const draftTopSpeedKph = useCallback((tune: CarTune): number => (tune.gearing.topSpeedKph > 0 ? tune.gearing.topSpeedKph : fallbackTopSpeedKph), [fallbackTopSpeedKph]);
+
+  // Auto-select the first tune of the car (and reset when the car changes).
+  // A pending created/duplicated tune is selected as soon as the refetched
+  // list contains it; until then don't fall back to the first tune.
+  const activeTune = carTunes.find((t) => t.id === selectedId) ?? null;
+  const selectTune = useCallback(
+    (id: number) => {
+      const tune = carTunes.find((t) => t.id === id);
+      if (!tune) return;
+      setSelectedId(id);
+      setBandMode(savedBandOf(tune) ? "saved" : "live");
+      setDraft({ ...tune.gearing, ratios: [...tune.gearing.ratios], topSpeedKph: draftTopSpeedKph(tune) });
+    },
+    [carTunes, draftTopSpeedKph],
+  );
+  useEffect(() => {
+    if (pendingId != null) {
+      if (carTunes.some((t) => t.id === pendingId)) {
+        const id = pendingId;
+        setPendingId(null);
+        selectTune(id);
+      }
+      return;
+    }
+    if (activeTune) return;
+    if (carTunes.length > 0) {
+      selectTune(carTunes[0].id);
+    } else {
+      setSelectedId(null);
+      setDraft(null);
+    }
+  }, [carTunes, activeTune, pendingId, selectTune]);
+
+  const touchGearing = useCallback((next: GearingDraft) => {
+    setDraft(next);
+    setSaveStatus("idle");
+  }, []);
+
+  const updateFinalDrive = (value: number) => {
+    if (!draft) return;
+    touchGearing({ ...draft, finalDrive: value });
+  };
+  const updateTopSpeed = (value: number) => {
+    if (!draft) return;
+    // The input is in the user's unit; the draft stores km/h.
+    touchGearing({ ...draft, topSpeedKph: value > 0 ? speedUnitToKph(value, userFactor) : 0 });
+  };
+  const updateRatio = (index: number, value: number) => {
+    if (!draft) return;
+    touchGearing({ ...draft, ratios: draft.ratios.map((r, i) => (i === index ? { ...r, value } : r)) });
+  };
+  const addGear = () => {
+    if (!draft) return;
+    touchGearing({ ...draft, ratios: [...draft.ratios, { id: nextRatioId++, value: 0.5 }] });
+  };
+  const removeGear = (index: number) => {
+    if (!draft) return;
+    touchGearing({ ...draft, ratios: draft.ratios.filter((_, i) => i !== index) });
+  };
+
+  /** First unused "Live gearing tune N" name among the car's tunes. */
+  const nextLiveTuneName = () => {
+    const used = new Set(carTunes.map((t) => t.name));
+    let n = 1;
+    while (used.has(m.grc_live_tune_name({ n }))) n += 1;
+    return m.grc_live_tune_name({ n });
+  };
+
+  /** Load a mutation-returned tune row into the draft and select it once listed. */
+  const adoptCreatedTune = (created: { id: number; settings: unknown }) => {
+    const gearing = gearingOf(created.settings);
+    if (!gearing) return;
+    const tune: CarTune = { id: created.id, name: "", settings: created.settings as TuneSettings, gearing };
+    setPendingId(created.id);
+    setBandMode(savedBandOf(tune) ? "saved" : "live");
+    setDraft({ ...gearing, ratios: [...gearing.ratios], topSpeedKph: draftTopSpeedKph(tune) });
+  };
+
+  const handleCreateTune = async () => {
+    if (!packet) return;
+    setSaveStatus("saving");
+    try {
+      const created = (await createTune.mutateAsync({
+        gameId: packet.gameId,
+        name: nextLiveTuneName(),
+        author: m.tune_me(),
+        carOrdinal: packet.CarOrdinal,
+        category: "circuit",
+        settings: defaultTuneSettings(),
+        unitSystem: speedLabel === "mph" ? "imperial" : "metric",
+        source: "user",
+      } as any)) as { id: number; settings: unknown };
+      adoptCreatedTune(created);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const handleDuplicateTune = async () => {
+    if (selectedId == null) return;
+    setSaveStatus("saving");
+    try {
+      const copy = (await duplicateTune.mutateAsync(selectedId)) as { id: number; settings: unknown };
+      adoptCreatedTune(copy);
+      setSaveStatus("saved");
+    } catch {
+      setSaveStatus("error");
+    }
+  };
+
+  const startRename = () => {
+    if (!activeTune) return;
+    setNameDraft(activeTune.name);
+    setRenaming(true);
+  };
+  const cancelRename = () => setRenaming(false);
+  const commitRename = () => {
+    setRenaming(false);
+    if (!activeTune) return;
+    const next = nameDraft.trim();
+    if (!next || next === activeTune.name) return;
+    setSaveStatus("saving");
+    renameTune.mutate(
+      { id: activeTune.id, name: next },
+      {
+        onSuccess: () => setSaveStatus("saved"),
+        onError: () => setSaveStatus("error"),
+      },
+    );
+  };
+
+  // ── Chart model ──────────────────────────────────────────────
+  const peakPowerRpm = useMemo(() => findPeakRpm(powerCurve, "powerW"), [powerCurve]);
+
+  // Live band: cross RPM → peak power RPM from the dyno; saved band: stored
+  // with the tune. The toggle picks which one the chart draws and Save writes.
+  const liveBand = useMemo(
+    () => (crossRpm != null && peakPowerRpm != null ? { min: Math.min(crossRpm, peakPowerRpm), max: Math.max(crossRpm, peakPowerRpm) } : null),
+    [crossRpm, peakPowerRpm],
+  );
+  const savedBand = useMemo(() => savedBandOf(activeTune), [activeTune]);
+  const displayedBand = bandMode === "saved" && savedBand ? savedBand : liveBand;
+
+  const chartModel = useMemo(() => {
+    if (!draft || draft.ratios.length === 0 || !activeTune) return null;
+    // V_top: the setup's top speed (user unit) — the chart's scale anchor.
+    // The draft stores km/h; convert for the current display unit so a unit
+    // switch re-scales correctly instead of reusing a stale draft value.
+    const topSpeedUser = kphToSpeedUnit(draft.topSpeedKph, userFactor);
+    if (topSpeedUser <= 0) return { noTopSpeed: true as const, tops: [], gears: [], xMax: 0, redlineRpm, topSpeedUser: 0 };
+    // Tire circumference is fixed by the SAVED setup (top speed at redline in
+    // the saved top gear) so editing the draft FD/ratios rescales the chart
+    // instead of silently keeping the stored top speed.
+    const savedRatios = activeTune.settings.gearing.ratios;
+    const savedTopRatio = savedRatios != null && savedRatios.length > 0 ? savedRatios[savedRatios.length - 1] : 0;
+    const circ = tireCircumferenceM(topSpeedUser, savedTopRatio, activeTune.settings.gearing.finalDrive, redlineRpm, userFactor);
+    if (circ <= 0) return { noTopSpeed: true as const, tops: [], gears: [], xMax: 0, redlineRpm, topSpeedUser: 0 };
+    const gears = draft.ratios.map((_, i) => i + 1).filter((_, i) => draft.ratios[i].value > 0);
+    const tops = gears.map((gear) => setupSpeedAtRpm(circ, redlineRpm, draft.ratios[gear - 1].value, draft.finalDrive, userFactor));
+    const xMax = ceilTo(Math.max(...tops, topSpeedUser, targetMaxSpeed) * 1.05, 50);
+    return { noTopSpeed: false as const, tops, gears, xMax, redlineRpm, topSpeedUser, circ };
+  }, [draft, activeTune, redlineRpm, userFactor, targetMaxSpeed]);
+
+  // ── Save ─────────────────────────────────────────────────────
+  const save = () => {
+    const tune = carTunes.find((t) => t.id === selectedId);
+    if (!tune || !draft) return;
+    const lastRatio = draft.ratios.length > 0 ? draft.ratios[draft.ratios.length - 1].value : 0;
+    // Keep the stored top speed consistent with the saved gearing: recompute
+    // the kph top speed from the fixed tire circumference when known; else
+    // keep the draft's kph value (unit-independent, so never a stale display
+    // unit). Zero means "no top speed" and is not persisted.
+    const topSpeedKph = chartModel && !chartModel.noTopSpeed && lastRatio > 0 ? setupSpeedAtRpm(chartModel.circ, redlineRpm, lastRatio, draft.finalDrive, 3.6) : draft.topSpeedKph;
+    // Capture the power band currently shown (per the Live/Saved toggle) so
+    // saving while "Live" is selected snapshots the dyno into the tune.
+    const bandToSave = displayedBand;
+    setSaveStatus("saving");
+    updateTune.mutate(
+      {
+        id: tune.id,
+        settings: {
+          ...tune.settings,
+          gearing: {
+            ...tune.settings.gearing,
+            finalDrive: draft.finalDrive,
+            ratios: draft.ratios.map((r) => r.value),
+            ...(topSpeedKph != null && topSpeedKph > 0 ? { topSpeedKph } : {}),
+            ...(bandToSave ? { powerBandMinRpm: Math.round(bandToSave.min), powerBandMaxRpm: Math.round(bandToSave.max) } : {}),
+          },
+        },
+      },
+      {
+        onSuccess: () => setSaveStatus("saved"),
+        onError: () => setSaveStatus("error"),
+      },
+    );
+  };
+
+  const calibrationStatus = saveStatus === "saving" ? m.common_saving() : saveStatus === "saved" ? m.common_saved() : saveStatus === "error" ? m.label_failed_to_save() : "";
+  const speedByGear: Record<number, number> = chartModel && !chartModel.noTopSpeed ? Object.fromEntries(chartModel.gears.map((g, i) => [g, chartModel.tops[i]])) : {};
+
+  return (
+    <div className="rounded bg-app-surface/40 p-2 space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.grc_title()}</h2>
+        <div className="flex items-center gap-2">{calibrationStatus && <span className="text-app-caption text-app-text-dim">{calibrationStatus}</span>}</div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-2">
+        {/* Setup panel */}
+        <div className="w-full md:w-64 shrink-0 space-y-1.5 rounded border border-app-border p-2">
+          {!draft ? (
+            carTunes.length === 0 && !tunesLoading ? (
+              <div className="space-y-2">
+                <p className="text-xs text-app-text-muted leading-snug">{m.grc_no_setup()}</p>
+                <Button size="app-sm" variant="app-primary" onClick={handleCreateTune} disabled={!packet || createTune.isPending}>
+                  {m.grc_create_tune()}
+                </Button>
+              </div>
+            ) : null
+          ) : (
+            <>
+              <div className="space-y-1">
+                <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.aidisplay_setup()}</div>
+                {renaming ? (
+                  <AppInput
+                    autoFocus
+                    aria-label={m.grc_rename_tune()}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename();
+                      if (e.key === "Escape") cancelRename();
+                    }}
+                    onBlur={commitRename}
+                    className="w-full py-0.5 text-xs"
+                  />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <SearchSelect className="min-w-0 flex-1" value={selectedId != null ? String(selectedId) : ""} onChange={(value) => selectTune(Number(value))} options={setupOptions} placeholder={m.tune_section_gearing()} />
+                    <button
+                      type="button"
+                      aria-label={m.grc_rename_tune()}
+                      title={m.grc_rename_tune()}
+                      onClick={startRename}
+                      disabled={!activeTune}
+                      className="flex w-5 h-5 shrink-0 items-center justify-center rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover disabled:opacity-50"
+                    >
+                      <PencilIcon className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={m.common_duplicate()}
+                      title={m.common_duplicate()}
+                      onClick={handleDuplicateTune}
+                      disabled={!activeTune || duplicateTune.isPending}
+                      className="flex w-5 h-5 shrink-0 items-center justify-center rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover disabled:opacity-50"
+                    >
+                      <CopyIcon className="size-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-app-text-muted whitespace-nowrap">{m.grc_final_drive()}</span>
+                <input
+                  type="number"
+                  step={0.01}
+                  min={0.1}
+                  value={draft.finalDrive}
+                  onChange={(e) => updateFinalDrive(parseFloat(e.target.value) || 0)}
+                  className="w-20 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+                />
+              </label>
+
+              <label className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-app-text-muted whitespace-nowrap">
+                  {m.tuneform_top_speed()} ({speedLabel})
+                </span>
+                <input
+                  type="number"
+                  step={1}
+                  min={0}
+                  value={draft.topSpeedKph > 0 ? Math.round(kphToSpeedUnit(draft.topSpeedKph, userFactor)) : 0}
+                  onChange={(e) => updateTopSpeed(parseFloat(e.target.value) || 0)}
+                  className="w-20 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+                />
+              </label>
+
+              {liveBand && savedBand ? (
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-app-text-muted whitespace-nowrap">{m.powerband_legend_power_band()}</span>
+                  <div className="flex overflow-hidden rounded border border-app-border" role="group" aria-label={m.grc_band_toggle_title()} title={m.grc_band_toggle_title()}>
+                    <button
+                      type="button"
+                      aria-pressed={bandMode === "live"}
+                      onClick={() => setBandMode("live")}
+                      className={`px-1.5 py-0.5 text-app-caption ${bandMode === "live" ? "bg-app-surface-hover text-app-text font-medium" : "text-app-text-muted hover:text-app-text"}`}
+                    >
+                      {m.grc_band_live()}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={bandMode === "saved"}
+                      onClick={() => setBandMode("saved")}
+                      className={`px-1.5 py-0.5 text-app-caption ${bandMode === "saved" ? "bg-app-surface-hover text-app-text font-medium" : "text-app-text-muted hover:text-app-text"}`}
+                    >
+                      {m.grc_band_saved()}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="pt-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_gear_ratios()}</div>
+                  <div className="text-app-micro text-app-text-dim">{speedLabel}</div>
+                </div>
+                {draft.ratios.map((row, index) => (
+                  <div key={row.id} className="flex items-center gap-1">
+                    <span className="w-9 text-app-caption text-app-text-dim shrink-0">
+                      {m.dataguide_gear()} {index + 1}
+                    </span>
+                    <input
+                      type="number"
+                      step={0.01}
+                      min={0.01}
+                      value={row.value}
+                      onChange={(e) => updateRatio(index, parseFloat(e.target.value) || 0)}
+                      className="flex-1 min-w-0 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+                    />
+                    <span className="w-12 shrink-0 text-right font-mono text-app-caption text-app-text">{speedByGear[index + 1] != null && row.value > 0 ? Math.round(speedByGear[index + 1]) : "—"}</span>
+                    <button
+                      type="button"
+                      aria-label={`${m.dataguide_gear()} ${index + 1}`}
+                      onClick={() => removeGear(index)}
+                      className="w-5 h-5 text-xs leading-none rounded text-app-text-muted hover:text-status-danger hover:bg-app-surface-hover"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={addGear} className="text-app-caption text-app-accent hover:underline">
+                  + {m.grc_add_gear()}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="app-sm" variant="app-primary" onClick={save} disabled={updateTune.isPending}>
+                  {m.grc_save_setup()}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Setup chart */}
+        <div className="flex-1 min-w-0">
+          {chartModel && !chartModel.noTopSpeed && chartModel.gears.length > 0 ? (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-2 text-app-caption text-app-text-dim">
+                <span className="font-mono">FD {draft?.finalDrive.toFixed(2)}</span>
+                <span className="truncate">
+                  {m.tuneform_gear_ratios()}: <span className="font-mono text-app-text">{draft?.ratios.map((r) => r.value.toFixed(2)).join(" / ")}</span>
+                </span>
+                <span className="shrink-0">
+                  {m.tuneform_top_speed()}: <span className="font-mono text-app-text">{Math.round(chartModel.tops[chartModel.tops.length - 1] ?? 0)}</span> {speedLabel}
+                </span>
+              </div>
+              <GearSpeedChart
+                gears={chartModel.gears}
+                tops={chartModel.tops}
+                redlineRpm={chartModel.redlineRpm}
+                xMax={chartModel.xMax}
+                band={displayedBand}
+                speedLabel={speedLabel}
+              />
+            </div>
+          ) : (
+            <div className="h-40 flex items-center justify-center rounded border border-app-border/50 px-4 text-center">
+              <p className="text-xs text-app-text-muted">{draft && draft.ratios.length === 0 ? m.grc_no_ratios_hint() : m.grc_no_top_speed()}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SVG sawtooth chart: speed (x) vs RPM (y) for every gear of the setup.
+ * Shows a power band range and the redline — the band comes from the live
+ * dyno (cross RPM → peak power RPM) or from the values saved with the tune.
+ */
+function GearSpeedChart({
+  gears,
+  tops,
+  redlineRpm,
+  xMax,
+  band,
+  speedLabel,
+}: {
+  gears: number[];
+  tops: number[];
+  redlineRpm: number;
+  xMax: number;
+  band: { min: number; max: number } | null;
+  speedLabel: string;
+}) {
+  const width = 640;
+  const height = 240;
+  const pad = { top: 22, right: 96, bottom: 30, left: 46 };
+  const cW = width - pad.left - pad.right;
+  const cH = height - pad.top - pad.bottom;
+  const sx = (v: number) => pad.left + Math.min(v / xMax, 1) * cW;
+  const sy = (rpm: number) => pad.top + (1 - rpm / redlineRpm) * cH;
+  const rpmTicks: number[] = [];
+  for (let rpm = 1000; rpm < redlineRpm; rpm += 1000) rpmTicks.push(rpm);
+  const speedTicks = Array.from({ length: 5 }, (_, i) => Math.round((xMax / 4) * i));
+
+  // Gear sawtooth: each gear spans from the previous gear's redline speed to
+  // its own redline speed (both axes linear in RPM, so lines stay straight).
+  const pairs = gears.map((gear, i) => ({ gear, top: tops[i] ?? 0 })).filter((p) => p.top > 0);
+  const gearLines = pairs.map((p, i) => {
+    const startSpeed = i === 0 ? 0 : pairs[i - 1].top;
+    const startRpm = i === 0 ? 0 : redlineRpm * (pairs[i - 1].top / p.top);
+    return {
+      gear: p.gear,
+      color: GEAR_COLORS[(p.gear - 1) % GEAR_COLORS.length],
+      x1: sx(startSpeed),
+      y1: sy(startRpm),
+      x2: sx(p.top),
+      y2: sy(redlineRpm),
+      startRpm,
+    };
+  });
+  // Power band range: cross RPM → peak power RPM, or the saved band.
+  const refLines: { rpm: number; color: string; label: string }[] = [{ rpm: redlineRpm, color: "var(--status-danger)", label: m.powerband_legend_redline() }];
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full rounded border border-app-border/50" role="img" aria-label={`Gear speed chart, redline ${redlineRpm} rpm`}>
+      {/* Grid: RPM */}
+      {rpmTicks.map((rpm) => (
+        <g key={`rpm-${rpm}`}>
+          <line x1={pad.left} y1={sy(rpm)} x2={pad.left + cW} y2={sy(rpm)} stroke="var(--app-border)" strokeWidth={1} />
+          <text x={pad.left - 4} y={sy(rpm) + 3} textAnchor="end" fontSize={8} fill="var(--app-text-dim)" fontFamily="var(--font-mono)">
+            {rpm}
+          </text>
+        </g>
+      ))}
+
+      {/* Grid: speed */}
+      {speedTicks.map((speed) => (
+        <g key={`speed-${speed}`}>
+          <line x1={sx(speed)} y1={pad.top} x2={sx(speed)} y2={pad.top + cH} stroke="var(--app-border)" strokeWidth={1} />
+          <text x={sx(speed)} y={pad.top + cH + 12} textAnchor="middle" fontSize={8} fill="var(--app-text-dim)" fontFamily="var(--font-mono)">
+            {speed}
+          </text>
+        </g>
+      ))}
+
+      {/* Axis units */}
+      <text x={pad.left} y={12} fontSize={8} fill="var(--app-text-muted)">
+        rpm
+      </text>
+      <text x={pad.left + cW} y={height - 6} textAnchor="end" fontSize={8} fill="var(--app-text-muted)">
+        {speedLabel}
+      </text>
+
+      {/* Power band range */}
+      {band && band.max > band.min && (
+        <g>
+          <rect x={pad.left} y={sy(band.max)} width={cW} height={sy(band.min) - sy(band.max)} fill="var(--status-warning)" opacity={0.14} />
+          <text x={pad.left + cW - 4} y={(sy(band.max) + sy(band.min)) / 2 + 3} fontSize={8.5} fill="var(--status-warning)" textAnchor="end">
+            {m.powerband_legend_power_band()} {Math.round(band.min).toLocaleString()}–{Math.round(band.max).toLocaleString()}
+          </text>
+        </g>
+      )}
+
+      {/* Horizontal reference lines: redline */}
+      {refLines.map((line) => (
+        <g key={line.label}>
+          <line x1={pad.left} y1={sy(line.rpm)} x2={pad.left + cW} y2={sy(line.rpm)} stroke={line.color} strokeWidth={1} strokeDasharray="4 3" opacity={0.7} />
+          <text x={pad.left + cW + 6} y={sy(line.rpm) + 3} fontSize={8.5} fill={line.color}>
+            {line.label} {Math.round(line.rpm).toLocaleString()}
+          </text>
+        </g>
+      ))}
+
+      {gearLines.map((line) => (
+        <g key={line.gear}>
+          <line x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth={1.6} />
+          <text x={line.x2 + 4} y={line.y2 + 4} fontSize={10} fontWeight="var(--font-weight-bold)" fill={line.color} fontFamily="var(--font-mono)">
+            {line.gear}
+          </text>
+          {line.startRpm > 0 && (
+            <text x={line.x1 - 3} y={line.y1 - 3} fontSize={7.5} fill={line.color} textAnchor="end" stroke="var(--app-bg)" strokeWidth={3} paintOrder="stroke">
+              {Math.round(line.startRpm).toLocaleString()}
+            </text>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
