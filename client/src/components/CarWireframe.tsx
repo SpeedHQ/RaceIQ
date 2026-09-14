@@ -251,10 +251,10 @@ export const CarWireframe = React.memo(function CarWireframe({
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
-            tireTempColor(units.toTempC((frame.values[temperatureSemanticId] as number[] | undefined)?.[0] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values[temperatureSemanticId] as number[] | undefined)?.[1] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values[temperatureSemanticId] as number[] | undefined)?.[2] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values[temperatureSemanticId] as number[] | undefined)?.[3] ?? 0), units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[0] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[1] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[2] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[3] ?? 0, units.thresholds),
           ]}
         />
       </Canvas>

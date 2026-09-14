@@ -44,7 +44,7 @@ export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
 export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
-  driver: ["fm23", "f125", "acc", "ac-evo"],
+  driver: ["fm23", "f125", "acc", "ac-evo", "iracing"],
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
@@ -64,6 +64,8 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
     case "acc":
     case "ac-evo":
       return "acc";
+    case "iracing":
+      return "forza";
     default:
       throw new Error(`Unsupported live dashboard game: ${gameId}`);
   }

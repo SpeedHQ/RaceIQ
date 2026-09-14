@@ -4,7 +4,6 @@ import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/m
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import { convertTemp } from "@/lib/temperature";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
 
@@ -103,13 +102,13 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
       }
     };
     appendWheel(history.grip, metricValues("combinedSlip"), Math.abs);
-    appendWheel(history.temp, metricValues("temperatureC"), (value) => convertTemp(value, units.tempUnit, "C"));
+    appendWheel(history.temp, metricValues("temperatureC"), units.temp);
     appendWheel(history.coreTemp, view.tires.coreTemperatureC ? [
       view.tires.coreTemperatureC.fl,
       view.tires.coreTemperatureC.fr,
       view.tires.coreTemperatureC.rl,
       view.tires.coreTemperatureC.rr,
-    ] : null, (value) => convertTemp(value, units.tempUnit, "C"));
+    ] : null, units.temp);
     appendWheel(history.wear, metricValues("wear"), (value) => value);
     appendWheel(history.slipAngle, metricValues("slipAngleRad"), (value) => value * (180 / Math.PI));
     appendWheel(history.slipRatio, metricValues("slipRatio"), Math.abs);

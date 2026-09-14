@@ -15,7 +15,7 @@ function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonl
     parserVersion: "parser",
     resolverVersion: "resolver",
     derivationVersion: "derivation",
-    definitions: semanticIds.map((semanticId) => ({ semanticId, unit: units[semanticId] ?? null, mappingStatus: "direct", schemaVersion: "1", limitations: [] })),
+    definitions: semanticIds.map((semanticId) => ({ semanticId, unit: units[semanticId] ?? (semanticId.startsWith("tire.temperature.") ? "°C" : null), mappingStatus: "direct", schemaVersion: "1", limitations: [] })),
   };
 }
 
@@ -77,19 +77,14 @@ describe("live telemetry view", () => {
     expect(legitimateZero.motion.position).toEqual({ x: 0, z: 0 });
   });
 
-  it("normalizes simulator tire temperature units to explicit Celsius", () => {
+  it("accepts canonical Celsius and rejects noncanonical temperature units", () => {
     const semanticIds = ["tire.temperature.surface.representative"];
     const forzaSchema = schema(semanticIds, "fm-2023", { "tire.temperature.surface.representative": "°F" });
     const accSchema = schema(semanticIds, "acc", { "tire.temperature.surface.representative": "°C" });
     const forza = buildLiveTelemetryView(forzaSchema, frame([[212, 32, 68, 86]], { schemaId: "schema-fm-2023" }))!;
     const acc = buildLiveTelemetryView(accSchema, frame([[100, 0, 20, 30]]))!;
 
-    expect(forza.tires.surfaceTemperatureC).toEqual({
-      fl: { representative: 100 },
-      fr: { representative: 0 },
-      rl: { representative: 20 },
-      rr: { representative: 30 },
-    });
+    expect(forza.tires.surfaceTemperatureC).toBeUndefined();
     expect(acc.tires.surfaceTemperatureC).toEqual({
       fl: { representative: 100 },
       fr: { representative: 0 },

@@ -7,6 +7,7 @@ const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
 export interface WheelData {
   tempC?: number; // always °C when available — caller normalises
   coreTempC?: number; // optional core temperature in °C
+  temperatureBandsC?: { inner: number; middle: number; outer: number }; // optional inner/middle/outer carcass temperatures in °C
   wear?: number; // 0 (new) → 1 (gone) when available
   brakeTemp?: number; // °C, optional
   brakePadMm?: number; // mm remaining (ACC: new = 29mm), drives pad height
@@ -95,31 +96,61 @@ export function TireGrid({
             const healthColor = showsHealth ? tireHealthColor(wear, healthThresholds) : "var(--status-unavailable)";
             const temperatureColor = showsTemperature ? tireTempColor(tempC, normalizedTempThresholds) : "var(--status-unavailable)";
             const coreTemperatureColor = hasCoreTemperature ? tireTempColor(coreTempC, normalizedTempThresholds) : temperatureColor;
-            const formatTemperature = (value: number) => units.tempUnit === "F" ? Math.round((value * 9) / 5 + 32) : Math.round(value);
-            const temperature = showsTemperature ? formatTemperature(tempC) : null;
-            const coreTemperature = hasCoreTemperature ? formatTemperature(coreTempC) : null;
+            const temperature = showsTemperature ? units.temp(tempC).toFixed(0) : null;
+            const coreTemperature = hasCoreTemperature ? units.temp(coreTempC).toFixed(0) : null;
             const isLeft = wheel.label.endsWith("L");
             const isRight = !isLeft;
             const isRear = wheel.label.startsWith("R");
+            const temperatureBands = wheel.temperatureBandsC;
+            const hasTemperatureBands =
+              showsTemperature && temperatureBands !== undefined && Number.isFinite(temperatureBands.inner) && Number.isFinite(temperatureBands.middle) && Number.isFinite(temperatureBands.outer);
+            const visualTemperatureBands = hasTemperatureBands
+              ? isLeft
+                ? ([
+                    ["Outer", temperatureBands.outer],
+                    ["Middle", temperatureBands.middle],
+                    ["Inner", temperatureBands.inner],
+                  ] as const)
+                : ([
+                    ["Inner", temperatureBands.inner],
+                    ["Middle", temperatureBands.middle],
+                    ["Outer", temperatureBands.outer],
+                  ] as const)
+              : null;
 
             return (
               <div key={wheel.label} className={`flex items-center gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
                 <div className={`flex-1 min-w-0 ${isLeft ? "text-right" : ""}`}>
                   {hasCoreTemperature ? (
-                    <div className="flex flex-col text-xs font-mono font-bold tabular-nums leading-tight">
-                      <span style={{ color: temperatureColor }}>{m.label_surface()}: {temperature}{units.tempLabel}</span>
-                      <span style={{ color: coreTemperatureColor }}>{m.label_core()}: {coreTemperature}{units.tempLabel}</span>
+                    <div className="flex flex-col text-sm font-mono font-bold tabular-nums leading-tight">
+                      <span aria-label={`${m.label_surface()}: ${temperature}${units.tempLabel}`} style={{ color: temperatureColor }}>
+                        {temperature}
+                        {units.tempLabel}
+                      </span>
+                      <span aria-label={`${m.label_core()}: ${coreTemperature}${units.tempLabel}`} style={{ color: coreTemperatureColor }}>
+                        {coreTemperature}
+                        {units.tempLabel}
+                      </span>
                     </div>
                   ) : (
                     <div className="text-xl font-mono font-bold tabular-nums leading-none" style={{ color: temperatureColor }}>
-                      {showsTemperature ? <>{temperature}{units.tempLabel}</> : "—"}
+                      {showsTemperature ? (
+                        <>
+                          {temperature}
+                          {units.tempLabel}
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </div>
                   )}
-                  <div className="mt-1">
-                    <span className="text-xs font-mono font-bold tabular-nums" style={{ color: healthColor }}>
-                      {showsHealth ? `${health.toFixed(0)}%` : "—"}
-                    </span>
-                  </div>
+                  {showsHealth && (
+                    <div className="mt-1">
+                      <span className="text-xs font-mono font-bold tabular-nums" style={{ color: healthColor }}>
+                        {health.toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
                   {hasPressure && wheel.pressure !== undefined && (
                     <div className="mt-1 text-sm font-mono font-bold tabular-nums leading-none">
                       <span style={{ color: pressureOptimal ? tirePressureColor(wheel.pressure, pressureOptimal) : "var(--app-text-muted)" }}>{wheel.pressure.toFixed(1)}psi</span>
@@ -127,13 +158,31 @@ export function TireGrid({
                   )}
                 </div>
 
-                <div
-                  className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0"
-                  style={hasCoreTemperature ? { border: `2px solid ${temperatureColor}`, boxSizing: "border-box" } : undefined}
-                >
-                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: coreTemperatureColor, height: showsHealth ? `${health}%` : 0 }} />
+                <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0">
+                  {hasCoreTemperature && (
+                    <>
+                      <div className="absolute inset-x-0 top-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
+                      <div className="absolute inset-x-0 bottom-0 h-[5px]" style={{ backgroundColor: temperatureColor }} />
+                    </>
+                  )}
+                  {visualTemperatureBands ? (
+                    <div className={hasCoreTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px] flex gap-px" : "absolute inset-0 flex gap-px"}>
+                      {visualTemperatureBands.map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="min-w-0 flex-1"
+                          aria-label={`${label} carcass: ${units.temp(value).toFixed(0)}${units.tempLabel}`}
+                          style={{ backgroundColor: tireTempColor(value, normalizedTempThresholds) }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className={hasCoreTemperature ? "absolute inset-x-0 top-[7px] bottom-[7px]" : "absolute inset-0"}
+                      style={{ backgroundColor: showsTemperature ? coreTemperatureColor : "transparent" }}
+                    />
+                  )}
                 </div>
-
                 {hasBrake && (
                   <div className={`flex items-center gap-1 shrink-0 ${isRight ? "flex-row-reverse" : ""}`}>
                     {(() => {
@@ -149,7 +198,12 @@ export function TireGrid({
                       {wheel.brakeTemp !== undefined &&
                         (() => {
                           const color = brakeTempColor(wheel.brakeTemp, isRear, brakeTempThresholds);
-                          return <span style={{ color }}>B:{Math.round(wheel.brakeTemp)}&deg;C</span>;
+                          return (
+                            <span style={{ color }}>
+                              B:{units.temp(wheel.brakeTemp).toFixed(0)}
+                              {units.tempLabel}
+                            </span>
+                          );
                         })()}
                       {wheel.brakePadMm !== undefined &&
                         (() => {

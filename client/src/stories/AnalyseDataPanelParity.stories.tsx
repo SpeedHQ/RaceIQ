@@ -62,7 +62,6 @@ export const LoadedMainParity: Story = {
       temperatureUnit: "C",
       thresholds: { cold: 75, warm: 115, hot: 150 },
       temp: (value: number) => value,
-      toTempC: (value: number) => value,
     } as never,
     wearRate: { FL: 0.1, FR: 0.2, RL: 0.3, RR: 0.4 },
     lapInsights: [],

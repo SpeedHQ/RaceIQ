@@ -454,7 +454,6 @@ function LapAnalyseInner() {
             onClickIndex: handleChartClick,
             onScrubStart: handleScrubStart,
             speedLabel: units.speedLabel,
-            tempLabel: units.tempLabel,
             gameId,
           }}
           chartsPanelRef={chartsPanelRef}

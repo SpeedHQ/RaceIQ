@@ -116,11 +116,12 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}`);
   lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(value("motion.acceleration-x") == null ? null : -value("motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(value("motion.acceleration-z") == null ? null : -value("motion.acceleration-z")! / 9.81, 2)}g`);
   const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
+  const displayTemp = (value: number | null) => value == null ? "Unavailable" : `${units.temp(value).toFixed(0)}${units.tempLabel}`;
   if (dualTemperature) {
-    lines.push("", "--- Surface Tire Temps ---", `FL: ${surfaceTemp[0] == null ? "Unavailable" : surfaceTemp[0].toFixed(0)}  FR: ${surfaceTemp[1] == null ? "Unavailable" : surfaceTemp[1].toFixed(0)}`, `RL: ${surfaceTemp[2] == null ? "Unavailable" : surfaceTemp[2].toFixed(0)}  RR: ${surfaceTemp[3] == null ? "Unavailable" : surfaceTemp[3].toFixed(0)}`);
-    lines.push("", "--- Core Tire Temps ---", `FL: ${coreTemp[0] == null ? "Unavailable" : coreTemp[0].toFixed(0)}  FR: ${coreTemp[1] == null ? "Unavailable" : coreTemp[1].toFixed(0)}`, `RL: ${coreTemp[2] == null ? "Unavailable" : coreTemp[2].toFixed(0)}  RR: ${coreTemp[3] == null ? "Unavailable" : coreTemp[3].toFixed(0)}`);
+    lines.push("", `--- Surface Tire Temps (${units.tempLabel}) ---`, `FL: ${displayTemp(surfaceTemp[0])}  FR: ${displayTemp(surfaceTemp[1])}`, `RL: ${displayTemp(surfaceTemp[2])}  RR: ${displayTemp(surfaceTemp[3])}`);
+    lines.push("", `--- Core Tire Temps (${units.tempLabel}) ---`, `FL: ${displayTemp(coreTemp[0])}  FR: ${displayTemp(coreTemp[1])}`, `RL: ${displayTemp(coreTemp[2])}  RR: ${displayTemp(coreTemp[3])}`);
   } else {
-    lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} ---`, `FL: ${temp[0] == null ? "Unavailable" : temp[0].toFixed(0)}  FR: ${temp[1] == null ? "Unavailable" : temp[1].toFixed(0)}`, `RL: ${temp[2] == null ? "Unavailable" : temp[2].toFixed(0)}  RR: ${temp[3] == null ? "Unavailable" : temp[3].toFixed(0)}`);
+    lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} (${units.tempLabel}) ---`, `FL: ${displayTemp(temp[0])}  FR: ${displayTemp(temp[1])}`, `RL: ${displayTemp(temp[2])}  RR: ${displayTemp(temp[3])}`);
   }
   if (wear.some((value) => value != null)) {
     lines.push(

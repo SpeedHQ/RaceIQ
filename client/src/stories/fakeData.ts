@@ -388,6 +388,9 @@ const semanticFixtureIds = [
   "race.race-position",
   "tire.temperature.surface.representative",
   "tire.temperature.core",
+  "tire.temperature.carcass.left",
+  "tire.temperature.carcass.middle",
+  "tire.temperature.carcass.right",
   "tires.tire-wear",
   "tires.tire-pressure",
   "brakes.brake-temp",
@@ -405,6 +408,7 @@ const semanticFixtureIds = [
 ];
 
 export function makeSemanticFixture(raw: TelemetryPacket) {
+  const toCelsius = (value: number | undefined) => (raw.gameId === "fm-2023" && value !== undefined ? ((value - 32) * 5) / 9 : value);
   const values: unknown[] = semanticFixtureIds.map((id) => {
     const f1 = raw.f1 as Record<string, unknown> | undefined;
     const map: Record<string, unknown> = {
@@ -439,11 +443,18 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
       "timing.lap-number": raw.LapNumber,
       "timing.distance-traveled": raw.DistanceTraveled,
       "race.race-position": raw.RacePosition,
-      "tire.temperature.surface.representative": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR],
-      "tire.temperature.core": [raw.TireCarcassTempFL, raw.TireCarcassTempFR, raw.TireCarcassTempRL, raw.TireCarcassTempRR],
-      "tires.tire-wear": [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
-      "tires.tire-pressure": [f1?.tyrePressureFL, f1?.tyrePressureFR, f1?.tyrePressureRL, f1?.tyrePressureRR],
-      "brakes.brake-temp": [f1?.brakeTempFL, f1?.brakeTempFR, f1?.brakeTempRL, f1?.brakeTempRR],
+      "tire.temperature.surface.representative": [raw.TireTempFL, raw.TireTempFR, raw.TireTempRL, raw.TireTempRR].map(toCelsius),
+      "tire.temperature.core": [raw.TireCarcassTempFL, raw.TireCarcassTempFR, raw.TireCarcassTempRL, raw.TireCarcassTempRR].map(toCelsius),
+      "tire.temperature.carcass.left": [raw.TireCarcassTempLeftFL, raw.TireCarcassTempLeftFR, raw.TireCarcassTempLeftRL, raw.TireCarcassTempLeftRR],
+      "tire.temperature.carcass.middle": [raw.TireCarcassTempMiddleFL, raw.TireCarcassTempMiddleFR, raw.TireCarcassTempMiddleRL, raw.TireCarcassTempMiddleRR],
+      "tire.temperature.carcass.right": [raw.TireCarcassTempRightFL, raw.TireCarcassTempRightFR, raw.TireCarcassTempRightRL, raw.TireCarcassTempRightRR],
+      "tires.tire-wear": raw.gameId === "acc" ? undefined : [raw.TireWearFL, raw.TireWearFR, raw.TireWearRL, raw.TireWearRR],
+      "tires.tire-pressure": [
+        f1?.tyrePressureFL ?? raw.TirePressureFrontLeft,
+        f1?.tyrePressureFR ?? raw.TirePressureFrontRight,
+        f1?.tyrePressureRL ?? raw.TirePressureRearLeft,
+        f1?.tyrePressureRR ?? raw.TirePressureRearRight,
+      ],
       "weather.weather-type": f1?.weather,
       "weather.track-temp": f1?.trackTemperature,
       "weather.air-temp": f1?.airTemperature,
@@ -471,8 +482,8 @@ export function makeSemanticFixture(raw: TelemetryPacket) {
     derivationVersion: "storybook",
     definitions: semanticFixtureIds.map((semanticId) => ({
       semanticId,
-      unit: semanticId.startsWith("tire.temperature.") ? (raw.gameId === "fm-2023" ? "°F" : "°C") : null,
-      mappingStatus: "direct" as const,
+      unit: semanticId.startsWith("tire.temperature.") ? "°C" : null,
+      mappingStatus: raw.gameId === "fm-2023" && semanticId === "tire.temperature.surface.representative" ? ("normalized" as const) : ("direct" as const),
       schemaVersion: "1",
       limitations: [],
     })),
@@ -615,12 +626,65 @@ export const fakeAccPacket: TelemetryPacket = {
   },
 };
 
-// AC Evo shares ACC's shared-memory shape and carries its own simulator identity.
-export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket, gameId: "ac-evo" };
+// AC Evo exposes continuous surface, core, pressure, and wear channels.
+export const fakeAcEvoPacket: TelemetryPacket = {
+  ...fakeAccPacket,
+  gameId: "ac-evo",
+  TireTempFL: 82,
+  TireTempFR: 85,
+  TireTempRL: 80,
+  TireTempRR: 83,
+  TireCarcassTempFL: 88,
+  TireCarcassTempFR: 91,
+  TireCarcassTempRL: 86,
+  TireCarcassTempRR: 89,
+};
+
+export const fakeIRacingPacket: TelemetryPacket = {
+  ...basePacket,
+  gameId: "iracing",
+  CurrentEngineRpm: 6400,
+  EngineMaxRpm: 7600,
+  EngineIdleRpm: 900,
+  Speed: 61.1,
+  Gear: 4,
+  Accel: 205,
+  Fuel: 44.8,
+  FuelCapacity: 110,
+  LapNumber: 12,
+  RacePosition: 4,
+  CarOrdinal: 1001,
+  TrackOrdinal: 101,
+  TirePressureFrontLeft: 27.2,
+  TirePressureFrontRight: 27.4,
+  TirePressureRearLeft: 26.8,
+  TirePressureRearRight: 26.9,
+  TireWearFL: 0.12,
+  TireWearFR: 0.14,
+  TireWearRL: 0.1,
+  TireWearRR: 0.11,
+  TireTempFL: 90,
+  TireTempFR: 92,
+  TireTempRL: 88,
+  TireTempRR: 89,
+  TireCarcassTempLeftFL: 70,
+  TireCarcassTempLeftFR: 105,
+  TireCarcassTempLeftRL: 68,
+  TireCarcassTempLeftRR: 103,
+  TireCarcassTempMiddleFL: 90,
+  TireCarcassTempMiddleFR: 92,
+  TireCarcassTempMiddleRL: 88,
+  TireCarcassTempMiddleRR: 89,
+  TireCarcassTempRightFL: 105,
+  TireCarcassTempRightFR: 72,
+  TireCarcassTempRightRL: 102,
+  TireCarcassTempRightRR: 70,
+};
 
 export const fakeForzaSemanticFixture = makeSemanticFixture(fakeForzaPacket);
 export const fakeAccSemanticFixture = makeSemanticFixture(fakeAccPacket);
 export const fakeAcEvoSemanticFixture = makeSemanticFixture(fakeAcEvoPacket);
+export const fakeIRacingSemanticFixture = makeSemanticFixture(fakeIRacingPacket);
 
 // Canonical visual-contract fixture. `simulator` satisfies telemetry-view
 // identity only; snapshot stories never derive field availability from it.
@@ -738,6 +802,21 @@ export const fakePit: LivePitData = {
   cliffPct: 40,
   deadPct: 20,
   tireLapsRemaining: 12,
+};
+
+export const fakeFuelOnlyPit: LivePitData = {
+  ...fakePit,
+  tireLapsToBad: null,
+  tireLapsToCritical: null,
+  tireEstimates: {
+    toCliff: [null, null, null, null],
+    toDead: [null, null, null, null],
+    wearPerLap: [0, 0, 0, 0],
+  },
+  tireWearPerLap: 0,
+  pitInLaps: fakePit.fuelLapsRemaining,
+  limitedBy: "fuel",
+  tireLapsRemaining: null,
 };
 
 // ── Session Laps ─────────────────────────────────────────────────────────────

@@ -385,6 +385,7 @@ export function CarScene({
             displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, temperatureSemanticId, i)) : ""}
             displayCoreTemp={toggles.wheelInfo && dualTemperature ? fmtTemp(wheel(frame, "tire.temperature.core", i)) : undefined}
             rimColorForDisplay={w.rimColor}
+            displayBrakeTemp={toggles.wheelInfo ? fmtTemp(w.brakeTemp) : null}
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}
             pressureOptimal={pressureOptimal}

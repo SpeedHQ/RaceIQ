@@ -78,6 +78,32 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
         : pitHealth
           ? m.analyse_wheels_pit_health()
           : undefined;
+  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => {
+    const carcass = view.tires.carcassTemperatureC?.[corner];
+    const hasCarcassBands =
+      carcass !== undefined &&
+      carcass.left !== undefined &&
+      carcass.middle !== undefined &&
+      carcass.right !== undefined &&
+      Number.isFinite(carcass.left) &&
+      Number.isFinite(carcass.middle) &&
+      Number.isFinite(carcass.right);
+    const isLeft = corner.endsWith("l");
+
+    return {
+      tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
+      wear: view.tires.wear?.[corner] ?? 0,
+      ...(hasCarcassBands
+        ? {
+            temperatureBandsC: {
+              inner: isLeft ? carcass.right : carcass.left,
+              middle: carcass.middle,
+              outer: isLeft ? carcass.left : carcass.right,
+            },
+          }
+        : {}),
+    };
+  };
   const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
   const hp = view.engine.powerW === undefined ? undefined : view.engine.powerW / WATTS_PER_HORSEPOWER;
   const boostVal = view.engine.boost;
@@ -131,10 +157,10 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       <div className="grid gap-0 p-0">
         <div className="border-b border-app-border">
           <TireGrid
-            fl={{ tempC: primaryTireTemperatureC(view.tires, "fl") ?? 0, wear: view.tires.wear?.fl ?? 0 }}
-            fr={{ tempC: primaryTireTemperatureC(view.tires, "fr") ?? 0, wear: view.tires.wear?.fr ?? 0 }}
-            rl={{ tempC: primaryTireTemperatureC(view.tires, "rl") ?? 0, wear: view.tires.wear?.rl ?? 0 }}
-            rr={{ tempC: primaryTireTemperatureC(view.tires, "rr") ?? 0, wear: view.tires.wear?.rr ?? 0 }}
+            fl={wheelData("fl")}
+            fr={wheelData("fr")}
+            rl={wheelData("rl")}
+            rr={wheelData("rr")}
             healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
             freshnessNote={tireFreshnessNote}

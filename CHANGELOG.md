@@ -1,17 +1,23 @@
 ## Unreleased
 
 ### Features
+
 - Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 - Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
+- Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
 
 ### Fixes
+
+- Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
+- Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session
 
 ### Internal
+
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
 - Add diagnostic logs that reveal missed telemetry and slow lap saving
@@ -19,16 +25,19 @@
 ## v0.16.0 - 2026-09-06
 
 ### Features
+
 - Preserve the current page when switching games from the sidebar, falling back to the game root when unavailable
 - Ship optimized GT3 and F1 car models: GT3 54.5 MB → 1.9 MB (52.6 MB saved, 96.5% reduction) and F1 66.4 MB → 6.0 MB (60.4 MB saved, 91.0% reduction), while preserving exterior visuals
 - Reduce packaged image payload by 22.8% (18.1 MB across 890 images) and remove stale assets during upgrades
 
 ### Fixes
+
 - Keep Analyse Data panel content and layout complete across supported views
 - Use consistent shared controls across settings, setup, tuning, analysis, and update dialogs, including clearer selected unit states and keyboard-accessible modal interactions
 - Open long recorded sessions in Analyse and Compare without loading the entire capture into memory
 
 ### Internal
+
 - Narrow client response helper contracts to the fields each RPC and download path uses
 - Pin GitHub Actions workflows to Bun 1.4 for consistent CI tooling
 - Fail responsive screenshot CI when either render fails
@@ -37,9 +46,11 @@
 ## v0.15.1 - 2026-09-01
 
 ### Fixes
+
 - Start RaceIQ successfully after installing a Windows release
 
 ### Internal
+
 - Increase seeded Playwright E2E CI coverage from five to seven shards
 
 ## v0.15.0 - 2026-09-01
@@ -62,6 +73,7 @@
 - Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
+
 - Improve lap-line fitting to track boundaries
 - Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
 - Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
@@ -139,6 +151,7 @@
 - Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
+
 - Read release notes from GitHub release bodies instead of downloading release-note assets
 - Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
 - Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements

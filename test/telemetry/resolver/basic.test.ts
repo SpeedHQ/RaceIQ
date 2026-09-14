@@ -93,6 +93,30 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
+  test("normalizes Forza representative tire temperatures to Celsius", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "fm-2023",
+      requested: [{ semanticId: "tire.temperature.surface.representative", required: true }],
+    });
+    const slot = resolver.slot("tire.temperature.surface.representative");
+    const first = resolver.createFrameView(
+      packet("fm-2023", { TireTempFL: 212, TireTempFR: 32, TireTempRL: 68, TireTempRR: 86 }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
+    );
+    expect(first.resolveValue<readonly number[]>(slot)).toMatchObject({
+      value: [100, 0, 20, 30],
+      unit: "°C",
+      mappingStatus: "normalized",
+      provenance: { sourceChannel: "TelemetryPacket.TireTempFL" },
+    });
+    const second = resolver.createFrameView(
+      packet("fm-2023", { TireTempFL: 50, TireTempFR: 59, TireTempRL: 77, TireTempRR: 95 }),
+      { timestamp: { domain: "session", milliseconds: 1_001 }, updateSequence: BigInt(1_001) },
+      first,
+    );
+    expect(second.resolveValue<readonly number[]>(slot).value).toEqual([10, 15, 25, 35]);
+  });
+
   test("resolves direct per-wheel carcass bands without losing fidelity status", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",

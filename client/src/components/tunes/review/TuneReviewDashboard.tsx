@@ -8,6 +8,7 @@ import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
 import { Button } from "@/components/ui/button";
+import { useUnits } from "@/hooks/useUnits";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentVersion } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
@@ -85,6 +86,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
+  const units = useUnits(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
@@ -139,7 +141,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         const value = tuneMetricValue(frame, metric, index);
         return {
           label: corner,
-          value: value === undefined ? "—" : `${value.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}`,
+          value: value === undefined ? "—" : `${metric.quantity === "temperature" ? units.temp(value).toFixed(1) : value.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.quantity === "temperature" ? units.tempLabel : metric.unit}`,
           color: value === undefined ? undefined : metric.semantic ? bandColor(value) : metric.accent,
         };
       });
@@ -159,6 +161,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         ranges,
         metric,
         test,
+        temperatureUnit: units.temperatureUnit,
         cornerKeys: CORNERS,
       }),
     [focusLap, sectorTimes, laps, corners, issues, ranges, metric, test],
@@ -295,7 +298,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                   {/* Per-sector metric range under this sector's map */}
                   {ranges && (
                     <div className="mt-1">
-                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} />
+                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} tempLabel={units.tempLabel} temperatureUnit={units.temperatureUnit} />
                     </div>
                   )}
                 </div>
@@ -303,7 +306,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             </div>
             {ranges && (
               <div className="px-4 py-1.5 text-app-compact text-app-text-dim border-t border-app-border">
-                {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
+                {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.quantity === "temperature" ? units.tempLabel : metric.unit}
               </div>
             )}
           </div>

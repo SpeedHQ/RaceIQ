@@ -1,19 +1,22 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
-import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
+import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
 import { gameStore } from "../stores/game";
 import { telemetryStore } from "../stores/telemetry";
-import { fakeAccSemanticFixture, fakeFuelOnlyPit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeFuelOnlyPit, fakeIRacingSemanticFixture, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
-queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
+queryClient.setQueryData(["laps", "iracing"], fakeSessionLaps);
+queryClient.setQueryData(["track-name", 101, "iracing"], "Watkins Glen International");
+queryClient.setQueryData(["car-name", 1001, "iracing"], "GT3");
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
-  const { schema, frame, view } = fakeAccSemanticFixture;
-  telemetryStore.setState({
+  const { schema, frame, view } = fakeIRacingSemanticFixture;
+  telemetryStore.setState((prev) => ({
+    ...prev,
     connected: true,
     telemetrySchema: schema,
     telemetryFrame: frame,
@@ -30,19 +33,20 @@ function StoryDecorator({ story }: { story: React.ComponentType }) {
       isRaceOn: true,
       droppedPackets: 0,
       udpPort: 5300,
-      detectedGame: { id: "acc", name: "Assetto Corsa Competizione" },
-      currentSession: { id: 3, carOrdinal: 301, trackOrdinal: 7 },
+      detectedGame: { id: "iracing", name: "iRacing" },
+      currentSession: { id: 5, carOrdinal: 1001, trackOrdinal: 101 },
     },
-  });
+  }));
 
-  gameStore.setState((prev) => ({ ...prev, gameId: "acc" }));
+  gameStore.setState((prev) => ({ ...prev, gameId: "iracing" }));
 
   return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
 
-const meta: Meta<typeof AccLiveDashboard> = {
-  title: "Dashboards/AccLiveDashboard",
-  component: AccLiveDashboard,
+const meta: Meta<typeof ForzaLiveDashboard> = {
+  title: "Dashboards/IRacingLiveDashboard",
+  component: ForzaLiveDashboard,
+  args: { mode: "driver" },
   decorators: [(Story) => <StoryDecorator story={Story} />],
   parameters: {
     layout: "fullscreen",
@@ -50,6 +54,6 @@ const meta: Meta<typeof AccLiveDashboard> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof AccLiveDashboard>;
+type Story = StoryObj<typeof ForzaLiveDashboard>;
 
 export const VisualContract: Story = {};

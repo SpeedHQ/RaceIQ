@@ -218,7 +218,7 @@ export function WheelCard({
         {/* Brake temp */}
         {brakeTemp != null && (
           <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
-            BRK {tempFn(brakeTemp).toFixed(0)}°
+            BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
           </text>
         )}
 

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
+import { celsiusToFahrenheit } from "../src/lib/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
 import type { GameId } from "../../shared/games/ids";
@@ -38,7 +39,6 @@ if (typeof globalThis.localStorage === "undefined") {
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },
-  toTempC: (value: number) => value,
   temp: (value: number) => value,
 } as never;
 const parityUnits = {
@@ -479,19 +479,19 @@ describe("telemetry capability UI", () => {
     expect(markup).toMatch(/Ratio[\s\S]*>—</);
   });
 
-  test("converts Forza tire values from their recorded Fahrenheit unit", () => {
-    const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;
+  test("renders canonical Forza tire values in selected display unit", () => {
     const fmUnits = {
       ...parityUnits,
-      temp: fahrenheitToCelsius,
-      toTempC: fahrenheitToCelsius,
+      temp: celsiusToFahrenheit,
+      tempLabel: "°F",
+      temperatureUnit: "F",
     };
     const frame = semanticFrame({
       "motion.speed": 30,
       "motion.acceleration-x": 0,
       "motion.acceleration-z": 0,
       "motion.angular-velocity-y": 0,
-      "tire.temperature.surface.representative": [212, 194, 176, 158],
+      "tire.temperature.surface.representative": [100, 90, 80, 70],
       "tires.wheel-rotation-speed": [1, 1, 1, 1],
       "tires.tire-wear": [0, 0, 0, 0],
       "tires.tire-combined-slip": [0, 0, 0, 0],
@@ -517,7 +517,7 @@ describe("telemetry capability UI", () => {
         units: fmUnits,
       }),
     );
-    expect(wheelMarkup).toContain("100°C");
+    expect(wheelMarkup).toContain("212°F");
     expect(wheelMarkup).not.toContain("212°C");
     expect(dynamicsMarkup).toContain(">OPT</span>");
     expect(dynamicsMarkup).not.toContain(">OVER</span>");
@@ -636,14 +636,14 @@ describe("telemetry capability UI", () => {
         ),
       );
 
-      expect(markup, gameId).toContain("60.0%F");
+      expect(markup, gameId).toContain("60.0%");
       expect(markup, gameId).toContain("Rotation /s");
       if (gameId === "ac-evo") expect(markup, gameId).toContain("Wear /s");
       expect(markup, gameId).toContain("500°C");
       expect(markup, gameId).toContain("24.0 psi");
       expect(markup, gameId).not.toContain("Unavailable in Analyse");
       expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
-      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 4 : 0);
+      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 12 : 0);
     }
   });
 
@@ -664,9 +664,9 @@ describe("telemetry capability UI", () => {
         "G-Force Lat: -0.50g",
         "G-Force Lon: -1.00g",
         "",
-        "--- Tire Temps ---",
-        "FL: 90  FR: 91",
-        "RL: 92  RR: 93",
+        "--- Tire Temps (°C) ---",
+        "FL: 90°C  FR: 91°C",
+        "RL: 92°C  RR: 93°C",
         "",
         "--- Tire Health ---",
         "FL: 90.0%  FR: 80.0%",
@@ -690,7 +690,7 @@ describe("telemetry capability UI", () => {
     expect(chartData?.tireCoreTempFL).toBeUndefined();
 
     const text = buildAnalyseClipboardText({ frame, gameId: "acc", units: parityUnits });
-    expect(text).toContain("--- Tire Temps ---\nFL: 81  FR: 82\nRL: 83  RR: 84");
+    expect(text).toContain("--- Tire Temps (°C) ---\nFL: 81°C  FR: 82°C\nRL: 83°C  RR: 84°C");
     expect(text).not.toContain("Surface Tire Temps");
     expect(text).not.toContain("Core Tire Temps");
 
@@ -711,17 +711,17 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain(">Core<");
   });
 
-  test("keeps clipboard tire temperatures in the recorded main packet unit", () => {
+  test("renders canonical clipboard tire temperatures in selected unit", () => {
     const text = buildAnalyseClipboardText({
       frame: semanticFrame({
         ...f1ParityFrame.values,
-        "tire.temperature.surface.representative": [212, 194, 176, 158],
+        "tire.temperature.surface.representative": [100, 90, 80, 70],
       }),
       gameId: "fm-2023",
-      units: { ...parityUnits, temperatureUnit: "F" },
+      units: { ...parityUnits, temp: celsiusToFahrenheit, tempLabel: "°F", temperatureUnit: "F" },
     });
-    expect(text).toContain("FL: 212  FR: 194");
-    expect(text).not.toContain("414");
+    expect(text).toContain("FL: 212°F  FR: 194°F");
+    expect(text).not.toContain("414°F");
   });
 
   test("renders catalog-backed wheel and vehicle surface rows", () => {

@@ -4,7 +4,7 @@ import { openStoryForSnapshot } from "./storybook-ready";
 
 // Story IDs come from Storybook title + export name.
 // Inventory lives in snapshot-cases.ts so CI and local comparison cannot drift.
-const LIVE_DASHBOARD_NAMES = new Set(["F1LiveDashboard", "ForzaLiveDashboard", "AccLiveDashboard"]);
+const LIVE_DASHBOARD_NAMES: Record<string, true> = { F1LiveDashboard: true, ForzaLiveDashboard: true, AccLiveDashboard: true, AcEvoLiveDashboard: true, IRacingLiveDashboard: true };
 const comparisonCaptureOnly = process.env.RACEIQ_UI_DIFF_CAPTURE === "1";
 
 test.setTimeout(300_000);
@@ -20,7 +20,7 @@ for (const story of DASHBOARD_SNAPSHOT_CASES) {
     if (story.viewport) await page.setViewportSize(story.viewport);
     await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`);
 
-    if (!comparisonCaptureOnly && LIVE_DASHBOARD_NAMES.has(story.name)) {
+    if (!comparisonCaptureOnly && LIVE_DASHBOARD_NAMES[story.name]) {
       const workspace = page.locator("[data-responsive-workspace]");
       const layout = page.locator("[data-live-dashboard-layout]");
       const racePanel = page.locator("[data-live-dashboard-race]");

@@ -138,18 +138,10 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     return { fl: candidate[0] as number, fr: candidate[1] as number, rl: candidate[2] as number, rr: candidate[3] as number };
   };
   const wheelCelsius = (semanticId: string): WheelValues<number> | undefined => {
-    const source = wheel(semanticId);
-    if (!source) return undefined;
     const index = indexed.indexes.get(semanticId);
-    const unit = index === undefined ? null : schema.definitions[index]?.unit?.toLowerCase();
-    if (unit !== "°f" && unit !== "f" && unit !== "fahrenheit") return source;
-    const celsius = (fahrenheit: number) => ((fahrenheit - 32) * 5) / 9;
-    return {
-      fl: celsius(source.fl),
-      fr: celsius(source.fr),
-      rl: celsius(source.rl),
-      rr: celsius(source.rr),
-    };
+    const unit = index === undefined ? undefined : schema.definitions[index]?.unit?.trim();
+    if (unit !== "°C") return undefined;
+    return wheel(semanticId);
   };
   const temperatureProfileC = <Band extends string>(
     channels: Readonly<Record<Band, string>>,

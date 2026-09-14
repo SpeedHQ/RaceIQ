@@ -5,7 +5,6 @@ import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import { convertTemp } from "@/lib/temperature";
 import { m } from "@/paraglide/messages";
 import { SuspBar } from "./SuspBar";
 import { WheelCard } from "./WheelCard";
@@ -29,9 +28,8 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value"
     ? analysis.tireTemperature.binding
     : undefined;
-  const primaryTemps = temperatureBinding
-    ? resolveWheelMetric(frame, temperatureBinding)
-    : [null, null, null, null];
+  const resolvedPrimaryTemps = temperatureBinding ? resolveWheelMetric(frame, temperatureBinding) : [null, null, null, null];
+  const primaryTemps = resolvedPrimaryTemps.some((value) => value != null) ? resolvedPrimaryTemps : surfaceTemps;
   const dualTemperature = surfaceTemps.some((value) => value != null)
     && coreTemps.some((value) => value != null)
     && temperatureBinding?.semanticId === "tire.temperature.surface.representative";
@@ -62,7 +60,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         wheelState={state}
         steerAngle={index < 2 ? steerAngle : 0}
         thresholds={units.thresholds}
-        tempFn={(value) => convertTemp(value, units.tempUnit, "C")}
+        tempFn={units.temp}
         tempUnit={units.tempUnit}
         onRumble={false}
         puddleDepth={0}

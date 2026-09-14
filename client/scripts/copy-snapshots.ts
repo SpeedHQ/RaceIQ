@@ -24,6 +24,8 @@ const marketingSnapshots: Record<string, true> = {
   ForzaLiveDashboard: true,
   F1LiveDashboard: true,
   AccLiveDashboard: true,
+  AcEvoLiveDashboard: true,
+  IRacingLiveDashboard: true,
   SetupBrowser: true,
   SetupBrowserReadOnly: true,
   ComboDash1: true,
