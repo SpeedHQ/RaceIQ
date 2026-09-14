@@ -37,6 +37,8 @@ jobs:
   render:
     runs-on:
       - mars-any
+      - 4VCPU
+      - 15G
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
