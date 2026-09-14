@@ -328,6 +328,15 @@ Signatures live in `shared/tracks/verified.json`; edits make signatures stale.
 
 Full write-up: [track curation](docs/contributing/track-curation.md).
 
+### Command and Script Reference Checks
+
+When adding, removing, renaming, or changing a package command, script entry point, workflow invocation, or documented command:
+
+1. Search repository references to old and new command/script names, including package manifests, workflows, shell wrappers, READMEs, and CI helper scripts.
+2. Update every affected caller and documentation entry in the same change. Do not leave stale references or add a command without its documented execution path.
+3. Run changed command or non-destructive validation path. For CI commands, execute equivalent local steps and verify failure propagation; `continue-on-error` must be followed by explicit failing gate when job must fail.
+4. If command execution requires unavailable external services, run structural check proving command registration, referenced file existence, and expected exit status; report what remains unverified.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs repository-wide checks before every commit:

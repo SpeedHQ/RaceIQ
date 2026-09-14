@@ -18,3 +18,4 @@ if (diffs.length > 0) {
 
 console.error("If you are happy with the changes, run snapshot locally and commit changes.");
 console.error("From client/: bun run snapshot:update");
+process.exit(1);
