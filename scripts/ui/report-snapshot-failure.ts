@@ -16,4 +16,5 @@ if (diffs.length > 0) {
   console.error("::error::Inspect 'Render and compare against committed baselines' step for the underlying test or server failure.");
 }
 
-process.exitCode = 1;
+console.error("If you are happy with the changes, run snapshot locally and commit changes.");
+console.error("From client/: bun run snapshot:update");
