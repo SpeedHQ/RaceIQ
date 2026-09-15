@@ -7,7 +7,7 @@ import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
 import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import type { SemanticLapTelemetry } from "@/hooks/laps";
-import { GameStoryScope } from "./GameStoryScope";
+import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 
 /**
  * The experiment flow end to end — list → workspace → review — in both
@@ -305,6 +305,9 @@ function seededClient() {
   // has no API behind it, and an unseeded fetch leaves the list stuck on its
   // loading state instead of rendering.
   qc.setQueryData(["acc-cars"], [{ model: "huracan_gt3_evo2", name: "Huracan GT3" }]);
+  qc.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
+  qc.setQueryData(["experiment-focus-history", CAR_ID], []);
+  qc.setQueryData(["experiment-focus-history", DRIVER_ID], []);
   return qc;
 }
 
@@ -430,7 +433,7 @@ export const NewExperimentDroppedSetup: StoryObj = {
 
 /** Car focus: two setup arms, the applied knob change on v2, driver comment. */
 export const WorkspaceCarFocus: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} />,
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} manageActivation={false} />,
   decorators: [(Story) => withProviders(Story)],
 };
 
@@ -446,7 +449,7 @@ export const WorkspaceCarFocus: StoryObj = {
  * `AppliedChangesList` the car-focus variant uses.
  */
 export const WorkspaceDriverFocus: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVER_ID} />,
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVER_ID} manageActivation={false} />,
   decorators: [(Story) => withProviders(Story)],
 };
 

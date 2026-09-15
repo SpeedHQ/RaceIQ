@@ -39,7 +39,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
-export function ExperimentWorkspace({ gameId, experimentId }: { gameId: ExperimentGameId; experimentId: number }) {
+export function ExperimentWorkspace({ gameId, experimentId, manageActivation = true }: { gameId: ExperimentGameId; experimentId: number; manageActivation?: boolean }) {
   const navigate = useNavigate();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
@@ -70,6 +70,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       const res = await api.experiments[":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
+    enabled: manageActivation,
     refetchInterval: 5000,
     refetchIntervalInBackground: true,
     staleTime: 0,
@@ -80,10 +81,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // an effect. The call is id-guarded server-side so a stale unmount can't
   // clobber a session the driver has since switched to.
   useEffect(() => {
+    if (!manageActivation) return;
     return () => {
       (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
-  }, [experimentId]);
+  }, [experimentId, manageActivation]);
   // A setup-backed session must always expose its selected file as v1. Older
   // sessions and interrupted creates can leave the session row ahead of its
   // version row; repair that invariant before rendering an empty graph.

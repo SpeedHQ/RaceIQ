@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
-import { useTelemetryStore } from "../stores/telemetry";
+import { DEFAULT_DISPLAY_SETTINGS, telemetryStore } from "../stores/telemetry";
 import { fakeAccPacket, fakeSectors, fakeSessionLaps, makeSemanticFixture } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
@@ -20,6 +20,7 @@ const fakeOutline = Array.from({ length: 64 }, (_, i) => {
 });
 queryClient.setQueryData(["track-outline", 7, "acc"], fakeOutline);
 queryClient.setQueryData(["track-boundaries", 7, "acc"], null);
+queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 // Full lap trace so the live tyre bars have a real min→max range to render, not a single point.
 const liveTrace = generateFakeLapTelemetry();
@@ -32,6 +33,7 @@ const semanticLiveTrace = liveTrace.map((packet, sequence) => {
   };
 });
 const liveViews: LiveTelemetryView[] = semanticLiveTrace.map((fixture) => fixture.view);
+queryClient.setQueryData(["lap-semantic-telemetry", 10, "acc"], liveViews);
 queryClient.setQueryData(["lap-telemetry", 10], { telemetry: liveTrace, sectorTimes: fakeSectorTimes });
 
 function StoryDecorator({ children, animate }: { children: React.ReactNode; animate: boolean }) {
@@ -40,7 +42,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
   // "Maximum update depth exceeded" loop (and a UI that never stops updating).
   useEffect(() => {
     const fixture = semanticLiveTrace.at(-1) ?? makeSemanticFixture(fakeAccPacket);
-    useTelemetryStore.setState({
+    telemetryStore.setState({
       connected: true,
       // Last frame of the pre-seeded lap so appending it doesn't reset the trace.
       telemetrySchema: fixture.schema,
@@ -60,7 +62,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
     const id = setInterval(() => {
       i = (i + 1) % semanticLiveTrace.length;
       const fixture = semanticLiveTrace[i];
-      useTelemetryStore.setState({ telemetryFrame: fixture.frame, telemetryView: fixture.view });
+      telemetryStore.setState({ telemetryFrame: fixture.frame, telemetryView: fixture.view });
     }, 50);
     return () => clearInterval(id);
   }, [animate]);
