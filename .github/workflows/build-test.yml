@@ -21,7 +21,9 @@ concurrency:
 jobs:
   build:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: mars-windows-x64-10vcpu-15g
+    runs-on:
+      - mars-windows-x64-10vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:
@@ -47,7 +49,9 @@ jobs:
 
   test:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on: mars-macos-arm64-2vcpu-10g
+    runs-on:
+      - mars-windows-x64-10vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:
