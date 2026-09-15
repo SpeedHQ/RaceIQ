@@ -13,7 +13,7 @@
 ### Internal
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
-- Add diagnostic logs that reveal missed telemetry and slow lap saving
+- Run Storybook standalone with deterministic offline fixtures and contract coverage.
 
 ## v0.16.0 - 2026-09-06
 
