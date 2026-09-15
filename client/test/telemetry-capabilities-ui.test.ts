@@ -758,7 +758,7 @@ describe("telemetry capability UI", () => {
     const view = liveView("f1-2025", { timing: { currentLapS: 30.793, lastLapS: 97.729, bestLapS: 94.023 } });
     const unavailable = renderToStaticMarkup(createElement(LapTimes, { view }));
     expect(unavailable).toContain("1:34.023");
-    expect(unavailable).not.toContain("Est. Lap");
+    expect(unavailable).toContain("Est. Lap");
     expect(unavailable).not.toContain("+3.706");
     expect(unavailable).not.toContain("+97.729");
     expect(unavailable).toContain("--:--.---");

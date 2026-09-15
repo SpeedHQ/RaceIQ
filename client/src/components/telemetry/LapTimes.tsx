@@ -30,8 +30,8 @@ export function LapTimes({ view, sectors }: LapTimesProps) {
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{currentLap === undefined ? "--:--.---" : formatLapTime(currentLap)}</div>
         </div>
         <div className="w-fit">
-          {hasLiveProjection && <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>}
-          {hasLiveProjection && <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors.estimatedLap)}</div>}
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{hasLiveProjection ? formatLapTime(sectors.estimatedLap) : "--:--.---"}</div>
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_delta()}</div>
