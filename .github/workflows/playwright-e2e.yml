@@ -10,8 +10,6 @@ on:
 
 jobs:
   playwright:
-    timeout-minutes: 30
-    name: Playwright E2E (${{ matrix.name }})
     strategy:
       fail-fast: false
       matrix:
