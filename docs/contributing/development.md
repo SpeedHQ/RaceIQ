@@ -61,6 +61,7 @@ bun run dev:client
 bun run build
 bun run lint
 bun run test
+bun run test:all
 ```
 
 For telemetry captures and imports, see [Telemetry recordings](telemetry-recordings.md). For test-process leaks, see [Test troubleshooting](test-troubleshooting.md).
