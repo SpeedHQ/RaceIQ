@@ -50,6 +50,7 @@ on:
 
 jobs:
   playwright:
+    timeout-minutes: 30
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
       - uses: actions/checkout@v7

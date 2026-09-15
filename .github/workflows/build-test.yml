@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   build:
+    timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on:
       - mars-windows-x64-10vcpu-15g
@@ -48,6 +49,7 @@ jobs:
           retention-days: 1
 
   test:
+    timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on:
       - mars-windows-x64-10vcpu-15g
@@ -83,6 +85,7 @@ jobs:
         run: bun run test:integration
 
   changelog:
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:

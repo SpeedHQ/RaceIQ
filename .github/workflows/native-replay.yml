@@ -24,6 +24,7 @@ concurrency:
 
 jobs:
   replay:
+    timeout-minutes: 30
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g

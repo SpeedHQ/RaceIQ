@@ -29,6 +29,7 @@ permissions:
 jobs:
   # --- Triggered by manual dispatch: compute version, build, create draft ---
   compute-version:
+    timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
     runs-on:
       - mars-windows-x64-4vcpu-15g
@@ -52,6 +53,7 @@ jobs:
         run: bun scripts/ci/compute-release-version.ts
 
   build:
+    timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
     runs-on: mars-windows-x64-4vcpu-15g
@@ -133,6 +135,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/playwright-e2e.yml
   draft-release:
+    timeout-minutes: 30
     if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.compute-version.result == 'success' && needs.build.result == 'success' && (needs.playwright-test.result == 'success' || needs.playwright-test.result == 'skipped') }}
     needs: [compute-version, build, playwright-test]
     runs-on:
@@ -166,6 +169,7 @@ jobs:
 
   # --- Triggered when draft is published: commit version bump + tag ---
   finalize:
+    timeout-minutes: 30
     if: github.event_name == 'release'
     runs-on:
       - mars-windows-x64-4vcpu-15g

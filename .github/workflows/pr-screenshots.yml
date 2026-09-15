@@ -34,6 +34,7 @@ permissions:
 
 jobs:
   render:
+    timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     strategy:
       fail-fast: false
@@ -145,6 +146,7 @@ jobs:
 
 
   collect:
+    timeout-minutes: 30
     if: needs.render.result == 'success' && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
     needs: render
     runs-on:
