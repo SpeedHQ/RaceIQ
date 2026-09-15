@@ -18,9 +18,6 @@ jobs:
     runs-on:
       - mars-windows-x64-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g
-    defaults:
-      run:
-        shell: powershell
     steps:
       - name: Checkout PR
         uses: actions/checkout@v7
@@ -32,26 +29,10 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha }}
           path: base
       - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4
       - name: Install benchmark dependencies
-        run: |
-          $ErrorActionPreference = "Stop"
-          Push-Location pr
-          bun install --frozen-lockfile
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Pop-Location
-          Push-Location base
-          bun install --no-save --ignore-scripts
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Pop-Location
-          New-Item -ItemType Directory -Force reports | Out-Null
+        run: bun scripts/ci/workflow-ops.ts bench-install
       - name: Run counterbalanced benchmark rounds
-        working-directory: pr
-        run: |
-          $ErrorActionPreference = "Stop"
-          bun run scripts/quality/run-bench-ci.ts --base=../base --current=. --reports=../reports
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: bun scripts/ci/workflow-ops.ts bench-run
       - name: Upload benchmark comment
         uses: actions/upload-artifact@v7
         with:

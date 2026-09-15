@@ -75,17 +75,7 @@ jobs:
 
 
       - name: Install workspace dependencies
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Continue"
-          bun install --frozen-lockfile
-          if ($LASTEXITCODE -eq 0) {
-            exit 0
-          }
-          Write-Host "Initial Bun install failed; clearing node_modules and retrying with a forced package download."
-          Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-          bun install --frozen-lockfile --force
-          exit $LASTEXITCODE
+        run: bun scripts/ci/workflow-ops.ts install-retry
 
       - name: Install Chromium
         working-directory: playwright
