@@ -9,10 +9,10 @@ on:
         type: string
         default: compiled
       runs-on:
-        description: "Runner label; Windows is required for compiled native binary"
+        description: "Runner label; compiled server builds on selected runner"
         required: false
         type: string
-        default: '["mars-windows-x64-4vcpu-10g"]'
+        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
@@ -76,6 +76,9 @@ jobs:
 
       - name: Install workspace dependencies
         run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Build local compiled server
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
+        run: bun run build
 
       - name: Install Chromium
         working-directory: playwright
