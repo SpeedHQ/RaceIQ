@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getGame } from "../../../shared/games/registry";
 import { resolveAnalysisTelemetry } from "../../../shared/racing/analysis/telemetry-capabilities";
+import { getTelemetryVariable } from "../../../shared/telemetry/catalog/query";
 import type { LiveTelemetryDefinitionV1 } from "../../../shared/telemetry/live/contracts";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
@@ -93,7 +94,7 @@ export const replayRoutes = new Hono()
       const first = replay.envelopes[0];
       const definitions: LiveTelemetryDefinitionV1[] = ids.map((semanticId) => ({
         semanticId,
-        unit: null,
+        unit: getTelemetryVariable(semanticId).canonicalUnit,
         mappingStatus: "direct",
         schemaVersion: first.catalogSchemaVersion,
         limitations: [],
