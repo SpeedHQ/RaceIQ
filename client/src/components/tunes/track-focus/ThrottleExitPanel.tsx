@@ -1,0 +1,116 @@
+import type { TrackCorner } from "../../../hooks/track-queries";
+import { sampleAt, type LapTrace } from "../../../lib/stint-traces";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import { Lane, type LaneSeries } from "./Lane";
+import { buildCornerInputMetrics } from "./input-analysis";
+import { ChartTooltip } from "./ChartTooltip";
+import { nearestCornerLabel } from "./detect-corners";
+
+export function ThrottleExitPanel({
+  traces,
+  metricTraces = traces,
+  primaryLapId,
+  corners,
+  cornerFracs,
+  nominalSpanMeters,
+  cursorFrac,
+  onCursorFrac,
+  visibleRange = null,
+  onRangeSelect,
+  onZoomOut,
+}: {
+  traces: LapTrace[];
+  metricTraces?: LapTrace[];
+  primaryLapId: number | null;
+  corners: TrackCorner[];
+  cornerFracs: number[];
+  nominalSpanMeters: number;
+  issues?: TuneIssue[];
+  cursorFrac: number | null;
+  onCursorFrac: (frac: number | null) => void;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
+}) {
+  if (corners.length === 0) return <div className="text-app-text-dim text-sm">No throttle segments available for this track.</div>;
+  const metrics = buildCornerInputMetrics(metricTraces, primaryLapId, corners, cornerFracs, nominalSpanMeters);
+  const series = (channel: "throttle" | "speedKmh"): LaneSeries[] =>
+    traces.map((trace) => ({
+      x: trace.frac,
+      values: trace[channel],
+      color: trace.lapId === primaryLapId ? "var(--app-accent)" : "color-mix(in srgb, var(--app-text-dim) 35%, transparent)",
+      width: trace.lapId === primaryLapId ? 1.8 : 1,
+    }));
+  const tooltip = (channel: "throttle" | "speedKmh") => (frac: number) => (
+    <ChartTooltip
+      frac={frac}
+      cornerLabel={nearestCornerLabel(corners, cornerFracs, frac)}
+      rows={traces.map((trace) => ({
+        lapNumber: trace.lapNumber,
+        color: trace.lapId === primaryLapId ? "var(--app-accent)" : "var(--app-text-dim)",
+        isBest: trace.lapId === primaryLapId,
+        isInvalid: !trace.isValid,
+        speedKmh: channel === "speedKmh" ? sampleAt(trace, "speedKmh", frac) : null,
+        throttlePct: channel === "throttle" ? sampleAt(trace, "throttle", frac) * 100 : null,
+      }))}
+    />
+  );
+  const hoveredMetricIndex = cursorFrac == null ? -1 : metrics.findIndex((metric) => cursorFrac >= metric.corner.distanceStart && cursorFrac <= metric.corner.distanceEnd);
+  return (
+    <div className="space-y-3">
+      <Lane
+        title="Throttle input"
+        domain={[0, 1]}
+        cornerFracs={cornerFracs}
+        cursorFrac={cursorFrac}
+        onCursorFrac={onCursorFrac}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
+        tooltip={tooltip("throttle")}
+        series={series("throttle")}
+      />
+      <Lane
+        title="Exit speed"
+        domain={[0, Math.max(100, ...traces.flatMap((trace) => Array.from(trace.speedKmh)))]}
+        cornerFracs={cornerFracs}
+        cursorFrac={cursorFrac}
+        onCursorFrac={onCursorFrac}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
+        tooltip={tooltip("speedKmh")}
+        series={series("speedKmh")}
+      />
+      <div className="rounded border border-app-border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              {["Segment", "Throttle pickup", "Full throttle", "Pickup → full", "Exit speed", "Pickup variation"].map((h) => (
+                <th key={h} className="p-2 text-left">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {metrics.map((m, index) => (
+              <tr
+                key={m.corner.index}
+                className={`border-t border-app-border cursor-pointer transition-colors ${index === hoveredMetricIndex ? "bg-app-accent/15" : "hover:bg-app-surface-hover"}`}
+                onClick={() => onCursorFrac(m.throttlePickupFrac ?? m.frac)}
+              >
+                <td className="p-2">{m.corner.label}</td>
+                <td className="p-2">{m.throttlePickupFrac == null ? "—" : `${(m.throttlePickupFrac * 100).toFixed(1)}%`}</td>
+                <td className="p-2">{m.fullThrottleFrac == null ? "—" : `${(m.fullThrottleFrac * 100).toFixed(1)}%`}</td>
+                <td className="p-2">{m.pickupToFullThrottleS == null ? "—" : `${m.pickupToFullThrottleS.toFixed(2)} s`}</td>
+                <td className="p-2">{m.exitSpeedKmh == null ? "—" : `${m.exitSpeedKmh.toFixed(0)} km/h`}</td>
+                <td className="p-2">{m.throttlePickupSpreadM == null ? "—" : `±${m.throttlePickupSpreadM.toFixed(1)} m`}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

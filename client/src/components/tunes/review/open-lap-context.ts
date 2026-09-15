@@ -3,7 +3,7 @@ import type { TuneIssue } from "@shared/racing/tuning/issues";
 import type { ExperimentVersion } from "@/hooks/experiments";
 
 type CornerSnapshot = { tempC?: number; wear?: number; pressure?: number; brakeTemp?: number };
-type Range = { n: number; min: number; max: number; avg: number };
+type Range = { n: number; min: number; max: number; median: number };
 
 /** Build compact context text matching currently rendered lap review. */
 export function buildOpenLapContext({
@@ -61,13 +61,13 @@ export function buildOpenLapContext({
   if (issues && issues.length > 0) lines.push(`Detected issues: ${issues.map((issue) => `${issue.kind}${issue.corner ? ` ${issue.corner}` : ""} (${issue.severity}) — ${issue.detail}`).join("; ")}`);
   else if (issues) lines.push("Detected issues: none.");
   if (ranges) {
-    lines.push(`${metric.label} ranges (min-max, ${metric.unit}) by sector:`);
+    lines.push(`${metric.label} ranges (min-max, median, ${metric.unit}) by sector:`);
     ranges.sectors.forEach((sector, index) => {
       lines.push(
         `  S${index + 1}: ${cornerKeys
           .map((corner) => {
             const range = sector[corner];
-            return range.n === 0 ? `${corner} —` : `${corner} ${range.min.toFixed(0)}-${range.max.toFixed(0)} (avg ${range.avg.toFixed(0)})`;
+            return range.n === 0 ? `${corner} —` : `${corner} ${range.min.toFixed(0)}-${range.max.toFixed(0)} (median ${range.median.toFixed(0)})`;
           })
           .join(", ")}`,
       );

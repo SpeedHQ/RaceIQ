@@ -4,7 +4,20 @@ import type { LiveSectorData } from "../../shared/racing/live/types";
 import { handleWebSocketMessage } from "../src/lib/websocket-messages";
 import { devTelemetryStore, useDevTelemetryStore } from "../src/stores/dev-telemetry";
 import { telemetryStore, useTelemetryStore } from "../src/stores/telemetry";
-const schema = { type: "telemetry-schema", protocolVersion: 1, schemaId: "s", simulator: "acc", catalogVersion: "c", catalogHash: "h", catalogSchemaVersion: "1", parserVersion: "p", resolverVersion: "r", derivationVersion: "d", definitions: [] } as const;
+
+const schema = {
+  type: "telemetry-schema",
+  protocolVersion: 1,
+  schemaId: "s",
+  simulator: "acc",
+  catalogVersion: "c",
+  catalogHash: "h",
+  catalogSchemaVersion: "1",
+  parserVersion: "p",
+  resolverVersion: "r",
+  derivationVersion: "d",
+  definitions: [],
+} as const;
 const packet = { gameId: "acc", TimestampMS: 1 } as unknown as TelemetryPacket;
 describe("websocket message router", () => {
   it("routes canonical schema/frame to production store", () => {

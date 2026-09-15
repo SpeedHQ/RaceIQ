@@ -15,13 +15,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredSessions = normalizedSearch
     ? sessions.filter((session) =>
-        [
-          session.name,
-          session.carName,
-          session.trackName,
-          session.baseSetupPath?.split(/[\\/]/).pop(),
-          EXPERIMENT_FOCUS_LABELS[session.focus],
-        ]
+        [session.name, session.carName, session.trackName, session.baseSetupPath?.split(/[\\/]/).pop(), EXPERIMENT_FOCUS_LABELS[session.focus]]
           .filter(Boolean)
           .some((value) => value!.toLocaleLowerCase().includes(normalizedSearch)),
       )

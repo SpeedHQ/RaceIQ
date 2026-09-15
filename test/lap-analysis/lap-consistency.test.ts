@@ -133,10 +133,13 @@ describe("computeLapConsistencyDelta", () => {
 });
 
 describe("computeLineSpreadTrace", () => {
-  test("returns null with fewer than 3 resampled laps", () => {
+  test("returns a zero-spread trace with one or two resampled laps", () => {
     const lapA = buildLap();
     const lapB = buildLap({ lateralOffsetInCorner: 4 });
-    expect(computeLineSpreadTrace([lapA, lapB], [1, 2], corners)).toBeNull();
+    const result = computeLineSpreadTrace([lapA, lapB], [1, 2], corners);
+    expect(result).not.toBeNull();
+    expect(result!.lapCount).toBe(2);
+    expect(result!.spreadM.every((value) => value >= 0)).toBe(true);
   });
 
   test("three laps offset by known amounts through T1: trimmed spread reflects the inner two, not the outlier", () => {

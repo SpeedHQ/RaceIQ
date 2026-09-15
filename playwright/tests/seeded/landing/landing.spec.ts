@@ -22,7 +22,7 @@ test("global landing cards, period filters, and recent laps navigate", async ({ 
   const recentRows = page.locator("tbody tr");
   await expect(recentRows.first()).toBeVisible();
   await recentRows.first().click();
-  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/analyse\?/);
+  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/replay\?/);
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
     timeout: 20_000,
   });
@@ -70,7 +70,7 @@ for (const game of SEEDED_GAME_CASES) {
     expect(bestLap, `${game.gameId} recap best lap row`).toBeDefined();
     await expect(page.getByRole("button", { name: "Analyse best lap" })).toBeVisible();
     await page.getByRole("button", { name: "Analyse best lap" }).click();
-    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/analyse\\?[^#]*lap=${recap.bestLapId}(?:&|$)`));
+    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/replay\\?[^#]*lap=${recap.bestLapId}(?:&|$)`));
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
       timeout: 20_000,
     });

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { AnnotationMarker } from "./Lane";
 import { severityRangeColor } from "@/lib/colors";
 import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
@@ -8,13 +9,16 @@ import { Lane } from "./Lane";
 
 interface BalanceLanesProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  annotationMarkers?: AnnotationMarker[];
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
-
 /** Magnitude thresholds (degrees) for the severity banding — tuned to
  *  typical GT3-class axle slip deltas rather than a formal spec. */
 const BAND_AMBER_DEG = 3;
@@ -27,15 +31,6 @@ function magnitudeColor(absDeg: number): string {
 function verdict(deg: number): string {
   if (Math.abs(deg) < 0.5) return "neutral";
   return deg > 0 ? "understeer" : "oversteer";
-}
-
-function balancePolyline(t: LapTrace, x: (f: number) => number, y: (v: number) => number): string {
-  const balance = t.balance!;
-  let s = "";
-  for (let i = 0; i < t.n; i++) {
-    s += `${i ? " " : ""}${x(t.frac[i]).toFixed(1)},${y(balance[i]).toFixed(1)}`;
-  }
-  return s;
 }
 
 /** Linear-interpolate a trace's `balance` channel at fraction `f`. */
@@ -66,9 +61,9 @@ function balanceAt(t: LapTrace, f: number): number {
  * more). Every lap dim, best lap in accent, dashed zero line. Empty state
  * when the game reports no slip-angle data at all.
  */
-export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac }: BalanceLanesProps) {
+export function BalanceLanes({ traces, primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange, onRangeSelect, onZoomOut }: BalanceLanesProps) {
   const withBalance = useMemo(() => traces.filter((t) => t.balance != null), [traces]);
-  const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === bestLapId) ?? null, [withBalance, bestLapId]);
+  const bestTrace = useMemo(() => withBalance.find((t) => t.lapId === primaryLapId) ?? null, [withBalance, primaryLapId]);
 
   const domain = useMemo<[number, number]>(() => {
     let maxAbs = 0;
@@ -80,6 +75,20 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
     const pad = Math.max(0.3, maxAbs * 0.15);
     return [-maxAbs - pad, maxAbs + pad];
   }, [withBalance]);
+  const series = useMemo(
+    () => [
+      ...withBalance
+        .filter((trace) => trace.lapId !== primaryLapId)
+        .map((trace) => ({
+          x: trace.frac,
+          values: trace.balance!,
+          color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+          width: 1,
+        })),
+      ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace.balance!, color: "var(--app-accent)", width: 1.8 }] : []),
+    ],
+    [primaryLapId, bestTrace, withBalance],
+  );
 
   if (withBalance.length === 0) {
     return (
@@ -97,9 +106,15 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
         bgFill="transparent"
         height={120}
         domain={domain}
+        visibleRange={visibleRange}
+        onRangeSelect={onRangeSelect}
+        onZoomOut={onZoomOut}
         cornerFracs={cornerFracs}
+        annotationMarkers={annotationMarkers}
         cursorFrac={cursorFrac}
         onCursorFrac={onCursorFrac}
+        series={series}
+        horizontalLines={[{ value: 0, color: "var(--app-accent)", width: 1, opacity: 0.5, dash: [4, 3] }]}
         tooltip={(f) => {
           const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
           let worst: { lapNumber: number; deg: number } | null = null;
@@ -114,7 +129,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
               <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                 {bestDeg != null && (
                   <div>
-                    best: <span style={{ color: magnitudeColor(Math.abs(bestDeg)) }}>{`${bestDeg >= 0 ? "+" : ""}${bestDeg.toFixed(1)}°`}</span>{" "}
+                    primary: <span style={{ color: magnitudeColor(Math.abs(bestDeg)) }}>{`${bestDeg >= 0 ? "+" : ""}${bestDeg.toFixed(1)}°`}</span>{" "}
                     <span className="text-app-text-muted">{verdict(bestDeg)}</span>
                   </div>
                 )}
@@ -128,26 +143,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
             </div>
           );
         }}
-      >
-        {({ x, y }) => (
-          <>
-            <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--app-accent)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
-            {withBalance
-              .filter((t) => t.lapId !== bestLapId)
-              .map((t) => (
-                <polyline
-                  key={t.lapId}
-                  points={balancePolyline(t, x, y)}
-                  fill="none"
-                  stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                  strokeWidth={1}
-                  opacity={t.isValid ? 0.35 : 0.55}
-                />
-              ))}
-            {bestTrace && <polyline points={balancePolyline(bestTrace, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
-          </>
-        )}
-      </Lane>
+      />
     </div>
   );
 }

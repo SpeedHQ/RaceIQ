@@ -4,16 +4,21 @@ import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
+import type { AnnotationMarker, LaneSeries } from "./Lane";
 import { GgScatter } from "./GgScatter";
 import { Lane } from "./Lane";
 
 interface GripPanelProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  annotationMarkers?: AnnotationMarker[];
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
 
 const SLIP_CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
@@ -45,12 +50,6 @@ function valueAt(t: LapTrace, arr: Float32Array, f: number): number {
   return arr[lo] + (arr[hi] - arr[lo]) * t2;
 }
 
-function gPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < t.n; i++) s += `${i ? " " : ""}${x(t.frac[i]).toFixed(1)},${y(arr[i]).toFixed(1)}`;
-  return s;
-}
-
 function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null): [number, number] {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -74,14 +73,14 @@ function gDomain(traces: LapTrace[], sel: (t: LapTrace) => Float32Array | null):
  * for the two scalar lanes and the corner lane, plus the standalone
  * `GgScatter` for the friction circle.
  */
-export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursorFrac, onCursorFrac }: GripPanelProps) {
+export function GripPanel({ traces, primaryLapId, cornerFracs, corners = [], annotationMarkers, cursorFrac, onCursorFrac, visibleRange = null, onRangeSelect, onZoomOut }: GripPanelProps) {
   const withLatG = useMemo(() => traces.filter((t) => t.latG != null), [traces]);
   const withLongG = useMemo(() => traces.filter((t) => t.longG != null), [traces]);
   const withSlip = useMemo(() => traces.filter((t) => t.combinedSlip != null), [traces]);
 
-  const bestLatG = withLatG.find((t) => t.lapId === bestLapId) ?? null;
-  const bestLongG = withLongG.find((t) => t.lapId === bestLapId) ?? null;
-  const bestSlip = withSlip.find((t) => t.lapId === bestLapId) ?? null;
+  const bestLatG = withLatG.find((t) => t.lapId === primaryLapId) ?? null;
+  const bestLongG = withLongG.find((t) => t.lapId === primaryLapId) ?? null;
+  const bestSlip = withSlip.find((t) => t.lapId === primaryLapId) ?? null;
 
   const latDomain = useMemo(() => gDomain(withLatG, (t) => t.latG), [withLatG]);
   const longDomain = useMemo(() => gDomain(withLongG, (t) => t.longG), [withLongG]);
@@ -104,6 +103,22 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
     const pad = Math.max(0.001, (max - min) * 0.08);
     return [min - pad, max + pad];
   }, [withSlip]);
+  const lapSeries = (available: LapTrace[], best: LapTrace | null, values: (trace: LapTrace) => Float32Array): LaneSeries[] => [
+    ...available
+      .filter((trace) => trace.lapId !== primaryLapId)
+      .map((trace) => ({
+        x: trace.frac,
+        values: values(trace),
+        color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+      })),
+    ...(best ? [{ x: best.frac, values: values(best), color: "var(--app-accent)", width: 1.8 }] : []),
+  ];
+  const latSeries = useMemo(() => lapSeries(withLatG, bestLatG, (trace) => trace.latG!), [primaryLapId, bestLatG, withLatG]);
+  const longSeries = useMemo(() => lapSeries(withLongG, bestLongG, (trace) => trace.longG!), [primaryLapId, bestLongG, withLongG]);
+  const slipSeries = useMemo(
+    () => (bestSlip ? SLIP_CORNERS.map((corner): LaneSeries => ({ x: bestSlip.frac, values: bestSlip.combinedSlip![corner.key], color: corner.color, width: 1.6 })) : []),
+    [bestSlip],
+  );
 
   return (
     <div className="space-y-3">
@@ -117,40 +132,27 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={latDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={latSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               const best = bestLatG ? valueAt(bestLatG, bestLatG.latG!, f) : null;
               return (
                 <div className="space-y-1">
                   <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
-                  <div className="font-mono tabular-nums text-app-text-dim">best: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
+                  <div className="font-mono tabular-nums text-app-text-dim">primary: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {withLatG
-                  .filter((t) => t.lapId !== bestLapId)
-                  .map((t) => (
-                    <polyline
-                      key={t.lapId}
-                      points={gPolyline(t, t.latG!, x, y)}
-                      fill="none"
-                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                      strokeWidth={1}
-                      opacity={t.isValid ? 0.35 : 0.55}
-                    />
-                  ))}
-                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
-              </>
-            )}
-          </Lane>
+          />
         </div>
       )}
 
@@ -164,40 +166,27 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={longDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={longSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               const best = bestLongG ? valueAt(bestLongG, bestLongG.longG!, f) : null;
               return (
                 <div className="space-y-1">
                   <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
-                  <div className="font-mono tabular-nums text-app-text-dim">best: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
+                  <div className="font-mono tabular-nums text-app-text-dim">primary: {best != null ? `${best.toFixed(2)}g` : "—"}</div>
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {withLongG
-                  .filter((t) => t.lapId !== bestLapId)
-                  .map((t) => (
-                    <polyline
-                      key={t.lapId}
-                      points={gPolyline(t, t.longG!, x, y)}
-                      fill="none"
-                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                      strokeWidth={1}
-                      opacity={t.isValid ? 0.35 : 0.55}
-                    />
-                  ))}
-                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
-              </>
-            )}
-          </Lane>
+          />
         </div>
       )}
 
@@ -211,11 +200,16 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
           <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
           <Lane
             bgFill="transparent"
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
             height={100}
             domain={slipDomain}
             cornerFracs={cornerFracs}
+            annotationMarkers={annotationMarkers}
             cursorFrac={cursorFrac}
             onCursorFrac={onCursorFrac}
+            series={slipSeries}
             tooltip={(f) => {
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               if (!bestSlip) return null;
@@ -233,14 +227,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                {bestSlip &&
-                  SLIP_CORNERS.map((c) => <polyline key={c.key} points={gPolyline(bestSlip, bestSlip.combinedSlip![c.key], x, y)} fill="none" stroke={c.color} strokeWidth={1.6} opacity={0.9} />)}
-              </>
-            )}
-          </Lane>
+          />
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
             {SLIP_CORNERS.map((c) => (
               <span key={c.key} className="inline-flex items-center gap-1.5">
@@ -252,7 +239,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
         </div>
       )}
 
-      <GgScatter traces={traces} bestLapId={bestLapId} cursorFrac={cursorFrac} />
+      <GgScatter traces={traces} primaryLapId={primaryLapId} cursorFrac={cursorFrac} />
     </div>
   );
 }

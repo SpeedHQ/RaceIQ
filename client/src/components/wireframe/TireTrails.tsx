@@ -28,7 +28,12 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
   // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
   // TireSlipRatio field which uses per-game scaling).
   const angleFns = useMemo(
-    () => [(p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][0]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][1]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][2]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][3]) || 0 : 0)],
+    () => [
+      (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][0]) || 0 : 0),
+      (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][1]) || 0 : 0),
+      (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][2]) || 0 : 0),
+      (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][3]) || 0 : 0),
+    ],
     [],
   );
   const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);
@@ -49,7 +54,10 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
     while (startIdx > 0 && cursorIdx - startIdx < MAX_TRAIL_SAMPLES) {
       const a = telemetry[startIdx];
       const b = telemetry[startIdx - 1];
-      lastSegLen = Math.hypot((semanticNumber(a, "motion.position-x") ?? 0) - (semanticNumber(b, "motion.position-x") ?? 0), (semanticNumber(a, "motion.position-z") ?? 0) - (semanticNumber(b, "motion.position-z") ?? 0));
+      lastSegLen = Math.hypot(
+        (semanticNumber(a, "motion.position-x") ?? 0) - (semanticNumber(b, "motion.position-x") ?? 0),
+        (semanticNumber(a, "motion.position-z") ?? 0) - (semanticNumber(b, "motion.position-z") ?? 0),
+      );
       acc += lastSegLen;
       startIdx--;
       if (acc >= trailLengthM) break;
@@ -63,8 +71,8 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
     const overshoot = acc - trailLengthM;
     const tailFrac = overshoot > 0 && lastSegLen > 1e-6 ? overshoot / lastSegLen : 0;
 
-    const cx = (semanticNumber(cur, "motion.position-x") ?? 0),
-      cz = (semanticNumber(cur, "motion.position-z") ?? 0);
+    const cx = semanticNumber(cur, "motion.position-x") ?? 0,
+      cz = semanticNumber(cur, "motion.position-z") ?? 0;
     const s = Math.sin(semanticNumber(cur, "motion.yaw") ?? 0),
       c = Math.cos(semanticNumber(cur, "motion.yaw") ?? 0);
 
@@ -75,8 +83,8 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
         const p = telemetry[i];
         // For the oldest sample, lerp toward the next sample by tailFrac so
         // the rear endpoint lands at exactly trailLengthM (kills tail jitter).
-        let px = (semanticNumber(p, "motion.position-x") ?? 0);
-        let pz = (semanticNumber(p, "motion.position-z") ?? 0);
+        let px = semanticNumber(p, "motion.position-x") ?? 0;
+        let pz = semanticNumber(p, "motion.position-z") ?? 0;
         if (i === startIdx && tailFrac > 0) {
           const next = telemetry[startIdx + 1];
           px += ((semanticNumber(next, "motion.position-x") ?? 0) - px) * tailFrac;

@@ -1,0 +1,99 @@
+import { slipBalanceDeg } from "@shared/racing/analysis/laps/physics/vehicle";
+import { clamp } from "@shared/core/numbers";
+import { hasWorldPositions, lapPath } from "@shared/racing/tracks/path";
+import type { TelemetryPacket } from "@shared/telemetry/types";
+import type { AlignedLapSet, AlignedLapTrace, WheelAverages, WheelTrace } from "./types";
+
+export interface AlignmentLapInput { lapId: number; lapNumber: number; lapTime: number; isValid: boolean; telemetry: TelemetryPacket[]; sectorTimes?: number[] | null; sectorStarts?: number[] | null; }
+export interface LapSetAlignmentIndex { referenceLapId: number; nominalSpanMeters: number; distancesByLapId: Map<number, number[]>; }
+export interface AlignmentOptions { trackLengthMeters?: number | null; gridStepMeters: number; distanceRangeMeters?: { start: number; end: number }; preparedIndex?: LapSetAlignmentIndex; }
+const corners = ["FL", "FR", "RL", "RR"] as const;
+const U32 = 4294967296;
+const rec = (p: TelemetryPacket) => p as unknown as Record<string, number | undefined>;
+const span = (p: TelemetryPacket[]) => { const a = p.find((x) => Number.isFinite(x.DistanceTraveled)); const b = [...p].reverse().find((x) => Number.isFinite(x.DistanceTraveled)); return a && b ? Math.max(0, b.DistanceTraveled - a.DistanceTraveled) : 0; };
+function raw(p: TelemetryPacket[]) { const first = p.find((x) => Number.isFinite(x.DistanceTraveled))?.DistanceTraveled ?? 0; let prev = 0; return p.map((x) => { const n = Number.isFinite(x.DistanceTraveled - first) ? Math.max(prev, x.DistanceTraveled - first) : prev; prev = n; return n; }); }
+function fractions(p: TelemetryPacket[], total: number) { const vals = p.map((x) => x.iracing?.lapDistancePct); if (vals.filter((x) => Number.isFinite(x)).length < 2) return null; let prev = 0, offset = 0; const out = vals.map((x) => { if (!Number.isFinite(x)) return prev; let n = x! + offset; if (n < prev - .5) { offset++; n = x! + offset; } n = clamp(n, prev, 1); prev = n; return n; }); const a = out[0] ?? 0, b = out.at(-1) ?? a; return b > a ? out.map((x) => (x - a) / (b - a) * total) : null; }
+function projected(p: TelemetryPacket[], reference: TelemetryPacket[], total: number) { const path = lapPath(reference); const pts = path.x.map((x, i) => ({ x, z: path.z[i] })).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.z) && (q.x !== 0 || q.z !== 0)); if (pts.length < 20) return null; const cumulative = [0]; for (let i=1;i<pts.length;i++) cumulative.push(cumulative[i-1] + Math.hypot(pts[i].x-pts[i-1].x, pts[i].z-pts[i-1].z)); const result:number[]=[]; let prev=0; const source=raw(p); for(let i=0;i<p.length;i++){ const x=p[i].PositionX,z=p[i].PositionZ; if(!Number.isFinite(x)||!Number.isFinite(z)||(x===0&&z===0)){result.push(prev);continue;} const inc=i?Math.max(0,source[i]-source[i-1]):50; const low=i?Math.max(0,prev-25):0, high=Math.min(cumulative.at(-1)!,prev+Math.min(250,Math.max(50,inc*3))); let best=prev, bd=Infinity; for(let j=0;j<pts.length-1;j++){ if(cumulative[j+1]<low||cumulative[j]>high)continue; const dx=pts[j+1].x-pts[j].x,dz=pts[j+1].z-pts[j].z, ls=dx*dx+dz*dz,t=clamp(ls?((x-pts[j].x)*dx+(z-pts[j].z)*dz)/ls:0,0,1), px=pts[j].x+dx*t,pz=pts[j].z+dz*t,d=Math.hypot(x-px,z-pz), prog=cumulative[j]+(cumulative[j+1]-cumulative[j])*t; if(prog>=low&&prog<=high&&d<bd){bd=d;best=prog;}} prev=Math.max(prev,Math.min(high,best));result.push(prev);} const a=result[0]??0,b=result.at(-1)??a; return b>a?result.map(x=>(x-a)/(b-a)*total):null; }
+function choose(inputs: AlignmentLapInput[], length?: number|null) { let best=0; for(let i=1;i<inputs.length;i++){ const a=inputs[best],b=inputs[i]; if(a.isValid!==b.isValid){if(b.isValid)best=i;continue;} const sa=span(a.telemetry),sb=span(b.telemetry); if(length&&length>0&&Math.abs(sb-length)!==Math.abs(sa-length)){if(Math.abs(sb-length)<Math.abs(sa-length))best=i;continue;} if(sb>0&&(sa<=0||sb<sa))best=i; } return best; }
+export function prepareLapSetAlignmentIndex(inputs: AlignmentLapInput[], options: Omit<AlignmentOptions,"preparedIndex">): LapSetAlignmentIndex { const ri=choose(inputs,options.trackLengthMeters); const ref=inputs[ri]; const nominal=span(ref.telemetry)||Math.max(...inputs.map(x=>span(x.telemetry))); const canProject=nominal>0&&inputs.every(x=>hasWorldPositions(x.telemetry)); let ds=inputs.map(x=>canProject?projected(x.telemetry,ref.telemetry,nominal):null); if(ds.some(x=>!x)){ const fs=inputs.map(x=>fractions(x.telemetry,nominal)); ds=fs.some(x=>!x)?inputs.map(x=>raw(x.telemetry)):fs; } return {referenceLapId:ref.lapId,nominalSpanMeters:nominal,distancesByLapId:new Map(inputs.map((x,i)=>[x.lapId,ds[i]!]))}; }
+const interp=(a: ArrayLike<number>,lo:number,hi:number,t:number)=>a[lo]+(a[hi]-a[lo])*t;
+const pressureKeys: Record<string,string> = {FL:"TirePressureFrontLeft",FR:"TirePressureFrontRight",RL:"TirePressureRearLeft",RR:"TirePressureRearRight"};
+const brakeKeys: Record<string,string> = {FL:"BrakeTempFrontLeft",FR:"BrakeTempFrontRight",RL:"BrakeTempRearLeft",RR:"BrakeTempRearRight"};
+function wheelMap(
+  p: TelemetryPacket[],
+  distances: ArrayLike<number>,
+  grid: ArrayLike<number>,
+  getter: (r: Record<string, number | undefined>, c: string) => number | undefined,
+  carry: boolean,
+  allowZero = false,
+): WheelTrace<Float32Array> | null {
+  const sourceValues = {} as Record<(typeof corners)[number], number[]>;
+  for (const corner of corners) {
+    const values = p.map((packet) => {
+      const value = getter(rec(packet), corner);
+      return Number.isFinite(value) && (allowZero ? value! >= 0 : value! > 0) ? value! : Number.NaN;
+    });
+    if (!values.some((value) => Number.isFinite(value))) return null;
+    if (carry) {
+      const firstPositive = values.findIndex((value) => Number.isFinite(value));
+      const seed = values[firstPositive]!;
+      for (let i = 0; i < firstPositive; i++) values[i] = seed;
+      let previous = seed;
+      for (let i = firstPositive; i < values.length; i++) {
+        if (Number.isFinite(values[i])) previous = values[i]!;
+        else values[i] = previous;
+      }
+    }
+    sourceValues[corner] = values;
+  }
+
+  const out = {} as WheelTrace<Float32Array>;
+  for (const corner of corners) {
+    const values = sourceValues[corner]!;
+    const aligned = new Float32Array(grid.length);
+    let sourceIndex = 0;
+    for (let i = 0; i < grid.length; i++) {
+      while (sourceIndex < distances.length - 1 && distances[sourceIndex + 1]! <= grid[i]!) sourceIndex++;
+      const lower = grid[i]! <= distances[0]! ? 0 : sourceIndex;
+      const upper = grid[i]! >= distances[distances.length - 1]!
+        ? distances.length - 1
+        : Math.min(distances.length - 1, sourceIndex + 1);
+      const t = upper === lower
+        ? 0
+        : clamp((grid[i]! - distances[lower]!) / (distances[upper]! - distances[lower]!), 0, 1);
+      aligned[i] = values[lower]! + (values[upper]! - values[lower]!) * t;
+    }
+    out[corner] = aligned;
+  }
+  return out;
+}
+
+function averages(
+  p: TelemetryPacket[],
+  getter: (r: Record<string, number | undefined>, c: string) => number | undefined,
+): WheelAverages | null {
+  const out = {} as WheelAverages;
+  for (const corner of corners) {
+    const values = p
+      .map((packet) => getter(rec(packet), corner))
+      .filter((value): value is number => value != null && Number.isFinite(value) && value > 0);
+    if (!values.length) return null;
+    out[corner] = values.reduce((sum, value) => sum + value, 0) / values.length;
+  }
+  return out;
+}
+function align(input: AlignmentLapInput, distances: ArrayLike<number>, grid: ArrayLike<number>, allSpan: number): AlignedLapTrace {
+  const src = input.telemetry, d = distances, n = grid.length, first = src[0]!;
+  const path = lapPath(src);
+  const posX = src.map((x, i) => Number.isFinite(x.PositionX) && Number.isFinite(x.PositionZ) && (x.PositionX !== 0 || x.PositionZ !== 0) ? x.PositionX : path.x[i]);
+  const posZ = src.map((x, i) => Number.isFinite(x.PositionX) && Number.isFinite(x.PositionZ) && (x.PositionX !== 0 || x.PositionZ !== 0) ? x.PositionZ : path.z[i]);
+  const fields = { speedMps: src.map(x => x.Speed), throttle: src.map(x => clamp(x.Accel > 1 ? x.Accel / 255 : x.Accel, 0, 1)), brake: src.map(x => clamp(x.Brake > 1 ? x.Brake / 255 : x.Brake, 0, 1)), steer: src.map(x => clamp(x.Steer / 128, -1, 1)), rpm: src.map(x => x.CurrentEngineRpm), positionX: posX, positionZ: posZ, yaw: src.map(x => x.Yaw), fuel: src.map(x => x.Fuel) };
+  let times = src.map(x => x.CurrentLap);
+  if ((times.at(-1)! - times[0]!) < 1) { times = [0]; let prev = first.TimestampMS; for (let i = 1; i < src.length; i++) { let dt = src[i]!.TimestampMS - prev; if (dt < 0) dt += U32; times[i] = times[i - 1]! + dt / 1000; prev = src[i]!.TimestampMS; } } else { const t = times[0]!; times = times.map(x => x - t); }
+  const out = { lapId: input.lapId, lapNumber: input.lapNumber, lapTime: input.lapTime, isValid: input.isValid, frac: new Float32Array(n), sourceIndices: new Uint32Array(n), speedMps: new Float32Array(n), throttle: new Float32Array(n), brake: new Float32Array(n), steer: new Float32Array(n), rpm: new Float32Array(n), gear: new Uint8Array(n), positionX: new Float32Array(n), positionZ: new Float32Array(n), yaw: new Float32Array(n), elapsedTimeS: new Float32Array(n), fuel: new Float32Array(n) } as AlignedLapTrace;
+  for (let j = 0, si = 0; j < n; j++) { while (si < d.length - 1 && d[si + 1]! <= grid[j]!) si++; const lo = grid[j]! <= d[0]! ? 0 : si, hi = grid[j]! >= d[d.length - 1]! ? d.length - 1 : Math.min(d.length - 1, si + 1), t = hi === lo ? 0 : clamp((grid[j]! - d[lo]!) / (d[hi]! - d[lo]!), 0, 1); out.sourceIndices[j] = t < .5 ? lo : hi; out.frac[j] = allSpan ? grid[j]! / allSpan : 0; for (const k of Object.keys(fields)) (out[k as keyof typeof fields] as Float32Array)[j] = interp(fields[k as keyof typeof fields], lo, hi, t); out.elapsedTimeS[j] = interp(times, lo, hi, t); out.gear[j] = Math.max(0, Math.round(src[t < .5 ? lo : hi]!.Gear)); }
+  out.tireWear = wheelMap(src, d, grid, (r, c) => r[`TireWear${c}`], false, true); out.tireTemp = wheelMap(src, d, grid, (r, c) => r[`TireTemp${c}`], true); out.tirePressure = wheelMap(src, d, grid, (r, c) => r[pressureKeys[c]!], true); out.brakeTemp = wheelMap(src, d, grid, (r, c) => r[brakeKeys[c]!], true); out.suspTravel = wheelMap(src, d, grid, (r, c) => r[`NormSuspensionTravel${c}`], false); out.combinedSlip = wheelMap(src, d, grid, (r, c) => r[`TireCombinedSlip${c}`], false);
+  let bal = new Float32Array(n), lat = new Float32Array(n), lon = new Float32Array(n), hasBal = false, hasLat = false, hasLon = false; for (let j = 0; j < n; j++) { const p = src[out.sourceIndices[j]!]!; bal[j] = slipBalanceDeg(p); lat[j] = p.AccelerationX / 9.81; lon[j] = p.AccelerationZ / 9.81; hasBal ||= bal[j] !== 0; hasLat ||= lat[j] !== 0; hasLon ||= lon[j] !== 0; } out.balanceDeg = hasBal ? bal : null; out.latG = hasLat ? lat : null; out.longG = hasLon ? lon : null;
+  out.tireAverages = averages(src, (r, c) => r[`TireTemp${c}`]); out.pressureAverages = averages(src, (r, c) => r[pressureKeys[c]!]); out.brakeTempAverages = averages(src, (r, c) => r[brakeKeys[c]!]); out.sectorTimes = input.sectorTimes ?? null; out.sectorStarts = input.sectorStarts ?? null; return out;
+}
+export function alignLapSet(inputs: AlignmentLapInput[], options: AlignmentOptions): AlignedLapSet { if(!inputs.length)throw new Error("At least one lap required");const index=options.preparedIndex??prepareLapSetAlignmentIndex(inputs,options);const total=index.nominalSpanMeters;const start=clamp(options.distanceRangeMeters?.start??0,0,total),end=clamp(options.distanceRangeMeters?.end??total,start,total),step=Math.max(options.gridStepMeters>0?options.gridStepMeters:1,(end-start)/49999),count=Math.min(50000,Math.max(1,Math.ceil((end-start)/step)+1)),grid=Float32Array.from({length:count},(_,i)=>i===count-1?end:start+i*step),frac=Float32Array.from(grid,x=>total?x/total:0);return {distanceMeters:grid,distanceFractions:frac,nominalSpanMeters:total,distanceStartMeters:start,distanceEndMeters:end,stepMeters:count>1?grid[1]-grid[0]:step,referenceLapId:index.referenceLapId,laps:inputs.map(x=>align(x, index.distancesByLapId.get(x.lapId)!, grid, total))}; }

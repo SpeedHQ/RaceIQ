@@ -1,5 +1,6 @@
 import { isTelemetryVariableId } from "../../../../../shared/telemetry/catalog/query";
 import type { TelemetryVariableId } from "../../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import type { GameId } from "../../../../../shared/games/ids";
 
 export interface SemanticAnalysisFrame {
   values: Readonly<Record<string, unknown>>;
@@ -26,6 +27,17 @@ export function semanticValues(entries: readonly SemanticValueEntry[]): Semantic
 export const semanticNumber = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): number | null => {
   const value = frame?.values[id];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+};
+export const semanticWheelNumbers = (
+  frame: SemanticAnalysisFrame | undefined,
+  id: TelemetryVariableId,
+): readonly [number | null, number | null, number | null, number | null] => {
+  const value = frame?.values[id];
+  if (!Array.isArray(value)) return [null, null, null, null];
+  return [0, 1, 2, 3].map((index) => {
+    const item = value[index];
+    return typeof item === "number" && Number.isFinite(item) ? item : null;
+  }) as [number | null, number | null, number | null, number | null];
 };
 
 export const semanticBoolean = (frame: SemanticAnalysisFrame | undefined, id: TelemetryVariableId): boolean => semanticNumber(frame, id) === 1;
@@ -80,8 +92,9 @@ export interface TrackMapBoundaries {
   coordSystem: string;
 }
 
+export type TrackZoomBehavior = "default" | "zoomed" | "disabled";
 export interface TrackMapProps {
-  gameId?: import("../../../../../shared/games/ids").GameId;
+  gameId?: GameId;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
@@ -95,6 +108,7 @@ export interface TrackMapProps {
   showTrace?: boolean;
   rotateWithCar: boolean;
   zoom?: number;
+  zoomBehavior?: TrackZoomBehavior;
 }
 
 export interface TrackTransform {

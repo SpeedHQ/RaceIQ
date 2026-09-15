@@ -1,34 +1,35 @@
 import { useMemo } from "react";
 import type { LineSpreadTrace } from "@/hooks/experiments";
 import type { TrackCorner } from "@/hooks/track-queries";
-import { severityRangeColor } from "@/lib/colors";
+import { severityColor, severityRangeColor } from "@/lib/colors";
 import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
-import { Lane } from "./Lane";
+import { Lane, type LaneSegment, type LaneSeries } from "./Lane";
 
 interface ConsistencyLanesProps {
   traces: LapTrace[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   cornerFracs: number[];
   corners?: TrackCorner[];
   issues: TuneIssue[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
-  /** Trimmed racing-line spread trace (null = loading / no session / too few
-   *  clean laps — the lane shows a "need 3+ laps" note instead). */
+  /** Null means no valid resampled laps were available. */
   lineSpread?: LineSpreadTrace | null;
   /** Fires true when the cursor enters a lane that drives the track zoom (brake,
    *  throttle, speed, race-line spread), false on leave. Steer and Δ-time do not. */
   onZoomHover?: (active: boolean) => void;
+  visibleRange?: { start: number; end: number } | null;
+  onRangeSelect?: (startFrac: number, endFrac: number) => void;
+  onZoomOut?: () => void;
 }
-
 // Same threshold as server/lap-analysis/consistency.ts LINE_SPREAD_THRESHOLD_M.
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
-  return severityRangeColor(spreadM, [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2]);
+  return spreadM < LINE_SPREAD_THRESHOLD_M ? severityColor(0) : spreadM < LINE_SPREAD_THRESHOLD_M * 2 ? severityColor(1) : severityColor(3);
 }
 
 /** Same theme-owned severity banding as the lap-time consistency readout. */
@@ -36,12 +37,31 @@ function scoreColor(score: number): string {
   return severityRangeColor(100 - score, [20, 40]);
 }
 
-function spreadPolyline(trace: LineSpreadTrace, x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < trace.fracs.length; i++) {
-    s += `${i ? " " : ""}${x(trace.fracs[i]).toFixed(1)},${y(trace.spreadM[i]).toFixed(1)}`;
+function spreadSegments(trace: LineSpreadTrace): LaneSegment[] {
+  const segments: LaneSegment[] = [];
+  const thresholds = [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2];
+  for (let index = 1; index < trace.fracs.length; index++) {
+    const f0 = trace.fracs[index - 1];
+    const f1 = trace.fracs[index];
+    const v0 = trace.spreadM[index - 1];
+    const v1 = trace.spreadM[index];
+    const cuts = [
+      0,
+      ...thresholds.flatMap((threshold) => {
+        const t = (threshold - v0) / (v1 - v0);
+        return t > 0 && t < 1 ? [t] : [];
+      }),
+      1,
+    ].sort((a, b) => a - b);
+    for (let cut = 1; cut < cuts.length; cut++) {
+      const t0 = cuts[cut - 1];
+      const t1 = cuts[cut];
+      const a = v0 + (v1 - v0) * t0;
+      const b = v0 + (v1 - v0) * t1;
+      segments.push({ x1: f0 + (f1 - f0) * t0, y1: a, x2: f0 + (f1 - f0) * t1, y2: b, color: spreadColor((a + b) / 2), width: 1.8, opacity: 0.9 });
+    }
   }
-  return s;
+  return segments;
 }
 
 /** Linear-interpolate `spreadM` at fraction `f` along the trace's own fracs array. */
@@ -70,25 +90,6 @@ const CHANNELS = [
   { key: "throttle" as const, label: "Throttle", domain: [0, 1.05] as [number, number], color: "var(--ch-throttle)", issueKinds: new Set<string>() },
 ];
 
-/** Maps a lap's ordered points to an SVG polyline `points` string for a
- *  given channel, sampled at each trace's own fraction bins. */
-function tracePolyline(trace: LapTrace, channel: "steer" | "brake" | "throttle", x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < trace.n; i++) {
-    s += `${i ? " " : ""}${x(trace.frac[i]).toFixed(1)},${y(trace[channel][i]).toFixed(1)}`;
-  }
-  return s;
-}
-
-/** Same as `tracePolyline` but for an arbitrary per-point value series (speed, delta). */
-function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f: number) => number, y: (v: number) => number): string {
-  let s = "";
-  for (let i = 0; i < trace.n; i++) {
-    s += `${i ? " " : ""}${x(trace.frac[i]).toFixed(1)},${y(values[i]).toFixed(1)}`;
-  }
-  return s;
-}
-
 /**
  * Input-consistency lanes (steer/brake/throttle) — every lap drawn dim, the
  * stint's best (fastest, scored) lap in accent. Invalid laps are excluded
@@ -96,13 +97,21 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
-export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread, onZoomHover }: ConsistencyLanesProps) {
-  // Wrap onCursorFrac so a lane that drives the zoom also toggles zoomActive.
-  const zoomCursor = (f: number | null) => {
-    onCursorFrac(f);
-    onZoomHover?.(f != null);
-  };
-  const bestTrace = useMemo(() => traces.find((t) => t.lapId === bestLapId) ?? null, [traces, bestLapId]);
+export function ConsistencyLanes({
+  traces,
+  primaryLapId,
+  cornerFracs,
+  corners = [],
+  issues,
+  cursorFrac,
+  onCursorFrac,
+  lineSpread,
+  onZoomHover,
+  visibleRange,
+  onRangeSelect,
+  onZoomOut,
+}: ConsistencyLanesProps) {
+  const bestTrace = useMemo(() => traces.find((t) => t.lapId === primaryLapId) ?? null, [traces, primaryLapId]);
 
   // Speed domain across every lap so all traces share one scale.
   const speedDomain = useMemo<[number, number]>(() => {
@@ -150,21 +159,80 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     const max = Math.max(...lineSpread!.spreadM, LINE_SPREAD_THRESHOLD_M);
     return [0, max * 1.15];
   }, [hasLineSpread, lineSpread]);
+  const issueMarkers = useMemo(() => {
+    const seen = new Set<number>();
+    return issues.flatMap((issue) => {
+      if (issue.distanceFrac == null || seen.has(issue.distanceFrac)) return [];
+      seen.add(issue.distanceFrac);
+      const color = issue.severity === "critical" ? "var(--status-danger)" : issue.severity === "warn" ? "var(--status-warning)" : "var(--status-info)";
+      return [{ frac: issue.distanceFrac, color }];
+    });
+  }, [issues]);
+  const channelSeries = useMemo(
+    () =>
+      Object.fromEntries(
+        CHANNELS.map((channel) => [
+          channel.key,
+          [
+            ...traces
+              .filter((trace) => trace.lapId !== primaryLapId)
+              .map((trace): LaneSeries => ({
+                x: trace.frac,
+                values: trace[channel.key],
+                color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+              })),
+            ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace[channel.key], color: "var(--app-accent)", width: 1.8 }] : []),
+          ],
+        ]),
+      ) as Record<(typeof CHANNELS)[number]["key"], LaneSeries[]>,
+    [primaryLapId, bestTrace, traces],
+  );
+  const speedSeries = useMemo(
+    () => [
+      ...traces
+        .filter((trace) => trace.lapId !== primaryLapId)
+        .map((trace): LaneSeries => ({
+          x: trace.frac,
+          values: trace.speedKmh,
+          color: trace.isValid ? "color-mix(in srgb, var(--app-text-dim) 35%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+        })),
+      ...(bestTrace ? [{ x: bestTrace.frac, values: bestTrace.speedKmh, color: "var(--app-accent)", width: 1.8 }] : []),
+    ],
+    [primaryLapId, bestTrace, traces],
+  );
+  const deltaSeries = useMemo(
+    () =>
+      traces
+        .filter((trace) => deltas.has(trace.lapId))
+        .map((trace): LaneSeries => ({
+          x: trace.frac,
+          values: deltas.get(trace.lapId)!,
+          color: trace.isValid ? "color-mix(in srgb, var(--delta-focus) 50%, transparent)" : "color-mix(in srgb, var(--status-danger) 55%, transparent)",
+        })),
+    [deltas, traces],
+  );
+  const spreadLaneSegments = useMemo(() => (lineSpread ? spreadSegments(lineSpread) : []), [lineSpread]);
+  const spreadSeries = useMemo<LaneSeries[]>(() => (lineSpread ? [{ x: lineSpread.fracs, values: lineSpread.spreadM, color: "transparent" }] : []), [lineSpread]);
 
   return (
     <div className="space-y-3">
       {CHANNELS.map((ch) => {
-        const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (
           <div key={ch.key}>
-            <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
             <Lane
+              title={ch.label}
               bgFill="transparent"
               height={100}
               domain={ch.domain}
+              visibleRange={visibleRange}
+              onRangeSelect={onRangeSelect}
+              onZoomOut={onZoomOut}
               cornerFracs={cornerFracs}
               cursorFrac={cursorFrac}
-              onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
+              onCursorFrac={onCursorFrac}
+              onHoverChange={ch.key === "brake" || ch.key === "throttle" ? onZoomHover : undefined}
+              annotationMarkers={issueMarkers}
+              series={channelSeries[ch.key]}
               tooltip={(f) => {
                 const score = consistencyAt(traces, f, ch.key);
                 const scoreColorValue = score == null ? "var(--app-text-dim)" : scoreColor(score);
@@ -209,36 +277,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                   </div>
                 );
               }}
-            >
-              {({ x, y }) => (
-                <>
-                  {traces
-                    .filter((t) => t.lapId !== bestLapId)
-                    .map((t) => (
-                      <polyline
-                        key={t.lapId}
-                        points={tracePolyline(t, ch.key, x, y)}
-                        fill="none"
-                        stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                        strokeWidth={1}
-                        opacity={t.isValid ? 0.35 : 0.55}
-                      />
-                    ))}
-                  {bestTrace && <polyline points={tracePolyline(bestTrace, ch.key, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
-                  {laneIssues.map((it) => (
-                    <circle
-                      key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
-                      cx={x(it.distanceFrac!)}
-                      cy={12}
-                      r={3}
-                      fill={it.severity === "critical" ? "var(--status-danger)" : it.severity === "warn" ? "var(--status-warning)" : "var(--status-info)"}
-                      stroke="var(--app-bg)"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </>
-              )}
-            </Lane>
+            />
           </div>
         );
       })}
@@ -248,9 +287,15 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           bgFill="transparent"
           height={120}
           domain={speedDomain}
+          annotationMarkers={issueMarkers}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
-          onCursorFrac={zoomCursor}
+          onCursorFrac={onCursorFrac}
+          onHoverChange={onZoomHover}
+          series={speedSeries}
           tooltip={
             traces.length > 0
               ? (f) => {
@@ -270,7 +315,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                       <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                       <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                         <div>
-                          best: <span className="text-app-accent">{bestSpeed != null ? `${bestSpeed.toFixed(0)}km/h` : "—"}</span>
+                          primary: <span className="text-app-accent">{bestSpeed != null ? `${bestSpeed.toFixed(0)}km/h` : "—"}</span>
                         </div>
                         <div>
                           spread: <span className="text-app-text-muted">{hasSpeed ? `${minSpeed.toFixed(0)}–${maxSpeed.toFixed(0)}km/h` : "—"}</span>
@@ -281,35 +326,23 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                 }
               : undefined
           }
-        >
-          {({ x, y }) => (
-            <>
-              {traces
-                .filter((t) => t.lapId !== bestLapId)
-                .map((t) => (
-                  <polyline
-                    key={t.lapId}
-                    points={tracePolyline2(t, t.speedKmh, x, y)}
-                    fill="none"
-                    stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
-                    strokeWidth={1}
-                    opacity={t.isValid ? 0.35 : 0.55}
-                  />
-                ))}
-              {bestTrace && <polyline points={tracePolyline2(bestTrace, bestTrace.speedKmh, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
-            </>
-          )}
-        </Lane>
+        />
       </div>
       <div>
-        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs primary (s, cumulative)</div>
         <Lane
           bgFill="transparent"
           height={100}
           domain={deltaDomain}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
+          annotationMarkers={issueMarkers}
           onCursorFrac={onCursorFrac}
+          visibleRange={visibleRange}
+          onRangeSelect={onRangeSelect}
+          onZoomOut={onZoomOut}
+          series={deltaSeries}
+          horizontalLines={[{ value: 0, color: "var(--app-accent)", width: 1, opacity: 0.6, dash: [4, 3] }]}
           tooltip={(f) => {
             const withDelta = traces.filter((t) => deltas.has(t.lapId) && t.isValid);
             if (withDelta.length === 0 || !bestTrace) return null;
@@ -338,25 +371,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
               </div>
             );
           }}
-        >
-          {({ x, y }) => (
-            <>
-              <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--app-accent)" strokeWidth={1} opacity={0.6} strokeDasharray="4 3" />
-              {traces
-                .filter((t) => deltas.has(t.lapId))
-                .map((t) => (
-                  <polyline
-                    key={t.lapId}
-                    points={tracePolyline2(t, deltas.get(t.lapId)!, x, y)}
-                    fill="none"
-                    stroke={t.isValid ? "var(--delta-focus)" : "var(--status-danger)"}
-                    strokeWidth={1}
-                    opacity={t.isValid ? 0.5 : 0.55}
-                  />
-                ))}
-            </>
-          )}
-        </Lane>
+        />
       </div>
       <div>
         <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
@@ -386,13 +401,22 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             domain={spreadDomain}
             cornerFracs={cornerFracs}
             cursorFrac={cursorFrac}
-            onCursorFrac={zoomCursor}
+            visibleRange={visibleRange}
+            onRangeSelect={onRangeSelect}
+            onZoomOut={onZoomOut}
+            annotationMarkers={issueMarkers}
+            onCursorFrac={onCursorFrac}
+            onHoverChange={onZoomHover}
+            series={spreadSeries}
+            segments={spreadLaneSegments}
+            horizontalLines={[
+              { value: LINE_SPREAD_THRESHOLD_M, color: severityColor(1), opacity: 0.6, dash: [4, 3] },
+              { value: LINE_SPREAD_THRESHOLD_M * 2, color: severityColor(3), opacity: 0.6, dash: [4, 3] },
+            ]}
             tooltip={(f) => {
               const spreadM = spreadValueAt(lineSpread!, f);
-              const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
               return (
                 <div className="space-y-1">
-                  <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                   <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                     <div>
                       spread: <span style={{ color: spreadColor(spreadM) }}>{spreadM.toFixed(2)}m</span>
@@ -402,16 +426,9 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                 </div>
               );
             }}
-          >
-            {({ x, y }) => (
-              <>
-                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke="var(--delta-focus)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
-                <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={0.9} />
-              </>
-            )}
-          </Lane>
+          />
         ) : (
-          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ valid laps</div>
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No race line data</div>
         )}
       </div>
     </div>

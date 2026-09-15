@@ -15,7 +15,7 @@ export interface MetricDef {
   label: string;
   unit: string;
   accent: string;
-  semantic?: boolean; // colour the avg by hot/cold bands (tyre temp only)
+  semantic?: boolean; // colour the median by hot/cold bands (tyre temp only)
   field: TuneWheelMetric;
 }
 
@@ -57,7 +57,7 @@ export function tuneMetricValue(sample: SemanticTuneSample, metric: MetricDef, i
 
 export interface Range {
   min: number;
-  avg: number;
+  median: number;
   max: number;
   n: number;
 }
@@ -67,6 +67,13 @@ export interface SectorRangeModel {
   sectors: Record<CornerKey, Range>[];
   /** Shared value domain across all sectors, for comparable bar scales. */
   domain: [number, number];
+}
+
+/** Resolve telemetry sample to sector using same half-open slices as range bars. */
+export function sectorIndexForTelemetryIndex(index: number, boundaryIndices: readonly number[], sectorCount: number): number {
+  if (sectorCount <= 1) return 0;
+  const firstFollowingBoundary = boundaryIndices.findIndex((boundary) => index < boundary);
+  return firstFollowingBoundary < 0 ? sectorCount - 1 : Math.min(firstFollowingBoundary, sectorCount - 1);
 }
 
 /** Compute per-sector corner ranges for a metric, on a shared domain. */
@@ -120,8 +127,8 @@ export function buildLiveRanges(telemetry: SemanticTuneSample[], metric: MetricD
   return { ranges, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
 
-/** Four corner bars (min→max fill, avg tick) on a shared domain. When `cursor`
- *  is supplied (from hovering the track map), a line marks the live value. */
+/** Four corner bars (min→max fill, median tick) on a shared domain. When
+ * `cursor` is supplied (from hovering the track map), a line marks the live value. */
 export function CornerBars({
   ranges,
   domain,
@@ -144,7 +151,7 @@ export function CornerBars({
       {CORNERS.map((c) => {
         const r = ranges[c];
         const empty = r.n === 0;
-        const color = metric.semantic ? bandColor(r.avg) : metric.accent;
+        const color = metric.semantic ? bandColor(r.median) : metric.accent;
         const cv = cursor?.[c];
         const hasCursor = cv != null && Number.isFinite(cv);
         return (
@@ -153,7 +160,7 @@ export function CornerBars({
               {!empty && (
                 <>
                   <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(r.min)}%`, top: `${100 - pct(r.max)}%` }} />
-                  <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(r.avg)}%` }} />
+                  <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(r.median)}%` }} />
                 </>
               )}
               {hasCursor && (
@@ -167,7 +174,7 @@ export function CornerBars({
               )}
             </div>
             <span className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
-              {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.avg)}
+              {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.median)}
             </span>
             <span className="text-app-micro text-app-text-dim uppercase">{c}</span>
           </div>
@@ -185,15 +192,17 @@ export function bandColor(t: number): string {
 function rangeOf(frames: SemanticTuneSample[], metric: MetricDef, index: number, skipZero: boolean): Range {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
-  let sum = 0;
-  let count = 0;
+  const values: number[] = [];
   for (const frame of frames) {
     const value = tuneMetricValue(frame, metric, index);
     if (value === undefined || (skipZero && value <= 0)) continue;
     min = Math.min(min, value);
     max = Math.max(max, value);
-    sum += value;
-    count++;
+    values.push(value);
   }
-  return count === 0 ? { min: 0, avg: 0, max: 0, n: 0 } : { min, avg: sum / count, max, n: count };
+  if (values.length === 0) return { min: 0, median: 0, max: 0, n: 0 };
+  values.sort((a, b) => a - b);
+  const middle = values.length >> 1;
+  const median = values.length % 2 === 0 ? (values[middle - 1] + values[middle]) / 2 : values[middle];
+  return { min, median, max, n: values.length };
 }

@@ -102,8 +102,6 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       return next;
     });
 
-
-
   const renderNode = (t: ExperimentVersion, depth: number, isLastSibling: boolean): React.ReactNode => {
     const isHead = t.id === headVersionId;
     const isOpen = expanded.has(t.id);
@@ -283,17 +281,16 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
       )}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
       <div className="mx-2 mb-2 flex justify-end">
-        <Button
-          variant="app-outline"
-          size="app-sm"
-          onClick={() => setTrashOpen(true)}
-          className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
-        >
+        <Button variant="app-outline" size="app-sm" onClick={() => setTrashOpen(true)} className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1">
           <Trash2 aria-hidden="true" />
           Trash
         </Button>
       </div>
-      {actionError && <div role="alert" className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">{(actionError as Error).message}</div>}
+      {actionError && (
+        <div role="alert" className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">
+          {(actionError as Error).message}
+        </div>
+      )}
       <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
         <DialogContent showCloseButton={false} layout="scrollable" overlayClassName="bg-app-bg/60">
           <DialogHeader>

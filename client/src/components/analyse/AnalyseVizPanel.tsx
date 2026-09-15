@@ -6,14 +6,13 @@ import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, TrackMapBoundaries } from "./track-map/types";
+import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
   vizMode: "2d" | "3d";
   currentFrame: SemanticAnalysisFrame | null;
-  displayTelemetry: SemanticAnalysisFrame[];
+  semanticFrames: SemanticAnalysisFrame[];
   cursorRef: RefObject<number>;
   displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
   cursorIdx: number;
@@ -26,7 +25,7 @@ function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
   return (
     previous.vizMode === next.vizMode &&
     previous.onVizModeChange === next.onVizModeChange &&
-    previous.displayTelemetry === next.displayTelemetry &&
+    previous.semanticFrames === next.semanticFrames &&
     previous.cursorRef === next.cursorRef &&
     previous.displayTelemetryRef === next.displayTelemetryRef &&
     previous.lapLine === next.lapLine &&
@@ -40,7 +39,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   vizMode,
   onVizModeChange,
   currentFrame,
-  displayTelemetry,
+  semanticFrames,
   cursorRef,
   displayTelemetryRef,
   cursorIdx,
@@ -60,7 +59,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
     animationFrame = requestAnimationFrame(syncCursor);
     return () => cancelAnimationFrame(animationFrame);
   }, [cursorRef]);
-  const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? displayTelemetry[visualCursorIdx] ?? currentFrame;
+  const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? semanticFrames[visualCursorIdx] ?? currentFrame;
 
   return (
     <Tabs
@@ -89,7 +88,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
             <CarWireframe
               gameId={gameId}
               frame={visualFrame}
-              telemetry={displayTelemetry}
+              telemetry={semanticFrames}
               cursorRef={cursorRef}
               telemetryRef={displayTelemetryRef}
               cursorIdx={visualCursorIdx}

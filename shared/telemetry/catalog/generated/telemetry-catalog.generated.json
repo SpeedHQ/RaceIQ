@@ -12,13 +12,13 @@
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
       "server/games/acc/parser.ts": "f757c9043066d188b346db7aa62d76d498609ace04afd82af9b93abfe1f4e3d0",
-      "server/games/f1-2025/f1-state.ts": "8ea01f7b5c8a170b3b6b88cfe7af2082177b29c0a23bc82dc03725db2f83f863",
+      "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "3e394540825b686fee1abc3151cbc6a8b88b35b546692dbba94a34ae8d3831ba",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "7b3fe80857b875d2348d4a52b7c0951c65d688429cd53966aa1a452ef427a644"
+    "contentHash": "d771a803d457f2b29ecee89f4417af06a8c17d053047122b3fe90aaa72ef6b7f"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -17244,7 +17244,7 @@
             "F1.Motion.gForceX"
           ],
           "freshness": "continuous",
-          "normalization": "-m.gForceX",
+          "normalization": "-m.gForceX * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -17260,7 +17260,7 @@
               "F1.Motion.gForceX"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "307d0bad9cafd744da3d7532a4707de7e12c57d9d99c5e19e1e7943d2b7f3e82"
+            "codeHash": "b2742a97714a39645eb5f89fd12430e84b4ad5fd5a1742b33503c5085a5b42e6"
           }
         },
         "acc": {
@@ -17378,18 +17378,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceY"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceY * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-y:derived",
+            "version": "0.16.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceY"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "775bb3ee2b7e03fa25c9ffecdca17afee698be15f0904b85a13c682f9b1e1f5a"
+          }
         },
         "acc": {
           "kind": "derived",
@@ -17494,18 +17506,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceZ"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceZ * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-z:derived",
+            "version": "0.16.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceZ"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "bd2b8d617d4507d33f962d0ee28e3d5e17a88c47c198175b8351be8156f3e1e0"
+          }
         },
         "acc": {
           "kind": "derived",

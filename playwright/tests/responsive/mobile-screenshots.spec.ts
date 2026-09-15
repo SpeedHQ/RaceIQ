@@ -62,7 +62,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
 
       test(screenshotCase.name, async ({ page: p, request }) => {
         const target = screenshotCase.kind === "analyse-data-panel-loaded" ? await getSeededLapTarget(request, "f1-2025") : null;
-        const path = target ? `/${"f125"}/analyse?${new URLSearchParams({ track: String(target.trackOrdinal), car: String(target.carOrdinal), lap: String(target.id) })}` : screenshotCase.path;
+        const path = target ? `/${"f125"}/sessions/replay?${new URLSearchParams({ track: String(target.trackOrdinal), car: String(target.carOrdinal), lap: String(target.id) })}` : screenshotCase.path;
         await p.goto(path, { waitUntil: "networkidle" });
         await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();
