@@ -51,26 +51,7 @@ jobs:
 
 
       - name: Check generated telemetry catalog
-        shell: powershell
-        run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            $baseRef = "${{ github.base_ref }}"
-            git fetch --no-tags --depth=1 origin "${baseRef}:refs/remotes/origin/${baseRef}"
-            $baseline = Join-Path $env:RUNNER_TEMP "telemetry-catalog-baseline.json"
-            $catalog = git show "origin/${baseRef}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" 2>$null
-            if ($LASTEXITCODE -ne 0) {
-              $catalog = git show "origin/${baseRef}:shared/telemetry-catalog.generated.json" 2>$null
-            }
-            if ($LASTEXITCODE -eq 0) {
-              [System.IO.File]::WriteAllLines($baseline, [string[]]$catalog, [System.Text.UTF8Encoding]::new($false))
-              bun run telemetry:catalog:check --baseline $baseline
-            } else {
-              Write-Output "Base branch has no telemetry catalog; checking current artifacts without a compatibility baseline."
-              bun run telemetry:catalog:check
-            }
-          } else {
-            bun run telemetry:catalog:check
-          }
+        run: bun scripts/ci/check-telemetry-catalog.ts
 
       - name: Run unit tests
         run: bun run test:unit
