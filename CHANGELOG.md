@@ -6,6 +6,7 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+- Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session
 

@@ -15,14 +15,16 @@ async function openComparison(page: Page, request: Parameters<typeof getDistinct
 
 type OverlayBounds = { x: number; y: number; width: number; height: number };
 async function overlayBounds(overlay: Locator): Promise<OverlayBounds> {
+  let settledBox: OverlayBounds | null = null;
   await expect.poll(
     async () => {
       const box = await overlay.boundingBox();
-      return box !== null && box.width > 0 && box.height > 0;
+      settledBox = box !== null && box.width > 0 && box.height > 0 ? box : null;
+      return settledBox !== null;
     },
     { timeout: 30_000, message: "comparison chart overlay must have settled bounds" },
   ).toBe(true);
-  return (await overlay.boundingBox())!;
+  return settledBox!;
 }
 
 async function dragChart(page: Page, chart: Locator, startFraction: number, endFraction: number): Promise<void> {

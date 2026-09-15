@@ -14,7 +14,7 @@ try { run(["git", "clone", "--depth", "1", "--single-branch", "--branch", branch
 catch { run(["git", "clone", "--depth", "1", remote, "preview-repo"]); run(["git", "checkout", "--orphan", branch], "preview-repo"); run(["git", "rm", "-rf", "."], "preview-repo"); }
 const target = `preview-repo/${subdir}`;
 mkdirSync(target, { recursive: true });
-for (const file of new Bun.Glob("pr-preview/*-{before,after,diff}.png").scanSync(".")) cpSync(file, `${target}/${file.split("/").pop()}`);
+for (const file of new Bun.Glob("pr-preview/*-{before,after,diff}.png").scanSync(".")) cpSync(file, `${target}/${file.split(/[\\/]/).pop()!}`);
 run(["git", "add", subdir], "preview-repo");
 run(["git", "-c", "user.name=github-actions[bot]", "-c", "user.email=github-actions[bot]@users.noreply.github.com", "commit", "-m", `preview: PR #${pr} dashboard screenshots (run ${runId})`], "preview-repo");
 run(["git", "push", "origin", branch], "preview-repo");

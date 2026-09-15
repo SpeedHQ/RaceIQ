@@ -405,6 +405,7 @@ initServerGameAdapters();
 **Known issue**: ACC shared memory tests fail on macOS due to `@libsql/client` module resolution (Windows-only feature).
 
 ### CI/CD
+**Mars runner labels:** In GitHub Actions, a `runs-on` list of Mars labels is an OR selector. Use both the Windows and macOS labels when a job must be eligible for either platform; do not create a per-OS matrix unless the job must run once on each platform.
 
 - **PR/main**: GitHub Actions runs `bun test` and client build (`.github/workflows/build-test.yml`)
 - **Release tags**: Windows x64 binary compilation via `.github/workflows/release.yml` — Bun compiles server to `raceiq.exe`, bundles with Vite client output into `raceiq-windows-x64.zip`

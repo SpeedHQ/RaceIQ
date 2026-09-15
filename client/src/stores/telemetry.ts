@@ -217,8 +217,8 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setTelemetrySchema: (telemetrySchema) => store.setState((prev) => prev.telemetrySchema?.schemaId === telemetrySchema.schemaId
     ? { ...prev, telemetrySchema }
     : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null }),
-  setTelemetryFrame: (telemetryFrame) => store.setState((prev) => ({ ...prev, telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null })),
+  setTelemetryFrame: (telemetryFrame) => store.setState((prev) => ({ ...prev, telemetryFrame, telemetryView: prev.telemetrySchema ? buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView : prev.telemetryView, sectors: telemetryFrame.context.sectors ?? null, pit: telemetryFrame.context.pit ?? null, liveIssues: [...(telemetryFrame.context.liveIssues ?? [])] })),
+  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
   setServerStatus: (status) => store.setState((prev) => status
     ? { ...prev, serverStatus: status, udpPps: status.udpPps, isRaceOn: status.isRaceOn, lastUdpAt: status.udpPps > 0 ? Date.now() : prev.lastUdpAt }
