@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
-import { seedScreenshotData } from "./seed-screenshot-data";
+import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
 const repoDir = process.env.RACEIQ_APP_ROOT ? resolve(process.env.RACEIQ_APP_ROOT) : resolve(__dirname, "..", "..", "..");
 const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoDir, "playwright", "test-data");
@@ -14,6 +14,7 @@ resetTestDatabase(dir);
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
 seedScreenshotData(repoDir, dir);
+if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 
 const server = spawn("bun", ["run", "server/index.ts"], {
   cwd: repoDir,

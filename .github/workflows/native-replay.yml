@@ -24,10 +24,10 @@ concurrency:
 
 jobs:
   replay:
+    timeout-minutes: 30
     runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
 
@@ -36,32 +36,16 @@ jobs:
           bun-version: 1.4
 
       - name: Install workspace dependencies
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Continue"
-          bun install --frozen-lockfile
-          if ($LASTEXITCODE -eq 0) {
-            exit 0
-          }
-          Write-Host "Initial Bun install failed; clearing node_modules and retrying with a forced package download."
-          Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-          bun install --frozen-lockfile --force
-          exit $LASTEXITCODE
+        run: bun scripts/ci/workflow-ops.ts install-retry
 
       - name: Replay committed native recording
         run: bun test test/telemetry/catalog/telemetry-catalog-${{ inputs.game }}-e2e.test.ts
 
       - name: Record capture blocker in run summary
         if: always()
-        shell: powershell
-        run: |
-          @"
-          ## Native capture status
-
-          Committed replay lane ran for `${{ inputs.game }}`.
-
-          Physical blocker: GitHub-hosted Windows runner has no installed game process, UDP/shared-memory telemetry provider, wheel hardware, or provider permissions. True unattended ACC, AC Evo, and iRacing capture (plus F1/FM UDP capture) cannot run here; this lane intentionally replays committed `.bin`/`.bin.gz` recordings only.
-          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+        env:
+          GAME: ${{ inputs.game }}
+        run: bun scripts/ci/workflow-ops.ts native-summary
 
       - name: Upload replay artifacts
         if: always()

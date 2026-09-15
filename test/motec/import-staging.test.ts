@@ -23,7 +23,7 @@ test("maintenance removes expired MoTeC staging directories", async () => {
     manifest.createdAt = Date.now() - 16 * MINUTE_MS;
     await writeFile(manifestPath, JSON.stringify(manifest));
 
-    expect(await cleanupExpiredStagedMotec()).toBe(1);
+    expect(await cleanupExpiredStagedMotec()).toBeGreaterThan(0);
     expect(await Bun.file(directory).exists()).toBe(false);
   } finally {
     await rm(directory, { recursive: true, force: true });

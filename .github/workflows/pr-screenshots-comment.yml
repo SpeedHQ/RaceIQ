@@ -23,14 +23,14 @@ permissions:
 
 jobs:
   comment:
+    timeout-minutes: 30
     if: >-
       github.event.workflow_run.event == 'workflow_dispatch' ||
       github.event.workflow_run.event == 'pull_request' ||
       github.event.workflow_run.event == 'workflow_call'
     runs-on:
-      - mars-windows-x64
-      - 4VCPU
-      - 15G
+      - mars-windows-x64-4vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     permissions:
       contents: write
       pull-requests: write

@@ -108,8 +108,9 @@ describe("local UI diff report", () => {
     const runtimeConfig = readFileSync(join(repoRoot, "playwright/config/runtime.ts"), "utf8");
     const webServersConfig = readFileSync(join(repoRoot, "playwright/config/web-servers.ts"), "utf8");
     const responsiveWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-screenshots.yml"), "utf8");
-    const buildWorkflow = readFileSync(join(repoRoot, ".github/workflows/build-test.yml"), "utf8");
+    const workflowOps = readFileSync(join(repoRoot, "scripts/ci/workflow-ops.ts"), "utf8");
     const devLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-dev-server.ts"), "utf8");
+    const buildWorkflow = readFileSync(join(repoRoot, ".github/workflows/build-test.yml"), "utf8");
     const productionLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-server.ts"), "utf8");
     const seedHelper = readFileSync(join(repoRoot, "playwright/support/server/seed-screenshot-data.ts"), "utf8");
     const storybookConfig = readFileSync(join(repoRoot, "client/playwright.config.ts"), "utf8");
@@ -139,7 +140,7 @@ describe("local UI diff report", () => {
     expect(responsiveConfig).toContain("fullyParallel: runtime.parallelScreenshotRun");
     expect(webServersConfig).toContain("support/server/start-dev-server.ts");
     expect(buildWorkflow).toContain("uses: ./.github/workflows/pr-screenshots.yml");
-    expect(responsiveWorkflow).toContain('PW_SEED_SCREENSHOTS: "1"');
+    expect(workflowOps).toContain('PW_SEED_SCREENSHOTS: "1"');
     expect(devLauncher).toContain("seedScreenshotData(repoDir, dir)");
     expect(productionLauncher).toContain("seedScreenshotData(repoDir, dir)");
     expect(seedHelper).toContain('process.env.PW_SEED_SCREENSHOTS !== "1"');

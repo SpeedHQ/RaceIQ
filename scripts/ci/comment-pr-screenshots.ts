@@ -38,7 +38,7 @@ for (const file of readdirSync("pr-preview").filter((name) => name.endsWith("-af
   const status = separator >= 0 ? name.slice(0, separator) : "changed";
   const label = (separator >= 0 ? name.slice(separator + 2) : name).replaceAll("--", " ");
   const title = status[0].toUpperCase() + status.slice(1);
-  lines.push(`### ${title}: ${label}`, "", "| Before | After | Diff |", "| --- | --- | --- |", `| ![before](${base}/${name}-before.png) | ![after](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |`, "");
+  lines.push(`### ${title}: ${label}`, "", "| Base | PR | Diff |", "| --- | --- | --- |", `| ![base](${base}/${name}-before.png) | ![pr](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |`, "");
 }
 lines.push(`<sub>Rendered from Storybook and responsive app screenshot tests against \`${baseRef}\`.</sub>`);
 writeFileSync("body.md", `${lines.join("\n")}\n`);
