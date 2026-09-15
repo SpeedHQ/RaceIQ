@@ -24,12 +24,15 @@ export function buildOpenLapContext({
   corners: Record<string, CornerSnapshot> | null;
   issues?: TuneIssue[];
   ranges: { sectors: Record<string, Range>[] } | null;
-  metric: { label: string; unit: string };
+  metric: { label: string; unit: string; quantity?: "temperature" };
   test?: Pick<ExperimentVersion, "driverComment" | "notes">;
   cornerKeys: readonly string[];
   temperatureUnit: "C" | "F";
 }): string | null {
   const temp = (value: number, delta = false) => `${(temperatureUnit === "F" ? (delta ? value * (9 / 5) : value * (9 / 5) + 32) : value).toFixed(0)}°${temperatureUnit}`;
+  const displayRangeValue = (value: number) => metric.quantity === "temperature"
+    ? temp(value)
+    : value.toFixed(0);
   if (!focusLap) return null;
   const lines = [
     "CURRENTLY OPEN LAP REVIEW (visible to user):",
@@ -64,13 +67,13 @@ export function buildOpenLapContext({
   if (issues && issues.length > 0) lines.push(`Detected issues: ${issues.map((issue) => `${issue.kind}${issue.corner ? ` ${issue.corner}` : ""} (${issue.severity}) — ${issue.detail}`).join("; ")}`);
   else if (issues) lines.push("Detected issues: none.");
   if (ranges) {
-    lines.push(`${metric.label} ranges (min-max, ${metric.label.toLowerCase().includes("temp") ? `°${temperatureUnit}` : metric.unit}) by sector:`);
+    lines.push(`${metric.label} ranges (min-max, ${metric.quantity === "temperature" ? `°${temperatureUnit}` : metric.unit}) by sector:`);
     ranges.sectors.forEach((sector, index) => {
       lines.push(
         `  S${index + 1}: ${cornerKeys
           .map((corner) => {
             const range = sector[corner];
-            return range.n === 0 ? `${corner} —` : `${corner} ${temp(range.min)}-${temp(range.max)} (avg ${temp(range.avg)})`;
+            return range.n === 0 ? `${corner} —` : `${corner} ${displayRangeValue(range.min)}-${displayRangeValue(range.max)} (avg ${displayRangeValue(range.avg)})`;
           })
           .join(", ")}`,
       );

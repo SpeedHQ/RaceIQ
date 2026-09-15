@@ -254,6 +254,7 @@ describe("telemetry capability UI", () => {
 
     expect(markup).toContain("212°F");
     expect(markup).toContain("BRK 212°");
+    expect(markup).toContain("GRIP");
     expect(markup).not.toContain("38°F");
   });
 

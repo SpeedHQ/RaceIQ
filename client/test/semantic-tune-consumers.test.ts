@@ -6,13 +6,14 @@ import type { GameId } from "../../shared/games/ids";
 import { initGameAdapters } from "../../shared/games/init";
 import { CurrentLapTireStrip } from "../src/components/tunes/CurrentLapTireStrip";
 import { LiveTestDashboard } from "../src/components/tunes/LiveTestDashboard";
-import { buildSectorRanges, METRICS } from "../src/components/tunes/SectorRangeBreakdown";
+import { buildSectorRanges, METRICS, tuneMetricsFor } from "../src/components/tunes/SectorRangeBreakdown";
+import { buildOpenLapContext } from "../src/components/tunes/review/open-lap-context";
 import { tireSnapshot } from "../src/components/tunes/review/tire-snapshot";
 import { semanticSamples } from "../src/components/tunes/semantic-tune";
 import { buildGeometry } from "../src/components/tunes/track-map-geometry";
 import type { SemanticReplayFrame } from "../src/hooks/laps";
 import { fakeAccSemanticFixture, fakeF1SemanticFixture } from "../src/stories/fakeData";
-import { useTelemetryStore } from "../src/stores/telemetry";
+import { telemetryStore } from "../src/stores/telemetry";
 
 initGameAdapters({ f1Experiments: true, iracingAdapter: true });
 
@@ -28,14 +29,14 @@ function replayFrame(simulator: GameId, sequence: number, entries: Array<{ seman
   };
 }
 
-function entries(index: number, fuel: number) {
+function entries(gameId: GameId, index: number, fuel: number) {
   return [
     { semanticId: "identity.track-ordinal", value: 7 },
     { semanticId: "motion.position-x", value: index * 10 },
     { semanticId: "motion.position-z", value: index * 5 },
     { semanticId: "motion.speed", value: 20 + index },
     { semanticId: "timing.distance-traveled", value: index * 25 },
-    { semanticId: "tire.temperature.surface.representative", value: [80 + index, 81 + index, 82 + index, 83 + index] },
+    { semanticId: gameId === "acc" ? "tire.temperature.core" : "tire.temperature.surface.representative", value: [80 + index, 81 + index, 82 + index, 83 + index] },
     { semanticId: "brakes.brake-temp", value: [300 + index, 301 + index, 250 + index, 251 + index] },
     { semanticId: "tires.tire-pressure", value: [27, 27.1, 26.5, 26.6] },
     { semanticId: "tires.tire-wear", value: [0, 0.1, 0.2, 0.3] },
@@ -47,47 +48,88 @@ describe("canonical tuning telemetry consumers", () => {
   test("preserves simulator identity and explicit units across supported tuning games", () => {
     for (const gameId of TUNING_GAMES) {
       const fuel = gameId === "f1-2025" ? 0.5 : 50;
-      const [sample] = semanticSamples(gameId, [replayFrame(gameId, 1, entries(1, fuel))]);
+      const [sample] = semanticSamples(gameId, [replayFrame(gameId, 1, entries(gameId, 1, fuel))]);
       expect(sample.gameId).toBe(gameId);
       expect(sample.positionM).toEqual({ x: 10, z: 5 });
       expect(sample.speedMps).toBe(21);
-      expect(sample.tireTemperatureC?.fl).toBe(81);
+      expect((gameId === "acc" ? sample.tireCoreTemperatureC : sample.tireSurfaceTemperatureC)?.fl).toBe(81);
       expect(sample.fuel).toBe(fuel);
       expect(sample.fuelUnit).toBe(gameId === "f1-2025" ? "fraction" : "litre");
     }
+  });
+  test("preserves explicit surface, core, and carcass temperature channels", () => {
+    const [f1] = semanticSamples("f1-2025", [
+      replayFrame("f1-2025", 1, [
+        { semanticId: "tire.temperature.surface.representative", value: [80, 81, 82, 83] },
+        { semanticId: "tire.temperature.core", value: [90, 91, 92, 93] },
+      ]),
+    ]);
+    const [acc] = semanticSamples("acc", [
+      replayFrame("acc", 1, [{ semanticId: "tire.temperature.core", value: [70, 71, 72, 73] }]),
+    ]);
+    const [iracing] = semanticSamples("iracing", [
+      replayFrame("iracing", 1, [{ semanticId: "tire.temperature.carcass.middle", value: [60, 61, 62, 63] }]),
+    ]);
+
+    expect(f1.tireSurfaceTemperatureC?.fl).toBe(80);
+    expect(f1.tireCoreTemperatureC?.fl).toBe(90);
+    expect(tuneMetricsFor([f1]).filter((metric) => metric.key.startsWith("tire")).map((metric) => metric.label)).toEqual(["Surface temp", "Core temp"]);
+    expect(acc.tireSurfaceTemperatureC).toBeUndefined();
+    expect(acc.tireCoreTemperatureC?.fl).toBe(70);
+    expect(iracing.tireCarcassMiddleTemperatureC?.fl).toBe(60);
   });
 
   test("rejects stale, missing, partial, and wrong-simulator values without zero coercion", () => {
     const frame = replayFrame("acc", 1, [
       { semanticId: "motion.position-x", value: 0 },
       { semanticId: "motion.position-z", value: 0, state: "missing" },
-      { semanticId: "tire.temperature.surface.representative", value: [0, 0, 0, 0], freshness: "stale" },
+      { semanticId: "tire.temperature.core", value: [0, 0, 0, 0], freshness: "stale" },
       { semanticId: "tires.tire-wear", value: [0, 0, 0, 0] },
     ]);
     const [sample] = semanticSamples("acc", [frame]);
     expect(sample.positionM).toBeUndefined();
-    expect(sample.tireTemperatureC).toBeUndefined();
+    expect(sample.tireCoreTemperatureC).toBeUndefined();
     expect(sample.tireWearFraction).toEqual({ fl: 0, fr: 0, rl: 0, rr: 0 });
     expect(semanticSamples("ac-evo", [frame])).toEqual([]);
   });
+  test("keeps non-temperature ranges in their native units", () => {
+    const input = {
+      focusLap: { lapNumber: 1, lapTime: 90, isValid: true } as never,
+      sectorTimes: null,
+      laps: [],
+      corners: null,
+      ranges: { sectors: [{ FL: { n: 1, min: 24, max: 26, avg: 25 } }] },
+      test: undefined,
+      cornerKeys: ["FL"],
+      temperatureUnit: "F" as const,
+    };
+    const pressure = buildOpenLapContext({ ...input, metric: { label: "Pressure", unit: "psi" } });
+    const temperature = buildOpenLapContext({ ...input, metric: { label: "Core temp", unit: "°C", quantity: "temperature" } });
 
-  test("renders equivalent tire ranges and game-correct fuel units", () => {
+    expect(pressure).toContain("FL 24-26 (avg 25)");
+    expect(pressure).not.toContain("°F");
+    expect(temperature).toContain("FL 75°F-79°F (avg 77°F)");
+  });
+
+  test("renders native tire channels and game-correct fuel units", () => {
     const acc = semanticSamples(
       "acc",
-      Array.from({ length: 6 }, (_, index) => replayFrame("acc", index, entries(index, 50 - index))),
+      Array.from({ length: 6 }, (_, index) => replayFrame("acc", index, entries("acc", index, 50 - index))),
     );
     const acEvo = semanticSamples(
       "ac-evo",
-      Array.from({ length: 6 }, (_, index) => replayFrame("ac-evo", index, entries(index, 50 - index))),
+      Array.from({ length: 6 }, (_, index) => replayFrame("ac-evo", index, entries("ac-evo", index, 50 - index))),
     );
     const f1 = semanticSamples(
       "f1-2025",
-      Array.from({ length: 6 }, (_, index) => replayFrame("f1-2025", index, entries(index, 0.8 - index * 0.02))),
+      Array.from({ length: 6 }, (_, index) => replayFrame("f1-2025", index, entries("f1-2025", index, 0.8 - index * 0.02))),
     );
-    const accMarkup = renderToStaticMarkup(createElement(CurrentLapTireStrip, { telemetry: acc }));
-    const acEvoMarkup = renderToStaticMarkup(createElement(CurrentLapTireStrip, { telemetry: acEvo }));
-    const f1Markup = renderToStaticMarkup(createElement(CurrentLapTireStrip, { telemetry: f1 }));
-    expect(accMarkup).toBe(acEvoMarkup);
+    const queryClient = new QueryClient();
+    const accMarkup = renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(CurrentLapTireStrip, { telemetry: acc })));
+    const acEvoMarkup = renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(CurrentLapTireStrip, { telemetry: acEvo })));
+    const f1Markup = renderToStaticMarkup(createElement(QueryClientProvider, { client: queryClient }, createElement(CurrentLapTireStrip, { telemetry: f1 })));
+    expect(accMarkup).toContain("Core temp");
+    expect(acEvoMarkup).toContain("Surface temp");
     expect(accMarkup).toContain(">L<");
     expect(f1Markup).toContain(">%<");
   });
@@ -95,7 +137,7 @@ describe("canonical tuning telemetry consumers", () => {
   test("uses percent wear while preserving legitimate zero", () => {
     const samples = semanticSamples(
       "acc",
-      Array.from({ length: 6 }, (_, index) => replayFrame("acc", index, entries(index, 50))),
+      Array.from({ length: 6 }, (_, index) => replayFrame("acc", index, entries("acc", index, 50))),
     );
     const wearMetric = METRICS.find((metric) => metric.key === "wear")!;
     const model = buildSectorRanges(samples, null, wearMetric)!;
@@ -106,19 +148,19 @@ describe("canonical tuning telemetry consumers", () => {
   test("requires canonical position and tire values instead of fabricated zeroes", () => {
     const positioned = semanticSamples(
       "acc",
-      Array.from({ length: 12 }, (_, index) => replayFrame("acc", index, entries(index, 50))),
+      Array.from({ length: 12 }, (_, index) => replayFrame("acc", index, entries("acc", index, 50))),
     );
     expect(buildGeometry(positioned, null, null)?.pts).toHaveLength(12);
     const missingPosition = positioned.map((sample) => ({ ...sample, positionM: undefined }));
     expect(buildGeometry(missingPosition, null, null)).toBeNull();
     expect(tireSnapshot(positioned)?.FL.wear).toBe(0);
-    const partialSnapshot = tireSnapshot(positioned.map((sample) => ({ ...sample, tireTemperatureC: undefined })));
+    const partialSnapshot = tireSnapshot(positioned.map((sample) => ({ ...sample, tireSurfaceTemperatureC: undefined, tireCoreTemperatureC: undefined, tireCarcassMiddleTemperatureC: undefined })));
     expect(partialSnapshot).not.toBeNull();
     expect(partialSnapshot?.FL.tempC).toBeUndefined();
     expect(partialSnapshot?.FL.wear).toBe(0);
   });
   test("passes canonical lap number rather than running lap seconds", () => {
-    useTelemetryStore.setState({ telemetryView: null, sectors: null, sessionLaps: [] });
+    telemetryStore.setState((state) => ({ ...state, telemetryView: null, sectors: null, sessionLaps: [] }));
     const view = {
       ...fakeAccSemanticFixture.view,
       identity: { ...fakeAccSemanticFixture.view.identity, trackOrdinal: undefined },
@@ -168,8 +210,7 @@ describe("canonical tuning telemetry consumers", () => {
         },
       ],
     };
-    useTelemetryStore.setState(mismatchedState);
-    Object.assign(useTelemetryStore.getInitialState(), mismatchedState);
+    telemetryStore.setState((state) => ({ ...state, ...mismatchedState }));
     const markup = renderToStaticMarkup(
       createElement(QueryClientProvider, { client: new QueryClient() }, createElement(LiveTestDashboard, { gameId: "acc", trackOrdinal: null, initialViews: [accView] })),
     );

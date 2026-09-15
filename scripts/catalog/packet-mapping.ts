@@ -97,7 +97,7 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
     DrivetrainType:
       "iRacing normalizer emits a fixed drivetrain enum rather than a source-frame value.",
     TireTemp:
-      "iRacing TireTemp duplicates averaged carcass bands; use the named carcass bands.",
+      "iRacing TireTemp aliases the middle carcass band; use the named carcass bands.",
     TireCarcassTemp:
       "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature.",
   },

@@ -60,6 +60,12 @@ export function WheelCard({
   const fill = hasCoreTemp ? tireTempColor(coreTemp, thresholds) : stroke;
   const slipCol = slipAngleColor(slipAngle);
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
+  const healthY = hasCoreTemp ? 117 : 105;
+  const stateY = healthY + 12;
+  const brakeY = brakeTemp != null ? stateY + 10 : null;
+  const curbY = onRumble ? (brakeY ?? stateY) + 10 : null;
+  const wetY = puddleDepth > 0 ? (curbY ?? brakeY ?? stateY) + 9 : null;
+  const svgHeight = Math.max(145, (wetY ?? curbY ?? brakeY ?? stateY) + 8);
 
   // Use canonical wheel state from vehicle-dynamics
   const isLockup = showWheelState && wheelState.state === "lockup";
@@ -78,7 +84,7 @@ export function WheelCard({
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox="0 0 80 145" width={80} height={145}>
+      <svg viewBox={`0 0 80 ${svgHeight}`} width={80} height={svgHeight}>
         {/* Label */}
         <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {label}
@@ -202,36 +208,36 @@ export function WheelCard({
             {tempCaption} {temperatureAvailable ? `${tempFn(surfaceTemp).toFixed(0)}°${tempUnit}` : "—"}
           </text>
         )}
-        <text x={cx} y={hasCoreTemp ? 117 : 105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={7} fontFamily="var(--font-mono)">
+        <text x={cx} y={healthY} textAnchor="middle" fill="var(--app-text-muted)" fontSize={7} fontFamily="var(--font-mono)">
           {healthCaption} {healthAvailable ? `${((1 - wearPct) * 100).toFixed(0)}%` : "—"}
         </text>
         {showWheelState ? (
-          <text x={cx} y={hasCoreTemp ? 129 : 117} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text x={cx} y={stateY} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             {visualState.label}
           </text>
         ) : (
-          <text x={cx} y={hasCoreTemp ? 129 : 117} textAnchor="middle" fill="var(--status-unavailable)" fontSize={8} fontFamily="var(--font-mono)">
+          <text x={cx} y={stateY} textAnchor="middle" fill="var(--status-unavailable)" fontSize={8} fontFamily="var(--font-mono)">
             —
           </text>
         )}
 
         {/* Brake temp */}
         {brakeTemp != null && (
-          <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
+          <text x={cx} y={brakeY ?? stateY} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
             BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
           </text>
         )}
 
         {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text x={cx} y={brakeTemp != null ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text x={cx} y={curbY ?? stateY} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
           <text
             x={cx}
-            y={(brakeTemp != null ? 137 : 127) + (onRumble ? 9 : 0)}
+            y={wetY ?? stateY}
             textAnchor="middle"
             fill="var(--surface-wet)"
             fontSize={7}

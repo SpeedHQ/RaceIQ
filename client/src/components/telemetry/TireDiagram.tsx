@@ -124,6 +124,7 @@ export function TireDiagram(props: { view: LiveTelemetryView; frame?: never; gam
     const { view } = props;
     const values: SemanticAnalysisFrame["values"] = {
       "inputs.steer": view.inputs.steer,
+      "motion.speed": view.motion.speedMps,
       "tire.temperature.surface.representative": view.tires.surfaceTemperatureC && Object.values(view.tires.surfaceTemperatureC).map((profile) => profile.representative),
       "tire.temperature.core": view.tires.coreTemperatureC && Object.values(view.tires.coreTemperatureC),
       "tire.temperature.carcass.left": view.tires.carcassTemperatureC && Object.values(view.tires.carcassTemperatureC).map((profile) => profile.left),

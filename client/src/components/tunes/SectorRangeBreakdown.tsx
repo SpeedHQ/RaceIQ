@@ -6,7 +6,7 @@ interface SectorTimes {
   boundaryIndices: number[];
 }
 
-export type MetricKey = "tyreTemp" | "brakeTemp" | "pressure" | "wear";
+export type MetricKey = "tireSurfaceTemp" | "tireCoreTemp" | "tireCarcassTemp" | "brakeTemp" | "pressure" | "wear";
 export const CORNERS = ["FL", "FR", "RL", "RR"] as const;
 export type CornerKey = (typeof CORNERS)[number];
 
@@ -22,13 +22,31 @@ export interface MetricDef {
 
 export const METRICS: MetricDef[] = [
   {
-    key: "tyreTemp",
-    label: "Tyre temp",
+    key: "tireSurfaceTemp",
+    label: "Surface temp",
     unit: "°C",
     quantity: "temperature",
     accent: "var(--metric-tire-temperature)",
     semantic: true,
-    field: "tireTemperatureC",
+    field: "tireSurfaceTemperatureC",
+  },
+  {
+    key: "tireCoreTemp",
+    label: "Core temp",
+    unit: "°C",
+    quantity: "temperature",
+    accent: "var(--metric-tire-temperature)",
+    semantic: true,
+    field: "tireCoreTemperatureC",
+  },
+  {
+    key: "tireCarcassTemp",
+    label: "Carcass temp",
+    unit: "°C",
+    quantity: "temperature",
+    accent: "var(--metric-tire-temperature)",
+    semantic: true,
+    field: "tireCarcassMiddleTemperatureC",
   },
   {
     key: "brakeTemp",
@@ -60,6 +78,14 @@ export function metricDisplayUnit(metric: MetricDef, tempLabel: string): string 
 
 export function metricDisplayValue(metric: MetricDef, value: number, temperatureUnit: "C" | "F"): number {
   return metric.quantity === "temperature" && temperatureUnit === "F" ? value * (9 / 5) + 32 : value;
+}
+export function tuneMetricsFor(telemetry: readonly SemanticTuneSample[]): MetricDef[] {
+  return METRICS.filter((metric) => {
+    if (metric.key === "tireSurfaceTemp") return telemetry.some((sample) => sample.tireSurfaceTemperatureC !== undefined);
+    if (metric.key === "tireCoreTemp") return telemetry.some((sample) => sample.tireCoreTemperatureC !== undefined);
+    if (metric.key === "tireCarcassTemp") return telemetry.some((sample) => sample.tireCarcassMiddleTemperatureC !== undefined);
+    return true;
+  });
 }
 export function tuneMetricValue(sample: SemanticTuneSample, metric: MetricDef, index: number): number | undefined {
   const value = wheelValue(sample, metric.field, index);

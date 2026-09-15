@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.16.0",
-      "sourceHash": "65cc2f513e3fa549fa502c13ab4e33053b856c473314970f736efd7e61632a72"
+      "sourceHash": "d1457fa8fdb385b73d4fb9f75b86b6e1a551fa003796538e3c7c77df14275050"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
@@ -18,7 +18,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "78b824aeae9fd545f4de51f1215ed30e3cd2ad6f8f6c6db5d23f8d4065e945b5"
+    "contentHash": "c6f9a1a71f71f4e5153d4f176313c6d75dc4a14766779a4558617e772d5567d1"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -47026,7 +47026,7 @@
         "iracing": {
           "kind": "unavailable",
           "reason": "parser-placeholder",
-          "description": "iRacing TireTemp duplicates averaged carcass bands; use the named carcass bands."
+          "description": "iRacing TireTemp aliases the middle carcass band; use the named carcass bands."
         }
       },
       "valueType": "number",

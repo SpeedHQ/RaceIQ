@@ -1,6 +1,6 @@
 import type { GameId } from "@shared/games/ids";
 import { getGame } from "@shared/games/registry";
-import { primaryTireTemperaturesC, type LiveTelemetryView } from "@/lib/live-telemetry-view";
+import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import type { SemanticReplayFrame } from "../../hooks/laps";
 
 export interface TuneWheelValues {
@@ -16,7 +16,9 @@ export interface SemanticTuneSample {
   positionM?: { x: number; z: number };
   distanceM?: number;
   speedMps?: number;
-  tireTemperatureC?: TuneWheelValues;
+  tireSurfaceTemperatureC?: TuneWheelValues;
+  tireCoreTemperatureC?: TuneWheelValues;
+  tireCarcassMiddleTemperatureC?: TuneWheelValues;
   brakeTemperatureC?: TuneWheelValues;
   tirePressurePsi?: TuneWheelValues;
   tireWearFraction?: TuneWheelValues;
@@ -24,7 +26,7 @@ export interface SemanticTuneSample {
   fuelUnit: "litre" | "fraction";
 }
 
-export type TuneWheelMetric = "tireTemperatureC" | "brakeTemperatureC" | "tirePressurePsi" | "tireWearFraction";
+export type TuneWheelMetric = "tireSurfaceTemperatureC" | "tireCoreTemperatureC" | "tireCarcassMiddleTemperatureC" | "brakeTemperatureC" | "tirePressurePsi" | "tireWearFraction";
 
 function finiteNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -46,7 +48,9 @@ function sampleFromValues(gameId: GameId, values: Readonly<Record<string, unknow
     speedMps: finiteNumber(values["motion.speed"]),
     trackOrdinal: finiteNumber(values["identity.track-ordinal"]),
     positionM: positionX === undefined || positionZ === undefined ? undefined : { x: positionX, z: positionZ },
-    tireTemperatureC: wheelValues(values["tire.temperature.surface.representative"]),
+    tireSurfaceTemperatureC: wheelValues(values["tire.temperature.surface.representative"]),
+    tireCoreTemperatureC: wheelValues(values["tire.temperature.core"]),
+    tireCarcassMiddleTemperatureC: wheelValues(values["tire.temperature.carcass.middle"]),
     brakeTemperatureC: wheelValues(values["brakes.brake-temp"]),
     tirePressurePsi: wheelValues(values["tires.tire-pressure"]),
     tireWearFraction: wheelValues(values["tires.tire-wear"]),
@@ -68,13 +72,29 @@ export function semanticSamples(gameId: GameId, frames: SemanticReplayFrame[] | 
 
 export function semanticTuneSampleFromView(view: LiveTelemetryView): SemanticTuneSample {
   const fuelUnit = getGame(view.simulator).telemetry.fuel.packetUnit;
+  const surface = view.tires.surfaceTemperatureC;
+  const surfaceValues = surface
+    ? [surface.fl.representative, surface.fr.representative, surface.rl.representative, surface.rr.representative]
+    : [];
+  const tireSurfaceTemperatureC = surfaceValues.length === 4 && surfaceValues.every((value): value is number => typeof value === "number" && Number.isFinite(value))
+    ? { fl: surfaceValues[0], fr: surfaceValues[1], rl: surfaceValues[2], rr: surfaceValues[3] }
+    : undefined;
+  const carcass = view.tires.carcassTemperatureC;
+  const carcassValues = carcass
+    ? [carcass.fl.middle, carcass.fr.middle, carcass.rl.middle, carcass.rr.middle]
+    : [];
+  const tireCarcassMiddleTemperatureC = carcassValues.length === 4 && carcassValues.every((value): value is number => typeof value === "number" && Number.isFinite(value))
+    ? { fl: carcassValues[0], fr: carcassValues[1], rl: carcassValues[2], rr: carcassValues[3] }
+    : undefined;
   return {
     gameId: view.simulator,
     distanceM: view.motion.distanceM,
     speedMps: view.motion.speedMps,
     trackOrdinal: view.identity.trackOrdinal,
     positionM: view.motion.position,
-    tireTemperatureC: primaryTireTemperaturesC(view.tires),
+    tireSurfaceTemperatureC,
+    tireCoreTemperatureC: view.tires.coreTemperatureC,
+    tireCarcassMiddleTemperatureC,
     brakeTemperatureC: view.tires.brakeTemperatureC,
     tirePressurePsi: view.tires.pressurePsi,
     tireWearFraction: view.tires.wear,

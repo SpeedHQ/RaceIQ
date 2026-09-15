@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useUnits } from "../../hooks/useUnits";
 import type { SemanticTuneSample } from "./semantic-tune";
-import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
+import { buildLiveRanges, CornerBars, tuneMetricsFor } from "./SectorRangeBreakdown";
 
 /**
  * CurrentLapTireStrip — compact horizontal row of per-corner range bars,
@@ -11,7 +11,10 @@ import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
  */
 export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSample[] }) {
   const units = useUnits();
-  const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);
+  const models = useMemo(
+    () => tuneMetricsFor(telemetry).map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })),
+    [telemetry],
+  );
 
   // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
   // single tyre corner bar so it aligns in the row.
