@@ -68,6 +68,10 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4
+
       - name: Mark workspace safe for git
         run: bun scripts/ci/workflow-ops.ts safe-git
 
@@ -83,10 +87,6 @@ jobs:
           RUNNER_TEMP: ${{ runner.temp }}
         run: bun scripts/ci/workflow-ops.ts add-worktree
 
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4
       - uses: actions/setup-node@v7
         with:
           node-version: 22

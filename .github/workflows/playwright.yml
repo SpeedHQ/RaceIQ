@@ -88,7 +88,6 @@ jobs:
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: cmd
         run: bun run ../scripts/playwright-ci.ts test --list ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
       - name: Run Playwright gate
@@ -99,7 +98,6 @@ jobs:
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: cmd
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
 

@@ -54,9 +54,7 @@ jobs:
   build:
     if: github.event_name == 'workflow_dispatch'
     needs: compute-version
-    runs-on:
-      - mars-windows-x64-4vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
+    runs-on: mars-windows-x64-4vcpu-15g
     steps:
       - uses: actions/checkout@v7
 

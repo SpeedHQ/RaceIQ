@@ -51,9 +51,12 @@ switch (operation) {
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
+    const screenshots = join("playwright", "screenshots", "mobile");
     const output = join(env.RUNNER_TEMP!, "current-responsive");
-    if (existsSync(join("playwright", "screenshots", "mobile"))) {
-      cpSync(join("playwright", "screenshots", "mobile"), output, { recursive: true });
+    rmSync(output, { recursive: true, force: true });
+    if (existsSync(screenshots)) {
+      cpSync(screenshots, output, { recursive: true });
+      rmSync(screenshots, { recursive: true, force: true });
     }
     if (status !== 0) process.exit(status);
     break;
@@ -66,6 +69,7 @@ switch (operation) {
     rmSync(join(env.GITHUB_WORKSPACE!, "dist"), { recursive: true, force: true });
     cpSync(join(base, "dist"), join(env.GITHUB_WORKSPACE!, "dist"), { recursive: true });
     const output = join(env.GITHUB_WORKSPACE!, "playwright/screenshots/mobile");
+    rmSync(output, { recursive: true, force: true });
     mkdirSync(output, { recursive: true });
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", "--grep=desktop", `--shard=${env.SHARD}/2`], {
       cwd: join(base, "playwright"),
@@ -126,7 +130,8 @@ switch (operation) {
     break;
   }
   case "smoke-server": {
-    const server = Bun.spawn(["dist/raceiq.exe"], { cwd: "dist", stdout: "inherit", stderr: "inherit" });
+    const executable = join(process.cwd(), "dist", "raceiq.exe");
+    const server = Bun.spawn([executable], { cwd: "dist", stdout: "inherit", stderr: "inherit" });
     try {
       let ready = false;
       for (let attempt = 0; attempt < 30; attempt++) {
