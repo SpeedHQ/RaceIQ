@@ -52,7 +52,8 @@ export const InputsCompareSchema = z.object({
 
 export type InputsCompareResult = z.infer<typeof InputsCompareSchema>;
 
-interface LapInfo {
+export interface LapInfo {
+  id?: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
@@ -302,7 +303,7 @@ export function buildInputsComparePrompt(
   // compareEngineerAgent already carries the persona (built from the same
   // settings) as its system instructions. Prepending it here shipped the whole
   // persona twice in every request.
-  return `This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
+  return `This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.${lapA.id !== undefined && lapB.id !== undefined ? `\nTool lap IDs: Lap A = ${lapA.id}; Lap B = ${lapB.id}. Inspect Lap A before Lap B.` : ""}
 
 CRITICAL OUTPUT REQUIREMENTS:
 - Your "segments" array MUST contain EXACTLY ${expectedCount} entries.
