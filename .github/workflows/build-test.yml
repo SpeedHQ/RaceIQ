@@ -19,12 +19,12 @@ concurrency:
 
 
 jobs:
-  unit-tests:
+  build:
+    timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on:
-      - mars-any
-      - 4VCPU
-      - 10G
+      - mars-windows-x64-10vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,18 +37,23 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Run unit tests
-        run: bun run test:unit
-  build-test:
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    # Always retain compiled dist for downstream E2E diagnostics and reruns.
-    # Upload step uses always() so failures before or during tests do not skip it.
-    # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
-    runs-on:
-      - mars-windows-x64
-      - 10VCPU
-      - 15G
+      - name: Build RaceIQ
+        run: bun run build
 
+      - name: Upload Windows E2E dist artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: raceiq-dist-windows
+          path: dist/
+          if-no-files-found: error
+          retention-days: 1
+
+  test:
+    timeout-minutes: 30
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on:
+      - mars-windows-x64-10vcpu-15g
+      - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,44 +75,17 @@ jobs:
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
 
-
       - name: Check generated telemetry catalog
-        shell: powershell
-        run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            $baseRef = "${{ github.base_ref }}"
-            git fetch --no-tags --depth=1 origin "${baseRef}:refs/remotes/origin/${baseRef}"
-            $baseline = Join-Path $env:RUNNER_TEMP "telemetry-catalog-baseline.json"
-            $catalog = git show "origin/${baseRef}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" 2>$null
-            if ($LASTEXITCODE -ne 0) {
-              $catalog = git show "origin/${baseRef}:shared/telemetry-catalog.generated.json" 2>$null
-            }
-            if ($LASTEXITCODE -eq 0) {
-              [System.IO.File]::WriteAllLines($baseline, [string[]]$catalog, [System.Text.UTF8Encoding]::new($false))
-              bun run telemetry:catalog:check --baseline $baseline
-            } else {
-              Write-Output "Base branch has no telemetry catalog; checking current artifacts without a compatibility baseline."
-              bun run telemetry:catalog:check
-            }
-          } else {
-            bun run telemetry:catalog:check
-          }
+        run: bun scripts/ci/check-telemetry-catalog.ts
 
+      - name: Run unit tests
+        run: bun run test:unit
 
       - name: Run integration tests
         run: bun run test:integration
-      - name: Build RaceIQ
-        run: bun run build
-      - name: Upload Windows E2E dist artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: raceiq-dist-windows
-          path: dist/
-          if-no-files-found: ignore
-          retention-days: 1
-
 
   changelog:
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -123,17 +101,11 @@ jobs:
           bun scripts/release/check-changelog.ts
   playwright-e2e:
     if: >-
-      always() && (
-        (github.event_name == 'workflow_dispatch' && needs.build-test.result == 'success') ||
-        (github.event_name == 'pull_request' &&
-          !github.event.pull_request.draft &&
-          needs.build-test.result == 'success' &&
-          needs.screenshots.result == 'success' &&
-          needs.snapshots.result == 'success')
-      )
+      always() &&
+      github.event_name == 'pull_request' &&
+      !github.event.pull_request.draft &&
+      needs.snapshots.result == 'success'
     needs:
-      - build-test
-      - screenshots
       - snapshots
     uses: ./.github/workflows/playwright-e2e.yml
     with:
@@ -141,7 +113,9 @@ jobs:
 
   screenshots:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    needs: build-test
+    needs:
+      - build
+      - test
     permissions:
       contents: read
       pull-requests: read
@@ -149,8 +123,11 @@ jobs:
     with:
       pr: ${{ github.event.pull_request.number }}
   snapshots:
+    name: snapshots/compare
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
-    needs: build-test
+    needs:
+      - build
+      - test
     permissions:
       contents: read
       pull-requests: read

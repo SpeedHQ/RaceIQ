@@ -1,7 +1,8 @@
 import type { LapDetectorOptions } from "../../lap-detection/types";
 import { KunosLapDetector } from "../kunos/lap-detector";
 
-export const LAP_DETECTOR_ACC_ID = "acc_lapdetector_v2";
+// v3: drops short pre-lap timer prefixes and aligns capture frame windows.
+export const LAP_DETECTOR_ACC_ID = "acc_lapdetector_v3";
 
 /** ACC policy hooks for the shared Kunos lap lifecycle. */
 export class LapDetectorAcc extends KunosLapDetector {

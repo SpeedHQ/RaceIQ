@@ -1,6 +1,7 @@
 # Recording-backed end-to-end tests
 test/e2e/ac-evo/ac-evo-recording.test.ts
 test/e2e/acc/acc-2026-04-10T02-59-28-972Z.test.ts
+test/e2e/acc/acc-lap-estimation.test.ts
 test/e2e/acc/acc-2026-04-12T20-41-21-436Z.test.ts
 test/e2e/acc/acc-2026-04-12T21-16-07-841Z.test.ts
 test/e2e/acc/acc-2026-04-12T21-44-38-899Z.test.ts

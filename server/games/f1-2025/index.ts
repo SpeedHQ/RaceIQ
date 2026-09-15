@@ -55,7 +55,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
       seedTireWearFromHistory: true,
       useDistanceBasedWearCurves: false,
     },
-    bestLapFromSession: false,
+    bestLapFromSession: true,
     requiresTrackCalibration: true,
     normSuspensionTravelMm: { min: 20, max: 80 },
   },

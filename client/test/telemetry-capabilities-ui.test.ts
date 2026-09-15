@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
 import type { GameId } from "../../shared/games/ids";
-import type { LivePitData } from "../../shared/racing/live/types";
+import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
@@ -16,6 +16,7 @@ import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWhe
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
+import { LapTimes } from "../src/components/telemetry/LapTimes";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
 import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
@@ -752,5 +753,20 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("Lateral slip");
     expect(markup).not.toContain("Grip Ask");
     expect(markup).not.toContain("Suspension");
+  });
+  test("shows best lap and only same-distance live delta", () => {
+    const view = liveView("f1-2025", { timing: { currentLapS: 30.793, lastLapS: 97.729, bestLapS: 94.023 } });
+    const unavailable = renderToStaticMarkup(createElement(LapTimes, { view }));
+    expect(unavailable).toContain("1:34.023");
+    expect(unavailable).toContain("Est. Lap");
+    expect(unavailable).not.toContain("+3.706");
+    expect(unavailable).not.toContain("+97.729");
+    expect(unavailable).toContain("--:--.---");
+
+    const sectors = { estimatedLap: 93.5, deltaToBest: -0.523 } as LiveSectorData;
+    const available = renderToStaticMarkup(createElement(LapTimes, { view, sectors }));
+    expect(available).toContain("Est. Lap");
+    expect(available).toContain("1:33.500");
+    expect(available).toContain("-0.523");
   });
 });

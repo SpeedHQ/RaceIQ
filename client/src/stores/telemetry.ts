@@ -227,8 +227,11 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
       ...prev,
       telemetryFrame,
       telemetryView: prev.telemetrySchema ? (buildLiveTelemetryView(prev.telemetrySchema, telemetryFrame) ?? prev.telemetryView) : prev.telemetryView,
+      sectors: telemetryFrame.context.sectors ?? null,
+      pit: telemetryFrame.context.pit ?? null,
+      liveIssues: [...(telemetryFrame.context.liveIssues ?? [])],
     })),
-  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null })),
+  clearTelemetry: () => store.setState((prev) => ({ ...prev, telemetryFrame: null, telemetryView: null, telemetrySchema: null, sectors: null, pit: null, liveIssues: [] })),
   setPacketsPerSec: (packetsPerSec) => store.setState((prev) => ({ ...prev, packetsPerSec })),
   setServerStatus: (status) =>
     store.setState((prev) =>
