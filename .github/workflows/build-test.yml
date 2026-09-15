@@ -94,19 +94,11 @@ jobs:
           bun scripts/release/check-changelog.ts
   playwright-e2e:
     if: >-
-      always() && (
-        (github.event_name == 'workflow_dispatch' &&
-          needs.build.result == 'success' &&
-          needs.test.result == 'success') ||
-        (github.event_name == 'pull_request' &&
-          !github.event.pull_request.draft &&
-          needs.build.result == 'success' &&
-          needs.test.result == 'success' &&
-          needs.snapshots.result == 'success')
-      )
+      always() &&
+      github.event_name == 'pull_request' &&
+      !github.event.pull_request.draft &&
+      needs.snapshots.result == 'success'
     needs:
-      - build
-      - test
       - snapshots
     uses: ./.github/workflows/playwright-e2e.yml
     with:
