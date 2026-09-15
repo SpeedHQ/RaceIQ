@@ -7,6 +7,7 @@
   ],
   "type": "module",
   "scripts": {
+    "storybook": "bun run --cwd client storybook",
     "dev": "bun scripts/dev/dev.ts",
     "dev:server": "bun --env-file=.env.development --watch run server/index.ts",
     "dev:proxy": "bun scripts/dev/dev-proxy.ts",

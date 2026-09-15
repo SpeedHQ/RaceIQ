@@ -6,7 +6,7 @@ import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
 import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
 
-export const frame: SemanticAnalysisFrame = {
+const frame: SemanticAnalysisFrame = {
   values: {
     "identity.car-ordinal": 1,
     "motion.speed": 58,
@@ -37,7 +37,7 @@ export const frame: SemanticAnalysisFrame = {
   freshness: {},
 };
 
-export const telemetry = [frame];
+const telemetry = [frame];
 const trackOutline = Array.from({ length: 96 }, (_, index) => {
   const angle = (index / 96) * Math.PI * 2;
   return { x: Math.cos(angle) * 420, z: Math.sin(angle) * 240 };

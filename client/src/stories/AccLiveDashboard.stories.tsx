@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
 import { gameStore } from "../stores/game";
-import { telemetryStore } from "../stores/telemetry";
+import { DEFAULT_DISPLAY_SETTINGS, telemetryStore } from "../stores/telemetry";
 import { fakeAccSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
@@ -10,6 +10,10 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "acc"], fakeSessionLaps);
+queryClient.setQueryData(["track-name", 7, "acc"], "Spa-Francorchamps");
+queryClient.setQueryData(["car-name", 301, "acc"], "Lamborghini Huracan GT3");
+queryClient.setQueryData(["acc-car-class", 301], "GT3");
+queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeAccSemanticFixture;

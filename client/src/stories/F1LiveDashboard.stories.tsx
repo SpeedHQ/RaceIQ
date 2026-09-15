@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { F1LiveDashboard } from "../components/f1/F1LiveDashboard";
 import { gameStore, useGameStore } from "../stores/game";
-import { telemetryStore, useTelemetryStore } from "../stores/telemetry";
+import { DEFAULT_DISPLAY_SETTINGS, telemetryStore, useTelemetryStore } from "../stores/telemetry";
 import { fakeF1SemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
@@ -13,6 +13,7 @@ const queryClient = new QueryClient({
 queryClient.setQueryData(["laps", "f1-2025"], fakeSessionLaps);
 queryClient.setQueryData(["track-name", 7, "f1-2025"], "Bahrain International Circuit");
 queryClient.setQueryData(["car-name", 42, "f1-2025"], "F1 2025");
+queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   // Inject fake state into stores before render
