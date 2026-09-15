@@ -124,7 +124,7 @@ jobs:
     with:
       pr: ${{ github.event.pull_request.number }}
   snapshots:
-    name: snapshots/test
+    name: snapshots/compare
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs:
       - build
