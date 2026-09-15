@@ -93,25 +93,49 @@ describe("compiled telemetry resolver", () => {
     }
   });
 
-  test("resolves simplified per-wheel values without losing fidelity status", () => {
+  test("normalizes Forza representative tire temperatures to Celsius", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "fm-2023",
+      requested: [{ semanticId: "tire.temperature.surface.representative", required: true }],
+    });
+    const slot = resolver.slot("tire.temperature.surface.representative");
+    const first = resolver.createFrameView(
+      packet("fm-2023", { TireTempFL: 212, TireTempFR: 32, TireTempRL: 68, TireTempRR: 86 }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
+    );
+    expect(first.resolveValue<readonly number[]>(slot)).toMatchObject({
+      value: [100, 0, 20, 30],
+      unit: "°C",
+      mappingStatus: "normalized",
+      provenance: { sourceChannel: "TelemetryPacket.TireTempFL" },
+    });
+    const second = resolver.createFrameView(
+      packet("fm-2023", { TireTempFL: 50, TireTempFR: 59, TireTempRL: 77, TireTempRR: 95 }),
+      { timestamp: { domain: "session", milliseconds: 1_001 }, updateSequence: BigInt(1_001) },
+      first,
+    );
+    expect(second.resolveValue<readonly number[]>(slot).value).toEqual([10, 15, 25, 35]);
+  });
+
+  test("resolves direct per-wheel carcass bands without losing fidelity status", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.average" }],
+      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
     });
-    const slot = resolver.slot("tire.temperature.carcass.average");
+    const slot = resolver.slot("tire.temperature.carcass.middle");
     const frame = resolver.createFrameView(
       packet("iracing", {
-        TireCarcassTempFL: 80,
-        TireCarcassTempFR: 81,
-        TireCarcassTempRL: 82,
-        TireCarcassTempRR: 83,
+        TireCarcassTempMiddleFL: 80,
+        TireCarcassTempMiddleFR: 81,
+        TireCarcassTempMiddleRL: 82,
+        TireCarcassTempMiddleRR: 83,
       }),
       { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) },
     );
 
     expect(frame.resolveValue<readonly number[]>(slot)).toMatchObject({
       value: [80, 81, 82, 83],
-      mappingStatus: "simplified",
+      mappingStatus: "direct",
       state: "ok",
     });
   });
@@ -133,15 +157,15 @@ describe("compiled telemetry resolver", () => {
   test("tracks pit snapshots from their own source change", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.average" }],
-      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
+      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.average");
+    const slot = resolver.slot("tire.temperature.carcass.middle");
     const snapshot = {
-      TireCarcassTempFL: 80,
-      TireCarcassTempFR: 81,
-      TireCarcassTempRL: 82,
-      TireCarcassTempRR: 83,
+      TireCarcassTempMiddleFL: 80,
+      TireCarcassTempMiddleFR: 81,
+      TireCarcassTempMiddleRL: 82,
+      TireCarcassTempMiddleRR: 83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "session", milliseconds: 1_000 },
@@ -169,7 +193,7 @@ describe("compiled telemetry resolver", () => {
     expect(second.readValue(slot)).toBeUndefined();
     expect(second.resolveValue(slot)).toMatchObject({
       value: [80, 81, 82, 83],
-      mappingStatus: "simplified",
+      mappingStatus: "direct",
       state: "stale",
       freshness: "stale",
       confidenceComponents: { freshness: 0 },
@@ -185,15 +209,15 @@ describe("compiled telemetry resolver", () => {
   test("reports cross-domain freshness as unknown until source changes", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.average" }],
-      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
+      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.average");
+    const slot = resolver.slot("tire.temperature.carcass.middle");
     const snapshot = {
-      TireCarcassTempFL: 80,
-      TireCarcassTempFR: 81,
-      TireCarcassTempRL: 82,
-      TireCarcassTempRR: 83,
+      TireCarcassTempMiddleFL: 80,
+      TireCarcassTempMiddleFR: 81,
+      TireCarcassTempMiddleRL: 82,
+      TireCarcassTempMiddleRR: 83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "session", milliseconds: 1_000 },
@@ -224,7 +248,7 @@ describe("compiled telemetry resolver", () => {
     });
 
     const changed = resolver.createFrameView(
-      packet("iracing", { ...snapshot, TireCarcassTempFL: 84 }),
+      packet("iracing", { ...snapshot, TireCarcassTempMiddleFL: 84 }),
       {
         timestamp: { domain: "wall-clock", milliseconds: 1_800_000_000_001 },
         updateSequence: 3n,
@@ -249,15 +273,15 @@ describe("compiled telemetry resolver", () => {
   test("converts matching monotonic timestamps from nanoseconds for freshness", () => {
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "tire.temperature.carcass.average" }],
-      staleAfterMs: { "tire.temperature.carcass.average": 50 },
+      requested: [{ semanticId: "tire.temperature.carcass.middle" }],
+      staleAfterMs: { "tire.temperature.carcass.middle": 50 },
     });
-    const slot = resolver.slot("tire.temperature.carcass.average");
+    const slot = resolver.slot("tire.temperature.carcass.middle");
     const snapshot = {
-      TireCarcassTempFL: 80,
-      TireCarcassTempFR: 81,
-      TireCarcassTempRL: 82,
-      TireCarcassTempRR: 83,
+      TireCarcassTempMiddleFL: 80,
+      TireCarcassTempMiddleFR: 81,
+      TireCarcassTempMiddleRL: 82,
+      TireCarcassTempMiddleRR: 83,
     };
     const first = resolver.createFrameView(packet("iracing", snapshot), {
       timestamp: { domain: "monotonic", nanoseconds: 1_000_000_000n },

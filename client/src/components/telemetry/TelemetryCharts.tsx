@@ -4,7 +4,6 @@ import { resolveGripDemand, resolveWheelMetric } from "@shared/racing/analysis/m
 import { useEffect, useRef, useState } from "react";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
-import { convertTemp } from "@/lib/temperature";
 import { controlInputPercent } from "@/lib/vehicle-dynamics";
 import type { SemanticMetricFrame } from "../../../../shared/racing/analysis/metric-values";
 
@@ -21,7 +20,8 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
   const units = useUnits();
   const analysis = resolveAnalysisTelemetry(getGame(view.simulator));
   const showGrip = analysis.gripDemand.source !== "unavailable";
-  const showTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
+  const showSurfaceTemperature = view.tires.surfaceTemperatureC?.fl.representative !== undefined;
+  const showCoreTemperature = view.tires.coreTemperatureC !== undefined;
   const showWear = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "continuous";
   const showSlipAngle = analysis.slipAngle.source !== "unavailable";
   const showSlipRatio = analysis.slipRatio.source !== "unavailable";
@@ -29,10 +29,11 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
   const histRef = useRef({
     grip: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     temp: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
-    wear: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    coreTemp: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     slipAngle: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     slipRatio: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     suspension: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    wear: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     throttle: [] as number[],
     brake: [] as number[],
     speed: [] as number[],
@@ -50,7 +51,19 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
         "motion.speed": view.motion.speedMps,
         "inputs.steer": view.inputs.steer,
         "tires.tire-combined-slip": asArray(view.tires.combinedSlip),
-        "tire.temperature.average": asArray(view.tires.temperatureC),
+        "tire.temperature.surface.representative": view.tires.surfaceTemperatureC ? asArray({
+          fl: view.tires.surfaceTemperatureC.fl.representative ?? Number.NaN,
+          fr: view.tires.surfaceTemperatureC.fr.representative ?? Number.NaN,
+          rl: view.tires.surfaceTemperatureC.rl.representative ?? Number.NaN,
+          rr: view.tires.surfaceTemperatureC.rr.representative ?? Number.NaN,
+        }) : undefined,
+        "tire.temperature.core": asArray(view.tires.coreTemperatureC),
+        "tire.temperature.carcass.middle": view.tires.carcassTemperatureC ? asArray({
+          fl: view.tires.carcassTemperatureC.fl.middle ?? Number.NaN,
+          fr: view.tires.carcassTemperatureC.fr.middle ?? Number.NaN,
+          rl: view.tires.carcassTemperatureC.rl.middle ?? Number.NaN,
+          rr: view.tires.carcassTemperatureC.rr.middle ?? Number.NaN,
+        }) : undefined,
         "tires.tire-wear": asArray(view.tires.wear),
         "tires.tire-slip-angle": asArray(view.tires.slipAngleRad),
         "tires.tire-slip-ratio": asArray(view.tires.slipRatio),
@@ -89,7 +102,13 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
       }
     };
     appendWheel(history.grip, metricValues("combinedSlip"), Math.abs);
-    appendWheel(history.temp, metricValues("temperatureC"), (value) => convertTemp(value, units.tempUnit, "C"));
+    appendWheel(history.temp, metricValues("temperatureC"), units.temp);
+    appendWheel(history.coreTemp, view.tires.coreTemperatureC ? [
+      view.tires.coreTemperatureC.fl,
+      view.tires.coreTemperatureC.fr,
+      view.tires.coreTemperatureC.rl,
+      view.tires.coreTemperatureC.rr,
+    ] : null, units.temp);
     appendWheel(history.wear, metricValues("wear"), (value) => value);
     appendWheel(history.slipAngle, metricValues("slipAngleRad"), (value) => value * (180 / Math.PI));
     appendWheel(history.slipRatio, metricValues("slipRatio"), Math.abs);
@@ -106,7 +125,8 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
   return (
     <div className="grid gap-2">
       {showGrip && <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />}
-      {showTemperature && <FourLineChart data={chartData.temp} label="Tire Temp" unit={`°${units.tempUnit}`} />}
+      {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={showCoreTemperature ? "Surface Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
+      {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={showSurfaceTemperature ? "Core Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
       {showWear && <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />}
       {showSlipAngle && <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />}
       {showSlipRatio && <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />}

@@ -118,6 +118,14 @@ export function CarScene({
 }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, 0);
+  const analysis = resolveAnalysisTelemetry(getGame(gameId));
+  const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value"
+    ? analysis.tireTemperature.binding
+    : undefined;
+  const temperatureSemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
+  const dualTemperature = temperatureSemanticId === "tire.temperature.surface.representative"
+    && Array.isArray(frame.values["tire.temperature.surface.representative"])
+    && Array.isArray(frame.values["tire.temperature.core"]);
   const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
 
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
@@ -374,8 +382,10 @@ export function CarScene({
             gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
-            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, "tire.temperature.average", i)) : ""}
+            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, temperatureSemanticId, i)) : ""}
+            displayCoreTemp={toggles.wheelInfo && dualTemperature ? fmtTemp(wheel(frame, "tire.temperature.core", i)) : undefined}
             rimColorForDisplay={w.rimColor}
+            displayBrakeTemp={toggles.wheelInfo ? fmtTemp(w.brakeTemp) : null}
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}
             pressureOptimal={pressureOptimal}

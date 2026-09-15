@@ -16,6 +16,8 @@ export function Wheel({
   rotationSpeed,
   displayTemp,
   rimColorForDisplay,
+  displayCoreTemp,
+  displayBrakeTemp,
   brakeTemp,
   pressurePsi,
   pressureOptimal,
@@ -36,6 +38,8 @@ export function Wheel({
   rotationSpeed: number;
   displayTemp: string;
   rimColorForDisplay: string;
+  displayCoreTemp?: string;
+  displayBrakeTemp?: string | null;
   brakeTemp: number;
   pressurePsi: number;
   pressureOptimal?: { min: number; max: number };
@@ -85,9 +89,11 @@ export function Wheel({
       {displayTemp && (
         <WheelInfoCard
           displayTemp={displayTemp}
+          displayCoreTemp={displayCoreTemp}
           tempColor={rimColorForDisplay}
           wear={wear}
           wearRate={wearRate}
+          displayBrakeTemp={displayBrakeTemp}
           brakeTemp={brakeTemp}
           pressurePsi={pressurePsi}
           pressureOptimal={pressureOptimal}

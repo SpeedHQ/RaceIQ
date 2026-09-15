@@ -14,8 +14,9 @@ export interface MetricDef {
   key: MetricKey;
   label: string;
   unit: string;
+  quantity?: "temperature";
   accent: string;
-  semantic?: boolean; // colour the avg by hot/cold bands (tyre temp only)
+  semantic?: boolean;
   field: TuneWheelMetric;
 }
 
@@ -24,6 +25,7 @@ export const METRICS: MetricDef[] = [
     key: "tyreTemp",
     label: "Tyre temp",
     unit: "°C",
+    quantity: "temperature",
     accent: "var(--metric-tire-temperature)",
     semantic: true,
     field: "tireTemperatureC",
@@ -32,6 +34,7 @@ export const METRICS: MetricDef[] = [
     key: "brakeTemp",
     label: "Brake temp",
     unit: "°C",
+    quantity: "temperature",
     accent: "var(--metric-brake-temperature)",
     field: "brakeTemperatureC",
   },
@@ -50,6 +53,14 @@ export const METRICS: MetricDef[] = [
     field: "tireWearFraction",
   },
 ];
+
+export function metricDisplayUnit(metric: MetricDef, tempLabel: string): string {
+  return metric.quantity === "temperature" ? tempLabel : metric.unit;
+}
+
+export function metricDisplayValue(metric: MetricDef, value: number, temperatureUnit: "C" | "F"): number {
+  return metric.quantity === "temperature" && temperatureUnit === "F" ? value * (9 / 5) + 32 : value;
+}
 export function tuneMetricValue(sample: SemanticTuneSample, metric: MetricDef, index: number): number | undefined {
   const value = wheelValue(sample, metric.field, index);
   return value === undefined || metric.key !== "wear" ? value : value * 100;
@@ -119,21 +130,22 @@ export function buildLiveRanges(telemetry: SemanticTuneSample[], metric: MetricD
   const padding = Math.max(metric.key === "wear" ? 1 : 4, (maximum - minimum) * 0.15);
   return { ranges, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
-
-/** Four corner bars (min→max fill, avg tick) on a shared domain. When `cursor`
- *  is supplied (from hovering the track map), a line marks the live value. */
 export function CornerBars({
   ranges,
   domain,
   metric,
   height = 74,
   cursor,
+  tempLabel = "°C",
+  temperatureUnit = "C",
 }: {
   ranges: Record<CornerKey, Range>;
   domain: [number, number];
   metric: MetricDef;
   height?: number;
   cursor?: Partial<Record<CornerKey, number>>;
+  tempLabel?: string;
+  temperatureUnit?: "C" | "F";
 }) {
   const [lo, hi] = domain;
   const span = hi - lo || 1;
@@ -166,8 +178,8 @@ export function CornerBars({
                 />
               )}
             </div>
-            <span className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
-              {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.avg)}
+            <span title={metricDisplayUnit(metric, tempLabel)} className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
+              {hasCursor ? Math.round(metricDisplayValue(metric, cv!, temperatureUnit)) : empty ? "—" : Math.round(metricDisplayValue(metric, r.avg, temperatureUnit))}
             </span>
             <span className="text-app-micro text-app-text-dim uppercase">{c}</span>
           </div>

@@ -105,7 +105,7 @@ describe("game route helpers", () => {
   });
 
   test("keeps feature support explicit", () => {
-    expect(supportsGameFeature("iracing", "driver")).toBe(false);
+    expect(supportsGameFeature("iracing", "driver")).toBe(true);
     expect(supportsGameFeature("iracing", "experiments")).toBe(false);
     expect(supportsGameFeature("iracing", "raw")).toBe(true);
     expect(supportsGameFeature("ac-evo", "experiments")).toBe(true);

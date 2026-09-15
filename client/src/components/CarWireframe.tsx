@@ -1,6 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { tryGetGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { ChevronDownIcon } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -85,7 +86,12 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
-  const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
+  const adapter = tryGetGame(gameId);
+  const suspThresholds = adapter?.suspensionThresholds.values ?? [25, 65, 85];
+  const temperatureMetric = resolveAnalysisTelemetry(adapter).tireTemperature;
+  const temperatureSemanticId = temperatureMetric.source !== "unavailable" && temperatureMetric.binding?.kind === "value"
+    ? temperatureMetric.binding.semanticId
+    : "tire.temperature.surface.representative";
   const tLabel = tempLabelProp ?? units.tempLabel;
   const fmtTemp = useCallback((v: number) => `${units.temp(v).toFixed(0)}${tLabel}`, [units, tLabel]);
   const [editMode, setEditMode] = useState(false);
@@ -245,10 +251,10 @@ export const CarWireframe = React.memo(function CarWireframe({
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[0] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[1] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[2] ?? 0), units.thresholds),
-            tireTempColor(units.toTempC((frame.values["tire.temperature.average"] as number[] | undefined)?.[3] ?? 0), units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[0] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[1] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[2] ?? 0, units.thresholds),
+            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[3] ?? 0, units.thresholds),
           ]}
         />
       </Canvas>
