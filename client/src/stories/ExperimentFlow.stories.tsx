@@ -8,6 +8,7 @@ import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import type { SemanticLapTelemetry } from "@/hooks/laps";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
+import { GameStoryScope } from "./GameStoryScope";
 
 /**
  * The experiment flow end to end — list → workspace → review — in both
