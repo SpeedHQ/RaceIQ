@@ -102,12 +102,12 @@ jobs:
           !github.event.pull_request.draft &&
           needs.build.result == 'success' &&
           needs.test.result == 'success' &&
-          needs.screenshots.result == 'success')
+          needs.snapshots.result == 'success')
       )
     needs:
       - build
       - test
-      - screenshots
+      - snapshots
     uses: ./.github/workflows/playwright-e2e.yml
     with:
       target-ref: ${{ inputs.target_ref || github.ref }}
@@ -124,6 +124,7 @@ jobs:
     with:
       pr: ${{ github.event.pull_request.number }}
   snapshots:
+    name: snapshots/test
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs:
       - build
