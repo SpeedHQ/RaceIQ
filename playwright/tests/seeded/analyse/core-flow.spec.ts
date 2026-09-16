@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import type { LapMeta, SessionMeta } from "../../../../shared/racing/sessions/types";
 import { collectBrowserErrors } from "../../support/browser-errors";
 import { getSeededLapTarget } from "../../support/seeded/laps";
-import { assertLapSelectors, exercise3dGuide, exerciseAiSetup, exerciseInsightsAndMap, exercisePlaybackControls } from "./controls";
+import { assertLapSelectors, exercise3dGuide, exerciseAiSetup, exerciseDynamicsTooltip, exerciseInsightsAndMap, exercisePlaybackControls } from "./controls";
 import { gameRows, getAlternateSeededLap, openAnalyseLap } from "./fixtures";
 import { exportImportAndDelete } from "./lifecycle";
 
@@ -60,6 +60,7 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
     }
   }
 
+  await exerciseDynamicsTooltip(page, semanticFrames);
   await exercisePlaybackControls(page, semanticFrames);
   await exerciseInsightsAndMap(page);
   await exercise3dGuide(page);

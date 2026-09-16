@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
+import { getWheelOffsets, resolveTrailSlipAngle, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";
 
 // Trail length in meters of track behind each wheel. Distance-based so the
@@ -23,15 +23,6 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
   const gameId = useGameId();
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
-
-  // Per-wheel slip-angle extractor (radians). Slip ratio comes from
-  // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
-  // TireSlipRatio field which uses per-game scaling).
-  const angleFns = useMemo(
-    () => [(p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][0]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][1]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][2]) || 0 : 0), (p: SemanticAnalysisFrame) => (Array.isArray(p.values["tires.normalized-tire-slip-angle"]) ? Number(p.values["tires.normalized-tire-slip-angle"][3]) || 0 : 0)],
-    [],
-  );
-  const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);
 
   // Compute trail points + colors for all 4 wheels on cursor change.
   // Shape matches the previous implementation so downstream layout-effect
@@ -89,11 +80,11 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
         const slipValue = p.values["tires.tire-slip-ratio"];
         const slipRatio = Array.isArray(slipValue) && typeof slipValue[w] === "number" ? slipValue[w] : 0;
-        cols.push(trailColorFromState("nominal", slipRatio, angleFns[w](p)));
+        cols.push(trailColorFromState("nominal", slipRatio, resolveTrailSlipAngle(p, w)));
       }
       return { pts, cols };
     });
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS, angleFns, wheelKeys, trailLengthM]);
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS, trailLengthM]);
 
   // Single instancedMesh across all 4 wheels — one draw call for everything.
   // Each instance is a thin box stretched to a segment length and rotated

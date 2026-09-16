@@ -4,6 +4,7 @@ import {
   filterByDistance,
   filterByDistanceIndexed,
   type FilteredTrackSegment,
+  resolveTrailSlipAngle,
   visualWheelRotationSpeed,
 } from "../../client/src/lib/wireframe-utils";
 
@@ -44,6 +45,27 @@ describe("visualWheelRotationSpeed", () => {
 
   test("does not derive rolling speed without a valid tire radius", () => {
     expect(visualWheelRotationSpeed(undefined, 66, 0, false)).toBe(0);
+  });
+});
+
+describe("resolveTrailSlipAngle", () => {
+  test("resolves physical slip angles for front wheels", () => {
+    const frame = { values: { "tires.tire-slip-angle": [0.12, -0.08, 0, 0] } };
+    expect(resolveTrailSlipAngle(frame, 0)).toBe(0.12);
+    expect(resolveTrailSlipAngle(frame, 1)).toBe(-0.08);
+  });
+
+  test("falls back to normalized slip angles", () => {
+    expect(resolveTrailSlipAngle({ values: { "tires.normalized-tire-slip-angle": [0.2, 0.1, 0, 0] } }, 0)).toBe(0.2);
+  });
+
+  test("prefers physical slip angles when both channels exist", () => {
+    expect(resolveTrailSlipAngle({ values: { "tires.tire-slip-angle": [0.3], "tires.normalized-tire-slip-angle": [0.7] } }, 0)).toBe(0.3);
+  });
+
+  test("returns zero for missing or non-finite values", () => {
+    expect(resolveTrailSlipAngle({ values: { "tires.tire-slip-angle": [NaN], "tires.normalized-tire-slip-angle": [Infinity] } }, 0)).toBe(0);
+    expect(resolveTrailSlipAngle({ values: {} }, 0)).toBe(0);
   });
 });
 

@@ -97,6 +97,15 @@ export const THREE_COLORS = {
   },
 } as const;
 
+/** Resolve per-wheel slip angle, preferring physical radians over normalized fallback. */
+export function resolveTrailSlipAngle(frame: { values: Record<string, unknown> }, wheelIndex: number): number {
+  for (const id of ["tires.tire-slip-angle", "tires.normalized-tire-slip-angle"]) {
+    const value = frame.values[id];
+    if (Array.isArray(value) && typeof value[wheelIndex] === "number" && Number.isFinite(value[wheelIndex])) return value[wheelIndex];
+  }
+  return 0;
+}
+
 /** Returns a cached THREE.Color driven by tireState() — single source of truth. */
 export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
   return threeColor(tireState(wheelStateLabel, slipRatio, slipAngleRad).color);
