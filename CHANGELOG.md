@@ -3,6 +3,7 @@
 ### Features
 
 ### Fixes
+- Restore Balance hover decisions and color 3D tire trails from physical or normalized slip angles across supported games.
 
 ### Internal
 
