@@ -116,6 +116,7 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}`);
   lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(value("motion.acceleration-x") == null ? null : -value("motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(value("motion.acceleration-z") == null ? null : -value("motion.acceleration-z")! / 9.81, 2)}g`);
   const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = game.telemetry.analysis?.tireHealth?.source === "direct" && game.telemetry.analysis.tireHealth.freshness === "pit-snapshot";
   const displayTemp = (value: number | null) => value == null ? "Unavailable" : `${units.temp(value).toFixed(0)}${units.tempLabel}`;
   if (dualTemperature) {
     lines.push("", `--- Surface Tire Temps (${units.tempLabel}) ---`, `FL: ${displayTemp(surfaceTemp[0])}  FR: ${displayTemp(surfaceTemp[1])}`, `RL: ${displayTemp(surfaceTemp[2])}  RR: ${displayTemp(surfaceTemp[3])}`);
@@ -126,7 +127,7 @@ export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: Sem
   if (wear.some((value) => value != null)) {
     lines.push(
       "",
-      "--- Tire Health ---",
+      `--- ${pitHealth ? "Last Pit Tire Health" : "Tire Health"} ---`,
       `FL: ${wear[0] == null ? "Unavailable" : `${((1 - wear[0]) * 100).toFixed(1)}%`}  FR: ${wear[1] == null ? "Unavailable" : `${((1 - wear[1]) * 100).toFixed(1)}%`}`,
       `RL: ${wear[2] == null ? "Unavailable" : `${((1 - wear[2]) * 100).toFixed(1)}%`}  RR: ${wear[3] == null ? "Unavailable" : `${((1 - wear[3]) * 100).toFixed(1)}%`}`,
     );

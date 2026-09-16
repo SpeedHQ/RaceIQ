@@ -22,6 +22,10 @@ const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => 
   const value = frame.values[id];
   return WHEELS.map((_, index) => Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null);
 };
+const bool = (frame: SemanticAnalysisFrame, id: string, index: number): boolean => {
+  const value = frame.values[id];
+  return Array.isArray(value) ? value[index] === true || value[index] === 1 : false;
+};
 
 interface Props {
   frame: SemanticAnalysisFrame;
@@ -63,6 +67,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   const balanceColor = balance?.state === "neutral" ? "var(--balance-neutral)" : balance?.state === "understeer" ? "var(--balance-positive)" : "var(--balance-negative)";
   const brakeBias = number(frame, "brakes.brake-bias");
   const surfaceValue = number(frame, "identity.player-track-surface");
+  const puddle = values(frame, "tires.wheel-in-puddle-depth");
   const surfaceBinding = analysis.surface.source !== "unavailable" ? analysis.surface.binding : undefined;
   const unavailable = <span className="text-app-text-dim">—</span>;
   const angleColor = (value: number) => severityRangeColor(Math.abs(value * 180 / Math.PI), [4 / speedFactor, 8 / speedFactor, 14 / speedFactor]);
@@ -87,6 +92,11 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
       </svg>
     </span>
   );
+  const surfaceCell = (index: number) => bool(frame, "tires.wheel-on-rumble-strip", index)
+    ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
+    : (puddle[index] ?? 0) > 0
+      ? C(`${m.analyse_dynamics_wet()} ${((puddle[index] ?? 0) * 100).toFixed(0)}%`, "var(--surface-wet)")
+      : unavailable;
   const tractionCell = (index: number) => {
     const state = states[index];
     const angle = slipAngles[index];
@@ -97,7 +107,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
   return <div className="text-app-compact font-mono space-y-1.5 mb-3">
     <div className="flex justify-between"><Button variant="plain" size="content" type="button" className="group relative flex items-center gap-1 text-app-text-muted outline-none focus-visible:ring-2 focus-visible:ring-app-accent" aria-label={`${m.label_balance()}: Balance tooltip`}>{m.label_balance()} {balance && <><Info className="size-3 cursor-help text-app-text-dim" aria-hidden="true" />{balanceTooltip}</>}</Button><span className="tabular-nums text-app-text-dim">{balance ? <span style={{ color: balanceColor }}>{balance.state === "neutral" ? "Neutral" : balance.state === "understeer" ? "Understeer" : "Oversteer"}({balance.balance > 0 ? "+" : ""}{balance.balance.toFixed(2)})</span> : "—"}</span></div>
     <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_brake_bias()}</span><span className="tabular-nums text-app-text">{brakeBias == null ? unavailable : `${(brakeBias * 100).toFixed(1)}%`}</span></div>
-    <WheelTable rows={[wheelRow(m.analyse_dynamics_grip_ask(), (i) => grip[i] == null ? unavailable : C(`${(grip[i]! * 100).toFixed(0)}%`, frictionUtilColor(grip[i]!))), wheelRow(m.analyse_dynamics_traction(), tractionCell), wheelRow(dualTemperature ? m.label_surface() : (analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp()), (i) => temps[i] == null ? unavailable : C(tireTempLabel(temps[i]!, units.thresholds).label, tireTempLabel(temps[i]!, units.thresholds).color)), ...(dualTemperature ? [wheelRow(m.label_core(), (i) => coreTemps[i] == null ? unavailable : C(tireTempLabel(coreTemps[i]!, units.thresholds).label, tireTempLabel(coreTemps[i]!, units.thresholds).color))] : [])]} />
+    <WheelTable rows={[wheelRow(m.analyse_dynamics_grip_ask(), (i) => grip[i] == null ? unavailable : C(`${(grip[i]! * 100).toFixed(0)}%`, frictionUtilColor(grip[i]!))), wheelRow(m.analyse_dynamics_traction(), tractionCell), wheelRow(dualTemperature ? m.label_surface() : (analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp()), (i) => temps[i] == null ? unavailable : C(tireTempLabel(temps[i]!, units.thresholds).label, tireTempLabel(temps[i]!, units.thresholds).color)), ...(dualTemperature ? [wheelRow(m.label_core(), (i) => coreTemps[i] == null ? unavailable : C(tireTempLabel(coreTemps[i]!, units.thresholds).label, tireTempLabel(coreTemps[i]!, units.thresholds).color))] : []), ...(surfaceBinding?.kind === "group" ? [wheelRow(m.analyse_dynamics_surface(), surfaceCell)] : [])]} />
     {surfaceBinding?.kind === "value" && <div className="flex justify-between"><span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span><span className="text-app-text">{surfaceText}</span></div>}
     <WheelTable title={<span className="flex items-center gap-1 group relative">{m.label_slip()}<Info className="size-3 text-app-text-dim cursor-help" aria-hidden="true" /></span>} borderTop rows={[wheelRow(m.analyse_dynamics_ratio(), (i) => slipRatios[i] == null ? unavailable : C(`${(slipRatios[i]! * 100).toFixed(0)}%`, slipRatioColor(slipRatios[i]!))), wheelRow(m.analyse_dynamics_angle(), (i) => slipAngles[i] == null ? unavailable : C(`${(slipAngles[i]! * 180 / Math.PI).toFixed(1)}°`, angleColor(slipAngles[i]!)))]} />
   </div>;

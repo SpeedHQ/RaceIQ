@@ -680,6 +680,19 @@ describe("telemetry capability UI", () => {
       ].join("\n"),
     );
   });
+  test("labels iRacing clipboard health as a pit snapshot", () => {
+    const text = buildAnalyseClipboardText({
+      frame: semanticFrame({
+        "tire.temperature.carcass.middle": [80, 81, 82, 83],
+        "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
+      }),
+      gameId: "iracing",
+      units: parityUnits,
+    });
+
+    expect(text).toContain("--- Last Pit Tire Health ---");
+    expect(text).not.toContain("\n--- Tire Health ---");
+  });
   test("treats ACC temperature as one core channel", () => {
     const frame = semanticFrame({
       ...f1ParityFrame.values,

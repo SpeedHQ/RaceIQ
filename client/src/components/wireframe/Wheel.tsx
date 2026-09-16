@@ -15,6 +15,7 @@ export function Wheel({
   rimColor,
   rotationSpeed,
   displayTemp,
+  temperatureLabel,
   rimColorForDisplay,
   displayCoreTemp,
   displayBrakeTemp,
@@ -37,6 +38,7 @@ export function Wheel({
   rimColor: string;
   rotationSpeed: number;
   displayTemp: string;
+  temperatureLabel: "Surface" | "Core" | "Carcass";
   rimColorForDisplay: string;
   displayCoreTemp?: string;
   displayBrakeTemp?: string | null;
@@ -89,6 +91,7 @@ export function Wheel({
       {displayTemp && (
         <WheelInfoCard
           displayTemp={displayTemp}
+          temperatureLabel={temperatureLabel}
           displayCoreTemp={displayCoreTemp}
           tempColor={rimColorForDisplay}
           wear={wear}
