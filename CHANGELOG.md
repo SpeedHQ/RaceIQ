@@ -3,7 +3,7 @@
 ### Features
 
 ### Fixes
-- Keep lap and comparison AI chats compatible with local OpenAI-compatible models by sending one system instruction block
+- Fix Analyse page chat and lap analysis errors with local OpenAI-compatible models
 
 ### Internal
 
