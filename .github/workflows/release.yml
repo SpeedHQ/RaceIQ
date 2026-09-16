@@ -25,7 +25,7 @@ concurrency:
 
 permissions:
   contents: write
-
+  pull-requests: write
 jobs:
   # --- Triggered by manual dispatch: compute version, build, create draft ---
   compute-version:
@@ -192,12 +192,20 @@ jobs:
         run: bun run telemetry:catalog
 
 
-      - name: Commit version and catalog bump
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json CHANGELOG.md shared/telemetry/catalog/generated/
-          git commit -m "chore: bump version to $VERSION"
-          git push
+      - name: Resolve release version
+        id: release-version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create version bump pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: release/v${{ steps.release-version.outputs.version }}
+          delete-branch: true
+          title: "chore: bump version to ${{ steps.release-version.outputs.version }}"
+          commit-message: "chore: bump version to ${{ steps.release-version.outputs.version }}"
+          body: |
+            Automated release finalization for v${{ steps.release-version.outputs.version }}.
+
+            Includes changelog rollover, package version update, and regenerated telemetry catalog.
