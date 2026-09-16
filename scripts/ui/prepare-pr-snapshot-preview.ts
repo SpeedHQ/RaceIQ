@@ -41,13 +41,19 @@ let changed = false;
 const baseRenderDir = process.env.PR_SNAPSHOT_BASE_RENDER_DIR;
 const currentRenderDir = process.env.PR_SNAPSHOT_CURRENT_RENDER_DIR;
 if (baseRenderDir && currentRenderDir) {
-  const renderedChanges = await collectScreenshotDiffs({
+  await collectScreenshotDiffs({
     baseDir: baseRenderDir,
     currentDir: currentRenderDir,
     outDir,
     prefix: "rendered-base-vs-pr",
   });
-  changed ||= renderedChanges.length > 0;
+  const baselineChanges = await collectScreenshotDiffs({
+    baseDir: currentDir,
+    currentDir: currentRenderDir,
+    outDir,
+    prefix: "render-vs-committed-pr-baseline",
+  });
+  changed = baselineChanges.length > 0;
 } else {
   for (const diffPath of filesNamed(resultsDir, "-diff.png")) {
     const name = basename(diffPath).slice(0, -"-diff.png".length);
