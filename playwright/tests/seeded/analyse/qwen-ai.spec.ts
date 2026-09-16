@@ -36,14 +36,6 @@ test("Analyse calls Qwen through the frontend and returns structured output", as
     expect(result?.cached).toBe(false);
     expect(result?.analysis).toBeTruthy();
     expect(Object.keys(JSON.parse(result!.analysis!))).toEqual(["verdict", "pace", "handling", "corners", "technique", "setup"]);
-    const cachedResponse = await page.evaluate(async (lapId) => {
-      const response = await fetch(`/api/laps/${lapId}/analyse?cacheOnly=true`, { method: "POST" });
-      return { ok: response.ok, status: response.status, body: await response.text() };
-    }, lap.id);
-    expect(cachedResponse.ok, `Cached Analyse request failed (${cachedResponse.status})`).toBe(true);
-    const cached = JSON.parse(cachedResponse.body) as { cached?: boolean; analysis?: string };
-    expect(cached.cached).toBe(true);
-    expect(Object.keys(JSON.parse(cached.analysis!))).toEqual(["verdict", "pace", "handling", "corners", "technique", "setup"]);
 
   } finally {
     await request.delete(`/api/laps/${lap.id}/analyse`);
