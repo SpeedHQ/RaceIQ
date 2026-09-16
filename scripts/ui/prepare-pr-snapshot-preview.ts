@@ -63,11 +63,4 @@ if (baseRenderDir && currentRenderDir) {
   }
 }
 
-const baseChanges = await collectScreenshotDiffs({
-  baseDir,
-  currentDir,
-  outDir,
-  prefix: "committed-pr-baseline-vs-base",
-});
-changed ||= baseChanges.length > 0;
 await Bun.write(githubOutput, `changed=${changed ? "1" : "0"}\n`);
