@@ -3,7 +3,7 @@
 ### Features
 
 ### Fixes
-- Fix Analyse page chat and lap analysis errors with local OpenAI-compatible models
+- Fix Analyse page chat and lap analysis errors across configured AI providers
 
 ### Internal
 
