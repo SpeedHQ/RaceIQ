@@ -2,16 +2,14 @@
 import { resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dir, "../..");
-const update = process.argv.includes("--update");
 const image = "mcr.microsoft.com/playwright:v1.62.0-jammy";
-const command = update ? "bun run snapshot:update" : "bun run snapshot:test";
+const command = "bun run snapshot:test";
 const bootstrap = [
   "set -euo pipefail",
   "export HOME=/tmp",
   "apt-get update -qq && apt-get install -y -qq --no-install-recommends unzip",
   "curl -fsSL https://bun.sh/install | bash",
   "export PATH=\"$HOME/.bun/bin:$PATH\"",
-  "export RACEIQ_CANONICAL_SNAPSHOT_ENV=1",
   "bun install --ignore-scripts",
   "cd client",
   "bun install --ignore-scripts",

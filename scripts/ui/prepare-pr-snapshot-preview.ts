@@ -1,34 +1,22 @@
 #!/usr/bin/env bun
-import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { collectScreenshotDiffs } from "./collect-screenshot-diffs";
-
-function filesNamed(root: string, suffix: string, result: string[] = []): string[] {
-  if (!existsSync(root)) return result;
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    const path = join(root, entry.name);
-    if (entry.isDirectory()) filesNamed(path, suffix, result);
-    else if (entry.name.endsWith(suffix)) result.push(path);
-  }
-  return result;
-}
 
 const positional = process.argv.slice(2);
 const values = positional.length
   ? positional
   : [
       process.env.PR_SNAPSHOT_OUT_DIR,
-      process.env.PR_SNAPSHOT_RESULTS_DIR,
-      process.env.PR_SNAPSHOT_BASE_DIR,
-      process.env.PR_SNAPSHOT_CURRENT_DIR,
+      process.env.PR_SNAPSHOT_BASE_RENDER_DIR,
+      process.env.PR_SNAPSHOT_CURRENT_RENDER_DIR,
       process.env.PR_SNAPSHOT_NUMBER,
       process.env.PR_SNAPSHOT_BASE_REF,
-      process.env.GITHUB_OUTPUT,
     ];
-const [outDir, resultsDir, baseDir, currentDir, prNumber, baseRef, githubOutput] = values;
-if (!outDir || !resultsDir || !baseDir || !currentDir || !prNumber || !baseRef || !githubOutput) {
+const [outDir, baseRenderDir, currentRenderDir, prNumber, baseRef] = values;
+if (!outDir || !baseRenderDir || !currentRenderDir || !prNumber || !baseRef) {
   throw new Error(
-    "Usage: prepare-pr-snapshot-preview OUT RESULTS BASE CURRENT PR_NUMBER BASE_REF GITHUB_OUTPUT " +
+    "Usage: prepare-pr-snapshot-preview OUT BASE_RENDER CURRENT_RENDER PR_NUMBER BASE_REF " +
       "or PR_SNAPSHOT_* environment variables",
   );
 }
@@ -36,37 +24,9 @@ if (!outDir || !resultsDir || !baseDir || !currentDir || !prNumber || !baseRef |
 mkdirSync(outDir, { recursive: true });
 await Bun.write(join(outDir, "pr-number.txt"), `${prNumber}\n`);
 await Bun.write(join(outDir, "base-ref.txt"), `${baseRef}\n`);
-
-let changed = false;
-const baseRenderDir = process.env.PR_SNAPSHOT_BASE_RENDER_DIR;
-const currentRenderDir = process.env.PR_SNAPSHOT_CURRENT_RENDER_DIR;
-if (baseRenderDir && currentRenderDir) {
-  await collectScreenshotDiffs({
-    baseDir: baseRenderDir,
-    currentDir: currentRenderDir,
-    outDir,
-    prefix: "rendered-base-vs-pr",
-  });
-  const baselineChanges = await collectScreenshotDiffs({
-    baseDir: currentDir,
-    currentDir: currentRenderDir,
-    outDir,
-    prefix: "render-vs-committed-pr-baseline",
-  });
-  changed = baselineChanges.length > 0;
-} else {
-  for (const diffPath of filesNamed(resultsDir, "-diff.png")) {
-    const name = basename(diffPath).slice(0, -"-diff.png".length);
-    const dir = dirname(diffPath);
-    const before = join(dir, `${name}-expected.png`);
-    const after = join(dir, `${name}-actual.png`);
-    if (!existsSync(before) || !existsSync(after)) continue;
-    cpSync(before, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-before.png`));
-    cpSync(after, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-after.png`));
-    cpSync(diffPath, join(outDir, `changed--render-vs-committed-pr-baseline--${name}-diff.png`));
-    console.log(`changed rendered snapshot: ${name}`);
-    changed = true;
-  }
-}
-
-await Bun.write(githubOutput, `changed=${changed ? "1" : "0"}\n`);
+await collectScreenshotDiffs({
+  baseDir: baseRenderDir,
+  currentDir: currentRenderDir,
+  outDir,
+  prefix: "rendered-base-vs-pr",
+});

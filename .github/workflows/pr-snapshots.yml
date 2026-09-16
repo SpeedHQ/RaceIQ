@@ -101,18 +101,13 @@ jobs:
         continue-on-error: true
 
       - name: Prepare PR snapshot preview
-        id: snapshot-preview
         env:
           PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
-          PR_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/pr-snapshot-results
-          PR_SNAPSHOT_BASE_DIR: ${{ runner.temp }}/raceiq-base/client/src/stories/__snapshots__
-          PR_SNAPSHOT_CURRENT_DIR: ${{ github.workspace }}/client/src/stories/__snapshots__
           PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
           PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
         run: bun scripts/ui/prepare-pr-snapshot-preview.ts
-
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v7
@@ -122,5 +117,5 @@ jobs:
           retention-days: 14
 
       - name: Report Storybook snapshot failure
-        if: steps.storybook-render.outcome == 'failure' || steps.snapshot-preview.outputs.changed == '1'
+        if: steps.storybook-render.outcome == 'failure'
         run: bun scripts/ui/report-snapshot-failure.ts pr-preview

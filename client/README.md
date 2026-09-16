@@ -24,8 +24,6 @@ bun run test         # Explicitly runs ./test; root bunfig otherwise discovers r
 bun run storybook    # Storybook development server on port 6006
 bun run snapshot:test
 bun run snapshot:test:docker
-bun run snapshot:update
-bun run snapshot:docker
 ```
 
-`bun run test` is the client package entry point and expands to `bun test ./test`, so it does not depend on root `bunfig.toml` discovery. `snapshot:test` runs host Playwright; `snapshot:test:docker` runs same comparison in pinned Docker. Use `snapshot:update` to regenerate baselines; `snapshot:docker` runs canonical Docker baseline generation described in [`docs/contributing/e2e-testing.md`](../docs/contributing/e2e-testing.md).
+`bun run test` is the client package entry point and expands to `bun test ./test`, so it does not depend on root `bunfig.toml` discovery. `snapshot:test` renders Storybook snapshots on the host; `snapshot:test:docker` renders them in pinned Docker. Generated PNGs are ignored because CI renders base and PR revisions together before comparing them.

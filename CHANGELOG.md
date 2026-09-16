@@ -14,7 +14,7 @@
 - Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
 
 ### Internal
-- Keep base-to-PR visual changes reviewable while only failing uncommitted snapshot changes, and keep offline request checks scoped to the pull request
+- Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 
 ## v0.17.0 - 2026-09-16
 
