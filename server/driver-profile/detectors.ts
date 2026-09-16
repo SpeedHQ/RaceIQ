@@ -66,7 +66,6 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
   ...perWheel("tire-spin-"),
   "tire-wear-imbalance",
   "tire-temp-split",
-  ...perWheel("tire-edge-temp-"),
   "driving-brake-traction-loss",
   "driving-rev-limiter",
   "driving-coasting",
