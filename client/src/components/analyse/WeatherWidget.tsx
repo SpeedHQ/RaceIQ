@@ -21,6 +21,7 @@ const WEATHER_LABELS: Record<number, string> = {
 
 export function WeatherWidget({ f1, position = "bottom-left" }: { f1: F1ExtendedData; position?: "bottom-left" | "bottom-right" }) {
   const units = useUnits();
+  const temperature = (value: number | undefined) => value == null ? "—" : `${units.temp(value).toFixed(0)}${units.tempLabel}`;
   const weather = f1.weather ?? 0;
   return (
     <div
@@ -32,8 +33,8 @@ export function WeatherWidget({ f1, position = "bottom-left" }: { f1: F1Extended
         {f1.rainPercentage > 0 && <span className="text-(--metric-rain)">{f1.rainPercentage}%</span>}
       </div>
       <div className="flex gap-3 text-app-text-muted">
-        <span>Track {units.temp(f1.trackTemperature).toFixed(0)}{units.tempLabel}</span>
-        <span>Air {units.temp(f1.airTemperature).toFixed(0)}{units.tempLabel}</span>
+        <span>Track {temperature(f1.trackTemperature)}</span>
+        <span>Air {temperature(f1.airTemperature)}</span>
       </div>
     </div>
   );

@@ -309,6 +309,12 @@ function seededClient() {
   qc.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
   qc.setQueryData(["experiment-focus-history", CAR_ID], []);
   qc.setQueryData(["experiment-focus-history", DRIVER_ID], []);
+  for (const sessionId of [CAR_ID, DRIVER_ID]) {
+    const threadId = `tune-session-${sessionId}`;
+    qc.setQueryData(["chat-generations", threadId], { generations: [], activeThreadId: threadId });
+    qc.setQueryData(["experiment-chat-history", sessionId, 1], []);
+    qc.setQueryData(["chat-run-status", threadId], { status: "none" });
+  }
   return qc;
 }
 
@@ -354,6 +360,7 @@ export const ListEmpty: StoryObj = {
     (Story) => {
       const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
       qc.setQueryData(["experiments", "acc"], []);
+      qc.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
       const Comp = () => (
         <QueryClientProvider client={qc}>
           <div style={{ height: "100vh", background: "var(--app-bg)" }}>

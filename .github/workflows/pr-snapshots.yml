@@ -88,7 +88,7 @@ jobs:
         run: |
           bun install
           cd client
-          bunx playwright test --update-snapshots
+          bunx playwright test --update-snapshots --grep-invert "covered stories render without API requests"
 
       - name: Render PR snapshots
         id: storybook-render

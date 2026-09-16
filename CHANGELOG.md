@@ -11,8 +11,11 @@
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
+- Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
 
 ### Internal
+- Keep base snapshot rendering focused on visual snapshots while offline request checks run against the pull request
+
 ## v0.17.0 - 2026-09-16
 
 ### Features
