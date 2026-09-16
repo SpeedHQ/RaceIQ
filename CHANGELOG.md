@@ -2,9 +2,6 @@
 
 ### Features
 
-- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
-- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
-- Export one or multiple selected laps directly from Sessions toolbar
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
 
@@ -14,6 +11,17 @@
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
+
+### Internal
+## v0.17.0 - 2026-09-16
+
+### Features
+- Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
+- Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
+- Export one or multiple selected laps directly from Sessions toolbar
+
+### Fixes
+
 - Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session
@@ -22,6 +30,7 @@
 
 - Run frontend theme-contract checks automatically during pre-commit.
 - Regenerate and commit telemetry catalog artifacts during release finalization.
+- Run Storybook standalone with deterministic offline fixtures and contract coverage.
 - Add diagnostic logs that reveal missed telemetry and slow lap saving
 
 ## v0.16.0 - 2026-09-06

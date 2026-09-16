@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
+import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
+import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import { fakeSessionLaps } from "./fakeData";
 
@@ -114,6 +115,11 @@ queryClient.setQueryData(["experiment-tests", sessionId], fakeTests);
 queryClient.setQueryData(["experiment-lap-metrics", sessionId], fakeLapMetrics);
 queryClient.setQueryData(["laps", null], sessionLaps);
 queryClient.setQueryData(["laps", "acc"], sessionLaps);
+queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, chatProvider: "", chatModel: "", geminiApiKeySet: false, openaiApiKeySet: false, openaiCompatibleApiKeySet: false });
+queryClient.setQueryData(["experiment-focus-history", sessionId], []);
+queryClient.setQueryData(["chat-generations", "tune-session-42"], { generations: [], activeThreadId: "tune-session-42" });
+queryClient.setQueryData(["experiment-chat-history", sessionId, 1], []);
+queryClient.setQueryData(["chat-run-status", "tune-session-42"], null);
 
 function StoryDecorator({ children }: { children: React.ReactNode }) {
   return (
@@ -149,7 +155,6 @@ const meta: Meta<typeof ExperimentWorkspace> = {
 
 export default meta;
 type Story = StoryObj<typeof ExperimentWorkspace>;
-
 export const Default: Story = {
-  args: { gameId: "acc", experimentId: sessionId },
+  args: { gameId: "acc", experimentId: sessionId, manageActivation: false },
 };

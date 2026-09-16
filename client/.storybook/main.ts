@@ -12,6 +12,9 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {},
   },
+  typescript: {
+    reactDocgen: false,
+  },
   viteFinal(config) {
     return mergeConfig(config, {
       envDir: path.resolve(__dirname, "../.."),
