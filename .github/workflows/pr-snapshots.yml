@@ -87,7 +87,7 @@ jobs:
           RACEIQ_SNAPSHOT_RESULTS_DIR: ${{ runner.temp }}/base-snapshot-results
         run: |
           bun install
-          Set-Location client
+          cd client
           bunx playwright test --update-snapshots
 
       - name: Render PR snapshots
