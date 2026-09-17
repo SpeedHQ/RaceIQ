@@ -108,20 +108,8 @@ jobs:
 
       - name: Verify seeded database upgrade
         env:
-          RACEIQ_DB_UPGRADE_TESTS: "1"
           UPGRADE_DATA_DIR: ${{ runner.temp }}/raceiq-upgrade-data
-        shell: bash
-        run: |
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          if git diff --quiet "origin/${{ github.base_ref }}" -- server/db/migrations.ts; then
-            echo "No migration script changes; skipping seeded upgrade test."
-            exit 0
-          fi
-          BASE_DIR="${RUNNER_TEMP}/raceiq-base"
-          git worktree add --detach "$BASE_DIR" "origin/${{ github.base_ref }}"
-          trap 'git worktree remove --force "$BASE_DIR"' EXIT
-          (cd "$BASE_DIR" && bun install --frozen-lockfile && DATA_DIR="$UPGRADE_DATA_DIR" bun run db:seed --clean --games=iracing)
-          RACEIQ_UPGRADE_DATA_DIR="$UPGRADE_DATA_DIR" bun test ./test/db/database-path.test.ts --timeout 120000
+        run: bun scripts/ci/check-db-upgrade.ts
 
   changelog:
     timeout-minutes: 30
