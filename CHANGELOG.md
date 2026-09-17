@@ -18,6 +18,7 @@
 
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
+- Run seeded database upgrade verification in PR and release CI when migrations change.
 
 - Add UI-level agent testing.
 ## v0.17.0 - 2026-09-16
