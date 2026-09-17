@@ -40,6 +40,12 @@ docker run --detach --name raceiq --restart unless-stopped \
 
 Use a version tag instead of `latest` when pinning deployments, for example `ghcr.io/speedhq/raceiq:0.17.1`.
 
+## Roll back `latest`
+
+To restore a previous published image, open **Actions → Roll Back Docker Image → Run workflow**. Enter the release tag, including its `v` prefix (for example, `v0.17.0`). Workflow retargets `latest` to existing immutable version image; it does not rebuild image or change version tag.
+
+Then recreate container using same update commands above. Named volume remains intact.
+
 ## Configuration
 
 Override published ports while preserving the server's internal ports through Docker mappings. For example:

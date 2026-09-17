@@ -210,7 +210,8 @@ jobs:
 
             Includes changelog rollover, package version update, and regenerated telemetry catalog.
   publish-image:
-    if: github.event_name == 'release'
+    needs: finalize
+    if: github.event_name == 'release' && needs.finalize.result == 'success'
     uses: ./.github/workflows/publish-image.yml
     permissions:
       contents: read
