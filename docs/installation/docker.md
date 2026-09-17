@@ -46,6 +46,16 @@ To restore a previous published image, open **Actions → Roll Back Docker Image
 
 Then recreate container using same update commands above. Named volume remains intact.
 
+## Publish a branch image
+
+To run image publication manually, open **Actions → Publish Docker Image → Run workflow**. Set:
+
+- **Image version tag:** `0.0.1`
+- **Branch or ref:** `Snazzie/docker`
+- **Also move latest tag:** disabled for isolated testing
+
+Workflow publishes `ghcr.io/speedhq/raceiq:0.0.1` from selected ref. Enable `latest` only when intentionally promoting test image.
+
 ## Configuration
 
 Override published ports while preserving the server's internal ports through Docker mappings. For example:

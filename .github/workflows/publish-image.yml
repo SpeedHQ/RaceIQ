@@ -7,7 +7,36 @@ on:
         description: Published release tag
         required: true
         type: string
+      source_ref:
+        description: Ref to build
+        required: false
+        type: string
+        default: ""
+      publish_latest:
+        description: Also move latest tag
+        required: false
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Image version tag, for example 0.0.1
+        required: true
+        type: string
+      source_ref:
+        description: Branch or ref to build
+        required: true
+        type: string
+        default: main
+      publish_latest:
+        description: Also move latest tag
+        required: true
+        type: boolean
+        default: false
 
+permissions:
+  contents: read
+  packages: write
 jobs:
   publish:
     timeout-minutes: 30
@@ -18,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ inputs.source_ref || inputs.release_tag }}
 
       - uses: docker/setup-buildx-action@v3
 
@@ -34,9 +63,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/speedhq/raceiq
+          flavor: latest=${{ inputs.publish_latest }}
           tags: |
             type=semver,pattern={{version}},value=${{ inputs.release_tag }}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ inputs.publish_latest }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
