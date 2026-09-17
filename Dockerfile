@@ -14,7 +14,11 @@ RUN if [ -n "$RELEASE_VERSION" ]; then bun scripts/ci/update-release-version.ts 
 RUN RACEIQ_DOCKER_BUILD=1 bun run build
 
 FROM oven/bun:1.4 AS runtime
-LABEL org.opencontainers.image.description="RaceIQ Linux container for telemetry dashboards, lap analysis, catalogue, imports, and UDP telemetry."
+LABEL org.opencontainers.image.title="RaceIQ" \
+      org.opencontainers.image.description="RaceIQ Linux container for telemetry dashboards, lap analysis, catalogue, imports, and UDP telemetry." \
+      org.opencontainers.image.url="https://github.com/SpeedHQ/RaceIQ" \
+      org.opencontainers.image.source="https://github.com/SpeedHQ/RaceIQ" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 WORKDIR /app
 COPY --from=builder --chown=bun:bun /app/dist/ ./
