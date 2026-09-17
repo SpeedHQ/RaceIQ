@@ -11,7 +11,7 @@ import {
 import { join } from "node:path";
 
 const ACTIVE_NAME = "raceiq.log";
-const ROTATED_RE = /^raceiq-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z)-(\d+)-(\d+)\.log$/;
+const ROTATED_RE = /^raceiq(?:-|\.)(?:\d|20\d{2}).*\.log$/;
 const DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024;
 const DEFAULT_RETENTION_MS = 25 * 60 * 60 * 1000;
 

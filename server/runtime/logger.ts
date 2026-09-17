@@ -23,17 +23,26 @@ const diagnosticStream = {
     diagnosticLogStore.write(line);
   },
 };
+const fileStream = process.env.NODE_ENV === "test"
+  ? diagnosticStream
+  : pino.transport({
+      target: "pino-roll",
+      options: {
+        file: `${logDir}/raceiq.log`,
+        size: "2m",
+        limit: { count: 64, removeOtherLogFiles: false },
+        mkdir: true,
+      },
+    });
 
 export const logger = pino(
   { level: logLevel, base: { service: "raceiq" } },
   pino.multistream([
-    { level: "trace", stream: diagnosticStream },
+    { level: "trace", stream: fileStream },
     { level: "trace", stream: process.stdout },
   ]),
 );
-
 export const log = logger;
-
 if (requestedLogLevel !== logLevel) {
   logger.warn({ requestedLogLevel, fallbackLogLevel: logLevel }, "Invalid RACEIQ_LOG_LEVEL; using fallback");
 }
@@ -42,15 +51,9 @@ export function readRecentLogText(): string {
   return diagnosticLogStore.readRetainedText();
 }
 
-/** Hono middleware that catches and logs unhandled route errors. */
 export function errorLogger(): MiddlewareHandler {
   return async (c, next) => {
-    try {
-      await next();
-    } catch (err) {
-      log.error({ err }, `${c.req.method} ${c.req.path}`);
-      throw err;
-    }
+    try { await next(); } catch (err) { log.error({ err }, `${c.req.method} ${c.req.path}`); throw err; }
   };
 }
 
