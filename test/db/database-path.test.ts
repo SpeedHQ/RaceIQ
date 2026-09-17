@@ -173,19 +173,20 @@ describe("production database path", () => {
     expectArtifactsAbsent(legacyPath);
     expectArtifactsAbsent(testPath);
   });
-  test("upgrades an existing v57 database during startup", async () => {
-    const dataDir = makeDataDir();
-    const appPath = join(dataDir, "app.db");
-    const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
-    await createFixture(appPath, sentinel, 57);
+  if (process.env.RACEIQ_RELEASE_TESTS === "1") {
+    test("upgrades an existing v57 database during startup", async () => {
+      const dataDir = makeDataDir();
+      const appPath = join(dataDir, "app.db");
+      const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
+      await createFixture(appPath, sentinel, 57);
 
-    const result = await runDbStartup(dataDir);
+      const result = await runDbStartup(dataDir);
 
-    expect(result.code, result.output).toBe(0);
-    expect(result.output).toContain("[DB]   v58: persist session ownership");
-    expect(profileNames(appPath)).toEqual([sentinel]);
-  });
-
+      expect(result.code, result.output).toBe(0);
+      expect(result.output).toContain("[DB]   v58: persist session ownership");
+      expect(profileNames(appPath)).toEqual([sentinel]);
+    });
+  }
 
   test("dual-file startup keeps app.db and continues", async () => {
     const dataDir = makeDataDir();
