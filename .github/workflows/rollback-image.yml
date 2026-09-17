@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Release tag to restore as latest, for example v0.17.0
+        description: Version to restore as latest, with optional v prefix (for example 0.17.0 or v0.17.0)
         required: true
         type: string
 
@@ -32,7 +32,7 @@ jobs:
         run: |
           image_tag="${RELEASE_TAG#v}"
           if [[ ! "$image_tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "release_tag must be vMAJOR.MINOR.PATCH"
+            echo "release_tag must be MAJOR.MINOR.PATCH, with optional v prefix"
             exit 1
           fi
           docker buildx imagetools create \

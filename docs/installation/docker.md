@@ -42,7 +42,7 @@ Use a version tag instead of `latest` when pinning deployments, for example `ghc
 
 ## Roll back `latest`
 
-To restore a previous published image, open **Actions → Roll Back Docker Image → Run workflow**. Enter the release tag, including its `v` prefix (for example, `v0.17.0`). Workflow retargets `latest` to existing immutable version image; it does not rebuild image or change version tag.
+To restore a previous published image, open **Actions → Roll Back Docker Image → Run workflow**. Enter either the version (`0.17.0`) or release tag (`v0.17.0`). Workflow retargets `latest` to existing immutable version image; it does not rebuild image or change version tag.
 
 Then recreate container using same update commands above. Named volume remains intact.
 
