@@ -110,6 +110,7 @@ jobs:
         env:
           RACEIQ_DB_UPGRADE_TESTS: "1"
           UPGRADE_DATA_DIR: ${{ runner.temp }}/raceiq-upgrade-data
+        shell: bash
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           if git diff --quiet "origin/${{ github.base_ref }}" -- server/db/migrations.ts; then
