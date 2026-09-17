@@ -7,8 +7,8 @@
 - Catalog version: `0.17.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.17.0`
-- Generator source SHA-256: `b57abc6ac5ca63c419b91024a27a66dd82a06ad7e9375cfb6737e464315e7b0a`
-- Content SHA-256: `7bd5fc303517a172e2dc485dffd4b395a46b8f5c9ebd23775f2c06974f858a2d`
+- Generator source SHA-256: `d1457fa8fdb385b73d4fb9f75b86b6e1a551fa003796538e3c7c77df14275050`
+- Content SHA-256: `ebe7e45dc2200dad2cf21f14e41d0be7b7adea9a05885389924210f049a8c3b4`
 
 ## Coverage
 
@@ -18,7 +18,7 @@
 | f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
+| iracing | 951 | 701 | 115 | 17 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -664,14 +664,14 @@
 | `timing.total-driving-time-s` | Total Driving Time S | number | time | s | scalar |  |  |  |
 | `timing.total-laps` | Session total laps | number | dimensionless | count | scalar |  |  |  |
 | `timing.track-length` | Track length | number | length | m | scalar |  |  |  |
-| `tire.temperature.average` | Representative / average | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
-| `tire.temperature.carcass.average` | Average carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.carcass.left` | Left carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.carcass.middle` | Middle carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.carcass.right` | Right carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tire.temperature.core` | Core temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.inner` | Inner surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.middle` | Middle surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.outer` | Outer surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tire.temperature.surface.representative` | Representative surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.actual-tyre-compound` | Actual Tyre Compound | number | dimensionless | count | scalar |  |  |  |
 | `tires.competitor.age` | Competitor tire age | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `tires.competitor.compound` | Competitor tire compound | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |

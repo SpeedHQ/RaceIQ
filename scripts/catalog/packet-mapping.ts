@@ -80,6 +80,14 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
   acc: {
     DrivetrainType:
       "ACC parser assumes rear-wheel drive rather than reading drivetrain from shared memory.",
+    TireTemp:
+      "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature.",
+    TireSurfaceTempInner:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempMiddle:
+      "ACC reserves this shared-memory field but does not populate it.",
+    TireSurfaceTempOuter:
+      "ACC reserves this shared-memory field but does not populate it.",
   },
   "ac-evo": {
     DrivetrainType:
@@ -88,6 +96,10 @@ const UNAVAILABLE_PACKET_FIELDS: Partial<
   iracing: {
     DrivetrainType:
       "iRacing normalizer emits a fixed drivetrain enum rather than a source-frame value.",
+    TireTemp:
+      "iRacing TireTemp aliases the middle carcass band; use the named carcass bands.",
+    TireCarcassTemp:
+      "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature.",
   },
 };
 
@@ -376,8 +388,6 @@ function classifyPacketMapping(
   expressions: readonly string[],
 ): AvailableLink["kind"] {
   if (
-    (gameId === "iracing" &&
-      (key === "TireTemp" || key === "TireCarcassTemp")) ||
     (gameId === "acc" && key === "WeatherType") ||
     (gameId === "f1-2025" && key === "WheelRotationSpeed")
   ) {
@@ -486,25 +496,14 @@ function packetGameLink(
           ]),
         )
       : allSources;
-  const tireAverageSimplification =
-    mappingKind === "simplified" &&
-    gameId === "iracing" &&
-    (set.key === "TireTemp" || set.key === "TireCarcassTemp");
-  const normalization = tireAverageSimplification
-    ? "average available left, middle, and right carcass temperatures per tire"
-    : native.normalization ?? [...new Set(expressions)].join(" | ");
+  const normalization =
+    native.normalization ?? [...new Set(expressions)].join(" | ");
   let description =
     allSources.length > 0
       ? `${gameId} maps ${allSources.length} native source channel${allSources.length === 1 ? "" : "s"} into this value.`
       : `${gameId} provides this value from parser/session state.`;
   let limitations: readonly string[] | undefined;
-  if (tireAverageSimplification) {
-    description =
-      "Averages available iRacing left, middle, and right carcass-temperature bands per tire.";
-    limitations = [
-      "Averaging removes across-tread temperature-gradient detail.",
-    ];
-  } else if (gameId === "acc" && set.key === "WeatherType") {
+  if (gameId === "acc" && set.key === "WeatherType") {
     description =
       "Infers wet weather from rain-tyre selection rather than observing weather directly.";
     limitations = [

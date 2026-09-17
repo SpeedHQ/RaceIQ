@@ -6,8 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { TireGrid } from "@/components/telemetry/TireGrid";
 import { SectorDetailView } from "@/components/tunes/SectorDetailView";
 import { SectorMap } from "@/components/tunes/SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, tuneMetricValue } from "@/components/tunes/SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, metricDisplayValue, type MetricKey, tuneMetricValue, tuneMetricsFor } from "@/components/tunes/SectorRangeBreakdown";
 import { Button } from "@/components/ui/button";
+import { useUnits } from "@/hooks/useUnits";
 import { useTirePressureOptimal } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentVersion } from "@/hooks/experiments";
 import { useLapSemanticTelemetry } from "@/hooks/laps";
@@ -85,10 +86,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
+  const units = useUnits(gameId);
   const tireHealthAvailable = telemetry.some((sample) => wheelValue(sample, "tireWearFraction", 0) != null);
+  const metrics = useMemo(() => tuneMetricsFor(telemetry), [telemetry]);
 
-  const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
-  const metric = METRICS.find((m) => m.key === metricKey) ?? METRICS[0];
+  const [metricKey, setMetricKey] = useState<MetricKey>("tireSurfaceTemp");
+  const metric = metrics.find((candidate) => candidate.key === metricKey) ?? metrics[0];
   const ranges = useMemo(() => buildSectorRanges(telemetry, sectorTimes, metric), [telemetry, sectorTimes, metric]);
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
@@ -139,12 +142,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         const value = tuneMetricValue(frame, metric, index);
         return {
           label: corner,
-          value: value === undefined ? "—" : `${value.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.unit}`,
+          value: value === undefined ? "—" : `${metric.quantity === "temperature" ? units.temp(value).toFixed(1) : value.toFixed(metric.key === "wear" ? 0 : 1)} ${metric.quantity === "temperature" ? units.tempLabel : metric.unit}`,
           color: value === undefined ? undefined : metric.semantic ? bandColor(value) : metric.accent,
         };
       });
     },
-    [metric],
+    [metric, units],
   );
   // the Setup Engineer chat "what the user currently sees" (rebuilt whenever
   // any of this changes, not captured once).
@@ -159,9 +162,10 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         ranges,
         metric,
         test,
+        temperatureUnit: units.temperatureUnit,
         cornerKeys: CORNERS,
       }),
-    [focusLap, sectorTimes, laps, corners, issues, ranges, metric, test],
+    [focusLap, sectorTimes, laps, corners, issues, ranges, metric, test, units.temperatureUnit],
   );
 
   useEffect(() => {
@@ -257,13 +261,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
               <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
               <div className="flex gap-1 flex-wrap justify-end">
-                {METRICS.map((m) => (
+                {metrics.map((m) => (
                   <Button
                     key={m.key}
                     variant="app-ghost"
                     size="app-sm"
                     onClick={() => setMetricKey(m.key)}
-                    className={`!border text-app-compact ${m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                    className={`!border text-app-compact ${m.key === metric.key ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
                   >
                     {m.label}
                   </Button>
@@ -295,7 +299,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                   {/* Per-sector metric range under this sector's map */}
                   {ranges && (
                     <div className="mt-1">
-                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} />
+                      <CornerBars ranges={ranges.sectors[i]} domain={ranges.domain} metric={metric} cursor={hoverPos?.sector === i ? cursor : undefined} tempLabel={units.tempLabel} temperatureUnit={units.temperatureUnit} />
                     </div>
                   )}
                 </div>
@@ -303,7 +307,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             </div>
             {ranges && (
               <div className="px-4 py-1.5 text-app-compact text-app-text-dim border-t border-app-border">
-                {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
+                {metric.label}: bars span min→max, tick = average · shared scale {Math.round(metricDisplayValue(metric, ranges.domain[0], units.temperatureUnit))}–{Math.round(metricDisplayValue(metric, ranges.domain[1], units.temperatureUnit))} {metric.quantity === "temperature" ? units.tempLabel : metric.unit}
               </div>
             )}
           </div>

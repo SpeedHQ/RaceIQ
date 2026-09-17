@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openStory } from "./storybook-ready";
+import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 
 const STORY_IDS = [
   "dashboards-f1livedashboard--visual-contract",
@@ -26,8 +27,12 @@ test("covered stories render without API requests", async ({ page }) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" }, carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" } }) });
       return;
     }
-    if (url.pathname === "/api/chats/tune-session-42/run" || url.pathname === "/api/laps/10/semantic-telemetry") {
+    if (/^\/api\/chats\/tune-session-(42|43)\/run$/.test(url.pathname) || url.pathname === "/api/laps/10/semantic-telemetry") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+    if (url.pathname === "/api/settings") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(DEFAULT_DISPLAY_SETTINGS) });
       return;
     }
     if (url.pathname === "/api/acc/cars") {

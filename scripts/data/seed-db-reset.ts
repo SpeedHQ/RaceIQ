@@ -1,7 +1,7 @@
 import { existsSync, unlinkSync } from "node:fs";
 import { eq, inArray, like } from "drizzle-orm";
 import { db, client } from "../../server/db/index";
-import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations } from "../../server/ai/chat-agent";
+import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../../server/db/schema";
 import { deleteSession } from "../../server/db/session-queries";
 import { PROFILE_NAME, SEED_MARKER } from "./seed-db-options";
@@ -39,6 +39,7 @@ export async function removeSeedData(): Promise<void> {
   const experimentRows = await db.select({ id: experiments.id }).from(experiments).where(like(experiments.notes, `%${SEED_MARKER}%`)).all();
   const tuneRows = await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.source, SEED_MARKER)).all();
   const chatBases = seededLaps.map((lap) => chatThreadId(lap.id));
+  chatBases.push(...experimentRows.map((experiment) => tuneSessionThreadId(experiment.id)));
   const fmLapIds = seededLaps
     .filter((lap) => lap.gameId === "fm-2023")
     .map((lap) => lap.id)

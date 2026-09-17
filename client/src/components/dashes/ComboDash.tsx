@@ -1,5 +1,5 @@
 import type { LivePitData, LiveSectorData } from "../../../../shared/racing/live/types";
-import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
+import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { SectorTimes } from "../SectorTimes";
 import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";
@@ -42,7 +42,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
   const totalLaps = view?.timing.totalLaps;
   const health = tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const tires = view?.tires;
-  const temperatureAvailable = tires?.temperatureC !== undefined;
+  const temperatureAvailable = tires !== undefined && primaryTireTemperaturesC(tires) !== undefined;
   const healthAvailable = tires?.wear !== undefined;
   const hasTelemetry = !!view;
 
@@ -114,25 +114,25 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
                     fl={{
-                      tempC: Math.round(tires.temperatureC?.fl ?? 0),
+                      tempC: Math.round(primaryTireTemperatureC(tires, "fl") ?? 0),
                       wear: tires.wear?.fl ?? 0,
                       ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.fl } : {}),
                       ...(tires.pressurePsi ? { pressure: tires.pressurePsi.fl } : {}),
                     }}
                     fr={{
-                      tempC: Math.round(tires.temperatureC?.fr ?? 0),
+                      tempC: Math.round(primaryTireTemperatureC(tires, "fr") ?? 0),
                       wear: tires.wear?.fr ?? 0,
                       ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.fr } : {}),
                       ...(tires.pressurePsi ? { pressure: tires.pressurePsi.fr } : {}),
                     }}
                     rl={{
-                      tempC: Math.round(tires.temperatureC?.rl ?? 0),
+                      tempC: Math.round(primaryTireTemperatureC(tires, "rl") ?? 0),
                       wear: tires.wear?.rl ?? 0,
                       ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.rl } : {}),
                       ...(tires.pressurePsi ? { pressure: tires.pressurePsi.rl } : {}),
                     }}
                     rr={{
-                      tempC: Math.round(tires.temperatureC?.rr ?? 0),
+                      tempC: Math.round(primaryTireTemperatureC(tires, "rr") ?? 0),
                       wear: tires.wear?.rr ?? 0,
                       ...(tires.brakeTemperatureC ? { brakeTemp: tires.brakeTemperatureC.rr } : {}),
                       ...(tires.pressurePsi ? { pressure: tires.pressurePsi.rr } : {}),

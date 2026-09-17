@@ -16,10 +16,15 @@ export function tireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" 
     const values = samples.map((sample) => wheelValue(sample, metric, index)).filter((value): value is number => value !== undefined);
     return values.length === 0 ? undefined : values.reduce((sum, value) => sum + value, 0) / values.length;
   };
+  const temperatureMetric: TuneWheelMetric = samples.some((sample) => sample.tireSurfaceTemperatureC !== undefined)
+    ? "tireSurfaceTemperatureC"
+    : samples.some((sample) => sample.tireCoreTemperatureC !== undefined)
+      ? "tireCoreTemperatureC"
+      : "tireCarcassMiddleTemperatureC";
   const corners = ["FL", "FR", "RL", "RR"] as const;
   const snapshots = {} as Record<(typeof corners)[number], CornerSnap>;
   for (let index = 0; index < corners.length; index++) {
-    const tempC = average("tireTemperatureC", index);
+    const tempC = average(temperatureMetric, index);
     const wear = wheelValue(last, "tireWearFraction", index);
     snapshots[corners[index]] = {
       tempC,

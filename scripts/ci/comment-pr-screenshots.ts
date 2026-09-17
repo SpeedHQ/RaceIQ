@@ -4,9 +4,10 @@ const env = process.env;
 const pr = env.PR || readFileSync("pr-preview/pr-number.txt", "utf8").trim();
 const repo = env.REPO!;
 const previewBranch = env.PREVIEW_BRANCH!;
-const subdir = env.SUBDIR!;
+const changed = env.CHANGED === "true";
+const subdir = env.SUBDIR;
 const baseRef = env.BASE_REF!;
-const base = `https://raw.githubusercontent.com/${repo}/${previewBranch}/${subdir}`;
+const base = subdir ? `https://raw.githubusercontent.com/${repo}/${previewBranch}/${subdir}` : "";
 const apiBase = "https://api.github.com";
 const token = env.GH_TOKEN;
 
@@ -31,16 +32,22 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
   return response;
 }
 
-const lines = ["<!-- app-screenshot-diff -->", "## App UI changes", "", `Current PR screenshots compared with \`${baseRef}\`.`, ""];
-for (const file of readdirSync("pr-preview").filter((name) => name.endsWith("-after.png"))) {
-  const name = file.slice(0, -"-after.png".length);
-  const separator = name.indexOf("--");
-  const status = separator >= 0 ? name.slice(0, separator) : "changed";
-  const label = (separator >= 0 ? name.slice(separator + 2) : name).replaceAll("--", " ");
-  const title = status[0].toUpperCase() + status.slice(1);
-  lines.push(`### ${title}: ${label}`, "", "| Base | PR | Diff |", "| --- | --- | --- |", `| ![base](${base}/${name}-before.png) | ![pr](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |`, "");
+const lines = ["<!-- app-screenshot-diff -->", "## App UI changes", ""];
+if (changed) {
+  if (!subdir) throw new Error("SUBDIR is required when screenshot changes exist");
+  lines.push(`Current PR screenshots compared with \`${baseRef}\`.`, "");
+  for (const file of readdirSync("pr-preview").filter((name) => name.endsWith("-after.png"))) {
+    const name = file.slice(0, -"-after.png".length);
+    const separator = name.indexOf("--");
+    const status = separator >= 0 ? name.slice(0, separator) : "changed";
+    const label = (separator >= 0 ? name.slice(separator + 2) : name).replaceAll("--", " ");
+    const title = status[0].toUpperCase() + status.slice(1);
+    lines.push(`### ${title}: ${label}`, "", "| Base | PR | Diff |", "| --- | --- | --- |", `| ![base](${base}/${name}-before.png) | ![pr](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |`, "");
+  }
+  lines.push(`<sub>Rendered from Storybook and responsive app screenshot tests against \`${baseRef}\`.</sub>`);
+} else {
+  lines.push("No UI changes detected.");
 }
-lines.push(`<sub>Rendered from Storybook and responsive app screenshot tests against \`${baseRef}\`.</sub>`);
 writeFileSync("body.md", `${lines.join("\n")}\n`);
 
 const commentsResponse = await github(`/repos/${repo}/issues/${pr}/comments?per_page=100`);
@@ -52,17 +59,4 @@ for (const comment of comments.filter((item) => item.body?.includes("<!-- app-sc
 await github(`/repos/${repo}/issues/${pr}/comments`, {
   method: "POST",
   body: JSON.stringify({ body: readFileSync("body.md", "utf8") }),
-});
-
-const labelsResponse = await github(`/repos/${repo}/labels?per_page=100`);
-const labels = (await labelsResponse.json()) as Array<{ name: string }>;
-if (!labels.some((label) => label.name === "ui change")) {
-  await github(`/repos/${repo}/labels`, {
-    method: "POST",
-    body: JSON.stringify({ name: "ui change", color: "FFC0CB", description: "Pull request changes rendered dashboard UI" }),
-  });
-}
-await github(`/repos/${repo}/issues/${pr}/labels`, {
-  method: "POST",
-  body: JSON.stringify({ labels: ["ui change"] }),
 });

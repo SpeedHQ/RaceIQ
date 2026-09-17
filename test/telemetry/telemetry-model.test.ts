@@ -3,7 +3,6 @@ import { initGameAdapters } from "../../shared/games/init";
 import { getGame } from "../../shared/games/registry";
 import {
   getFuelDisplay,
-  getTireTemperatureSourceUnit,
 } from "../../shared/games/telemetry";
 import type { TelemetryModel } from "../../shared/games/types";
 import type { GameId } from "../../shared/games/ids";
@@ -169,16 +168,4 @@ describe("telemetry interpretation helpers", () => {
     expect(display).toEqual({ amount: 40, unit: "L" });
   });
 
-  test("temperature source units come from the adapter model", () => {
-    expect(
-      getTireTemperatureSourceUnit(
-        getGame("fm-2023").telemetry.tireTemperature,
-      ),
-    ).toBe("F");
-    expect(
-      getTireTemperatureSourceUnit(
-        getGame("f1-2025").telemetry.tireTemperature,
-      ),
-    ).toBe("C");
-  });
 });
