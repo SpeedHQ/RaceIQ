@@ -27,23 +27,23 @@ export async function runMigrations(
   await client.execute("PRAGMA foreign_keys = OFF");
   try {
     for (const migration of pending) {
-      await client.execute("BEGIN");
+      const tx = await client.transaction("write");
       try {
         for (const sql of migration.sql) {
           try {
-            await client.execute(sql);
+            await tx.execute(sql);
           } catch (stmtErr: unknown) {
             const msg = stmtErr instanceof Error ? stmtErr.message : String(stmtErr);
             if (!msg.includes("duplicate column name")) throw stmtErr;
           }
         }
-        await client.execute({
+        await tx.execute({
           sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
           args: [migration.version, migration.name],
         });
-        await client.execute("COMMIT");
+        await tx.commit();
       } catch (err) {
-        await client.execute("ROLLBACK");
+        await tx.rollback();
         throw err;
       }
     }
