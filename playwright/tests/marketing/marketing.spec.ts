@@ -27,10 +27,22 @@ async function waitForMetricData(page: Page, label: string): Promise<void> {
   const panel = page.getByText(label, { exact: true }).locator("..").locator("..");
   await expect.poll(async () => panel.textContent(), { message: `${label} remained empty`, timeout: 30_000 }).not.toContain("0–1");
 }
+test.afterEach(async ({ request }, testInfo) => {
+  if (!testInfo.title.startsWith("screenshot: experiments-review")) return;
+  const response = await request.post("/api/experiments/1/undo");
+  if (!response.ok()) throw new Error(`Failed to clean experiment review laps: ${response.status()}`);
+});
+
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
     if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(120_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
+    if (page.name.startsWith("experiments-review-")) {
+      const response = await p.request.post("/api/experiments/1/import-laps", {
+        data: { lapIds: [4, 5, 6, 7, 8], experimentVersionId: 2 },
+      });
+      if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
+    }
     await p.goto(page.path, { waitUntil: "domcontentloaded" });
     if ("readyText" in page && page.readyText) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
@@ -38,10 +50,8 @@ for (const page of PAGES) {
       await ready.scrollIntoViewIfNeeded();
     }
     if (page.name.startsWith("experiments-review-track") && page.name !== "experiments-review-track-tires") {
-      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
-    }
-    if (page.name === "experiments-review-track-tires") {
       await p.waitForTimeout(15_000);
+      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
     }
     if (page.name === "experiments-review-overview") {
       await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
