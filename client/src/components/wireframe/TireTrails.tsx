@@ -1,3 +1,6 @@
+import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
@@ -21,6 +24,7 @@ const MAX_TRAIL_INSTANCES = 256;
 
 export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: SemanticAnalysisFrame[]; cursorIdx: number; carModel: CarModelEnrichment }) {
   const gameId = useGameId();
+  const analysis = resolveAnalysisTelemetry(gameId ? getGame(gameId) : undefined);
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
@@ -79,12 +83,13 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
         const slipValue = p.values["tires.tire-slip-ratio"];
-        const slipRatio = Array.isArray(slipValue) && typeof slipValue[w] === "number" ? slipValue[w] : 0;
-        cols.push(trailColorFromState("nominal", slipRatio, resolveTrailSlipAngle(p, w)));
+        const state = resolveWheelStates(p, analysis.traction)[w];
+        const slipRatio = state?.slipRatio ?? (Array.isArray(slipValue) && typeof slipValue[w] === "number" ? slipValue[w] : 0);
+        cols.push(trailColorFromState(state?.state ?? "nominal", slipRatio, resolveTrailSlipAngle(p, w)));
       }
       return { pts, cols };
     });
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS, trailLengthM]);
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS, trailLengthM, analysis]);
 
   // Single instancedMesh across all 4 wheels — one draw call for everything.
   // Each instance is a thin box stretched to a segment length and rotated

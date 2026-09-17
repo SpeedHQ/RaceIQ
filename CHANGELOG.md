@@ -6,7 +6,7 @@
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
 
 ### Fixes
-- Restore Balance hover decisions and color 3D tire trails from physical or normalized slip angles across supported games.
+- Fix balance decision tooltip rendering and synchronize 3D tire trails with wheel traction states, including grip, slip, wheelspin, lockup, and idle
 
 - Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
