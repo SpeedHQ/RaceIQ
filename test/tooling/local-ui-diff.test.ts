@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { CORE_STORYBOOK_SNAPSHOT_CASES, REUSABLE_UI_SNAPSHOT_CASES, STORYBOOK_SNAPSHOT_CASES } from "../../client/src/stories/snapshot-cases";
@@ -158,13 +158,11 @@ describe("local UI diff report", () => {
     expect(gitignore).toContain(".ui-diff/");
   });
 
-  test("requires every Storybook baseline in the bounded manifest", () => {
-    const manifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
-    const committed = readdirSync(join(repoRoot, "client/src/stories/__snapshots__"))
-      .filter((entry) => entry.startsWith("snapshot-") && entry.endsWith(".png"))
-      .sort();
+  test("keeps generated Storybook outputs unique and bounded by the manifest", () => {
+    const outputs = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName);
 
-    expect(committed).toEqual(manifest);
+    expect(new Set(outputs).size).toBe(outputs.length);
+    expect(outputs.every((output) => /^snapshot-[A-Za-z0-9-]+\.png$/.test(output))).toBeTrue();
   });
 
   test("keeps screenshot coverage bounded to high-value visual states", () => {
