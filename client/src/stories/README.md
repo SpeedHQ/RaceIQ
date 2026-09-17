@@ -8,7 +8,7 @@
 - Keep fixture setup in the story or a clearly owned story helper. Do not import production test state, user data, or generated output into a story.
 - A story should expose one meaningful visual or interaction contract. Keep controls, labels, loading/error/empty states, and responsive variants explicit when they are part of that contract.
 
-Snapshot specs use `client/playwright.config.ts`: test files end in `.snapshot.ts`, run with one worker, and write image baselines/results under `src/stories/__snapshots__/`. Review intentional visual changes; do not hand-edit PNGs or update baselines from an arbitrary environment. Use the pinned snapshot process for canonical baseline generation.
+Snapshot specs use `client/playwright.config.ts`: test files end in `.snapshot.ts`, run with one worker, and write ignored render output under `src/stories/__snapshots__/`. CI renders the base and PR revisions on the same runner and compares those outputs directly.
 
 ## Commands
 
@@ -18,8 +18,6 @@ From `client/`:
 bun run storybook
 bun run snapshot:test
 bun run snapshot:test:docker
-bun run snapshot:update
-bun run snapshot:docker
 ```
 
-`storybook` serves stories on port 6006. `snapshot:test` runs Playwright against the configured Storybook server. `snapshot:docker` runs the repository's pinned snapshot wrapper. For semantic browser workflows, route coverage, and limits of visual evidence, use [`docs/contributing/e2e-testing.md`](../../../docs/contributing/e2e-testing.md).
+`storybook` serves stories on port 6006. `snapshot:test` renders snapshots against the configured Storybook server. `snapshot:test:docker` runs the same render in the repository's pinned container. For semantic browser workflows, route coverage, and limits of visual evidence, use [`docs/contributing/e2e-testing.md`](../../../docs/contributing/e2e-testing.md).

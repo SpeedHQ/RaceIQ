@@ -81,6 +81,9 @@ jobs:
       - name: Run unit tests
         run: bun run test:unit
 
+      - name: Run toolchain tests
+        run: bun run test:tooling
+
       - name: Run integration tests
         run: bun run test:integration
 

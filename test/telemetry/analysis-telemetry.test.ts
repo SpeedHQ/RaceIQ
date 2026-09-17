@@ -37,7 +37,7 @@ describe("analysis telemetry capabilities", () => {
       source: "direct",
       freshness: "pit-snapshot",
       display: "per-wheel",
-      binding: { kind: "value", semanticId: "tire.temperature.average" },
+      binding: { kind: "value", semanticId: "tire.temperature.carcass.middle" },
     });
     expect(analysis.tirePressure).toEqual({
       source: "direct",

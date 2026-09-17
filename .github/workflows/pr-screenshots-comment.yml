@@ -81,15 +81,15 @@ jobs:
           PR: ${{ steps.meta.outputs.pr }}
         run: bun scripts/ci/publish-pr-screenshots.ts
       - name: Compose and post sticky comment
-        if: steps.meta.outputs.changed == 'true'
         env:
           PR: ${{ steps.meta.outputs.pr }}
+          CHANGED: ${{ steps.meta.outputs.changed }}
           SUBDIR: ${{ steps.publish.outputs.subdir }}
           BASE_REF: ${{ steps.meta.outputs.base-ref }}
         run: bun scripts/ci/comment-pr-screenshots.ts
-      - name: Label PR as a UI change
-        if: steps.meta.outputs.changed == 'true'
+      - name: Reconcile UI change label
         env:
           PR: ${{ steps.meta.outputs.pr }}
           LABEL: "ui change"
+          CHANGED: ${{ steps.meta.outputs.changed }}
         run: bun scripts/ci/label-pr-ui-change.ts

@@ -4,15 +4,15 @@ import { resolve, relative, sep } from "node:path";
 import { checkTestShards } from "./check-shards";
 
 const suite = process.argv[2];
-if (suite !== "unit" && suite !== "integration" && suite !== "e2e") {
-  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration|e2e>");
+if (suite !== "unit" && suite !== "integration" && suite !== "tooling" && suite !== "e2e") {
+  console.error("Usage: bun scripts/test/run-suite.ts <unit|integration|tooling|e2e>");
   process.exit(2);
 }
 
 const root = resolve(import.meta.dir, "../..");
 checkTestShards(root);
 const manifestPath = resolve(root, "scripts/test", `${suite}-files.txt`);
-const config = suite === "unit" ? "bunfig.unit.toml" : "bunfig.integration.toml";
+const config = suite === "unit" || suite === "tooling" ? "bunfig.unit.toml" : "bunfig.integration.toml";
 const text = await Bun.file(manifestPath).text();
 const files: string[] = [];
 const seen = new Set<string>();
@@ -36,7 +36,8 @@ for (const [index, raw] of text.split(/\r?\n/).entries()) {
 if (files.length === 0) throw new Error(`${manifestPath}: no test files`);
 
 const workers = process.env.BUN_TEST_WORKERS ?? "4";
-if ((suite === "unit" && !/^\d+$/.test(workers)) || (suite === "unit" && Number(workers) < 1)) {
+const parallelSuite = suite === "unit";
+if ((parallelSuite && !/^\d+$/.test(workers)) || (parallelSuite && Number(workers) < 1)) {
   throw new Error("BUN_TEST_WORKERS must be a positive integer");
 }
 const i18nCompile = Bun.spawnSync([process.execPath, "run", "--cwd", "client", "i18n:compile"], {
@@ -54,13 +55,13 @@ try {
   const preload = resolve(root, "test/support/setup-data-dir.ts").replaceAll("\\", "/");
   writeFileSync(
     configPath,
-    suite === "unit" ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,
+    parallelSuite ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,
   );
   const manifestFiles = files.map((file) => resolve(root, file));
-  const args = suite === "unit" ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
+  const args = parallelSuite ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
-  if (env.DATA_DIR === undefined) env.DATA_DIR = suite === "unit" ? suiteRoot : resolve(root, ".data-test");
+  if (env.DATA_DIR === undefined) env.DATA_DIR = parallelSuite ? suiteRoot : resolve(root, ".data-test");
   const proc = Bun.spawn([process.execPath, ...args], { cwd: root, env, stdout: "inherit", stderr: "inherit" });
   status = await proc.exited;
 } finally {

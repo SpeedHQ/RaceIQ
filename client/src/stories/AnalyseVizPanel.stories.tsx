@@ -24,7 +24,7 @@ const frame: SemanticAnalysisFrame = {
     "engine.power": 520_000,
     "fuel.fuel": 0.62,
     "fuel.fuel-capacity": 1,
-    "tire.temperature.average": [92, 95, 89, 91],
+    "tire.temperature.surface.representative": [92, 95, 89, 91],
     "tires.tire-pressure": [25.1, 25.3, 24.8, 25],
     "tires.tire-wear": [0.12, 0.1, 0.14, 0.11],
     "brakes.brake-temp": [430, 440, 370, 375],

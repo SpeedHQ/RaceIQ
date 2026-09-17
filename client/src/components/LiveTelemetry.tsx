@@ -4,7 +4,7 @@ import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capa
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
 import { useUnits } from "../hooks/useUnits";
-import type { LiveTelemetryView } from "../lib/live-telemetry-view";
+import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
 import { controlInputPercent } from "../lib/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
@@ -52,7 +52,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const analysis = resolveAnalysisTelemetry(adapter);
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
-  const temperatureAvailable = view.tires.temperatureC !== undefined;
+  const temperatureAvailable = primaryTireTemperaturesC(view.tires) !== undefined;
   const healthAvailable = view.tires.wear !== undefined;
   const tireFreshnessNote =
     pitTemperature && pitHealth
@@ -62,6 +62,32 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
         : pitHealth
           ? m.analyse_wheels_pit_health()
           : undefined;
+  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => {
+    const carcass = view.tires.carcassTemperatureC?.[corner];
+    const hasCarcassBands =
+      carcass !== undefined &&
+      carcass.left !== undefined &&
+      carcass.middle !== undefined &&
+      carcass.right !== undefined &&
+      Number.isFinite(carcass.left) &&
+      Number.isFinite(carcass.middle) &&
+      Number.isFinite(carcass.right);
+    const isLeft = corner.endsWith("l");
+
+    return {
+      tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
+      wear: view.tires.wear?.[corner] ?? 0,
+      ...(hasCarcassBands
+        ? {
+            temperatureBandsC: {
+              inner: isLeft ? carcass.right : carcass.left,
+              middle: carcass.middle,
+              outer: isLeft ? carcass.left : carcass.right,
+            },
+          }
+        : {}),
+    };
+  };
   const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
   const hp = view.engine.powerW === undefined ? undefined : view.engine.powerW / WATTS_PER_HORSEPOWER;
   const boostVal = view.engine.boost;
@@ -115,10 +141,10 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
       <div className="grid gap-0 p-0">
         <div className="border-b border-app-border">
           <TireGrid
-            fl={{ tempC: view.tires.temperatureC?.fl ?? 0, wear: view.tires.wear?.fl ?? 0 }}
-            fr={{ tempC: view.tires.temperatureC?.fr ?? 0, wear: view.tires.wear?.fr ?? 0 }}
-            rl={{ tempC: view.tires.temperatureC?.rl ?? 0, wear: view.tires.wear?.rl ?? 0 }}
-            rr={{ tempC: view.tires.temperatureC?.rr ?? 0, wear: view.tires.wear?.rr ?? 0 }}
+            fl={wheelData("fl")}
+            fr={wheelData("fr")}
+            rl={wheelData("rl")}
+            rr={wheelData("rr")}
             healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
             freshnessNote={tireFreshnessNote}

@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { useUnits } from "../../hooks/useUnits";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
 import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
-import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricDef, tuneMetricValue } from "./SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, metricDisplayValue, type MetricDef, tuneMetricValue, tuneMetricsFor } from "./SectorRangeBreakdown";
 import type { SemanticTuneSample } from "./semantic-tune";
 
 interface SectorTimes {
@@ -32,16 +33,18 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * the map scrubs a cursor line across all the metric bars at once.
  */
 export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrdinal, issues }: SectorDetailViewProps) {
+  const units = useUnits();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [markFrac, setMarkFrac] = useState<number | null>(null);
   const cursorFrame = hoverIdx != null ? telemetry[hoverIdx] : null;
+  const metrics = tuneMetricsFor(telemetry);
 
   const readout = (frame: SemanticTuneSample) =>
     CORNERS.map((corner, index) => {
-      const value = tuneMetricValue(frame, METRICS[0], index);
+      const value = tuneMetricValue(frame, metrics[0], index);
       return {
         label: corner,
-        value: value === undefined ? "—" : `${value.toFixed(1)} °C`,
+        value: value === undefined ? "—" : `${units.temp(value).toFixed(1)}${units.tempLabel}`,
         color: value === undefined ? undefined : bandColor(value),
       };
     });
@@ -116,7 +119,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
 
       {/* Every metric's range for this sector; hovering the map scrubs all of them */}
       <div className="divide-y divide-app-border">
-        {METRICS.map((m) => {
+        {metrics.map((m) => {
           const model = buildSectorRanges(telemetry, sectorTimes, m);
           if (!model) return null;
           return (
@@ -124,10 +127,10 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               <div className="flex items-baseline justify-between mb-2">
                 <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{m.label}</span>
                 <span className="text-app-caption text-app-text-dim tabular-nums">
-                  {Math.round(model.domain[0])}–{Math.round(model.domain[1])} {m.unit}
+                  {Math.round(metricDisplayValue(m, model.domain[0], units.temperatureUnit))}–{Math.round(metricDisplayValue(m, model.domain[1], units.temperatureUnit))} {m.quantity === "temperature" ? units.tempLabel : m.unit}
                 </span>
               </div>
-              <CornerBars ranges={model.sectors[sectorIndex]} domain={model.domain} metric={m} cursor={cursorFor(m)} />
+              <CornerBars ranges={model.sectors[sectorIndex]} domain={model.domain} metric={m} cursor={cursorFor(m)} tempLabel={units.tempLabel} temperatureUnit={units.temperatureUnit} />
             </div>
           );
         })}

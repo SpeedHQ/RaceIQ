@@ -1,6 +1,7 @@
 import { useMemo } from "react";
+import { useUnits } from "../../hooks/useUnits";
 import type { SemanticTuneSample } from "./semantic-tune";
-import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
+import { buildLiveRanges, CornerBars, tuneMetricsFor } from "./SectorRangeBreakdown";
 
 /**
  * CurrentLapTireStrip — compact horizontal row of per-corner range bars,
@@ -9,7 +10,11 @@ import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
  * rather than what car is doing right now.
  */
 export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSample[] }) {
-  const models = useMemo(() => METRICS.map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })), [telemetry]);
+  const units = useUnits();
+  const models = useMemo(
+    () => tuneMetricsFor(telemetry).map((metric) => ({ metric, model: buildLiveRanges(telemetry, metric) })),
+    [telemetry],
+  );
 
   // Fuel: min→avg→max over the trace, on a padded domain — same math/visual as a
   // single tyre corner bar so it aligns in the row.
@@ -38,10 +43,10 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: SemanticTuneSamp
         <div key={metric.key} className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">{metric.label}</span>
-            <span className="text-app-micro text-app-text-dim">{metric.unit}</span>
+            <span className="text-app-micro text-app-text-dim">{metric.quantity === "temperature" ? units.tempLabel : metric.unit}</span>
           </div>
           {model ? (
-            <CornerBars ranges={model.ranges} domain={model.domain} metric={metric} height={64} />
+            <CornerBars ranges={model.ranges} domain={model.domain} metric={metric} height={64} tempLabel={units.tempLabel} temperatureUnit={units.temperatureUnit} />
           ) : (
             <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>
           )}
