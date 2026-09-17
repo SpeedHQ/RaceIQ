@@ -44,7 +44,7 @@ export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
 export type LiveDashboard = "forza" | "f1" | "acc";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
-  driver: ["fm23", "f125", "acc", "ac-evo", "iracing"],
+  driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
   raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
   setups: ["fm23", "f125", "acc", "ac-evo"],

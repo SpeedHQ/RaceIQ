@@ -63,7 +63,7 @@ export async function insertDemoRows(profileId: number, importedLapIds: number[]
       { experimentId: experiment.id, focus: "car", fromVersionId: null, note: "Initial setup focus" },
       { experimentId: experiment.id, focus: "driver", fromVersionId: drill.id, note: "Switch to technique" },
     ]).run();
-    await db.update(laps).set({ experimentVersionId: drill.id }).where(inArray(laps.id, f1Laps.map((lap) => lap.id))).run();
+    await db.update(laps).set({ experimentVersionId: drill.id }).where(eq(laps.id, f1.id)).run();
   }
 
   if (fmLaps.length >= 2) {

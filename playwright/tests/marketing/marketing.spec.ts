@@ -31,12 +31,6 @@ for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
     if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(120_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
-    if (page.name.startsWith("experiments-review-")) {
-      const response = await p.request.post("/api/experiments/1/import-laps", {
-        data: { lapIds: [4, 5, 6, 7, 8], experimentVersionId: 2 },
-      });
-      if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
-    }
     await p.goto(page.path, { waitUntil: "domcontentloaded" });
     if ("readyText" in page && page.readyText) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
@@ -53,9 +47,7 @@ for (const page of PAGES) {
       await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
     }
     if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Tyre temp", "Brake temp", "Pressure", "Wear"]) {
-        await waitForMetricData(p, label);
-      }
+      for (const label of ["Surface temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {

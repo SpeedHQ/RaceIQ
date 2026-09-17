@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -28,7 +28,7 @@ const START_FRAME_RAW = process.env.DEMO_START_FRAME ?? "0";
 const FRAMES_DIR = resolve(process.env.DEMO_FRAMES_DIR ?? "/tmp/raceiq-demo-frames");
 const WORKER_COUNT = 4;
 
-test("record demo render", async ({ page }, testInfo) => {
+test("record demo render", async ({ page, request }, testInfo) => {
   testInfo.setTimeout(0);
 
   if (existsSync(FRAMES_DIR)) rmSync(FRAMES_DIR, { recursive: true });
@@ -53,10 +53,12 @@ test("record demo render", async ({ page }, testInfo) => {
   });
 
   // Fresh server: onboardingComplete=false → wizard shows automatically
+  const resetSettings = await request.put("/api/settings", { data: { onboardingComplete: false } });
+  expect(resetSettings.ok(), "record demo onboarding reset").toBe(true);
   await page.goto("/");
 
-  await page.waitForSelector("canvas", { timeout: 15_000 });
-  await page.waitForFunction(() => typeof (window as unknown as Record<string, unknown>).__totalFrames === "number", { timeout: 10_000 });
+  await page.waitForSelector("canvas", { timeout: 60_000 });
+  await page.waitForFunction(() => typeof (window as unknown as Record<string, unknown>).__totalFrames === "number", { timeout: 30_000 });
 
   const totalFrames: number = await page.evaluate(() => (window as unknown as Record<string, unknown>).__totalFrames as number);
   const startFrame = START_FRAME_RAW.endsWith("%") ? Math.floor(totalFrames * (parseFloat(START_FRAME_RAW) / 100)) : parseInt(START_FRAME_RAW, 10);
