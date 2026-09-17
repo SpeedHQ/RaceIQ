@@ -27,6 +27,7 @@
     "test:shards": "bun scripts/test/check-shards.ts",
     "test:theme-contract": "bun test test/tooling/theme-contract.test.ts --timeout 60000",
     "test:unit": "bun scripts/test/run-suite.ts unit",
+    "test:tooling": "bun scripts/test/run-suite.ts tooling",
     "test:integration": "bun scripts/test/run-suite.ts integration",
     "test:e2e:recordings": "bun scripts/test/run-suite.ts e2e",
     "test": "bun run test:unit && bun run test:integration",
