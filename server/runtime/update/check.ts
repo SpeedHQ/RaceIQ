@@ -12,7 +12,7 @@ export { isNewer };
 const VERSION = pkg.version;
 const GITHUB_REPO = "SpeedHQ/RaceIQ";
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
-const AUTO_UPDATE_DISABLED = process.env.RACEIQ_DISABLE_IN_APP_UPDATE === "1";
+const IN_APP_UPDATE_DISABLED = process.env.RACEIQ_DISABLE_IN_APP_UPDATE === "1";
 
 // Dev/test overrides:
 // LOCAL_INSTALLER=path/to/RaceIQ-Setup.exe — skip download, use local installer
@@ -60,7 +60,7 @@ let state: UpdateState = {
   current: VERSION,
   latest: null,
   updateAvailable: false,
-  updatesDisabled: AUTO_UPDATE_DISABLED,
+  updatesDisabled: IN_APP_UPDATE_DISABLED,
   downloadUrl: null,
   newReleases: [],
   fullReleaseNotes: null,
@@ -168,7 +168,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const fakeVersion = "99.0.0";
     const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], fullReleaseNotes: null, currentReleaseNotes: null, currentReleaseDate: null }));
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, updatesDisabled: AUTO_UPDATE_DISABLED, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, updatesDisabled: IN_APP_UPDATE_DISABLED, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
     notifyUpdateAvailable(fakeVersion);
     console.log(`[Update] DEV_FORCE_UPDATE: faking update to v${fakeVersion}${LOCAL_INSTALLER ? ` (local: ${LOCAL_INSTALLER})` : ""}`);
     return state;
@@ -202,7 +202,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const { newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate } = releaseData;
 
     const lastChecked = new Date().toISOString();
-    state = { current: VERSION, latest, updateAvailable, updatesDisabled: AUTO_UPDATE_DISABLED, downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
+    state = { current: VERSION, latest, updateAvailable, updatesDisabled: IN_APP_UPDATE_DISABLED, downloadUrl, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
 
     if (updateAvailable) {
       notifyUpdateAvailable(latest);
@@ -231,7 +231,7 @@ export function startUpdateCheckSchedule(): void {
 
 /** Downloads the Inno Setup installer and runs it silently. Inno handles process kill, file swap, registry update, and relaunch. */
 export async function applyUpdate(): Promise<void> {
-  if (AUTO_UPDATE_DISABLED) {
+  if (IN_APP_UPDATE_DISABLED) {
     throw new Error("Updates are managed by Docker. Pull the latest image and recreate the container.");
   }
   if (!IS_WINDOWS) {
