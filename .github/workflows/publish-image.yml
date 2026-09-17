@@ -76,5 +76,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: |
+            type=manifest,org.opencontainers.image.description=RaceIQ Linux container for telemetry dashboards, lap analysis, catalogue, imports, and UDP telemetry.
           build-args: |
             RELEASE_VERSION=${{ inputs.release_tag }}
