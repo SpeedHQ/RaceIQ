@@ -6,6 +6,7 @@
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
 
 ### Fixes
+- Fix Analyse page chat and lap analysis errors across configured AI providers
 
 - Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
@@ -17,6 +18,7 @@
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 
+- Add UI-level agent testing.
 ## v0.17.0 - 2026-09-16
 
 ### Features
