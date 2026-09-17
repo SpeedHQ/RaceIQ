@@ -73,6 +73,9 @@ type Row =
 
 export function WheelInfoCard({
   displayTemp,
+  temperatureLabel,
+  displayCoreTemp,
+  displayBrakeTemp,
   tempColor,
   wear,
   wearRate,
@@ -83,6 +86,9 @@ export function WheelInfoCard({
   isRear,
 }: {
   displayTemp: string;
+  temperatureLabel: "Surface" | "Core" | "Carcass";
+  displayCoreTemp?: string;
+  displayBrakeTemp?: string | null;
   tempColor: string;
   wear: number;
   wearRate: number;
@@ -94,7 +100,7 @@ export function WheelInfoCard({
 }) {
   const healthPct = ((1 - wear) * 100).toFixed(0);
   const healthColor = severityRangeColor(wear, [0.3, 0.6]);
-  const brakeText = brakeTemp > 0 ? `${brakeTemp.toFixed(0)}°C` : null;
+  const brakeText = displayBrakeTemp ?? null;
   const brakeColor = brakeTempColor(brakeTemp, isRear);
   const pressureText = pressurePsi > 0 ? `${pressurePsi.toFixed(1)} psi` : null;
   const pressureColor = tirePressureColor(pressurePsi, pressureOptimal);
@@ -102,13 +108,14 @@ export function WheelInfoCard({
   const { rows, cardH } = useMemo(() => {
     const rows: Row[] = [
       { kind: "health", pct: healthPct, color: healthColor },
-      { kind: "temp", text: displayTemp, color: tempColor },
+      { kind: "temp", text: `${temperatureLabel} ${displayTemp}`, color: tempColor },
     ];
+    if (displayCoreTemp) rows.push({ kind: "temp", text: `Core ${displayCoreTemp}`, color: tempColor });
+    if (brakeText) rows.push({ kind: "brake", text: `Brake ${brakeText}`, color: brakeColor });
     if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
-    if (brakeText) rows.push({ kind: "brake", text: brakeText, color: brakeColor });
     if (wearText) rows.push({ kind: "wear", text: wearText });
     return { rows, cardH: PAD_Y * 2 + rows.length * ROW_H };
-  }, [brakeColor, brakeText, displayTemp, healthColor, healthPct, pressureColor, pressureText, tempColor, wearText]);
+  }, [brakeColor, brakeText, displayCoreTemp, displayTemp, healthColor, healthPct, pressureColor, pressureText, tempColor, temperatureLabel, wearText]);
 
   const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");

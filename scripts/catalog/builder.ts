@@ -167,7 +167,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     const unit = semanticDefinition?.canonicalUnit ?? inferredUnit;
     const description =
       semanticDefinition?.description ??
-      (TIRE_IDS[set.key]?.[0] === "tire.temperature.average"
+      (TIRE_IDS[set.key]?.[0] === "tire.temperature.surface.representative"
         ? "Common one-value-per-tire temperature. Mapping may be native or a documented average of detailed channels."
         : DESCRIPTION_OVERRIDES[set.key] ??
           fieldInfo?.description ??

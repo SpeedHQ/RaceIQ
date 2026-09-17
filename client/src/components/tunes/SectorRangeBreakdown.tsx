@@ -6,7 +6,7 @@ interface SectorTimes {
   boundaryIndices: number[];
 }
 
-export type MetricKey = "tyreTemp" | "brakeTemp" | "pressure" | "wear";
+export type MetricKey = "tireSurfaceTemp" | "tireCoreTemp" | "tireCarcassTemp" | "brakeTemp" | "pressure" | "wear";
 export const CORNERS = ["FL", "FR", "RL", "RR"] as const;
 export type CornerKey = (typeof CORNERS)[number];
 
@@ -14,24 +14,45 @@ export interface MetricDef {
   key: MetricKey;
   label: string;
   unit: string;
+  quantity?: "temperature";
   accent: string;
-  semantic?: boolean; // colour the avg by hot/cold bands (tyre temp only)
+  semantic?: boolean;
   field: TuneWheelMetric;
 }
 
 export const METRICS: MetricDef[] = [
   {
-    key: "tyreTemp",
-    label: "Tyre temp",
+    key: "tireSurfaceTemp",
+    label: "Surface temp",
     unit: "°C",
+    quantity: "temperature",
     accent: "var(--metric-tire-temperature)",
     semantic: true,
-    field: "tireTemperatureC",
+    field: "tireSurfaceTemperatureC",
+  },
+  {
+    key: "tireCoreTemp",
+    label: "Core temp",
+    unit: "°C",
+    quantity: "temperature",
+    accent: "var(--metric-tire-temperature)",
+    semantic: true,
+    field: "tireCoreTemperatureC",
+  },
+  {
+    key: "tireCarcassTemp",
+    label: "Carcass temp",
+    unit: "°C",
+    quantity: "temperature",
+    accent: "var(--metric-tire-temperature)",
+    semantic: true,
+    field: "tireCarcassMiddleTemperatureC",
   },
   {
     key: "brakeTemp",
     label: "Brake temp",
     unit: "°C",
+    quantity: "temperature",
     accent: "var(--metric-brake-temperature)",
     field: "brakeTemperatureC",
   },
@@ -50,6 +71,22 @@ export const METRICS: MetricDef[] = [
     field: "tireWearFraction",
   },
 ];
+
+export function metricDisplayUnit(metric: MetricDef, tempLabel: string): string {
+  return metric.quantity === "temperature" ? tempLabel : metric.unit;
+}
+
+export function metricDisplayValue(metric: MetricDef, value: number, temperatureUnit: "C" | "F"): number {
+  return metric.quantity === "temperature" && temperatureUnit === "F" ? value * (9 / 5) + 32 : value;
+}
+export function tuneMetricsFor(telemetry: readonly SemanticTuneSample[]): MetricDef[] {
+  return METRICS.filter((metric) => {
+    if (metric.key === "tireSurfaceTemp") return telemetry.some((sample) => sample.tireSurfaceTemperatureC !== undefined);
+    if (metric.key === "tireCoreTemp") return telemetry.some((sample) => sample.tireCoreTemperatureC !== undefined);
+    if (metric.key === "tireCarcassTemp") return telemetry.some((sample) => sample.tireCarcassMiddleTemperatureC !== undefined);
+    return true;
+  });
+}
 export function tuneMetricValue(sample: SemanticTuneSample, metric: MetricDef, index: number): number | undefined {
   const value = wheelValue(sample, metric.field, index);
   return value === undefined || metric.key !== "wear" ? value : value * 100;
@@ -119,21 +156,22 @@ export function buildLiveRanges(telemetry: SemanticTuneSample[], metric: MetricD
   const padding = Math.max(metric.key === "wear" ? 1 : 4, (maximum - minimum) * 0.15);
   return { ranges, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
-
-/** Four corner bars (min→max fill, avg tick) on a shared domain. When `cursor`
- *  is supplied (from hovering the track map), a line marks the live value. */
 export function CornerBars({
   ranges,
   domain,
   metric,
   height = 74,
   cursor,
+  tempLabel = "°C",
+  temperatureUnit = "C",
 }: {
   ranges: Record<CornerKey, Range>;
   domain: [number, number];
   metric: MetricDef;
   height?: number;
   cursor?: Partial<Record<CornerKey, number>>;
+  tempLabel?: string;
+  temperatureUnit?: "C" | "F";
 }) {
   const [lo, hi] = domain;
   const span = hi - lo || 1;
@@ -166,8 +204,8 @@ export function CornerBars({
                 />
               )}
             </div>
-            <span className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
-              {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.avg)}
+            <span title={metricDisplayUnit(metric, tempLabel)} className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
+              {hasCursor ? Math.round(metricDisplayValue(metric, cv!, temperatureUnit)) : empty ? "—" : Math.round(metricDisplayValue(metric, r.avg, temperatureUnit))}
             </span>
             <span className="text-app-micro text-app-text-dim uppercase">{c}</span>
           </div>

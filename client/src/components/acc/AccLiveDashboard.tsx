@@ -4,6 +4,7 @@ import type { GameId } from "../../../../shared/games/ids";
 import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { primaryTireTemperatureC } from "../../lib/live-telemetry-view";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
@@ -30,6 +31,15 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
     );
   }
 
+  const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
+    tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
+    ...(gameId === "ac-evo" && view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
+    wear: view.tires.wear?.[corner] ?? 0,
+    ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
+    ...(view.tires.brakePadRemainingMm ? { brakePadMm: view.tires.brakePadRemainingMm[corner] } : {}),
+    ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
+  });
+
   return (
     <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Tires + Pit Window */}
@@ -37,10 +47,10 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
         {/* Tires */}
         <div className="p-3">
           <TireGrid
-            fl={{ tempC: view.tires.temperatureC?.fl ?? 0, wear: view.tires.wear?.fl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fl, brakePadMm: view.tires.brakePadRemainingMm?.fl, pressure: view.tires.pressurePsi?.fl }}
-            fr={{ tempC: view.tires.temperatureC?.fr ?? 0, wear: view.tires.wear?.fr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.fr, brakePadMm: view.tires.brakePadRemainingMm?.fr, pressure: view.tires.pressurePsi?.fr }}
-            rl={{ tempC: view.tires.temperatureC?.rl ?? 0, wear: view.tires.wear?.rl ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rl, brakePadMm: view.tires.brakePadRemainingMm?.rl, pressure: view.tires.pressurePsi?.rl }}
-            rr={{ tempC: view.tires.temperatureC?.rr ?? 0, wear: view.tires.wear?.rr ?? 0, brakeTemp: view.tires.brakeTemperatureC?.rr, brakePadMm: view.tires.brakePadRemainingMm?.rr, pressure: view.tires.pressurePsi?.rr }}
+            fl={wheelData("fl")}
+            fr={wheelData("fr")}
+            rl={wheelData("rl")}
+            rr={wheelData("rr")}
             healthThresholds={tryGetGame(gameId)?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
             pressureOptimal={pressureOptimal}

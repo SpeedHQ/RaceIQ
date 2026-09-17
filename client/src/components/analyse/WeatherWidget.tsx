@@ -1,4 +1,5 @@
 import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
+import { useUnits } from "../../hooks/useUnits";
 
 const WEATHER_ICONS: Record<number, string> = {
   0: "\u2600\uFE0F",
@@ -19,6 +20,8 @@ const WEATHER_LABELS: Record<number, string> = {
 };
 
 export function WeatherWidget({ f1, position = "bottom-left" }: { f1: F1ExtendedData; position?: "bottom-left" | "bottom-right" }) {
+  const units = useUnits();
+  const temperature = (value: number | undefined) => value == null ? "—" : `${units.temp(value).toFixed(0)}${units.tempLabel}`;
   const weather = f1.weather ?? 0;
   return (
     <div
@@ -30,8 +33,8 @@ export function WeatherWidget({ f1, position = "bottom-left" }: { f1: F1Extended
         {f1.rainPercentage > 0 && <span className="text-(--metric-rain)">{f1.rainPercentage}%</span>}
       </div>
       <div className="flex gap-3 text-app-text-muted">
-        <span>Track {f1.trackTemperature}°C</span>
-        <span>Air {f1.airTemperature}°C</span>
+        <span>Track {temperature(f1.trackTemperature)}</span>
+        <span>Air {temperature(f1.airTemperature)}</span>
       </div>
     </div>
   );

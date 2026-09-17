@@ -7,7 +7,7 @@ export const forzaAdapter: GameAdapter = {
   routePrefix: "fm23",
   telemetry: {
     fuel: { packetUnit: "fraction", binding: { kind: "value", semanticId: "fuel.fuel" } },
-    tireTemperature: { packetUnit: "fahrenheit", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+    tireTemperature: { packetUnit: "fahrenheit", binding: { kind: "value", semanticId: "tire.temperature.surface.representative" } },
     boost: { packetUnit: "psi", binding: { kind: "value", semanticId: "engine.boost" } },
     power: { packetUnit: "watt", binding: { kind: "value", semanticId: "engine.power" } },
     torque: { packetUnit: "newton-metre", binding: { kind: "value", semanticId: "engine.torque" } },
@@ -18,7 +18,7 @@ export const forzaAdapter: GameAdapter = {
       gForce: { source: "derived", confidence: "exact", binding: { kind: "derived", derivation: "g-force-v1", requires: ["motion.acceleration-x", "motion.acceleration-z"] } },
       gripDemand: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-combined-slip" } },
       traction: { source: "derived", confidence: "exact", display: "per-wheel", binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] } },
-      tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+      tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.surface.representative" } },
       surface: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "group", required: ["tires.wheel-on-rumble-strip", "tires.wheel-in-puddle-depth"] } },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },
       slipAngle: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.normalized-tire-slip-angle" } },

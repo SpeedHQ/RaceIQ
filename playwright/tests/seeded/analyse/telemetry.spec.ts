@@ -113,7 +113,7 @@ for (const game of SEEDED_GAME_CASES) {
     const parityPacket = lap.telemetry[parityFrame]!;
     if (game.gameId === "acc") {
       expect(typeof parityPacket.acc?.brakeBias, "seeded ACC brake bias source").toBe("number");
-      expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%F`);
+      expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%`);
     }
     if (game.gameId === "f1-2025") {
       const ersModes = ["None", "Low", "Medium", "High", "Overtake"] as const;

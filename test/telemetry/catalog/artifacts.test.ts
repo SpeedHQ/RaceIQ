@@ -154,13 +154,13 @@ describe("semantic telemetry catalog artifacts", () => {
         recorded: 219,
       },
       iracing: {
-        total: 955,
-        packet: 119,
+        total: 951,
+        packet: 115,
         extension: 17,
         sdk: 324,
         yaml: 495,
         setup: 0,
-        recorded: 705,
+        recorded: 701,
       },
     });
 

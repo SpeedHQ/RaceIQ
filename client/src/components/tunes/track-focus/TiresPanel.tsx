@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useUnits } from "../../../hooks/useUnits";
+import { convertTempDelta } from "../../../lib/temperature";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
@@ -147,6 +149,10 @@ function TireMetricSection({
   onCursorFrac: (f: number | null) => void;
 }) {
   const { mode } = cfg;
+  const units = useUnits();
+  const fmt = (value: number, delta = false) => mode === "temp"
+    ? `${(delta ? convertTempDelta(value, units.temperatureUnit) : units.temp(value)).toFixed(1)}${units.tempLabel}`
+    : cfg.fmt(value);
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [expanded, setExpanded] = useState(false);
 
@@ -211,7 +217,7 @@ function TireMetricSection({
 
   return (
     <div ref={wrapRef} className="space-y-2">
-      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{mode === "temp" ? `Tyres — avg temperature (${units.tempLabel})` : cfg.title}</div>
       <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H} preserveAspectRatio="none">
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
         {cfg.refLines?.map((t) => (
@@ -269,7 +275,7 @@ function TireMetricSection({
               {tr && laps.length > 1 && (
                 <span className="tabular-nums opacity-70">
                   {tr.slope >= 0 ? "+" : ""}
-                  {cfg.fmt(tr.slope)}/lap
+                  {fmt(tr.slope, true)}/lap
                 </span>
               )}
             </span>
@@ -290,7 +296,7 @@ function TireMetricSection({
           <div key={c.key} className="space-y-1">
             <div className="flex items-center gap-2 text-app-caption uppercase tracking-wider text-app-text-dim">
               <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
-              {c.label} — {cfg.laneUnit}
+              {c.label} — {mode === "temp" ? `temp per lap (${units.tempLabel})` : cfg.laneUnit}
             </div>
             <Lane
               height={80}
@@ -305,7 +311,7 @@ function TireMetricSection({
                 const idx = indexAtFrac(best!, f);
                 return (
                   <span>
-                    best lap {c.label}: {cfg.fmt(tt[c.key][idx])}
+                    best lap {c.label}: {fmt(tt[c.key][idx])}
                   </span>
                 );
               }}

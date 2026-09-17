@@ -142,7 +142,7 @@ export const PHYSICS = {
   // tcInAction (672), absInAction (676), suspensionDamage[4] (680-692)
   // — all marked "Not used in ACC" per Kunos header; real intervention
   // signals are the vibration floats at the very end of the struct.
-  // tyreTemp[4] — per-tyre average display temp, °C
+  // tyreTemp[4] — ACC core-temperature alias, °C; not a surface channel
   tyreTempFL:     { offset: 696, type: "f32" },
   tyreTempFR:     { offset: 700, type: "f32" },
   tyreTempRL:     { offset: 704, type: "f32" },

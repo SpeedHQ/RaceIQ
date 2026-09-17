@@ -64,6 +64,8 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
     case "acc":
     case "ac-evo":
       return "acc";
+    case "iracing":
+      return "forza";
     default:
       throw new Error(`Unsupported live dashboard game: ${gameId}`);
   }

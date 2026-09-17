@@ -26,7 +26,6 @@ Single source for game adapters, identity boundaries, and telemetry capabilities
 - `telemetry.ts`
   - `getFuelAmount`
   - `getFuelDisplay`
-  - `getTireTemperatureSourceUnit`
 - per-game adapters under `fm-2023/`, `f1-2025/`, `acc/`, `ac-evo/`, `iracing/`
   - each exports a `...Adapter`
 - `iracing/`

@@ -153,37 +153,3 @@ export function detectTireTempSplit(
     frameIndices: [Math.round(telemetry.length / 2)],
   };
 }
-
-export function detectInnerOuterTempSpread(telemetry: TelemetryPacket[]): LapInsight[] {
-  // ACC-only: inner-vs-outer tread temperature spread indicates camber/pressure
-  // problems. Sustained inner-hot = too much camber; outer-hot = not enough.
-  const labels = ["FL", "FR", "RL", "RR"] as const;
-  const sums = [0, 0, 0, 0];
-  let n = 0;
-  for (const p of telemetry) {
-    const acc = p.acc;
-    if (!acc || p.Speed * 2.23694 < 15) continue;
-    for (let t = 0; t < 4; t++) {
-      sums[t] += acc.tireInnerTemp[t] - acc.tireOuterTemp[t];
-    }
-    n++;
-  }
-  if (n < 100) return [];
-
-  const insights: LapInsight[] = [];
-  for (let t = 0; t < 4; t++) {
-    const delta = sums[t] / n; // °C, + = inner hotter
-    if (Math.abs(delta) < 8) continue;
-    const hint = delta > 0 ? "inner edge running hot — reduce negative camber or raise pressure" : "outer edge running hot — add negative camber";
-    insights.push({
-      id: `tire-edge-temp-${labels[t]}`,
-      category: "tires",
-      severity: Math.abs(delta) > 15 ? "warning" : "info",
-      label: "Tire Edge Temp Spread",
-      detail: `${labels[t]} ${Math.abs(delta).toFixed(0)}°C ${delta > 0 ? "inner" : "outer"}-hot on average — ${hint}`,
-      frameIndices: [Math.round(telemetry.length / 2)],
-    });
-  }
-  return insights;
-}
-

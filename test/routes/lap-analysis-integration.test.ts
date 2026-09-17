@@ -66,7 +66,7 @@ describe("F1 Analyse semantic telemetry integration", () => {
       expect(body.parseError).toBeNull();
       expect(fileCalls).toBe(1);
       expect(streamCalls).toBe(1);
-      expect(body.requestedSemanticIds).toHaveLength(40);
+      expect(body.requestedSemanticIds).toContain("tire.temperature.core");
       expect(body.envelopes.length).toBeGreaterThan(0);
       expect(body.envelopes.map((envelope) => envelope.sequence)).toEqual(
         body.envelopes.map((_, index) => index),

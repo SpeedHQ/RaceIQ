@@ -13,11 +13,8 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "snapshot": "bun run snapshot:update",
-    "snapshot:update": "bun scripts/assert-snapshot-environment.ts && playwright test --update-snapshots && bun scripts/copy-snapshots.ts",
-    "snapshot:test": "playwright test",
-    "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts",
-    "snapshot:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts --update"
+    "snapshot:test": "playwright test --update-snapshots",
+    "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.90",

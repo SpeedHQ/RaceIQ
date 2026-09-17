@@ -46,7 +46,7 @@ export function useDemoMode(preferGameId?: string) {
       const pool = preferred.length ? preferred : spa.length ? spa : valid;
       const best = [...pool].sort((a, b) => (a.lapTime ?? Infinity) - (b.lapTime ?? Infinity))[0];
       if (!best) return;
-      const replaySemanticIds = ["motion.speed", "timing.lap-number", "timing.current-lap", "engine.current-engine-rpm", "inputs.gear", "tire.temperature.average", "tires.tire-wear", "tires.tire-pressure"].join(",");
+      const replaySemanticIds = ["motion.speed", "timing.lap-number", "timing.current-lap", "engine.current-engine-rpm", "inputs.gear", "tire.temperature.surface.representative", "tires.tire-wear", "tires.tire-pressure"].join(",");
       const replayResponse = await fetch(`/api/dev/laps/${best.id}/live-telemetry?semanticIds=${encodeURIComponent(replaySemanticIds)}`);
       const replay = (await replayResponse.json()) as ReplayResponse;
       if (!replay.schema || !replay.frames || replay.frames.length < 2) return;

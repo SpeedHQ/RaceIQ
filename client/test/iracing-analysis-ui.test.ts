@@ -23,7 +23,7 @@ const iracingFrame = frame({
   "identity.player-track-surface": 1,
   "tires.tire-pressure": [23.5, 23.5, 24.5, 24.5],
   "tires.tire-wear": [0.012, 0.012, 0.01, 0.01],
-  "tire.temperature.average": [63, 60, 65, 63],
+  "tire.temperature.surface.representative": [63, 60, 65, 63],
   "suspension.suspension-travel-m": [0.039, 0.059, 0.018, 0.046],
 });
 

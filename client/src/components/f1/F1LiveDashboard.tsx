@@ -13,6 +13,7 @@ import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
+import { useUnits } from "../../hooks/useUnits";
 import { Button } from "../ui/button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,8 +59,9 @@ export function F1LiveDashboard() {
     );
   }
   const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
-    tempC: Math.round(view.tires.temperatureC?.[corner] ?? 0),
-    wear: view.tires.wear?.[corner] ?? 0,
+    tempC: view.tires.surfaceTemperatureC?.[corner].representative,
+    ...(view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
+    wear: view.tires.wear?.[corner],
     ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
     ...(view.tires.pressurePsi ? { pressure: view.tires.pressurePsi[corner] } : {}),
   });
@@ -94,7 +96,7 @@ export function F1LiveDashboard() {
               healthThresholds={{ green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
               compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
-              temperatureAvailable={view.tires.temperatureC !== undefined}
+              temperatureAvailable={view.tires.surfaceTemperatureC !== undefined}
               healthAvailable={view.tires.wear !== undefined}
             />
           </div>
@@ -275,6 +277,7 @@ function WeatherIcon({ weather }: { weather: number }) {
 }
 
 function WeatherWidget({ weather }: { weather: LiveTelemetryView["weather"] }) {
+  const units = useUnits();
   const label = weather.kind === undefined ? "—" : (WEATHER_LABELS[weather.kind] ?? "Unknown");
   const hasRain = weather.rainPercent !== undefined && weather.rainPercent > 0;
 
@@ -298,13 +301,13 @@ function WeatherWidget({ weather }: { weather: LiveTelemetryView["weather"] }) {
         <div>
           <div className="text-app-micro text-app-text-muted uppercase">{m.label_track()}</div>
           <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-track-temperature)" }}>
-            {weather.trackTemperatureC === undefined ? "—" : <>{weather.trackTemperatureC}&deg;</>}
+            {weather.trackTemperatureC === undefined ? "—" : <>{units.temp(weather.trackTemperatureC).toFixed(0)}{units.tempLabel}</>}
           </div>
         </div>
         <div>
           <div className="text-app-micro text-app-text-muted uppercase">{m.f1live_weather_air()}</div>
           <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-air-temperature)" }}>
-            {weather.airTemperatureC === undefined ? "—" : <>{weather.airTemperatureC}&deg;</>}
+            {weather.airTemperatureC === undefined ? "—" : <>{units.temp(weather.airTemperatureC).toFixed(0)}{units.tempLabel}</>}
           </div>
         </div>
       </div>

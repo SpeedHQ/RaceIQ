@@ -35,6 +35,16 @@ export const DASHBOARD_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "dashboards-acclivedashboard--visual-contract",
     outputName: "snapshot-AccLiveDashboard.png",
   },
+  {
+    name: "AcEvoLiveDashboard",
+    id: "dashboards-acevolivedashboard--visual-contract",
+    outputName: "snapshot-AcEvoLiveDashboard.png",
+  },
+  {
+    name: "IRacingLiveDashboard",
+    id: "dashboards-iracinglivedashboard--visual-contract",
+    outputName: "snapshot-IRacingLiveDashboard.png",
+  },
   // Distinct interaction contract: read-only setup browsing removes owner actions.
   {
     name: "SetupBrowser",
