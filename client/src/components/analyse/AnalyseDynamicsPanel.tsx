@@ -78,7 +78,7 @@ export function AnalyseDynamicsPanel({ frame, gameId, units }: Props) {
     <span role="tooltip" className="pointer-events-none absolute top-full left-0 z-50 mt-2 hidden w-[min(320px,calc(100vw-2rem))] rounded border border-app-border-input bg-app-surface-alt px-2.5 py-2 text-app-caption text-app-text-secondary normal-case tracking-normal group-hover:block group-focus-within:block">
       <span className="block mb-1">{balance.slipAvailable ? "Yaw rate vs path curvature + front/rear slip-angle delta." : "Yaw rate versus path curvature (tire slip angles unavailable for this game)."}</span>
       <span className="block mb-2 text-app-text-dim">{balance.slipAvailable ? <>+ = understeer (front slip &gt; rear) | − = oversteer (body yawing past Ay/V)</> : <>+ = understeer (under-rotating) | − = oversteer (over-rotating)</>}<br />Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored</span>
-      <svg viewBox="0 0 200 132" className="w-full h-auto" aria-hidden="true">
+      <svg viewBox="0 0 200 132" className="!w-full !h-auto" aria-hidden="true">
         {[
           { label: "Slip Δ", value: balance.uSlip, color: signedBalanceColor(balance.uSlip, 0.05), y: 16, desc: balance.slipAvailable ? `F ${balance.frontSlipDeg.toFixed(1)}° / R ${balance.rearSlipDeg.toFixed(1)}°` : "Unavailable", opacity: balance.slipAvailable ? 1 : 0.35 },
           { label: "Yaw", value: balance.uYaw, color: signedBalanceColor(balance.uYaw, 0.05), y: 40, desc: `err ${balance.yawError > 0 ? "+" : ""}${balance.yawError.toFixed(2)} r/s (path ${balance.yawRatePath.toFixed(2)})`, opacity: Math.min(1, balance.yawRatePath / 0.15) },

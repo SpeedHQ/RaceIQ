@@ -40,6 +40,12 @@ describe("iRacing analysis panels", () => {
     expect(markup).not.toContain("200%");
     expect(markup).not.toContain("LOCK");
   });
+  test("keeps balance decision render expanded inside tooltip", () => {
+    const markup = renderToStaticMarkup(createElement(AnalyseDynamicsPanel, { frame: iracingFrame, gameId: "iracing", units }));
+    expect(markup).toMatch(/<svg viewBox="0 0 200 132" class="!w-full !h-auto"/);
+    expect(markup).toContain("Decision —");
+  });
+
 
   test("labels pit snapshots and cold pressure and removes invalid wear rate", () => {
     const queryClient = new QueryClient();
