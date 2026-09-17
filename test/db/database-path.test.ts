@@ -186,18 +186,25 @@ describe("production database path", () => {
     expectArtifactsAbsent(testPath);
   });
   if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
-    test("upgrades an existing v57 database during startup", async () => {
-      const dataDir = makeDataDir();
+    test("upgrades a seeded v57 database during startup", async () => {
+      const seededDataDir = process.env.RACEIQ_UPGRADE_DATA_DIR;
+      const dataDir = seededDataDir ?? makeDataDir();
       const appPath = join(dataDir, "app.db");
       const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
-      await createFixture(appPath, sentinel, 57);
+      if (!seededDataDir) await createFixture(appPath, sentinel, 57);
 
       const result = await runDbStartup(dataDir);
 
       expect(result.code, result.output).toBe(0);
       expect(result.output).toContain("[DB]   v58: persist session ownership");
-      expect(profileNames(appPath)).toEqual([sentinel]);
-      expect(sessionOwnerships(appPath)).toEqual(["mine"]);
+      if (seededDataDir) {
+        expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
+        expect(sessionOwnerships(appPath).length).toBeGreaterThan(0);
+        expect(sessionOwnerships(appPath).every((ownership) => ownership === "mine")).toBe(true);
+      } else {
+        expect(profileNames(appPath)).toEqual([sentinel]);
+        expect(sessionOwnerships(appPath)).toEqual(["mine"]);
+      }
     });
   }
 
