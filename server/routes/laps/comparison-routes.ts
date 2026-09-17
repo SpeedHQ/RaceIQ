@@ -1,3 +1,4 @@
+import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -32,6 +33,7 @@ import {
   resolveActiveThread,
 } from "../../ai/chat-agent";
 import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY } from "../../ai/chat-message-context";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema, ComparisonRangeQuerySchema } from "./support";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
@@ -513,8 +515,10 @@ export const comparisonRoutes = new Hono()
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
+      const requestContext = new RequestContext();
+      requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       const stream = await compareChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
+        messages,
         {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {

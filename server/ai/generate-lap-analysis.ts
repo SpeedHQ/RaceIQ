@@ -11,12 +11,12 @@ import { resolveTrack } from "../tracks/info";
 import { computeNativeSectorTimeline, computeLapSectors } from "../lap-analysis/sectors";
 import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
-import { getAnalystJsonSchema, AnalystOutputSchema } from "./schemas";
-import { buildGoogleProviderOptions } from "./google-provider-options";
-import { extractJson } from "./extract-json";
+import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "./schemas";
+import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
+import { getOpenAiCompatibleModelsDetailed } from "./providers";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
 
 export interface AnalysisUsage {
@@ -58,6 +58,7 @@ export interface GenerateLapAnalysisDeps {
   buildAnalystPrompt?: typeof buildAnalystPrompt;
   resolveTrack?: typeof resolveTrack;
   resolveAi?: typeof resolveAi;
+  getRuntimeContextLength?: (endpoint: string, model: string) => Promise<number | undefined>;
   runAiStructured?: typeof runAiStructured;
   generate?: AgentGenerate;
 }
@@ -65,16 +66,9 @@ export interface GenerateLapAnalysisDeps {
 const invalidAnalysisError =
   "Model produced invalid analysis structure. Not cached. Try again or switch model.";
 
-function parseAndValidateAnalysis(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  try {
-    const text = extractJson(raw);
-    return AnalystOutputSchema.safeParse(JSON.parse(text)).success
-      ? text
-      : null;
-  } catch {
-    return null;
-  }
+async function getRuntimeContextLength(endpoint: string, model: string): Promise<number | undefined> {
+  const result = await getOpenAiCompatibleModelsDetailed(endpoint);
+  return result.models.find((candidate) => candidate.id === model)?.contextLength;
 }
 
 export async function generateLapAnalysis(
@@ -130,10 +124,10 @@ export async function generateLapAnalysis(
 
   if (!options.regenerate) {
     const cached = await readAnalysis(lapId);
-    const cachedAnalysis = parseAndValidateAnalysis(cached?.analysis);
-    if (cached && cachedAnalysis) {
+    const cachedAnalysis = parseAnalystOutput(cached?.analysis);
+    if (cached && cachedAnalysis.success) {
       return {
-        analysis: cachedAnalysis,
+        analysis: JSON.stringify(cachedAnalysis.data),
         cached: true,
         usage: {
           inputTokens: cached.inputTokens,
@@ -248,17 +242,16 @@ export async function generateLapAnalysis(
     const generationOptions: Record<string, unknown> = {
       maxSteps: 5,
       modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+      structuredOutput: {
+        schema: AnalystOutputSchema,
+        jsonPromptInjection: "auto",
+      },
       providerOptions: {
         openai: {
-          reasoningEffort: "medium",
-          responseFormat: {
-            type: "json_schema",
-            jsonSchema: { name: "analyst_output", strict: true, schema },
-          },
+          reasoningEffort: ai.provider === "openai-compatible" ? "none" : "medium",
         },
-        google: buildGoogleProviderOptions(
+        google: buildGoogleThinkingProviderOptions(
           model,
-          schema,
           settings.aiThinkingBudget,
         ),
       },
@@ -271,15 +264,30 @@ export async function generateLapAnalysis(
     const result = await runStructured(ai, input, (requestContext) =>
       generate(prompt, { ...generationOptions, requestContext }),
     );
-    const text = parseAndValidateAnalysis(result.analysis);
-    if (!text)
+    const parsed = parseAnalystOutput(result.analysis);
+    if (!parsed.success) {
+      let error = invalidAnalysisError;
+      if (ai.provider === "openai-compatible") {
+        try {
+          const contextLength = await (
+            deps.getRuntimeContextLength ?? getRuntimeContextLength
+          )(settings.localEndpoint, model);
+          if (contextLength) {
+            error += ` Runtime context: ${contextLength.toLocaleString()} tokens.`;
+          }
+        } catch {
+          // Context discovery is diagnostic only.
+        }
+      }
       return {
         analysis: null,
         cached: false,
         cornerFracs,
         hasTune,
-        error: invalidAnalysisError,
+        error,
       };
+    }
+    const text = JSON.stringify(parsed.data);
 
     const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
     const numberFor = (...keys: string[]) =>
