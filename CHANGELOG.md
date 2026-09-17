@@ -4,9 +4,11 @@
 
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
+- Run RaceIQ on Linux with a public non-root Docker image, persistent named-volume storage, and browser/UDP access
 
 ### Fixes
-
+- Fix balance decision tooltip rendering and synchronize 3D tire trails with wheel traction states, including correct physical and normalized slip handling for grip, slip, wheelspin, lockup, and idle
+- Fix Analyse page chat and lap analysis errors across configured AI providers
 - Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
@@ -17,6 +19,7 @@
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 
+- Add UI-level agent testing.
 ## v0.17.0 - 2026-09-16
 
 ### Features

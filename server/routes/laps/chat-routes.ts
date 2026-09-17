@@ -1,3 +1,4 @@
+import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
@@ -23,6 +24,7 @@ import {
   resolveActiveThread,
 } from "../../ai/chat-agent";
 import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
+import { CHAT_TURN_CONTEXT_KEY } from "../../ai/chat-message-context";
 import { ChatBodySchema } from "./support";
 import { parseTuneRow } from "../tune-shared";
 
@@ -105,8 +107,10 @@ export const chatRoutes = new Hono()
     await ensureSystemPrompt(threadId, systemPrompt);
     const turnStartedAt = Date.now();
     try {
+      const requestContext = new RequestContext();
+      requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
       const stream = await lapChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
+        messages,
         {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           providerOptions: {

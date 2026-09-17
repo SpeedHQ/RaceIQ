@@ -152,6 +152,7 @@
   "storage_compress_complete": "Komprimierung abgeschlossen.",
   "updates_check_button": "Nach Updates suchen",
   "updates_current_version": "Aktuelle Version:",
+  "updates_docker_managed": "Updates werden von Docker verwaltet. Zum Aktualisieren das neueste Image abrufen und den Container neu erstellen.",
   "updates_last_checked": "Zuletzt geprüft:",
   "updates_downloading": "Installationsprogramm wird heruntergeladen...",
   "updates_reconnecting": "Warte auf Neustart von RaceIQ...",

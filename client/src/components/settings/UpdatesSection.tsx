@@ -49,6 +49,7 @@ export function UpdatesSection() {
   const stage = updateProgress?.stage ?? null;
   const percent = updateProgress?.percent ?? 0;
 
+
   return (
     <section>
       <div className="flex items-center justify-between mb-1">
@@ -102,9 +103,13 @@ export function UpdatesSection() {
           <p className="text-sm font-medium text-app-accent">
             {m.updates_available()} v{latestVersion}
           </p>
-          <Button onClick={handleInstall} variant="app-primary">
-            {m.label_install_update()}
-          </Button>
+          {versionInfo?.updatesDisabled ? (
+            <p className="text-sm text-app-text-muted">{m.updates_docker_managed()}</p>
+          ) : (
+            <Button onClick={handleInstall} variant="app-primary">
+              {m.label_install_update()}
+            </Button>
+          )}
         </div>
       )}
 
