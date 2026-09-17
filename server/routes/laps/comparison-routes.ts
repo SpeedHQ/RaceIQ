@@ -3,9 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import type { GameId } from "../../../shared/games/ids";
-import { getLapsByIds } from "../../db/lap-read-queries";
-import { resolveTelemetryReplay } from "../../telemetry/replay";
-import { loadRawCaptureIdentity } from "../../session-capture/identity";
+import { getLapById } from "../../db/lap-read-queries";
+import { queryLapTelemetryBySemanticId } from "../../telemetry/replay";
 import {
   comparisonAlignmentIndexCacheGet,
   comparisonAlignmentIndexCacheSet,
@@ -18,9 +17,10 @@ import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
-import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
+import { buildInputsComparePrompt, type PromptSegment } from "../../ai/inputs-compare-prompt";
 import { compareChatAgent, compareEngineerAgent } from "../../ai/agents";
-import { buildGoogleReasoningProviderOptions, buildGoogleThinkingProviderOptions } from "../../ai/google-provider-options";
+import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
+import { buildCompareEngineerExecutionOptions } from "../../ai/analysis-agent-options";
 import { beginAnalysisRun, finishAnalysisRun, getAnalysisRun } from "../../ai/analysis-run-registry";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import {
@@ -31,54 +31,11 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { configureAiProviderEnvironment } from "../../ai/openai-compatible-provider";
+import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema, ComparisonRangeQuerySchema } from "./support";
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
-
-async function loadComparisonLaps(id1: number, id2: number) {
-  const laps = await getLapsByIds([id1, id2], { parallelSessionDecodes: true });
-  const byId = new Map(laps.map((lap) => [lap.id, lap]));
-  return [byId.get(id1) ?? null, byId.get(id2) ?? null] as const;
-}
-function comparisonReplaySource(lap: {
-  id: number;
-  sessionId: number;
-  createdAt: string;
-  gameId: GameId;
-  catalogVersion?: string;
-  catalogHash?: string;
-  catalogSchemaVersion?: string;
-  parserVersion?: string;
-  resolverVersion?: string;
-  derivationVersion?: string;
-  rawFile?: string | null;
-  rawByteOffset?: number | null;
-  rawFrameCount?: number | null;
-}) {
-  const versionIdentity =
-    lap.catalogVersion && lap.catalogHash && lap.catalogSchemaVersion && lap.parserVersion && lap.resolverVersion && lap.derivationVersion
-      ? {
-          catalogVersion: lap.catalogVersion,
-          catalogHash: lap.catalogHash,
-          catalogSchemaVersion: lap.catalogSchemaVersion,
-          parserVersion: lap.parserVersion,
-          resolverVersion: lap.resolverVersion,
-          derivationVersion: lap.derivationVersion,
-        }
-      : undefined;
-  return {
-    id: lap.id,
-    sessionId: lap.sessionId,
-    createdAt: lap.createdAt,
-    gameId: lap.gameId,
-    rawFile: (lap as typeof lap & { rawFile?: string | null }).rawFile ?? null,
-    rawByteOffset: (lap as typeof lap & { rawByteOffset?: number | null }).rawByteOffset ?? null,
-    rawFrameCount: (lap as typeof lap & { rawFrameCount?: number | null }).rawFrameCount ?? null,
-    versionIdentity,
-  };
-}
 
 export const comparisonRoutes = new Hono()
   .get("/api/laps/:id1/compare/:id2", zValidator("param", CompareParamsSchema), async (c) => {
@@ -91,7 +48,7 @@ export const comparisonRoutes = new Hono()
       c.header("X-RaceIQ-Cache", "HIT");
       return c.body(cached);
     }
-    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
+    const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
@@ -117,16 +74,10 @@ export const comparisonRoutes = new Hono()
       "timing.distance-traveled",
       "timing.current-lap",
     ] as const;
-    const sourceA = comparisonReplaySource({ ...lapA, gameId: lapA.gameId as GameId });
-    const sourceB = comparisonReplaySource({ ...lapB, gameId: lapB.gameId as GameId });
-    const [rawCaptureA, rawCaptureB] = await Promise.all([
-      sourceA.gameId === "iracing" && sourceA.rawFile ? loadRawCaptureIdentity(sourceA.rawFile) : undefined,
-      sourceB.gameId === "iracing" && sourceB.rawFile ? loadRawCaptureIdentity(sourceB.rawFile) : undefined,
+    const [replayA, replayB] = await Promise.all([
+      queryLapTelemetryBySemanticId(id1, semanticIds),
+      queryLapTelemetryBySemanticId(id2, semanticIds),
     ]);
-    const [replayA, replayB] = [
-      resolveTelemetryReplay(id1, sourceA, lapA.telemetry, semanticIds, rawCaptureA),
-      resolveTelemetryReplay(id2, sourceB, lapB.telemetry, semanticIds, rawCaptureB),
-    ];
     if (!replayA || !replayB || replayA.envelopes.length === 0 || replayB.envelopes.length === 0) {
       return c.json({ error: "One or both laps have no semantic telemetry data" }, 400);
     }
@@ -198,7 +149,7 @@ export const comparisonRoutes = new Hono()
     const { step, start, end } = c.req.valid("query");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
+    const [lapA, lapB] = await Promise.all([getLapById(id1), getLapById(id2)]);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
@@ -276,8 +227,9 @@ export const comparisonRoutes = new Hono()
       if (cacheOnly) return c.json({ analysis: null, cached: false });
     }
 
-    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
+    const lapA = await getLapById(id1);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
@@ -305,9 +257,9 @@ export const comparisonRoutes = new Hono()
         group: s.group,
         direction: s.direction,
       })) ?? null;
-
-    const prompt = buildInputsComparePrompt(
-      {
+      const prompt = buildInputsComparePrompt(
+        {
+        id: lapA.id ?? undefined,
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
         isValid: lapA.isValid,
@@ -315,7 +267,8 @@ export const comparisonRoutes = new Hono()
         trackOrdinal: lapA.trackOrdinal ?? undefined,
         gameId: lapA.gameId as GameId | undefined,
       },
-      {
+        {
+        id: lapB.id ?? undefined,
         lapNumber: lapB.lapNumber,
         lapTime: lapB.lapTime,
         isValid: lapB.isValid,
@@ -335,7 +288,18 @@ export const comparisonRoutes = new Hono()
     if (!settings.aiProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
     }
-    await configureAiProviderEnvironment(settings.aiProvider, settings.localEndpoint || "http://localhost:1234/v1");
+    if (settings.aiProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+      process.env.OPENAI_API_KEY = key;
+    } else if (settings.aiProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    } else {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+    }
     const inputsRunKey = inputsAnalysisRunKey(id1, id2);
     if (!beginAnalysisRun(inputsRunKey)) {
       return c.json({ error: "Inputs comparison already in progress" }, 409);
@@ -343,38 +307,20 @@ export const comparisonRoutes = new Hono()
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: {
-          schema: InputsCompareSchema,
-          // LM Studio only accepts `response_format: json_schema` (it rejects
-          // json_object), and for reasoning models such as qwen3.5 it emits the
-          // schema-constrained JSON into `reasoning_content` while leaving
-          // `content` empty — so no object is ever parsed and this route throws.
-          // Prompt injection keeps the answer on the plain-text channel, which
-          // those models fill normally. Hosted providers parse native structured
-          // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "openai-compatible" ? { jsonPromptInjection: true } : {}),
-        },
-        // Every other AI route already caps output and disables reasoning on
-        // local models (analyse, lap chat, compare chat). This one did not, so
-        // a thinking model such as qwen3.5 could reason unboundedly and push the
-        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
-        // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        providerOptions: {
-          openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
-        },
-      });
+      const result = await compareEngineerAgent.generate(
+        prompt,
+        buildCompareEngineerExecutionOptions({
+          provider: settings.aiProvider,
+          model: settings.aiModel || "gemini-flash-latest",
+          thinkingBudget: settings.aiThinkingBudget ?? undefined,
+        }),
+      );
       const durationMs = Math.round(performance.now() - start);
 
       const object = (result as any).object;
       if (!object) {
         throw new Error(
-          settings.aiProvider === "openai-compatible"
+          settings.aiProvider === "local"
             ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
             : "Compare engineer returned no structured object",
         );
@@ -451,8 +397,9 @@ export const comparisonRoutes = new Hono()
     const { messages } = c.req.valid("json");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-    const [lapA, lapB] = await loadComparisonLaps(id1, id2);
+    const lapA = await getLapById(id1);
     if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+    const lapB = await getLapById(id2);
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
@@ -501,12 +448,25 @@ export const comparisonRoutes = new Hono()
     if (!chatProvider) {
       return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
 
     const chatModelLabel = settings.chatModel
       || (chatProvider === "openai"
         ? "gpt-4o-mini"
-        : chatProvider === "openai-compatible"
+        : chatProvider === "local"
           ? "local-model"
           : "gemini-flash-latest");
 
