@@ -348,6 +348,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
     messages: [{ role: "user", content: options.prompt }],
     temperature: options.temperature ?? 0.3,
   };
+  if (endpoint !== "https://api.openai.com/v1") body.reasoning_effort = "none";
   if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
   if (options.schema) {
     body.response_format = {

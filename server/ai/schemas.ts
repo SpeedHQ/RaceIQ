@@ -35,6 +35,14 @@ const TechniqueTip = z.object({
   detail: z.string(),
 });
 
+const SetupItem = z.object({
+  component: z.string(),
+  symptom: z.string(),
+  fix: z.string(),
+  current: z.string(),
+  target: z.string(),
+  direction: z.enum(["increase", "decrease", "adjust"]),
+});
 
 export const AnalystOutputSchema = z.object({
   verdict: z.string(),
@@ -42,23 +50,14 @@ export const AnalystOutputSchema = z.object({
   handling: z.array(MetricItem),
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
-  setup: z.array(z.object({
-    component: z.string(),
-    symptom: z.string(),
-    fix: z.string(),
-    current: z.string(),
-    target: z.string(),
-    direction: z.enum(["increase", "decrease", "adjust"]),
-  })).optional(),
+  setup: z.array(SetupItem),
 });
 
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
 
 /**
  * JSON Schema form of `AnalystOutputSchema`, for OpenAI-spec Structured
- * Outputs (`response_format: { type: "json_schema", ... }`). Grammar-
- * constrained decoding guarantees valid, complete JSON — critical for
- * local models (LM Studio) that otherwise truncate or emit bad chars.
+ * Outputs. Mastra uses this shared contract for native or injected schemas.
  */
 export function getAnalystJsonSchema(): Record<string, unknown> {
   return z.toJSONSchema(AnalystOutputSchema) as Record<string, unknown>;
@@ -81,16 +80,32 @@ export function renderAnalystSchemaForPrompt(): string {
   ],
   "technique": [
     { "tip": "short imperative title", "detail": "explanation referencing specific data" }
+  ],
+  "setup": [
+    { "component": "setup component", "symptom": "measured symptom", "fix": "specific actionable fix", "current": "current value", "target": "target value", "direction": "increase|decrease|adjust" }
   ]
 }`;
+}
+
+function normalizeAnalystInput(raw: unknown): unknown {
+  if (
+    raw &&
+    typeof raw === "object" &&
+    !Array.isArray(raw) &&
+    !Object.prototype.hasOwnProperty.call(raw, "setup")
+  ) {
+    return { ...raw, setup: [] };
+  }
+  return raw;
 }
 
 /**
  * Parse a raw model response (string or object) into the analyst schema.
  * Strips common model wrappers (markdown fences, leading prose) before parsing.
+ * Legacy cached objects omitting setup are normalized to setup: [].
  */
 export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutputSchema.safeParse> {
-  if (typeof raw !== "string") return AnalystOutputSchema.safeParse(raw);
+  if (typeof raw !== "string") return AnalystOutputSchema.safeParse(normalizeAnalystInput(raw));
 
   const trimmed = raw.trim();
   const fenceStripped = trimmed
@@ -104,11 +119,12 @@ export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutpu
       : fenceStripped;
 
   try {
-    return AnalystOutputSchema.safeParse(JSON.parse(jsonSlice));
+    return AnalystOutputSchema.safeParse(normalizeAnalystInput(JSON.parse(jsonSlice)));
   } catch (_e) {
     return AnalystOutputSchema.safeParse(raw);
   }
 }
+
 
 // ─── Auto-tune pipeline ─────────────────────────────────────────────────────
 //
