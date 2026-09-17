@@ -1,3 +1,4 @@
+import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-values";
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
@@ -8,9 +9,9 @@ import type { GameId } from "../../../../shared/games/ids";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { normalizeSuspensionTravel } from "../../lib/suspension";
-import { tireState } from "../../lib/vehicle-dynamics";
+import { tireStateFromUtilization } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
-import { steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
+import { resolveTrailLateralUtilization, steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
 import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
@@ -119,18 +120,13 @@ export function CarScene({
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, 0);
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
-  const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value"
-    ? analysis.tireTemperature.binding
-    : undefined;
+  const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value" ? analysis.tireTemperature.binding : undefined;
   const temperatureSemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
-  const temperatureLabel = temperatureSemanticId === "tire.temperature.surface.representative"
-    ? "Surface"
-    : temperatureSemanticId === "tire.temperature.core"
-      ? "Core"
-      : "Carcass";
-  const dualTemperature = temperatureSemanticId === "tire.temperature.surface.representative"
-    && Array.isArray(frame.values["tire.temperature.surface.representative"])
-    && Array.isArray(frame.values["tire.temperature.core"]);
+  const temperatureLabel = temperatureSemanticId === "tire.temperature.surface.representative" ? "Surface" : temperatureSemanticId === "tire.temperature.core" ? "Core" : "Carcass";
+  const dualTemperature =
+    temperatureSemanticId === "tire.temperature.surface.representative" &&
+    Array.isArray(frame.values["tire.temperature.surface.representative"]) &&
+    Array.isArray(frame.values["tire.temperature.core"]);
   const brakeTemperatures = frame.values["brakes.brake-temp"];
   const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
 
@@ -228,13 +224,13 @@ export function CarScene({
   const measuredRotation = Array.isArray(rotationValue) ? rotationValue : undefined;
   const wheelRotationAvailable = resolveAnalysisTelemetry(getGame(gameId)).wheelRotation.source !== "unavailable";
 
-  // Zero out wheel rotation during lockup — locked wheel = no spin
+  const tractionStates = resolveWheelStates(frame, analysis.traction);
   const ws = {
-    fl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
-    fr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
-    rl: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
-    rr: { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
-  } as Record<"fl" | "fr" | "rl" | "rr", { state: "nominal" | "lockup"; slipRatio: number }>;
+    fl: tractionStates[0] ?? { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 0) },
+    fr: tractionStates[1] ?? { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 1) },
+    rl: tractionStates[2] ?? { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 2) },
+    rr: tractionStates[3] ?? { state: "nominal", slipRatio: wheel(frame, "tires.tire-slip-ratio", 3) },
+  };
 
   // Preserve measured zeroes (including lockups). iRacing does not expose
   // per-wheel speed, so derive visual rolling from vehicle speed and tire radius.
@@ -260,7 +256,7 @@ export function CarScene({
       camber: cambFL,
       susp: suspFL,
       drop: dropFL,
-      traction: tireState(ws.fl.state, ws.fl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 0)).color,
+      traction: tireStateFromUtilization(ws.fl.state, ws.fl.slipRatio, resolveTrailLateralUtilization(frame, 0)).color,
       rimColor: colorFL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 0),
       pressure: pressFL,
@@ -279,7 +275,7 @@ export function CarScene({
       camber: cambFR,
       susp: suspFR,
       drop: dropFR,
-      traction: tireState(ws.fr.state, ws.fr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 1)).color,
+      traction: tireStateFromUtilization(ws.fr.state, ws.fr.slipRatio, resolveTrailLateralUtilization(frame, 1)).color,
       rimColor: colorFR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 1),
       pressure: pressFR,
@@ -298,7 +294,7 @@ export function CarScene({
       camber: cambRL,
       susp: suspRL,
       drop: dropRL,
-      traction: tireState(ws.rl.state, ws.rl.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 2)).color,
+      traction: tireStateFromUtilization(ws.rl.state, ws.rl.slipRatio, resolveTrailLateralUtilization(frame, 2)).color,
       rimColor: colorRL,
       brakeTemp: wheel(frame, "brakes.brake-temp", 2),
       pressure: pressRL,
@@ -317,7 +313,7 @@ export function CarScene({
       camber: cambRR,
       susp: suspRR,
       drop: dropRR,
-      traction: tireState(ws.rr.state, ws.rr.slipRatio, wheel(frame, "tires.normalized-tire-slip-angle", 3)).color,
+      traction: tireStateFromUtilization(ws.rr.state, ws.rr.slipRatio, resolveTrailLateralUtilization(frame, 3)).color,
       rimColor: colorRR,
       brakeTemp: wheel(frame, "brakes.brake-temp", 3),
       pressure: pressRR,
@@ -392,9 +388,11 @@ export function CarScene({
             temperatureLabel={temperatureLabel}
             displayCoreTemp={toggles.wheelInfo && dualTemperature ? fmtTemp(wheel(frame, "tire.temperature.core", i)) : undefined}
             rimColorForDisplay={w.rimColor}
-            displayBrakeTemp={toggles.wheelInfo && Array.isArray(brakeTemperatures) && typeof brakeTemperatures[i] === "number" && Number.isFinite(brakeTemperatures[i])
-              ? fmtTemp(brakeTemperatures[i] as number)
-              : null}
+            displayBrakeTemp={
+              toggles.wheelInfo && Array.isArray(brakeTemperatures) && typeof brakeTemperatures[i] === "number" && Number.isFinite(brakeTemperatures[i])
+                ? fmtTemp(brakeTemperatures[i] as number)
+                : null
+            }
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}
             pressureOptimal={pressureOptimal}

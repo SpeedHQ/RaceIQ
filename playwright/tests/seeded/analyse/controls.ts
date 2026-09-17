@@ -19,6 +19,29 @@ export async function assertTuneSelector(page: Page): Promise<void> {
   if (await tuneSelector.count()) await expect(tuneSelector).toBeVisible();
 }
 
+export async function exerciseDynamicsTooltip(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
+  const frameIndex = semanticFrames.findIndex((frame) =>
+    ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"].every((id) => {
+      const value = frame.values[id];
+      return typeof value === "number" && Number.isFinite(value);
+    }),
+  );
+  if (frameIndex < 0) throw new Error("Seeded Analyse fixture lacks frame with available balance inputs");
+  await setAnalyseFrame(page, frameIndex);
+
+  const balanceTrigger = page.getByRole("button", { name: /Balance tooltip/ });
+  await expect(balanceTrigger).toBeVisible();
+  const balanceRow = balanceTrigger.locator("..");
+  const balanceText = await balanceRow.innerText();
+  const decision = balanceText.match(/(Understeer|Neutral|Oversteer)\(([+-]?\d+\.\d{2})\)/);
+  if (!decision) throw new Error(`Balance row lacks decision value: ${balanceText}`);
+
+  await balanceTrigger.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText(`Decision — ${decision[1]} (${decision[2]})`);
+}
+
 export async function exercisePlaybackControls(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
   const slider = page.getByRole("slider", { name: "Lap timeline" });
   await expect(slider).toHaveAttribute("aria-valuenow", "0");

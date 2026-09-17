@@ -7,8 +7,8 @@
 - Run RaceIQ on Linux with a public non-root Docker image, persistent named-volume storage, and browser/UDP access
 
 ### Fixes
+- Fix balance decision tooltip rendering and synchronize 3D tire trails with wheel traction states, including correct physical and normalized slip handling for grip, slip, wheelspin, lockup, and idle
 - Fix Analyse page chat and lap analysis errors across configured AI providers
-
 - Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
