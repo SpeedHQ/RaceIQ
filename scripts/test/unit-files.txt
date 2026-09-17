@@ -84,3 +84,5 @@ test/tooling/optimize-gt3-model.test.ts
 test/tooling/dev-model-routes.test.ts
 test/tooling/optimize-f1-model.test.ts
 test/tooling/pipeline-bench-support.test.ts
+test/runtime/diagnostic-log-store.test.ts
+test/ai/diagnostic-logging.test.ts
