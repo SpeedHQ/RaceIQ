@@ -66,12 +66,35 @@ Lower priority means slower turnaround on new features for that title — it doe
 
 ## Getting Started
 
-### 1. Download and install
+### 1. Install (Windows recommended)
 
-Grab the latest installer from the [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Run RaceIQ and follow the setup wizard. 
+Grab latest installer from [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Windows installation is recommended because it supports all RaceIQ games and live shared-memory telemetry. Run RaceIQ and follow setup wizard.
 * You can reopen the dashboard at any time by double-clicking the RaceIQ icon in the system tray.
 
+<details>
+<summary>Docker (Linux)</summary>
+
+Run RaceIQ immediately as an unprivileged container:
+
+```bash
+docker run --detach --name raceiq --restart unless-stopped --publish 3117:3117/tcp --publish 5301:5301/udp --volume raceiq-data:/data ghcr.io/speedhq/raceiq:latest
+```
+
+Image process already runs as `bun`. Do not add `--privileged`, `--user root`, or `sudo`. Named volume persists `/data` across upgrades. Open `http://localhost:3117`. For Forza/F1, send telemetry to Docker host address on UDP 5301, not container loopback.
+Docker image supports Forza Motorsport and F1 UDP telemetry only. ACC, AC Evo, and iRacing live shared-memory capture require Windows. Use Windows installation for those games, imports, analysis, catalogue, and full RaceIQ support.
+
+Update while retaining named volume:
+
+```bash
+docker pull ghcr.io/speedhq/raceiq:latest
+docker rm --force raceiq
+docker run --detach --name raceiq --restart unless-stopped --publish 3117:3117/tcp --publish 5301:5301/udp --volume raceiq-data:/data ghcr.io/speedhq/raceiq:latest
+```
+
+</details>
+
 ### 2. Run and Connect
+
 
 For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, and iRacing are detected automatically from their native Windows shared-memory telemetry. Start driving and telemetry will appear automatically.
 
