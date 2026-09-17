@@ -95,7 +95,7 @@ async function main() {
     'process.env.NODE_ENV="production"',
   ];
   if (process.env.RACEIQ_DOCKER_BUILD === "1") {
-    compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_AUTO_UPDATE="1"');
+    compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_IN_APP_UPDATE="1"');
   }
   if (process.platform === "win32") {
     const iconPath = join(root, "assets", "raceiq.ico");

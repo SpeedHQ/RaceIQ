@@ -12,7 +12,7 @@ export { isNewer };
 const VERSION = pkg.version;
 const GITHUB_REPO = "SpeedHQ/RaceIQ";
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
-const AUTO_UPDATE_DISABLED = process.env.RACEIQ_DISABLE_AUTO_UPDATE === "1";
+const AUTO_UPDATE_DISABLED = process.env.RACEIQ_DISABLE_IN_APP_UPDATE === "1";
 
 // Dev/test overrides:
 // LOCAL_INSTALLER=path/to/RaceIQ-Setup.exe — skip download, use local installer
