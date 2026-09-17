@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { getWheelOffsets, resolveTrailSlipAngle, trailColorFromState } from "../../lib/wireframe-utils";
+import { getWheelOffsets, resolveTrailLateralUtilization, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";
 
 // Trail length in meters of track behind each wheel. Distance-based so the
@@ -44,7 +44,10 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
     while (startIdx > 0 && cursorIdx - startIdx < MAX_TRAIL_SAMPLES) {
       const a = telemetry[startIdx];
       const b = telemetry[startIdx - 1];
-      lastSegLen = Math.hypot((semanticNumber(a, "motion.position-x") ?? 0) - (semanticNumber(b, "motion.position-x") ?? 0), (semanticNumber(a, "motion.position-z") ?? 0) - (semanticNumber(b, "motion.position-z") ?? 0));
+      lastSegLen = Math.hypot(
+        (semanticNumber(a, "motion.position-x") ?? 0) - (semanticNumber(b, "motion.position-x") ?? 0),
+        (semanticNumber(a, "motion.position-z") ?? 0) - (semanticNumber(b, "motion.position-z") ?? 0),
+      );
       acc += lastSegLen;
       startIdx--;
       if (acc >= trailLengthM) break;
@@ -58,8 +61,8 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
     const overshoot = acc - trailLengthM;
     const tailFrac = overshoot > 0 && lastSegLen > 1e-6 ? overshoot / lastSegLen : 0;
 
-    const cx = (semanticNumber(cur, "motion.position-x") ?? 0),
-      cz = (semanticNumber(cur, "motion.position-z") ?? 0);
+    const cx = semanticNumber(cur, "motion.position-x") ?? 0,
+      cz = semanticNumber(cur, "motion.position-z") ?? 0;
     const s = Math.sin(semanticNumber(cur, "motion.yaw") ?? 0),
       c = Math.cos(semanticNumber(cur, "motion.yaw") ?? 0);
 
@@ -70,8 +73,8 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
         const p = telemetry[i];
         // For the oldest sample, lerp toward the next sample by tailFrac so
         // the rear endpoint lands at exactly trailLengthM (kills tail jitter).
-        let px = (semanticNumber(p, "motion.position-x") ?? 0);
-        let pz = (semanticNumber(p, "motion.position-z") ?? 0);
+        let px = semanticNumber(p, "motion.position-x") ?? 0;
+        let pz = semanticNumber(p, "motion.position-z") ?? 0;
         if (i === startIdx && tailFrac > 0) {
           const next = telemetry[startIdx + 1];
           px += ((semanticNumber(next, "motion.position-x") ?? 0) - px) * tailFrac;
@@ -85,7 +88,7 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
         const slipValue = p.values["tires.tire-slip-ratio"];
         const state = resolveWheelStates(p, analysis.traction)[w];
         const slipRatio = state?.slipRatio ?? (Array.isArray(slipValue) && typeof slipValue[w] === "number" ? slipValue[w] : 0);
-        cols.push(trailColorFromState(state?.state ?? "nominal", slipRatio, resolveTrailSlipAngle(p, w)));
+        cols.push(trailColorFromState(state?.state ?? "nominal", slipRatio, resolveTrailLateralUtilization(p, w)));
       }
       return { pts, cols };
     });

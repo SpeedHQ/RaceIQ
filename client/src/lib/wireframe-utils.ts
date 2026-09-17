@@ -1,7 +1,8 @@
+import { SLIP_ANGLE_PEAK_RAD } from "../../../shared/racing/analysis/laps/physics/vehicle";
 import * as THREE from "three";
 import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";
-import { tireState } from "./vehicle-dynamics";
+import { tireStateFromUtilization } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
 
@@ -97,18 +98,22 @@ export const THREE_COLORS = {
   },
 } as const;
 
-/** Resolve per-wheel slip angle, preferring physical radians over normalized fallback. */
-export function resolveTrailSlipAngle(frame: { values: Record<string, unknown> }, wheelIndex: number): number {
-  for (const id of ["tires.tire-slip-angle", "tires.normalized-tire-slip-angle"]) {
-    const value = frame.values[id];
-    if (Array.isArray(value) && typeof value[wheelIndex] === "number" && Number.isFinite(value[wheelIndex])) return value[wheelIndex];
+/** Resolve lateral slip as fraction of peak grip without conflating normalized signals with radians. */
+export function resolveTrailLateralUtilization(frame: { values: Record<string, unknown> }, wheelIndex: number): number {
+  const physicalAngles = frame.values["tires.tire-slip-angle"];
+  const physicalAngle = Array.isArray(physicalAngles) ? physicalAngles[wheelIndex] : undefined;
+  if (typeof physicalAngle === "number" && Number.isFinite(physicalAngle)) {
+    return Math.abs(physicalAngle) / SLIP_ANGLE_PEAK_RAD;
   }
-  return 0;
+
+  const normalizedAngles = frame.values["tires.normalized-tire-slip-angle"];
+  const normalizedAngle = Array.isArray(normalizedAngles) ? normalizedAngles[wheelIndex] : undefined;
+  return typeof normalizedAngle === "number" && Number.isFinite(normalizedAngle) ? Math.abs(normalizedAngle) : 0;
 }
 
-/** Returns a cached THREE.Color driven by tireState() — single source of truth. */
-export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
-  return threeColor(tireState(wheelStateLabel, slipRatio, slipAngleRad).color);
+/** Returns a cached THREE.Color driven by tireStateFromUtilization() — single source of truth. */
+export function trailColorFromState(wheelStateLabel: string, slipRatio: number, lateralUtilization: number): THREE.Color {
+  return threeColor(tireStateFromUtilization(wheelStateLabel, slipRatio, lateralUtilization).color);
 }
 
 export function suspensionColor(suspTravel: number, thresholds: number[]): string {
