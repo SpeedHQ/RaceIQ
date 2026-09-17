@@ -70,7 +70,7 @@ jobs:
         run: bun install
       - name: Verify database upgrade startup
         env:
-          RACEIQ_RELEASE_TESTS: "1"
+          RACEIQ_DB_UPGRADE_TESTS: "1"
         run: bun test ./test/db/database-path.test.ts --timeout 120000
 
       - name: Generate release note artifact

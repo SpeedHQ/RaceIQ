@@ -74,6 +74,10 @@ jobs:
 
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
+      - name: Verify database upgrade startup
+        env:
+          RACEIQ_DB_UPGRADE_TESTS: "1"
+        run: bun test ./test/db/database-path.test.ts --timeout 120000
 
       - name: Check generated telemetry catalog
         run: bun scripts/ci/check-telemetry-catalog.ts

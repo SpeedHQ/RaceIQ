@@ -75,6 +75,9 @@ async function createFixture(databasePath: string, profileName: string, throughV
         sql: "INSERT INTO profiles (name) VALUES (?)",
         args: [${JSON.stringify(profileName)}],
       });
+      await client.execute(
+        "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
+      );
     } finally {
       client.close();
     }
@@ -99,6 +102,15 @@ function profileNames(databasePath: string): string[] {
   try {
     const rows = database.query("SELECT name FROM profiles ORDER BY id").all() as Array<{ name: string }>;
     return rows.map(({ name }) => name);
+  } finally {
+    database.close();
+  }
+}
+function sessionOwnerships(databasePath: string): string[] {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    const rows = database.query("SELECT ownership FROM sessions ORDER BY id").all() as Array<{ ownership: string }>;
+    return rows.map(({ ownership }) => ownership);
   } finally {
     database.close();
   }
@@ -173,7 +185,7 @@ describe("production database path", () => {
     expectArtifactsAbsent(legacyPath);
     expectArtifactsAbsent(testPath);
   });
-  if (process.env.RACEIQ_RELEASE_TESTS === "1") {
+  if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
     test("upgrades an existing v57 database during startup", async () => {
       const dataDir = makeDataDir();
       const appPath = join(dataDir, "app.db");
@@ -185,6 +197,7 @@ describe("production database path", () => {
       expect(result.code, result.output).toBe(0);
       expect(result.output).toContain("[DB]   v58: persist session ownership");
       expect(profileNames(appPath)).toEqual([sentinel]);
+      expect(sessionOwnerships(appPath)).toEqual(["mine"]);
     });
   }
 
