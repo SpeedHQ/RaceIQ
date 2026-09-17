@@ -15,10 +15,11 @@ export async function bootstrap(client: Client): Promise<void> {
 export async function runMigrations(
   client: Client,
   throughVersion = Number.POSITIVE_INFINITY,
+  migrationSet = migrations,
 ): Promise<number> {
   const appliedRows = await client.execute("SELECT version FROM schema_migrations");
   const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
-  const pending = migrations
+  const pending = migrationSet
     .filter((m) => !applied.has(m.version) && m.version <= throughVersion)
     .sort((a, b) => a.version - b.version);
 
