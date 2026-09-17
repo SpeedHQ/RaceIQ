@@ -4,6 +4,7 @@
 
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
+- Run RaceIQ on Linux with a public non-root Docker image, persistent named-volume storage, and browser/UDP access
 
 ### Fixes
 - Fix Analyse page chat and lap analysis errors across configured AI providers

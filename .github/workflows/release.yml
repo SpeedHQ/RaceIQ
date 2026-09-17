@@ -209,3 +209,13 @@ jobs:
             Automated release finalization for v${{ steps.release-version.outputs.version }}.
 
             Includes changelog rollover, package version update, and regenerated telemetry catalog.
+  publish-image:
+    needs: finalize
+    if: github.event_name == 'release' && needs.finalize.result == 'success'
+    uses: ./.github/workflows/publish-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+    secrets: inherit

@@ -36,7 +36,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   );
 }
 
-export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; onClose: () => void }) {
+export function UpdateModal({ version, currentVersion, newReleases, fullReleaseNotes, currentReleaseNotes, currentReleaseDate, updatesDisabled, onClose }: { version: string; currentVersion: string; newReleases: { version: string; notes: string; date: string }[]; fullReleaseNotes: string | null; currentReleaseNotes: string | null; currentReleaseDate: string | null; updatesDisabled?: boolean; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
   const [showAllReleases, setShowAllReleases] = useState(false);
@@ -143,9 +143,13 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                 })()
               )}
               <div className="flex justify-end gap-3">
-                <Button variant="app-primary" size="app-md" onClick={handleInstall}>
-                  {m.label_install_update()}
-                </Button>
+                {updatesDisabled ? (
+                  <p className="mr-auto self-center text-sm text-app-text-muted">{m.updates_docker_managed()}</p>
+                ) : (
+                  <Button variant="app-primary" size="app-md" onClick={handleInstall}>
+                    {m.label_install_update()}
+                  </Button>
+                )}
                 <Button variant="app-outline" size="app-md" onClick={onClose}>
                   {m.update_later()}
                 </Button>
