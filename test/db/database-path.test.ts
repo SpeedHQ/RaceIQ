@@ -61,7 +61,7 @@ async function runDbStartup(dataDir: string): Promise<{ code: number; output: st
   return { code, output: `${stdout}\n${stderr}` };
 }
 
-async function createFixture(databasePath: string, profileName: string): Promise<void> {
+async function createFixture(databasePath: string, profileName: string, throughVersion = Number.POSITIVE_INFINITY): Promise<void> {
   // Separate process guarantees native libSQL handles are gone before rename tests.
   const source = `
     import { createClient } from "@libsql/client/sqlite3";
@@ -70,7 +70,7 @@ async function createFixture(databasePath: string, profileName: string): Promise
     const client = createClient({ url: ${JSON.stringify(`file:${databasePath}`)} });
     try {
       await bootstrap(client);
-      await runMigrations(client);
+      await runMigrations(client, ${throughVersion});
       await client.execute({
         sql: "INSERT INTO profiles (name) VALUES (?)",
         args: [${JSON.stringify(profileName)}],
@@ -173,6 +173,19 @@ describe("production database path", () => {
     expectArtifactsAbsent(legacyPath);
     expectArtifactsAbsent(testPath);
   });
+  test("upgrades an existing v57 database during startup", async () => {
+    const dataDir = makeDataDir();
+    const appPath = join(dataDir, "app.db");
+    const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
+    await createFixture(appPath, sentinel, 57);
+
+    const result = await runDbStartup(dataDir);
+
+    expect(result.code, result.output).toBe(0);
+    expect(result.output).toContain("[DB]   v58: persist session ownership");
+    expect(profileNames(appPath)).toEqual([sentinel]);
+  });
+
 
   test("dual-file startup keeps app.db and continues", async () => {
     const dataDir = makeDataDir();
