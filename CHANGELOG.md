@@ -1,24 +1,28 @@
 ## Unreleased
 
 ### Features
-- Review recorded ACC and Assetto Corsa Evo track/car sessions from bounded metadata summaries, surfacing only top laps before opening detailed analysis in Analyse
 
-- Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
-- Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
-- Run RaceIQ on Linux with a public non-root Docker image, persistent named-volume storage, and browser/UDP access
+- Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
+- Live dashboards and Analyse pages show separate tire surface and core temperatures when simulator data provides both
+- Live dashboards preserve each simulator's tire-temperature detail, including inner, middle, and outer surface temperatures plus core temperature
+- RaceIQ runs on Linux as a non-root Docker image
 
 ### Fixes
-- Fix balance decision tooltip rendering and synchronize 3D tire trails with wheel traction states, including correct physical and normalized slip handling for grip, slip, wheelspin, lockup, and idle
-- Fix Analyse page chat and lap analysis errors across configured AI providers
-- Fill live dashboard tire diagrams from available temperature data, using compact values, hiding unavailable wear, and separating radial surface slices from core center when both are present
-- Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
-- Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
-- Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
-- Position Analyse turns and track maps correctly with or without world-position samples, and align peak tire and brake charts by distance while preserving per-wheel detail
-- Keep Compare and Analyse cursor tooltips synchronized
-- Show racing-line consistency scores only when at least two laps are available
-- Hide iRacing driver-profile navigation when unsupported.
-- Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
+
+- Balance-decision tooltips render correctly
+- 3D tire trails follow wheel traction states across grip, slip, wheelspin, lockup, and idle
+- Analyse AI chat and lap analysis work across configured AI providers
+- Live dashboard tire diagrams use available temperatures, compact values, and separate radial surface slices and core temperature
+- Live dashboard tire diagrams hide unavailable wear
+- ACC pit strategy uses fuel limits because ACC does not provide tire wear
+- ACC exports tire temperature only as its core channel instead of labeling reserved shared-memory fields as surface readings
+- Recorded telemetry shows accurate surface details and temperature-freshness labels without unavailable readings
+- Analyse positions turns and track maps correctly with or without world-position samples
+- Analyse aligns peak tire and brake charts by distance while preserving per-wheel detail
+- Compare and Analyse keep cursor tooltips synchronized
+- Racing-line consistency scores appear only when at least two laps are available
+- iRacing driver-profile navigation stays hidden when unsupported
+- Lap analysis works with older F1 recordings that lack track or air temperatures
 
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
