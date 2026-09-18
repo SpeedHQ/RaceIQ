@@ -87,7 +87,7 @@ function ThreeDPanelStory() {
         vizMode="3d"
         onVizModeChange={() => {}}
         currentFrame={frame}
-        displayTelemetry={telemetry}
+        semanticFrames={telemetry}
         cursorRef={cursorRef}
         displayTelemetryRef={telemetryRef}
         cursorIdx={0}
