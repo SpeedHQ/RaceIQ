@@ -1,11 +1,7 @@
 ## Unreleased
 
-### Breaking
-- Move Analyse into Sessions and remove its standalone navigation entry.
-
 ### Features
-- Review recorded sessions from bounded metadata summaries and surface only top laps before opening detailed analysis
-- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
+- Review recorded ACC and Assetto Corsa Evo track/car sessions from bounded metadata summaries, surfacing only top laps before opening detailed analysis in Analyse
 
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
@@ -18,15 +14,9 @@
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
-- Keep Analyse route state, chat links, and invalid selections consistent after moving review into Sessions
-- Render Analyse turn labels from centerline segment fractions for correct track-order placement
-- Rename Session Analyse Track tab to Analyse
-- Show per-lap peak tire and brake telemetry as distance-aligned charts while preserving per-wheel detail
-- Keep Analyse track maps visible when aligned telemetry has no direct world-position samples
-- Show synchronized cursor tooltips across Compare and Analyse charts
-- Keep session review telemetry, sectors, tire data, and zooms consistent while switching laps and views
-- Show an error when a selected Analyse session cannot be loaded
-- Withhold racing-line consistency scores until at least two laps are available
+- Position Analyse turns and track maps correctly with or without world-position samples, and align peak tire and brake charts by distance while preserving per-wheel detail
+- Keep Compare and Analyse cursor tooltips synchronized
+- Show racing-line consistency scores only when at least two laps are available
 - Hide iRacing driver-profile navigation when unsupported.
 - Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
 
