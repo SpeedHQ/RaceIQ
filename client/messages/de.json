@@ -1511,5 +1511,22 @@
   "trackdetailroute_not_found": "Strecke nicht gefunden",
   "trackinfo_guide": "Experten-Leitfaden",
   "trackinfo_priority": "Priorität",
-  "trackinfo_trap": "Falle:"
+  "trackinfo_trap": "Falle:",
+  "dev_state_title": "Entwicklerstatus",
+  "dev_state_pause": "Pausieren",
+  "dev_state_resume": "Fortsetzen",
+  "dev_state_server": "Server",
+  "dev_state_store": "TanStack Store",
+  "dev_state_waiting": "Warten...",
+  "race_lap": "Runde",
+  "insight_previous_event": "Vorheriges Ereignis: {label}",
+  "insight_next_event": "Nächstes Ereignis: {label}",
+  "insight_no_issues": "Keine Probleme erkannt",
+  "nodata_iracing_guide_toggle": "iRacing verbinden",
+  "nodata_iracing_step_start": "iRacing-Simulator auf diesem Windows-PC starten.",
+  "nodata_iracing_step_enter": "Auto wählen und in einer Test-, Trainings-, Qualifikations- oder Rennsession fahren.",
+  "nodata_iracing_step_sdk": "RaceIQ verbindet sich direkt mit iRacing-Shared-Memory-SDK; keine UDP-Einrichtung oder separate SDK-Wrapper nötig.",
+  "sessions_export_motec_whole_session_confirm": "Gesamte Session exportieren?",
+  "analyse_lap_option": "Runde {lap} – {time} — {ownership}{invalid}",
+  "analyse_session_group": "Session · {date} {time} · {count} Runden"
 }

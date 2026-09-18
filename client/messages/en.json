@@ -1512,5 +1512,21 @@
   "trackdetailroute_not_found": "Track not found",
   "trackinfo_guide": "Expert guide",
   "trackinfo_priority": "priority",
-  "trackinfo_trap": "Trap:"
+  "trackinfo_trap": "Trap:",
+  "dev_state_title": "Dev State",
+  "dev_state_pause": "Pause",
+  "dev_state_resume": "Resume",
+  "dev_state_server": "Server",
+  "dev_state_store": "TanStack Store",
+  "dev_state_waiting": "Waiting...",
+  "race_lap": "Lap",
+  "insight_previous_event": "Previous {label} event",
+  "insight_next_event": "Next {label} event",
+  "insight_no_issues": "No issues detected",
+  "nodata_iracing_guide_toggle": "How to connect iRacing",
+  "nodata_iracing_step_start": "Start the iRacing simulator on this Windows PC.",
+  "nodata_iracing_step_enter": "Enter the car and begin driving in a test, practice, qualifying, or race session.",
+  "nodata_iracing_step_sdk": "RaceIQ connects directly to iRacing's native shared-memory SDK; no UDP setup or separate SDK wrapper is required.",
+  "analyse_lap_option": "Lap {lap} – {time} — {ownership}{invalid}",
+  "analyse_session_group": "Session · {date} {time} · {count} laps"
 }

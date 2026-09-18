@@ -3,6 +3,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
+import { getLocale } from "@/paraglide/runtime";
 
 export interface IbtImportPreview {
   gameId: "iracing";
@@ -75,11 +76,11 @@ export function IbtImportPreviewModal({ token, preview, importing, ownership, on
           </dd>
           <dt className="text-app-text-muted">Recording</dt>
           <dd className="text-app-text">
-            {formatDuration(preview.durationSeconds)} · {preview.recordCount.toLocaleString()} rows at {preview.tickRate} Hz
+            {formatDuration(preview.durationSeconds)} · {preview.recordCount.toLocaleString(getLocale())} rows at {preview.tickRate} Hz
           </dd>
           <dt className="text-app-text-muted">Driving</dt>
           <dd className="text-app-text">
-            {preview.drivingFrames.toLocaleString()} on-track rows · max {preview.maxSpeedMph.toFixed(1)} mph
+            {preview.drivingFrames.toLocaleString(getLocale())} on-track rows · max {preview.maxSpeedMph.toFixed(1)} mph
           </dd>
           <dt className="text-app-text-muted">Importable laps</dt>
           <dd className="text-app-text font-medium">{preview.candidateLapCount}</dd>

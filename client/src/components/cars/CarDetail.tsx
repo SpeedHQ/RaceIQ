@@ -1,6 +1,7 @@
 import { m } from "@/paraglide/messages";
 import { RatingBar } from "./RatingBar";
 import type { Car, Formatters } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: { car: Car; isMetric: boolean } & Formatters) {
   const s = car.specs;
@@ -88,7 +89,7 @@ export function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: { ca
           </div>
           <div className="mt-1 text-app-caption text-app-text/90">
             {s.division && <span className="mr-2">{s.division}</span>}
-            {s.price > 0 && <span>{s.price.toLocaleString()} CR</span>}
+            {s.price > 0 && <span>{s.price.toLocaleString(getLocale())} CR</span>}
           </div>
         </div>
       </div>
