@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
+import { getLocale } from "@/paraglide/runtime";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
@@ -123,7 +124,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                         <div className="flex items-baseline justify-between mb-1">
                           <span className="text-xs font-medium text-app-text">v{latest.version}</span>
                           {latest.date && (
-                            <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                            <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}</span>
                           )}
                         </div>
                         <ReleaseNotes notes={latest.notes} />
@@ -138,7 +139,7 @@ export function UpdateModal({ version, currentVersion, newReleases, fullReleaseN
                           <div key={r.version}>
                             <div className="flex items-baseline justify-between mb-1">
                               <span className="text-xs font-medium text-app-text">v{r.version}</span>
-                              {r.date && <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>}
+                              {r.date && <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}</span>}
                             </div>
                             <ReleaseNotes notes={r.notes} />
                           </div>

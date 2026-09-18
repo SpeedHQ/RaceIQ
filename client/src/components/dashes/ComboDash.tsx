@@ -5,6 +5,7 @@ import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
 import { RevBar } from "./RevBar";
+import { getLocale } from "@/paraglide/runtime";
 interface ComboDashProps {
   view?: LiveTelemetryView | null;
   sectors: LiveSectorData | null;
@@ -53,7 +54,7 @@ export function ComboDash({ view, sectors, pit, unitSystem, tireHealthThresholds
           <div className="flex-1 h-full">
             <RevBar rpm={rpm} idle={idle} max={max} segments={80} />
           </div>
-          <div className="text-app-text/90 font-mono text-sm tabular-nums whitespace-nowrap">{Math.round(rpm).toLocaleString()} RPM</div>
+          <div className="text-app-text/90 font-mono text-sm tabular-nums whitespace-nowrap">{Math.round(rpm).toLocaleString(getLocale())} RPM</div>
         </div>
 
         <div className="row-span-2 min-h-0">

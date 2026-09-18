@@ -1,6 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getLocale } from "@/paraglide/runtime";
+import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { formatLapTime } from "../../lib/format";
@@ -12,7 +13,7 @@ import { SearchSelect } from "../ui/SearchSelect";
 export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
-    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+    label: m.analyse_lap_option({ lap: lap.lapNumber, time: formatLapTime(lap.lapTime), ownership: lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale }), invalid: !lap.isValid ? " ✕" : "" }),
   };
 }
 import { DropdownMenu } from "../ui/DropdownMenu";
@@ -116,7 +117,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     return filteredLaps.map((lap) => {
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
       const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-      const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+      const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });
   }, [filteredLaps]);
@@ -300,7 +301,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
           <DialogContent size="sm">
             <DialogHeader>
-              <DialogTitle>Choose lap ownership</DialogTitle>
+              <DialogTitle>{m.analyse_choose_ownership()}</DialogTitle>
             </DialogHeader>
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>

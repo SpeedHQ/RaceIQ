@@ -3,6 +3,7 @@ import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
+import { m } from "../../paraglide/messages";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
 
@@ -46,8 +47,8 @@ const PlaybackControls = memo(function PlaybackControls({
         type="button"
         onClick={onTogglePlay}
         className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
-        title={playing ? "Pause (Space)" : "Play (Space)"}
-        aria-label={playing ? "Pause playback" : "Play playback"}
+        title={playing ? m.analyse_pause_title() : m.analyse_play_title()}
+        aria-label={playing ? m.analyse_pause_aria() : m.analyse_play_aria()}
       >
         {playing ? "\u275A\u275A" : "\u25B6"}
       </Button>
@@ -82,7 +83,7 @@ const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData
         key={`${timelineData.timeFracs[index - 1]}-${timelineData.timeFracs[index]}`}
         className="absolute top-0 h-full border-x bg-status-danger/30 border-status-danger/50"
         style={{ left: `${left}%`, width: `${Math.max(0.3, right - left)}%` }}
-        title={`${delta.toFixed(2)}s gap`}
+        title={m.analyse_gap({ delta: delta.toFixed(2) })}
       />
     );
   });
@@ -168,7 +169,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <div
           role="slider"
           tabIndex={0}
-          aria-label="Lap timeline"
+          aria-label={m.analyse_lap_timeline()}
           aria-valuemin={0}
           aria-valuemax={Math.max(0, totalPackets - 1)}
           aria-valuenow={cursorIdx}

@@ -3,7 +3,9 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
+import { getLocale } from "@/paraglide/runtime";
 
+import { m } from "../../paraglide/messages";
 export interface IbtImportPreview {
   gameId: "iracing";
   fileName: string;
@@ -59,45 +61,45 @@ export function IbtImportPreviewModal({ token, preview, importing, ownership, on
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
         <DialogHeader>
-          <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">iRacing IBT import preview</DialogTitle>
+          <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_preview_title()}</DialogTitle>
           <p className="mt-1 text-xs text-app-text-muted truncate" title={preview.fileName}>
             {preview.fileName} · {formatSize(preview.fileSize)}
           </p>
         </DialogHeader>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="text-app-text-muted">Track</dt>
+          <dt className="text-app-text-muted">{m.analyse_track()}</dt>
           <dd className="text-app-text">{preview.trackName}</dd>
-          <dt className="text-app-text-muted">Car</dt>
+          <dt className="text-app-text-muted">{m.label_car()}</dt>
           <dd className="text-app-text">
             {preview.carName}
             {preview.carClassName !== "Unknown class" ? ` · ${preview.carClassName}` : ""}
           </dd>
-          <dt className="text-app-text-muted">Recording</dt>
+          <dt className="text-app-text-muted">{m.analyse_recording()}</dt>
           <dd className="text-app-text">
-            {formatDuration(preview.durationSeconds)} · {preview.recordCount.toLocaleString()} rows at {preview.tickRate} Hz
+            {formatDuration(preview.durationSeconds)} · {preview.recordCount.toLocaleString(getLocale())} rows at {preview.tickRate} Hz
           </dd>
-          <dt className="text-app-text-muted">Driving</dt>
+          <dt className="text-app-text-muted">{m.analyse_driving()}</dt>
           <dd className="text-app-text">
-            {preview.drivingFrames.toLocaleString()} on-track rows · max {preview.maxSpeedMph.toFixed(1)} mph
+            {preview.drivingFrames.toLocaleString(getLocale())} on-track rows · max {preview.maxSpeedMph.toFixed(1)} mph
           </dd>
-          <dt className="text-app-text-muted">Importable laps</dt>
+          <dt className="text-app-text-muted">{m.analyse_importable_laps()}</dt>
           <dd className="text-app-text font-medium">{preview.candidateLapCount}</dd>
         </dl>
 
         {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && <IbtTelemetryWarning missingVariables={preview.missingRaceIQVariables} />}
 
         {!preview.canImport && (
-          <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>
+          <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? m.analyse_import_cannot()}</p>
         )}
 
-        <p className="text-xs text-app-text-muted">Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.</p>
+        <p className="text-xs text-app-text-muted">{m.analyse_ibt_note()}</p>
 
         <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importing} />
 
         <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <Button variant="app-ghost" size="app-sm" disabled={importing} onClick={onClose}>
-            {preview.canImport ? "Cancel" : "Close"}
+            {preview.canImport ? m.analyse_import_cancel() : m.analyse_import_close()}
           </Button>
           {preview.canImport && token && (
             <Button variant="app-primary" size="app-sm" disabled={importing} onClick={onImport}>

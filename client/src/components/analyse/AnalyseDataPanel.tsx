@@ -50,7 +50,7 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
         variant="plain"
         size="content"
         type="button"
-        aria-label="Unavailable features in Analyse"
+        aria-label={m.analyse_unavailable_features_aria()}
         onClick={() => setOpen(true)}
         className="text-app-text-dim outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
       >
@@ -59,7 +59,7 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent size="lg" layout="scrollable" overlayClassName="bg-app-bg/60">
           <DialogHeader>
-            <DialogTitle className="text-app-heading font-semibold">Unavailable in Analyse</DialogTitle>
+            <DialogTitle className="text-app-heading font-semibold">{m.analyse_unavailable_title()}</DialogTitle>
           </DialogHeader>
           <ul className="space-y-3 text-app-detail text-app-text-secondary">
             {features.map(({ feature, label, missingSemanticIds }) => (
@@ -83,7 +83,7 @@ function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; game
         variant="plain"
         size="content"
         type="button"
-        aria-label="MoTeC import info"
+        aria-label={m.analyse_motec_info_aria()}
         onClick={() => setOpen(true)}
         className="text-status-warning outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
       >
