@@ -1,6 +1,11 @@
 ## Unreleased
 
+### Breaking
+- Move Analyse into Sessions and remove its standalone navigation entry.
+
 ### Features
+- Review recorded sessions from bounded metadata summaries and surface only top laps before opening detailed analysis
+- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
 
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
@@ -13,12 +18,22 @@
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
+- Keep Analyse route state, chat links, and invalid selections consistent after moving review into Sessions
+- Render Analyse turn labels from centerline segment fractions for correct track-order placement
+- Rename Session Analyse Track tab to Analyse
+- Show per-lap peak tire and brake telemetry as distance-aligned charts while preserving per-wheel detail
+- Keep Analyse track maps visible when aligned telemetry has no direct world-position samples
+- Show synchronized cursor tooltips across Compare and Analyse charts
+- Keep session review telemetry, sectors, tire data, and zooms consistent while switching laps and views
+- Show an error when a selected Analyse session cannot be loaded
+- Withhold racing-line consistency scores until at least two laps are available
 - Hide iRacing driver-profile navigation when unsupported.
 - Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
 
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 
+- Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
 - Add UI-level agent testing.
 ## v0.17.0 - 2026-09-16
 
@@ -28,7 +43,6 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
-
 - Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session
@@ -84,6 +98,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Review recorded ACC and Assetto Corsa Evo track/car sessions before opening individual laps in Analyse
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment

@@ -30,6 +30,6 @@ test("sessions analyse and compare navigation uses selected seeded laps", async 
     .first()
     .getByRole("button", { name: "Analyse", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/fm23\/analyse\?/);
+  await expect(page).toHaveURL(/\/fm23\/sessions\/replay\?track=\d+&car=\d+&lap=\d+/);
   expect(browserErrors.errors).toEqual([]);
 });

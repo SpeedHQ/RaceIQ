@@ -17244,7 +17244,7 @@
             "F1.Motion.gForceX"
           ],
           "freshness": "continuous",
-          "normalization": "-m.gForceX",
+          "normalization": "-m.gForceX * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -17260,7 +17260,7 @@
               "F1.Motion.gForceX"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "4ede0e6f0eebffd8fd04478d370035b38d412b8c0175c4f13dc490209bf2cd02"
+            "codeHash": "948160e0e8c615a0461aab1d886b5c711fcb03b1a2326974577038799553464c"
           }
         },
         "acc": {
@@ -17378,18 +17378,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceY"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceY * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-y:derived",
+            "version": "0.17.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceY"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "de443125a45f60a8bf21c5bc600b8c7069a80f2af28c6145f8187019276a91c2"
+          }
         },
         "acc": {
           "kind": "derived",
@@ -17494,18 +17506,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceZ"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceZ * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-z:derived",
+            "version": "0.17.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceZ"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "e859b642e946f0ecdf8dcc028314d0c2eda0eba4caa3eed5e4ba15c1fd185dd7"
+          }
         },
         "acc": {
           "kind": "derived",

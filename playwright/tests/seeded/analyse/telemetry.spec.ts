@@ -70,7 +70,7 @@ for (const game of SEEDED_GAME_CASES) {
     const lap = await getSeededLapTarget(request, game.gameId);
     const query = new URLSearchParams({ track: String(lap.trackOrdinal), car: String(lap.carOrdinal), lap: String(lap.id) });
 
-    await page.goto(`/${game.prefix}/analyse?${query}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/sessions/replay?${query}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => page.evaluate(() => Number((window as unknown as Record<string, unknown>).__totalFrames ?? 0)), { timeout: 30_000 }).toBe(lap.telemetry.length);
 

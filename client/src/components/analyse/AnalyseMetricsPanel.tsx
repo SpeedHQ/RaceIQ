@@ -1,33 +1,31 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GameId } from "@shared/games/ids";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "@/lib/settings-storage";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => { const value = frame.values[id];
-return typeof value === "number" && Number.isFinite(value) ? value : null; }
 
 export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnalysisFrame; startFuel?: number; gameId: GameId }) {
   const units = useUnits();
   const telemetry = getGame(gameId).telemetry;
-  const speedMps = number(frame, "motion.speed");
+  const speedMps = semanticNumber(frame, "motion.speed");
   const speed = speedMps == null ? null : units.speed(speedMps);
-  const accel = number(frame, "inputs.accel");
-  const brake = number(frame, "inputs.brake");
-  const steer = number(frame, "inputs.steer");
-  const rpm = number(frame, "engine.current-engine-rpm");
-  const gear = number(frame, "inputs.gear");
-  const boost = number(frame, "engine.boost");
-  const power = number(frame, "engine.power");
-  const torque = number(frame, "engine.torque");
-  const fuel = number(frame, "fuel.fuel");
-  const capacity = number(frame, "fuel.fuel-capacity") ?? undefined;
+  const accel = semanticNumber(frame, "inputs.accel");
+  const brake = semanticNumber(frame, "inputs.brake");
+  const steer = semanticNumber(frame, "inputs.steer");
+  const rpm = semanticNumber(frame, "engine.current-engine-rpm");
+  const gear = semanticNumber(frame, "inputs.gear");
+  const boost = semanticNumber(frame, "engine.boost");
+  const power = semanticNumber(frame, "engine.power");
+  const torque = semanticNumber(frame, "engine.torque");
+  const fuel = semanticNumber(frame, "fuel.fuel");
+  const capacity = semanticNumber(frame, "fuel.fuel-capacity") ?? undefined;
   const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, telemetry.fuel);
   const fuelUsed = startFuel != null && fuel != null ? getFuelDisplaySemantic(startFuel - fuel, capacity, telemetry.fuel) : null;
-  const value = (n: number | null) => n == null ? "—" : `${n.toFixed(0)}`;
+  const value = (n: number | null) => (n == null ? "—" : `${n.toFixed(0)}`);
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
       <MetricRow label={m.dataguide_speed()} value={speed == null ? "—" : `${speed.toFixed(0)} ${units.speedLabel}`} />
@@ -52,10 +50,71 @@ export function MetricsPanel({ frame, startFuel, gameId }: { frame: SemanticAnal
   );
 }
 
-export function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) { return <div className="flex justify-between"><span className="text-app-text-muted">{label}</span><span className={color ? "" : "text-app-text"} style={color ? { color } : undefined}>{value}</span></div>; }
-export function WearValue({ label, value }: { label: string; value: number }) { const health = 1 - value; const color = severityRangeColor(value, [0.3, 0.6]); return <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{(health * 100).toFixed(1)}%</span></span>; }
-export function SlipValue({ label, value }: { label: string; value: number }) { const color = severityRangeColor(Math.abs(value), [0.5, 1.5]); return <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span></span>; }
-export function SlipAngleValue({ label, value, speedMph }: { label: string; value: number; speedMph?: number }) { const deg = value * (180 / Math.PI); const speedFactor = speedMph != null ? Math.max(0.3, Math.min(1, speedMph / 80)) : 1; const color = severityRangeColor(Math.abs(deg), [4 / speedFactor, 8 / speedFactor, 14 / speedFactor]); return <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span></span>; }
-export function WheelSpeedValue({ label, value }: { label: string; value: number }) { return <span className="text-app-text-secondary">{label}: <span className="tabular-nums">{value.toFixed(1)}</span></span>; }
-export function brakeBarColor(brake: number): string { const t = Math.min(1, Math.max(0, brake / 255)); return `color-mix(in srgb, var(--brake-warm) ${(1 - t) * 100}%, var(--brake-hot))`; }
-export function SuspValue({ label, value }: { label: string; value: number }) { const color = operatingRangeColor(value, [0.25, 0.65, 0.85]); return <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{(value * 100).toFixed(0)}%</span></span>; }
+export function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-app-text-muted">{label}</span>
+      <span className={color ? "" : "text-app-text"} style={color ? { color } : undefined}>
+        {value}
+      </span>
+    </div>
+  );
+}
+export function WearValue({ label, value }: { label: string; value: number }) {
+  const health = 1 - value;
+  const color = severityRangeColor(value, [0.3, 0.6]);
+  return (
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {(health * 100).toFixed(1)}%
+      </span>
+    </span>
+  );
+}
+export function SlipValue({ label, value }: { label: string; value: number }) {
+  const color = severityRangeColor(Math.abs(value), [0.5, 1.5]);
+  return (
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {value.toFixed(2)}
+      </span>
+    </span>
+  );
+}
+export function SlipAngleValue({ label, value, speedMph }: { label: string; value: number; speedMph?: number }) {
+  const deg = value * (180 / Math.PI);
+  const speedFactor = speedMph != null ? Math.max(0.3, Math.min(1, speedMph / 80)) : 1;
+  const color = severityRangeColor(Math.abs(deg), [4 / speedFactor, 8 / speedFactor, 14 / speedFactor]);
+  return (
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {deg.toFixed(1)}°
+      </span>
+    </span>
+  );
+}
+export function WheelSpeedValue({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="text-app-text-secondary">
+      {label}: <span className="tabular-nums">{value.toFixed(1)}</span>
+    </span>
+  );
+}
+export function brakeBarColor(brake: number): string {
+  const t = Math.min(1, Math.max(0, brake / 255));
+  return `color-mix(in srgb, var(--brake-warm) ${(1 - t) * 100}%, var(--brake-hot))`;
+}
+export function SuspValue({ label, value }: { label: string; value: number }) {
+  const color = operatingRangeColor(value, [0.25, 0.65, 0.85]);
+  return (
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {(value * 100).toFixed(0)}%
+      </span>
+    </span>
+  );
+}

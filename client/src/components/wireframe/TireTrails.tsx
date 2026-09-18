@@ -28,6 +28,7 @@ export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: Sema
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
+
   // Compute trail points + colors for all 4 wheels on cursor change.
   // Shape matches the previous implementation so downstream layout-effect
   // can just walk it segment by segment.

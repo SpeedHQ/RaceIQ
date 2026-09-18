@@ -7,6 +7,7 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
+import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
@@ -37,8 +38,15 @@ interface ComparisonCacheEntry {
   idA: number;
   idB: number;
 }
+interface AlignedTelemetryCacheEntry {
+  kind: "aligned";
+  body?: string;
+  alignmentIndex?: LapSetAlignmentIndex;
+  bytes: number;
+  ids: number[];
+}
 
-type CacheEntry = TelemetryCacheEntry | ComparisonCacheEntry;
+type CacheEntry = TelemetryCacheEntry | ComparisonCacheEntry | AlignedTelemetryCacheEntry;
 
 const telemetryCache = new Map<string, CacheEntry>();
 let cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
@@ -132,6 +140,34 @@ export function comparisonAlignmentIndexCacheSet(idA: number, idB: number, index
   replaceComparisonEntry(idA, idB, { alignmentIndex: index });
 }
 
+
+function alignedKey(ids: readonly number[]): string { return `aligned:${ids.join(",")}`; }
+function alignedBytes(body: string | undefined, index: LapSetAlignmentIndex | undefined): number {
+  return (body ? Buffer.byteLength(body, "utf8") : 0) + (index ? [...index.distancesByLapId.values()].reduce((sum, values) => sum + values.length * 8, 0) : 0);
+}
+export function alignedTelemetryCacheGet(ids: readonly number[]): string | undefined {
+  const entry = telemetryCache.get(alignedKey(ids));
+  if (entry?.kind !== "aligned" || entry.body === undefined) return undefined;
+  touch(alignedKey(ids), entry); return entry.body;
+}
+export function alignedTelemetryCacheSet(ids: readonly number[], body: string): void {
+  const key = alignedKey(ids); const existing = telemetryCache.get(key);
+  if (existing) cacheBytesUsed -= existing.bytes;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, bytes: alignedBytes(body, existing?.kind === "aligned" ? existing.alignmentIndex : undefined), ids: [...ids] };
+  telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
+}
+export function lapSetAlignmentIndexCacheGet(ids: readonly number[]): LapSetAlignmentIndex | undefined {
+  const entry = telemetryCache.get(alignedKey(ids));
+  if (entry?.kind !== "aligned" || !entry.alignmentIndex) return undefined;
+  touch(alignedKey(ids), entry); return entry.alignmentIndex;
+}
+export function lapSetAlignmentIndexCacheSet(ids: readonly number[], alignmentIndex: LapSetAlignmentIndex): void {
+  const key = alignedKey(ids); const existing = telemetryCache.get(key);
+  if (existing) cacheBytesUsed -= existing.bytes;
+  const body = existing?.kind === "aligned" ? existing.body : undefined;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, alignmentIndex, bytes: alignedBytes(body, alignmentIndex), ids: [...ids] };
+  telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
+}
 export function cacheDelete(id: number): boolean {
   let deleted = false;
   const key = lapKey(id);
@@ -142,7 +178,7 @@ export function cacheDelete(id: number): boolean {
     deleted = true;
   }
   for (const [entryKey, entry] of telemetryCache) {
-    if (entry.kind === "comparison" && (entry.idA === id || entry.idB === id)) {
+    if ((entry.kind === "comparison" && (entry.idA === id || entry.idB === id)) || (entry.kind === "aligned" && entry.ids.includes(id))) {
       cacheBytesUsed -= entry.bytes;
       telemetryCache.delete(entryKey);
       deleted = true;

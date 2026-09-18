@@ -27,8 +27,19 @@ test("covered stories render without API requests", async ({ page }) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ trackNames: { "7": "Spa-Francorchamps", "12": "Nürburgring" }, carNames: { "42": "Huracan GT3", "43": "BMW M4 GT3" } }) });
       return;
     }
-    if (/^\/api\/chats\/tune-session-(42|43)\/run$/.test(url.pathname) || url.pathname === "/api/laps/10/semantic-telemetry") {
+    if (request.method() === "GET" && url.pathname === "/api/laps/10/semantic-telemetry") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+      return;
+    }
+    const experimentChatMatch = request.method() === "GET" && url.pathname.match(/^\/api\/(?:chats\/tune-session-(42|43)\/(?:generations|run)|experiments\/(42|43)\/chat)$/);
+    if (experimentChatMatch) {
+      const threadId = `tune-session-${experimentChatMatch[1] ?? experimentChatMatch[2]}`;
+      const body = url.pathname.endsWith("/generations")
+        ? { activeThreadId: threadId, generations: [{ threadId, generation: 1, active: true }] }
+        : url.pathname.endsWith("/chat")
+          ? { messages: [] }
+          : { status: "none" };
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
       return;
     }
     if (url.pathname === "/api/settings") {

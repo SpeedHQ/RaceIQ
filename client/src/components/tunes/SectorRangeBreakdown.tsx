@@ -106,6 +106,13 @@ export interface SectorRangeModel {
   domain: [number, number];
 }
 
+/** Resolve telemetry sample to sector using same half-open slices as range bars. */
+export function sectorIndexForTelemetryIndex(index: number, boundaryIndices: readonly number[], sectorCount: number): number {
+  if (sectorCount <= 1) return 0;
+  const firstFollowingBoundary = boundaryIndices.findIndex((boundary) => index < boundary);
+  return firstFollowingBoundary < 0 ? sectorCount - 1 : Math.min(firstFollowingBoundary, sectorCount - 1);
+}
+
 /** Compute per-sector corner ranges for a metric, on a shared domain. */
 export function buildSectorRanges(telemetry: SemanticTuneSample[], sectorTimes: SectorTimes | null, metric: MetricDef): SectorRangeModel | null {
   if (telemetry.length < 5) return null;
@@ -156,6 +163,9 @@ export function buildLiveRanges(telemetry: SemanticTuneSample[], metric: MetricD
   const padding = Math.max(metric.key === "wear" ? 1 : 4, (maximum - minimum) * 0.15);
   return { ranges, domain: [Math.floor(minimum - padding), Math.ceil(maximum + padding)] };
 }
+
+/** Four corner bars (min→max fill, average tick) on a shared domain. When
+ * `cursor` is supplied (from hovering the track map), a line marks the live value. */
 export function CornerBars({
   ranges,
   domain,
@@ -233,5 +243,6 @@ function rangeOf(frames: SemanticTuneSample[], metric: MetricDef, index: number,
     sum += value;
     count++;
   }
-  return count === 0 ? { min: 0, avg: 0, max: 0, n: 0 } : { min, avg: sum / count, max, n: count };
+  if (count === 0) return { min: 0, avg: 0, max: 0, n: 0 };
+  return { min, avg: sum / count, max, n: count };
 }

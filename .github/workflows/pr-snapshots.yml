@@ -105,6 +105,7 @@ jobs:
           PR_SNAPSHOT_OUT_DIR: ${{ github.workspace }}/pr-preview
           PR_SNAPSHOT_BASE_RENDER_DIR: ${{ runner.temp }}/base-snapshots
           PR_SNAPSHOT_CURRENT_RENDER_DIR: ${{ runner.temp }}/pr-snapshots
+          PR_SNAPSHOT_RENDER_STATUS: ${{ steps.storybook-render.outcome }}
           PR_SNAPSHOT_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
           PR_SNAPSHOT_BASE_REF: ${{ steps.pull-request.outputs.base-ref }}
         run: bun scripts/ui/prepare-pr-snapshot-preview.ts

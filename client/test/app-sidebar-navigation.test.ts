@@ -25,7 +25,6 @@ describe("sidebar game navigation", () => {
     expect(replaceGameRoutePrefix("/acc/experiments/afafwfaw", "acc", "fm23", ["live", "sessions", "compare", "analyse", "driver", "chats", "tracks", "cars", "setups", "raw"])).toBe("/fm23");
   });
 
-
   test("uses caller-provided route prefix instead of game ID", () => {
     expect(replaceGameRoutePrefix("/acc/sessions", "acc", "f125")).toBe("/f125/sessions");
   });

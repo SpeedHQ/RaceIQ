@@ -7,6 +7,34 @@ export interface ChartSeries {
   color: string;
   label: string;
 }
+function axisDecimals(range: number): number {
+  if (range >= 10) return 0;
+  if (range >= 1) return 1;
+  if (range >= 0.1) return 2;
+  return 3;
+}
+
+function axisValue(value: number, range: number): string {
+  return value.toFixed(axisDecimals(range));
+}
+
+function chartDomain(series: ChartSeries[]): [number, number] {
+  const values = series.flatMap((item) => item.data).filter(Number.isFinite);
+  if (values.length === 0) return [-1, 1];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const observedRange = max - min;
+  // Scale padding to observed values so small telemetry changes remain visible.
+  const pad = observedRange > 0 ? observedRange * 0.08 : Math.max(Math.abs(min) * 0.05, 1);
+  let domainMin = min - pad;
+  let domainMax = max + pad;
+  // Keep zero visible when data crosses it; don't force zero into one-sided charts.
+  if (min <= 0 && max >= 0) {
+    domainMin = Math.min(domainMin, 0);
+    domainMax = Math.max(domainMax, 0);
+  }
+  return [domainMin, domainMax];
+}
 
 export function TelemetryChart({
   series,
@@ -32,15 +60,10 @@ export function TelemetryChart({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrubCleanupRef = useRef<(() => void) | null>(null);
+  const lastScrubIndexRef = useRef<number | null>(null);
+  const visualFracRafRef = useRef<number | null>(null);
+  const pendingVisualFracRef = useRef<number | null>(null);
 
-  useEffect(
-    () => () => {
-      scrubCleanupRef.current?.();
-      scrubCleanupRef.current = null;
-    },
-    [],
-  );
-  // Draw static chart data — only when series/size changes, NOT on cursorIdx
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -50,7 +73,6 @@ export function TelemetryChart({
 
     const w = container.clientWidth;
     const h = height;
-    if (w <= 0 || h <= 0) return;
     syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
     const scaleX = canvas.width / w;
     const scaleY = canvas.height / h;
@@ -66,18 +88,7 @@ export function TelemetryChart({
 
     if (totalPackets < 2) return;
 
-    // Compute global min/max across all series
-    let gMin = Infinity,
-      gMax = -Infinity;
-    for (const s of series) {
-      for (const v of s.data) {
-        if (v < gMin) gMin = v;
-        if (v > gMax) gMax = v;
-      }
-    }
-    const pad = (gMax - gMin) * 0.05 || 1;
-    gMin -= pad;
-    gMax += pad;
+    const [gMin, gMax] = chartDomain(series);
     const range = gMax - gMin;
 
     // Y axis ticks (3)
@@ -87,7 +98,7 @@ export function TelemetryChart({
     for (let i = 0; i <= 2; i++) {
       const val = gMin + (range * i) / 2;
       const y = topPad + chartH - (i / 2) * chartH;
-      ctx.fillText(val.toFixed(0), leftPad - 4, y + 3);
+      ctx.fillText(axisValue(val, range), leftPad - 4, y + 3);
       ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 8%, transparent)";
       ctx.lineWidth = 0.5;
       ctx.beginPath();
@@ -184,16 +195,36 @@ export function TelemetryChart({
     (e: React.MouseEvent<HTMLDivElement>) => {
       scrubCleanupRef.current?.();
       onScrubStart?.();
-      const idx = idxFromEvent(e.clientX);
-      if (idx !== null) onClickIndex(idx);
-      onVisualFracChange?.(fracFromEvent(e.clientX));
+      lastScrubIndexRef.current = null;
+      const emitIndex = (clientX: number) => {
+        const idx = idxFromEvent(clientX);
+        if (idx !== null && idx !== lastScrubIndexRef.current) {
+          lastScrubIndexRef.current = idx;
+          onClickIndex(idx);
+        }
+      };
+      const emitVisualFrac = (frac: number | null) => {
+        pendingVisualFracRef.current = frac;
+        if (visualFracRafRef.current == null) {
+          visualFracRafRef.current = requestAnimationFrame(() => {
+            visualFracRafRef.current = null;
+            onVisualFracChange?.(pendingVisualFracRef.current);
+          });
+        }
+      };
+      emitIndex(e.clientX);
+      emitVisualFrac(fracFromEvent(e.clientX));
 
       const handleMouseMove = (ev: MouseEvent) => {
-        const i = idxFromEvent(ev.clientX);
-        if (i !== null) onClickIndex(i);
-        onVisualFracChange?.(fracFromEvent(ev.clientX));
+        emitIndex(ev.clientX);
+        emitVisualFrac(fracFromEvent(ev.clientX));
       };
       const handleMouseUp = () => {
+        if (visualFracRafRef.current != null) {
+          cancelAnimationFrame(visualFracRafRef.current);
+          visualFracRafRef.current = null;
+        }
+        pendingVisualFracRef.current = null;
         onVisualFracChange?.(null);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);

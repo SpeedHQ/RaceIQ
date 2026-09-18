@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
+import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
@@ -24,6 +24,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   gameId: GameId;
+  onBack?: () => void;
   // Selection state
   selectedTrack: number | null;
   selectedCar: number | null;
@@ -63,6 +64,7 @@ interface Props {
 
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
+  onBack,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -122,6 +124,11 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+        {onBack && (
+          <Button variant="app-outline" size="app-sm" onClick={onBack}>
+            {m.analyse_session_button()}
+          </Button>
+        )}
         {/* Track selector */}
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}
@@ -219,12 +226,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
               {selectedLap?.notes ? m.analyse_notes_button() : m.analyse_add_notes_button()}
             </Button>
           )}
-          {selectedLapId != null && (
-            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
-              <Trash2 className="size-3.5" />
-              {m.common_delete()}
-            </Button>
-          )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
               {m.analyse_guide_button()}
@@ -247,11 +248,22 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           <DropdownMenu
             trigger={
               <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
+                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.label_actions()}
                 <ChevronDown className="size-3.5" />
               </Button>
             }
             items={[
+              ...(selectedLapId != null
+                ? [
+                    {
+                      key: "delete-lap",
+                      label: m.common_delete(),
+                      icon: <Trash2 className="size-3.5" />,
+                      onClick: onDeleteLap,
+                      className: "text-status-danger hover:text-status-danger/80",
+                    },
+                  ]
+                : []),
               ...(hasTelemetry
                 ? [
                     {
@@ -273,23 +285,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                     },
                   ]
                 : []),
-              {
-                key: "import-session",
-                label: "Import session (.bin or .ibt)",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => importInputRef.current?.click(),
-                disabled: importingBin,
-              },
-              {
-                key: "import-motec",
-                label: "Import MoTeC log",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => {
-                  if (motecTarget) setMotecOpen(true);
-                },
-                disabled: !motecTarget,
-                title: motecTarget ? undefined : "MoTeC import is not supported for this game yet.",
-              },
             ]}
           />
           {hasTelemetry && (
