@@ -7,7 +7,7 @@
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, and <strong>iRacing</strong>.
+  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, <strong>iRacing</strong>, and <strong>Le Mans Ultimate</strong>.
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 - **Track mapping and guides** — see your live position, map new tracks automatically, and use turn numbers, sectors, and track guides
 - **Race results** — review qualifying, podiums, fastest laps, pit stops, strategies, and position timelines
 - **Data portability** — import MoTeC logs and saved session captures; export individual laps or complete sessions
-- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing
+- **Multi-game support** — use RaceIQ with Forza Motorsport 2023, F1 2025, Assetto Corsa Competizione, Assetto Corsa Evo, iRacing, and Le Mans Ultimate
 
 ## Supported Games
 
@@ -58,27 +58,24 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 |------|----------|--------------|---------------|--------------|
 | Assetto Corsa Evo | High | No | No | No |
 | iRacing | High | No | No | No |
+| Le Mans Ultimate | High | No | No | No |
 | F1 2025 | Medium | Yes | Yes | No |
 | Assetto Corsa Competizione | Medium | Yes | Yes | No |
 | Forza Motorsport 2023 | Low | No | No | Yes |
-| Le Mans Ultimate | Planned | — | — | — |
 Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
 
 ## Getting Started
 
-### 1. Install (Windows recommended)
+### 1. Download and install
 
-Grab latest installer from [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Windows installation is recommended because it supports all RaceIQ games and live shared-memory telemetry. Run RaceIQ and follow setup wizard.
+Grab the latest installer from the [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Run RaceIQ and follow the setup wizard. 
 * You can reopen the dashboard at any time by double-clicking the RaceIQ icon in the system tray.
-
-Detailed setup: [Windows installation](docs/installation/windows.md) · [Docker installation](docs/installation/docker.md)
-
 
 ### 2. Run and Connect
 
+For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, iRacing, and LMU are detected automatically from native Windows telemetry. For LMU, enable **Gameplay > Enable Plugins**. Start driving and telemetry will appear automatically. LMU `.duckdb` files from `UserData/Telemetry` can also be uploaded from Sessions.
 
-For telemetry configuration, see the [Windows installation](docs/installation/windows.md) and [Docker installation](docs/installation/docker.md) guides. For UDP forwarding to multiple destinations, use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder).
-
+> **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
 
 ## Updates
 
@@ -91,7 +88,7 @@ RaceIQ checks for new releases automatically and notifies you when one is availa
 **Game on Windows is recommended.** RaceIQ runs on the same PC as the game for two reasons:
 
 - **UDP reliability** — loopback delivery is lossless and low-latency, avoiding the packet loss and timing jitter of network routing.
-- **Shared memory** — ACC, AC Evo, and iRacing expose local telemetry through Windows shared memory, which requires running RaceIQ on the same machine.
+- **Native telemetry** — ACC and AC Evo use Windows shared memory, iRacing uses its SDK mapping, and LMU uses the built-in `LMU_Data` shared-memory interface.
 
 **Game on Console works.** Just make sure both your windows machine and console is wired ethernet.
 
@@ -108,7 +105,7 @@ The database is created automatically on first run. No cloud account or external
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to use LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible gateway? See the [OpenAI-compatible AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/openai-compatible-ai.md).
+Want to run AI entirely on your own PC? See the [Local AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/local-ai.md).
 
 ## Sponsorship
 

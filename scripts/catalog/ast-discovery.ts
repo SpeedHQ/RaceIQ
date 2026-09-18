@@ -112,7 +112,7 @@ async function parserOutput(gameId: GameId): Promise<ParserOutput> {
   const source = (await readFile(resolve(ROOT, PARSER_FILES[gameId]), "utf8")).replace(/\r\n?/g, "\n");
   const tree = ast(source);
   const properties =
-    gameId === "iracing"
+    gameId === "iracing" || gameId === "lmu"
       ? largestReturnObject(tree)
       : objectCandidate(tree, "packet");
   if (properties.size < 90) {

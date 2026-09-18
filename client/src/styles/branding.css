@@ -48,6 +48,11 @@
   --brand-game-iracing-surface-mid: #07172c;
   --brand-game-iracing-surface-end: #092b52;
 
+  --brand-game-lmu: #f5c542;
+  --brand-game-lmu-surface-start: #0e0b03;
+  --brand-game-lmu-surface-mid: #1b1506;
+  --brand-game-lmu-surface-end: #302509;
+
   /* Vehicle manufacturers */
   --brand-car-default: #555555;
   --brand-car-porsche: #c4a035;
@@ -121,6 +126,13 @@
   --brand-surface-start: var(--brand-game-iracing-surface-start);
   --brand-surface-mid: var(--brand-game-iracing-surface-mid);
   --brand-surface-end: var(--brand-game-iracing-surface-end);
+}
+
+[data-game-brand="lmu"] {
+  --brand-color: var(--brand-game-lmu);
+  --brand-surface-start: var(--brand-game-lmu-surface-start);
+  --brand-surface-mid: var(--brand-game-lmu-surface-mid);
+  --brand-surface-end: var(--brand-game-lmu-surface-end);
 }
 
 .game-brand-panel {

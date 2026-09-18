@@ -1,0 +1,37 @@
+export interface LMUExtendedData {
+  gameVersion: number;
+  vehicleId: number;
+  driverName: string;
+  carName: string;
+  carModel: string;
+  vehicleClass: number;
+  trackName: string;
+  trackLengthM: number;
+  lapDistanceM: number;
+  lapDistancePct: number;
+  currentSectorIndex: number;
+  lapInvalidated: boolean;
+  inPits: boolean;
+  pitState: number;
+  frontTireCompound: string;
+  rearTireCompound: string;
+  rearFlapActivated: boolean;
+  rearFlapLegalStatus: number;
+  speedLimiterActive: boolean;
+  tcActive: boolean;
+  absActive: boolean;
+  tcLevel: number;
+  tcCutLevel: number;
+  absLevel: number;
+  motorMap: number;
+  migration: number;
+  frontAntiSway: number;
+  rearAntiSway: number;
+  batteryChargeFraction: number;
+  stateOfCharge: number;
+  virtualEnergy: number;
+  regenKw: number;
+  trackLimitsSteps: number;
+  trackGripLevel: number;
+  cloudCoverage: number;
+}

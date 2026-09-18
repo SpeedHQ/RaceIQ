@@ -8,8 +8,9 @@ Own server-side integration for each supported racing game: source-format detect
 
 ## Structure
 
-- `acc/`, `ac-evo/`, `f1-2025/`, `fm-2023/`, and `iracing/` contain each game's adapter and format-specific implementation.
+- `acc/`, `ac-evo/`, `f1-2025/`, `fm-2023/`, `iracing/`, and `lmu/` contain each game's adapter and format-specific implementation.
 - `kunos/` contains shared ACC/AC Evo memory-reading, triplet-processing, recording, and lap-rule infrastructure.
+- `lmu/` reads the built-in `LMU_Data` mapping and imports LMU telemetry `.duckdb` files into replayable source frames.
 - `shared/` contains small mechanics reused by otherwise independent game implementations.
 - `types.ts` defines server-only adapter policy and parsing contracts layered on shared game metadata.
 

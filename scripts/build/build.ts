@@ -1,5 +1,6 @@
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const root = process.cwd();
 const distDir = join(root, "dist");
@@ -80,18 +81,18 @@ function copyLibsqlAddon() {
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
 
-async function signDarwinBinary(): Promise<void> {
-  if (process.platform !== "darwin") return;
-  await run(["codesign", "--force", "--sign", "-", join(distDir, "raceiq")]);
-}
 
 async function main() {
+  releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LMU_ADAPTER: process.env.RACEIQ_FEATURE_LMU_ADAPTER,
+  });
+  rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
-  await run(["bun", "scripts/telemetry/generate-demo-fixture.ts"]);
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
   await run(["bun", "scripts/build/copy-shared-data.ts"]);
   await run(["bun", "scripts/build/copy-client-dist.ts"]);
-  await run(["bun", "scripts/build/optimize-client-images.ts"]);
 
   const compileArgs = [
     "bun",
@@ -99,10 +100,18 @@ async function main() {
     "--compile",
     "--define",
     'process.env.NODE_ENV="production"',
+    "--external",
+    "@duckdb/node-bindings-*",
   ];
-  if (process.env.RACEIQ_DOCKER_BUILD === "1") {
-    compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_IN_APP_UPDATE="1"');
-  }
+  compileArgs.push(
+    "--define",
+    `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LMU_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_LMU_ADAPTER)}`,
+  );
+
   if (process.platform === "win32") {
     const iconPath = join(root, "assets", "raceiq.ico");
     if (existsSync(iconPath)) {
@@ -118,8 +127,9 @@ async function main() {
   compileArgs.push("server/bootstrap.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
-  await signDarwinBinary();
+
   copyLibsqlAddon();
+  await run(["bun", "scripts/build/copy-duckdb-runtime.ts"]);
 }
 
 main().catch((err) => {
