@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Localize client analysis, telemetry, session-import, and developer-state UI with English and German messages
 
 - Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
 - Live dashboards and Analyse pages show separate tire surface and core temperatures when simulator data provides both
