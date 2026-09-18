@@ -10,6 +10,7 @@ export interface StorybookSnapshotCase {
   clickRole?: "button" | "combobox";
   readyRole?: "dialog" | "listbox" | "menu";
   readyName?: string;
+  waitForVisualReady?: boolean;
   viewport?: { width: number; height: number };
 }
 
@@ -113,6 +114,7 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     viewport: { width: 900, height: 700 },
     clickLabel: "Open note",
     readyRole: "dialog",
+    waitForVisualReady: false,
   },
   {
     name: "ReusablePanelSectionHeader",

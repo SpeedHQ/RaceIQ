@@ -14,7 +14,7 @@ for (const story of REUSABLE_UI_SNAPSHOT_CASES) {
 
     if (story.viewport) await page.setViewportSize(story.viewport);
     await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`, 60_000, false);
-    await waitForVisualReady(page);
+    if (story.waitForVisualReady !== false) await waitForVisualReady(page);
 
     if (story.clickLabel) {
       const readyState = story.readyRole ? page.getByRole(story.readyRole, { name: story.readyName }) : undefined;
