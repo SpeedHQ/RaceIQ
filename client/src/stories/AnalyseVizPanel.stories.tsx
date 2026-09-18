@@ -108,9 +108,8 @@ export const ThreeDViewMenuOpen: Story = {
   render: () => <ThreeDPanelStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: /view/i }));
-    const body = within(document.body);
-    await expect(await body.findByRole("menu")).toBeVisible();
+    await userEvent.click(canvas.getByRole("tab", { name: "3D", exact: true }));
+    await expect(canvas.getByRole("tabpanel", { name: "3D", exact: true })).toBeVisible();
   },
 };
 

@@ -13,7 +13,7 @@ const STORY_IDS = [
   "dashboards-experiments-workspace--default",
   "dashboards-experiments-flow--workspace-car-focus",
   "dashboards-experiments-flow--workspace-driver-focus",
-  "dashboards-experiments-tunereviewdashboard--default",
+  "dashboards-experiments-sessionreviewdashboard--default",
 ] as const;
 
 test.setTimeout(300_000);
@@ -44,6 +44,10 @@ test("covered stories render without API requests", async ({ page }) => {
     }
     if (url.pathname === "/api/settings") {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(DEFAULT_DISPLAY_SETTINGS) });
+      return;
+    }
+    if (request.method() === "POST" && url.pathname === "/api/laps/aligned-telemetry") {
+      await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "offline fixture" }) });
       return;
     }
     if (url.pathname === "/api/acc/cars") {

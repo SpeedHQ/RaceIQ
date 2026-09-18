@@ -190,7 +190,6 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     id: "screens-analysevizpanel--three-d-view-menu-open",
     outputName: "snapshot-AnalyseVizPanel3DViewMenuOpen.png",
     viewport: { width: 1080, height: 800 },
-    readyRole: "menu",
   },
   {
     name: "AnalyseTrackPanel",
