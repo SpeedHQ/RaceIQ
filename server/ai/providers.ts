@@ -3,6 +3,7 @@
  */
 
 import { extractJson } from "./extract-json";
+import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 export interface AiResult {
@@ -69,8 +70,7 @@ export async function getGeminiModels(apiKey: string): Promise<{ id: string; nam
   return result.models;
 }
 
-/** Run analysis via Claude CLI (pipe mode). */
-export async function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
+export async function runClaudeCliRaw(prompt: string, model?: string): Promise<AiResult> {
   const m = model || "haiku";
   const proc = Bun.spawn(
     ["claude", "-p", "-", "--model", m, "--output-format", "json"],
@@ -116,6 +116,9 @@ export async function runClaudeCli(prompt: string, model?: string): Promise<AiRe
       model: Object.keys(envelope.modelUsage ?? {})[0] ?? "claude-haiku",
     },
   };
+}
+export function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
+  return withLlmDiagnostics({ provider: "claude-cli", model: model || "haiku", operation: "cli.generate", request: { prompt } }, () => runClaudeCliRaw(prompt, model));
 }
 
 // JSON schema for structured output — used by Gemini and OpenAI
@@ -256,6 +259,7 @@ export type GeminiRequestOptions = {
 
 export async function runGeminiRequest(options: GeminiRequestOptions): Promise<AiResult> {
   const model = options.model || "gemini-flash-latest";
+  logLlmEvent("llm-request", { provider: "gemini", model, operation: "generateContent", request: { prompt: options.prompt, schema: options.schema, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens, thinkingBudget: options.thinkingBudget } });
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${options.apiKey}`;
   const generationConfig: Record<string, unknown> = {
     temperature: options.temperature ?? 0.3,
@@ -280,6 +284,7 @@ export async function runGeminiRequest(options: GeminiRequestOptions): Promise<A
 
   if (!res.ok) {
     const errBody = await res.text();
+    logLlmEvent("llm-error", { provider: "gemini", model, operation: "generateContent", request: { prompt: options.prompt, schema: options.schema }, error: new AiProviderError(`Gemini API error: ${res.status}`, { code: "upstream", provider: "gemini", modelId: model, statusCode: res.status, isRetryable: res.status >= 500, responseBody: errBody }) });
     console.error("[AI] Gemini API error:", res.status, errBody);
     throw new AiProviderError(
       res.status === 401 || res.status === 403
@@ -302,6 +307,7 @@ export async function runGeminiRequest(options: GeminiRequestOptions): Promise<A
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text.trim()) throw new Error("Gemini returned empty response");
+  logLlmEvent("llm-response", { provider: "gemini", model, operation: "generateContent", request: { prompt: options.prompt, schema: options.schema }, response: data });
   const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usageMetadata ?? {};
   return {
@@ -342,6 +348,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   const model = options.model || "gpt-4o-mini";
   const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
+  logLlmEvent("llm-request", { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } });
   if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
   const body: Record<string, unknown> = {
     model,
@@ -367,6 +374,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
 
   if (!res.ok) {
     const errBody = await res.text();
+    logLlmEvent("llm-error", { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema }, error: new AiProviderError(`OpenAI API error: ${res.status}`, { code: "upstream", provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", modelId: model, statusCode: res.status, isRetryable: res.status >= 500, responseBody: errBody }) });
     console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
     throw new AiProviderError(
       res.status === 401
@@ -391,6 +399,7 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   if (!text.trim()) throw new Error("OpenAI returned empty response");
   const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usage ?? {};
+  logLlmEvent("llm-response", { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema }, response: data });
   return {
     analysis,
     usage: {

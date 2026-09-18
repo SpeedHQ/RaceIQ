@@ -170,3 +170,5 @@ test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts
 test/runtime/release-feature-flags.test.ts
 test/ai/prompts/tune-chat-prompt.test.ts
+test/ai/chat/chat-diagnostic-export.test.ts
+test/routes/diagnostics-routes.test.ts

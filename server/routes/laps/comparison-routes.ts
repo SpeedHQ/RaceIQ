@@ -29,6 +29,7 @@ import {
   compareChatThreadId,
   generationThreadId,
   getChatMemory,
+  ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
@@ -513,6 +514,7 @@ export const comparisonRoutes = new Hono()
           : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
+    await ensureSystemPrompt(threadId, systemPrompt);
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
@@ -534,6 +536,13 @@ export const comparisonRoutes = new Hono()
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        diagnostic: {
+          provider: chatProvider,
+          model: chatModelLabel,
+          operation: "compare-chat.stream",
+          threadId,
+          request: { systemPrompt, messages },
+        },
       });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
