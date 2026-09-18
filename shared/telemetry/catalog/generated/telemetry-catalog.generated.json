@@ -6,20 +6,20 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "9a37337761fe3b1f7283584ae16ffafc4dae411ff3265c2caa7e23db3d961f29"
+      "sourceHash": "f59005c9b51847d40d2e5ba0737013df56c9121bc13641658ff4f219ae7c29dd"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
-      "server/games/acc/parser.ts": "93b9eb86d192012eb57d12d801b5e500195d38afd720e6986e207b1c923061cd",
-      "server/games/f1-2025/f1-state.ts": "8d4f0de5b48f1c9e3955783960f153c919d232f2e08c9edb5d141da46da58b68",
+      "server/games/acc/parser.ts": "2f9aeab3d9e05cf214ba03ddd118416533028b9b7245a695a029a371b9391e09",
+      "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "f13dc05b05c646168d3964690395b1136606767bf0ba160d964950f7b740a41d",
+      "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
       "server/games/lmu/normalizer.ts": "411300ba7c64a9fcd0994a11b03a756cf842152457b80edb30d859c849225c4e",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "2477b1a74bd974823373fd2002106c8f0223de9b615b75478688aef48d9f9ff0"
+    "contentHash": "ab7a5cb61ec11b297fa5424b32abefbbe6a24df847bbd23a9ee1407fc25cdfb9"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -1139,7 +1139,7 @@
       "parentId": "tires",
       "canonicalUnit": "°C",
       "children": [
-        "tire.temperature.average",
+        "tire.temperature.core",
         "tire.temperature.carcass",
         "tire.temperature.surface"
       ]
@@ -1151,7 +1151,6 @@
       "parentId": "tire.temperature",
       "canonicalUnit": "°C",
       "children": [
-        "tire.temperature.carcass.average",
         "tire.temperature.carcass.left",
         "tire.temperature.carcass.middle",
         "tire.temperature.carcass.right"
@@ -1166,7 +1165,8 @@
       "children": [
         "tire.temperature.surface.inner",
         "tire.temperature.surface.middle",
-        "tire.temperature.surface.outer"
+        "tire.temperature.surface.outer",
+        "tire.temperature.surface.representative"
       ]
     },
     {
@@ -20028,7 +20028,7 @@
             "F1.Motion.gForceX"
           ],
           "freshness": "continuous",
-          "normalization": "-m.gForceX",
+          "normalization": "-m.gForceX * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -20044,7 +20044,7 @@
               "F1.Motion.gForceX"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "77b7b2d551794ba7037f97e3482111f7c1b7505987a3819692f3e86baa2659ac"
+            "codeHash": "5f4b4d6cf8f0bef5d78ea12c0d2dd37524a52c24da5338ba417bf30d99842269"
           }
         },
         "acc": {
@@ -20176,18 +20176,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceY"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceY * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-y:derived",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceY"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "fa1ba14b7b08677d93f9cbd3f92bb21187b0325f3a3d0271cece093360eff83c"
+          }
         },
         "acc": {
           "kind": "derived",
@@ -20306,18 +20318,30 @@
           "limitations": []
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "m/s²",
           "sources": [
             "F1.Motion.gForceZ"
           ],
           "freshness": "continuous",
+          "normalization": "m.gForceZ * 9.81",
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/f1-2025/f1-state.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "derivation",
+            "id": "f1-2025:motion.acceleration-z:derived",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "F1.Motion.gForceZ"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "ecad1bf38cf0fda67a437ad74dc18432874b4472985e412f04589450bb80df15"
+          }
         },
         "acc": {
           "kind": "derived",
@@ -52051,432 +52075,9 @@
       "limitations": []
     },
     {
-      "id": "tire.temperature.average",
-      "label": "Representative / average",
-      "description": "Common one-value-per-tire temperature. Mapping may be native or a documented average of detailed channels.",
-      "parentId": "tire.temperature",
-      "canonicalUnit": "°C",
-      "shape": "per-wheel",
-      "packetFields": [
-        "TireTempFL",
-        "TireTempFR",
-        "TireTempRL",
-        "TireTempRR"
-      ],
-      "games": {
-        "fm-2023": {
-          "kind": "normalized",
-          "nativeUnit": "°F",
-          "sources": {
-            "FL": [
-              "ForzaDataOut.TireTempFL"
-            ],
-            "FR": [
-              "ForzaDataOut.TireTempFR"
-            ],
-            "RL": [
-              "ForzaDataOut.TireTempRL"
-            ],
-            "RR": [
-              "ForzaDataOut.TireTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "normalization": "(fahrenheit - 32) * 5 / 9",
-          "description": "fm-2023 maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/fm-2023/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "fm-2023:tire.temperature.average:normalized",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ForzaDataOut.TireTempFL",
-              "ForzaDataOut.TireTempFR",
-              "ForzaDataOut.TireTempRL",
-              "ForzaDataOut.TireTempRR"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "66cf04819a759b20873928c91941c6fbee0ce0b284303d814290ded055011ffa"
-          }
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "F1.CarTelemetry.tyreTempFL"
-            ],
-            "FR": [
-              "F1.CarTelemetry.tyreTempFR"
-            ],
-            "RL": [
-              "F1.CarTelemetry.tyreTempRL"
-            ],
-            "RR": [
-              "F1.CarTelemetry.tyreTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "f1-2025 maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
-        },
-        "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "AC-Evo.Physics.tyreTempFL"
-            ],
-            "FR": [
-              "AC-Evo.Physics.tyreTempFR"
-            ],
-            "RL": [
-              "AC-Evo.Physics.tyreTempRL"
-            ],
-            "RR": [
-              "AC-Evo.Physics.tyreTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "ac-evo maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/ac-evo/parser.ts"
-          },
-          "limitations": []
-        },
-        "iracing": {
-          "kind": "simplified",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "iRacing.LFtempCL",
-              "iRacing.LFtempCM",
-              "iRacing.LFtempCR"
-            ],
-            "FR": [
-              "iRacing.RFtempCL",
-              "iRacing.RFtempCM",
-              "iRacing.RFtempCR"
-            ],
-            "RL": [
-              "iRacing.LRtempCL",
-              "iRacing.LRtempCM",
-              "iRacing.LRtempCR"
-            ],
-            "RR": [
-              "iRacing.RRtempCL",
-              "iRacing.RRtempCM",
-              "iRacing.RRtempCR"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "normalization": "average available left, middle, and right carcass temperatures per tire",
-          "description": "Averages available iRacing left, middle, and right carcass-temperature bands per tire.",
-          "limitations": [
-            "Averaging removes across-tread temperature-gradient detail."
-          ],
-          "provenance": {
-            "origin": "projection",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "execution": {
-            "kind": "simplification",
-            "id": "iracing:tire.temperature.average:simplified",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.LFtempCL",
-              "iRacing.LFtempCM",
-              "iRacing.LFtempCR",
-              "iRacing.RFtempCL",
-              "iRacing.RFtempCM",
-              "iRacing.RFtempCR",
-              "iRacing.LRtempCL",
-              "iRacing.LRtempCM",
-              "iRacing.LRtempCR",
-              "iRacing.RRtempCL",
-              "iRacing.RRtempCM",
-              "iRacing.RRtempCR"
-            ],
-            "missingDataPolicy": "drop-missing",
-            "codeHash": "84a49543d851ac33ca5f05b561cc1f10d8c4b7507d302665d10336076e7dd558"
-          }
-        },
-        "lmu": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "LMU.Telemetry.wheels.FL.temperature"
-            ],
-            "FR": [
-              "LMU.Telemetry.wheels.FR.temperature"
-            ],
-            "RL": [
-              "LMU.Telemetry.wheels.RL.temperature"
-            ],
-            "RR": [
-              "LMU.Telemetry.wheels.RR.temperature"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "temperature"
-      ],
-      "cardinality": {
-        "kind": "fixed",
-        "count": 4
-      },
-      "ordering": [
-        "FL",
-        "FR",
-        "RL",
-        "RR"
-      ],
-      "limitations": []
-    },
-    {
-      "id": "tire.temperature.carcass.average",
-      "label": "Average carcass temperature",
-      "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-      "parentId": "tire.temperature.carcass",
-      "canonicalUnit": "°C",
-      "shape": "per-wheel",
-      "packetFields": [
-        "TireCarcassTempFL",
-        "TireCarcassTempFR",
-        "TireCarcassTempRL",
-        "TireCarcassTempRR"
-      ],
-      "games": {
-        "fm-2023": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
-        },
-        "f1-2025": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "F1.CarTelemetry.tyresInnerTempFL"
-            ],
-            "FR": [
-              "F1.CarTelemetry.tyresInnerTempFR"
-            ],
-            "RL": [
-              "F1.CarTelemetry.tyresInnerTempRL"
-            ],
-            "RR": [
-              "F1.CarTelemetry.tyresInnerTempRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "f1-2025 maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/f1-2025/f1-state.ts"
-          },
-          "limitations": []
-        },
-        "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreCoreFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreCoreFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreCoreRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreCoreRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
-        },
-        "ac-evo": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "AC-Evo.Physics.tyreCoreFL"
-            ],
-            "FR": [
-              "AC-Evo.Physics.tyreCoreFR"
-            ],
-            "RL": [
-              "AC-Evo.Physics.tyreCoreRL"
-            ],
-            "RR": [
-              "AC-Evo.Physics.tyreCoreRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "ac-evo maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/ac-evo/parser.ts"
-          },
-          "limitations": []
-        },
-        "iracing": {
-          "kind": "simplified",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "iRacing.LFtempCL",
-              "iRacing.LFtempCM",
-              "iRacing.LFtempCR"
-            ],
-            "FR": [
-              "iRacing.RFtempCL",
-              "iRacing.RFtempCM",
-              "iRacing.RFtempCR"
-            ],
-            "RL": [
-              "iRacing.LRtempCL",
-              "iRacing.LRtempCM",
-              "iRacing.LRtempCR"
-            ],
-            "RR": [
-              "iRacing.RRtempCL",
-              "iRacing.RRtempCM",
-              "iRacing.RRtempCR"
-            ]
-          },
-          "freshness": "pit-snapshot",
-          "normalization": "average available left, middle, and right carcass temperatures per tire",
-          "description": "Averages available iRacing left, middle, and right carcass-temperature bands per tire.",
-          "limitations": [
-            "Averaging removes across-tread temperature-gradient detail."
-          ],
-          "provenance": {
-            "origin": "projection",
-            "artifact": "server/games/iracing/normalizer.ts"
-          },
-          "execution": {
-            "kind": "simplification",
-            "id": "iracing:tire.temperature.carcass.average:simplified",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iRacing.LFtempCL",
-              "iRacing.LFtempCM",
-              "iRacing.LFtempCR",
-              "iRacing.RFtempCL",
-              "iRacing.RFtempCM",
-              "iRacing.RFtempCR",
-              "iRacing.LRtempCL",
-              "iRacing.LRtempCM",
-              "iRacing.LRtempCR",
-              "iRacing.RRtempCL",
-              "iRacing.RRtempCM",
-              "iRacing.RRtempCR"
-            ],
-            "missingDataPolicy": "drop-missing",
-            "codeHash": "c33ba50628b3939ddb3e79d03d809b200cb916a393e5590520cc4d47a6b7320a"
-          }
-        },
-        "lmu": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "LMU.Telemetry.wheels.FL.tireCarcassTemperature"
-            ],
-            "FR": [
-              "LMU.Telemetry.wheels.FR.tireCarcassTemperature"
-            ],
-            "RL": [
-              "LMU.Telemetry.wheels.RL.tireCarcassTemperature"
-            ],
-            "RR": [
-              "LMU.Telemetry.wheels.RR.tireCarcassTemperature"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
-        }
-      },
-      "valueType": "number",
-      "dimensions": [
-        "temperature"
-      ],
-      "cardinality": {
-        "kind": "fixed",
-        "count": 4
-      },
-      "ordering": [
-        "FL",
-        "FR",
-        "RL",
-        "RR"
-      ],
-      "limitations": []
-    },
-    {
       "id": "tire.temperature.carcass.left",
       "label": "Left carcass temperature",
-      "description": "Tire Carcass Temp Left reported by normalized RaceIQ telemetry.",
+      "description": "Source-native lateral carcass bands; no averaging or relabeling.",
       "parentId": "tire.temperature.carcass",
       "canonicalUnit": "°C",
       "shape": "per-wheel",
@@ -52777,6 +52378,147 @@
       "limitations": []
     },
     {
+      "id": "tire.temperature.core",
+      "label": "Core temperature",
+      "description": "One core value per tire when provided directly by game.",
+      "parentId": "tire.temperature",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "packetFields": [
+        "TireCarcassTempFL",
+        "TireCarcassTempFR",
+        "TireCarcassTempRL",
+        "TireCarcassTempRR"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "F1.CarTelemetry.tyresInnerTempFL"
+            ],
+            "FR": [
+              "F1.CarTelemetry.tyresInnerTempFR"
+            ],
+            "RL": [
+              "F1.CarTelemetry.tyresInnerTempRL"
+            ],
+            "RR": [
+              "F1.CarTelemetry.tyresInnerTempRR"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "f1-2025 maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "ACC.Physics.tyreCoreFL"
+            ],
+            "FR": [
+              "ACC.Physics.tyreCoreFR"
+            ],
+            "RL": [
+              "ACC.Physics.tyreCoreRL"
+            ],
+            "RR": [
+              "ACC.Physics.tyreCoreRR"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "acc maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "AC-Evo.Physics.tyreCoreFL"
+            ],
+            "FR": [
+              "AC-Evo.Physics.tyreCoreFR"
+            ],
+            "RL": [
+              "AC-Evo.Physics.tyreCoreRL"
+            ],
+            "RR": [
+              "AC-Evo.Physics.tyreCoreRR"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "ac-evo maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "LMU.Telemetry.wheels.FL.tireCarcassTemperature"
+            ],
+            "FR": [
+              "LMU.Telemetry.wheels.FR.tireCarcassTemperature"
+            ],
+            "RL": [
+              "LMU.Telemetry.wheels.RL.tireCarcassTemperature"
+            ],
+            "RR": [
+              "LMU.Telemetry.wheels.RR.tireCarcassTemperature"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "lmu maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
       "id": "tire.temperature.surface.inner",
       "label": "Inner surface temperature",
       "description": "Tire Surface Temp Inner reported by normalized RaceIQ telemetry.",
@@ -52801,29 +52543,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempInnerFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempInnerFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempInnerRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempInnerRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ACC reserves this shared-memory field but does not populate it."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -52882,29 +52604,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempMiddleFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempMiddleFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempMiddleRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempMiddleRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves middle surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -52963,29 +52665,9 @@
           "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreTempOuterFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreTempOuterFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreTempOuterRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreTempOuterRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves outer surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -53001,6 +52683,162 @@
           "kind": "unavailable",
           "reason": "parser-placeholder",
           "description": "lmu parser fills this value with a placeholder because source does not provide it."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "tire.temperature.surface.representative",
+      "label": "Representative surface temperature",
+      "description": "Common one-value-per-tire temperature. Mapping may be native or a documented average of detailed channels.",
+      "parentId": "tire.temperature.surface",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "packetFields": [
+        "TireTempFL",
+        "TireTempFR",
+        "TireTempRL",
+        "TireTempRR"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "normalized",
+          "nativeUnit": "°F",
+          "sources": {
+            "FL": [
+              "ForzaDataOut.TireTempFL"
+            ],
+            "FR": [
+              "ForzaDataOut.TireTempFR"
+            ],
+            "RL": [
+              "ForzaDataOut.TireTempRL"
+            ],
+            "RR": [
+              "ForzaDataOut.TireTempRR"
+            ]
+          },
+          "freshness": "continuous",
+          "normalization": "(fahrenheit - 32) * 5 / 9",
+          "description": "fm-2023 maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/fm-2023/parser.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "fm-2023:tire.temperature.surface.representative:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "ForzaDataOut.TireTempFL",
+              "ForzaDataOut.TireTempFR",
+              "ForzaDataOut.TireTempRL",
+              "ForzaDataOut.TireTempRR"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "c7f4cc2fe4b9627483569a5be8ee7c2e1939e4bdf2e464a324e5d06de6fa1feb"
+          }
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "F1.CarTelemetry.tyreTempFL"
+            ],
+            "FR": [
+              "F1.CarTelemetry.tyreTempFR"
+            ],
+            "RL": [
+              "F1.CarTelemetry.tyreTempRL"
+            ],
+            "RR": [
+              "F1.CarTelemetry.tyreTempRR"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "f1-2025 maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/f1-2025/f1-state.ts"
+          },
+          "limitations": []
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ACC exposes only core tire temperature; its legacy TireTemp field must not be labeled as surface temperature."
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "AC-Evo.Physics.tyreTempFL"
+            ],
+            "FR": [
+              "AC-Evo.Physics.tyreTempFR"
+            ],
+            "RL": [
+              "AC-Evo.Physics.tyreTempRL"
+            ],
+            "RR": [
+              "AC-Evo.Physics.tyreTempRR"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "ac-evo maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iRacing TireTemp aliases the middle carcass band; use the named carcass bands."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "LMU.Telemetry.wheels.FL.temperature"
+            ],
+            "FR": [
+              "LMU.Telemetry.wheels.FR.temperature"
+            ],
+            "RL": [
+              "LMU.Telemetry.wheels.RL.temperature"
+            ],
+            "RR": [
+              "LMU.Telemetry.wheels.RR.temperature"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "lmu maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -55622,18 +55460,9 @@
           "description": "This parser does not expose an equivalent source value."
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": [
-            "acc.tireInnerTemp"
-          ],
-          "freshness": "continuous",
-          "description": "acc parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC reserves inner surface temperatures but does not populate them."
         },
         "ac-evo": {
           "kind": "unavailable",
@@ -56679,29 +56508,9 @@
           }
         },
         "acc": {
-          "kind": "direct",
-          "nativeUnit": "fraction",
-          "sources": {
-            "FL": [
-              "ACC.Physics.tyreWearFL"
-            ],
-            "FR": [
-              "ACC.Physics.tyreWearFR"
-            ],
-            "RL": [
-              "ACC.Physics.tyreWearRL"
-            ],
-            "RR": [
-              "ACC.Physics.tyreWearRR"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "acc maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-populated",
+          "description": "ACC Shared Memory v1.8.12 reserves tyreWear[4] but explicitly marks it unused; live pages report zero."
         },
         "ac-evo": {
           "kind": "direct",
@@ -60817,8 +60626,8 @@
         "unit": "°F",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -60829,8 +60638,8 @@
         "unit": "°F",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -60841,8 +60650,8 @@
         "unit": "°F",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -60853,8 +60662,8 @@
         "unit": "°F",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63076,7 +62885,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Extended CarTelemetry fields",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63088,7 +62897,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Extended CarTelemetry fields",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63100,7 +62909,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Extended CarTelemetry fields",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63112,7 +62921,7 @@
         "dataType": "number",
         "count": 1,
         "description": "Extended CarTelemetry fields",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63987,8 +63796,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -63999,8 +63808,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64011,8 +63820,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64023,8 +63832,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64239,8 +64048,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64251,8 +64060,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64263,8 +64072,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64275,8 +64084,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65394,7 +65203,7 @@
         "dataType": "[number, number, number, number]",
         "count": 1,
         "description": "Tire Core Temp source value reported by acc in °C.",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -65405,7 +65214,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Tire Inner Temp source value reported by acc in °C.",
+        "description": "ACC reserves inner surface temperatures but does not populate them.",
         "semanticId": "tires.tire-inner-temp",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -65417,7 +65226,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Middle-band surface temp per tire (°C, FL/FR/RL/RR). Read from physics offsets 384-396. With inner/outer this gives the 3-point lateral temp profile the tire symptom module uses for a camber-direction recommendation.",
+        "description": "ACC reserves middle surface temperatures but does not populate them.",
         "semanticId": "tire.temperature.surface.middle",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -65429,7 +65238,7 @@
         "unit": "°C",
         "dataType": "[number, number, number, number]",
         "count": 1,
-        "description": "Tire Outer Temp source value reported by acc in °C.",
+        "description": "ACC reserves outer surface temperatures but does not populate them.",
         "semanticId": "tire.temperature.surface.outer",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -66257,8 +66066,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66269,8 +66078,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66281,8 +66090,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66293,8 +66102,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66653,8 +66462,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66665,8 +66474,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66677,8 +66486,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -66689,8 +66498,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -68024,7 +67833,7 @@
         "dataType": "[number, number, number, number]",
         "count": 1,
         "description": "Tire Core Temp source value reported by ac-evo in °C.",
-        "semanticId": "tire.temperature.carcass.average",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69319,8 +69128,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69331,8 +69140,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69343,8 +69152,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69355,8 +69164,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69715,8 +69524,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69727,8 +69536,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69739,8 +69548,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -69751,8 +69560,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80307,36 +80116,12 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TireCarcassTempFL",
-        "label": "Tire Carcass Temp FL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempFR",
-        "label": "Tire Carcass Temp FR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "TelemetryPacket.TireCarcassTempLeftFL",
         "label": "Tire Carcass Temp Left FL",
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left FL emitted by iracing parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -80348,7 +80133,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left FR emitted by iracing parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -80360,7 +80145,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left RL emitted by iracing parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -80372,7 +80157,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left RR emitted by iracing parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -80470,30 +80255,6 @@
         "count": 1,
         "description": "Tire Carcass Temp Right RR emitted by iracing parser.",
         "semanticId": "tire.temperature.carcass.right",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRL",
-        "label": "Tire Carcass Temp RL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRR",
-        "label": "Tire Carcass Temp RR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80708,8 +80469,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80720,8 +80481,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80732,8 +80493,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -80744,8 +80505,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82606,8 +82367,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82618,8 +82379,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82630,7 +82391,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left FL emitted by lmu parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -82642,7 +82403,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left FR emitted by lmu parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -82654,7 +82415,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left RL emitted by lmu parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -82666,7 +82427,7 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Tire Carcass Temp Left RR emitted by lmu parser.",
+        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
         "semanticId": "tire.temperature.carcass.left",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
@@ -82774,8 +82535,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82786,8 +82547,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Detailed tire temperatures (°C). Optional when source lacks this fidelity.",
-        "semanticId": "tire.temperature.carcass.average",
+        "description": "One core value per tire when provided directly by game.",
+        "semanticId": "tire.temperature.core",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83002,8 +82763,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83014,8 +82775,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83026,8 +82787,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83038,8 +82799,8 @@
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Common representative tire temperature. Unit comes from game adapter.",
-        "semanticId": "tire.temperature.average",
+        "description": "Primary per-wheel temperature selected by game adapter. Unit is game-native.",
+        "semanticId": "tire.temperature.surface.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83375,13 +83136,13 @@
         "recorded": 219
       },
       "iracing": {
-        "total": 955,
-        "packet": 119,
+        "total": 951,
+        "packet": 115,
         "extension": 17,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 705
+        "recorded": 701
       },
       "lmu": {
         "total": 161,

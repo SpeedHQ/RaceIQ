@@ -90,11 +90,15 @@
     "hono": "^4.12.33",
     "libsql": "^0.5.29",
     "mitata": "^1.0.34",
+    "pino": "^10.3.1",
     "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.7",
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
     "@mastra/duckdb": "^1.5.2",
     "@mastra/hono": "^1.5.12",
     "@mastra/loggers": "^1.2.0",
@@ -106,14 +110,12 @@
     "drizzle-kit": "^0.31.10",
     "lefthook": "^2.1.10",
     "lighthouse": "^13.4.1",
+    "meshoptimizer": "^1.2.0",
     "pixelmatch": "^7.2.0",
     "portless": "^0.15.5",
     "typescript": "^7.0.2"
   },
   "optionalDependencies": {
     "@libsql/darwin-arm64": "^0.5.29"
-  },
-  "patchedDependencies": {
-    "@inlang/paraglide-js@2.22.0": "patches/@inlang%2Fparaglide-js@2.22.0.patch"
   }
 }

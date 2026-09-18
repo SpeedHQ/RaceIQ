@@ -44,6 +44,7 @@ import { resolveTelemetryReplay } from "../telemetry/replay";
 import { getServerGame } from "../games/registry";
 
 export { MOTEC_SESSION_SOURCE };
+export { resolveMotecTarget };
 
 
 

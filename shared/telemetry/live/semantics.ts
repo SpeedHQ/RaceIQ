@@ -4,7 +4,7 @@ export const LIVE_CORE_SEMANTIC_IDS = [
   "brakes.brake-temp", "engine.boost", "engine.current-engine-rpm", "engine.engine-idle-rpm", "engine.engine-max-rpm", "engine.power", "engine.torque",
   "fuel.fuel", "fuel.fuel-capacity", "identity.car-class", "identity.car-ordinal", "identity.car-performance-index", "identity.drivetrain-type", "identity.track-ordinal",
   "inputs.accel", "inputs.brake", "inputs.gear", "inputs.steer", "motion.acceleration-x", "motion.acceleration-z", "motion.pitch", "motion.position-x", "motion.position-z", "motion.roll", "motion.speed", "motion.yaw",
-  "race.race-position", "suspension.norm-suspension-travel", "timing.best-lap", "timing.current-lap", "timing.distance-traveled", "timing.lap-number", "timing.last-lap", "tire.temperature.average", "tires.tire-combined-slip", "tires.tire-pressure", "tires.tire-slip-angle", "tires.tire-slip-ratio", "tires.tire-wear", "tires.wheel-in-puddle-depth", "tires.wheel-on-rumble-strip", "tires.wheel-rotation-speed", "weather.air-temp", "weather.track-temp", "weather.weather-type",
+  "race.race-position", "suspension.norm-suspension-travel", "timing.best-lap", "timing.current-lap", "timing.distance-traveled", "timing.lap-number", "timing.last-lap", "tire.temperature.surface.representative", "tires.tire-combined-slip", "tires.tire-pressure", "tires.tire-slip-angle", "tires.tire-slip-ratio", "tires.tire-wear", "tires.wheel-in-puddle-depth", "tires.wheel-on-rumble-strip", "tires.wheel-rotation-speed", "weather.air-temp", "weather.track-temp", "weather.weather-type",
 ] as const;
 
 export const LIVE_GAME_SEMANTIC_IDS = {

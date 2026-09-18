@@ -57,7 +57,7 @@ export const lmuAdapter: GameAdapter = {
     },
     tireTemperature: {
       packetUnit: "celsius",
-      binding: { kind: "value", semanticId: "tire.temperature.average" },
+      binding: { kind: "value", semanticId: "tire.temperature.surface.representative" },
     },
     power: {
       packetUnit: "watt",
@@ -145,7 +145,7 @@ export const lmuAdapter: GameAdapter = {
         source: "direct",
         freshness: "continuous",
         display: "per-wheel",
-        binding: { kind: "value", semanticId: "tire.temperature.average" },
+        binding: { kind: "value", semanticId: "tire.temperature.surface.representative" },
       },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: {

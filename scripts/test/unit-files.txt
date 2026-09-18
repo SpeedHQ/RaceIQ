@@ -27,4 +27,13 @@ test/lap-analysis/stints/stint-stats.test.ts
 test/lap-analysis/stints/stint-trace-codec.test.ts
 test/lap-analysis/stints/stint-traces.test.ts
 test/lap-analysis/time-loss.test.ts
-test/tooling/test-shards.test.ts
+test/archive/bounded-unzip.test.ts
+test/client/aligned-telemetry-fidelity.test.ts
+test/client/analyse-chart-data.test.ts
+test/games/shared/parser.test.ts
+test/lap-analysis/aligned-telemetry-codec.test.ts
+test/lap-analysis/aligned-telemetry.test.ts
+test/lap-analysis/clean-lap-aggregate.test.ts
+test/lap-analysis/corner-resolution.test.ts
+test/laps/archive-detection.test.ts
+test/lap-analysis/report.test.ts

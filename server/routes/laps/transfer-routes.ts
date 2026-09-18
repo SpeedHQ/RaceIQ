@@ -18,6 +18,7 @@ import {
 } from "../../games/lmu/import-duckdb";
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
+import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "../../motec/import-staging";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 function temporaryDuckDBPath(): string {
@@ -106,6 +107,15 @@ export const transferRoutes = new Hono()
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const lower = file.name.toLowerCase();
+    if (lower.endsWith(".zip")) {
+      try {
+        const staged = await stageMotecArchive(bytes);
+        await removeStagedMotec(staged.token);
+        return c.json({ format: "motec" as const, supported: true, captureCount: 1, gameIds: [] });
+      } catch {
+        // Continue with RaceIQ ZIP detection.
+      }
+    }
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
       try {
         const detection = detectLapsZip(bytes);
@@ -121,13 +131,19 @@ export const transferRoutes = new Hono()
       }
     }
     if (lower.endsWith(".bin") || lower.endsWith(".bin.gz")) {
-      const gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      let gameId: ReturnType<typeof detectGameIdFromBuffer> = null;
+      let message = "Could not detect a supported game from this capture.";
+      try {
+        gameId = detectGameIdFromBuffer(Buffer.from(bytes));
+      } catch {
+        message = "Capture is not a valid bounded gzip stream.";
+      }
       return c.json({
         format: "bin" as const,
         supported: gameId != null,
         gameIds: gameId ? [gameId] : [],
         captureCount: 1,
-        message: gameId ? null : "Could not detect a supported game from this capture.",
+        message: gameId ? null : message,
       });
     }
     if (lower.endsWith(".duckdb")) {
@@ -250,7 +266,12 @@ export const transferRoutes = new Hono()
         cleanupTemporaryDuckDB(path);
       }
     }
-    const gameId = detectGameIdFromBuffer(bytes);
+    let gameId: ReturnType<typeof detectGameIdFromBuffer> = null;
+    try {
+      gameId = detectGameIdFromBuffer(bytes);
+    } catch {
+      return c.json({ error: "Failed to read session capture" }, 400);
+    }
     if (!gameId) {
       return c.json(
         { error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.` },
@@ -293,25 +314,50 @@ export const transferRoutes = new Hono()
       })),
     );
   })
-
-  .post("/api/laps/import-motec", async (c) => {
+  .post("/api/laps/stage-motec", async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    if (!file.name.toLowerCase().endsWith(".ld")) {
+    try {
+      return c.json(await stageMotecArchive(new Uint8Array(await file.arrayBuffer())));
+    } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    }
+  })
+  .post("/api/laps/import-motec", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const stagedToken = form?.get("motecToken");
+    const file = form?.get("file");
+    if (!(file instanceof File) && typeof stagedToken !== "string") {
+      return c.json({ error: "Missing MoTeC file or staging token" }, 400);
+    }
+    let fileBytes = file instanceof File ? Buffer.from(await file.arrayBuffer()) : undefined;
+    let stagedBytes: { ldBytes: Buffer; ldxBytes: Buffer } | undefined;
+    let cleanupToken: string | undefined = typeof stagedToken === "string" ? stagedToken : undefined;
+    if (file instanceof File && file.name.toLowerCase().endsWith(".zip")) {
+      try {
+        const staged = await stageMotecArchive(new Uint8Array(fileBytes!));
+        cleanupToken = staged.token;
+        stagedBytes = await loadStagedMotec(staged.token);
+      } catch (err: unknown) {
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+      }
+    } else if (typeof stagedToken === "string") {
+      try {
+        stagedBytes = await loadStagedMotec(stagedToken);
+      } catch (err: unknown) {
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 410);
+      }
+    }
+    const ldBytes = stagedBytes?.ldBytes ?? fileBytes;
+    if (!ldBytes) return c.json({ error: "Missing MoTeC .ld data" }, 400);
+    if (file instanceof File && !file.name.toLowerCase().endsWith(".ld") && !file.name.toLowerCase().endsWith(".zip")) {
       return c.json({ error: "Expected a MoTeC .ld file" }, 400);
     }
-
-    // The sidecar carries the lap beacons. Without it the log imports as a
-    // single unsplit stint, which is correct for a standalone hotlap export.
     const ownership = OwnershipSchema.safeParse(form?.get("ownership"));
     const sidecar = form?.get("ldx");
-    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    const ldxBytes = stagedBytes?.ldxBytes ?? (sidecar instanceof File ? Buffer.from(await sidecar.arrayBuffer()) : undefined);
     if (!ownership.success) return c.json({ error: "ownership must be exactly mine or others" }, 400);
-
-    // Car and track are the user's call, not the log header's — a log filed
-    // against the wrong track gets meaningless sectors and corner names. The
-    // setup is optional: not knowing it costs a label, nothing more.
     const num = (key: string): number | undefined => {
       const raw = form?.get(key);
       if (typeof raw !== "string" || raw.trim() === "") return undefined;
@@ -323,29 +369,19 @@ export const transferRoutes = new Hono()
     if (carOrdinal === undefined || trackOrdinal === undefined) {
       return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
     }
-
-    // Which sim exported the log. Resolved up front so an unsupported game is a
-    // 400 naming the problem, not a 500 from deep inside the transcoder — and
-    // so the ordinals above are read against the right game's roster.
     const gameIdRaw = form?.get("gameId");
     let target: ReturnType<typeof resolveMotecTarget>;
     try {
-      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
-    } catch (err: any) {
-      return c.json({ error: String(err?.message ?? err) }, 400);
+      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : "");
+    } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-
-    // laps.tune_id is a real FK, so an id that doesn't exist would surface as a
-    // constraint failure and a 500. It's user input; say so plainly instead.
     const tuneId = num("tuneId");
-    if (tuneId !== undefined) {
-      if (!(await getDbTune(tuneId))) {
-        return c.json({ error: `No setup with id ${tuneId}` }, 400);
-      }
+    if (tuneId !== undefined && !(await getDbTune(tuneId))) {
+      return c.json({ error: `No setup with id ${tuneId}` }, 400);
     }
-
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+      const result = await importMotec(ldBytes, ldxBytes, {
         gameId: target.gameId,
         carOrdinal,
         trackOrdinal,
@@ -353,23 +389,16 @@ export const transferRoutes = new Hono()
         ownership: ownership.data,
       });
       if (result.laps.length === 0) {
-        return c.json(
-          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
-          400
-        );
+        return c.json({ error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations }, 400);
       }
-      return c.json({
-        ...result,
-        ok: true,
-        gameId: target.gameId,
-        routePrefix: target.routePrefix,
-        imported: result.laps.length,
-      });
-    } catch (err: any) {
-      console.error("[MoTeC Import] Failed:", err?.message);
-      return c.json({ error: "Failed to import MoTeC log", details: String(err?.message ?? err) }, 500);
+      if (cleanupToken) await removeStagedMotec(cleanupToken);
+      return c.json({ ...result, ok: true, gameId: target.gameId, imported: result.laps.length });
+    } catch (err: unknown) {
+      console.error("[MoTeC Import] Failed:", err instanceof Error ? err.stack : err);
+      return c.json({ error: "Failed to import MoTeC log", details: String(err) }, 500);
     }
   })
+
 
   .post("/api/laps/import-ibt/preview", async (c) => {
     const uploadName =

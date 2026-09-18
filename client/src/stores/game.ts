@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { GameId } from "../../../shared/games/ids";
-import { useTelemetryStore } from "./telemetry";
-
+import { telemetryStore } from "./telemetry";
 /** Map gameId → route path segment. Derived from each adapter's routePrefix. */
 const GAME_ROUTES: Record<string, string> = {
   "fm-2023": "/fm23",
@@ -24,10 +23,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ gameId });
     // Clear stale session laps when switching between games
     if (prev && gameId && prev !== gameId) {
-      useTelemetryStore.getState().setSessionLaps([]);
+      telemetryStore.actions.setSessionLaps([]);
     }
   },
 }));
+type GameStoreApi = {
+  get: () => GameState;
+  setState: (state: GameState | Partial<GameState>) => void;
+  subscribe: (listener: (state: GameState) => void) => () => void;
+  actions: { setGameId: (gameId: GameId | null) => void };
+};
+
+const gameStoreApi = useGameStore as unknown as {
+  getState: () => GameState;
+  setState: (state: GameState | Partial<GameState>) => void;
+  subscribe: (listener: (state: GameState) => void) => () => void;
+};
+
+export const gameStore: GameStoreApi = {
+  get: () => gameStoreApi.getState(),
+  setState: (state) => gameStoreApi.setState(state),
+  subscribe: (listener) => gameStoreApi.subscribe(listener),
+  actions: {
+    setGameId: (gameId) => gameStoreApi.getState().setGameId(gameId),
+  },
+};
 
 export function useGameId(): GameId | null {
   return useGameStore((s) => s.gameId);
