@@ -79,6 +79,12 @@ function copyLibsqlAddon() {
   cpSync(join(pkgDir, "package.json"), join(destDir, "package.json"));
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
+
+async function signDarwinBinary(): Promise<void> {
+  if (process.platform !== "darwin") return;
+  await run(["codesign", "--force", "--sign", "-", join(distDir, "raceiq")]);
+}
+
 async function main() {
   mkdirSync(distDir, { recursive: true });
   await run(["bun", "scripts/telemetry/generate-demo-fixture.ts"]);
@@ -112,7 +118,7 @@ async function main() {
   compileArgs.push("server/bootstrap.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
-
+  await signDarwinBinary();
   copyLibsqlAddon();
 }
 
