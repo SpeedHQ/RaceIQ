@@ -10,6 +10,6 @@
     "typecheck": "bunx tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0"
+    "@playwright/test": "1.62.1"
   }
 }

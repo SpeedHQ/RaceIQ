@@ -115,7 +115,7 @@
     "@mastra/hono": "^1.7.9",
     "@mastra/loggers": "^1.3.2",
     "@mastra/observability": "^1.17.8",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "1.62.1",
     "@types/bun": "^1.4.2",
     "cheerio": "^1.2.0",
     "concurrently": "^10.0.5",
