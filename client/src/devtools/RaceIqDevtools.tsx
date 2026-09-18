@@ -57,7 +57,10 @@ function RaceIqRuntimeBridge() {
     const removeRequest = raceIqRuntimeEventClient.on("request-runtime-snapshot", publish);
     const removeToggle = raceIqRuntimeEventClient.on("toggle-server-state-pause", () => telemetryStore.actions.toggleDevStatePause());
     return () => {
-      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      subscriptions.forEach((subscription) => {
+        if (typeof subscription === "function") subscription();
+        else subscription.unsubscribe();
+      });
       if (timer) clearTimeout(timer);
       removeRequest();
       removeToggle();
@@ -80,13 +83,18 @@ function RaceIqRuntimePanel() {
       stores={runtime.stores}
       paused={runtime.stores.telemetry.devStatePaused}
       onTogglePause={() => raceIqRuntimeEventClient.emit("toggle-server-state-pause", undefined)}
+
     />
   );
 }
+const gameStoreSource: StoreDescriptor<unknown>["store"] = {
+  get: gameStore.get,
+  subscribe: (listener) => ({ unsubscribe: gameStore.subscribe(listener) }),
+};
 
 const tanStackStoreDescriptors = {
   telemetry: { name: "Telemetry", store: telemetryStore },
-  game: { name: "Game", store: gameStore },
+  game: { name: "Game", store: gameStoreSource },
   ui: { name: "UI", store: uiStore },
   devTelemetry: { name: "Dev Telemetry", store: devTelemetryStore },
 } satisfies Record<"telemetry" | "game" | "ui" | "devTelemetry", StoreDescriptor<unknown>>;

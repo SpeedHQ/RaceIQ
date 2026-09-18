@@ -11,7 +11,7 @@ const GAME_ROUTES: Record<string, string> = {
   lmu: "/lmu",
 };
 
-interface GameState {
+export interface GameState {
   gameId: GameId | null;
   setGameId: (id: GameId | null) => void;
 }
