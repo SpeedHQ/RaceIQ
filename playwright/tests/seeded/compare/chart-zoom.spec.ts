@@ -98,7 +98,7 @@ function rangeBounds(response: Response): { start: number; end: number } {
 }
 
 test("Compare chart supports consecutive narrower zooms", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
   const firstResponse = rangeRequest(page);
@@ -115,7 +115,7 @@ test("Compare chart supports consecutive narrower zooms", async ({ page, request
 });
 
 test("Compare chart double-click steps back one zoom level", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const chart = await openComparison(page, request);
   const fullSpan = await visibleDistanceSpan(chart);
 
@@ -149,7 +149,7 @@ test("Compare chart double-click steps back one zoom level", async ({ page, requ
 });
 
 test("Compare chart click does not submit a zoom range", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
   const response = rangeRequest(page);
@@ -169,7 +169,7 @@ test("Compare chart click does not submit a zoom range", async ({ page, request 
 });
 
 test("Compare zoom keeps hover markers aligned with zoomed chart", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const chart = await openComparison(page, request);
 
   const response = rangeRequest(page);

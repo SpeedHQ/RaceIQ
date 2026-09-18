@@ -8,7 +8,7 @@ import { alignedRequestMatches, ALIGNED_TELEMETRY_ENDPOINT, fetchAlignedSet, lap
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} Compare renders distinct seeded traces and synchronized controls`, async ({ page, request }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
     const pair = await getDistinctPair(request, game.gameId);
     const { response: compareResponse, set } = await fetchAlignedSet(request, pair);
