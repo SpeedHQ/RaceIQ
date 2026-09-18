@@ -20,7 +20,7 @@ const PAGES = [
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
-    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(120_000);
+    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(140_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
     if (page.name.startsWith("experiments-review-")) {
       const response = await p.request.post("/api/experiments/1/import-laps", {

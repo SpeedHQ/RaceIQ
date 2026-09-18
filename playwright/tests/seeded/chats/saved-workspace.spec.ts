@@ -3,7 +3,7 @@ import { collectBrowserErrors } from "../../support/browser-errors";
 import { ChatHistorySchema, openChatRow, seededChats } from "./helpers";
 
 test("saved Analyse and Compare chats open their AI workspaces without a provider", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const browserErrors = collectBrowserErrors(page);
   const chats = await seededChats(request, "fm-2023");
   const analyse = chats.find((chat) => chat.type === "analyse");

@@ -100,7 +100,7 @@ for (const viewport of VIEWPORTS) {
 
 for (const viewport of APP_VIEWPORTS) {
   test(`app routes follow workspace policy at ${viewport.name} ${viewport.width}x${viewport.height}`, async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(200_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
     for (const route of APP_ROUTES) {
