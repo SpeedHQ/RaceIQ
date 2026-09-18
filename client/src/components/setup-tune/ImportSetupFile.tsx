@@ -85,13 +85,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
         <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div className="rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden flex flex-col min-h-0">
             <div className="px-3 py-2 border-b border-app-border">
-              <AppInput
-                type="text"
-                placeholder={m.import_filter_car()}
-                value={carFilter}
-                onChange={(e) => setCarFilter(e.target.value)}
-                className="w-full"
-              />
+              <AppInput type="text" placeholder={m.import_filter_car()} value={carFilter} onChange={(e) => setCarFilter(e.target.value)} className="w-full" />
             </div>
             <div className="overflow-auto max-h-96">
               {filteredCarEntries.map(([carModel, files]) => (
@@ -127,21 +121,11 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                 </div>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
-                  <AppInput
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full"
-                  />
+                  <AppInput type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
                 </label>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
-                  <AppInput
-                    type="text"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
-                    className="w-full"
-                  />
+                  <AppInput type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full" />
                 </label>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>

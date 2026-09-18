@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { GameStoryScope } from "./GameStoryScope";
-import { TuneReviewDashboard } from "@/components/tunes/review/TuneReviewDashboard";
+import { SessionReviewDashboard } from "@/components/tunes/review/SessionReviewDashboard";
 import { fakeSessionLaps } from "./fakeData";
 import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
@@ -38,9 +38,9 @@ function withRouter(Story: React.ComponentType) {
   return <RouterProvider router={router} />;
 }
 
-const meta: Meta<typeof TuneReviewDashboard> = {
-  title: "Dashboards/Experiments/TuneReviewDashboard",
-  component: TuneReviewDashboard,
+const meta: Meta<typeof SessionReviewDashboard> = {
+  title: "Dashboards/Experiments/SessionReviewDashboard",
+  component: SessionReviewDashboard,
   decorators: [
     (Story) => (
       <StoryDecorator>
@@ -53,7 +53,7 @@ const meta: Meta<typeof TuneReviewDashboard> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof TuneReviewDashboard>;
+type Story = StoryObj<typeof SessionReviewDashboard>;
 
 export const Default: Story = {
   args: { gameId: "acc", trackName: "Spa-Francorchamps", laps: fakeSessionLaps },

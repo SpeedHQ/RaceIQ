@@ -1,20 +1,15 @@
-import type { Point, SemanticAnalysisFrame } from "./types";
-
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+import { semanticNumber, type Point, type SemanticAnalysisFrame } from "./types";
 
 const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
-  x: number(frame, "motion.position-x") ?? 0,
-  z: number(frame, "motion.position-z") ?? 0,
+  x: semanticNumber(frame, "motion.position-x") ?? 0,
+  z: semanticNumber(frame, "motion.position-z") ?? 0,
 });
 
 export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outline: Point[] | null): Point[] {
   const worldPositions = telemetry.map(worldPosition);
   if (worldPositions.some((point) => point.x !== 0 || point.z !== 0) || !outline || outline.length < 2) return worldPositions;
 
-  const fractions = telemetry.map((frame) => number(frame, "timing.lap-fraction"));
+  const fractions = telemetry.map((frame) => semanticNumber(frame, "timing.lap-fraction"));
   if (fractions.some((fraction) => fraction === null)) return worldPositions;
 
   const cumulative = [0];
@@ -41,6 +36,26 @@ export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outlin
       z: outline[start].z + (outline[low].z - outline[start].z) * amount,
     };
   });
+}
+export function projectPointOntoPath(point: Point, path: readonly Point[]): Point | null {
+  if (path.length < 2) return null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  let bestPoint: Point | null = null;
+  for (let index = 1; index < path.length; index++) {
+    const start = path[index - 1];
+    const end = path[index];
+    const dx = end.x - start.x;
+    const dz = end.z - start.z;
+    const lengthSquared = dx * dx + dz * dz;
+    const amount = lengthSquared > 1e-12 ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.z - start.z) * dz) / lengthSquared)) : 0;
+    const projected = { x: start.x + dx * amount, z: start.z + dz * amount };
+    const distance = (point.x - projected.x) ** 2 + (point.z - projected.z) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestPoint = projected;
+    }
+  }
+  return bestPoint;
 }
 
 export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {
@@ -80,11 +95,8 @@ export function pathForwardOffsets(points: readonly Point[]): ([number, number] 
   return directions;
 }
 
-export function resolveFrameDirection(
-  frame: SemanticAnalysisFrame,
-  pathDirection: [number, number] | null,
-): [number, number] | null {
-  const yaw = number(frame, "motion.yaw");
+export function resolveFrameDirection(frame: SemanticAnalysisFrame, pathDirection: [number, number] | null): [number, number] | null {
+  const yaw = semanticNumber(frame, "motion.yaw");
   const state = frame.states["motion.yaw"];
   const freshness = frame.freshness["motion.yaw"];
   if (yaw !== null && (state === undefined || state === "ok") && (freshness === undefined || freshness === "fresh")) {

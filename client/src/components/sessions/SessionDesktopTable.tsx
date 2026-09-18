@@ -42,6 +42,7 @@ export type SessionDesktopTableProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionDesktopTable({
@@ -73,6 +74,7 @@ export function SessionDesktopTable({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionDesktopTableProps) {
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
@@ -153,6 +155,17 @@ export function SessionDesktopTable({
                           }}
                         >
                           Recap
+                        </Button>
+                        <Button
+                          variant="app-primary"
+                          size="app-sm"
+                          disabled={false}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            analyseSession(session);
+                          }}
+                        >
+                          {m.sessions_analyse_session()}
                         </Button>
                         <Button
                           variant="app-outline"

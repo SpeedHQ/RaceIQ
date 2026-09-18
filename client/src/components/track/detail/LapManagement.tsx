@@ -397,7 +397,7 @@ export function LapManagement(props: LapManagementProps) {
                                   className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
                                   onClick={() => {
                                     if (!gameId) return;
-                                    navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                    navTo({ to: `${getGameRoute(gameId)}/sessions/replay`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
                                   }}
                                 >
                                   {m.trackdetail_analyse()}

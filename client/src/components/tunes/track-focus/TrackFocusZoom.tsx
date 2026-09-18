@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
+import type { TrackCorner } from "../../../hooks/track-queries";
 import type { Pt } from "../track-map-geometry";
 import { VIEW } from "../track-map-geometry";
 
@@ -113,7 +115,11 @@ function windowPoints(x: number[], z: number[], center: ZoomPoint, radiusM: numb
     }
     prevInside = inside;
   }
-  return points;
+  if (points.length <= 200) return points;
+  const sampled: ZoomPoint[] = [];
+  const stride = (points.length - 1) / 199;
+  for (let index = 0; index < 200; index++) sampled.push(points[Math.round(index * stride)]);
+  return sampled;
 }
 
 /**
@@ -121,7 +127,7 @@ function windowPoints(x: number[], z: number[], center: ZoomPoint, radiusM: numb
  * the bin nearest `cursorFrac`, and each lap's points that fall inside a
  * ±radiusM box around that center. No React, no DOM — safe to unit test.
  */
-export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radiusM: number = DEFAULT_RADIUS_M, edges?: { left: Pt[]; right: Pt[] } | null, bestLapId?: number | null): ZoomViewport {
+export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radiusM: number = DEFAULT_RADIUS_M, edges?: { left: Pt[]; right: Pt[] } | null, primaryLapId?: number | null): ZoomViewport {
   if (lapLines.length === 0 || (lapLines[0]?.x.length ?? 0) === 0) return { center: { x: 0, z: 0 }, dot: { x: 0, z: 0 }, inWindow: [], edges: null };
 
   // Raw laps differ in frame count AND are uniform in time (not distance), so
@@ -134,8 +140,8 @@ export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radius
     const idx = idxAtFrac(l, cursorFrac);
     sx += l.x[idx];
     sz += l.z[idx];
-    // Anchor the dot to the best lap's point so it lands on the thick, visible line.
-    if (bestLapId != null && l.lapId === bestLapId) dot = { x: l.x[idx], z: l.z[idx] };
+    // Anchor dot to primary lap's point so it lands on thick, visible line.
+    if (primaryLapId != null && l.lapId === primaryLapId) dot = { x: l.x[idx], z: l.z[idx] };
   }
   const center = { x: sx / lapLines.length, z: sz / lapLines.length };
 
@@ -163,7 +169,7 @@ export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radius
 
 interface TrackFocusZoomProps {
   lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac?: number[] }[];
-  bestLapId: number | null;
+  primaryLapId: number | null;
   /** 0..1, drives the window center point. */
   cursorFrac: number;
   /** Half-window in metres (window is radiusM * 2 across). Default 60. */
@@ -171,6 +177,9 @@ interface TrackFocusZoomProps {
   /** Track edges in the same world space as the lap lines (already flipped to
    *  match the negated telemetry) — drawn as faint boundaries under the lines. */
   edges?: { left: Pt[]; right: Pt[] } | null;
+  issues?: TuneIssue[];
+  corners?: TrackCorner[];
+  cornerFracs?: number[];
 }
 
 /**
@@ -181,8 +190,8 @@ interface TrackFocusZoomProps {
  * and where each lap brakes/accelerates are directly visible. The best lap is
  * drawn thicker. Pure/presentational — no data fetching.
  */
-export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFAULT_RADIUS_M, edges }: TrackFocusZoomProps) {
-  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges, bestLapId) : null), [lapLines, cursorFrac, radiusM, edges, bestLapId]);
+export function TrackFocusZoom({ lapLines, primaryLapId, cursorFrac, radiusM = DEFAULT_RADIUS_M, edges, issues = [], corners = [], cornerFracs = [] }: TrackFocusZoomProps) {
+  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges, primaryLapId) : null), [lapLines, cursorFrac, radiusM, edges, primaryLapId]);
 
   const totalPoints = viewport ? viewport.inWindow.reduce((sum, l) => sum + l.points.length, 0) : 0;
 
@@ -195,23 +204,34 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   const minZ = center.z - radiusM;
   // Same orientation as track-map-geometry / TrackDetail: mirror X (inputs are
   // negated-X telemetry space), Z straight down.
+
   const maxX = center.x + radiusM;
   const px = (x: number) => (maxX - x) * scale;
   const py = (z: number) => (z - minZ) * scale;
 
   // Dot sits on the best-lap line; window stays framed on the mean.
+  const markerPoint = (frac: number): { x: number; y: number } | null => {
+    const line = lapLines.find((candidate) => candidate.lapId === primaryLapId) ?? lapLines[0];
+    if (!line || line.x.length === 0) return null;
+    const index = idxAtFrac(line, Math.max(0, Math.min(1, frac)));
+    const x = line.x[index];
+    const z = line.z[index];
+    if (Math.abs(x - center.x) > radiusM * 1.1 || Math.abs(z - center.z) > radiusM * 1.1) return null;
+    return { x: px(x), y: py(z) };
+  };
+  const issueColor = (severity: string) => (severity === "critical" ? "var(--status-danger)" : severity === "warn" ? "var(--status-warning)" : "var(--status-info)");
   const dotPx = px(dot.x);
   const dotPy = py(dot.z);
   const edgePolyline = (pts: ZoomPoint[]) => pts.map((p) => `${px(p.x).toFixed(1)},${py(p.z).toFixed(1)}`).join(" ");
 
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-square">
+      <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-[1.1/1]">
         {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {inWindow.map((l) => {
-          const isBest = l.lapId === bestLapId;
-          const w = isBest ? 1.6 : 0.8;
+          const isBest = l.lapId === primaryLapId;
+          const w = 1.6;
           const op = isBest ? 1 : 0.55;
           // One <line> per consecutive pair, colored by the segment's leading
           // point input state (brake wins ties). Keys are built here rather
@@ -224,20 +244,22 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
           }));
           return segments.map(({ key, p, q, color }) => <line key={key} x1={px(p.x)} y1={py(p.z)} x2={px(q.x)} y2={py(q.z)} stroke={color} strokeWidth={w} strokeLinecap="round" opacity={op} />);
         })}
+        {corners.map((corner, index) => {
+          const point = markerPoint(cornerFracs[index] ?? corner.distanceStart);
+          return point ? (
+            <g key={`turn-${corner.index}`}>
+              <circle cx={point.x} cy={point.y} r={3} fill="var(--app-text-dim)" stroke="var(--app-bg)" strokeWidth={0.8} />
+              <text x={point.x + 5} y={point.y - 4} fontSize={8} fill="var(--app-text-muted)" className="font-mono">{`T${corner.index}`}</text>
+            </g>
+          ) : null;
+        })}
+        {issues.map((issue, index) => {
+          if (issue.distanceFrac == null) return null;
+          const point = markerPoint(issue.distanceFrac);
+          return point ? <circle key={`issue-${index}`} cx={point.x} cy={point.y} r={3} fill={issueColor(issue.severity)} stroke="var(--app-bg)" strokeWidth={1} /> : null;
+        })}
         <circle cx={dotPx} cy={dotPy} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />
       </svg>
-      <div className="absolute top-1 right-1 text-app-caption font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">±{radiusM}m</div>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_BRAKE }} /> brake
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_COAST }} /> coast
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_THROTTLE }} /> throttle
-        </span>
-      </div>
     </div>
   );
 }

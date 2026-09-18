@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Review recorded ACC and Assetto Corsa Evo track/car sessions from bounded metadata summaries, surfacing only top laps before opening detailed analysis in Analyse
 
 - Show separate surface and core tire temperatures where simulators provide them, preserving each available temperature band
 - Add AC Evo and iRacing live dashboards with simulator-specific tire, fuel, and race data, including iRacing three-segment carcass temperatures
@@ -13,6 +14,9 @@
 - Keep ACC pit strategy fuel-limited because simulator does not provide tire wear
 - Show ACC tire temperature as its sole exported core channel instead of labeling reserved shared-memory fields as surface readings
 - Keep recorded telemetry surface details and temperature freshness labels accurate without presenting unavailable readings
+- Position Analyse turns and track maps correctly with or without world-position samples, and align peak tire and brake charts by distance while preserving per-wheel detail
+- Keep Compare and Analyse cursor tooltips synchronized
+- Show racing-line consistency scores only when at least two laps are available
 - Hide iRacing driver-profile navigation when unsupported.
 - Keep lap analysis usable when older F1 recordings do not contain track or air temperatures
 
@@ -20,6 +24,7 @@
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 - Run seeded database upgrade verification in PR and release CI when migrations change.
 
+- Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
 - Add UI-level agent testing.
 ## v0.17.0 - 2026-09-16
 
@@ -29,7 +34,6 @@
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
-
 - Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session

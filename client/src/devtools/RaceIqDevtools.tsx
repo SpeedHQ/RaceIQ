@@ -47,7 +47,10 @@ function RaceIqRuntimeBridge() {
     const publish = () => raceIqRuntimeEventClient.emit("runtime-snapshot", snapshot());
     const schedule = () => {
       if (timer) return;
-      timer = setTimeout(() => { timer = undefined; publish(); }, 250);
+      timer = setTimeout(() => {
+        timer = undefined;
+        publish();
+      }, 250);
     };
     const subscriptions = [telemetryStore, gameStore, uiStore, devTelemetryStore].map((store) => store.subscribe(schedule));
     publish();
@@ -71,7 +74,14 @@ function RaceIqRuntimePanel() {
     return remove;
   }, []);
   if (!runtime) return <div className="p-4">Waiting...</div>;
-  return <DevStateContent server={runtime.server} stores={runtime.stores} paused={runtime.stores.telemetry.devStatePaused} onTogglePause={() => raceIqRuntimeEventClient.emit("toggle-server-state-pause", undefined)} />;
+  return (
+    <DevStateContent
+      server={runtime.server}
+      stores={runtime.stores}
+      paused={runtime.stores.telemetry.devStatePaused}
+      onTogglePause={() => raceIqRuntimeEventClient.emit("toggle-server-state-pause", undefined)}
+    />
+  );
 }
 
 const tanStackStoreDescriptors = {
@@ -85,16 +95,18 @@ export default function RaceIqDevtools({ router, queryClient }: { router: Router
   return (
     <>
       <RaceIqRuntimeBridge />
-      <TanStackDevtools plugins={[
-        { id: "tanstack-query", name: "TanStack Query", render: <ReactQueryDevtoolsPanel client={queryClient} /> },
-        { id: "tanstack-router", name: "TanStack Router", render: <TanStackRouterDevtoolsPanel router={router} /> },
-        {
-          id: "tanstack-store",
-          name: "TanStack Store",
-          render: <TanStackStoreDevtoolsPanel {...tanStackStoreDescriptors} />,
-        },
-        { id: "raceiq-runtime", name: "RaceIQ Runtime", render: <RaceIqRuntimePanel /> },
-      ]} />
+      <TanStackDevtools
+        plugins={[
+          { id: "tanstack-query", name: "TanStack Query", render: <ReactQueryDevtoolsPanel client={queryClient} /> },
+          { id: "tanstack-router", name: "TanStack Router", render: <TanStackRouterDevtoolsPanel router={router} /> },
+          {
+            id: "tanstack-store",
+            name: "TanStack Store",
+            render: <TanStackStoreDevtoolsPanel {...tanStackStoreDescriptors} />,
+          },
+          { id: "raceiq-runtime", name: "RaceIQ Runtime", render: <RaceIqRuntimePanel /> },
+        ]}
+      />
     </>
   );
 }

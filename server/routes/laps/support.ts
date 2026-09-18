@@ -16,7 +16,31 @@ export const CompareParamsSchema = z.object({
 
 export const LapsQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
+  sessionId: z.coerce.number().int().positive().optional(),
+}).refine((value) => value.sessionId == null || value.gameId != null, {
+  message: "gameId required with sessionId",
 });
+
+export const ReviewLapsQuerySchema = z.object({
+  gameId: GameIdSchema,
+  sessionId: z.coerce.number().int().positive().optional(),
+  trackOrdinal: z.coerce.number().int().positive().optional(),
+  carOrdinal: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+}).refine((value) => value.sessionId != null || (value.trackOrdinal != null && value.carOrdinal != null), {
+  message: "sessionId or trackOrdinal and carOrdinal required",
+});
+export const ReviewLineSpreadQuerySchema = z.object({
+  gameId: GameIdSchema,
+  sessionId: z.coerce.number().int().positive(),
+  lapIds: z.string().min(1).transform((value) => value.split(",").map(Number)).refine((ids) => ids.length >= 1 && ids.length <= 5 && ids.every((id) => Number.isInteger(id) && id > 0) && new Set(ids).size === ids.length, "lapIds must contain 1–5 unique positive IDs"),
+});
+
+const AlignedLapIdsSchema = z.array(z.number().int().positive()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, "Lap IDs must be unique");
+export const AlignedTelemetryRequestSchema = z.union([
+  z.object({ ids: AlignedLapIdsSchema, step: z.literal(1) }),
+  z.object({ ids: AlignedLapIdsSchema, step: z.literal(0.1), start: z.number().finite().min(0), end: z.number().finite().gt(0) }).refine((v) => v.end > v.start, "Detail range must increase"),
+]);
 
 export const AnalyseQuerySchema = z.object({
   regenerate: z

@@ -47,7 +47,7 @@ switch (operation) {
   case "screenshot-current": {
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/2`], {
       cwd: "playwright",
-      env: { ...env, E2E_SERVER_MODE: "compiled", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+      env: { ...env, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;
@@ -73,7 +73,7 @@ switch (operation) {
     mkdirSync(output, { recursive: true });
     const status = Bun.spawnSync(["bun", "run", "../scripts/playwright-ci.ts", "test", "--project=mobile-screenshots", `--shard=${env.SHARD}/2`], {
       cwd: join(base, "playwright"),
-      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "compiled", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
+      env: { ...env, RACEIQ_SCREENSHOT_DIR: output, E2E_SERVER_MODE: "dev", PW_SCREENSHOT_WORKERS: "1", PW_SERVER_SET: "seeded", PW_SCREENSHOT_ONLY: "1", PW_SEED_SCREENSHOTS: "1" },
       stdout: "inherit",
       stderr: "inherit",
     }).exitCode;

@@ -124,7 +124,7 @@ export function TelemetryCharts({ view }: { view: LiveTelemetryView }) {
 
   return (
     <div className="grid gap-2">
-      {showGrip && <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />}
+      {showGrip && <FourLineChart data={chartData.grip} label="Traction" maxY={3} />}
       {showSurfaceTemperature && <FourLineChart data={chartData.temp} label={showCoreTemperature ? "Surface Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
       {showCoreTemperature && <FourLineChart data={chartData.coreTemp} label={showSurfaceTemperature ? "Core Tire Temp" : "Tire Temp"} unit={`°${units.tempUnit}`} />}
       {showWear && <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />}

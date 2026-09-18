@@ -7,23 +7,28 @@ import type { useUnits } from "../../hooks/useUnits";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 
-interface WearRate { FL: number; FR: number; RL: number; RR: number; }
-interface Props { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits>; wearRate: WearRate | null; }
-const WHEELS = ["FL", "FR", "RL", "RR"] as const;
+interface WearRate {
+  FL: number;
+  FR: number;
+  RL: number;
+  RR: number;
+}
+interface Props {
+  frame: SemanticAnalysisFrame;
+  gameId: GameId;
+  units: ReturnType<typeof useUnits>;
+  wearRate: WearRate | null;
+}
 const unavailable = <span className="text-app-text-dim">—</span>;
-const values = (frame: SemanticAnalysisFrame, id: string): (number | null)[] => {
-  const value = frame.values[id];
-  return WHEELS.map((_, index) => Array.isArray(value) && typeof value[index] === "number" && Number.isFinite(value[index]) ? value[index] : null);
-};
 
 export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props) {
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const binding = (metric: typeof analysis.tireTemperature) => metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined;
+  const binding = (metric: typeof analysis.tireTemperature) => (metric.source !== "unavailable" && metric.binding?.kind === "value" ? metric.binding : undefined);
   const temp = binding(analysis.tireTemperature) ? resolveWheelMetric(frame, binding(analysis.tireTemperature)!) : [null, null, null, null];
-  const coreTemp = values(frame, "tire.temperature.core");
+  const coreTemp = semanticWheelNumbers(frame, "tire.temperature.core");
   const dualTemperature = analysis.tireTemperature.source !== "unavailable"
     && analysis.tireTemperature.binding?.kind === "value"
     && analysis.tireTemperature.binding.semanticId === "tire.temperature.surface.representative"
@@ -31,7 +36,7 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
     && coreTemp.some((value) => value != null);
   const health = binding(analysis.tireHealth) ? resolveWheelMetric(frame, binding(analysis.tireHealth)!) : [null, null, null, null];
   const speed = binding(analysis.wheelRotation) ? resolveWheelMetric(frame, binding(analysis.wheelRotation)!) : [null, null, null, null];
-  const brake = values(frame, "brakes.brake-temp");
+  const brake = semanticWheelNumbers(frame, "brakes.brake-temp");
   const pressure = binding(analysis.tirePressure) ? resolveWheelMetric(frame, binding(analysis.tirePressure)!) : [null, null, null, null];
   const optimal = useTirePressureOptimal(gameId, typeof frame.values["identity.car-ordinal"] === "number" ? frame.values["identity.car-ordinal"] : 0);
   const hThresholds = adapter.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
@@ -48,5 +53,9 @@ export function AnalyseTireWheelsPanel({ frame, gameId, units, wearRate }: Props
     ...((brake[0] ?? 0) > 0 || (brake[1] ?? 0) > 0 ? [{ label: m.analyse_wheels_brake(), fl: brake[0] == null ? unavailable : <span style={{ color: brakeTempColor(brake[0], false) }}>{`${units.temp(brake[0]).toFixed(0)}${units.tempLabel}`}</span>, fr: brake[1] == null ? unavailable : <span style={{ color: brakeTempColor(brake[1], false) }}>{`${units.temp(brake[1]).toFixed(0)}${units.tempLabel}`}</span>, rl: brake[2] == null ? unavailable : <span style={{ color: brakeTempColor(brake[2], true) }}>{`${units.temp(brake[2]).toFixed(0)}${units.tempLabel}`}</span>, rr: brake[3] == null ? unavailable : <span style={{ color: brakeTempColor(brake[3], true) }}>{`${units.temp(brake[3]).toFixed(0)}${units.tempLabel}`}</span> }] : []),
     ...((pressure[0] ?? 0) > 0 || (pressure[1] ?? 0) > 0 ? [{ label: coldPressure ? m.analyse_wheels_cold_pressure() : m.analyse_wheels_pressure(), fl: pressure[0] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[0], optimal) }}>{`${pressure[0].toFixed(1)} psi`}</span>, fr: pressure[1] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[1], optimal) }}>{`${pressure[1].toFixed(1)} psi`}</span>, rl: pressure[2] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[2], optimal) }}>{`${pressure[2].toFixed(1)} psi`}</span>, rr: pressure[3] == null ? unavailable : <span style={{ color: coldPressure ? "var(--app-text)" : tirePressureColor(pressure[3], optimal) }}>{`${pressure[3].toFixed(1)} psi`}</span> }] : []),
   ];
-  return <div className="text-app-compact font-mono"><WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows as never} /></div>;
+  return (
+    <div className="text-app-compact font-mono">
+      <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows as never} />
+    </div>
+  );
 }
