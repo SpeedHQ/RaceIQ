@@ -407,6 +407,7 @@ initServerGameAdapters();
 
 ### CI/CD
 **Mars runner labels:** In GitHub Actions, a `runs-on` list of Mars labels is an OR selector. Use both the Windows and macOS labels when a job must be eligible for either platform; do not create a per-OS matrix unless the job must run once on each platform.
+- **Cross-platform CI:** CI scripts and workflow commands must run on Windows and macOS. Prefer Bun/TypeScript and platform-neutral APIs over shell-specific syntax; when shell code is unavoidable, declare and test its shell explicitly.
 
 - **PR/main**: GitHub Actions runs `bun test` and client build (`.github/workflows/build-test.yml`)
 - **Release tags**: Windows x64 binary compilation via `.github/workflows/release.yml` — Bun compiles server to `raceiq.exe`, bundles with Vite client output into `raceiq-windows-x64.zip`

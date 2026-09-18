@@ -12,7 +12,7 @@ const udpPort = process.env.UDP_PORT ?? "15318";
 resetTestDatabase(dir);
 
 mkdirSync(dir, { recursive: true });
-writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
+writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort), onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 seedScreenshotData(repoDir, dir);
 if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 

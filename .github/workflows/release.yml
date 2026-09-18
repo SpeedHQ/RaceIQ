@@ -68,6 +68,10 @@ jobs:
 
       - name: Install dependencies
         run: bun install
+      - name: Verify database upgrade startup
+        env:
+          RACEIQ_DB_UPGRADE_TESTS: "1"
+        run: bun test ./test/db/database-path.test.ts --timeout 120000
 
       - name: Generate release note artifact
         run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
