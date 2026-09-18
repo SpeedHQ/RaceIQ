@@ -83,6 +83,21 @@ for (const game of REVIEW_GAMES) {
     expect(semanticRequests).toBe(0);
     expect(browserErrors.errors, `unexpected browser errors for ${game.gameId} review`).toEqual([]);
   });
+  test(`Analyse lap header returns to session review for ${game.gameId}`, async ({ page, request }) => {
+    const target = await getSeededLapTarget(request, game.gameId);
+    const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
+    expect(lapsResponse.ok()).toBe(true);
+    const targetLap = ((await lapsResponse.json()) as LapMeta[]).find((lap) => lap.id === target.id);
+    if (!targetLap || targetLap.sessionId == null || targetLap.trackOrdinal == null || targetLap.carOrdinal == null) {
+      throw new Error(`Seeded target lap ${target.id} has incomplete route metadata`);
+    }
+
+    await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${targetLap.trackOrdinal}&car=${targetLap.carOrdinal}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Analyse Session", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
+    await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
+  });
+
 }
  
 test("Analyse session route rejects mixed session and lap selections", async ({ page }) => {

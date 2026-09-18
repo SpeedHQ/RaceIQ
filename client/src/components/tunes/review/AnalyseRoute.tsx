@@ -54,6 +54,6 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   if (hasTrack !== hasCar) return <InvalidAnalyseSelection nested={nested} message="Choose both track and car before selecting laps." />;
   if (!hasTrack && !hasCar) return <InvalidAnalyseSelection nested={nested} message="Session selection required for Analyse." />;
   if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection nested={nested} message="A lap selection must include its track and car." />;
-  if (hasLap) return <LapAnalyse />;
+  if (hasLap) return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
   return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track!} carOrdinal={search.car!} />;
 }

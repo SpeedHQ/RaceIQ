@@ -23,11 +23,11 @@ import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
 
-export function LapAnalyse() {
-  return <LapAnalyseInner />;
+export function LapAnalyse({ sessionId }: { sessionId?: number } = {}) {
+  return <LapAnalyseInner sessionId={sessionId} />;
 }
 
-function LapAnalyseInner() {
+function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
@@ -348,7 +348,10 @@ function LapAnalyseInner() {
   });
 
   const navigate = useNavigate();
-  const handleBackToSession = useCallback(() => void navigate({ to: ".." }), [navigate]);
+  const handleBackToSession = useCallback(
+    () => void navigate({ to: sessionId != null ? "." : "..", ...(sessionId != null ? { search: {} } : {}) } as never),
+    [navigate, sessionId],
+  );
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
