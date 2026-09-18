@@ -22,6 +22,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
+import { ExperimentGuideModal } from "./ExperimentGuideModal";
 
 /**
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
@@ -205,6 +206,7 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   const lapTarget = session?.lapTarget ?? 3;
 
   const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
@@ -233,17 +235,20 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   return (
     <div className="h-full flex flex-col overflow-hidden p-3 gap-3">
       {/* Header */}
-      <div className="shrink-0">
-        <BackButton onClick={clearSession} className="mb-2" />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-app-title font-semibold text-app-text">
-            <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
-            {session.name}
-          </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-app-title font-semibold text-app-text">
+          <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
+          {session.name}
+        </h1>
+        <div className="flex items-center gap-2">
+          <Button variant="app-outline" size="app-sm" onClick={() => setGuideOpen(true)}>
+            Guide
+          </Button>
           <FocusSwitcher experimentId={session.id} focus={session.focus} />
         </div>
-        {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
       </div>
+      {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
+      {guideOpen && <ExperimentGuideModal onClose={() => setGuideOpen(false)} />}
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}
