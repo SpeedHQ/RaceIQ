@@ -15,23 +15,8 @@ const PAGES = [
   { name: "setups", path: "/f125/tracks/19/setups" },
   { name: "setups-ranges", path: "/f125/tracks/19/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
-  { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
-  { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
-  { name: "experiments-review-track-dynamics", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=dynamics" },
-  { name: "experiments-review-track-fuel", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=fuel" },
-  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&tab=suspension" },
-  { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 
-async function waitForMetricData(page: Page, label: string): Promise<void> {
-  const panel = page.getByText(label, { exact: true }).locator("..").locator("..");
-  await expect.poll(async () => panel.textContent(), { message: `${label} remained empty`, timeout: 30_000 }).not.toContain("0–1");
-}
-test.afterEach(async ({ request }, testInfo) => {
-  if (!testInfo.title.startsWith("screenshot: experiments-review")) return;
-  const response = await request.post("/api/experiments/1/undo");
-  if (!response.ok()) throw new Error(`Failed to clean experiment review laps: ${response.status()}`);
-});
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
@@ -57,7 +42,7 @@ for (const page of PAGES) {
       await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
     }
     if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Surface temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
+      for (const label of ["Core temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {

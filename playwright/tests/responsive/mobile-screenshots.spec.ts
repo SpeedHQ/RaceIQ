@@ -87,6 +87,9 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await openSettings(p, viewport.width);
           await p.getByRole("combobox", { name: "Language", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
+        } else if (screenshotCase.kind === "analyse-actions" || screenshotCase.kind === "analyse-data-panel-loaded") {
+          await p.getByRole("button", { name: "Overlays", exact: true }).click();
+          await expect(p.getByRole("menu")).toBeVisible();
         } else {
           await p.getByRole("button", { name: "Export / Import" }).click();
           await expect(p.getByRole("menu")).toBeVisible();
