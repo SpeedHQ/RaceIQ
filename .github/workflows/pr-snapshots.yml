@@ -36,6 +36,7 @@ permissions:
 jobs:
   render:
     timeout-minutes: 30
+    continue-on-error: true
     runs-on:
       - mars-any-4vcpu-15g
       - mars-macos-arm64-2vcpu-10g

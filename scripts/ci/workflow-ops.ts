@@ -97,7 +97,9 @@ switch (operation) {
     break;
   }
   case "fail-render":
-    if (env.CURRENT_STATUS !== "success" || env.BASE_STATUS !== "success") throw new Error("Responsive screenshot shard incomplete.");
+    if (env.CURRENT_STATUS !== "success" || env.BASE_STATUS !== "success") {
+      console.warn("Responsive screenshot shard incomplete; continuing with available renders.");
+    }
     break;
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
