@@ -205,7 +205,7 @@ export const AnalyseChartsPanel = memo(
             height={100}
           />
           <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
-          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: "Steering" }]} {...common} height={80} />
+          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />
           {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: "DRS" }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (
             <TelemetryChart

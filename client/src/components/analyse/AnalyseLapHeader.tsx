@@ -301,7 +301,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
           <DialogContent size="sm">
             <DialogHeader>
-              <DialogTitle>Choose lap ownership</DialogTitle>
+              <DialogTitle>{m.analyse_choose_ownership()}</DialogTitle>
             </DialogHeader>
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>

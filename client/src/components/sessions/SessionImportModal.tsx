@@ -6,6 +6,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { m } from "../../paraglide/messages";
 
 type DetectedFormat = "zip" | "bin" | "ibt" | "motec" | "unknown";
 type DetectionResult = { format: DetectedFormat; supported: boolean; gameIds: string[]; captureCount: number; message: string | null };
@@ -19,16 +20,11 @@ type ImportResult = {
 
 function formatLabel(format: DetectedFormat): string {
   switch (format) {
-    case "zip":
-      return "ZIP archive (.zip)";
-    case "bin":
-      return "Telemetry capture (.bin)";
-    case "ibt":
-      return "iRacing telemetry (.ibt)";
-    case "motec":
-      return "MoTeC log (.ld)";
-    default:
-      return "Unknown file format";
+    case "zip": return m.session_format_zip();
+    case "bin": return m.session_format_bin();
+    case "ibt": return m.session_format_ibt();
+    case "motec": return m.session_format_motec();
+    default: return m.session_format_unknown();
   }
 }
 
@@ -114,51 +110,47 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
     <Dialog open onOpenChange={(open) => !open && closeImport()}>
       <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
         <DialogHeader>
-          <DialogTitle variant="import">Import session data</DialogTitle>
+          <DialogTitle variant="import">{m.session_import_title()}</DialogTitle>
         </DialogHeader>
 
         <div className="mt-4 space-y-4 text-xs">
           {result ? (
             <>
-              <p className="text-app-text">
-                Imported <span className="text-app-accent">{result.imported}</span> lap{result.imported === 1 ? "" : "s"}.{result.skipped ? ` Skipped ${result.skipped}.` : ""}
-              </p>
-              <div className="flex justify-end">
-                <Button variant="app-outline" size="app-md" onClick={closeImport}>
-                  Done
-                </Button>
-              </div>
+            <p className="text-app-text">{m.session_imported({ count: result.imported, skipped: result.skipped ? m.session_skipped({ count: result.skipped }) : "" })}</p>
+            <div className="flex justify-end">
+              <Button variant="app-outline" size="app-md" onClick={closeImport}>{m.analyse_done()}</Button>
+            </div>
             </>
           ) : (
             <>
-              <p className="text-app-text-dim">Choose a file. Format and game metadata are checked from its contents.</p>
+              <p className="text-app-text-dim">{m.session_choose_file_hint()}</p>
               <OwnershipChoice value={ownership} onChange={setOwnership} disabled={busy} />
               <input ref={inputRef} type="file" accept=".zip,.bin,.bin.gz,.ibt,.ld" className="hidden" onChange={(event) => chooseFile(event.target.files?.[0] ?? null)} />
               <div className="flex items-center gap-2">
                 <Button variant="app-outline" size="app-md" onClick={() => inputRef.current?.click()} disabled={busy}>
-                  Choose file
+                  {m.session_choose_file()}
                 </Button>
-                <span className="truncate text-app-text-dim">{file?.name ?? "No file selected"}</span>
+                <span className="truncate text-app-text-dim">{file?.name ?? m.session_no_file()}</span>
               </div>
               {file && (
                 <div className="rounded border border-app-border bg-app-surface-alt/40 p-3 text-app-text-dim">
                   {detecting ? (
-                    <span>Reading file contents…</span>
+                    <span>{m.session_reading()}</span>
                   ) : detected ? (
                     <>
                       <div>
-                        Detected: <span className="text-app-text">{formatLabel(detected.format)}</span>
+                        {m.session_detected({ format: formatLabel(detected.format) })}
                         {detected.gameIds.length > 0 && <span className="text-app-text"> ({detected.gameIds.join(", ")})</span>}
                       </div>
-                      {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? "File contents are not supported."}</p>}
-                      {detected.supported && detected.format === "bin" && <p className="mt-1">Game detected from telemetry content.</p>}
+                      {!detected.supported && <p className="mt-1 text-status-warning">{detected.message ?? m.session_unsupported()}</p>}
+                      {detected.supported && detected.format === "bin" && <p className="mt-1">{m.session_game_detected()}</p>}
                       {detected.supported && detected.format === "zip" && (
                         <p className="mt-1">
-                          {detected.captureCount} RaceIQ capture{detected.captureCount === 1 ? "" : "s"} found.
+                          {m.session_captures_found({ count: detected.captureCount })}
                         </p>
                       )}
-                      {detected.format === "ibt" && <p className="mt-1">iRacing imports require preview and confirmation from Analyse.</p>}
-                      {detected.format === "motec" && <p className="mt-1">MoTeC imports require game, car, and track setup from Analyse.</p>}
+                      {detected.format === "ibt" && <p className="mt-1">{m.session_ibt_hint()}</p>}
+                      {detected.format === "motec" && <p className="mt-1">{m.session_motec_hint()}</p>}
                     </>
                   ) : null}
                 </div>
@@ -170,10 +162,10 @@ export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: G
               )}
               <div className="flex justify-end gap-2">
                 <Button variant="app-outline" size="app-md" onClick={closeImport} disabled={busy}>
-                  Cancel
+                  {m.common_cancel()}
                 </Button>
                 <Button variant="app-outline" size="app-md" onClick={importFile} disabled={!canImport}>
-                  {busy ? "Importing…" : "Import"}
+                  {busy ? m.common_loading() : m.setup_import_button()}
                 </Button>
               </div>
             </>
