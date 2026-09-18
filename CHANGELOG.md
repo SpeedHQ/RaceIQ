@@ -1,6 +1,14 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Internal
+
+## v0.18.0 - 2026-09-18
+
+### Features
 - Localize client analysis, telemetry, session-import, and developer-state UI with English and German messages
 
 - Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
@@ -31,6 +39,7 @@
 
 - Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
 - Add UI-level agent testing.
+
 ## v0.17.0 - 2026-09-16
 
 ### Features
