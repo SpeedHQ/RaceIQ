@@ -19,6 +19,7 @@
 - Preserve final laps, consistent car identity, and correctly scaled suspension data when importing LMU telemetry databases
 - Show shared corner names and segment boundaries on compatible Le Mans Ultimate track layouts
 - Show Le Mans Ultimate racing lines with a geometry legend and interactive pan and zoom in Track Detail debug maps without center-line or grid-dot clutter
+- Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence

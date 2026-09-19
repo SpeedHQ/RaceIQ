@@ -205,7 +205,7 @@ export function TrackDetail({
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [outline, activeTab]);
 
   // Corner names carry their official turn numbers; straights are auto-numbered.
   const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
