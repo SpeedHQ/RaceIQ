@@ -100,12 +100,8 @@ export class LMURecorder implements LMURecorderContract {
   }
 }
 
-/** Read source frames from LMU dump-mode .bin or .bin.gz captures. */
-export function readLMUFrames(filePath: string, limit?: number): Buffer[] {
-  const raw = readFileSync(filePath);
-  const bytes = filePath.endsWith(".gz")
-    ? Buffer.from(gunzipSync(raw))
-    : Buffer.from(raw);
+/** Read source frames from LMU dump-mode bytes. */
+export function readLMUFramesFromBuffer(bytes: Buffer, limit?: number): Buffer[] {
   if (
     bytes.length < HEADER_SIZE ||
     !bytes.subarray(0, LMU_DUMP_MAGIC.length).equals(LMU_DUMP_MAGIC) ||
@@ -139,6 +135,15 @@ export function readLMUFrames(filePath: string, limit?: number): Buffer[] {
     if (limit !== undefined && frames.length >= limit) break;
   }
   return frames;
+}
+
+/** Read source frames from LMU dump-mode .bin or .bin.gz captures. */
+export function readLMUFrames(filePath: string, limit?: number): Buffer[] {
+  const raw = readFileSync(filePath);
+  const bytes = filePath.endsWith(".gz")
+    ? Buffer.from(gunzipSync(raw))
+    : Buffer.from(raw);
+  return readLMUFramesFromBuffer(bytes, limit);
 }
 
 export const lmuRecorder = new LMURecorder();
