@@ -30,6 +30,28 @@
         "911gt3r_2024/92_25_mant6e267dc3",
         "911gt3r_2024/92_25_mant9651c55b",
         "911gt3r_2024/92_26_mant22466058"
+      ],
+      "modelNames": [
+        "Porsche 911 GT3 R LMGT3"
+      ],
+      "vehicleNames": [
+        "911GT3R Custom Team 2024 #397",
+        "911GT3R Custom Team 2025 #397",
+        "911GT3R Custom Team 2026 #397",
+        "911GT3R ELMS Custom Team 2025 #397",
+        "Iron Dames 2025 #85:ELMS",
+        "Iron Dames 2025 #85:LM",
+        "Iron Dames 2025 #85:WEC",
+        "Manthey 1st Phorm 2025 #92:LM",
+        "Manthey 1st Phorm 2025 #92:WEC",
+        "Manthey 2025 #90:LM",
+        "Manthey DK Engineering 2026 #91:WEC",
+        "Manthey Ema 2024 #91:EC",
+        "Manthey Ema 2024 #91:LM",
+        "Manthey PureRxcing 2024 #92:EC",
+        "Manthey PureRxcing 2024 #92:LM",
+        "Proton Competition 2025 #60:ELMS",
+        "The Bend Manthey 2026 #92:WEC"
       ]
     },
     {
@@ -42,6 +64,12 @@
       "thumbnail": "images/cars/992s_pc_2023.webp",
       "variantIds": [
         "992s_pc_2023/992s_pc"
+      ],
+      "modelNames": [
+        "Pace Car"
+      ],
+      "vehicleNames": [
+        "Porsche 992S Pace Car"
       ]
     },
     {
@@ -59,6 +87,15 @@
         "adess_ad25_2026/46_25_ades20619231",
         "adess_ad25_2026/46_25_ades51981969",
         "adess_ad25_2026/46_25_ades81662442"
+      ],
+      "modelNames": [
+        "ADESS AD25 LMP3"
+      ],
+      "vehicleNames": [
+        "ADESS AD25 LMP3 Custom Team 2025 #397",
+        "ADESS Racing Team 2025 #46:ELMS",
+        "ADESS Racing Team 2025 #46:LMU1",
+        "ADESS Racing Team 2025 #46:LMU2"
       ]
     },
     {
@@ -88,6 +125,27 @@
         "alpine_a424_2024/397_24_alpine",
         "alpine_a424_2024/397_25_alpine",
         "alpine_a424_2024/397_26_alpine"
+      ],
+      "modelNames": [
+        "Alpine A424"
+      ],
+      "vehicleNames": [
+        "Alpine Custom Team 2024 #397",
+        "Alpine Custom Team 2025 #397",
+        "Alpine Custom Team 2026 #397",
+        "Alpine Endurance Team 2024 #35:EC",
+        "Alpine Endurance Team 2024 #35:LM",
+        "Alpine Endurance Team 2024 #35:PL",
+        "Alpine Endurance Team 2024 #36:EC",
+        "Alpine Endurance Team 2024 #36:LM",
+        "Alpine Endurance Team 2025 #35:EC",
+        "Alpine Endurance Team 2025 #35:LM",
+        "Alpine Endurance Team 2025 #36:EC",
+        "Alpine Endurance Team 2025 #36:LM",
+        "Alpine Endurance Team 2026 #35:LM",
+        "Alpine Endurance Team 2026 #35:WEC",
+        "Alpine Endurance Team 2026 #36:LM",
+        "Alpine Endurance Team 2026 #36:WEC"
       ]
     },
     {
@@ -113,6 +171,23 @@
         "aston_martin_valkyrie_2025/009_26_tho96632041",
         "aston_martin_valkyrie_2025/397_25_amvalk",
         "aston_martin_valkyrie_2025/397_26_amvalk"
+      ],
+      "modelNames": [
+        "Aston Martin Valkyrie LMH"
+      ],
+      "vehicleNames": [
+        "AM Valkyrie Custom Team 2025 #397",
+        "AM Valkyrie Custom Team 2026 #397",
+        "Aston Martin THOR Team 2025 #007:EC",
+        "Aston Martin THOR Team 2025 #007:LM",
+        "Aston Martin THOR Team 2025 #007:QA",
+        "Aston Martin THOR Team 2025 #009:EC",
+        "Aston Martin THOR Team 2025 #009:LM",
+        "Aston Martin THOR Team 2025 #009:QA",
+        "Aston Martin THOR Team 2026 #007:LM",
+        "Aston Martin THOR Team 2026 #007:WEC",
+        "Aston Martin THOR Team 2026 #009:LM",
+        "Aston Martin THOR Team 2026 #009:WEC"
       ]
     },
     {
@@ -138,6 +213,23 @@
         "aston_martin_vantage_amr_2023/98_northwe595afe33",
         "aston_martin_vantage_amr_2023/98_thor437e22ac",
         "aston_martin_vantage_amr_2023/98_thorwecf6670323"
+      ],
+      "modelNames": [
+        "Aston Martin Vantage AMR"
+      ],
+      "vehicleNames": [
+        "AMV Custom Team 2023 #397",
+        "D'station Racing #777:BR",
+        "D'station Racing #777:EC",
+        "D'station Racing #777:LM",
+        "GMB Motorsport #55:LM",
+        "Northwest AMR #98:PL",
+        "ORT by TF #25:AL",
+        "ORT by TF #25:BL",
+        "ORT by TF #25:LM",
+        "TF Sport #72:LM",
+        "The Heart of Racing #98:AL",
+        "The Heart of Racing #98:LM"
       ]
     },
     {
@@ -170,6 +262,30 @@
         "bmw_m_hybrid_v8_2023/397_24_bmwmh",
         "bmw_m_hybrid_v8_2023/397_25_bmwmh",
         "bmw_m_hybrid_v8_2023/397_26_bmwmh"
+      ],
+      "modelNames": [
+        "BMW M Hybrid V8"
+      ],
+      "vehicleNames": [
+        "BMW M Team WRT 2024 #15:EC",
+        "BMW M Team WRT 2024 #15:LM",
+        "BMW M Team WRT 2024 #15:PL",
+        "BMW M Team WRT 2024 #20:EC",
+        "BMW M Team WRT 2024 #20:LM",
+        "BMW M Team WRT 2024 #20:PL",
+        "BMW M Team WRT 2025 #15:LM",
+        "BMW M Team WRT 2025 #15:SPA",
+        "BMW M Team WRT 2025 #15:WEC",
+        "BMW M Team WRT 2025 #20:LM",
+        "BMW M Team WRT 2025 #20:SPA",
+        "BMW M Team WRT 2025 #20:WEC",
+        "BMW M Team WRT 2026 #15:LM",
+        "BMW M Team WRT 2026 #15:WEC",
+        "BMW M Team WRT 2026 #20:LM",
+        "BMW M Team WRT 2026 #20:WEC",
+        "BMWMH Custom Team 2024 #397",
+        "BMWMH Custom Team 2025 #397",
+        "BMWMH Custom Team 2026 #397"
       ]
     },
     {
@@ -199,6 +315,27 @@
         "bmw_m4_lmgt3_2023/46_25_wrt_596f2e7b",
         "bmw_m4_lmgt3_2023/46_25_wrt_874f6e78",
         "bmw_m4_lmgt3_2023/69_26_wrt_56324638"
+      ],
+      "modelNames": [
+        "BMW M4 LMGT3"
+      ],
+      "vehicleNames": [
+        "BMW GT3 Custom Team #397",
+        "BMW GT3 Custom Team 2025 #397",
+        "BMW GT3 Custom Team 2026 #397",
+        "Team WRT 2024 #31:LM",
+        "Team WRT 2024 #31:WE2",
+        "Team WRT 2024 #31:WEC",
+        "Team WRT 2024 #46:LM",
+        "Team WRT 2024 #46:WE2",
+        "Team WRT 2024 #46:WEC",
+        "Team WRT 2025 #46:LM",
+        "Team WRT 2025 #46:WEC",
+        "Team WRT 2026 #32:WEC",
+        "Team WRT 2026 #69:WEC",
+        "The Bend Team WRT 2025 #31:BRZ",
+        "The Bend Team WRT 2025 #31:LM",
+        "The Bend Team WRT 2025 #31:WEC"
       ]
     },
     {
@@ -236,6 +373,35 @@
         "cadillac_v-lmdh_2023/397_24_vlmdh",
         "cadillac_v-lmdh_2023/397_25_vlmdh",
         "cadillac_v-lmdh_2023/397_26_vlmdh"
+      ],
+      "modelNames": [
+        "Cadillac V-Series.R"
+      ],
+      "vehicleNames": [
+        "Action Express Racing #311:LM",
+        "Cadillac Hertz Team Jota 2025 #12:LM",
+        "Cadillac Hertz Team Jota 2025 #12:WEC",
+        "Cadillac Hertz Team Jota 2025 #38:LM",
+        "Cadillac Hertz Team Jota 2025 #38:WEC",
+        "Cadillac Hertz Team Jota 2026 #12:LM",
+        "Cadillac Hertz Team Jota 2026 #12:WEC",
+        "Cadillac Hertz Team Jota 2026 #38:LM",
+        "Cadillac Hertz Team Jota 2026 #38:WEC",
+        "Cadillac Racing #2:EC",
+        "Cadillac Racing #2:LM",
+        "Cadillac Racing #3:LM",
+        "Cadillac Racing #3:SP",
+        "Cadillac Racing 2024 #2:EC",
+        "Cadillac Racing 2024 #2:LM",
+        "Cadillac Racing 2024 #3:LM",
+        "Cadillac Whelen 2025 #311:LM",
+        "Cadillac WTR 2025 #101:LM",
+        "Cadillac WTR 2026 #101:LM",
+        "VLMDH Custom Team 2023 #397",
+        "VLMDH Custom Team 2024 #397",
+        "VLMDH Custom Team 2025 #397",
+        "VLMDH Custom Team 2026 #397",
+        "Whelen Cadillac Racing 2024 #311:LM"
       ]
     },
     {
@@ -252,6 +418,14 @@
         "chevrolet_c8r_lm_2023/33_corvett80c98836",
         "chevrolet_c8r_lm_2023/33_corvett9bb51d89",
         "chevrolet_c8r_lm_2023/397_23_c8rgte"
+      ],
+      "modelNames": [
+        "Corvette C8.R GTE"
+      ],
+      "vehicleNames": [
+        "C8RGTE Custom Team 2023 #397",
+        "Corvette Racing #33:EC",
+        "Corvette Racing #33:LM"
       ]
     },
     {
@@ -283,6 +457,29 @@
         "corvette_z06gt3r_2023/82_24_tfs_73105e10",
         "corvette_z06gt3r_2023/82_24_tfs_de51d581",
         "corvette_z06gt3r_2023/82_25_tfs_745f4460"
+      ],
+      "modelNames": [
+        "Chevrolet Corvette Z06 LMGT3.R"
+      ],
+      "vehicleNames": [
+        "AWA Racing 2025 #13:LM",
+        "AWA Racing 2025 #13:LM2",
+        "Racing Team Turkey by TF 2026 #34:WEC",
+        "TF Sport #81:EC",
+        "TF Sport #81:LM",
+        "TF Sport #82:EC",
+        "TF Sport #82:LM",
+        "TF Sport 2025 #33:LM",
+        "TF Sport 2025 #33:WEC",
+        "TF Sport 2025 #81:LM",
+        "TF Sport 2025 #81:WEC",
+        "TF Sport 2025 #82:ELMS",
+        "TF Sport 2026 #33:WEC",
+        "Z06GT3R Custom Team #397",
+        "Z06GT3R Custom Team 2025 #397",
+        "Z06GT3R Custom Team 2026 #397:CS",
+        "Z06GT3R Custom Team 2026 #397:CS1",
+        "Z06GT3R ELMS Custom Team 2025 #397"
       ]
     },
     {
@@ -298,6 +495,13 @@
       "variantIds": [
         "duqueine_d09lmp3_2026/12_25_wtm_7fc250d8",
         "duqueine_d09lmp3_2026/397_25_d09p3"
+      ],
+      "modelNames": [
+        "Duqueine D09 P3"
+      ],
+      "vehicleNames": [
+        "Duqueine D09 P3 Custom Team 2025 #397",
+        "WTM by Rinaldi Racing 2025 #12:ELMS"
       ]
     },
     {
@@ -338,6 +542,39 @@
         "ferrari_296gt3_2023/74_25_kess89876fd7",
         "ferrari_296gt3_2023/86_24_grr_82b297d8",
         "ferrari_296gt3_2023/86_grracin8be3f08e"
+      ],
+      "modelNames": [
+        "Ferrari 296 LMGT3",
+        "Ferrari 296 LMGT3 Evo"
+      ],
+      "vehicleNames": [
+        "296GT3 Custom Team 2024 #397",
+        "296GT3 Custom Team 2025 #397",
+        "296GT3 Custom Team 2026 #397",
+        "296GT3 ELMS Custom Team 2025 #397",
+        "AF Corse 2025 #51:ELMS",
+        "GR Racing 2024 #86:LM",
+        "GR Racing 2025 #86:ELMS",
+        "JMW Motorsport 2024 2024 #66:LM",
+        "JMW Motorsport 2025 #66:ELMS",
+        "Kessel Racing 2025 #57:ELMS",
+        "Kessel Racing 2025 #57:LM",
+        "Kessel Racing 2025 #74:ELMS",
+        "Richard Mille AF Corse 2025 #150:LM",
+        "Richard Mille AF Corse 2025 #50:ELMS",
+        "Spirit Of Race 2024 #155:LM",
+        "Spirit of Race 2025 #55:ELMS",
+        "Vista AF Corse 2024 #54:EC",
+        "Vista AF Corse 2024 #54:LM",
+        "Vista AF Corse 2024 #55:EC",
+        "Vista AF Corse 2024 #55:LM",
+        "Vista AF Corse 2025 #21:LM",
+        "Vista AF Corse 2025 #21:WEC",
+        "Vista AF Corse 2025 #54:LM",
+        "Vista AF Corse 2025 #54:WEC",
+        "Vista AF Corse 2026 #21:WEC",
+        "Vista AF Corse 2026 #54:WEC",
+        "Ziggo Sport Tempesta 2025 #193:LM"
       ]
     },
     {
@@ -370,6 +607,30 @@
         "ferrari_488gte_lm_2023/74_kesseled952bc5",
         "ferrari_488gte_lm_2023/83_afcorse7fbceca5",
         "ferrari_488gte_lm_2023/83_afcorsecb178a54"
+      ],
+      "modelNames": [
+        "Ferrari 488 GTE EVO"
+      ],
+      "vehicleNames": [
+        "488GTE Custom Team 2023 #397",
+        "AF Corse #21:BR",
+        "AF Corse #21:FU",
+        "AF Corse #21:LM",
+        "AF Corse #21:MZ",
+        "AF Corse #21:PS",
+        "AF Corse #21:SE",
+        "AF Corse #54:EC",
+        "AF Corse #54:LM",
+        "AF Corse #83:EC",
+        "AF Corse #83:LM",
+        "JMW Motorsport #66:LM",
+        "Kessel Racing #57:BL",
+        "Kessel Racing #57:BR",
+        "Kessel Racing #57:FU",
+        "Kessel Racing #57:LM",
+        "Kessel Racing #57:MZ",
+        "Kessel Racing #74:LM",
+        "Walkenhorst Motorsport #100:LM"
       ]
     },
     {
@@ -412,6 +673,40 @@
         "ferrari_499p_2023/83_25_afcod752c710",
         "ferrari_499p_2023/83_26_afco45368276",
         "ferrari_499p_2023/83_26_afco76679772"
+      ],
+      "modelNames": [
+        "Ferrari 499P"
+      ],
+      "vehicleNames": [
+        "499P Custom Team 2023 #397",
+        "499P Custom Team 2024 #397",
+        "499P Custom Team 2025 #397",
+        "499P Custom Team 2026 #397",
+        "AF Corse 2024 #83:EC",
+        "AF Corse 2024 #83:JKR",
+        "AF Corse 2024 #83:LM",
+        "AF Corse 2025 #83:EC",
+        "AF Corse 2025 #83:LM",
+        "AF Corse 2026 #83:LM",
+        "AF Corse 2026 #83:WEC",
+        "Ferrari AF Corse #50:EC",
+        "Ferrari AF Corse #50:LM",
+        "Ferrari AF Corse #51:EC",
+        "Ferrari AF Corse #51:LM",
+        "Ferrari AF Corse 2024 #50:EC",
+        "Ferrari AF Corse 2024 #50:JKR",
+        "Ferrari AF Corse 2024 #50:LM",
+        "Ferrari AF Corse 2024 #51:EC",
+        "Ferrari AF Corse 2024 #51:JKR",
+        "Ferrari AF Corse 2024 #51:LM",
+        "Ferrari AF Corse 2025 #50:LM",
+        "Ferrari AF Corse 2025 #50:WEC",
+        "Ferrari AF Corse 2025 #51:LM",
+        "Ferrari AF Corse 2025 #51:WEC",
+        "Ferrari AF Corse 2026 #50:LM",
+        "Ferrari AF Corse 2026 #50:WEC",
+        "Ferrari AF Corse 2026 #51:LM",
+        "Ferrari AF Corse 2026 #51:WEC"
       ]
     },
     {
@@ -442,6 +737,28 @@
         "ford_mustang_gt3_2024/88_25_prot96bf1930",
         "ford_mustang_gt3_2024/88_25_proteff5edcf",
         "ford_mustang_gt3_2024/88_26_prot29987739"
+      ],
+      "modelNames": [
+        "Ford Mustang LMGT3"
+      ],
+      "vehicleNames": [
+        "\"Proton Racing 2024 #88:BR",
+        "\"Proton Racing 2024 #88:LM",
+        "\"Proton Racing 2024 #88:SP",
+        "\"Proton Racing 2024 #88:US",
+        "Mustang Custom Team 2024 #397",
+        "Mustang Custom Team 2025 #397",
+        "Mustang Custom Team 2026 #397",
+        "Proton Competition 2025 #77:LM",
+        "Proton Competition 2025 #77:WEC",
+        "Proton Competition 2025 #88:LM",
+        "Proton Competition 2025 #88:WEC",
+        "Proton Competition 2026 #77:WEC",
+        "Proton Competition 2026 #88:WEC",
+        "Proton Racing 2024 #44:LM",
+        "Proton Racing 2024 #77:LM",
+        "Proton Racing 2024 #77:WEC",
+        "Proton Racing 2024 #88:WEC"
       ]
     },
     {
@@ -460,6 +777,16 @@
         "genesis_gmr001_2026/19_26_gene467ae018",
         "genesis_gmr001_2026/19_26_gene5d7465e6",
         "genesis_gmr001_2026/397_26_gmr001"
+      ],
+      "modelNames": [
+        "Genesis GMR001"
+      ],
+      "vehicleNames": [
+        "Genesis Custom Team 2026 #397",
+        "Genesis Magma Racing 2026 #17:LM",
+        "Genesis Magma Racing 2026 #17:WEC",
+        "Genesis Magma Racing 2026 #19:LM",
+        "Genesis Magma Racing 2026 #19:WEC"
       ]
     },
     {
@@ -475,6 +802,13 @@
       "variantIds": [
         "ginetta_g61evo_2025/397_25_g61ltp3evo",
         "ginetta_g61evo_2025/4_25_dkr_e8e7fbe8c"
+      ],
+      "modelNames": [
+        "Ginetta G61-LT-P325 Evo"
+      ],
+      "vehicleNames": [
+        "DKR Engineering #4:ELMS25",
+        "Ginetta G61-LT-P3 Custom Team #397:ELMS25"
       ]
     },
     {
@@ -492,6 +826,15 @@
         "isotta_tipo6_2024/11_24_isotta_a92321",
         "isotta_tipo6_2024/11_24_isotta_f13176",
         "isotta_tipo6_2024/397_24_isotta"
+      ],
+      "modelNames": [
+        "Isotta Fraschini TIPO6"
+      ],
+      "vehicleNames": [
+        "Isotta Fraschini Custom Team 2024 #397",
+        "Isotta TIPO6 2024 #11:BR",
+        "Isotta TIPO6 2024 #11:LM",
+        "Isotta TIPO6 2024 #11:WEC"
       ]
     },
     {
@@ -512,6 +855,18 @@
         "lamborghini_huracan_gt3_2024/85_24_iron243ea520",
         "lamborghini_huracan_gt3_2024/85_24_iron46e687f1",
         "lamborghini_huracan_gt3_2024/85_24_iron60489b5d"
+      ],
+      "modelNames": [
+        "Lamborghini Huracan LMGT3 Evo2"
+      ],
+      "vehicleNames": [
+        "Huracan Custom Team 2024 #397",
+        "Iron Dames 2024 #85:EC2",
+        "Iron Dames 2024 #85:LM",
+        "Iron Dames 2024 #85:WEC",
+        "Iron Lynx 2024 #60:EC2",
+        "Iron Lynx 2024 #60:LM",
+        "Iron Lynx 2024 #60:WEC"
       ]
     },
     {
@@ -529,6 +884,15 @@
         "lamborghini_sc63_2024/397_24_sc63",
         "lamborghini_sc63_2024/63_24_iron2700e72d",
         "lamborghini_sc63_2024/63_24_irond8bacfd7"
+      ],
+      "modelNames": [
+        "Lamborghini SC63"
+      ],
+      "vehicleNames": [
+        "Lamborghini Iron Lynx 2024 #19:LM",
+        "Lamborghini Iron Lynx 2024 #63:EC",
+        "Lamborghini Iron Lynx 2024 #63:LM",
+        "SC63 Custom Team 2024 #397"
       ]
     },
     {
@@ -562,6 +926,31 @@
         "lexusrcf_gt3_2024/87_25_akko208cdd39",
         "lexusrcf_gt3_2024/87_25_akkoa15d50dc",
         "lexusrcf_gt3_2024/87_26_akko74271960"
+      ],
+      "modelNames": [
+        "Lexus RCF LMGT3"
+      ],
+      "vehicleNames": [
+        "Akkodis ASP Team 2024 #78:EC1",
+        "Akkodis ASP Team 2024 #78:EC2",
+        "Akkodis ASP Team 2024 #78:EC3",
+        "Akkodis ASP Team 2024 #78:EC4",
+        "Akkodis ASP Team 2024 #78:EC5",
+        "Akkodis ASP Team 2024 #78:EC6",
+        "Akkodis ASP Team 2024 #78:LM",
+        "Akkodis ASP Team 2024 #87:EC",
+        "Akkodis ASP Team 2024 #87:LM",
+        "Akkodis ASP Team 2025 #78:EC2",
+        "Akkodis ASP Team 2025 #78:EC3",
+        "Akkodis ASP Team 2025 #78:LM",
+        "Akkodis ASP Team 2025 #78:WEC",
+        "Akkodis ASP Team 2025 #87:LM",
+        "Akkodis ASP Team 2025 #87:WEC",
+        "Akkodis ASP Team 2026 #78:WEC",
+        "Akkodis ASP Team 2026 #87:WEC",
+        "Lexus Custom Team 2024 #397",
+        "Lexus Custom Team 2025 #397",
+        "Lexus Custom Team 2026 #397"
       ]
     },
     {
@@ -585,6 +974,21 @@
         "ligier_jsp325_2025/68_25_mrac2a207267",
         "ligier_jsp325_2025/8_25_virag12bc27d3",
         "ligier_jsp325_2025/88_25_inte56e5d75b"
+      ],
+      "modelNames": [
+        "Ligier JS P325"
+      ],
+      "vehicleNames": [
+        "CLX Motorsport #17:ELMS25",
+        "CLX Motorsport #17:Portimao",
+        "EuroInternational #11:ELMS25",
+        "Inter Europol Competition #88:ELMS25",
+        "Ligier JS P325 Custom Team 2025 #397",
+        "M Racing #68:ELMS25",
+        "Racing Spirit of Léman #31:ELMS25",
+        "RLR MSport #15:ELMS25",
+        "Team Virage #8:ELMS25",
+        "Ultimate #35:ELMS25"
       ]
     },
     {
@@ -610,6 +1014,23 @@
         "mclaren_720sgchallenge_2026/7_26_gchal34731486",
         "mclaren_720sgchallenge_2026/8_26_gchal79481284",
         "mclaren_720sgchallenge_2026/9_26_gchal61794112"
+      ],
+      "modelNames": [
+        "McLaren 720S LMGT3 Evo"
+      ],
+      "vehicleNames": [
+        "\"Logitech G Challenge #1:LGC",
+        "\"Logitech G Challenge #10:LGC",
+        "\"Logitech G Challenge #11:LGC",
+        "\"Logitech G Challenge #12:LGC",
+        "\"Logitech G Challenge #2:LGC",
+        "\"Logitech G Challenge #3:LGC",
+        "\"Logitech G Challenge #4:LGC",
+        "\"Logitech G Challenge #5:LGC",
+        "\"Logitech G Challenge #6:LGC",
+        "\"Logitech G Challenge #7:LGC",
+        "\"Logitech G Challenge #8:LGC",
+        "\"Logitech G Challenge #9:LGC"
       ]
     },
     {
@@ -642,6 +1063,30 @@
         "mclaren_720sgt3evo_2023/95_24_unite72f634d",
         "mclaren_720sgt3evo_2023/95_25_unit382ab771",
         "mclaren_720sgt3evo_2023/95_25_unit9df0eeed"
+      ],
+      "modelNames": [
+        "McLaren 720S LMGT3 Evo"
+      ],
+      "vehicleNames": [
+        "Garage 59 2026 #10:WEC",
+        "Garage 59 2026 #58:WEC",
+        "Inception Racing 2024 #70:LM",
+        "McLaren Custom Team 2024 #397",
+        "McLaren Custom Team 2025 #397",
+        "McLaren Custom Team 2026 #397",
+        "McLaren ELMS Custom Team 2025 #397",
+        "United Autosports 2024 #59:EC",
+        "United Autosports 2024 #59:EC2",
+        "United Autosports 2024 #59:EC3",
+        "United Autosports 2024 #59:LM",
+        "United Autosports 2024 #95:EC",
+        "United Autosports 2024 #95:EC2",
+        "United Autosports 2024 #95:LM",
+        "United Autosports 2025 #23:ELMS",
+        "United Autosports 2025 #59:LM",
+        "United Autosports 2025 #59:WEC",
+        "United Autosports 2025 #95:LM",
+        "United Autosports 2025 #95:WEC"
       ]
     },
     {
@@ -673,6 +1118,29 @@
         "mercedes_amggt3evo_2025/63_25_iron95de5ece",
         "mercedes_amggt3evo_2025/79_26_iron66951108",
         "mercedes_amggt3evo_2025/79_26_iron79382419"
+      ],
+      "modelNames": [
+        "Mercedes-AMG LMGT3"
+      ],
+      "vehicleNames": [
+        "Iron Lynx 2025 #60:EC2",
+        "Iron Lynx 2025 #60:LM",
+        "Iron Lynx 2025 #60:WEC",
+        "Iron Lynx 2025 #60:WEC3",
+        "Iron Lynx 2025 #61:EC2",
+        "Iron Lynx 2025 #61:EC3",
+        "Iron Lynx 2025 #61:LM",
+        "Iron Lynx 2025 #61:WEC",
+        "Iron Lynx 2025 #63:ELMS",
+        "Iron Lynx 2025 #63:LM",
+        "Iron Lynx 2026 #61:LM",
+        "Iron Lynx 2026 #61:WEC",
+        "Iron Lynx 2026 #79:LM",
+        "Iron Lynx 2026 #79:WEC",
+        "Mercedes AMG Custom Team 2025 #397",
+        "Mercedes AMG Custom Team 2026 #397",
+        "Mercedes AMG ELMS Custom Team 2025 #397",
+        "Team Qatar by Iron Lynx 2026 #62:LM"
       ]
     },
     {
@@ -709,6 +1177,34 @@
         "oreca_07_elms_2023/83_25_afcodd58d0a5",
         "oreca_07_elms_2023/9_25_ironl246bf580",
         "oreca_07_elms_2023/99_25_ao_e58b41e50"
+      ],
+      "modelNames": [
+        "Oreca 07"
+      ],
+      "vehicleNames": [
+        "AF Corse #83:ELMS25",
+        "Algarve Pro Racing #20:ELMS25",
+        "Algarve Pro Racing #25:ELMS25",
+        "AO by TF #99:ELMS25",
+        "CLX - Pure Rxcing #37:ELMS25",
+        "CLX Motorsport #47:ELMS25",
+        "DKR Engineering #3:ELMS25",
+        "Duqueine Team #30:ELMS25",
+        "IDEC Sport #18:ELMS25",
+        "IDEC Sport #28:ELMS25",
+        "IDEC Sport #28:Portimao",
+        "Inter Europol Competition #34:ELMS25",
+        "Inter Europol Competition #43:ELMS25",
+        "Iron Lynx - Proton #9:ELMS25",
+        "Nielsen Racing #24:ELMS25",
+        "Nielsen Racing #27:ELMS25",
+        "Oreca 07 ELMS Custom Team 2025 #397",
+        "Proton Competition #77:ELMS25",
+        "TDS Racing #29:ELMS25",
+        "United Autosports #21:ELMS25",
+        "United Autosports #22:ELMS25",
+        "VDS Panis Racing #48:ELMS25",
+        "Vector Sport #10:ELMS25"
       ]
     },
     {
@@ -802,6 +1298,91 @@
         "oreca_07_lm_2023/9_prema_we3452a19f",
         "oreca_07_lm_2023/9_prema_we5e76eb4b",
         "oreca_07_lm_2023/923_turkey31f90c33"
+      ],
+      "modelNames": [
+        "Oreca 07"
+      ],
+      "vehicleNames": [
+        "AF Corse #80:LM",
+        "AF Corse 2024 #183:LM",
+        "AF Corse 2025 #183:LM",
+        "Algarve Pro Racing #45:LM",
+        "Algarve Pro Racing 2024 #25:LM",
+        "Algarve Pro Racing 2025 #25:LM",
+        "Algarve Pro Racing 2025 #45:LM",
+        "Alpine Elf Team #35:EC",
+        "Alpine Elf Team #35:LM",
+        "Alpine Elf Team #36:EC",
+        "Alpine Elf Team #36:LM",
+        "AO by TF 2024 #14:LM",
+        "AO by TF 2025 #199:LM",
+        "CLX - Pure Rxcing 2025 #37:LM",
+        "Cool Racing #37:LM",
+        "Cool Racing #47:LM",
+        "Cool Racing 2024 #37:LM",
+        "Cool Racing 2024 #47:LM",
+        "Crowdstrike Racing by APR 2024 #45:LM",
+        "DKR Engineering #43:LM",
+        "DKR Engineering 2024 #33:LM",
+        "Duqueine Team #30:LM",
+        "Duqueine Team 2024 #30:LM",
+        "Graff Racing #39:LM",
+        "IDEC Sport #48:LM",
+        "IDEC Sport 2024 #28:LM",
+        "IDEC Sport 2025 #18:LM",
+        "IDEC Sport 2025 #28:LM",
+        "Inter Europol Competition #32:LM",
+        "Inter Europol Competition #34:EC",
+        "Inter Europol Competition #34:LM",
+        "Inter Europol Competition 2024 #34:LM",
+        "Inter Europol Competition 2025 #34:LM",
+        "Inter Europol Competition 2025 #43:LM",
+        "Iron Lynx - Proton 2025 #9:LM",
+        "JOTA #28:EC",
+        "JOTA #28:LM",
+        "JOTA #48:PM",
+        "JOTA #48:SE",
+        "Nielsen Racing #14:LM",
+        "Nielsen Racing 2024 #24:LM",
+        "Nielsen Racing 2025 #24:LM",
+        "Oreca 07 Custom Team 2023 #397",
+        "Oreca 07 Custom Team 2024 #397",
+        "Oreca 07 Custom Team 2025 #397",
+        "Panis Racing #65:LM",
+        "Panis Racing 2024 #65:LM",
+        "Prema Racing #63:EC",
+        "Prema Racing #63:FU",
+        "Prema Racing #63:LM",
+        "Prema Racing #63:MZ",
+        "Prema Racing #9:G1",
+        "Prema Racing #9:G2",
+        "Prema Racing #9:LM",
+        "Proton Competition 2024 #9:LM",
+        "Proton Competition 2025 #11:LM",
+        "Racing Team Turkey #923:LM",
+        "RLR MSport 2025 #16:LM",
+        "TDS Racing 2025 #29:LM",
+        "Team WRT #31:EC",
+        "Team WRT #31:LM",
+        "Team WRT #41:EC",
+        "Team WRT #41:LM",
+        "Tower Motorsports #13:LM",
+        "United Autosports #22:EC",
+        "United Autosports #22:LM",
+        "United Autosports #22:PM",
+        "United Autosports #23:EC",
+        "United Autosports #23:FU",
+        "United Autosports #23:LM",
+        "United Autosports #23:PM",
+        "United Autosports 2024 #22:LM",
+        "United Autosports 2025 #22:LM",
+        "United Autosports 2025 #23:LM",
+        "United Autosports USA 2024 #23:LM",
+        "VDS Panis Racing 2025 #48:LM",
+        "Vector Sport #10:AL",
+        "Vector Sport #10:BL",
+        "Vector Sport #10:LM",
+        "Vector Sport 2024 #10:LM"
       ]
     },
     {
@@ -825,6 +1406,21 @@
         "peugeot_9x8_2023/94_peugeot3b580a1a",
         "peugeot_9x8_2023/94_peugeote5781948",
         "peugeot_9x8_2023/94_peugeotf0d978a3"
+      ],
+      "modelNames": [
+        "Peugeot 9x8"
+      ],
+      "vehicleNames": [
+        "Peugeot 9x8 Custom Team 2023 #397",
+        "Peugeot 9x8 Custom Team 2024 #397",
+        "Peugeot TotalEnergies #93:AL",
+        "Peugeot TotalEnergies #93:BL",
+        "Peugeot TotalEnergies #93:LM",
+        "Peugeot TotalEnergies #94:AL",
+        "Peugeot TotalEnergies #94:BL",
+        "Peugeot TotalEnergies #94:LM",
+        "Peugeot TotalEnergies 2024 #93:QA",
+        "Peugeot TotalEnergies 2024 #94:QA"
       ]
     },
     {
@@ -853,6 +1449,26 @@
         "peugeot_9x8_2024/94_25_peugaef0bb48",
         "peugeot_9x8_2024/94_26_peug73522851",
         "peugeot_9x8_2024/94_26_peug80967432"
+      ],
+      "modelNames": [
+        "Peugeot 9x8"
+      ],
+      "vehicleNames": [
+        "9x8 Wing Custom Team 2024 #397",
+        "9x8 Wing Custom Team 2025 #397",
+        "9x8 Wing Custom Team 2026 #397",
+        "Peugeot TotalEnergies 2024 #93:EC",
+        "Peugeot TotalEnergies 2024 #93:LM",
+        "Peugeot TotalEnergies 2024 #94:EC",
+        "Peugeot TotalEnergies 2024 #94:LM",
+        "Peugeot TotalEnergies 2025 #93:EC",
+        "Peugeot TotalEnergies 2025 #93:LM",
+        "Peugeot TotalEnergies 2025 #94:EC",
+        "Peugeot TotalEnergies 2025 #94:LM",
+        "Peugeot TotalEnergies 2026 #93:LM",
+        "Peugeot TotalEnergies 2026 #93:WEC",
+        "Peugeot TotalEnergies 2026 #94:LM",
+        "Peugeot TotalEnergies 2026 #94:WEC"
       ]
     },
     {
@@ -884,6 +1500,29 @@
         "porsche_911rsr-19_2023/88_protonl745c67a8",
         "porsche_911rsr-19_2023/88_protonw3393b274",
         "porsche_911rsr-19_2023/911_proton8153440a"
+      ],
+      "modelNames": [
+        "Porsche 911 RSR-19"
+      ],
+      "vehicleNames": [
+        "911GTE Custom Team 2023 #397",
+        "Dempsey-Proton Racing #77:EC",
+        "Dempsey-Proton Racing #77:LM",
+        "GR Racing #86:BR",
+        "GR Racing #86:EC",
+        "GR Racing #86:LM",
+        "Iron Dames #85:EC",
+        "Iron Dames #85:LM",
+        "Iron Lynx #60:EC",
+        "Iron Lynx #60:LM",
+        "Project 1 - AO #56:FB",
+        "Project 1 - AO #56:LM",
+        "Project 1 - AO #56:MZ",
+        "Project 1 - AO #56:SP",
+        "Proton Competition #16:LM",
+        "Proton Competition #88:EC",
+        "Proton Competition #88:LM",
+        "Proton Competition #911:LM"
       ]
     },
     {
@@ -930,6 +1569,44 @@
         "porsche_963_2023/99_25_prot98002cd8",
         "porsche_963_2023/99_25_protb2f22869",
         "porsche_963_2023/99_protonf79e8524"
+      ],
+      "modelNames": [
+        "Porsche 963"
+      ],
+      "vehicleNames": [
+        "Hertz Team Jota #38:EC",
+        "Hertz Team Jota #38:LM",
+        "Hertz Team Jota 2024 #12:EC",
+        "Hertz Team Jota 2024 #12:LM",
+        "Hertz Team Jota 2024 #38:EC",
+        "Hertz Team Jota 2024 #38:LM",
+        "Hertz Team Jota 2024 #38:US",
+        "Porsche 963 Custom Team 2023 #397",
+        "Porsche 963 Custom Team 2024 #397",
+        "Porsche 963 Custom Team 2025 #397",
+        "Porsche Penske Motorsport #5:EC",
+        "Porsche Penske Motorsport #5:LM",
+        "Porsche Penske Motorsport #6:EC",
+        "Porsche Penske Motorsport #6:LM",
+        "Porsche Penske Motorsport #75:LM",
+        "Porsche Penske Motorsport 2024 #4:LM",
+        "Porsche Penske Motorsport 2024 #5:EC",
+        "Porsche Penske Motorsport 2024 #5:LM",
+        "Porsche Penske Motorsport 2024 #6:EC",
+        "Porsche Penske Motorsport 2024 #6:LM",
+        "Porsche Penske Motorsport 2025 #4:LM",
+        "Porsche Penske Motorsport 2025 #5:EC2",
+        "Porsche Penske Motorsport 2025 #5:LM",
+        "Porsche Penske Motorsport 2025 #5:WEC",
+        "Porsche Penske Motorsport 2025 #6:LM",
+        "Porsche Penske Motorsport 2025 #6:SPA",
+        "Porsche Penske Motorsport 2025 #6:WEC",
+        "Proton Competition #99:AL",
+        "Proton Competition 2024 #99:EC",
+        "Proton Competition 2024 #99:LM",
+        "Proton Competition 2024 #99:WE2",
+        "Proton Competition 2025 #99:LM",
+        "Proton Competition 2025 #99:WEC"
       ]
     },
     {
@@ -947,6 +1624,15 @@
         "sgc_007_2023/708_glicke1afd52c4",
         "sgc_007_2023/708_glickeb391b421",
         "sgc_007_2023/709_glickea5623a28"
+      ],
+      "modelNames": [
+        "Glickenhaus SCG007"
+      ],
+      "vehicleNames": [
+        "Glickenhaus Custom Team 2023 #397",
+        "Glickenhaus Racing #708:LM",
+        "Glickenhaus Racing #708:PR",
+        "Glickenhaus Racing #709:LM"
       ]
     },
     {
@@ -982,6 +1668,34 @@
         "toyota_gr10_2023/8_toyotalm413b04c8",
         "toyota_gr10_2023/8_toyotasa17836757",
         "toyota_gr10_2023/8_toyotawebfca0dcd"
+      ],
+      "modelNames": [
+        "Toyota GR010",
+        "Toyota TR010"
+      ],
+      "vehicleNames": [
+        "Toyota Gazoo Racing #7:AL",
+        "Toyota Gazoo Racing #7:BL",
+        "Toyota Gazoo Racing #7:LM",
+        "Toyota Gazoo Racing #8:AL",
+        "Toyota Gazoo Racing #8:BL",
+        "Toyota Gazoo Racing #8:LM",
+        "Toyota Gazoo Racing 2024 #7:EC",
+        "Toyota Gazoo Racing 2024 #7:LM",
+        "Toyota Gazoo Racing 2024 #8:EC",
+        "Toyota Gazoo Racing 2024 #8:LM",
+        "Toyota Gazoo Racing 2025 #7:EC",
+        "Toyota Gazoo Racing 2025 #7:LM",
+        "Toyota Gazoo Racing 2025 #8:LM",
+        "Toyota Gazoo Racing 2025 #8:WEC",
+        "Toyota GR010 Custom Team 2023 #397",
+        "Toyota GR010 Custom Team 2024 #397",
+        "Toyota GR010 Custom Team 2025 #397",
+        "Toyota Racing 2026 #7:LM",
+        "Toyota Racing 2026 #7:WEC",
+        "Toyota Racing 2026 #8:LM",
+        "Toyota Racing 2026 #8:WEC",
+        "Toyota TR010 Custom Team 2026 #397"
       ]
     },
     {
@@ -1003,6 +1717,19 @@
         "vandervell_680_2023/4_vanwalllb1210e3",
         "vandervell_680_2023/4_vanwallp9a25f99e",
         "vandervell_680_2023/4_vanwallu1fc51d18"
+      ],
+      "modelNames": [
+        "Vanwall 680"
+      ],
+      "vehicleNames": [
+        "Floyd Vanwall Racing Team #4:BE",
+        "Floyd Vanwall Racing Team #4:BR",
+        "Floyd Vanwall Racing Team #4:IT",
+        "Floyd Vanwall Racing Team #4:JP",
+        "Floyd Vanwall Racing Team #4:LM",
+        "Floyd Vanwall Racing Team #4:PR",
+        "Floyd Vanwall Racing Team #4:US",
+        "Vanwall Custom Team 2023 #397"
       ]
     },
     {
@@ -1032,6 +1759,27 @@
         "vantage_amr_gt3evo_2024/59_25_rsl_df69fbfb",
         "vantage_amr_gt3evo_2024/777_24_dst103b6012",
         "vantage_amr_gt3evo_2024/777_24_dst8b5349b6"
+      ],
+      "modelNames": [
+        "Aston Martin Vantage AMR LMGT3"
+      ],
+      "vehicleNames": [
+        "AMR GT3 Custom Team #397",
+        "AMR GT3 Custom Team 2025 #397",
+        "AMR GT3 Custom Team 2026 #397",
+        "AMR GT3 ELMS Custom Team 2025 #397",
+        "D'Station Racing 2024 #777:EC",
+        "D'Station Racing 2024 #777:LM",
+        "Heart of Racing Team 2024 #27:EC",
+        "Heart of Racing Team 2024 #27:LM",
+        "Heart of Racing Team 2025 #27:LM",
+        "Heart of Racing Team 2025 #27:WEC",
+        "Heart of Racing Team 2026 #23:WEC",
+        "Heart of Racing Team 2026 #27:WEC",
+        "Racing Spirit of Léman 2025 #10:COTA",
+        "Racing Spirit of Léman 2025 #10:LM",
+        "Racing Spirit of Léman 2025 #10:WEC",
+        "Racing Spirit of Léman 2025 #59:ELMS"
       ]
     }
   ]

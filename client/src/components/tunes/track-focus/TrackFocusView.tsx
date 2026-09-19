@@ -121,9 +121,18 @@ export function TrackFocusView({
   const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
   const edges = useMemo(() => {
     const e = extractEdges(bounds);
-    if (!e || !needsTrackFlip(gameId)) return e;
-    return { left: flipPoints(e.left), right: flipPoints(e.right) };
-  }, [bounds, gameId]);
+    if (!e) return null;
+    const oriented = needsTrackFlip(gameId) ? { left: flipPoints(e.left), right: flipPoints(e.right) } : e;
+    if (gameId !== "lmu" || !focusTelemetry) return oriented;
+    const firstPosition = focusTelemetry.find((sample) => sample.positionM)?.positionM;
+    const firstLeft = oriented.left[0];
+    const firstRight = oriented.right[0];
+    if (!firstPosition || !firstLeft || !firstRight) return oriented;
+    const dx = firstPosition.x - (firstLeft.x + firstRight.x) / 2;
+    const dz = firstPosition.z - (firstLeft.z + firstRight.z) / 2;
+    const translate = (points: Pt[]) => points.map((point) => ({ x: point.x + dx, z: point.z + dz }));
+    return { left: translate(oriented.left), right: translate(oriented.right) };
+  }, [bounds, focusTelemetry, gameId]);
   const metaSectors = useMemo(() => {
     const s1End = sectorBoundaries?.s1End;
     const s2End = sectorBoundaries?.s2End;

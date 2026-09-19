@@ -83,7 +83,7 @@ export function useResolveNames(trackOrdinals: number[], carOrdinals: number[]) 
   });
 }
 
-export function useCarName(ord: number | undefined) {
+export function useCarName(ord: number | string | undefined) {
   const gameId = useGameId();
   return useQuery({
     queryKey: [...queryKeys.carName(ord!), gameId ?? null],
@@ -91,7 +91,7 @@ export function useCarName(ord: number | undefined) {
       const res = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
-    enabled: ord != null && ord > 0 && gameId != null,
+    enabled: ord != null && (typeof ord === "string" || ord > 0) && gameId != null,
   });
 }
 

@@ -19,7 +19,6 @@ import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { readLMUFrames } from "../../games/lmu/recorder";
 import { decodeLMUSourceFrame } from "../../games/lmu/source-frame";
 import { identityFromLMUSourceFrame } from "../../games/lmu/normalizer";
-import { registerImportedLMUIdentity } from "../../games/lmu/identity";
 import { getAllServerGames } from "../../games/registry";
 import {
   ACC_PACKED_MAGIC,
@@ -168,15 +167,14 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         return c.json({ error: "No server adapter for gameId lmu" }, 400);
       }
       const frames = readLMUFrames(tmpPath);
-      let identityRegistered = false;
+      let identityRead = false;
       for (const sourceFrame of frames) {
         const decoded = decodeLMUSourceFrame(sourceFrame);
         if (!decoded) continue;
-        if (!identityRegistered) {
+        if (!identityRead) {
           const identity = identityFromLMUSourceFrame(decoded);
-          await registerImportedLMUIdentity(identity);
-          identityRegistered = true;
-          carModel = identity.carName;
+          identityRead = true;
+          carModel = identity.carModel || identity.carName;
           trackName = identity.trackName;
         }
         const packet = serverAdapter.tryParse(sourceFrame, null);

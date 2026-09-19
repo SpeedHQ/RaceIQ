@@ -266,7 +266,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", selectedLap?.carOrdinal],
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
-    enabled: !!selectedLap?.carOrdinal,
+    enabled: gameId !== "lmu" && !!selectedLap?.carOrdinal,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],

@@ -26,6 +26,7 @@ import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
 import { logger } from "../runtime/logger";
+import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
@@ -39,6 +40,8 @@ export interface SessionState {
   carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
+  carId?: string;
+  trackId?: string;
   bestLapTime: number; // best valid lap time in current session (0 = none yet)
 }
 
@@ -274,6 +277,12 @@ export class LapDetector implements ILapDetector {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType;
+    const identity: SessionIdentity | undefined = packet.lmu
+      ? {
+          carId: packet.lmu.carId,
+          trackId: packet.lmu.trackId,
+        }
+      : undefined;
     let sessionId: number;
     try {
       sessionId = await this.db.insertSession(
@@ -281,6 +290,9 @@ export class LapDetector implements ILapDetector {
         trackOrd,
         gameId,
         sessionType,
+        undefined,
+        undefined,
+        identity,
       );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
@@ -293,6 +305,7 @@ export class LapDetector implements ILapDetector {
       carPI: packet.CarPerformanceIndex,
       gameId,
       sessionUID: packet.sessionUID,
+      ...identity,
       bestLapTime: 0,
     };
     this.currentLapNumber = -1;

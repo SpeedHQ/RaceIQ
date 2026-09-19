@@ -41,6 +41,7 @@ test/client/wireframe-utils.test.ts
 test/db/database-path.test.ts
 test/db/db-seed.test.ts
 test/db/lap-ownership.test.ts
+test/db/lmu-session-identity.test.ts
 test/db/migrations/migration-regression.test.ts
 test/db/migrations/migrations.test.ts
 test/db/migrations/runner-idempotence.test.ts
@@ -89,6 +90,7 @@ test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
 test/games/lmu/lmu-adapter.test.ts
+test/games/lmu/track-boundaries.test.ts
 test/games/shared/release-game-registration.test.ts
 test/lap-analysis/lap-cache.test.ts
 test/lap-analysis/lap-consistency.test.ts
@@ -109,6 +111,7 @@ test/routes/import-ownership.test.ts
 test/routes/lap-analysis-route.test.ts
 test/routes/laps-issues-route.test.ts
 test/routes/live-route.test.ts
+test/routes/lmu-string-identity.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/storage-routes.test.ts
@@ -202,6 +205,7 @@ test/runtime/update-github.integration.test.ts
 test/session-capture/context-markers.test.ts
 test/session-capture/filename.test.ts
 test/session-capture/lap-index-import.test.ts
+test/session-capture/lmu-capture-format.test.ts
 test/session-capture/source-loader-stream.test.ts
 test/sync/laptimes-lazy.test.ts
 test/telemetry/live-pipeline-calibration.test.ts

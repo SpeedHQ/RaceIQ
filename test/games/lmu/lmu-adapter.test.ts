@@ -3,10 +3,11 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DuckDBInstance, type DuckDBConnection } from "@duckdb/node-api";
+import { lmuAdapter } from "../../../shared/games/lmu";
 import {
-  lmuAdapter,
-  lmuIdentityOrdinal,
-} from "../../../shared/games/lmu";
+  resolveLMUCar,
+  resolveLMUTrack,
+} from "../../../shared/games/lmu/catalog";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../../../server/games/lmu";
 import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
@@ -197,23 +198,31 @@ async function createLMUDuckDB(
 }
 
 describe("LMU adapter", () => {
-  test("maps only shared catalog identities to track facts", () => {
+  test("resolves only collision-safe native catalog aliases", () => {
+    expect(resolveLMUCar("Ferrari 499P")?.id).toBe("ferrari_499p_2023");
+    expect(resolveLMUCar("ferrari_499p_2023/50_24_afco15a3d85a")?.id).toBe(
+      "ferrari_499p_2023",
+    );
+    expect(resolveLMUCar("50_24_afco15a3d85a")?.id).toBe(
+      "ferrari_499p_2023",
+    );
+    expect(resolveLMUCar("Peugeot 9x8")).toBeUndefined();
+    expect(resolveLMUCar("Oreca 07")).toBeUndefined();
+    expect(resolveLMUTrack("LeMansWEC")?.id).toBe(
+      "lemans_2023/lemanswec",
+    );
+    expect(resolveLMUTrack("Circuit de la Sarthe")?.id).toBe(
+      "lemans_2023/lemanswec",
+    );
+    expect(resolveLMUTrack("Circuit de Spa-Francorchamps")).toBeUndefined();
     expect(
-      lmuAdapter.getSharedTrackName?.(
-        lmuIdentityOrdinal("track", "Circuit de la Sarthe"),
-      ),
-    ).toBe("le-mans");
+      resolveLMUTrack("Circuit de Spa-Francorchamps", "SpaWEC")?.id,
+    ).toBe("spa_2023/spawec");
     expect(
-      lmuAdapter.getSharedTrackName?.(
-        lmuIdentityOrdinal("track", "FujiWEC"),
-      ),
-    ).toBe("fuji");
-    expect(
-      lmuAdapter.getSharedTrackName?.(
-        lmuIdentityOrdinal("track", "PortimaoWEC"),
-      ),
-    ).toBe("portimao");
+      resolveLMUTrack("SpaWEC", "PortimaoWEC"),
+    ).toBeUndefined();
   });
+
 
   test("inherits shared facts and compatible geometry for catalog tracks", () => {
     const segments = loadLabelledSegments("spa", "lmu");
@@ -252,13 +261,18 @@ describe("LMU adapter", () => {
       Brake: 51,
       TrackTemp: 31,
       AirTemp: 24,
+      CarOrdinal: -1,
+      TrackOrdinal: -1,
     });
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
     expect(packet!.TireTempFL).toBeCloseTo(92, 5);
     expect(packet!.TirePressureFrontLeft).toBeCloseTo(26.1068, 3);
     expect(packet!.lmu).toMatchObject({
+      carId: "ferrari_499p_2023",
+      trackId: "lemans_2023/lemanswec",
       driverName: "Test Driver",
+      carName: "Ferrari 499P #50",
       carModel: "Ferrari 499P",
       trackName: "Circuit de la Sarthe",
       trackLengthM: 13_626,
@@ -268,13 +282,11 @@ describe("LMU adapter", () => {
       absLevel: 2,
       rearFlapActivated: true,
     });
-    expect(lmuAdapter.getCarName(packet!.CarOrdinal)).toBe("LMU car #" + packet!.CarOrdinal);
   });
 
   test("polls only changed snapshots and records replayable source frames", async () => {
     const snapshot = lmuSharedMemoryFixture();
     const delivered: Buffer[] = [];
-    const identities: string[] = [];
     const reader = {
       start() {},
       async stop() {},
@@ -285,14 +297,10 @@ describe("LMU adapter", () => {
       dispatchRawFrame: async (frame) => {
         delivered.push(Buffer.from(frame));
       },
-      registerIdentity: async (identity) => {
-        identities.push(`${identity.carName}|${identity.trackName}`);
-      },
     });
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(false);
     expect(delivered).toHaveLength(1);
-    expect(identities).toEqual(["Ferrari 499P|Circuit de la Sarthe"]);
 
     const directory = temporaryDirectory();
     const recorder = new LMURecorder();
@@ -300,6 +308,56 @@ describe("LMU adapter", () => {
     recorder.writeFrame(delivered[0]!);
     await recorder.stop();
     expect(readLMUFrames(path)).toEqual(delivered);
+  });
+
+  test("queues changed snapshots FIFO and drains before recorder finalization", async () => {
+    const snapshots = [321.5, 322.5, 322.5, 323.5].map((elapsedTime) => {
+      const snapshot = lmuSharedMemoryFixture();
+      snapshot.writeDoubleLE(elapsedTime, LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.elapsedTime);
+      return snapshot;
+    });
+    let reads = 0;
+    let releaseFirst!: () => void;
+    const firstBlocked = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const dispatched: number[] = [];
+    const recorded: number[] = [];
+    let recorderStopped = false;
+    let readerStopped = false;
+    const source = new LMUTelemetrySource({
+      reader: {
+        start() {},
+        async stop() { readerStopped = true; },
+        readLatest() { reads++; return snapshots.shift() ?? null; },
+      },
+      recordingEnabled: true,
+      recorder: {
+        recording: true,
+        start: () => "",
+        writeFrame(frame) {
+          recorded.push(decodeLMUSourceFrame(frame)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime));
+        },
+        async stop() { recorderStopped = true; },
+      },
+      async dispatchRawFrame(frame) {
+        const elapsedTime = decodeLMUSourceFrame(frame)!.telemetry.readDoubleLE(LMU_TELEMETRY.elapsedTime);
+        dispatched.push(elapsedTime);
+        if (elapsedTime === 321.5) await firstBlocked;
+        if (elapsedTime === 322.5) throw new Error("expected downstream failure");
+      },
+    });
+
+    const results = [source.pollOnce(), source.pollOnce(), source.pollOnce(), source.pollOnce()];
+    expect(reads).toBe(4);
+    expect(await results[2]).toBe(false);
+    const stopped = source.stop();
+    expect(readerStopped).toBe(true);
+    expect(recorderStopped).toBe(false);
+    releaseFirst();
+    expect(await Promise.all(results)).toEqual([true, false, false, true]);
+    await stopped;
+    expect(recorded).toEqual([321.5, 322.5, 323.5]);
+    expect(dispatched).toEqual([321.5, 322.5, 323.5]);
+    expect(recorderStopped).toBe(true);
   });
 
   test("reads LMU DuckDB uploads into canonical source frames", async () => {
@@ -333,7 +391,12 @@ describe("LMU adapter", () => {
       LapNumber: 0,
       Speed: 50,
       SuspensionTravelMFL: 0.05,
-      CarOrdinal: lmuIdentityOrdinal("car", "Ferrari 499P"),
+      CarOrdinal: -1,
+      TrackOrdinal: -1,
+      lmu: {
+        carId: "ferrari_499p_2023",
+        trackId: "lemans_2023/lemanswec",
+      },
     });
     expect(secondLapPacket).toMatchObject({
       LapNumber: 1,

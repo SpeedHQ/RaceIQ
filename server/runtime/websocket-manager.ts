@@ -196,7 +196,13 @@ export class WebSocketManager {
     droppedPackets: number;
     udpPort: number;
     detectedGame: { id: string; name: string } | null;
-    currentSession: { id: number; carOrdinal: number; trackOrdinal: number } | null;
+    currentSession: {
+      id: number;
+      carOrdinal: number;
+      trackOrdinal: number;
+      carId: number | string;
+      trackId: number | string;
+    } | null;
   }): void {
     if (this.clients.size === 0) return;
     const json = JSON.stringify({ type: "status", ...status });

@@ -10,8 +10,8 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
 }
 export interface AnalyseImportResult {
   fileName: string;
@@ -28,7 +28,7 @@ export interface IbtPreviewState {
 export function useAnalyseImports(args: {
   queryClient: QueryClient;
   gameId: string;
-  selectLap: (trackOrdinal: number, carOrdinal: number, lapId: number) => void;
+  selectLap: (trackKey: number | string, carKey: number | string, lapId: number) => void;
 }) {
   const { queryClient, gameId, selectLap } = args;
   const [exportingBin, setExportingBin] = useState(false);
@@ -43,7 +43,7 @@ export function useAnalyseImports(args: {
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       setImportResult(result);
       const last = result.laps.at(-1);
-      if (last && result.gameId === gameId) selectLap(last.trackOrdinal, last.carOrdinal, last.lapId);
+      if (last && result.gameId === gameId) selectLap(last.trackId, last.carId, last.lapId);
     },
     [gameId, queryClient, selectLap],
   );

@@ -77,6 +77,7 @@ export function TrackDetail({
   const isAcc = gameId === "acc";
   const isAcEvo = gameId === "ac-evo";
   const hideClassCol = isF125 || isAcc || isAcEvo;
+  const trackKey = gameId === "lmu" ? track.id! : track.ordinal;
 
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
@@ -114,17 +115,17 @@ export function TrackDetail({
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
 
   const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", track.ordinal, gameId ?? null],
+    queryKey: ["track-map", trackKey, gameId ?? null],
     queryFn: () =>
       Promise.all([
         client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
+          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid ?? undefined } })
           .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
         client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
         client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
       ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
     enabled: !!gameId && (track.hasOutline || !!track.hasMap),
@@ -134,10 +135,10 @@ export function TrackDetail({
   useEffect(() => {
     if (!trackMapData) return;
     const { outlineData, sectorData, boundsData } = trackMapData;
-    if (track.hasOutline && !Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
+    if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
       setFlipX(outlineData.flipX ?? false);
-    } else if (track.hasOutline && Array.isArray(outlineData)) {
+    } else if (Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
     } else {
       setOutline(null);
@@ -149,10 +150,10 @@ export function TrackDetail({
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
-    queryKey: ["track-laps", track.ordinal, gameId ?? null],
+    queryKey: ["track-laps", trackKey, gameId ?? null],
     queryFn: () =>
       client.api.tracks[":trackOrdinal"]["all-laps"]
-        .$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .$get({ param: { trackOrdinal: String(trackKey) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as TrackLap[] | null)
         .then((data) => data ?? []),
     staleTime: 30 * 1000,

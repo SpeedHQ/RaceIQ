@@ -60,6 +60,8 @@ export const settingsRoutes = new Hono()
             id: session.sessionId,
             carOrdinal: session.carOrdinal,
             trackOrdinal: session.trackOrdinal,
+            carId: session.carId ?? session.carOrdinal,
+            trackId: session.trackId ?? session.trackOrdinal,
             createdAt: "",
           }
         : null,

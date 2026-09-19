@@ -1,4 +1,6 @@
 export interface LMUExtendedData {
+  carId: string;
+  trackId: string;
   gameVersion: number;
   vehicleId: number;
   driverName: string;

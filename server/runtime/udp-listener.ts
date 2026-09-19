@@ -167,7 +167,13 @@ class UdpListener {
           ? { id: runningGame.id, name: runningGame.shortName }
           : null,
         currentSession: session
-          ? { id: session.sessionId, carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal }
+          ? {
+              id: session.sessionId,
+              carOrdinal: session.carOrdinal,
+              trackOrdinal: session.trackOrdinal,
+              carId: session.carId ?? session.carOrdinal,
+              trackId: session.trackId ?? session.trackOrdinal,
+            }
           : null,
       });
 

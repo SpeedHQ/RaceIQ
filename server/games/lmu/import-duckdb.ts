@@ -2,13 +2,11 @@ import {
   DuckDBInstance,
   type DuckDBConnection,
 } from "@duckdb/node-api";
-import { lmuIdentityOrdinal } from "../../../shared/games/lmu";
 import type { SessionOwnership } from "../../../shared/racing/sessions/types";
 import {
   importSessionFrames,
   type ImportedLap,
 } from "../../session-capture/import-pipeline";
-import { registerImportedLMUIdentity } from "./identity";
 import {
   LMU_SCORING_INFO,
   LMU_SCORING_INFO_SIZE,
@@ -19,10 +17,7 @@ import {
   LMU_WHEEL,
   LMU_WHEEL_SIZE,
 } from "./layout";
-import {
-  encodeLMUSourcePayload,
-  type LMUIdentity,
-} from "./source-frame";
+import { encodeLMUSourcePayload } from "./source-frame";
 
 const IMPORT_FRAME_RATE = 50;
 const GRAVITY_MPS2 = 9.80665;
@@ -420,8 +415,13 @@ function writeOrientation(
   telemetry.writeDoubleLE(-normalizedZ, offset + 48 + 16);
 }
 
-function sessionEventId(recordingTime: string): number {
-  return lmuIdentityOrdinal("track", `session:${recordingTime}`) >>> 0;
+function sessionEventChecksum(recordingTime: string): number {
+  let checksum = 0x811c9dc5;
+  for (const byte of Buffer.from(recordingTime, "utf8")) {
+    checksum ^= byte;
+    checksum = Math.imul(checksum, 0x01000193);
+  }
+  return checksum >>> 0;
 }
 
 function buildSyntheticFrame(
@@ -699,7 +699,7 @@ function buildSyntheticFrame(
 
   return encodeLMUSourcePayload({
     gameVersion: loaded.metadata.version,
-    sessionEvent: sessionEventId(loaded.metadata.recordingTime),
+    sessionEvent: sessionEventChecksum(loaded.metadata.recordingTime),
     captureTimestampMs: epochMs + (time - loaded.startTime) * 1_000,
     telemetry,
     scoringInfo,
@@ -788,13 +788,6 @@ export async function importLMUDuckDB(
   laps: ImportedLap[];
 }> {
   const loaded = await loadLMUDuckDB(path);
-  const identity: LMUIdentity = {
-    carId: lmuIdentityOrdinal("car", loaded.carModel),
-    carName: loaded.carModel,
-    trackId: lmuIdentityOrdinal("track", loaded.metadata.trackName),
-    trackName: loaded.metadata.trackName,
-  };
-  await registerImportedLMUIdentity(identity);
   const epochMs = recordingEpochMs(loaded.metadata.recordingTime);
   const packetCount = syntheticFrameCount(loaded.duration);
   async function* frames(): AsyncGenerator<Buffer> {

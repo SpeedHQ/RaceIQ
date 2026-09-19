@@ -1,5 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type LapMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -154,7 +154,7 @@ export function HomePageContainer() {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
       to: `${getGameRoute(latestRecap.gameId)}/sessions/replay` as never,
-      search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
+      search: { track: trackIdentityKey(latestRecap), car: carIdentityKey(latestRecap), lap: latestRecap.bestLapId } as never,
     });
   };
 
@@ -182,7 +182,7 @@ export function HomePageContainer() {
         if (!lap.gameId) return;
         void navigate({
           to: `${getGameRoute(lap.gameId)}/sessions/replay` as never,
-          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
+          search: { track: trackIdentityKey(lap), car: carIdentityKey(lap), lap: lap.id } as never,
         });
       }}
       periodTab={periodTab}

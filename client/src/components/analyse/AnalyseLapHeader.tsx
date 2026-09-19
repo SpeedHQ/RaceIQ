@@ -26,14 +26,14 @@ interface Props {
   gameId: GameId;
   onBack?: () => void;
   // Selection state
-  selectedTrack: number | null;
-  selectedCar: number | null;
+  selectedTrack: number | string | null;
+  selectedCar: number | string | null;
   selectedLapId: number | null;
   selectedLap: LapMeta | undefined;
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
-  tracks: [number, number][];
-  carsForTrack: [number, number][];
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
+  tracks: [number | string, number][];
+  carsForTrack: [number | string, number][];
   filteredLaps: LapMeta[];
   // Tune state
   hasTelemetry: boolean;
@@ -44,8 +44,8 @@ interface Props {
   loading: boolean;
   aiPanelOpen: boolean;
   // Callbacks
-  onTrackChange: (v: number | null) => void;
-  onCarChange: (v: number | null) => void;
+  onTrackChange: (v: number | string | null) => void;
+  onCarChange: (v: number | string | null) => void;
   onLapChange: (v: number | null) => void;
   onTuneChange: (tuneId: number | null) => void;
   onViewTune: (tuneId: number) => void;
@@ -132,7 +132,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         {/* Track selector */}
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}
-          onChange={(v) => onTrackChange(v ? Number(v) : null)}
+          onChange={(v) => onTrackChange(v ? tracks.find(([key]) => String(key) === v)?.[0] ?? null : null)}
           options={trackOptions}
           placeholder={m.analyse_search_tracks_placeholder()}
           className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
@@ -142,7 +142,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         {/* Car selector */}
         <SearchSelect
           value={selectedCar != null ? String(selectedCar) : ""}
-          onChange={(v) => onCarChange(v ? Number(v) : null)}
+          onChange={(v) => onCarChange(v ? carsForTrack.find(([key]) => String(key) === v)?.[0] ?? null : null)}
           options={carOptions}
           placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}

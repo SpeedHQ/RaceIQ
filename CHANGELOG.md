@@ -9,6 +9,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
+- Record Le Mans Ultimate shared-memory sessions with exact car and track identity, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
 - Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
@@ -17,8 +18,10 @@
 - Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
 - Reject LMU telemetry recordings with no complete laps before starting import
 - Preserve final laps, consistent car identity, and correctly scaled suspension data when importing LMU telemetry databases
+- Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Show shared corner names and segment boundaries on compatible Le Mans Ultimate track layouts
 - Show Le Mans Ultimate racing lines with a geometry legend and interactive pan and zoom in Track Detail debug maps without center-line or grid-dot clutter
+- Align Le Mans Ultimate track-limit edges with selected lap lines in session and lap analysis
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces

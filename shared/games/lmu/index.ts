@@ -1,7 +1,4 @@
-import {
-  getLMUSharedTrackName,
-  lmuTrackCatalog,
-} from "./catalog";
+import { getLMUSharedTrackName } from "./catalog";
 import type { GameAdapter } from "../types";
 
 const carNames = new Map<number, string>();
@@ -9,51 +6,12 @@ const trackNames = new Map<number, string>();
 const trackOrdinals = new Map<string, number>();
 const sharedTrackNames = new Map<number, string>();
 
-/** Stable positive s32 identity for LMU string-native car and track IDs. */
-export function lmuIdentityOrdinal(kind: "car" | "track", name: string): number {
-  const normalized = `${kind}:${name.trim().toLowerCase()}`;
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < normalized.length; index++) {
-    hash ^= normalized.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0) & 0x7fffffff || 1;
-}
-
-for (const track of lmuTrackCatalog) {
-  const canonicalOrdinal = lmuIdentityOrdinal("track", track.layout);
-  trackNames.set(canonicalOrdinal, track.name);
-  for (const alias of [
-    track.id,
-    track.id.split("/").at(-1),
-    track.layout,
-    track.name,
-  ]) {
-    if (!alias) continue;
-    trackOrdinals.set(alias.trim().toLowerCase(), canonicalOrdinal);
-    if (track.commonTrackName) {
-      sharedTrackNames.set(lmuIdentityOrdinal("track", alias), track.commonTrackName);
-    }
-  }
-}
-
 export interface LMUIdentityRecord {
-  carId: number;
+  carId: string;
   carName: string;
-  trackId: number;
+  carModel: string;
+  trackId: string;
   trackName: string;
-}
-
-export function rememberLMUIdentity(identity: LMUIdentityRecord): void {
-  if (identity.carId > 0 && identity.carName) {
-    carNames.set(identity.carId, identity.carName);
-  }
-  if (identity.trackId > 0 && identity.trackName) {
-    trackNames.set(identity.trackId, identity.trackName);
-    trackOrdinals.set(identity.trackName.trim().toLowerCase(), identity.trackId);
-    const sharedTrackName = getLMUSharedTrackName(identity.trackName);
-    if (sharedTrackName) sharedTrackNames.set(identity.trackId, sharedTrackName);
-  }
 }
 
 export function injectDiscoveredLMUIdentity(

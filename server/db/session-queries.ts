@@ -12,6 +12,8 @@ import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
+import type { SessionIdentity } from "../telemetry/pipeline-ports";
+import { getLMUTrack } from "../../shared/games/lmu/catalog";
 
 export async function insertSession(
   carOrdinal: number,
@@ -20,10 +22,11 @@ export async function insertSession(
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
   ownership?: SessionOwnership,
+  identity?: SessionIdentity,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity })
+    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity, ...identity })
     .returning({ id: sessions.id })
     .get();
   return result.id;
@@ -40,8 +43,17 @@ export async function updateSession(
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
 }
 
-export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-  await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
+export async function updateSessionCarTrack(
+  sessionId: number,
+  carOrdinal: number,
+  trackOrdinal: number,
+  identity?: SessionIdentity,
+): Promise<void> {
+  await db
+    .update(sessions)
+    .set({ carOrdinal, trackOrdinal, ...identity })
+    .where(eq(sessions.id, sessionId))
+    .run();
 }
 export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
   await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();
@@ -205,6 +217,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       id: sessions.id,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       createdAt: sessions.createdAt,
       gameId: sessions.gameId,
       sessionType: sessions.sessionType,
@@ -238,6 +252,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     const normalizedSession = {
       ...session,
+      carId: session.carId ?? session.carOrdinal,
+      trackId: session.trackId ?? session.trackOrdinal,
       sessionType: session.sessionType ?? undefined,
     };
     const resultRow = await db
@@ -311,6 +327,8 @@ export async function getSessionRecapData(
       id: sessions.id,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       gameId: sessions.gameId,
       createdAt: sessions.createdAt,
       ownership: sessions.ownership,
@@ -335,7 +353,9 @@ export async function getSessionRecapData(
     .orderBy(laps.lapNumber)
     .all();
 
-  const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
+  const trackLengthM = gameId === "lmu" && sessionRow.trackId
+    ? (getLMUTrack(sessionRow.trackId)?.lengthKm ?? 0) * 1_000 || null
+    : getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
   const sessionSectorCount =
     lapRows.find(
       (lap) =>
@@ -360,6 +380,19 @@ export async function getSessionRecapData(
       }
     }
   }
+  const identityFilters = gameId === "lmu"
+    ? [
+        sessionRow.trackId !== null
+          ? eq(sessions.trackId, sessionRow.trackId)
+          : and(isNull(sessions.trackId), eq(sessions.trackOrdinal, sessionRow.trackOrdinal)),
+        sessionRow.carId !== null
+          ? eq(sessions.carId, sessionRow.carId)
+          : and(isNull(sessions.carId), eq(sessions.carOrdinal, sessionRow.carOrdinal)),
+      ]
+    : [
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+      ];
 
   const bestOtherRow = await db
     .select({ lapTime: laps.lapTime })
@@ -367,8 +400,7 @@ export async function getSessionRecapData(
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
       and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        ...identityFilters,
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
@@ -385,8 +417,7 @@ export async function getSessionRecapData(
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
       and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        ...identityFilters,
         eq(sessions.gameId, gameId),
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
@@ -414,6 +445,8 @@ export async function getSessionRecapData(
       id: sessionRow.id,
       carOrdinal: sessionRow.carOrdinal,
       trackOrdinal: sessionRow.trackOrdinal,
+      carId: sessionRow.carId,
+      trackId: sessionRow.trackId,
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
       ownership: sessionRow.ownership === "others" ? "others" : "mine",

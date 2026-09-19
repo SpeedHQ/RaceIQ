@@ -38,6 +38,11 @@ export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersio
     derivationVersion: TELEMETRY_DERIVATION_VERSION,
   };
 }
+export interface SessionIdentity {
+  carId: string;
+  trackId: string;
+}
+
 
 export interface CapturedSession {
   carOrdinal: number;
@@ -46,6 +51,7 @@ export interface CapturedSession {
   sessionType?: string;
   versionIdentity?: TelemetryVersionIdentity;
   ownership?: SessionOwnership;
+  identity?: SessionIdentity;
 }
 
 export interface CapturedLap {
@@ -72,6 +78,7 @@ export interface DbAdapter {
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
+    identity?: SessionIdentity,
   ): Promise<number>;
   insertLap(
     sessionId: number,
@@ -92,7 +99,7 @@ export interface DbAdapter {
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void>;
   getTuneAssignment(
     gameId: GameId,
     carOrdinal: number,
@@ -160,9 +167,9 @@ export class RealDbAdapter implements DbAdapter {
     this.options = options;
   }
 
-  async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
+  async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership, sessionIdentity?: SessionIdentity): Promise<number> {
     const identity = versionIdentity ?? currentTelemetryVersionIdentity(gameId);
-    const sessionId = await insertSession(carOrdinal, trackOrdinal, gameId, sessionType, identity, ownership ?? this.options.ownership);
+    const sessionId = await insertSession(carOrdinal, trackOrdinal, gameId, sessionType, identity, ownership ?? this.options.ownership, sessionIdentity);
     this.sessionScopes.set(sessionId, { gameId, carOrdinal, trackOrdinal, versionIdentity: identity });
     return sessionId;
   }
@@ -182,8 +189,8 @@ export class RealDbAdapter implements DbAdapter {
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
-  async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+  async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
+    await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
     const existing = this.sessionScopes.get(sessionId);
     if (existing) this.sessionScopes.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
   }
@@ -208,8 +215,8 @@ export class CapturingDbAdapter implements DbAdapter {
   private _sessionId = 0;
   private _lapId = 0;
 
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership): Promise<number> {
-    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership });
+  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership, identity?: SessionIdentity): Promise<number> {
+    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership, identity });
     return Promise.resolve(++this._sessionId);
   }
 
@@ -232,12 +239,12 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve();
   }
 
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    // Backfill the captured session in place so tests observe the resolved ordinals.
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
     const session = this.sessions[sessionId - 1];
     if (session) {
       session.carOrdinal = carOrdinal;
       session.trackOrdinal = trackOrdinal;
+      session.identity = identity;
     }
     return Promise.resolve();
   }
@@ -271,7 +278,7 @@ export class NullWsAdapter implements WsAdapter {
 
 /** No-op database adapter. Used in benchmarks and tests that don't need DB output. */
 export class NullDbAdapter implements DbAdapter {
-  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership): Promise<number> {
+  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string, _versionIdentity?: TelemetryVersionIdentity, _ownership?: SessionOwnership, _identity?: SessionIdentity): Promise<number> {
     return Promise.resolve(1);
   }
   insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: number[] | null, _versionIdentity?: TelemetryVersionIdentity): Promise<number> {
@@ -286,7 +293,7 @@ export class NullDbAdapter implements DbAdapter {
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
     return Promise.resolve();
   }
-  updateSessionCarTrack(_sessionId: number, _carOrdinal: number, _trackOrdinal: number): Promise<void> {
+  updateSessionCarTrack(_sessionId: number, _carOrdinal: number, _trackOrdinal: number, _identity?: SessionIdentity): Promise<void> {
     return Promise.resolve();
   }
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {

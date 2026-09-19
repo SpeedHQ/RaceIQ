@@ -1,3 +1,4 @@
+import { carIdentityKey, trackIdentityKey } from "@shared/racing/sessions/types";
 import { getGameRoute } from "../stores/game";
 import { useNavigate } from "@tanstack/react-router";
 import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
@@ -16,6 +17,8 @@ interface LapSummary {
   trackName: string;
   trackOrdinal: number | null;
   carOrdinal: number | null;
+  carId: number | string;
+  trackId: number | string;
   gameId: string;
 }
 interface TuneSummary {
@@ -106,7 +109,7 @@ export function ChatsPage() {
         if (lap.trackOrdinal == null || lap.carOrdinal == null) return;
         navigate({
           to: `${routePrefix}/sessions/replay` as never,
-          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id, ai: 1 } as never,
+          search: { track: trackIdentityKey(lap), car: carIdentityKey(lap), lap: lap.id, ai: 1 } as never,
         });
       } else if (row.type === "compare" && row.laps.length === 2) {
         const [a, b] = row.laps;

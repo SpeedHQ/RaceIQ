@@ -23,7 +23,7 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   const { data: tracks = [], isLoading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
   const track =
     gameId === "lmu"
-      ? tracks.find((t) => t.id?.split("/").at(-1) === decodeURIComponent(trackKey)) ?? null
+      ? tracks.find((t) => t.id === decodeURIComponent(trackKey)) ?? null
       : tracks.find((t) => t.ordinal === ordinal) ?? null;
 
   const onTabChange = useCallback(

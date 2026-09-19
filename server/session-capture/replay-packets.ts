@@ -11,10 +11,10 @@ import {
   parseAcEvoBuffers,
 } from "../games/ac-evo/parser";
 import { readIRacingFrames } from "../games/iracing/recorder";
-import { readLMUFrames } from "../games/lmu/recorder";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
 import { readKunosFrames } from "../games/kunos/frame-reader";
 import { getServerGame } from "../games/registry";
-import { decompressIfGzipSync, iterateSessionCaptureRecords } from "./framing";
+import { decompressIfGzipSync, iterateSessionCaptureRecords, iterateSessionFrames } from "./framing";
 
 export interface RecordedTelemetry {
   readonly packets: TelemetryPacket[];
@@ -158,7 +158,11 @@ function readLMUPackets(recordingPath: string): RecordedTelemetry {
   const packets: TelemetryPacket[] = [];
   let carModel: string | null = null;
   let trackName: string | null = null;
-  for (const frame of readLMUFrames(recordingPath)) {
+  const bytes = decompressIfGzipSync(readFileSync(recordingPath));
+  const frames = hasLMUDumpMagic(bytes)
+    ? readLMUFramesFromBuffer(bytes)
+    : iterateSessionFrames(bytes);
+  for (const frame of frames) {
     const packet = game.tryParse(frame, null);
     if (!packet) continue;
     carModel ??= packet.lmu?.carModel || packet.lmu?.carName || null;

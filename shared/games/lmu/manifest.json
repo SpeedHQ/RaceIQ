@@ -4,6 +4,7 @@
   "artifactKind": "raceiq-lmu-assets",
   "counts": {
     "tracks": 36,
+    "trackAssets": 33,
     "cars": 36,
     "images": 36
   }

@@ -3,7 +3,6 @@ import { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "../games/iracing/source";
 import { registerLiveIRacingIdentity } from "../games/iracing/identity";
 import { LMUTelemetrySource } from "../games/lmu/source";
-import { registerLiveLMUIdentity } from "../games/lmu/identity";
 import { isGameRunning } from "../games/registry";
 import {
   getAccReader,
@@ -62,7 +61,6 @@ export function startNativeSourceSupervisor(
       "LMU",
       () => new LMUTelemetrySource({
         recordingEnabled: recordingGameId === "lmu",
-        registerIdentity: registerLiveLMUIdentity,
       }),
       getLmuSource,
       setLmuSource,

@@ -1,7 +1,8 @@
+import type { LMUIdentityRecord } from "../../../shared/games/lmu";
 import {
-  lmuIdentityOrdinal,
-  type LMUIdentityRecord,
-} from "../../../shared/games/lmu";
+  resolveLMUCar,
+  resolveLMUTrack,
+} from "../../../shared/games/lmu/catalog";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { LMUExtendedData } from "../../../shared/telemetry/lmu";
 import {
@@ -170,16 +171,29 @@ export function identityFromLMUSourceFrame(
     LMU_TELEMETRY.vehicleModel,
     30,
   );
-  const trackName =
-    readCString(frame.scoringInfo, LMU_SCORING_INFO.trackName, 64) ||
-    readCString(frame.telemetry, LMU_TELEMETRY.trackName, 64);
-  const identityName = carModel || carName || "Unknown LMU car";
-  const identityTrack = trackName || "Unknown LMU track";
+  const scoringTrackName = readCString(
+    frame.scoringInfo,
+    LMU_SCORING_INFO.trackName,
+    64,
+  );
+  const telemetryTrackName = readCString(
+    frame.telemetry,
+    LMU_TELEMETRY.trackName,
+    64,
+  );
+  const carId = carModel || carName;
+  const trackId = scoringTrackName || telemetryTrackName;
+  const canonicalCar = resolveLMUCar(carId, carName);
+  const canonicalTrack = resolveLMUTrack(
+    scoringTrackName,
+    telemetryTrackName,
+  );
   return {
-    carId: lmuIdentityOrdinal("car", identityName),
-    carName: identityName,
-    trackId: lmuIdentityOrdinal("track", identityTrack),
-    trackName: identityTrack,
+    carId: canonicalCar?.id ?? carId,
+    carName,
+    carModel,
+    trackId: canonicalTrack?.id ?? trackId,
+    trackName: trackId,
   };
 }
 
@@ -283,6 +297,8 @@ export function normalizeLMUSourceFrame(
     ? scoring.readUInt8(LMU_SCORING_VEHICLE.inPits) !== 0
     : false;
   const lmu: LMUExtendedData = {
+    carId: identity.carId,
+    trackId: identity.trackId,
     gameVersion: frame.gameVersion,
     vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id),
     driverName,
@@ -337,13 +353,13 @@ export function normalizeLMUSourceFrame(
   return {
     gameId: "lmu",
     lmu,
-    sessionUID: [
+    sessionUID: JSON.stringify([
       frame.gameVersion,
       frame.sessionEvent,
       scoringInfo.readInt32LE(LMU_SCORING_INFO.session),
-      identity.trackId,
       identity.carId,
-    ].join(":"),
+      identity.trackId,
+    ]),
     IsRaceOn:
       scoringInfo.readUInt8(LMU_SCORING_INFO.inRealtime) !== 0 ? 1 : 0,
     TimestampMS: Math.round(frame.captureTimestampMs),
@@ -463,7 +479,7 @@ export function normalizeLMUSourceFrame(
     SuspensionTravelMFR: wheels.FR.suspensionTravelM,
     SuspensionTravelMRL: wheels.RL.suspensionTravelM,
     SuspensionTravelMRR: wheels.RR.suspensionTravelM,
-    CarOrdinal: identity.carId,
+    CarOrdinal: -1,
     CarClass: vehicleClass,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,
@@ -480,7 +496,7 @@ export function normalizeLMUSourceFrame(
       engineTorque * engineRpm * TWO_PI_PER_MINUTE +
       motorTorque * motorRpm * TWO_PI_PER_MINUTE,
     Torque: engineTorque + motorTorque,
-    TrackOrdinal: identity.trackId,
+    TrackOrdinal: -1,
     BrakeTempFrontLeft: wheels.FL.brakeTemperatureC,
     BrakeTempFrontRight: wheels.FR.brakeTemperatureC,
     BrakeTempRearLeft: wheels.RL.brakeTemperatureC,

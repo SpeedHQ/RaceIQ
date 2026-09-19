@@ -10,6 +10,11 @@ const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;
 const SOURCE_FRAME_TYPE = 0;
 
+
+export function hasLMUDumpMagic(bytes: Buffer): boolean {
+  return bytes.length >= LMU_DUMP_MAGIC.length
+    && bytes.subarray(0, LMU_DUMP_MAGIC.length).equals(LMU_DUMP_MAGIC);
+}
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
 }
@@ -104,7 +109,7 @@ export class LMURecorder implements LMURecorderContract {
 export function readLMUFramesFromBuffer(bytes: Buffer, limit?: number): Buffer[] {
   if (
     bytes.length < HEADER_SIZE ||
-    !bytes.subarray(0, LMU_DUMP_MAGIC.length).equals(LMU_DUMP_MAGIC) ||
+    !hasLMUDumpMagic(bytes) ||
     bytes.readUInt32LE(8) !== LMU_DUMP_VERSION
   ) {
     return [];

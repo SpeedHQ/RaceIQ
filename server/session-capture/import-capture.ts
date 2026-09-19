@@ -1,6 +1,6 @@
 import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
-import { readLMUFramesFromBuffer } from "../games/lmu/recorder";
+import { hasLMUDumpMagic, readLMUFramesFromBuffer } from "../games/lmu/recorder";
 import {
   decompressIfGzipSync,
   iterateSessionFrames,
@@ -25,7 +25,8 @@ export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
   const buf = decompressIfGzipSync(bytes);
   const games = getAllServerGames();
   let checked = 0;
-  for (const frame of iterateSessionFrames(buf)) {
+  const frames = hasLMUDumpMagic(buf) ? readLMUFramesFromBuffer(buf) : iterateSessionFrames(buf);
+  for (const frame of frames) {
     for (const game of games) {
       if (game.canHandle(frame)) return game.id;
     }
@@ -42,7 +43,7 @@ export async function importSessionBin(
   options: ImportSessionOptions = {},
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGzipSync(bytes);
-  const frames = gameId === "lmu"
+  const frames = gameId === "lmu" && hasLMUDumpMagic(buf)
     ? readLMUFramesFromBuffer(buf)
     : iterateSessionImportFrames(buf);
   const { packetCount, laps } = await importSessionFrames(

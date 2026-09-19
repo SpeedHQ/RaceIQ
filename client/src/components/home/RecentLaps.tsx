@@ -1,3 +1,4 @@
+import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -61,8 +62,12 @@ export function RecentLapsTable({
       </THead>
       <TBody>
         {laps.map((lap) => {
-          const track = lap.trackOrdinal != null ? (trackNames[`${lap.gameId}:${lap.trackOrdinal}`] ?? "") : "";
-          const car = lap.carOrdinal != null ? (carNames[`${lap.gameId}:${lap.carOrdinal}`] ?? "") : "";
+          const track = lap.gameId === "lmu" && typeof lap.trackId === "string"
+            ? getLMUTrack(lap.trackId)?.name ?? lap.trackId
+            : lap.trackOrdinal != null ? (trackNames[`${lap.gameId}:${lap.trackOrdinal}`] ?? "") : "";
+          const car = lap.gameId === "lmu" && typeof lap.carId === "string"
+            ? getLMUCar(lap.carId)?.name ?? lap.carId
+            : lap.carOrdinal != null ? (carNames[`${lap.gameId}:${lap.carOrdinal}`] ?? "") : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
           return (
             <TRow

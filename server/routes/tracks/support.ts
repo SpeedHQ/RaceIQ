@@ -23,6 +23,22 @@ export const TrackOrdinalParamSchema = z.object({
   trackOrdinal: z.string().transform((val) => parseInt(val, 10)),
 });
 
+export const TrackKeyParamSchema = z.object({
+  trackOrdinal: z.string().min(1),
+});
+
+export const OrdinalKeyParamSchema = z.object({
+  ordinal: z.string().min(1),
+});
+
+export function decodeTrackKey(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */

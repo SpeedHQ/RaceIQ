@@ -6,6 +6,7 @@ import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { getLMUCar, getLMUTrack } from "../../shared/games/lmu/catalog";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
@@ -29,6 +30,8 @@ interface LapSummary {
   trackName: string;
   trackOrdinal: number | null;
   carOrdinal: number | null;
+  carId: number | string;
+  trackId: number | string;
   gameId: string;
 }
 
@@ -60,10 +63,12 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
+    carName: typeof lap.carId === "string" ? getLMUCar(lap.carId)?.name ?? lap.carId : resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
+    trackName: typeof lap.trackId === "string" ? getLMUTrack(lap.trackId)?.name ?? lap.trackId : resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
     trackOrdinal: lap.trackOrdinal ?? null,
     carOrdinal: lap.carOrdinal ?? null,
+    carId: lap.carId ?? lap.carOrdinal ?? -1,
+    trackId: lap.trackId ?? lap.trackOrdinal ?? -1,
     gameId: lap.gameId ?? "",
   };
 }

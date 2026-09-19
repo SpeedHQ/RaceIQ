@@ -200,9 +200,10 @@ export function decodeLMUSourceFrame(
 }
 
 export interface LMUIdentity {
-  carId: number;
+  carId: string;
   carName: string;
-  trackId: number;
+  carModel: string;
+  trackId: string;
   trackName: string;
 }
 

@@ -1,10 +1,145 @@
 {
   "schemaVersion": 1,
-  "sourceHash": "1db69de69fe326cab603d7856f9eb1e540ce015303aae627112ebb23457ad0c7",
+  "sourceHash": "ab5c507377fb8fde3d7cf8f571015eec048e56b93af7ed1560746b16ba0b98c9",
+  "trackAssets": [
+    {
+      "id": "bahrainwec_2023",
+      "trackSvg": "tracks/bahrainwec_2023.track.svg"
+    },
+    {
+      "id": "bahrainwec_2023-bahrainwec_endce",
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_endce.track.svg"
+    },
+    {
+      "id": "bahrainwec_2023-bahrainwec_outer",
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_outer.track.svg"
+    },
+    {
+      "id": "bahrainwec_2023-bahrainwec_paddock",
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_paddock.track.svg"
+    },
+    {
+      "id": "barcelona_2025",
+      "trackSvg": "tracks/barcelona_2025.track.svg"
+    },
+    {
+      "id": "cotawec_2024",
+      "trackSvg": "tracks/cotawec_2024.track.svg"
+    },
+    {
+      "id": "cotawec_2024-cotawec_national",
+      "trackSvg": "tracks/cotawec_2024-cotawec_national.track.svg"
+    },
+    {
+      "id": "daytona_2026",
+      "trackSvg": "tracks/daytona_2026.track.svg"
+    },
+    {
+      "id": "fujiwec_2023",
+      "trackSvg": "tracks/fujiwec_2023.track.svg"
+    },
+    {
+      "id": "fujiwec_2023-fujiwec_cl",
+      "trackSvg": "tracks/fujiwec_2023-fujiwec_cl.track.svg"
+    },
+    {
+      "id": "imolawec_2024",
+      "trackSvg": "tracks/imolawec_2024.track.svg"
+    },
+    {
+      "id": "interlagos_2024",
+      "trackSvg": "tracks/interlagos_2024.track.svg"
+    },
+    {
+      "id": "lagunaseca_2026",
+      "trackSvg": "tracks/lagunaseca_2026.track.svg"
+    },
+    {
+      "id": "lemans_2023",
+      "trackSvg": "tracks/lemans_2023.track.svg"
+    },
+    {
+      "id": "lemans_2023-lemanswec_mulsanne",
+      "trackSvg": "tracks/lemans_2023-lemanswec_mulsanne.track.svg"
+    },
+    {
+      "id": "monza_2023",
+      "trackSvg": "tracks/monza_2023.track.svg"
+    },
+    {
+      "id": "monza_2023-monzawec_grande",
+      "trackSvg": "tracks/monza_2023-monzawec_grande.track.svg"
+    },
+    {
+      "id": "paulricard_2025",
+      "trackSvg": "tracks/paulricard_2025.track.svg"
+    },
+    {
+      "id": "paulricard_2025-paulricard1a-v2",
+      "trackSvg": "tracks/paulricard_2025-paulricard1a-v2.track.svg"
+    },
+    {
+      "id": "paulricard_2025-paulricard1a-v2-short",
+      "trackSvg": "tracks/paulricard_2025-paulricard1a-v2-short.track.svg"
+    },
+    {
+      "id": "paulricard_2025-paulricard3a",
+      "trackSvg": "tracks/paulricard_2025-paulricard3a.track.svg"
+    },
+    {
+      "id": "paulricard_2025-paulricardelms",
+      "trackSvg": "tracks/paulricard_2025-paulricardelms.track.svg"
+    },
+    {
+      "id": "portimaowec_2023",
+      "trackSvg": "tracks/portimaowec_2023.track.svg"
+    },
+    {
+      "id": "portimaowec_2023-portimaowec",
+      "trackSvg": "tracks/portimaowec_2023-portimaowec.track.svg"
+    },
+    {
+      "id": "qatar_2024",
+      "trackSvg": "tracks/qatar_2024.track.svg"
+    },
+    {
+      "id": "qatar_2024-qatarwec_short",
+      "trackSvg": "tracks/qatar_2024-qatarwec_short.track.svg"
+    },
+    {
+      "id": "sebring_2023",
+      "trackSvg": "tracks/sebring_2023.track.svg"
+    },
+    {
+      "id": "sebring_2023-sebringwec_school",
+      "trackSvg": "tracks/sebring_2023-sebringwec_school.track.svg"
+    },
+    {
+      "id": "silverstone_2025",
+      "trackSvg": "tracks/silverstone_2025.track.svg"
+    },
+    {
+      "id": "silverstone_2025-silverstone_national",
+      "trackSvg": "tracks/silverstone_2025-silverstone_national.track.svg"
+    },
+    {
+      "id": "silverstone_2025-silverstoneelms",
+      "trackSvg": "tracks/silverstone_2025-silverstoneelms.track.svg"
+    },
+    {
+      "id": "spa_2023",
+      "trackSvg": "tracks/spa_2023.track.svg"
+    },
+    {
+      "id": "spa_2023-spawec_endce",
+      "trackSvg": "tracks/spa_2023-spawec_endce.track.svg"
+    }
+  ],
   "tracks": [
     {
       "id": "bahrainwec_2023/bahrainwec",
       "layout": "BahrainWEC",
+      "trackAssetId": "bahrainwec_2023",
       "name": "Bahrain International Circuit",
       "venue": "Bahrain International Circuit",
       "event": "8 Hours of Bahrain",
@@ -13,11 +148,16 @@
       "lengthKm": 5.412,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/bahrainwec.track.svg"
+      "sectorFractions": [
+        0.319105515245215,
+        0.7395775065607961
+      ],
+      "trackSvg": "tracks/bahrainwec_2023.track.svg"
     },
     {
       "id": "bahrainwec_2023/bahrainwec_endce",
       "layout": "BahrainWEC_Endce",
+      "trackAssetId": "bahrainwec_2023-bahrainwec_endce",
       "name": "Bahrain Endurance Circuit",
       "venue": "Bahrain International Circuit",
       "event": "Bahrain Endurance Circuit",
@@ -26,11 +166,16 @@
       "lengthKm": 6.299,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/bahrainwec_endce.track.svg"
+      "sectorFractions": [
+        0.35439864232950197,
+        0.5246096440251536
+      ],
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_endce.track.svg"
     },
     {
       "id": "bahrainwec_2023/bahrainwec_outer",
       "layout": "BahrainWEC_Outer",
+      "trackAssetId": "bahrainwec_2023-bahrainwec_outer",
       "name": "Bahrain Outer Circuit",
       "venue": "Bahrain International Circuit",
       "event": "Bahrain Outer Circuit",
@@ -39,11 +184,16 @@
       "lengthKm": 3.543,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/bahrainwec_outer.track.svg"
+      "sectorFractions": [
+        0.4860804961756428,
+        0.6797508642052563
+      ],
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_outer.track.svg"
     },
     {
       "id": "bahrainwec_2023/bahrainwec_paddock",
       "layout": "BahrainWEC_Paddock",
+      "trackAssetId": "bahrainwec_2023-bahrainwec_paddock",
       "name": "Bahrain Paddock Circuit",
       "venue": "Bahrain International Circuit",
       "event": "Bahrain Paddock Circuit",
@@ -52,11 +202,16 @@
       "lengthKm": 3.705,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/bahrainwec_paddock.track.svg"
+      "sectorFractions": [
+        0.3245063116577161,
+        0.6302143988171292
+      ],
+      "trackSvg": "tracks/bahrainwec_2023-bahrainwec_paddock.track.svg"
     },
     {
       "id": "barcelona_2025/barcelonaelms",
       "layout": "BarcelonaELMS",
+      "trackAssetId": "barcelona_2025",
       "name": "Circuit de Barcelona",
       "venue": "Circuit de Barcelona",
       "event": "4 Hours of Barcelona",
@@ -65,11 +220,16 @@
       "lengthKm": 4.657,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/barcelonaelms.track.svg"
+      "sectorFractions": [
+        0.35167448721499706,
+        0.7211610120489224
+      ],
+      "trackSvg": "tracks/barcelona_2025.track.svg"
     },
     {
       "id": "cotawec_2024/cotawec",
       "layout": "CotAWEC",
+      "trackAssetId": "cotawec_2024",
       "name": "Circuit of the Americas",
       "venue": "Circuit of the Americas",
       "event": "Lone Star Le Mans",
@@ -78,11 +238,16 @@
       "lengthKm": 5.513,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/cotawec.track.svg"
+      "sectorFractions": [
+        0.3023690927973942,
+        0.7007420643661304
+      ],
+      "trackSvg": "tracks/cotawec_2024.track.svg"
     },
     {
       "id": "cotawec_2024/cotawec_national",
       "layout": "COTAWEC_National",
+      "trackAssetId": "cotawec_2024-cotawec_national",
       "name": "COTA National Circuit",
       "venue": "Circuit of the Americas",
       "event": "COTA National Circuit",
@@ -91,11 +256,16 @@
       "lengthKm": 3.702,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/cotawec_national.track.svg"
+      "sectorFractions": [
+        0.3528569845293823,
+        0.5565271923536212
+      ],
+      "trackSvg": "tracks/cotawec_2024-cotawec_national.track.svg"
     },
     {
       "id": "daytona_2026/daytonarc",
       "layout": "DaytonaRC",
+      "trackAssetId": "daytona_2026",
       "name": "Daytona International Speedway Road Course",
       "venue": "Daytona International Speedway",
       "event": "Daytona International Speedway Road Course",
@@ -104,11 +274,16 @@
       "lengthKm": 5.729,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/daytonarc.track.svg"
+      "sectorFractions": [
+        0.21156264477101752,
+        0.6440847236427046
+      ],
+      "trackSvg": "tracks/daytona_2026.track.svg"
     },
     {
       "id": "fujiwec_2023/fujiwec",
       "layout": "FujiWEC",
+      "trackAssetId": "fujiwec_2023",
       "name": "Fuji Speedway",
       "venue": "Fuji Speedway",
       "event": "6 Hours of Fuji",
@@ -117,11 +292,16 @@
       "lengthKm": 4.563,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/fujiwec.track.svg"
+      "sectorFractions": [
+        0.41225012131964134,
+        0.6613795510849457
+      ],
+      "trackSvg": "tracks/fujiwec_2023.track.svg"
     },
     {
       "id": "fujiwec_2023/fujiwec_cl",
       "layout": "FujiWEC_CL",
+      "trackAssetId": "fujiwec_2023-fujiwec_cl",
       "name": "Fuji Speedway Classic",
       "venue": "Fuji Speedway",
       "event": "Fuji Speedway Classic",
@@ -130,11 +310,16 @@
       "lengthKm": 4.526,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/fujiwec_cl.track.svg"
+      "sectorFractions": [
+        0.4153453665329686,
+        0.6586289433774167
+      ],
+      "trackSvg": "tracks/fujiwec_2023-fujiwec_cl.track.svg"
     },
     {
       "id": "imolawec_2024/imolaelms",
       "layout": "ImolaELMS",
+      "trackAssetId": "imolawec_2024",
       "name": "Autodromo Enzo e Dino Ferrari",
       "venue": "Autodromo Enzo e Dino Ferrari",
       "event": "4 Hours of Imola",
@@ -143,11 +328,16 @@
       "lengthKm": 4.909,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/imolaelms.track.svg"
+      "sectorFractions": [
+        0.24764785430397493,
+        0.5578093278051657
+      ],
+      "trackSvg": "tracks/imolawec_2024.track.svg"
     },
     {
       "id": "imolawec_2024/imolawec",
       "layout": "ImolaWEC",
+      "trackAssetId": "imolawec_2024",
       "name": "Autodromo Enzo e Dino Ferrari",
       "venue": "Autodromo Enzo e Dino Ferrari",
       "event": "6 Hours of Imola",
@@ -156,11 +346,16 @@
       "lengthKm": 4.909,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/imolawec.track.svg"
+      "sectorFractions": [
+        0.24764785430397493,
+        0.5578093278051657
+      ],
+      "trackSvg": "tracks/imolawec_2024.track.svg"
     },
     {
       "id": "interlagos_2024/interlagoswec",
       "layout": "InterlagosWEC",
+      "trackAssetId": "interlagos_2024",
       "name": "Autódromo José Carlos Pace",
       "venue": "Autódromo José Carlos Pace",
       "event": "Rolex 6 Hours Of Sao Paulo",
@@ -169,11 +364,16 @@
       "lengthKm": 4.309,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/interlagoswec.track.svg"
+      "sectorFractions": [
+        0.3047848674363612,
+        0.7459032726800177
+      ],
+      "trackSvg": "tracks/interlagos_2024.track.svg"
     },
     {
       "id": "lagunaseca_2026/lagunaseca",
       "layout": "LagunaSeca",
+      "trackAssetId": "lagunaseca_2026",
       "name": "WeatherTech Raceway Laguna Seca",
       "venue": "WeatherTech Raceway Laguna Seca",
       "event": "WeatherTech Raceway Laguna Seca",
@@ -182,11 +382,16 @@
       "lengthKm": 3.602,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/lagunaseca.track.svg"
+      "sectorFractions": [
+        0.3912747595423117,
+        0.7937415466013161
+      ],
+      "trackSvg": "tracks/lagunaseca_2026.track.svg"
     },
     {
       "id": "lemans_2023/lemanswec",
       "layout": "LeMansWEC",
+      "trackAssetId": "lemans_2023",
       "name": "Circuit de la Sarthe",
       "venue": "Circuit de la Sarthe",
       "event": "24 Heures du Mans",
@@ -195,11 +400,16 @@
       "lengthKm": 13.626,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/lemanswec.track.svg"
+      "sectorFractions": [
+        0.13942278847461861,
+        0.5673451966994755
+      ],
+      "trackSvg": "tracks/lemans_2023.track.svg"
     },
     {
       "id": "lemans_2023/lemanswec_mulsanne",
       "layout": "LeMansWEC_Mulsanne",
+      "trackAssetId": "lemans_2023-lemanswec_mulsanne",
       "name": "Circuit de la Sarthe Mulsanne",
       "venue": "Circuit de la Sarthe",
       "event": "Circuit de la Sarthe Mulsanne",
@@ -208,11 +418,16 @@
       "lengthKm": 13.626,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/lemanswec_mulsanne.track.svg"
+      "sectorFractions": [
+        0.1400709972424834,
+        0.56533368444737
+      ],
+      "trackSvg": "tracks/lemans_2023-lemanswec_mulsanne.track.svg"
     },
     {
       "id": "monza_2023/monzawec",
       "layout": "MonzaWEC",
+      "trackAssetId": "monza_2023",
       "name": "Autodromo Nazionale Monza",
       "venue": "Autodromo Nazionale Monza",
       "event": "6 Hours of Monza",
@@ -221,11 +436,16 @@
       "lengthKm": 5.793,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/monzawec.track.svg"
+      "sectorFractions": [
+        0.34567236822854797,
+        0.6579217400821453
+      ],
+      "trackSvg": "tracks/monza_2023.track.svg"
     },
     {
       "id": "monza_2023/monzawec_grande",
       "layout": "MonzaWEC_Grande",
+      "trackAssetId": "monza_2023-monzawec_grande",
       "name": "Monza Curva Grande Circuit",
       "venue": "Autodromo Nazionale Monza",
       "event": "Monza Curva Grande Circuit",
@@ -234,11 +454,16 @@
       "lengthKm": 5.793,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/monzawec_grande.track.svg"
+      "sectorFractions": [
+        0.3416242631165264,
+        0.6558063457144023
+      ],
+      "trackSvg": "tracks/monza_2023-monzawec_grande.track.svg"
     },
     {
       "id": "paulricard_2025/paulricard1a",
       "layout": "PaulRicard1A",
+      "trackAssetId": "paulricard_2025",
       "name": "Paul Ricard - 1A",
       "venue": "Paul Ricard Circuit",
       "event": "Paul Ricard - 1A",
@@ -247,11 +472,16 @@
       "lengthKm": 5.752,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/paulricard1a.track.svg"
+      "sectorFractions": [
+        0.27297177890642843,
+        0.5984874599243295
+      ],
+      "trackSvg": "tracks/paulricard_2025.track.svg"
     },
     {
       "id": "paulricard_2025/paulricard1a-v2",
       "layout": "PaulRicard1A-V2",
+      "trackAssetId": "paulricard_2025-paulricard1a-v2",
       "name": "Paul Ricard - 1A-V2",
       "venue": "Paul Ricard Circuit",
       "event": "Paul Ricard - 1A-V2",
@@ -260,11 +490,16 @@
       "lengthKm": 5.842,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/paulricard1a-v2.track.svg"
+      "sectorFractions": [
+        0.2775691424579439,
+        0.5998918430781452
+      ],
+      "trackSvg": "tracks/paulricard_2025-paulricard1a-v2.track.svg"
     },
     {
       "id": "paulricard_2025/paulricard1a-v2-short",
       "layout": "PaulRicard1A-V2-Short",
+      "trackAssetId": "paulricard_2025-paulricard1a-v2-short",
       "name": "Paul Ricard - 1A-V2-Short",
       "venue": "Paul Ricard Circuit",
       "event": "Paul Ricard - 1A-V2-Short",
@@ -273,11 +508,16 @@
       "lengthKm": 5.227,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/paulricard1a-v2-short.track.svg"
+      "sectorFractions": [
+        0.3088371327839904,
+        0.6672335348669923
+      ],
+      "trackSvg": "tracks/paulricard_2025-paulricard1a-v2-short.track.svg"
     },
     {
       "id": "paulricard_2025/paulricard3a",
       "layout": "PaulRicard3A",
+      "trackAssetId": "paulricard_2025-paulricard3a",
       "name": "Paul Ricard - 3A",
       "venue": "Paul Ricard Circuit",
       "event": "Paul Ricard - 3A",
@@ -286,11 +526,16 @@
       "lengthKm": 3.793,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/paulricard3a.track.svg"
+      "sectorFractions": [
+        0.21008511329623114,
+        0.6831174408932461
+      ],
+      "trackSvg": "tracks/paulricard_2025-paulricard3a.track.svg"
     },
     {
       "id": "paulricard_2025/paulricardelms",
       "layout": "PaulRicardELMS",
+      "trackAssetId": "paulricard_2025-paulricardelms",
       "name": "Paul Ricard - ELMS",
       "venue": "Paul Ricard Circuit",
       "event": "4 Hours of Castellet",
@@ -299,11 +544,16 @@
       "lengthKm": 5.842,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/paulricardelms.track.svg"
+      "sectorFractions": [
+        0.27522889954566293,
+        0.6032653216539674
+      ],
+      "trackSvg": "tracks/paulricard_2025-paulricardelms.track.svg"
     },
     {
       "id": "portimaowec_2023/portimaoelms",
       "layout": "PortimaoELMS",
+      "trackAssetId": "portimaowec_2023",
       "name": "Algarve International Circuit",
       "venue": "Algarve International Circuit",
       "event": "4 Hours of Portimao",
@@ -312,11 +562,16 @@
       "lengthKm": 4.653,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/portimaoelms.track.svg"
+      "sectorFractions": [
+        0.21155470309010013,
+        0.5588887562554883
+      ],
+      "trackSvg": "tracks/portimaowec_2023.track.svg"
     },
     {
       "id": "portimaowec_2023/portimaowec",
       "layout": "PortimaoWEC",
+      "trackAssetId": "portimaowec_2023-portimaowec",
       "name": "Algarve International Circuit",
       "venue": "Algarve International Circuit",
       "event": "6 Hours of Portimao",
@@ -325,11 +580,16 @@
       "lengthKm": 4.653,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/portimaowec.track.svg"
+      "sectorFractions": [
+        0.21155470309010013,
+        0.5588887562554883
+      ],
+      "trackSvg": "tracks/portimaowec_2023-portimaowec.track.svg"
     },
     {
       "id": "qatar_2024/qatarwec",
       "layout": "QatarWEC",
+      "trackAssetId": "qatar_2024",
       "name": "Lusail International Circuit",
       "venue": "Lusail International Circuit",
       "event": "Qatar 1812KM",
@@ -338,11 +598,16 @@
       "lengthKm": 5.4,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/qatarwec.track.svg"
+      "sectorFractions": [
+        0.28277084321352264,
+        0.6583198573889631
+      ],
+      "trackSvg": "tracks/qatar_2024.track.svg"
     },
     {
       "id": "qatar_2024/qatarwec_short",
       "layout": "QatarWEC_Short",
+      "trackAssetId": "qatar_2024-qatarwec_short",
       "name": "Lusail Short Circuit",
       "venue": "Lusail International Circuit",
       "event": "Lusail Short Circuit",
@@ -351,11 +616,16 @@
       "lengthKm": 3.701,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/qatarwec_short.track.svg"
+      "sectorFractions": [
+        0.37332406609547275,
+        0.7487004400415715
+      ],
+      "trackSvg": "tracks/qatar_2024-qatarwec_short.track.svg"
     },
     {
       "id": "sebring_2023/sebringwec",
       "layout": "SebringWEC",
+      "trackAssetId": "sebring_2023",
       "name": "Sebring International Raceway",
       "venue": "Sebring International Raceway",
       "event": "1000 Miles of Sebring",
@@ -364,11 +634,16 @@
       "lengthKm": 6.019,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/sebringwec.track.svg"
+      "sectorFractions": [
+        0.36570500218764046,
+        0.6182923075752748
+      ],
+      "trackSvg": "tracks/sebring_2023.track.svg"
     },
     {
       "id": "sebring_2023/sebringwec_school",
       "layout": "SebringWEC_School",
+      "trackAssetId": "sebring_2023-sebringwec_school",
       "name": "Sebring School Circuit",
       "venue": "Sebring International Raceway",
       "event": "Sebring School Circuit",
@@ -377,11 +652,16 @@
       "lengthKm": 3.219,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/sebringwec_school.track.svg"
+      "sectorFractions": [
+        0.3357251223047097,
+        0.5067950195395473
+      ],
+      "trackSvg": "tracks/sebring_2023-sebringwec_school.track.svg"
     },
     {
       "id": "silverstone_2025/silverstone_international",
       "layout": "SIlverstone_International",
+      "trackAssetId": "silverstone_2025",
       "name": "Silverstone International Circuit",
       "venue": "Silverstone Circuit",
       "event": "Silverstone International Circuit",
@@ -390,11 +670,16 @@
       "lengthKm": 2.979,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/silverstone_international.track.svg"
+      "sectorFractions": [
+        0.2944706682240347,
+        0.8138511083565442
+      ],
+      "trackSvg": "tracks/silverstone_2025.track.svg"
     },
     {
       "id": "silverstone_2025/silverstone_national",
       "layout": "SIlverstone_National",
+      "trackAssetId": "silverstone_2025-silverstone_national",
       "name": "Silverstone National Circuit",
       "venue": "Silverstone Circuit",
       "event": "Silverstone National Circuit",
@@ -403,11 +688,16 @@
       "lengthKm": 2.639,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/silverstone_national.track.svg"
+      "sectorFractions": [
+        0.2805952572933912,
+        0.6769520428010362
+      ],
+      "trackSvg": "tracks/silverstone_2025-silverstone_national.track.svg"
     },
     {
       "id": "silverstone_2025/silverstoneelms",
       "layout": "SilverstoneELMS",
+      "trackAssetId": "silverstone_2025-silverstoneelms",
       "name": "Silverstone Grand Prix Circuit - ELMS",
       "venue": "Silverstone Circuit",
       "event": "4 Hours of Silverstone",
@@ -416,11 +706,16 @@
       "lengthKm": 5.89,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/silverstoneelms.track.svg"
+      "sectorFractions": [
+        0.2694917697852985,
+        0.5608421450242006
+      ],
+      "trackSvg": "tracks/silverstone_2025-silverstoneelms.track.svg"
     },
     {
       "id": "silverstone_2025/silverstonewec",
       "layout": "SIlverstoneWEC",
+      "trackAssetId": "silverstone_2025-silverstoneelms",
       "name": "Silverstone Grand Prix Circuit - WEC",
       "venue": "Silverstone Circuit",
       "event": "6 Hours of Silverstone",
@@ -429,11 +724,16 @@
       "lengthKm": 5.89,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/silverstonewec.track.svg"
+      "sectorFractions": [
+        0.2950092519172098,
+        0.7089008450066502
+      ],
+      "trackSvg": "tracks/silverstone_2025-silverstoneelms.track.svg"
     },
     {
       "id": "spa_2023/spaelms",
       "layout": "SpaELMS",
+      "trackAssetId": "spa_2023",
       "name": "Circuit de Spa-Francorchamps",
       "venue": "Circuit de Spa-Francorchamps",
       "event": "4 Hours of Spa-Francorchamps",
@@ -442,11 +742,16 @@
       "lengthKm": 7.004,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/spaelms.track.svg"
+      "sectorFractions": [
+        0.31103613021840665,
+        0.7070770142449968
+      ],
+      "trackSvg": "tracks/spa_2023.track.svg"
     },
     {
       "id": "spa_2023/spawec",
       "layout": "SpaWEC",
+      "trackAssetId": "spa_2023",
       "name": "Circuit de Spa-Francorchamps",
       "venue": "Circuit de Spa-Francorchamps",
       "event": "6 Hours of Spa-Francorchamps",
@@ -455,11 +760,16 @@
       "lengthKm": 7.004,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/spawec.track.svg"
+      "sectorFractions": [
+        0.31103613021840665,
+        0.7070770142449968
+      ],
+      "trackSvg": "tracks/spa_2023.track.svg"
     },
     {
       "id": "spa_2023/spawec_endce",
       "layout": "SpaWEC_Endce",
+      "trackAssetId": "spa_2023-spawec_endce",
       "name": "Circuit de Spa-Francorchamps Endurance",
       "venue": "Circuit de Spa-Francorchamps",
       "event": "Circuit de Spa-Francorchamps Endurance",
@@ -468,7 +778,11 @@
       "lengthKm": 7.004,
       "racePitKph": 60,
       "normalPitKph": 60,
-      "boundariesSvg": "tracks/spawec_endce.track.svg"
+      "sectorFractions": [
+        0.31103613021840665,
+        0.7070770142449968
+      ],
+      "trackSvg": "tracks/spa_2023-spawec_endce.track.svg"
     }
   ]
 }

@@ -4,7 +4,7 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
@@ -101,7 +101,7 @@ export function SessionMobileList({
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
+                    <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
                         {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -143,7 +143,7 @@ export function SessionMobileList({
                     </div>
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
-                    {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
+                    {sessionCarName(session, { trackNames, carNames })}
                     {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                   </div>
                   <div className="mt-2">

@@ -6,7 +6,7 @@ import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
@@ -187,8 +187,8 @@ export function SessionDesktopTable({
                     <TD numeric tone="primary">
                       {bestTime ? formatLapTime(bestTime) : "—"}
                     </TD>
-                    <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    <TD tone="primary">{sessionTrackName(session, { trackNames, carNames })}</TD>
+                    <TD tone="primary">{sessionCarName(session, { trackNames, carNames })}</TD>
                     <TD tone="primary">
                       <SessionResultMeta session={session} />
                     </TD>

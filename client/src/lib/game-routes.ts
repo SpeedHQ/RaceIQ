@@ -5,8 +5,8 @@ import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
   session?: number;
-  track?: number;
-  car?: number;
+  track?: number | string;
+  car?: number | string;
   lap?: number;
   laps?: string;
   primary?: number;
@@ -89,6 +89,13 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+export function parseOptionalIdentityKey(value: unknown): number | string | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string" || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && value.trim() !== "" ? parsed : value;
+}
+
 /** Parse the canonical comparison lap list without silently accepting malformed IDs. */
 export function parseAnalyseLapIds(value: string | undefined): number[] | null | undefined {
   if (value == null) return undefined;
@@ -112,8 +119,8 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
       : undefined;
   return {
     session: parseOptionalNumber(search.session),
-    track: parseOptionalNumber(search.track),
-    car: parseOptionalNumber(search.car),
+    track: parseOptionalIdentityKey(search.track),
+    car: parseOptionalIdentityKey(search.car),
     lap: parseOptionalNumber(search.lap),
     laps: typeof search.laps === "string" ? search.laps : undefined,
     primary: parseOptionalNumber(search.primary),

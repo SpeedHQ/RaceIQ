@@ -74,7 +74,7 @@ export function TrackViewer() {
     (t: TrackInfo) => {
       if (!gameId) return;
       const trackKey =
-        gameId === "lmu" ? t.id?.split("/").at(-1) : t.ordinal;
+        gameId === "lmu" ? t.id : t.ordinal;
       if (trackKey == null) return;
       navigate({ to: trackRoutePath(gameId, trackKey) });
     },

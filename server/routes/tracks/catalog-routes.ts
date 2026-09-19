@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
-import { getLapCountsByTrack } from "../../db/lap-read-queries";
+import { getLapCountsByTrack, getLMULapCountsByTrack } from "../../db/lap-read-queries";
 import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/racing/tracks/recording/outlines";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
@@ -13,11 +13,11 @@ import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
-import { getLMUTrackByAssetName, lmuTrackCatalog } from "../../../shared/games/lmu/catalog";
-import { lmuIdentityOrdinal } from "../../../shared/games/lmu";
+import { getLMUTrack, getLMUTrackByAssetName, lmuTrackCatalog } from "../../../shared/games/lmu/catalog";
 import { GAMES_DIR } from "../../runtime/config/paths";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
+import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 
 
 export const trackCatalogInfoRoutes = new Hono()
@@ -47,11 +47,14 @@ export const trackCatalogInfoRoutes = new Hono()
   // GET /api/track-name/:ordinal — plain text
   .get(
     "/api/track-name/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     (c) => {
-      const { ordinal } = c.req.valid("param");
+      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const { gameId } = c.req.valid("query");
+      if (gameId === "lmu") return c.text(getLMUTrack(trackKey)?.name ?? trackKey);
+      const ordinal = Number(trackKey);
+      if (!Number.isInteger(ordinal)) return c.text("Unknown track", 400);
       const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
       if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
       return c.text(resolveTrackName(ordinal, gameId));
@@ -132,12 +135,14 @@ export const trackCatalogRoutes = new Hono()
         return c.json(tracks);
       }
       if (gameId === "lmu") {
-        const lapCounts = await getLapCountsByTrack("lmu");
+        const [lapCounts, legacyLapCounts] = await Promise.all([
+          getLMULapCountsByTrack(),
+          getLapCountsByTrack("lmu"),
+        ]);
         const tracks = lmuTrackCatalog.map((track) => {
-          const ordinal = lmuIdentityOrdinal("track", track.layout);
           return {
             id: track.id,
-            ordinal,
+            ordinal: null,
             name: track.name,
             location: track.location,
             country: track.countryCode,
@@ -150,7 +155,7 @@ export const trackCatalogRoutes = new Hono()
             mapUrl: `/api/lmu-assets/tracks/${encodeURIComponent(track.boundariesSvg.split("/").pop()!)}`,
             outlineSource: "extracted",
             createdAt: null,
-            lapCount: lapCounts.get(ordinal) ?? 0,
+            lapCount: lapCounts.get(track.id) ?? 0,
           };
         });
         const discovered = (await listDiscoveredTracks("lmu")).map((track) => ({
@@ -168,7 +173,7 @@ export const trackCatalogRoutes = new Hono()
           mapUrl: null,
           outlineSource: "generated",
           createdAt: track.createdAt,
-          lapCount: lapCounts.get(track.ordinal) ?? 0,
+          lapCount: legacyLapCounts.get(track.ordinal) ?? 0,
         }));
         return c.json([...tracks, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
       }

@@ -1,4 +1,5 @@
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
+import type { LapMeta, RacingIdentityFields, SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionNames, SessionsTab, SortDir, SortKey } from "./types";
 
 export const PAGE_SIZE = 25;
@@ -14,6 +15,24 @@ export function fuzzyToken(token: string, field: string): boolean {
 export function formatSessionType(type?: string): string {
   if (!type || type === "unknown") return "";
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function sessionTrackName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
+  if (session.gameId === "lmu") {
+    if (typeof session.trackId === "string") return getLMUTrack(session.trackId)?.name ?? session.trackId;
+    const ordinal = session.trackId ?? session.trackOrdinal ?? -1;
+    return names.trackNames[ordinal] ?? `Track ${ordinal}`;
+  }
+  return names.trackNames[session.trackOrdinal ?? -1] ?? `Track ${session.trackOrdinal ?? -1}`;
+}
+
+export function sessionCarName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
+  if (session.gameId === "lmu") {
+    if (typeof session.carId === "string") return getLMUCar(session.carId)?.name ?? session.carId;
+    const ordinal = session.carId ?? session.carOrdinal ?? -1;
+    return names.carNames[ordinal] ?? `Car ${ordinal}`;
+  }
+  return names.carNames[session.carOrdinal ?? -1] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal ?? -1}`);
 }
 
 export function groupLapsBySession(laps: LapMeta[]): Map<number, LapMeta[]> {
@@ -36,12 +55,12 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
         valueB = new Date(b.createdAt).getTime();
         break;
       case "track":
-        valueA = names.trackNames[a.trackOrdinal] ?? `Track ${a.trackOrdinal}`;
-        valueB = names.trackNames[b.trackOrdinal] ?? `Track ${b.trackOrdinal}`;
+        valueA = sessionTrackName(a, names);
+        valueB = sessionTrackName(b, names);
         break;
       case "car":
-        valueA = names.carNames[a.carOrdinal] ?? `Car ${a.carOrdinal}`;
-        valueB = names.carNames[b.carOrdinal] ?? `Car ${b.carOrdinal}`;
+        valueA = sessionCarName(a, names);
+        valueB = sessionCarName(b, names);
         break;
       case "laps":
         valueA = a.lapCount ?? 0;
@@ -81,8 +100,8 @@ export function filterSessions(sessions: SessionMeta[], search: string, tab: Ses
   return sessions.filter((session) => {
     if ((session.ownership ?? "mine") !== tab) return false;
     if (!tokens.length) return true;
-    const track = (names.trackNames[session.trackOrdinal] ?? "").toLowerCase();
-    const car = (names.carNames[session.carOrdinal] ?? "").toLowerCase();
+    const track = sessionTrackName(session, names).toLowerCase();
+    const car = sessionCarName(session, names).toLowerCase();
     const notes = (session.notes ?? "").toLowerCase();
     return tokens.every((token) => fuzzyToken(token, track) || fuzzyToken(token, car) || fuzzyToken(token, notes));
   });

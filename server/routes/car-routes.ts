@@ -195,9 +195,14 @@ export const carRoutes = new Hono()
   })
 
   // GET /api/car-name/:ordinal — plain text car name
-  .get("/api/car-name/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", GameIdQuerySchema), (c) => {
-    const { ordinal } = c.req.valid("param");
+  .get("/api/car-name/:ordinal", zValidator("param", z.object({ ordinal: z.string().min(1) })), zValidator("query", GameIdQuerySchema), (c) => {
+    const raw = c.req.valid("param").ordinal;
+    let carKey = raw;
+    try { carKey = decodeURIComponent(raw); } catch { /* preserve exact raw value */ }
     const gameId = c.req.query("gameId");
+    if (gameId === "lmu") return c.text(getLMUCar(carKey)?.name ?? carKey);
+    const ordinal = Number(carKey);
+    if (!Number.isInteger(ordinal)) return c.text("Unknown car", 400);
     const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
     if (serverAdapter) return c.text(serverAdapter.getCarName(ordinal));
     return c.text(resolveCarName(ordinal, gameId));

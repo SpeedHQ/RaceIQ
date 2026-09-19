@@ -5,7 +5,7 @@ import { rpcJson } from "../lib/rpc-json";
 import { useGameId } from "../stores/game";
 import { queryKeys } from "./query-keys";
 
-export function useTrackName(ord: number | undefined) {
+export function useTrackName(ord: number | string | undefined) {
   const gameId = useGameId();
   return useQuery({
     queryKey: [...queryKeys.trackName(ord!), gameId ?? null],
@@ -17,7 +17,7 @@ export function useTrackName(ord: number | undefined) {
   });
 }
 
-export function useTrackSectors(ord: number | undefined) {
+export function useTrackSectors(ord: number | string | undefined) {
   const gameId = useGameId();
   return useQuery({
     queryKey: [...queryKeys.trackSectors(ord!), gameId ?? null],
@@ -29,7 +29,7 @@ export function useTrackSectors(ord: number | undefined) {
   });
 }
 
-export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
+export function useTrackSectorBoundaries(ord: number | string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
@@ -38,11 +38,11 @@ export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride
       const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
       return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
-    enabled: ord != null && ord >= 0 && !!gameId,
+    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
   });
 }
 
-export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId | null) {
+export function useTrackOutline(ord: number | string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
@@ -53,11 +53,11 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
         res,
       );
     },
-    enabled: ord != null && ord >= 0 && !!gameId,
+    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
   });
 }
 
-export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
+export function useTrackBoundaries(ord: number | string | undefined, gameIdOverride?: GameId | null) {
   const storeGameId = useGameId();
   const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
@@ -66,7 +66,7 @@ export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: Gam
       const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId ?? undefined } });
       return rpcJson(res);
     },
-    enabled: ord != null && ord >= 0 && !!gameId,
+    enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
   });
 }
 

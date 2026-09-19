@@ -1,4 +1,3 @@
-import { rememberLMUIdentity } from "../../../shared/games/lmu";
 import { processPacket } from "../../telemetry/live-pipeline";
 import { parsePacket } from "../packet-dispatch";
 import {
@@ -23,11 +22,17 @@ export interface LMUFrameReader {
 export interface LMUTelemetrySourceOptions {
   reader?: LMUFrameReader;
   dispatchRawFrame?: (rawFrame: Buffer) => Promise<void>;
-  registerIdentity?: (identity: LMUIdentity) => Promise<void>;
   pollIntervalMs?: number;
   recordingEnabled?: boolean;
   recordingDir?: string;
   recorder?: LMURecorderContract;
+}
+
+interface QueuedLMUFrame {
+  rawFrame: Buffer;
+  identity?: LMUIdentity;
+  identityKey: string;
+  resolve: (accepted: boolean) => void;
 }
 
 async function dispatchThroughParser(rawFrame: Buffer): Promise<void> {
@@ -41,33 +46,39 @@ async function dispatchThroughParser(rawFrame: Buffer): Promise<void> {
 export class LMUTelemetrySource {
   private readonly reader: LMUFrameReader;
   private readonly dispatchRawFrame: (rawFrame: Buffer) => Promise<void>;
-  private readonly registerIdentity:
-    | ((identity: LMUIdentity) => Promise<void>)
-    | undefined;
   private readonly pollIntervalMs: number;
   private readonly recordingEnabled: boolean;
   private readonly recordingDir: string | undefined;
   private readonly recorder: LMURecorderContract;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
-  private polling = false;
+  private frameQueue: QueuedLMUFrame[] = [];
+  private drainPromise: Promise<void> | null = null;
   private holdsTimerResolution = false;
   private lastFrameKey = "";
-  private lastIdentityKey = "";
+  private queuedIdentityKey = "";
+  private activeIdentityKey = "";
+  private identity: LMUIdentity | null = null;
   private lastErrorLogAt = 0;
 
   constructor(options: LMUTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new LMUSharedMemoryReader();
     this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
-    this.registerIdentity = options.registerIdentity;
     this.pollIntervalMs = options.pollIntervalMs ?? 10;
     this.recordingEnabled = options.recordingEnabled ?? false;
     this.recordingDir = options.recordingDir;
     this.recorder = options.recorder ?? lmuRecorder;
   }
 
+  get currentIdentity(): LMUIdentity | null {
+    return this.identity;
+  }
+
   start(): void {
     if (this.running) return;
+    this.queuedIdentityKey = "";
+    this.activeIdentityKey = "";
+    this.identity = null;
     if (this.recordingEnabled && !this.recorder.recording) {
       const path = this.recorder.start(this.recordingDir);
       console.log(`[LMU] Recording mode: bin file created at ${path}`);
@@ -92,17 +103,20 @@ export class LMUTelemetrySource {
     }
     try {
       await this.reader.stop();
+      await this.drainPromise;
     } finally {
       if (this.recordingEnabled) await this.recorder.stop();
+      this.frameQueue = [];
+      this.drainPromise = null;
       this.lastFrameKey = "";
-      this.lastIdentityKey = "";
+      this.queuedIdentityKey = "";
+      this.activeIdentityKey = "";
+      this.identity = null;
       console.log("[LMU] Telemetry source stopped");
     }
   }
 
   async pollOnce(): Promise<boolean> {
-    if (this.polling) return false;
-    this.polling = true;
     try {
       const sharedMemory = this.reader.readLatest();
       if (!sharedMemory) return false;
@@ -120,27 +134,52 @@ export class LMUTelemetrySource {
       this.lastFrameKey = frameKey;
 
       const identity = identityFromLMUSourceFrame(frame);
-      const identityKey = `${identity.carId}:${identity.trackId}`;
-      if (identityKey !== this.lastIdentityKey) {
-        this.lastIdentityKey = identityKey;
-        rememberLMUIdentity(identity);
-        await this.registerIdentity?.(identity);
-      }
-      if (this.recordingEnabled) this.recorder.writeFrame(rawFrame);
-      await this.dispatchRawFrame(rawFrame);
-      return true;
+      const identityKey = `${identity.carId}\0${identity.trackId}`;
+      const changedIdentity = identityKey === this.queuedIdentityKey ? undefined : identity;
+      this.queuedIdentityKey = identityKey;
+      return await new Promise<boolean>((resolve) => {
+        this.frameQueue.push({ rawFrame, identity: changedIdentity, identityKey, resolve });
+        this.ensureDrain();
+      });
     } catch (error) {
-      const now = Date.now();
-      if (now - this.lastErrorLogAt >= 5_000) {
-        this.lastErrorLogAt = now;
-        console.error(
-          "[LMU] Telemetry source frame failed:",
-          error instanceof Error ? error.message : error,
-        );
-      }
+      this.logFrameFailure(error);
       return false;
-    } finally {
-      this.polling = false;
     }
+  }
+
+  private ensureDrain(): void {
+    if (this.drainPromise) return;
+    this.drainPromise = this.drainQueue().finally(() => {
+      this.drainPromise = null;
+      if (this.frameQueue.length > 0) this.ensureDrain();
+    });
+  }
+
+  private async drainQueue(): Promise<void> {
+    while (this.frameQueue.length > 0) {
+      const entry = this.frameQueue.shift()!;
+      try {
+        if (entry.identity && entry.identityKey !== this.activeIdentityKey) {
+          this.identity = entry.identity;
+          this.activeIdentityKey = entry.identityKey;
+        }
+        if (this.recordingEnabled) this.recorder.writeFrame(entry.rawFrame);
+        await this.dispatchRawFrame(entry.rawFrame);
+        entry.resolve(true);
+      } catch (error) {
+        this.logFrameFailure(error);
+        entry.resolve(false);
+      }
+    }
+  }
+
+  private logFrameFailure(error: unknown): void {
+    const now = Date.now();
+    if (now - this.lastErrorLogAt < 5_000) return;
+    this.lastErrorLogAt = now;
+    console.error(
+      "[LMU] Telemetry source frame failed:",
+      error instanceof Error ? error.message : error,
+    );
   }
 }

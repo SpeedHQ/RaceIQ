@@ -16,7 +16,7 @@ Cross-game tools for inspecting, replaying, compressing, and auditing recorded t
 | `bun run scripts/telemetry/recordings/scan-lap-offsets.ts <sessionId>` | Database session ID with raw file | Lap transitions and raw byte offsets |
 | `bun run scripts/telemetry/recordings/verify-lap-alignment.ts <sessionId>` | Database session ID with raw file and laps | DB/file offset skew report |
 
-LMU DuckDB fixture extraction moved to [`SpeedHQ/extractions`](https://github.com/SpeedHQ/extractions). Run `bun run extract:lmu-fixture <recording.duckdb>` there.
+LMU seed-fixture trimming lives in [`SpeedHQ/extractions`](https://github.com/SpeedHQ/extractions). Capture native shared-memory frames with `bun run dev:dump:lmu`, then run `bun run extract:lmu-fixture <lmu-capture.bin>` there; DuckDB imports are not fixture sources.
 
 ## Boundaries and verification
 

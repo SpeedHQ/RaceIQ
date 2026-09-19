@@ -10,6 +10,8 @@ export interface LMUCarCatalogEntry {
   engine: string;
   thumbnail: string | null;
   variantIds: string[];
+  modelNames: string[];
+  vehicleNames: string[];
 }
 
 export interface LMUTrackCatalogEntry {
@@ -52,11 +54,78 @@ function commonTrackName(id: string): string | undefined {
 export const lmuCarCatalog: readonly LMUCarCatalogEntry[] = carsJson.cars;
 export const lmuTrackCatalog: readonly LMUTrackCatalogEntry[] = tracksJson.tracks.map((track) => ({
   ...track,
+  boundariesSvg: track.trackSvg,
   commonTrackName: commonTrackName(track.id),
 }));
 
 const carsById = new Map(lmuCarCatalog.map((car) => [car.id, car]));
 const tracksById = new Map(lmuTrackCatalog.map((track) => [track.id, track]));
+
+function key(value: string): string {
+  return value.trim().toLocaleLowerCase();
+}
+
+function addAlias<T>(index: Map<string, Set<T>>, alias: string | undefined, value: T): void {
+  if (!alias) return;
+  const normalized = key(alias);
+  if (!normalized) return;
+  const values = index.get(normalized) ?? new Set<T>();
+  values.add(value);
+  index.set(normalized, values);
+}
+
+function resolveTier<T>(index: Map<string, Set<T>>, values: readonly string[]): T | null | undefined {
+  const candidates = new Set<T>();
+  let matched = false;
+  for (const value of values) {
+    const matches = index.get(key(value));
+    if (!matches) continue;
+    matched = true;
+    for (const match of matches) candidates.add(match);
+  }
+  if (!matched) return undefined;
+  return candidates.size === 1 ? candidates.values().next().value : null;
+}
+
+const carsByExactId = new Map<string, Set<LMUCarCatalogEntry>>();
+const carsByVehicleAlias = new Map<string, Set<LMUCarCatalogEntry>>();
+const carsByModelAlias = new Map<string, Set<LMUCarCatalogEntry>>();
+for (const car of lmuCarCatalog) {
+  addAlias(carsByExactId, car.id, car);
+  addAlias(carsByModelAlias, car.name, car);
+  for (const variantId of car.variantIds) {
+    addAlias(carsByExactId, variantId, car);
+    addAlias(carsByVehicleAlias, variantId.split("/").at(-1), car);
+  }
+  for (const vehicleName of car.vehicleNames) addAlias(carsByVehicleAlias, vehicleName, car);
+  for (const modelName of car.modelNames) addAlias(carsByModelAlias, modelName, car);
+}
+
+const tracksByExactId = new Map<string, Set<LMUTrackCatalogEntry>>();
+const tracksByDisplayName = new Map<string, Set<LMUTrackCatalogEntry>>();
+for (const track of lmuTrackCatalog) {
+  addAlias(tracksByExactId, track.id, track);
+  addAlias(tracksByExactId, track.id.split("/").at(-1), track);
+  addAlias(tracksByExactId, track.layout, track);
+  addAlias(tracksByDisplayName, track.name, track);
+}
+
+function resolveTrackTier(
+  index: Map<string, Set<LMUTrackCatalogEntry>>,
+  trackIds: readonly string[],
+): LMUTrackCatalogEntry | null | undefined {
+  const populated = trackIds
+    .map((trackId) => index.get(key(trackId)))
+    .filter((matches): matches is Set<LMUTrackCatalogEntry> => matches !== undefined);
+  if (populated.length === 0) return undefined;
+  const candidates = new Set(populated[0]);
+  for (const matches of populated.slice(1)) {
+    for (const candidate of candidates) {
+      if (!matches.has(candidate)) candidates.delete(candidate);
+    }
+  }
+  return candidates.size === 1 ? candidates.values().next().value : null;
+}
 
 export function getLMUCar(id: string): LMUCarCatalogEntry | undefined {
   return carsById.get(id);
@@ -64,6 +133,28 @@ export function getLMUCar(id: string): LMUCarCatalogEntry | undefined {
 
 export function getLMUTrack(id: string): LMUTrackCatalogEntry | undefined {
   return tracksById.get(id);
+}
+
+export function resolveLMUCar(
+  carId: string,
+  vehicleName?: string,
+): LMUCarCatalogEntry | undefined {
+  const values = vehicleName === undefined ? [carId] : [carId, vehicleName];
+  for (const index of [carsByExactId, carsByVehicleAlias, carsByModelAlias]) {
+    const resolved = resolveTier(index, values);
+    if (resolved !== undefined) return resolved ?? undefined;
+  }
+  return undefined;
+}
+
+export function resolveLMUTrack(
+  ...trackIds: string[]
+): LMUTrackCatalogEntry | undefined {
+  for (const index of [tracksByExactId, tracksByDisplayName]) {
+    const resolved = resolveTrackTier(index, trackIds);
+    if (resolved !== undefined) return resolved ?? undefined;
+  }
+  return undefined;
 }
 const tracksByAssetName = new Map(
   lmuTrackCatalog.map((track) => [track.boundariesSvg.split("/").pop()!, track]),
@@ -73,19 +164,7 @@ export function getLMUTrackByAssetName(assetName: string): LMUTrackCatalogEntry 
   return tracksByAssetName.get(assetName);
 }
 
-const tracksByNativeName = new Map<string, LMUTrackCatalogEntry>();
-for (const track of lmuTrackCatalog) {
-  for (const alias of [
-    track.id,
-    track.id.split("/").at(-1),
-    track.layout,
-    track.name,
-  ]) {
-    if (alias) tracksByNativeName.set(alias.trim().toLowerCase(), track);
-  }
-}
-
-/** Resolve LMU's string-native track identity to shared circuit facts. */
+/** Resolve an unambiguous LMU track identity to shared circuit facts. */
 export function getLMUSharedTrackName(name: string): string | undefined {
-  return tracksByNativeName.get(name.trim().toLowerCase())?.commonTrackName;
+  return resolveLMUTrack(name)?.commonTrackName;
 }

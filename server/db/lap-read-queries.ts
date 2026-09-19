@@ -82,6 +82,8 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
@@ -123,10 +125,25 @@ export async function getSessionLaps(gameId: GameId, sessionId: number): Promise
  * Top valid laps for Analyse session review. SQL ranks and limits before
  * serializing rows, so the browser never receives an entire track/car history.
  */
-export async function getReviewLaps(gameId: GameId, trackOrdinal: number | null, carOrdinal: number | null, limit = 5, sessionId?: number): Promise<LapMeta[]> {
+export async function getReviewLaps(
+  gameId: GameId,
+  trackOrdinal: number | null,
+  carOrdinal: number | null,
+  limit = 5,
+  sessionId?: number,
+  trackId?: string,
+  carId?: string,
+): Promise<LapMeta[]> {
   const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`];
   if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
-  else if (trackOrdinal != null && carOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.carOrdinal, carOrdinal));
+  else if (gameId === "lmu" && trackId != null && carId != null) {
+    filters.push(
+      eq(sessions.trackId, trackId),
+      eq(sessions.carId, carId),
+    );
+  } else if (trackOrdinal != null && carOrdinal != null) {
+    filters.push(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.carOrdinal, carOrdinal));
+  }
   const rows = await db
     .select({
       id: laps.id,
@@ -143,6 +160,8 @@ export async function getReviewLaps(gameId: GameId, trackOrdinal: number | null,
       tuneName: tunes.name,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
       ownership: sessions.ownership,
@@ -200,6 +219,8 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
@@ -240,6 +261,7 @@ type LapSummary = {
   lapNumber: number;
   lapTime: number;
   carOrdinal: number;
+  carId: string | null;
   pi: number;
   gameId: GameId;
   sessionId: number;
@@ -251,13 +273,14 @@ type LapSummary = {
 };
 
 
-export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: GameId): Promise<LapSummary[]> {
+export async function getLapSummariesByTrack(trackKey: number | string, gameId?: GameId): Promise<LapSummary[]> {
   const query = db
     .select({
       lapId: laps.id,
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       carOrdinal: sessions.carOrdinal,
+      carId: sessions.carId,
       pi: laps.pi,
       gameId: sessions.gameId,
       sessionId: laps.sessionId,
@@ -270,9 +293,14 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
-      gameId
-        ? and(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.gameId, gameId))
-        : eq(sessions.trackOrdinal, trackOrdinal)
+      gameId === "lmu" && typeof trackKey === "string"
+        ? and(
+            eq(sessions.gameId, gameId),
+            eq(sessions.trackId, trackKey),
+          )
+        : gameId
+          ? and(eq(sessions.trackOrdinal, Number(trackKey)), eq(sessions.gameId, gameId))
+          : eq(sessions.trackOrdinal, Number(trackKey))
     )
     .orderBy(desc(laps.id));
 
@@ -284,6 +312,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       lapNumber: r.lapNumber ?? 0,
       lapTime: r.lapTime,
       carOrdinal: r.carOrdinal ?? 0,
+      carId: r.carId,
       pi: r.pi ?? 0,
       gameId: r.gameId as GameId,
       sessionId: r.sessionId,
@@ -308,6 +337,8 @@ type LapMetadataRow = {
   source?: string | null;
   carOrdinal: number;
   trackOrdinal: number;
+  carId: string | null;
+  trackId: string | null;
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
@@ -328,8 +359,10 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
       id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
       isValid: laps.isValid, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
-      carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal, tuneId: laps.tuneId,
-      tuneName: tunes.name, gameId: sessions.gameId, ownership: sessions.ownership, carSetup: laps.carSetup,
+      carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId, trackId: sessions.trackId,
+      tuneId: laps.tuneId, tuneName: tunes.name, gameId: sessions.gameId,
+      ownership: sessions.ownership, carSetup: laps.carSetup,
       sectorTimes: laps.sectorTimes, catalogVersion: laps.catalogVersion, catalogHash: laps.catalogHash,
       catalogSchemaVersion: laps.catalogSchemaVersion, parserVersion: laps.parserVersion,
       resolverVersion: laps.resolverVersion, derivationVersion: laps.derivationVersion,
@@ -382,6 +415,8 @@ type LapResultRow = {
   createdAt: string;
   carOrdinal: number;
   trackOrdinal: number;
+  carId: string | null;
+  trackId: string | null;
   tuneId: number | null;
   tuneName: string | null;
   gameId: string;
@@ -411,6 +446,8 @@ function buildLapResult(
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
+    carId: row.carId ?? row.carOrdinal,
+    trackId: row.trackId ?? row.trackOrdinal,
     ownership: row.ownership === "others" ? "others" : "mine",
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
@@ -457,6 +494,8 @@ export async function getLapsByIds(
       source: sessions.source,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
@@ -576,6 +615,8 @@ export async function getLapsRaw(ids?: number[]) {
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      carId: sessions.carId,
+      trackId: sessions.trackId,
       gameId: sessions.gameId,
       catalogVersion: laps.catalogVersion,
       catalogHash: laps.catalogHash,
@@ -605,6 +646,18 @@ export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, n
     .groupBy(sessions.trackOrdinal)
     .all();
   return new Map(rows.map((r) => [r.trackOrdinal, Number(r.count)]));
+}
+
+/** Count LMU laps by canonical track ID. Unresolved and legacy rows are excluded. */
+export async function getLMULapCountsByTrack(): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ trackId: sessions.trackId, count: sql<number>`count(*)` })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(and(eq(sessions.gameId, "lmu"), sql`${sessions.trackId} IS NOT NULL`))
+    .groupBy(sessions.trackId)
+    .all();
+  return new Map(rows.flatMap((row) => row.trackId === null ? [] : [[row.trackId, Number(row.count)]]));
 }
 
 // ---------------------------------------------------------------------------
