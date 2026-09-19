@@ -133,12 +133,6 @@ export function useWebSocket() {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
             queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
-          } else if (data.type === "lap-issues") {
-            telemetryStore.actions.addLapIssues({
-              lapId: data.lapId as number,
-              lapNumber: data.lapNumber as number,
-              issues: data.issues,
-            });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;
           }

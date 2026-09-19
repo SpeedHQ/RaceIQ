@@ -16,7 +16,6 @@ import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { detectLiveIssues } from "../ai/tune-issues";
-import { analyzeLapIssues } from "./lap-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
@@ -41,10 +40,6 @@ export class LiveTelemetryPipeline {
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
-  /** Completed packets handed to analysis only once persistence supplies a lap ID. */
-  private _pendingLapPackets: TelemetryPacket[] | null = null;
-  private _lapAnalysisGeneration = 0;
-  private _lapAnalyses = new Set<Promise<void>>();
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _continuingSegment = false;
   private _pendingSessionContextFrames: Buffer[] = [];
@@ -159,8 +154,6 @@ export class LiveTelemetryPipeline {
         const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
         this._continuingSegment = false;
         if (!continuing) {
-          this._lapAnalysisGeneration++;
-          this._pendingLapPackets = null;
           await withSessionCaptureMaintenanceLock(async () => {
             this._recordingSession = null;
             await this.recorder.stop();
@@ -206,37 +199,11 @@ export class LiveTelemetryPipeline {
           if (session && getServerGame(session.gameId).runtime.pit.useDistanceBasedWearCurves) {
             this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
           }
-
-          // Keep the completed lap's owned snapshot; no tuning analysis on ingress.
-          this._pendingLapPackets = this.ws.wantsLapIssues ? event.packets : null;
-        } else {
-          this._pendingLapPackets = null;
         }
       },
 
       onLapSaved: (event) => {
         this.ws.broadcastNotification({ type: "lap-saved", ...event });
-
-        const packets = this._pendingLapPackets;
-        this._pendingLapPackets = null;
-        if (packets && event.isValid) {
-          const generation = this._lapAnalysisGeneration;
-          const analysis = analyzeLapIssues(packets)
-            .then((issues) => {
-              if (generation !== this._lapAnalysisGeneration) return;
-              this.ws.broadcastNotification({
-                type: "lap-issues",
-                lapId: event.lapId,
-                lapNumber: event.lapNumber,
-                issues: issues.map((issue) => ({ ...issue, lapNumber: event.lapNumber })),
-              });
-            })
-            .catch((error) => {
-              console.error(`[Live Telemetry] Lap ${event.lapId} analysis failed:`, error);
-            });
-          this._lapAnalyses.add(analysis);
-          void analysis.finally(() => this._lapAnalyses.delete(analysis));
-        }
 
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
@@ -286,7 +253,6 @@ export class LiveTelemetryPipeline {
    */
   async flushIncompleteLap(): Promise<void> {
     await this._lapDetector?.flushIncompleteLap?.();
-    await Promise.all(this._lapAnalyses);
   }
 
   /** Finalize detector, durable capture, then authoritative session result. */
@@ -296,7 +262,6 @@ export class LiveTelemetryPipeline {
       await this._lapDetector?.finalizeCurrentSession?.();
       await this._finishRecordedSession(session);
     });
-    await Promise.all(this._lapAnalyses);
   }
 
   /** Detect game-specific stale finalization and finish its durable capture. */
@@ -506,8 +471,6 @@ export class LiveTelemetryPipeline {
       this._recordingSession = null;
       this._continuingSegment = false;
       this._pendingSessionContextFrames = [];
-      this._pendingLapPackets = null;
-      this._lapAnalysisGeneration++;
       this._sessionLaps = [];
       await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
       this._broadcastSessionLaps();
@@ -536,9 +499,6 @@ export class LiveTelemetryPipeline {
 const _defaultWs: WsAdapter = {
   get wantsDevState() {
     return wsManager.wantsDevState;
-  },
-  get wantsLapIssues() {
-    return wsManager.connectedClients > 0;
   },
   get wantsDevTelemetry() {
     return wsManager.wantsDevTelemetry;

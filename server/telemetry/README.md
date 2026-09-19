@@ -7,7 +7,6 @@
 ## Structure
 
 - `live-pipeline.ts` owns live packet ordering, recorder rotation, lap callbacks, tracker feeds, and WebSocket publication.
-- `lap-issues.ts` dispatches optional completed-lap tuning analysis to `lap-issues-worker.ts`; the worker is an explicit standalone-build entrypoint.
 - `normalization.ts` contains shared in-place packet normalization used by live and persisted decode paths.
 - `replay.ts` resolves persisted lap packets into canonical semantic envelopes with capture provenance.
 - `pipeline-ports.ts` defines database, recorder, and WebSocket boundaries plus database/recorder production implementations and capture/no-op test seams.
@@ -18,7 +17,7 @@ Game adapters own parsing, detector construction, coordinate metadata, and game 
 
 Live processing order is intentional: persist the source frame when a recorder is active, normalize the packet, feed the detector, repair a recorder rotation with the same source frame, feed sector and pit trackers, then publish telemetry and development state. Raw offsets must continue to identify the first byte of the corresponding recorded frame. Detector callbacks must keep session-start, lap-complete, and lap-saved order.
 
-Completed-lap tuning analysis runs off-thread after the lap has a persisted ID. Reference-lap and wear-curve tracker updates remain ordered on ingress. Analysis is skipped without notification consumers; at most four jobs are retained, and overload or worker failure logs an error without dropping capture frames or lap-saved notifications. Results carry their originating lap ID/number and are discarded after session replacement or deletion. Explicit session finalization drains outstanding analysis.
+Recording never schedules or waits for completed-lap tuning analysis. The experiment AI Engineer requests that work on demand through its own worker. Reference-lap and wear-curve tracker updates remain ordered on ingress.
 
 Debug snapshots require a `dev-state` subscription and are sampled at most 4 Hz. Closing or pausing a debug viewer releases demand. Live projection and history remain full-rate; runtime serializes only the latest owned frame at publication or connection time.
 

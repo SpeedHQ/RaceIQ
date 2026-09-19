@@ -20,7 +20,7 @@ const child = Bun.spawn([
   "--define",
   'process.env.NODE_ENV="production"',
   "server/bootstrap.ts",
-  "server/telemetry/lap-issues-worker.ts",
+  "server/experiments/lap-issues-worker.ts",
   "--outfile",
   "dist/raceiq.exe",
 ], {

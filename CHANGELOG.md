@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- Keep recording responsive while completed-lap tuning analysis runs in the background.
+- Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Reduce memory use when compressing sessions and closing ACC or AC Evo diagnostic recordings.
 
 ### Internal

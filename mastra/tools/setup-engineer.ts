@@ -56,8 +56,8 @@ import { resolveTrack } from "../../server/tracks/info";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { undoLastAction } from "../../server/experiments/undo"
 import { detectCorners } from "../../server/lap-analysis/corners";
-import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
-import { symptomsToIssues } from "../../server/ai/tune-issues";
+import { analyzeLapIssues } from "../../server/experiments/lap-issues";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { compareLaps } from "../../server/lap-analysis/comparison";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 
@@ -854,7 +854,7 @@ export function buildSetupEngineerTools() {
     id: "get-lap-issues",
     description:
       "Read-only. Detected issues (understeer/oversteer, brake lockup, suspension bottoming, tyre pressure) " +
-      "for a lap in this session, via the SAME deterministic detector the review dashboard's issue feed uses. " +
+      "for a lap in this session, computed on demand by the deterministic issue detector in a background worker. " +
       "Pass lapId for one lap; omit it to scan every analysable lap in the session (capped, newest matter most). " +
       "Rejects a lapId that isn't in this session.",
     inputSchema: z.object({ lapId: z.number().int().positive().optional() }),
@@ -875,28 +875,31 @@ export function buildSetupEngineerTools() {
       const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
         const lap = await getLapById(meta.id);
         if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
-        const corners = detectCorners(lap.telemetry);
-        const symptoms = telemetryToSymptoms(lap.telemetry, corners);
-        return symptomsToIssues(symptoms, meta.lapNumber);
+        const issues = await analyzeLapIssues(lap.telemetry);
+        return issues.map((issue) => ({ ...issue, lapNumber: meta.lapNumber }));
       };
 
-      if (inputData.lapId != null) {
-        const meta = sessionLaps.find((l) => l.id === inputData.lapId);
-        if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.`, laps: [] };
-        const issues = await issuesForLap(meta);
-        if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
-        return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
-      }
+      try {
+        if (inputData.lapId != null) {
+          const meta = sessionLaps.find((l) => l.id === inputData.lapId);
+          if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.`, laps: [] };
+          const issues = await issuesForLap(meta);
+          if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
+          return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
+        }
 
-      const analysable = sessionLaps.filter((l) => l.isValid && l.lapTime > 0);
-      const truncated = analysable.length > MAX_ISSUE_LAPS;
-      const scoped = analysable.slice(0, MAX_ISSUE_LAPS);
-      const laps: { lapId: number; lapNumber: number; issues: ReturnType<typeof symptomsToIssues> }[] = [];
-      for (const meta of scoped) {
-        const issues = await issuesForLap(meta);
-        if (issues != null) laps.push({ lapId: meta.id, lapNumber: meta.lapNumber, issues });
+        const analysable = sessionLaps.filter((l) => l.isValid && l.lapTime > 0);
+        const truncated = analysable.length > MAX_ISSUE_LAPS;
+        const scoped = analysable.slice(0, MAX_ISSUE_LAPS);
+        const laps: { lapId: number; lapNumber: number; issues: TuneIssue[] }[] = [];
+        for (const meta of scoped) {
+          const issues = await issuesForLap(meta);
+          if (issues != null) laps.push({ lapId: meta.id, lapNumber: meta.lapNumber, issues });
+        }
+        return { ok: true, truncated, laps };
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error), laps: [] };
       }
-      return { ok: true, truncated, laps };
     },
   });
 

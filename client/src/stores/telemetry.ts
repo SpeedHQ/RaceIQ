@@ -146,8 +146,6 @@ export interface TelemetryState {
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
-  /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
-  lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
   devState: unknown | null;
   devStatePaused: boolean;
   devStateConsumers: number;
@@ -178,7 +176,6 @@ const initialTelemetryState = {
   staleLapDetection: null,
   reprocessState: initialReprocessState,
   liveIssues: [],
-  lapIssuesFeed: [],
   devState: null,
   devStatePaused: false,
   devStateConsumers: 0,
@@ -191,7 +188,6 @@ export interface TelemetryActions extends StoreActionMap {
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
   setLiveIssues: (issues: TuneIssue[]) => void;
-  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
   clearTelemetry: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
@@ -223,7 +219,6 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
   setPit: (pit) => store.setState((prev) => ({ ...prev, pit })),
   setSessionLaps: (sessionLaps) => store.setState((prev) => ({ ...prev, sessionLaps })),
   setLiveIssues: (liveIssues) => store.setState((prev) => ({ ...prev, liveIssues })),
-  addLapIssues: (entry) => store.setState((prev) => ({ ...prev, lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20) })),
   setTelemetrySchema: (telemetrySchema) =>
     store.setState((prev) => (prev.telemetrySchema?.schemaId === telemetrySchema.schemaId ? { ...prev, telemetrySchema } : { ...prev, telemetrySchema, telemetryFrame: null, telemetryView: null })),
   setTelemetryFrame: (telemetryFrame) =>

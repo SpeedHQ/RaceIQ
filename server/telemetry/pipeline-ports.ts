@@ -141,7 +141,6 @@ export interface WsAdapter {
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void;
   readonly wantsDevTelemetry?: boolean;
   readonly wantsDevState: boolean;
-  readonly wantsLapIssues: boolean;
   stageDevTelemetry(packet: TelemetryPacket): void;
   publishTelemetry(publication: LiveTelemetryPublication): void;
   broadcastNotification(event: Record<string, unknown>): void;
@@ -265,7 +264,6 @@ export class CapturingDbAdapter implements DbAdapter {
 export class NullWsAdapter implements WsAdapter {
   readonly wantsDevTelemetry = false;
   readonly wantsDevState = false;
-  readonly wantsLapIssues = false;
   broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null, _liveIssues?: TuneIssue[]): void {}
   stageDevTelemetry(_packet: TelemetryPacket): void {}
   publishTelemetry(_publication: LiveTelemetryPublication): void {}
@@ -365,7 +363,6 @@ export class CapturingWsAdapter implements WsAdapter {
   private readonly capturePackets: boolean;
   readonly wantsDevTelemetry = true;
   readonly wantsDevState = true;
-  readonly wantsLapIssues = true;
   constructor(capturePackets = true) { this.capturePackets = capturePackets; }
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
     if (this.capturePackets) this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });

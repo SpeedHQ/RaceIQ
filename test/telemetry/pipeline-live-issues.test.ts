@@ -7,7 +7,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapDetectorCallbacks } from "../../server/lap-detection/types";
-import { analyzeLapIssues } from "../../server/telemetry/lap-issues";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
@@ -136,64 +135,22 @@ function completedPackets(): TelemetryPacket[] {
   }));
 }
 
-describe("off-thread completed-lap issues", () => {
-  test("keeps ACC steering units and returns analysis after yielding ingress", async () => {
-    let yielded = false;
-    const analysis = analyzeLapIssues(completedPackets());
-    setImmediate(() => { yielded = true; });
-    const issues = await analysis;
-    expect(yielded).toBe(true);
-    expect(issues.map((issue) => issue.kind)).toEqual([
-      "understeer", "brake-lockup", "understeer", "brake-lockup", "understeer", "brake-lockup",
-    ]);
-  });
-
-  test("bounds optional backlog without poisoning subsequent lap analysis", async () => {
-    const pending = Array.from({ length: 4 }, () => analyzeLapIssues(completedPackets()));
-    await expect(analyzeLapIssues(completedPackets())).rejects.toThrow("backlog");
-    await Promise.all(pending);
-    const issues = await analyzeLapIssues(completedPackets());
-    expect(issues).toContainEqual(expect.objectContaining({ kind: "understeer" }));
-  });
-
-  test("publishes saved laps before analysis and keeps concurrent results tied to lap IDs", async () => {
+describe("completed-lap recording boundary", () => {
+  test("saves laps without unsolicited tuning analysis", async () => {
     const { pipeline, ws } = makePipeline();
-    // Exercise the detector's existing callback boundary without synthesizing a full race.
-    const detectorPort = pipeline as unknown as { _buildCallbacks(): LapDetectorCallbacks };
-    const callbacks = detectorPort._buildCallbacks();
-    for (const lapNumber of [2, 3]) {
-      callbacks.onLapComplete!({
-        packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
-      });
-      callbacks.onLapSaved!({
-        lapId: lapNumber + 100, lapNumber, lapTime: 90, isValid: true,
-        sectors: null, estimatedBestLapTime: 90,
-      });
-    }
-    expect(ws.broadcastedNotifications.map((event) => event.type)).toEqual(["lap-saved", "lap-saved"]);
-    await pipeline.flushIncompleteLap();
-    const issues = ws.broadcastedNotifications.filter((event) => event.type === "lap-issues");
-    expect(issues.map((event) => [event.lapId, event.lapNumber])).toEqual([[102, 2], [103, 3]]);
-    for (const event of issues) {
-      expect(event.issues).toContainEqual(expect.objectContaining({ kind: "understeer", lapNumber: event.lapNumber }));
-    }
-  });
-
-  test("does not publish delayed analysis after its active session is deleted", async () => {
-    const { pipeline, ws } = makePipeline();
-    await pipeline.processPacket(pkt());
-    // Exercise the detector's existing callback boundary with a real active session.
+    // Exercise the detector callback boundary with an active notification consumer.
     const detectorPort = pipeline as unknown as { _buildCallbacks(): LapDetectorCallbacks };
     const callbacks = detectorPort._buildCallbacks();
     callbacks.onLapComplete!({
       packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
     });
     callbacks.onLapSaved!({
-      lapId: 101, lapNumber: 2, lapTime: 90, isValid: true, sectors: null, estimatedBestLapTime: 90,
+      lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
+      sectors: null, estimatedBestLapTime: 90,
     });
-    expect(await pipeline.recoverDeletedSessions([1])).toBe(true);
-    await pipeline.finalizeCurrentSession();
-    expect(ws.broadcastedNotifications.some((event) => event.type === "lap-issues")).toBe(false);
-    expect(ws.broadcastedNotifications).toContainEqual(expect.objectContaining({ type: "lap-saved", lapId: 101 }));
+    await pipeline.flushIncompleteLap();
+    expect(ws.broadcastedNotifications).toEqual([
+      expect.objectContaining({ type: "lap-saved", lapId: 101, lapNumber: 2 }),
+    ]);
   });
 });

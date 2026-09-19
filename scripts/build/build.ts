@@ -117,7 +117,7 @@ async function main() {
     );
   }
 
-  compileArgs.push("server/bootstrap.ts", "server/telemetry/lap-issues-worker.ts", "--outfile", join(distDir, "raceiq"));
+  compileArgs.push("server/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
   await signDarwinBinary();

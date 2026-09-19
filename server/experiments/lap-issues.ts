@@ -9,7 +9,7 @@ interface PendingAnalysis {
   reject: (error: Error) => void;
 }
 
-// Optional dashboard work must never accumulate an unbounded lap backlog.
+// Bound concurrent tool requests so completed-lap telemetry cannot grow without limit.
 const MAX_PENDING_LAPS = 4;
 const pending: PendingAnalysis[] = [];
 let worker: Worker | null = null;
@@ -28,7 +28,7 @@ function failWorker(current: Worker, error: Error): void {
 function getWorker(): Worker {
   if (worker) return worker;
   // Bun resolves embedded entrypoint names directly; file URLs fail on compiled Windows builds.
-  const current = new Worker(IS_COMPILED ? "./server/telemetry/lap-issues-worker.ts" : new URL("./lap-issues-worker.ts", import.meta.url));
+  const current = new Worker(IS_COMPILED ? "./server/experiments/lap-issues-worker.ts" : new URL("./lap-issues-worker.ts", import.meta.url));
   worker = current;
   current.on("message", (result: { issues: TuneIssue[]; error?: undefined } | { error: string }) => {
     if (worker !== current || !active) return;
@@ -47,7 +47,7 @@ function getWorker(): Worker {
 function scheduleNext(): void {
   if (scheduled || active || pending.length === 0) return;
   scheduled = true;
-  // Even the structured-clone handoff happens outside detector/feed callbacks.
+  // Yield before structured-cloning a completed lap for the worker.
   setImmediate(() => {
     scheduled = false;
     if (active || pending.length === 0) return;
