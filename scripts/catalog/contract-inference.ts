@@ -37,6 +37,22 @@ export function telemetryCatalogSourceHash(source: string): string {
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
+  "session.session-type-ordinal": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+  ],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
     "7",

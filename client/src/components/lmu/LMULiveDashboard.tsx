@@ -1,10 +1,9 @@
-import { tryGetGame } from "@shared/games/registry";
+import { getGame } from "@shared/games/registry";
 import { m } from "@/paraglide/messages";
-import type { GameId } from "../../../../shared/games/ids";
-import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
+import { useCarName } from "../../hooks/catalog-queries";
 import { useTrackName } from "../../hooks/track-queries";
-import { useTelemetryStore } from "../../stores/telemetry";
 import { primaryTireTemperatureC } from "../../lib/live-telemetry-view";
+import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
@@ -12,18 +11,17 @@ import { RecordedLaps } from "../RecordedLaps";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
+const LMU_GAME = getGame("lmu");
 
-export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
-  const view = useTelemetryStore((s) => s.telemetryView);
-  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const sectors = useTelemetryStore((s) => s.sectors);
-  const pit = useTelemetryStore((s) => s.pit);
+export function LMULiveDashboard() {
+  const view = useTelemetryStore((state) => state.telemetryView);
+  const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
+  const sectors = useTelemetryStore((state) => state.sectors);
+  const pit = useTelemetryStore((state) => state.pit);
   const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
   const { data: carName } = useCarName(view?.identity.carOrdinal);
-  const pressureOptimal = useTirePressureOptimal(gameId, view?.identity.carOrdinal);
 
-  if (!view || view.simulator !== gameId) {
+  if (!view || view.simulator !== "lmu") {
     return (
       <div className="flex-1 flex flex-col">
         <NoDataView />
@@ -33,7 +31,6 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
 
   const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => ({
     tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
-    ...(gameId === "ac-evo" && view.tires.coreTemperatureC ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
     wear: view.tires.wear?.[corner] ?? 0,
     ...(view.tires.brakeTemperatureC ? { brakeTemp: view.tires.brakeTemperatureC[corner] } : {}),
     ...(view.tires.brakePadRemainingMm ? { brakePadMm: view.tires.brakePadRemainingMm[corner] } : {}),
@@ -41,26 +38,21 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   });
 
   return (
-    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
-      {/* Left column: Tires + Pit Window */}
+    <div data-live-dashboard-layout data-live-dashboard-game="lmu" className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       <div className="border-r border-app-border overflow-auto">
-        {/* Tires */}
         <div className="p-3">
           <TireGrid
             fl={wheelData("fl")}
             fr={wheelData("fr")}
             rl={wheelData("rl")}
             rr={wheelData("rr")}
-            healthThresholds={tryGetGame(gameId)?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
+            healthThresholds={LMU_GAME.tireHealthThresholds}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-            pressureOptimal={pressureOptimal}
-            brakeTempThresholds={tryGetGame(gameId)?.brakeTempThresholds}
+            brakeTempThresholds={LMU_GAME.brakeTempThresholds}
             compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
             healthAvailable={view.tires.wear !== undefined}
           />
         </div>
-
-        {/* Pit Window */}
         <div className="border-b border-app-border">
           <div className="p-2 border-b border-app-border">
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
@@ -71,14 +63,19 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
         </div>
       </div>
 
-      {/* Right column: Race (with sectors) + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-auto flex flex-col">
-        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} sessionType={typeof view.session.type === "string" ? view.session.type : undefined} showTrackMap={false} showSectors={true} />
-
+        <RaceInfo
+          view={view}
+          sectors={sectors}
+          trackName={trackName}
+          carName={carName}
+          sessionType={typeof view.session.type === "string" ? view.session.type : undefined}
+          showTrackMap={false}
+          showSectors={true}
+        />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>
-
         <div className="flex-1 min-h-0 overflow-y-auto">
           <RecordedLaps laps={sessionLaps} />
         </div>

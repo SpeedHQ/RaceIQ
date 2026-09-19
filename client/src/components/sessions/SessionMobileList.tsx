@@ -18,7 +18,7 @@ export type SessionMobileListProps = {
   carNames: Record<number, string>;
   isLoading: boolean;
   sessionsError: boolean;
-  isF1: boolean;
+  showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
   expandedSessions: Set<number>;
@@ -45,7 +45,7 @@ export function SessionMobileList({
   carNames,
   isLoading,
   sessionsError,
-  isF1,
+  showSessionType,
   gameId,
   emptyMessage,
   expandedSessions,
@@ -144,7 +144,7 @@ export function SessionMobileList({
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
                     {sessionCarName(session, { trackNames, carNames })}
-                    {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />

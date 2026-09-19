@@ -122,6 +122,8 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.sectorStarts": "timing.sector.layout.start-fractions",
   "iracing.incidents": "race.incident-flags",
   "iracing.trackWetness": "weather.track-wetness",
+  "lmu.sessionType": "session.session-type",
+  "lmu.sessionTypeOrdinal": "session.session-type-ordinal",
   "lmu.trackLengthM": "timing.track-length",
   "lmu.lapDistanceM": "timing.distance-traveled",
   "lmu.lapDistancePct": "timing.lap-fraction",
@@ -408,6 +410,18 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "lmu.absLevel": {
     unit: "count",
     description: "LMU anti-lock brake setting level.",
+  },
+  "lmu.sessionType": {
+    unit: "text",
+    description: "LMU session type normalized from ScoringInfo.session.",
+    kind: "normalized",
+    normalization: "map LMU session ordinal to stable session label",
+    freshness: "session-update",
+  },
+  "lmu.sessionTypeOrdinal": {
+    unit: "enum",
+    description: "Native LMU ScoringInfo.session ordinal.",
+    freshness: "session-update",
   },
 };
 

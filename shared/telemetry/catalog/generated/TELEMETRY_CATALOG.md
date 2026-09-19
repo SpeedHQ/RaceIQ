@@ -7,8 +7,8 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `f59005c9b51847d40d2e5ba0737013df56c9121bc13641658ff4f219ae7c29dd`
-- Content SHA-256: `ab7a5cb61ec11b297fa5424b32abefbbe6a24df847bbd23a9ee1407fc25cdfb9`
+- Generator source SHA-256: `0dce3eda54b8b2dd51e78fad96d4f5e2d16cf373aa726fcbf79729e92ad0f6ed`
+- Content SHA-256: `52d8351c179e666a433d8d289a95538557cc0b749ba82efafc3fa248c28c4332`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
 | iracing | 951 | 701 | 115 | 17 | 324 | 495 | 0 |
-| lmu | 161 | 161 | 126 | 35 | 0 | 0 | 0 |
+| lmu | 165 | 165 | 126 | 39 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -221,6 +221,7 @@
 | `identity.camera-focus-car-index` | Camera focus car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.car-class` | Car Class | number | dimensionless | id | scalar |  |  |  |
 | `identity.car-class-name` | Car Class Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.car-id` | Car Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-left-right` | Car Left Right | number | unit:irsdk_carleftright | irsdk_CarLeftRight | scalar |  |  |  |
 | `identity.car-model` | Car Model | string | dimensionless | text | scalar |  |  |  |
 | `identity.car-model-name` | Car Model Name | string | dimensionless | text | scalar |  |  |  |
@@ -241,6 +242,7 @@
 | `identity.player-track-surface` | Player Track Surface | number | dimensionless | count | scalar |  |  |  |
 | `identity.player-track-surface-material` | Player Track Surface Material | number | unit:irsdk_trksurf | irsdk_TrkSurf | scalar |  |  |  |
 | `identity.session-name` | Session Name | string | dimensionless | text | scalar |  |  |  |
+| `identity.track-id` | Track Id | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-limits-steps` | Track Limits Steps | number | dimensionless | count | scalar |  |  |  |
 | `identity.track-name` | Track name | string | dimensionless | text | scalar |  |  |  |
 | `identity.track-ordinal` | Track Ordinal | number | dimensionless | id | scalar |  |  |  |
@@ -492,6 +494,7 @@
 | `session.session-state` | Session State | number | unit:irsdk_sessionstate | irsdk_SessionState | scalar |  |  |  |
 | `session.session-tick` | Session Tick | number | dimensionless | count | scalar |  |  |  |
 | `session.session-type` | Session Type | string | dimensionless | text | scalar |  |  |  |
+| `session.session-type-ordinal` | Session Type Ordinal | enum | unit:enum | enum | scalar |  | domain: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 |  |
 | `session.session-uid` | Session UID | string | dimensionless | text | scalar |  |  |  |
 | `session.sim-mode` | Sim Mode | string | dimensionless | text | scalar |  |  |  |
 | `session.subsession-id` | Subsession ID | number | dimensionless | id | scalar |  |  |  |

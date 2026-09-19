@@ -5,6 +5,7 @@ import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { LapDetector } from "../../lap-detection/detector";
 import type { ServerGameAdapter } from "../types";
 import { normalizeLMUSourceFrame } from "./normalizer";
+import { lmuLapPolicy } from "./lap-policy";
 import {
   canHandleLMUSourceFrame,
   decodeLMUSourceFrame,
@@ -55,7 +56,13 @@ export const lmuServerAdapter: ServerGameAdapter = {
     return null;
   },
 
-  createLapDetector: (options) => new LapDetector(options),
+  // LMU frames are already gated by IsRaceOn. Consistent shared-memory reads
+  createLapDetector: (options) =>
+    new LapDetector({
+      ...options,
+      bypassPacketRateFilter: true,
+      policy: lmuLapPolicy,
+    }),
   aiSystemPrompt: LMU_SYSTEM_PROMPT,
 
   buildAiContext(packets: TelemetryPacket[]): string {

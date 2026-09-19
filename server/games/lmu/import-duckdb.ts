@@ -270,7 +270,12 @@ const EVENT_CHANNELS = {
   "Best LapTime": ["value"],
   "In Pits": ["value"],
   "Current Sector": ["value"],
-  TCCut: ["value"],
+  "Best Sector 1": ["value"],
+  "Best Sector 2": ["value"],
+  "Last Sector 1": ["value"],
+  "Last Sector 2": ["value"],
+  "Current Sector 1": ["value"],
+  "Current Sector 2": ["value"],
   ABSLevel: ["value"],
   RearFlapActivated: ["value"],
   "Speed Limiter": ["value"],
@@ -666,6 +671,30 @@ function buildSyntheticFrame(
     LMU_SCORING_VEHICLE.vehicleName,
     64,
     loaded.metadata.carName,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Best Sector 1", time),
+    LMU_SCORING_VEHICLE.bestSector1,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Best Sector 2", time),
+    LMU_SCORING_VEHICLE.bestSector2,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Last Sector 1", time),
+    LMU_SCORING_VEHICLE.lastSector1,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Last Sector 2", time),
+    LMU_SCORING_VEHICLE.lastSector2,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Current Sector 1", time),
+    LMU_SCORING_VEHICLE.currentSector1,
+  );
+  scoring.writeDoubleLE(
+    eventValue(loaded, "Current Sector 2", time),
+    LMU_SCORING_VEHICLE.currentSector2,
   );
   scoring.writeInt16LE(lapNumber, LMU_SCORING_VEHICLE.totalLaps);
   scoring.writeUInt8(

@@ -15,6 +15,23 @@ import {
 import { readCString, type LMUSourceFrameV1 } from "./source-frame";
 
 const KELVIN_TO_CELSIUS = 273.15;
+
+const LMU_SESSION_TYPES: Readonly<Record<number, string>> = {
+  0: "test-day",
+  1: "practice-1",
+  2: "practice-2",
+  3: "practice-3",
+  4: "practice-4",
+  5: "qualifying-1",
+  6: "qualifying-2",
+  7: "qualifying-3",
+  8: "qualifying-4",
+  9: "warmup",
+  10: "race",
+  11: "race-2",
+  12: "race-3",
+  13: "race-4",
+};
 const KPA_TO_PSI = 0.1450377377;
 const TWO_PI_PER_MINUTE = (Math.PI * 2) / 60;
 const WHEEL_KEYS = ["FL", "FR", "RL", "RR"] as const;
@@ -204,6 +221,7 @@ export function normalizeLMUSourceFrame(
   const scoringInfo = frame.scoringInfo;
   const scoring = frame.playerScoring;
   const identity = identityFromLMUSourceFrame(frame);
+  const sessionTypeOrdinal = scoringInfo.readInt32LE(LMU_SCORING_INFO.session);
   const position = vector(telemetry, LMU_TELEMETRY.position);
   const localVelocity = vector(telemetry, LMU_TELEMETRY.localVelocity);
   const localAcceleration = vector(
@@ -248,6 +266,8 @@ export function normalizeLMUSourceFrame(
     : Math.max(0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) - 1);
   const currentSector = telemetry.readInt32LE(LMU_TELEMETRY.currentSector);
   const currentSectorIndex = currentSector & 0x7fffffff;
+  const positiveScoringTime = (offset: number) =>
+    scoring ? positiveTime(finiteDouble(scoring, offset)) : 0;
   const engineRpm = Math.max(
     0,
     finiteDouble(telemetry, LMU_TELEMETRY.engineRpm),
@@ -300,6 +320,8 @@ export function normalizeLMUSourceFrame(
     carId: identity.carId,
     trackId: identity.trackId,
     gameVersion: frame.gameVersion,
+    sessionType: LMU_SESSION_TYPES[sessionTypeOrdinal] ?? "unknown",
+    sessionTypeOrdinal,
     vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id),
     driverName,
     carName,
@@ -308,9 +330,13 @@ export function normalizeLMUSourceFrame(
     trackName: identity.trackName,
     trackLengthM,
     lapDistanceM,
-    lapDistancePct:
-      trackLengthM > 0 ? clamp(lapDistanceM / trackLengthM, 0, 1) : 0,
     currentSectorIndex,
+    bestSector1: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector1),
+    bestSector2: positiveScoringTime(LMU_SCORING_VEHICLE.bestSector2),
+    lastSector1: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector1),
+    lastSector2: positiveScoringTime(LMU_SCORING_VEHICLE.lastSector2),
+    currentSector1: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector1),
+    currentSector2: positiveScoringTime(LMU_SCORING_VEHICLE.currentSector2),
     lapInvalidated:
       telemetry.readUInt8(LMU_TELEMETRY.lapInvalidated) !== 0,
     inPits,
@@ -442,9 +468,11 @@ export function normalizeLMUSourceFrame(
       : 0,
     CurrentLap: Math.max(0, elapsedTime - lapStartElapsedTime),
     CurrentRaceTime: elapsedTime,
+    // LMU telemetry reports zero-based current-lap numbers. RaceIQ lap
+    // identity is one-based, matching the displayed lap and persisted laps.
     LapNumber: Math.max(
-      0,
-      telemetry.readInt32LE(LMU_TELEMETRY.lapNumber),
+      1,
+      telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1,
     ),
     RacePosition: scoring
       ? scoring.readUInt8(LMU_SCORING_VEHICLE.place)

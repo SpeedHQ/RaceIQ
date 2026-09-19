@@ -2,6 +2,8 @@ export interface LMUExtendedData {
   carId: string;
   trackId: string;
   gameVersion: number;
+  sessionType: string;
+  sessionTypeOrdinal: number;
   vehicleId: number;
   driverName: string;
   carName: string;
@@ -10,8 +12,13 @@ export interface LMUExtendedData {
   trackName: string;
   trackLengthM: number;
   lapDistanceM: number;
-  lapDistancePct: number;
   currentSectorIndex: number;
+  bestSector1: number;
+  bestSector2: number;
+  lastSector1: number;
+  lastSector2: number;
+  currentSector1: number;
+  currentSector2: number;
   lapInvalidated: boolean;
   inPits: boolean;
   pitState: number;

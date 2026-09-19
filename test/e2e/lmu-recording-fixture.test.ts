@@ -110,17 +110,17 @@ describe("committed LMU seed fixture", () => {
       })),
     ).toEqual([
       {
-        lapNumber: 5,
+        lapNumber: 6,
         lapTime: 141.47467041015625,
         isValid: false,
       },
       {
-        lapNumber: 6,
+        lapNumber: 7,
         lapTime: 141.98638916015625,
         isValid: false,
       },
       {
-        lapNumber: 7,
+        lapNumber: 8,
         lapTime: 142.2401123046875,
         isValid: true,
       },

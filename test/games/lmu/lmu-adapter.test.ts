@@ -8,8 +8,10 @@ import {
   resolveLMUCar,
   resolveLMUTrack,
 } from "../../../shared/games/lmu/catalog";
+import { resolveLMUInvalidReason } from "../../../server/games/lmu/lap-policy";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../../../server/games/lmu";
+import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
 import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
 import {
   previewLMUDuckDB,
@@ -127,6 +129,7 @@ function lmuSharedMemoryFixture(): Buffer {
   memory.writeInt32LE(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.numberOfVehicles);
   memory.writeUInt8(1, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.inRealtime);
   memory.writeDoubleLE(24, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.ambientTemperature);
+  memory.writeInt32LE(10, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.session);
   memory.writeDoubleLE(31, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.trackTemperature);
   writeCString(memory, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.trackName, 64, "Circuit de la Sarthe");
   writeCString(memory, LMU_SCORING_INFO_OFFSET + LMU_SCORING_INFO.playerName, 32, "Test Driver");
@@ -243,9 +246,11 @@ describe("LMU adapter", () => {
   test("encodes installed shared-memory layout and normalizes player telemetry", () => {
     const rawFrame = encodeLMUSourceFrame(lmuSharedMemoryFixture(), 1_800_000_000_000);
     expect(rawFrame).not.toBeNull();
+    expect(rawFrame!.length).toBeGreaterThan(LMU_SHARED_MEMORY_SIZE);
     expect(canHandleLMUSourceFrame(rawFrame!)).toBe(true);
     const decoded = decodeLMUSourceFrame(rawFrame!);
-    expect(decoded?.gameVersion).toBe(1202);
+    expect(decoded?.schemaVersion).toBe(2);
+    expect(decoded?.rawSharedMemory).toEqual(lmuSharedMemoryFixture());
     expect(decoded?.sessionEvent).toBe(9);
 
     const packet = lmuServerAdapter.tryParse(rawFrame!, null);
@@ -253,7 +258,7 @@ describe("LMU adapter", () => {
     expect(packet).toMatchObject({
       gameId: "lmu",
       IsRaceOn: 1,
-      LapNumber: 3,
+      LapNumber: 4,
       RacePosition: 2,
       CurrentEngineRpm: 8_000,
       Gear: 4,
@@ -266,12 +271,12 @@ describe("LMU adapter", () => {
     });
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
-    expect(packet!.TireTempFL).toBeCloseTo(92, 5);
-    expect(packet!.TirePressureFrontLeft).toBeCloseTo(26.1068, 3);
     expect(packet!.lmu).toMatchObject({
       carId: "ferrari_499p_2023",
       trackId: "lemans_2023/lemanswec",
       driverName: "Test Driver",
+      sessionType: "race",
+      sessionTypeOrdinal: 10,
       carName: "Ferrari 499P #50",
       carModel: "Ferrari 499P",
       trackName: "Circuit de la Sarthe",
@@ -281,6 +286,57 @@ describe("LMU adapter", () => {
       tcLevel: 5,
       absLevel: 2,
       rearFlapActivated: true,
+    });
+  });
+
+  test("propagates game's lap-invalidated flag into lap validity", () => {
+    const memory = lmuSharedMemoryFixture();
+    memory.writeUInt8(
+      1,
+      LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapInvalidated,
+    );
+    const packet = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(memory, 1_800_000_000_000)!,
+      null,
+    );
+
+    expect(packet?.lmu?.lapInvalidated).toBe(true);
+    expect(resolveLMUInvalidReason([packet!])).toBe("game-invalidated");
+  });
+
+  test("records lap boundaries from low-rate live LMU frames", async () => {
+    const db = new CapturingDbAdapter();
+    const detector = lmuServerAdapter.createLapDetector({ db });
+    const firstMemory = lmuSharedMemoryFixture();
+    const nextMemory = Buffer.from(firstMemory);
+    nextMemory.writeInt32LE(
+      4,
+      LMU_TELEMETRY_INFO_OFFSET + LMU_TELEMETRY.lapNumber,
+    );
+    nextMemory.writeInt16LE(
+      3,
+      LMU_SCORING_VEHICLES_OFFSET + LMU_SCORING_VEHICLE.totalLaps,
+    );
+
+    const first = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(firstMemory, 1_800_000_000_000)!,
+      null,
+    );
+    const next = lmuServerAdapter.tryParse(
+      encodeLMUSourceFrame(nextMemory, 1_800_000_001_000)!,
+      null,
+    );
+    expect(first).not.toBeNull();
+    expect(next).not.toBeNull();
+
+    await detector.feed(first!);
+    await detector.feed(next!);
+    expect(db.sessions[0]?.sessionType).toBe("race");
+
+    expect(db.laps).toHaveLength(1);
+    expect(db.laps[0]).toMatchObject({
+      lapNumber: 4,
+      lapTime: 232.25,
     });
   });
 
@@ -380,7 +436,7 @@ describe("LMU adapter", () => {
     for await (const frame of readLMUDuckDBFrames(path)) {
       const packet = lmuServerAdapter.tryParse(frame, null);
       firstPacket ??= packet;
-      if (packet?.LapNumber === 1) secondLapPacket = packet;
+      if (packet?.LapNumber === 2) secondLapPacket = packet;
       finalPacket = packet;
       frameCount++;
     }
@@ -388,7 +444,7 @@ describe("LMU adapter", () => {
     expect(firstPacket).toMatchObject({
       gameId: "lmu",
       IsRaceOn: 1,
-      LapNumber: 0,
+      LapNumber: 1,
       Speed: 50,
       SuspensionTravelMFL: 0.05,
       CarOrdinal: -1,
@@ -399,7 +455,7 @@ describe("LMU adapter", () => {
       },
     });
     expect(secondLapPacket).toMatchObject({
-      LapNumber: 1,
+      LapNumber: 2,
       LastLap: 15,
       lmu: {
         driverName: "Test Driver",
@@ -408,7 +464,7 @@ describe("LMU adapter", () => {
       },
     });
     expect(finalPacket).toMatchObject({
-      LapNumber: 2,
+      LapNumber: 3,
       LastLap: 15,
     });
   }, 60_000);

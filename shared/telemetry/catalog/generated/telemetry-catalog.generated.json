@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "f59005c9b51847d40d2e5ba0737013df56c9121bc13641658ff4f219ae7c29dd"
+      "sourceHash": "0dce3eda54b8b2dd51e78fad96d4f5e2d16cf373aa726fcbf79729e92ad0f6ed"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
@@ -15,11 +15,11 @@
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
-      "server/games/lmu/normalizer.ts": "411300ba7c64a9fcd0994a11b03a756cf842152457b80edb30d859c849225c4e",
+      "server/games/lmu/normalizer.ts": "5e02e0ea2fac324aaff7ffb1f78916797cae16fa0f3d4f097d1e8269c743df5e",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "ab7a5cb61ec11b297fa5424b32abefbbe6a24df847bbd23a9ee1407fc25cdfb9"
+    "contentHash": "52d8351c179e666a433d8d289a95538557cc0b749ba82efafc3fa248c28c4332"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -351,6 +351,7 @@
         "identity.camera-focus-car-index",
         "identity.car-class",
         "identity.car-class-name",
+        "identity.car-id",
         "identity.car-left-right",
         "identity.car-model",
         "identity.car-model-name",
@@ -371,9 +372,11 @@
         "identity.player-track-surface",
         "identity.player-track-surface-material",
         "identity.session-name",
+        "identity.track-id",
         "identity.track-limits-steps",
         "identity.track-ordinal",
         "identity.vehicle-class",
+        "session.session-type-ordinal",
         "weather.track-wetness",
         "identity.track"
       ]
@@ -15009,6 +15012,63 @@
       "limitations": []
     },
     {
+      "id": "identity.car-id",
+      "label": "Car Id",
+      "description": "Car Id source value reported by lmu in text.",
+      "parentId": "identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "lmu.carId"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "identity.car-left-right",
       "label": "Car Left Right",
       "description": "Notify if car is to the left or right of driver",
@@ -15369,19 +15429,9 @@
           }
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "id",
-          "sources": [
-            "LMU.Telemetry.vehicleModel",
-            "LMU.Telemetry.vehicleName"
-          ],
-          "freshness": "continuous",
-          "description": "lmu maps 2 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
         }
       },
       "valueType": "number",
@@ -16272,6 +16322,63 @@
       "limitations": []
     },
     {
+      "id": "identity.track-id",
+      "label": "Track Id",
+      "description": "Track Id source value reported by lmu in text.",
+      "parentId": "identity",
+      "canonicalUnit": "text",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "lmu.trackId"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "string",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "identity.track-limits-steps",
       "label": "Track Limits Steps",
       "description": "Track Limits Steps source value reported by lmu in count.",
@@ -16543,19 +16650,9 @@
           }
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "id",
-          "sources": [
-            "LMU.ScoringInfo.trackName",
-            "LMU.Telemetry.trackName"
-          ],
-          "freshness": "continuous",
-          "description": "lmu maps 2 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
         }
       },
       "valueType": "number",
@@ -35239,9 +35336,30 @@
           }
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "normalized",
+          "nativeUnit": "text",
+          "sources": [
+            "lmu.sessionType"
+          ],
+          "freshness": "session-update",
+          "normalization": "map LMU session ordinal to stable session label",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "lmu:session.session-type:normalized",
+            "version": "0.13.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "lmu.sessionType"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "17685600ba3182f16589e3b1638fa6d73006f1af07d9ca9c248dcbbec1dfbecb"
+          }
         }
       },
       "valueType": "string",
@@ -35251,6 +35369,79 @@
       "cardinality": {
         "kind": "scalar"
       },
+      "limitations": []
+    },
+    {
+      "id": "session.session-type-ordinal",
+      "label": "Session Type Ordinal",
+      "description": "Native LMU ScoringInfo.session ordinal.",
+      "parentId": "identity",
+      "canonicalUnit": "enum",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "enum",
+          "sources": [
+            "lmu.sessionTypeOrdinal"
+          ],
+          "freshness": "session-update",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "enum",
+      "dimensions": [
+        "unit:enum"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "enumDomain": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
       "limitations": []
     },
     {
@@ -35324,7 +35515,7 @@
           }
         },
         "lmu": {
-          "kind": "derived",
+          "kind": "direct",
           "nativeUnit": "text",
           "sources": [
             "LMU.Generic.gameVersion",
@@ -35334,28 +35525,12 @@
             "LMU.Telemetry.vehicleModel"
           ],
           "freshness": "continuous",
-          "normalization": "[ frame.gameVersion, frame.sessionEvent, scoringInfo.readInt32LE(LMU_SCORING_INFO.session), identity.trackId, identity.carId, ].join(\":\")",
           "description": "lmu maps 5 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/lmu/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "derivation",
-            "id": "lmu:session.session-uid:derived",
-            "version": "0.13.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "LMU.Generic.gameVersion",
-              "LMU.Generic.startSessionEvent",
-              "LMU.ScoringInfo.session",
-              "LMU.ScoringInfo.trackName",
-              "LMU.Telemetry.vehicleModel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "50a9ff26ac65bc747d1d835192e5cae27be54095e364a145a9e5563a98b8a3b9"
-          }
+          "limitations": []
         }
       },
       "valueType": "string",
@@ -81198,6 +81373,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.carId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Car Id source value reported by lmu in text.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.carModel",
         "label": "Car Model",
         "unit": "text",
@@ -81438,6 +81625,30 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.sessionType",
+        "label": "Session Type",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "LMU session type normalized from ScoringInfo.session.",
+        "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.sessionTypeOrdinal",
+        "label": "Session Type Ordinal",
+        "unit": "enum",
+        "dataType": "number",
+        "count": 1,
+        "description": "Native LMU ScoringInfo.session ordinal.",
+        "semanticId": "session.session-type-ordinal",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.speedLimiterActive",
         "label": "Speed Limiter Active",
         "unit": "boolean",
@@ -81505,6 +81716,18 @@
         "count": 1,
         "description": "Track Grip Level source value reported by lmu in count.",
         "semanticId": "weather.track-grip-level",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.trackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Track Id source value reported by lmu in text.",
+        "semanticId": "identity.track-id",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83097,7 +83320,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 761,
+    "semanticVariables": 764,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -83145,13 +83368,13 @@
         "recorded": 701
       },
       "lmu": {
-        "total": 161,
+        "total": 165,
         "packet": 126,
-        "extension": 35,
+        "extension": 39,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 161
+        "recorded": 165
       }
     }
   }
