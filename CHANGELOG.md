@@ -9,11 +9,13 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
-- Record Le Mans Ultimate shared-memory sessions with exact car and track identity, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
+- Record Le Mans Ultimate shared-memory sessions with exact car and track identity, named and native session type shown in Sessions, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
 - Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
+- Show a lightweight Peugeot 9X8 Evo representative model in Le Mans Ultimate analysis views
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Record completed Le Mans Ultimate laps when shared-memory updates arrive at a low rate
 - Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
 - Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
 - Reject LMU telemetry recordings with no complete laps before starting import

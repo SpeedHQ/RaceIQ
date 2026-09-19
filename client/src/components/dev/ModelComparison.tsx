@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { CarBody } from "../wireframe/CarBody";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
 
-import { DEMO_CAR, F1_CAR, type CarModelEnrichment } from "../../data/car-models";
+import { DEMO_CAR, F1_CAR, LMU_HYPERCAR_CAR, type CarModelEnrichment } from "../../data/car-models";
 
-type ModelId = "gt3" | "f1";
+type ModelId = "gt3" | "f1" | "peugeot";
 type AssetChoice = "original" | "optimized";
 interface ModelStats {
   sizeBytes: number;
@@ -31,6 +31,11 @@ const MODEL_DEFINITIONS: Record<ModelId, ModelDefinition> = {
     label: "McLaren MCL39 F1",
     urls: { original: "/api/dev/models/f1/original", optimized: F1_CAR.modelPath },
     carModel: F1_CAR,
+  },
+  peugeot: {
+    label: "Peugeot 9X8 Evo Hypercar",
+    urls: { original: "/api/dev/models/peugeot/original", optimized: LMU_HYPERCAR_CAR.modelPath },
+    carModel: LMU_HYPERCAR_CAR,
   },
 };
 const MODEL_LABELS = Object.fromEntries(Object.entries(MODEL_DEFINITIONS).map(([id, definition]) => [id, definition.label])) as Record<ModelId, string>;

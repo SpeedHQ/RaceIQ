@@ -6,6 +6,7 @@ test/tooling/local-ui-diff.test.ts
 test/tooling/optimize-client-images.test.ts
 test/tooling/optimize-f1-model.test.ts
 test/tooling/optimize-gt3-model.test.ts
+test/tooling/optimize-peugeot-model.test.ts
 test/tooling/paraglide-cache.test.ts
 test/tooling/pipeline-bench-support.test.ts
 test/tooling/playwright-setup-seed.test.ts

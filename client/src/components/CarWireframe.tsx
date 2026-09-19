@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
+import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, LMU_HYPERCAR_CAR, loadCarModelConfigs } from "../data/car-models";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
@@ -25,6 +25,7 @@ import { ToggleButton } from "./wireframe/ToggleButton";
 
 useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
 useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
+useGLTF.preload("/models/peugeot_9x8_evo_2024_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
@@ -68,10 +69,14 @@ export const CarWireframe = React.memo(function CarWireframe({
     throw new Error("CarWireframe: gameId missing — pass as prop or mount inside a GameProvider");
   }
   const isF1 = gameId === "f1-2025";
+  const isLMU = gameId === "lmu";
 
   const carModel = useMemo(() => {
     if (carModelProp) return carModelProp;
     if (isF1) return F1_CAR;
+    // LMU currently has no per-car model identity in analysis frames.
+    // Use Peugeot 9X8 as representative hypercar surface until per-car assets exist.
+    if (isLMU) return LMU_HYPERCAR_CAR;
     // Note: getCarModel reads from module-level state populated by
     // loadCarModelConfigs(). configsLoaded is in the dep list so the
     // memo re-runs once configs finish loading — eslint can't see the
@@ -83,7 +88,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     // ACC (and any future game) without a visible car in the scene.
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carOrdinal, configsLoaded, isF1, carModelProp]);
+  }, [carOrdinal, configsLoaded, isF1, isLMU, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const adapter = tryGetGame(gameId);
