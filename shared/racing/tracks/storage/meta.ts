@@ -13,13 +13,14 @@ const trackFactsDir = resolve(SHARED_DIR, "tracks", "meta");
 
 /**
  * Games that reuse another game's curated geometry when they ship none of
- * their own. AC Evo and ACC use the same Kunos track meshes. iRacing's
- * `commonTrackName` entries are deliberately limited to exact physical
- * layouts, so normalized LapDistPct can use the first curated geometry
- * RaceIQ has for that layout while retaining the shared real-world names.
+ * their own. AC Evo and ACC use the same Kunos track meshes. LMU and iRacing
+ * `commonTrackName` entries are deliberately limited to compatible physical
+ * layouts, so normalized lap distance can use the closest curated geometry
+ * RaceIQ has for that layout while retaining shared real-world names.
  */
 const GEOMETRY_FALLBACKS: Record<string, string[]> = {
   "ac-evo": ["acc"],
+  lmu: ["acc", "f1-2025", "fm-2023", "ac-evo"],
   iracing: ["fm-2023", "f1-2025", "acc", "ac-evo"],
 };
 

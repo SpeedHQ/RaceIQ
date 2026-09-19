@@ -7,6 +7,7 @@ import {
   lmuAdapter,
   lmuIdentityOrdinal,
 } from "../../../shared/games/lmu";
+import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../../../server/games/lmu";
 import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
 import {
@@ -212,6 +213,22 @@ describe("LMU adapter", () => {
         lmuIdentityOrdinal("track", "PortimaoWEC"),
       ),
     ).toBe("portimao");
+  });
+
+  test("inherits shared facts and compatible geometry for catalog tracks", () => {
+    const segments = loadLabelledSegments("spa", "lmu");
+    expect(segments.find((segment) => segment.name === "La Source")).toEqual({
+      type: "corner",
+      name: "La Source",
+      direction: "right",
+      startFrac: 0.0279,
+      endFrac: 0.0641,
+      number: 1,
+    });
+    expect(segments.find((segment) => segment.name === "Kemmel")).toMatchObject({
+      type: "straight",
+      name: "Kemmel",
+    });
   });
 
   test("encodes installed shared-memory layout and normalizes player telemetry", () => {

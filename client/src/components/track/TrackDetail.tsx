@@ -127,31 +127,25 @@ export function TrackDetail({
           .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
       ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
-    enabled: track.hasOutline && !!gameId,
+    enabled: !!gameId && (track.hasOutline || !!track.hasMap),
     staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
     if (!trackMapData) return;
     const { outlineData, sectorData, boundsData } = trackMapData;
-    if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
+    if (track.hasOutline && !Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
       setOutline(outlineData.points);
       setFlipX(outlineData.flipX ?? false);
-    } else if (Array.isArray(outlineData)) {
+    } else if (track.hasOutline && Array.isArray(outlineData)) {
       setOutline(outlineData as Point[]);
     } else {
       setOutline(null);
     }
     setSectors(sectorData);
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
-    if (boundsData?.s1End) setSectorBounds(boundsData);
-  }, [trackMapData]);
-  useEffect(() => {
-    if (gameId === "lmu" && !sectorBounds) {
-      setSectorBounds({ s1End: 1 / 3, s2End: 2 / 3 });
-      setSegSource("catalog");
-    }
-  }, [gameId, sectorBounds]);
+    setSectorBounds(boundsData ?? (gameId === "lmu" ? { s1End: 1 / 3, s2End: 2 / 3 } : null));
+  }, [trackMapData, track.hasOutline, gameId]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
