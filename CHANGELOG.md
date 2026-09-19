@@ -5,6 +5,7 @@
 ### Fixes
 
 ### Internal
+- Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 
 ## v0.18.0 - 2026-09-18
 
