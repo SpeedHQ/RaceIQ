@@ -73,7 +73,10 @@ export function TrackViewer() {
   const handleSelectTrack = useCallback(
     (t: TrackInfo) => {
       if (!gameId) return;
-      navigate({ to: trackRoutePath(gameId, t.ordinal) });
+      const trackKey =
+        gameId === "lmu" ? t.id?.split("/").at(-1) : t.ordinal;
+      if (trackKey == null) return;
+      navigate({ to: trackRoutePath(gameId, trackKey) });
     },
     [navigate, gameId],
   );

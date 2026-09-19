@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
 import { Button } from "../ui/button";
+import { InlineTrackMap } from "./InlineTrackMap";
 
 export const TRACK_CARD_SHELL_CLASS = "w-full border border-app-border rounded-lg overflow-hidden bg-app-surface/50";
 const trackCardVisibilityCallbacks = new WeakMap<Element, () => void>();
@@ -130,7 +131,7 @@ export function TrackCard({
   const map = outline ? (
     <canvas ref={canvasRef} className="w-full h-full" />
   ) : track.mapUrl ? (
-    <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
+    gameId === "lmu" ? <InlineTrackMap src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full p-3" /> : <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
   ) : undefined;
 
   return (

@@ -196,6 +196,24 @@ async function createLMUDuckDB(
 }
 
 describe("LMU adapter", () => {
+  test("maps only shared catalog identities to track facts", () => {
+    expect(
+      lmuAdapter.getSharedTrackName?.(
+        lmuIdentityOrdinal("track", "Circuit de la Sarthe"),
+      ),
+    ).toBe("le-mans");
+    expect(
+      lmuAdapter.getSharedTrackName?.(
+        lmuIdentityOrdinal("track", "FujiWEC"),
+      ),
+    ).toBe("fuji");
+    expect(
+      lmuAdapter.getSharedTrackName?.(
+        lmuIdentityOrdinal("track", "PortimaoWEC"),
+      ),
+    ).toBe("portimao");
+  });
+
   test("encodes installed shared-memory layout and normalizes player telemetry", () => {
     const rawFrame = encodeLMUSourceFrame(lmuSharedMemoryFixture(), 1_800_000_000_000);
     expect(rawFrame).not.toBeNull();

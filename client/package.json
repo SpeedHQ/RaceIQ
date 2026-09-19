@@ -18,10 +18,12 @@
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.108",
+    "@assistant-ui/core": "0.3.19",
     "@assistant-ui/react": "0.15.20",
     "@assistant-ui/react-ai-sdk": "1.4.11",
     "@assistant-ui/react-markdown": "0.14.15",
-    "@base-ui/react": "^1.8.0",
+    "@assistant-ui/store": "0.3.13",
+    "@assistant-ui/tap": "0.9.17",
     "@fontsource-variable/geist": "^5.3.0",
     "@inlang/paraglide-js": "^2.25.4",
     "@react-three/drei": "^10.7.8",

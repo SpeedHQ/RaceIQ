@@ -18,17 +18,22 @@ export function TrackDetailRoute({ tab }: { tab: string }) {
   const navigate = useNavigate();
   const gameId = useGameId();
   const params = useParams({ strict: false }) as { trackOrdinal?: string };
-  const ordinal = params.trackOrdinal != null ? Number(params.trackOrdinal) : Number.NaN;
-
+  const trackKey = params.trackOrdinal ?? "";
+  const ordinal = Number(trackKey);
   const { data: tracks = [], isLoading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
-  const track = tracks.find((t) => t.ordinal === ordinal) ?? null;
+  const track =
+    gameId === "lmu"
+      ? tracks.find((t) => t.id?.split("/").at(-1) === decodeURIComponent(trackKey)) ?? null
+      : tracks.find((t) => t.ordinal === ordinal) ?? null;
 
   const onTabChange = useCallback(
     (next: string) => {
-      if (!gameId || !Number.isFinite(ordinal)) return;
-      navigate({ to: trackRoutePath(gameId, ordinal, next), replace: true });
+      if (!gameId) return;
+      const routeKey = gameId === "lmu" ? decodeURIComponent(trackKey) : ordinal;
+      if (gameId !== "lmu" && !Number.isFinite(ordinal)) return;
+      navigate({ to: trackRoutePath(gameId, routeKey, next), replace: true });
     },
-    [navigate, gameId, ordinal],
+    [navigate, gameId, trackKey, ordinal],
   );
 
   const onBack = useCallback(() => {

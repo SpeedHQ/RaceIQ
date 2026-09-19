@@ -9,6 +9,7 @@
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
 - Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
+- Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes

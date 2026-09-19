@@ -14,6 +14,7 @@ import {
   getDiscoveredCarName,
   listDiscoveredCars,
 } from "../db/discovered-cars";
+import { getLMUCar, lmuCarCatalog } from "../../shared/games/lmu/catalog";
 import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
@@ -85,10 +86,21 @@ export const carRoutes = new Hono()
         400,
       );
     }
-
     if (gameIdResult.data === "lmu") {
-      const cars = (await listDiscoveredCars("lmu")).map(
+      const cars = lmuCarCatalog.map((car) => ({
+        id: car.id,
+        ordinal: null,
+        name: car.name,
+        class: car.class,
+        series: car.series,
+        manufacturer: car.manufacturer,
+        path: car.thumbnail ?? "",
+        category: car.class,
+        imageUrl: car.thumbnail ? `/api/lmu-assets/cars/${encodeURIComponent(car.id)}` : "",
+      }));
+      const discovered = (await listDiscoveredCars("lmu")).map(
         ({ ordinal, name }) => ({
+          id: null,
           ordinal,
           name,
           path: "",
@@ -96,8 +108,7 @@ export const carRoutes = new Hono()
           imageUrl: "",
         }),
       );
-      cars.sort((left, right) => left.name.localeCompare(right.name));
-      return c.json(cars);
+      return c.json([...cars, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
     }
 
     if (gameIdResult.data === "iracing") {
@@ -130,6 +141,16 @@ export const carRoutes = new Hono()
     }));
     cars.sort((a, b) => a.name.localeCompare(b.name));
     return c.json(cars);
+  })
+
+  .get("/api/lmu-assets/cars/:id", (c) => {
+    const car = getLMUCar(c.req.param("id"));
+    if (!car?.thumbnail) return c.json({ error: "LMU car asset not found" }, 404);
+    const file = resolve(GAMES_DIR, "lmu", car.thumbnail);
+    if (!existsSync(file)) return c.json({ error: "LMU car asset not found" }, 404);
+    return new Response(readFileSync(file), {
+      headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=31536000, immutable" },
+    });
   })
 
   // GET /api/cars/:ordinal — single car details

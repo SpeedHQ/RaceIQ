@@ -1,0 +1,1038 @@
+{
+  "schemaVersion": 1,
+  "sourceHash": "e29f60e9ecae38af91a32e0e787b7faefc7ee576ed67da2656cbbbd63c13e35c",
+  "cars": [
+    {
+      "id": "911gt3r_2024",
+      "name": "911GT3R 2024",
+      "class": "GT3",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Porsche",
+      "engine": "Porsche six-cylinder boxer engine 4,194 cm³",
+      "thumbnail": "images/cars/911gt3r_2024.webp",
+      "variantIds": [
+        "911gt3r_2024/397_24_911gt3r",
+        "911gt3r_2024/397_25_911gt3r",
+        "911gt3r_2024/397_25elms_911gt3r",
+        "911gt3r_2024/397_26_911gt3r",
+        "911gt3r_2024/60_25_prota8b000c7",
+        "911gt3r_2024/85_25_iron5675b0bb",
+        "911gt3r_2024/85_25_iron71169233",
+        "911gt3r_2024/85_25_iron9ed25837",
+        "911gt3r_2024/90_25_mant767d59f8",
+        "911gt3r_2024/91_24_mant4fc2b6c0",
+        "911gt3r_2024/91_24_mant5728cf9f",
+        "911gt3r_2024/91_26_mant18218509",
+        "911gt3r_2024/92_24_mant5488007d",
+        "911gt3r_2024/92_24_mant7039d8b3",
+        "911gt3r_2024/92_25_mant6e267dc3",
+        "911gt3r_2024/92_25_mant9651c55b",
+        "911gt3r_2024/92_26_mant22466058"
+      ]
+    },
+    {
+      "id": "992s_pc_2023",
+      "name": "992S PC 2023",
+      "class": "PACECAR",
+      "series": [],
+      "manufacturer": "Michelin",
+      "engine": "Porsche",
+      "thumbnail": "images/cars/992s_pc_2023.webp",
+      "variantIds": [
+        "992s_pc_2023/992s_pc"
+      ]
+    },
+    {
+      "id": "adess_ad25_2026",
+      "name": "ADESS AD25 2026",
+      "class": "LMP3",
+      "series": [
+        "ELMS2025"
+      ],
+      "manufacturer": "ADESS",
+      "engine": "Toyota V35A-FTS 3500 cc V6 twin-turbocharged",
+      "thumbnail": "images/cars/adess_ad25_2026.webp",
+      "variantIds": [
+        "adess_ad25_2026/397_25_ad25",
+        "adess_ad25_2026/46_25_ades20619231",
+        "adess_ad25_2026/46_25_ades51981969",
+        "adess_ad25_2026/46_25_ades81662442"
+      ]
+    },
+    {
+      "id": "alpine_a424_2024",
+      "name": "Alpine A424 2024",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Alpine",
+      "engine": "Alpine-modified Mecachrome V634 3.4L V6 turbocharged",
+      "thumbnail": "images/cars/alpine_a424_2024.webp",
+      "variantIds": [
+        "alpine_a424_2024/35_24_alpi50635f93",
+        "alpine_a424_2024/35_24_alpifa32w31a",
+        "alpine_a424_2024/35_24_alpifa95f24d",
+        "alpine_a424_2024/35_25_alpi80e64033",
+        "alpine_a424_2024/35_25_alpi86e66569",
+        "alpine_a424_2024/35_26_alpi41651716",
+        "alpine_a424_2024/35_26_alpi86162428",
+        "alpine_a424_2024/36_24_alpi18c9931",
+        "alpine_a424_2024/36_24_alpiebc93816",
+        "alpine_a424_2024/36_25_alpic6bd9cd4",
+        "alpine_a424_2024/36_25_alpicf907c3f",
+        "alpine_a424_2024/36_26_alpi20490502",
+        "alpine_a424_2024/36_26_alpi82796866",
+        "alpine_a424_2024/397_24_alpine",
+        "alpine_a424_2024/397_25_alpine",
+        "alpine_a424_2024/397_26_alpine"
+      ]
+    },
+    {
+      "id": "aston_martin_valkyrie_2025",
+      "name": "Aston Martin Valkyrie 2025",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Aston Martin",
+      "engine": "Aston Martin RA 6.5L V12",
+      "thumbnail": "images/cars/aston_martin_valkyrie_2025.webp",
+      "variantIds": [
+        "aston_martin_valkyrie_2025/007_25_tho10ae91d8",
+        "aston_martin_valkyrie_2025/007_25_thod39e6097",
+        "aston_martin_valkyrie_2025/007_25_thoeafb145b",
+        "aston_martin_valkyrie_2025/007_26_tho22699059",
+        "aston_martin_valkyrie_2025/007_26_tho73564855",
+        "aston_martin_valkyrie_2025/009_25_tho56ef0039",
+        "aston_martin_valkyrie_2025/009_25_tho91fe16d4",
+        "aston_martin_valkyrie_2025/009_25_thocf55367f",
+        "aston_martin_valkyrie_2025/009_26_tho14274046",
+        "aston_martin_valkyrie_2025/009_26_tho96632041",
+        "aston_martin_valkyrie_2025/397_25_amvalk",
+        "aston_martin_valkyrie_2025/397_26_amvalk"
+      ]
+    },
+    {
+      "id": "aston_martin_vantage_amr_2023",
+      "name": "Aston Martin Vantage AMR 2023",
+      "class": "GTE",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Aston Martin",
+      "engine": "Mercedes AMG M177 4.0L V8, Turbocharged",
+      "thumbnail": "images/cars/aston_martin_vantage_amr_2023.webp",
+      "variantIds": [
+        "aston_martin_vantage_amr_2023/25_ort16979d3e",
+        "aston_martin_vantage_amr_2023/25_ortlma14s6sd",
+        "aston_martin_vantage_amr_2023/25_ortwec2a902201",
+        "aston_martin_vantage_amr_2023/397_23_amv",
+        "aston_martin_vantage_amr_2023/55_gmb2dffbf6f",
+        "aston_martin_vantage_amr_2023/72_tfsportecc3a2d4",
+        "aston_martin_vantage_amr_2023/777_dstati5bfa7ef3",
+        "aston_martin_vantage_amr_2023/777_dstatia373b584",
+        "aston_martin_vantage_amr_2023/777_dstatibd786d1d",
+        "aston_martin_vantage_amr_2023/98_northwe595afe33",
+        "aston_martin_vantage_amr_2023/98_thor437e22ac",
+        "aston_martin_vantage_amr_2023/98_thorwecf6670323"
+      ]
+    },
+    {
+      "id": "bmw_m_hybrid_v8_2023",
+      "name": "BMW M Hybrid V8 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "BMW",
+      "engine": "BMW P66/3 3,999 cc 90 degree V8 twin-turbocharged",
+      "thumbnail": "images/cars/bmw_m_hybrid_v8_2023.webp",
+      "variantIds": [
+        "bmw_m_hybrid_v8_2023/15_24_wrt_5dda4461",
+        "bmw_m_hybrid_v8_2023/15_24_wrt_bd52e6e4",
+        "bmw_m_hybrid_v8_2023/15_24_wrt_d13a659b",
+        "bmw_m_hybrid_v8_2023/15_25_wrt_4047bd9e",
+        "bmw_m_hybrid_v8_2023/15_25_wrt_a1285a64",
+        "bmw_m_hybrid_v8_2023/15_25_wrt_e5a2ccaa",
+        "bmw_m_hybrid_v8_2023/15_26_wrt_34121376",
+        "bmw_m_hybrid_v8_2023/15_26_wrt_37164931",
+        "bmw_m_hybrid_v8_2023/20_24_wrt_211f986e",
+        "bmw_m_hybrid_v8_2023/20_24_wrt_2e6b4ff3",
+        "bmw_m_hybrid_v8_2023/20_24_wrt_7492c369",
+        "bmw_m_hybrid_v8_2023/20_25_wrt_1827a0a9",
+        "bmw_m_hybrid_v8_2023/20_25_wrt_b511db3e",
+        "bmw_m_hybrid_v8_2023/20_25_wrt_fce7b289",
+        "bmw_m_hybrid_v8_2023/20_26_wrt_31540483",
+        "bmw_m_hybrid_v8_2023/20_26_wrt_40613364",
+        "bmw_m_hybrid_v8_2023/397_24_bmwmh",
+        "bmw_m_hybrid_v8_2023/397_25_bmwmh",
+        "bmw_m_hybrid_v8_2023/397_26_bmwmh"
+      ]
+    },
+    {
+      "id": "bmw_m4_lmgt3_2023",
+      "name": "BMW M4 LMGT3 2023",
+      "class": "GT3",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "BMW",
+      "engine": "BMW Six Cylinder, M TwinPower turbo technology, 2993cc",
+      "thumbnail": "images/cars/bmw_m4_lmgt3_2023.webp",
+      "variantIds": [
+        "bmw_m4_lmgt3_2023/31_24_wrt_6cbe4475",
+        "bmw_m4_lmgt3_2023/31_24_wrt_c033b08a",
+        "bmw_m4_lmgt3_2023/31_24_wrt_f2b895a5",
+        "bmw_m4_lmgt3_2023/31_25_wrt_b619d040",
+        "bmw_m4_lmgt3_2023/31_25_wrt_d751317e",
+        "bmw_m4_lmgt3_2023/31_25_wrt_fb7e8382",
+        "bmw_m4_lmgt3_2023/32_26_wrt_83524148",
+        "bmw_m4_lmgt3_2023/397_24_bmw",
+        "bmw_m4_lmgt3_2023/397_25_bmw",
+        "bmw_m4_lmgt3_2023/397_26_bmw",
+        "bmw_m4_lmgt3_2023/46_24_wrt_8aec83fd",
+        "bmw_m4_lmgt3_2023/46_24_wrt_c8f1b81c",
+        "bmw_m4_lmgt3_2023/46_24_wrt_f1e39333",
+        "bmw_m4_lmgt3_2023/46_25_wrt_596f2e7b",
+        "bmw_m4_lmgt3_2023/46_25_wrt_874f6e78",
+        "bmw_m4_lmgt3_2023/69_26_wrt_56324638"
+      ]
+    },
+    {
+      "id": "cadillac_v-lmdh_2023",
+      "name": "Cadillac V-lmdh 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Cadillac",
+      "engine": "Cadillac LMC55R 5.5 L 90 V8 NA",
+      "thumbnail": "images/cars/cadillac_v-lmdh_2023.webp",
+      "variantIds": [
+        "cadillac_v-lmdh_2023/101_25_wtr714d5323",
+        "cadillac_v-lmdh_2023/101_26_wtr51729170",
+        "cadillac_v-lmdh_2023/12_25_jota3fb6d9a1",
+        "cadillac_v-lmdh_2023/12_25_jota5d50ca1d",
+        "cadillac_v-lmdh_2023/12_26_jota50003117",
+        "cadillac_v-lmdh_2023/12_26_jota86515413",
+        "cadillac_v-lmdh_2023/2_24_cadil8c6cdf7",
+        "cadillac_v-lmdh_2023/2_24_cadild1856aeb",
+        "cadillac_v-lmdh_2023/2_cadillac126c2d5f",
+        "cadillac_v-lmdh_2023/2_cadillac23f77ee",
+        "cadillac_v-lmdh_2023/3_24_cadilf6d13175",
+        "cadillac_v-lmdh_2023/3_cadillac3c5a0062",
+        "cadillac_v-lmdh_2023/3_cadillac5856472b",
+        "cadillac_v-lmdh_2023/311_24_cadilf6d1526",
+        "cadillac_v-lmdh_2023/311_25_wheec9dc530",
+        "cadillac_v-lmdh_2023/311_actiondd216f75",
+        "cadillac_v-lmdh_2023/38_25_jota333b9fce",
+        "cadillac_v-lmdh_2023/38_25_jota4e9361db",
+        "cadillac_v-lmdh_2023/38_26_jota15055593",
+        "cadillac_v-lmdh_2023/38_26_jota51270994",
+        "cadillac_v-lmdh_2023/397_23_vlmdh",
+        "cadillac_v-lmdh_2023/397_24_vlmdh",
+        "cadillac_v-lmdh_2023/397_25_vlmdh",
+        "cadillac_v-lmdh_2023/397_26_vlmdh"
+      ]
+    },
+    {
+      "id": "chevrolet_c8r_lm_2023",
+      "name": "Chevrolet C8R LM 2023",
+      "class": "GTE",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Corvette",
+      "engine": "LT6.R 5.5L 90 V8 Naturally Aspirated",
+      "thumbnail": "images/cars/chevrolet_c8r_lm_2023.webp",
+      "variantIds": [
+        "chevrolet_c8r_lm_2023/33_corvett80c98836",
+        "chevrolet_c8r_lm_2023/33_corvett9bb51d89",
+        "chevrolet_c8r_lm_2023/397_23_c8rgte"
+      ]
+    },
+    {
+      "id": "corvette_z06gt3r_2023",
+      "name": "Corvette Z06GT3R 2023",
+      "class": "GT3",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Corvette",
+      "engine": "LT6.R 5.5L 90° V8",
+      "thumbnail": "images/cars/corvette_z06gt3r_2023.webp",
+      "variantIds": [
+        "corvette_z06gt3r_2023/13_25_awa_ed286dbb",
+        "corvette_z06gt3r_2023/13_25_awa_ed386dbb",
+        "corvette_z06gt3r_2023/33_25_tfsp8cffdf39",
+        "corvette_z06gt3r_2023/33_25_tfsp9c2f26a0",
+        "corvette_z06gt3r_2023/33_26_tfsp28162365",
+        "corvette_z06gt3r_2023/34_26_tfsp47451091",
+        "corvette_z06gt3r_2023/397_24_z06gt3r",
+        "corvette_z06gt3r_2023/397_25_z06gt3r",
+        "corvette_z06gt3r_2023/397_25elms_z06gt3r",
+        "corvette_z06gt3r_2023/397_26_z06gt3r",
+        "corvette_z06gt3r_2023/397_26_z06gt3r1",
+        "corvette_z06gt3r_2023/81_24_tfs_5d431240",
+        "corvette_z06gt3r_2023/81_24_tfs_f0b5e0d0",
+        "corvette_z06gt3r_2023/81_25_tfsp2359c8d5",
+        "corvette_z06gt3r_2023/81_25_tfspe51148a7",
+        "corvette_z06gt3r_2023/82_24_tfs_73105e10",
+        "corvette_z06gt3r_2023/82_24_tfs_de51d581",
+        "corvette_z06gt3r_2023/82_25_tfs_745f4460"
+      ]
+    },
+    {
+      "id": "duqueine_d09lmp3_2026",
+      "name": "Duqueine D09LMP3 2026",
+      "class": "LMP3",
+      "series": [
+        "ELMS2025"
+      ],
+      "manufacturer": "Duqueine",
+      "engine": "Toyota V35A-FTS 3500 cc V6 twin-turbocharged",
+      "thumbnail": "images/cars/duqueine_d09lmp3_2026.webp",
+      "variantIds": [
+        "duqueine_d09lmp3_2026/12_25_wtm_7fc250d8",
+        "duqueine_d09lmp3_2026/397_25_d09p3"
+      ]
+    },
+    {
+      "id": "ferrari_296gt3_2023",
+      "name": "Ferrari 296GT3 2023",
+      "class": "GT3",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Ferrari",
+      "engine": "Ferrari F163CE V6",
+      "thumbnail": "images/cars/ferrari_296gt3_2023.webp",
+      "variantIds": [
+        "ferrari_296gt3_2023/150_25_afc7978cc2f",
+        "ferrari_296gt3_2023/155_24_sorabb7f1c1",
+        "ferrari_296gt3_2023/193_25_zigf7cd1f92",
+        "ferrari_296gt3_2023/21_25_afco36ca1d94",
+        "ferrari_296gt3_2023/21_25_afco72ee38bf",
+        "ferrari_296gt3_2023/21_26_afco95641716",
+        "ferrari_296gt3_2023/397_24_296gt3",
+        "ferrari_296gt3_2023/397_25_296gt3",
+        "ferrari_296gt3_2023/397_25elms_296gt3",
+        "ferrari_296gt3_2023/397_26_296gt3",
+        "ferrari_296gt3_2023/50_25_afco4c7fff1a",
+        "ferrari_296gt3_2023/51_25_afcodd49435f",
+        "ferrari_296gt3_2023/54_24_afco29d9a0d4",
+        "ferrari_296gt3_2023/54_24_afco6daa6ef0",
+        "ferrari_296gt3_2023/54_25_afco859850d7",
+        "ferrari_296gt3_2023/54_25_afcoc5fa7500",
+        "ferrari_296gt3_2023/54_26_afco96652607",
+        "ferrari_296gt3_2023/55_24_afco8d7c17d4",
+        "ferrari_296gt3_2023/55_24_afcob65363e7",
+        "ferrari_296gt3_2023/55_25_spirff701058",
+        "ferrari_296gt3_2023/57_25_kess202d81b1",
+        "ferrari_296gt3_2023/57_25_kess76a94c8d",
+        "ferrari_296gt3_2023/66_24_jmw_3051a6ba",
+        "ferrari_296gt3_2023/66_25_jmw_c253bdb0",
+        "ferrari_296gt3_2023/74_25_kess89876fd7",
+        "ferrari_296gt3_2023/86_24_grr_82b297d8",
+        "ferrari_296gt3_2023/86_grracin8be3f08e"
+      ]
+    },
+    {
+      "id": "ferrari_488gte_lm_2023",
+      "name": "Ferrari 488GTE LM 2023",
+      "class": "GTE",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Ferrari",
+      "engine": "Ferrari 3996cc V8, Turbocharged",
+      "thumbnail": "images/cars/ferrari_488gte_lm_2023.webp",
+      "variantIds": [
+        "ferrari_488gte_lm_2023/100_walken1b80023e",
+        "ferrari_488gte_lm_2023/21_afcorse19f69870",
+        "ferrari_488gte_lm_2023/21_afcorse40ecd71f",
+        "ferrari_488gte_lm_2023/21_afcorse4795e0d",
+        "ferrari_488gte_lm_2023/21_afcorse631d5afa",
+        "ferrari_488gte_lm_2023/21_afcorse90a8d2a",
+        "ferrari_488gte_lm_2023/21_afcorsefdf53f44",
+        "ferrari_488gte_lm_2023/397_23_488gte",
+        "ferrari_488gte_lm_2023/54_afcorse6810c92b",
+        "ferrari_488gte_lm_2023/54_afcorseb48dbc46",
+        "ferrari_488gte_lm_2023/57_kessel2d2fb955",
+        "ferrari_488gte_lm_2023/57_kessel5f52d9f6",
+        "ferrari_488gte_lm_2023/57_kessele53e7d4c",
+        "ferrari_488gte_lm_2023/57_kesselfa2a1d13",
+        "ferrari_488gte_lm_2023/57_kessellc54ee96d",
+        "ferrari_488gte_lm_2023/66_jmw36916b99",
+        "ferrari_488gte_lm_2023/74_kesseled952bc5",
+        "ferrari_488gte_lm_2023/83_afcorse7fbceca5",
+        "ferrari_488gte_lm_2023/83_afcorsecb178a54"
+      ]
+    },
+    {
+      "id": "ferrari_499p_2023",
+      "name": "Ferrari 499P 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Ferrari",
+      "engine": "Ferrari F163 2,992 cc 120° V6 twin-turbocharged",
+      "thumbnail": "images/cars/ferrari_499p_2023.webp",
+      "variantIds": [
+        "ferrari_499p_2023/397_23_499p",
+        "ferrari_499p_2023/397_24_499p",
+        "ferrari_499p_2023/397_25_499p",
+        "ferrari_499p_2023/397_26_499p",
+        "ferrari_499p_2023/50_24_afco15a3d85a",
+        "ferrari_499p_2023/50_24_afco4ab4105b",
+        "ferrari_499p_2023/50_24_afco5dfd20fb",
+        "ferrari_499p_2023/50_25_afcof0ea6e7c",
+        "ferrari_499p_2023/50_25_afcof32fe081",
+        "ferrari_499p_2023/50_26_ferr45066807",
+        "ferrari_499p_2023/50_26_ferr90502958",
+        "ferrari_499p_2023/50_afcorse78a35411",
+        "ferrari_499p_2023/50_afcorse7f072233",
+        "ferrari_499p_2023/51_24_afco1e658a67",
+        "ferrari_499p_2023/51_24_afco3157e2f9",
+        "ferrari_499p_2023/51_24_afco71253c7b",
+        "ferrari_499p_2023/51_25_afco7a98a690",
+        "ferrari_499p_2023/51_25_afco8630d4a1",
+        "ferrari_499p_2023/51_26_ferr16908376",
+        "ferrari_499p_2023/51_26_ferr70540074",
+        "ferrari_499p_2023/51_afcorsed932e32f",
+        "ferrari_499p_2023/51_afcorsef534cc6",
+        "ferrari_499p_2023/83_24_afco1d365730",
+        "ferrari_499p_2023/83_24_afcoa21aec27",
+        "ferrari_499p_2023/83_24_afcobdd47df9",
+        "ferrari_499p_2023/83_25_afco518bc667",
+        "ferrari_499p_2023/83_25_afcod752c710",
+        "ferrari_499p_2023/83_26_afco45368276",
+        "ferrari_499p_2023/83_26_afco76679772"
+      ]
+    },
+    {
+      "id": "ford_mustang_gt3_2024",
+      "name": "Ford Mustang GT3 2024",
+      "class": "GT3",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Ford",
+      "engine": "Ford Coyote 5.4 L V8",
+      "thumbnail": "images/cars/ford_mustang_gt3_2024.webp",
+      "variantIds": [
+        "ford_mustang_gt3_2024/397_24_mustang",
+        "ford_mustang_gt3_2024/397_25_mustang",
+        "ford_mustang_gt3_2024/397_26_mustang",
+        "ford_mustang_gt3_2024/44_24_prot92dcfad4",
+        "ford_mustang_gt3_2024/77_24_prot22e06525",
+        "ford_mustang_gt3_2024/77_24_protf290ed44",
+        "ford_mustang_gt3_2024/77_25_prot192000d7",
+        "ford_mustang_gt3_2024/77_25_prot3e1a7c40",
+        "ford_mustang_gt3_2024/77_26_prot51390877",
+        "ford_mustang_gt3_2024/88_24_prot4e2114e8",
+        "ford_mustang_gt3_2024/88_24_prot6b1eff70",
+        "ford_mustang_gt3_2024/88_24_prot8cb9d5b5",
+        "ford_mustang_gt3_2024/88_24_prot935ab9f2",
+        "ford_mustang_gt3_2024/88_24_protff47a115",
+        "ford_mustang_gt3_2024/88_25_prot96bf1930",
+        "ford_mustang_gt3_2024/88_25_proteff5edcf",
+        "ford_mustang_gt3_2024/88_26_prot29987739"
+      ]
+    },
+    {
+      "id": "genesis_gmr001_2026",
+      "name": "Genesis GMR001 2026",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2026"
+      ],
+      "manufacturer": "Genesis",
+      "engine": "Genesis G8MR 3.2L V8 twin turbocharged",
+      "thumbnail": "images/cars/genesis_gmr001_2026.webp",
+      "variantIds": [
+        "genesis_gmr001_2026/17_26_gene14cd51b0",
+        "genesis_gmr001_2026/17_26_gene34e4954b",
+        "genesis_gmr001_2026/19_26_gene467ae018",
+        "genesis_gmr001_2026/19_26_gene5d7465e6",
+        "genesis_gmr001_2026/397_26_gmr001"
+      ]
+    },
+    {
+      "id": "ginetta_g61evo_2025",
+      "name": "Ginetta G61Evo 2025",
+      "class": "LMP3",
+      "series": [
+        "ELMS2025"
+      ],
+      "manufacturer": "Ginetta",
+      "engine": "Toyota V35A-FTS 3500 cc V6 twin-turbocharged",
+      "thumbnail": "images/cars/ginetta_g61evo_2025.webp",
+      "variantIds": [
+        "ginetta_g61evo_2025/397_25_g61ltp3evo",
+        "ginetta_g61evo_2025/4_25_dkr_e8e7fbe8c"
+      ]
+    },
+    {
+      "id": "isotta_tipo6_2024",
+      "name": "Isotta Tipo6 2024",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Isotta Fraschini",
+      "engine": "HWA 3.0 V6",
+      "thumbnail": "images/cars/isotta_tipo6_2024.webp",
+      "variantIds": [
+        "isotta_tipo6_2024/11_24_isotta_a715s6",
+        "isotta_tipo6_2024/11_24_isotta_a92321",
+        "isotta_tipo6_2024/11_24_isotta_f13176",
+        "isotta_tipo6_2024/397_24_isotta"
+      ]
+    },
+    {
+      "id": "lamborghini_huracan_gt3_2024",
+      "name": "Lamborghini Huracan GT3 2024",
+      "class": "GT3",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Lamborghini",
+      "engine": "Lamborghini DGF 5.2 L V10",
+      "thumbnail": "images/cars/lamborghini_huracan_gt3_2024.webp",
+      "variantIds": [
+        "lamborghini_huracan_gt3_2024/397_24_huracan",
+        "lamborghini_huracan_gt3_2024/60_24_irona76df02f",
+        "lamborghini_huracan_gt3_2024/60_24_ironb0c6207d",
+        "lamborghini_huracan_gt3_2024/60_24_irondcdfc07b",
+        "lamborghini_huracan_gt3_2024/85_24_iron243ea520",
+        "lamborghini_huracan_gt3_2024/85_24_iron46e687f1",
+        "lamborghini_huracan_gt3_2024/85_24_iron60489b5d"
+      ]
+    },
+    {
+      "id": "lamborghini_sc63_2024",
+      "name": "Lamborghini SC63 2024",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Lamborghini",
+      "engine": "Lamborghini 3.8 L V8",
+      "thumbnail": "images/cars/lamborghini_sc63_2024.webp",
+      "variantIds": [
+        "lamborghini_sc63_2024/19_24_ironf799df42",
+        "lamborghini_sc63_2024/397_24_sc63",
+        "lamborghini_sc63_2024/63_24_iron2700e72d",
+        "lamborghini_sc63_2024/63_24_irond8bacfd7"
+      ]
+    },
+    {
+      "id": "lexusrcf_gt3_2024",
+      "name": "LexusRCF GT3 2024",
+      "class": "GT3",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Lexus",
+      "engine": "Lexus 2UR-GSE 5.0 L V8",
+      "thumbnail": "images/cars/lexusrcf_gt3_2024.webp",
+      "variantIds": [
+        "lexusrcf_gt3_2024/397_24_lexus",
+        "lexusrcf_gt3_2024/397_25_lexus",
+        "lexusrcf_gt3_2024/397_26_lexus",
+        "lexusrcf_gt3_2024/78_24_akko52f87580",
+        "lexusrcf_gt3_2024/78_24_akko607b9e80",
+        "lexusrcf_gt3_2024/78_24_akkob531a8e8",
+        "lexusrcf_gt3_2024/78_24_akkod1564a59",
+        "lexusrcf_gt3_2024/78_24_akkod3324023",
+        "lexusrcf_gt3_2024/78_24_akkoe5b56023",
+        "lexusrcf_gt3_2024/78_24_akkof01b86d7",
+        "lexusrcf_gt3_2024/78_25_akko466c36f0",
+        "lexusrcf_gt3_2024/78_25_akko96d85c9b",
+        "lexusrcf_gt3_2024/78_25_akkoe7f264d0",
+        "lexusrcf_gt3_2024/78_25_akkof71490e4",
+        "lexusrcf_gt3_2024/78_26_akko79996909",
+        "lexusrcf_gt3_2024/87_24_akko389049d1",
+        "lexusrcf_gt3_2024/87_24_akko45998aa0",
+        "lexusrcf_gt3_2024/87_25_akko208cdd39",
+        "lexusrcf_gt3_2024/87_25_akkoa15d50dc",
+        "lexusrcf_gt3_2024/87_26_akko74271960"
+      ]
+    },
+    {
+      "id": "ligier_jsp325_2025",
+      "name": "Ligier JSP325 2025",
+      "class": "LMP3",
+      "series": [
+        "ELMS2025"
+      ],
+      "manufacturer": "Ligier",
+      "engine": "Toyota V35A-FTS 3500 cc V6 twin-turbocharged",
+      "thumbnail": "images/cars/ligier_jsp325_2025.webp",
+      "variantIds": [
+        "ligier_jsp325_2025/11_25_euro50decb8e",
+        "ligier_jsp325_2025/15_25_rlr_1c808112",
+        "ligier_jsp325_2025/17_25_clx_3a1d3c67",
+        "ligier_jsp325_2025/17_25_clx_6850b47d",
+        "ligier_jsp325_2025/31_25_rsl_20288bc9",
+        "ligier_jsp325_2025/35_25_ulti395cf443",
+        "ligier_jsp325_2025/397_25_jsp325",
+        "ligier_jsp325_2025/68_25_mrac2a207267",
+        "ligier_jsp325_2025/8_25_virag12bc27d3",
+        "ligier_jsp325_2025/88_25_inte56e5d75b"
+      ]
+    },
+    {
+      "id": "mclaren_720sgchallenge_2026",
+      "name": "McLaren 720sGChallenge 2026",
+      "class": "GT3",
+      "series": [
+        "Logitech2026"
+      ],
+      "manufacturer": "McLaren",
+      "engine": "McLaren M840T 4.0L Twin Turbo V8",
+      "thumbnail": "images/cars/mclaren_720sgchallenge_2026.webp",
+      "variantIds": [
+        "mclaren_720sgchallenge_2026/1_26_gchal73279592",
+        "mclaren_720sgchallenge_2026/10_26_gcha17031780",
+        "mclaren_720sgchallenge_2026/11_26_gcha47509705",
+        "mclaren_720sgchallenge_2026/12_26_gcha18747807",
+        "mclaren_720sgchallenge_2026/2_26_gchal98500904",
+        "mclaren_720sgchallenge_2026/3_26_gchal41540517",
+        "mclaren_720sgchallenge_2026/4_26_gchal72398716",
+        "mclaren_720sgchallenge_2026/5_26_gchal67256536",
+        "mclaren_720sgchallenge_2026/6_26_gchal89066091",
+        "mclaren_720sgchallenge_2026/7_26_gchal34731486",
+        "mclaren_720sgchallenge_2026/8_26_gchal79481284",
+        "mclaren_720sgchallenge_2026/9_26_gchal61794112"
+      ]
+    },
+    {
+      "id": "mclaren_720sgt3evo_2023",
+      "name": "McLaren 720sGT3Evo 2023",
+      "class": "GT3",
+      "series": [
+        "WEC2026"
+      ],
+      "manufacturer": "McLaren",
+      "engine": "McLaren M840T 4.0L Twin Turbo V8",
+      "thumbnail": "images/cars/mclaren_720sgt3evo_2023.webp",
+      "variantIds": [
+        "mclaren_720sgt3evo_2023/10_26_gara63384034",
+        "mclaren_720sgt3evo_2023/23_25_unit907820ff",
+        "mclaren_720sgt3evo_2023/397_24_mclaren",
+        "mclaren_720sgt3evo_2023/397_25_mclaren",
+        "mclaren_720sgt3evo_2023/397_25elms_mclaren",
+        "mclaren_720sgt3evo_2023/397_26_mclaren",
+        "mclaren_720sgt3evo_2023/58_26_gara17941687",
+        "mclaren_720sgt3evo_2023/59_24_unit2051c962",
+        "mclaren_720sgt3evo_2023/59_24_unit5ce46b50",
+        "mclaren_720sgt3evo_2023/59_24_unit78fd2adc",
+        "mclaren_720sgt3evo_2023/59_24_unitec305f5b",
+        "mclaren_720sgt3evo_2023/59_25_unitdf975f11",
+        "mclaren_720sgt3evo_2023/59_25_uniteb30e8cf",
+        "mclaren_720sgt3evo_2023/70_24_incee7c900bf",
+        "mclaren_720sgt3evo_2023/95_24_unit30dc6e36",
+        "mclaren_720sgt3evo_2023/95_24_unit39106f2c",
+        "mclaren_720sgt3evo_2023/95_24_unite72f634d",
+        "mclaren_720sgt3evo_2023/95_25_unit382ab771",
+        "mclaren_720sgt3evo_2023/95_25_unit9df0eeed"
+      ]
+    },
+    {
+      "id": "mercedes_amggt3evo_2025",
+      "name": "Mercedes AMGGT3Evo 2025",
+      "class": "GT3",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Mercedes-AMG",
+      "engine": "AMG 6.3 Litre V8",
+      "thumbnail": "images/cars/mercedes_amggt3evo_2025.webp",
+      "variantIds": [
+        "mercedes_amggt3evo_2025/397_25_amg",
+        "mercedes_amggt3evo_2025/397_25elms_amg",
+        "mercedes_amggt3evo_2025/397_26_amg",
+        "mercedes_amggt3evo_2025/60_25_iron3680959b",
+        "mercedes_amggt3evo_2025/60_25_iron37f74d7d",
+        "mercedes_amggt3evo_2025/60_25_iron7779b4b1",
+        "mercedes_amggt3evo_2025/60_25_ironc4d9ec57",
+        "mercedes_amggt3evo_2025/61_25_iron5f647a80",
+        "mercedes_amggt3evo_2025/61_25_iron9e1f4c52",
+        "mercedes_amggt3evo_2025/61_25_ironae9157ba",
+        "mercedes_amggt3evo_2025/61_25_ironcd7dd0c0",
+        "mercedes_amggt3evo_2025/61_26_iron17109319",
+        "mercedes_amggt3evo_2025/61_26_iron57024276",
+        "mercedes_amggt3evo_2025/62_26_iron98036068",
+        "mercedes_amggt3evo_2025/63_25_iron3e8bb8ad",
+        "mercedes_amggt3evo_2025/63_25_iron95de5ece",
+        "mercedes_amggt3evo_2025/79_26_iron66951108",
+        "mercedes_amggt3evo_2025/79_26_iron79382419"
+      ]
+    },
+    {
+      "id": "oreca_07_elms_2023",
+      "name": "Oreca 07 ELMS 2023",
+      "class": "LMP2",
+      "series": [
+        "ELMS2025"
+      ],
+      "manufacturer": "Oreca",
+      "engine": "Gibson GK-428 4.2 litre V8 naturally aspirated",
+      "thumbnail": "images/cars/oreca_07_elms_2023.webp",
+      "variantIds": [
+        "oreca_07_elms_2023/10_25_vectebe95fdc",
+        "oreca_07_elms_2023/18_25_idecac12fd00",
+        "oreca_07_elms_2023/20_25_apr_712fb5cd",
+        "oreca_07_elms_2023/21_25_unit606848dd",
+        "oreca_07_elms_2023/22_25_unitcb00e5e5",
+        "oreca_07_elms_2023/24_25_niel8a50d582",
+        "oreca_07_elms_2023/25_25_apr_f0d04c1e",
+        "oreca_07_elms_2023/27_25_niel2ec0b7af",
+        "oreca_07_elms_2023/28_25_idecdfe8696b",
+        "oreca_07_elms_2023/28_25_idecf74ba723",
+        "oreca_07_elms_2023/29_25_tds_e049aa24",
+        "oreca_07_elms_2023/3_25_dkr_ea051ad3a",
+        "oreca_07_elms_2023/30_25_duqub0ef584b",
+        "oreca_07_elms_2023/34_25_inte66b07525",
+        "oreca_07_elms_2023/37_25_clx_96de8167",
+        "oreca_07_elms_2023/397_25elms_oreca07",
+        "oreca_07_elms_2023/43_25_intedd73ca23",
+        "oreca_07_elms_2023/47_25_clx_44fb70e0",
+        "oreca_07_elms_2023/48_25_pani8429a0a0",
+        "oreca_07_elms_2023/77_25_prota67eed77",
+        "oreca_07_elms_2023/83_25_afcodd58d0a5",
+        "oreca_07_elms_2023/9_25_ironl246bf580",
+        "oreca_07_elms_2023/99_25_ao_e58b41e50"
+      ]
+    },
+    {
+      "id": "oreca_07_lm_2023",
+      "name": "Oreca 07 LM 2023",
+      "class": "LMP2",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Oreca",
+      "engine": "Gibson GK-428 4.2 litre V8 naturally aspirated",
+      "thumbnail": "images/cars/oreca_07_lm_2023.webp",
+      "variantIds": [
+        "oreca_07_lm_2023/10_24_vect9e0d8d45",
+        "oreca_07_lm_2023/10_vector_5a76b45e",
+        "oreca_07_lm_2023/10_vector_5g26b41f",
+        "oreca_07_lm_2023/10_vector_c18bee4",
+        "oreca_07_lm_2023/11_25_prota956d644",
+        "oreca_07_lm_2023/13_tower53510415",
+        "oreca_07_lm_2023/14_24_ao_l43bde906",
+        "oreca_07_lm_2023/14_nielsenec663c52",
+        "oreca_07_lm_2023/16_25_rlr_4a949597",
+        "oreca_07_lm_2023/18_25_idec778aefdf",
+        "oreca_07_lm_2023/183_24_afcf9bd1ed6",
+        "oreca_07_lm_2023/183_25_afc998f68f4",
+        "oreca_07_lm_2023/199_25_ao_2fc07322",
+        "oreca_07_lm_2023/22_24_unit9412180c",
+        "oreca_07_lm_2023/22_25_unit4f37dae4",
+        "oreca_07_lm_2023/22_united_53651c94",
+        "oreca_07_lm_2023/22_united_649a0f35",
+        "oreca_07_lm_2023/22_united_ee321628",
+        "oreca_07_lm_2023/23_24_unitff7447fb",
+        "oreca_07_lm_2023/23_25_unit48427897",
+        "oreca_07_lm_2023/23_united_18140fb8",
+        "oreca_07_lm_2023/23_united_cda7beb2",
+        "oreca_07_lm_2023/23_united_da371972",
+        "oreca_07_lm_2023/23_united_ea49c472",
+        "oreca_07_lm_2023/24_24_niel76f0226",
+        "oreca_07_lm_2023/24_25_nielf5bb1aba",
+        "oreca_07_lm_2023/25_24_algad7af4a6d",
+        "oreca_07_lm_2023/25_25_apr_42d550e2",
+        "oreca_07_lm_2023/28_24_idec6af83972",
+        "oreca_07_lm_2023/28_25_idecf1c46d7c",
+        "oreca_07_lm_2023/28_jota_lmb2437295",
+        "oreca_07_lm_2023/28_jota_weebe5253d",
+        "oreca_07_lm_2023/29_25_tds_ae90db1f",
+        "oreca_07_lm_2023/30_24_duqu7959b577",
+        "oreca_07_lm_2023/30_duquein8ba0435f",
+        "oreca_07_lm_2023/31_wrt_lmee4a5dde",
+        "oreca_07_lm_2023/31_wrt_wec2abb305",
+        "oreca_07_lm_2023/32_europol2c968827",
+        "oreca_07_lm_2023/33_24_dkr_87d62685",
+        "oreca_07_lm_2023/34_24_inte1245d188",
+        "oreca_07_lm_2023/34_25_inte4e3064c0",
+        "oreca_07_lm_2023/34_inter_l150f4c83",
+        "oreca_07_lm_2023/34_inter_w8878ca94",
+        "oreca_07_lm_2023/35_alpine_291baeea",
+        "oreca_07_lm_2023/35_alpine_bfca8506",
+        "oreca_07_lm_2023/36_alpine_c6805dde",
+        "oreca_07_lm_2023/36_alpine_ecff2d89",
+        "oreca_07_lm_2023/37_24_cool6b221f6",
+        "oreca_07_lm_2023/37_25_clx_637da010",
+        "oreca_07_lm_2023/37_coolbfc82ce9",
+        "oreca_07_lm_2023/39_graf27c05737",
+        "oreca_07_lm_2023/397_23_oreca07",
+        "oreca_07_lm_2023/397_24_oreca07",
+        "oreca_07_lm_2023/397_25_oreca07",
+        "oreca_07_lm_2023/41_wrt_lm30f2ff39",
+        "oreca_07_lm_2023/41_wrt_wec423edc98",
+        "oreca_07_lm_2023/43_25_intea9719d20",
+        "oreca_07_lm_2023/43_dkrcbf2351e",
+        "oreca_07_lm_2023/45_24_crowb035605e",
+        "oreca_07_lm_2023/45_25_apr_7d43b489",
+        "oreca_07_lm_2023/45_algarvee8f9c19f",
+        "oreca_07_lm_2023/47_24_cool3477d827",
+        "oreca_07_lm_2023/47_coolc6d667c1",
+        "oreca_07_lm_2023/48_25_pani25b261c7",
+        "oreca_07_lm_2023/48_idec6a6273c",
+        "oreca_07_lm_2023/48_jota_wedga1634c",
+        "oreca_07_lm_2023/48_jota_weebe5253d",
+        "oreca_07_lm_2023/63_prema_ld3d8568c",
+        "oreca_07_lm_2023/63_premawe556dd97a",
+        "oreca_07_lm_2023/63_premawea0737837",
+        "oreca_07_lm_2023/63_premawee3e836bb",
+        "oreca_07_lm_2023/65_24_pani34903f7d",
+        "oreca_07_lm_2023/65_panis3809564",
+        "oreca_07_lm_2023/80_afcorse3559ebd0",
+        "oreca_07_lm_2023/9_24_protoa1c2a176",
+        "oreca_07_lm_2023/9_25_ironl51471837",
+        "oreca_07_lm_2023/9_prema_lmaa381349",
+        "oreca_07_lm_2023/9_prema_we3452a19f",
+        "oreca_07_lm_2023/9_prema_we5e76eb4b",
+        "oreca_07_lm_2023/923_turkey31f90c33"
+      ]
+    },
+    {
+      "id": "peugeot_9x8_2023",
+      "name": "Peugeot 9x8 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Peugeot",
+      "engine": "Peugeot X6H 2.6 litre V6 90 degree twin-turbo",
+      "thumbnail": "images/cars/peugeot_9x8_2023.webp",
+      "variantIds": [
+        "peugeot_9x8_2023/397_23_9x8",
+        "peugeot_9x8_2023/397_24_9x8",
+        "peugeot_9x8_2023/93_24_peug105eb2db",
+        "peugeot_9x8_2023/93_peugeot1713c81c",
+        "peugeot_9x8_2023/93_peugeotc47ddcea",
+        "peugeot_9x8_2023/93_peugeotf5017513",
+        "peugeot_9x8_2023/94_24_peug3338a82",
+        "peugeot_9x8_2023/94_peugeot3b580a1a",
+        "peugeot_9x8_2023/94_peugeote5781948",
+        "peugeot_9x8_2023/94_peugeotf0d978a3"
+      ]
+    },
+    {
+      "id": "peugeot_9x8_2024",
+      "name": "Peugeot 9x8 2024",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Peugeot",
+      "engine": "Peugeot X6H 2.6 litre V6 90 degree twin-turbo",
+      "thumbnail": "images/cars/peugeot_9x8_2024.webp",
+      "variantIds": [
+        "peugeot_9x8_2024/397_24_9x8w",
+        "peugeot_9x8_2024/397_25_9x8w",
+        "peugeot_9x8_2024/397_26_9x8w",
+        "peugeot_9x8_2024/93_24_peug98b27a84",
+        "peugeot_9x8_2024/93_24_peuge6b75df3",
+        "peugeot_9x8_2024/93_25_peug354b9eca",
+        "peugeot_9x8_2024/93_25_peugd0a1b532",
+        "peugeot_9x8_2024/93_26_peug26011673",
+        "peugeot_9x8_2024/93_26_peug27100541",
+        "peugeot_9x8_2024/94_24_peug511e4063",
+        "peugeot_9x8_2024/94_24_peuga53e1ba4",
+        "peugeot_9x8_2024/94_25_peug5155917b",
+        "peugeot_9x8_2024/94_25_peugaef0bb48",
+        "peugeot_9x8_2024/94_26_peug73522851",
+        "peugeot_9x8_2024/94_26_peug80967432"
+      ]
+    },
+    {
+      "id": "porsche_911rsr-19_2023",
+      "name": "Porsche 911RSR-19 2023",
+      "class": "GTE",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Porsche",
+      "engine": "Porsche M98/80 Flat-6 NA",
+      "thumbnail": "images/cars/porsche_911rsr-19_2023.webp",
+      "variantIds": [
+        "porsche_911rsr-19_2023/16_proton9f4bbef5",
+        "porsche_911rsr-19_2023/397_23_911gte",
+        "porsche_911rsr-19_2023/56_aoracin7559e319",
+        "porsche_911rsr-19_2023/56_btr7b047051",
+        "porsche_911rsr-19_2023/56_rexy8a686597",
+        "porsche_911rsr-19_2023/56_rexyweccf8a67b9",
+        "porsche_911rsr-19_2023/60_ironlyn23215450",
+        "porsche_911rsr-19_2023/60_ironlynb5413bf4",
+        "porsche_911rsr-19_2023/77_protonc852b09a",
+        "porsche_911rsr-19_2023/77_protonlaecae80b",
+        "porsche_911rsr-19_2023/85_irondam1164a8c6",
+        "porsche_911rsr-19_2023/85_irondam1563682e",
+        "porsche_911rsr-19_2023/86_grracin56c59091",
+        "porsche_911rsr-19_2023/86_grracin80c016e1",
+        "porsche_911rsr-19_2023/86_grracinbad908bd",
+        "porsche_911rsr-19_2023/88_protonl745c67a8",
+        "porsche_911rsr-19_2023/88_protonw3393b274",
+        "porsche_911rsr-19_2023/911_proton8153440a"
+      ]
+    },
+    {
+      "id": "porsche_963_2023",
+      "name": "Porsche 963 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2024"
+      ],
+      "manufacturer": "Porsche",
+      "engine": "Porsche 9RD 4,593 cc V8 twin-turbocharged",
+      "thumbnail": "images/cars/porsche_963_2023.webp",
+      "variantIds": [
+        "porsche_963_2023/12_24_jotaa5525c5e",
+        "porsche_963_2023/12_24_jotae2910c5c",
+        "porsche_963_2023/38_24_jota9b8f3a36",
+        "porsche_963_2023/38_24_jotaa127831a",
+        "porsche_963_2023/38_24_jotaa157897c",
+        "porsche_963_2023/38_jotalm6637a77f",
+        "porsche_963_2023/38_jotawecf8658130",
+        "porsche_963_2023/397_23_963",
+        "porsche_963_2023/397_24_963",
+        "porsche_963_2023/397_25_963",
+        "porsche_963_2023/4_24_porscefb6b662",
+        "porsche_963_2023/4_25_penskc0e88c89",
+        "porsche_963_2023/5_24_porsc1a65170e",
+        "porsche_963_2023/5_24_porsc801f785b",
+        "porsche_963_2023/5_25_pensk118975ad",
+        "porsche_963_2023/5_25_pensk3ded143d",
+        "porsche_963_2023/5_25_penskb7423ef2",
+        "porsche_963_2023/5_porschelfe8b86aa",
+        "porsche_963_2023/5_porschew4b6208f8",
+        "porsche_963_2023/6_24_porsc6587bd1d",
+        "porsche_963_2023/6_24_porscd201dc55",
+        "porsche_963_2023/6_25_pensk1a109386",
+        "porsche_963_2023/6_25_penskdb3c8e26",
+        "porsche_963_2023/6_25_penskf97a5997",
+        "porsche_963_2023/6_porschel39447cbe",
+        "porsche_963_2023/6_porschew9d06b3c3",
+        "porsche_963_2023/75_penskeaf08b549",
+        "porsche_963_2023/99_24_prot3553b017",
+        "porsche_963_2023/99_24_prota7b71439",
+        "porsche_963_2023/99_24_protef217129",
+        "porsche_963_2023/99_25_prot98002cd8",
+        "porsche_963_2023/99_25_protb2f22869",
+        "porsche_963_2023/99_protonf79e8524"
+      ]
+    },
+    {
+      "id": "sgc_007_2023",
+      "name": "SGC 007 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Glickenhaus",
+      "engine": "Glickenhaus by Pipo Moteurs P21 3.5 litre V8",
+      "thumbnail": "images/cars/sgc_007_2023.webp",
+      "variantIds": [
+        "sgc_007_2023/397_23_glick",
+        "sgc_007_2023/708_glicke1afd52c4",
+        "sgc_007_2023/708_glickeb391b421",
+        "sgc_007_2023/709_glickea5623a28"
+      ]
+    },
+    {
+      "id": "toyota_gr10_2023",
+      "name": "Toyota GR10 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Toyota",
+      "engine": "Toyota H8909 3.5L V6 Twin-turbo",
+      "thumbnail": "images/cars/toyota_gr10_2023.webp",
+      "variantIds": [
+        "toyota_gr10_2023/397_23_gr010",
+        "toyota_gr10_2023/397_24_gr010",
+        "toyota_gr10_2023/397_25_gr010",
+        "toyota_gr10_2023/397_26_gr010",
+        "toyota_gr10_2023/7_25_toyot346367ba",
+        "toyota_gr10_2023/7_25_toyot4371c657",
+        "toyota_gr10_2023/7_26_toyot18793560",
+        "toyota_gr10_2023/7_26_toyot80734264",
+        "toyota_gr10_2023/7_toyota_l5dcecc05",
+        "toyota_gr10_2023/7_toyota_w5d567fc9",
+        "toyota_gr10_2023/7_toyotalm92a9e304",
+        "toyota_gr10_2023/7_toyotasac14ad0fb",
+        "toyota_gr10_2023/7_toyotawea139c268",
+        "toyota_gr10_2023/8_25_toyot4d121f9e",
+        "toyota_gr10_2023/8_25_toyotac44e07c",
+        "toyota_gr10_2023/8_26_toyot63257480",
+        "toyota_gr10_2023/8_26_toyot66538972",
+        "toyota_gr10_2023/8_toyota_l85eaa01d",
+        "toyota_gr10_2023/8_toyota_w43290ac6",
+        "toyota_gr10_2023/8_toyotalm413b04c8",
+        "toyota_gr10_2023/8_toyotasa17836757",
+        "toyota_gr10_2023/8_toyotawebfca0dcd"
+      ]
+    },
+    {
+      "id": "vandervell_680_2023",
+      "name": "Vandervell 680 2023",
+      "class": "HYPERCAR",
+      "series": [
+        "WEC2023"
+      ],
+      "manufacturer": "Vanwall",
+      "engine": "Gibson GL458 4.5 litre V8 naturally-aspirated",
+      "thumbnail": "images/cars/vandervell_680_2023.webp",
+      "variantIds": [
+        "vandervell_680_2023/397_23_vanwall",
+        "vandervell_680_2023/4_vanwallb1246c663",
+        "vandervell_680_2023/4_vanwallb5251da4b",
+        "vandervell_680_2023/4_vanwalli72588057",
+        "vandervell_680_2023/4_vanwalljde47cca8",
+        "vandervell_680_2023/4_vanwalllb1210e3",
+        "vandervell_680_2023/4_vanwallp9a25f99e",
+        "vandervell_680_2023/4_vanwallu1fc51d18"
+      ]
+    },
+    {
+      "id": "vantage_amr_gt3evo_2024",
+      "name": "Vantage AMR GT3Evo 2024",
+      "class": "GT3",
+      "series": [
+        "WEC2025"
+      ],
+      "manufacturer": "Aston Martin",
+      "engine": "Twin-turbo 4.0-litre V8",
+      "thumbnail": "images/cars/vantage_amr_gt3evo_2024.webp",
+      "variantIds": [
+        "vantage_amr_gt3evo_2024/10_25_rslm1720dfda",
+        "vantage_amr_gt3evo_2024/10_25_rslm3c7ca220",
+        "vantage_amr_gt3evo_2024/10_25_rslma53f60ad",
+        "vantage_amr_gt3evo_2024/23_26_thor59931582",
+        "vantage_amr_gt3evo_2024/27_24_thor74e3d7d0",
+        "vantage_amr_gt3evo_2024/27_24_thorbf65a511",
+        "vantage_amr_gt3evo_2024/27_25_thorc7a590f0",
+        "vantage_amr_gt3evo_2024/27_25_thord0898b77",
+        "vantage_amr_gt3evo_2024/27_26_thor22130173",
+        "vantage_amr_gt3evo_2024/397_24_amv",
+        "vantage_amr_gt3evo_2024/397_25_amv",
+        "vantage_amr_gt3evo_2024/397_25elms_amv",
+        "vantage_amr_gt3evo_2024/397_26_amv",
+        "vantage_amr_gt3evo_2024/59_25_rsl_df69fbfb",
+        "vantage_amr_gt3evo_2024/777_24_dst103b6012",
+        "vantage_amr_gt3evo_2024/777_24_dst8b5349b6"
+      ]
+    }
+  ]
+}

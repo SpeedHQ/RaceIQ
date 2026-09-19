@@ -146,6 +146,12 @@ export function TrackDetail({
     setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
     if (boundsData?.s1End) setSectorBounds(boundsData);
   }, [trackMapData]);
+  useEffect(() => {
+    if (gameId === "lmu" && !sectorBounds) {
+      setSectorBounds({ s1End: 1 / 3, s2End: 2 / 3 });
+      setSegSource("catalog");
+    }
+  }, [gameId, sectorBounds]);
 
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
@@ -351,6 +357,7 @@ export function TrackDetail({
             <TrackDebugPanel
               trackOrdinal={track.ordinal}
               outline={outline}
+              mapUrl={track.mapUrl}
               flipX={flipX}
               displaySectors={displaySectors}
               sectorBounds={editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : sectorBounds}

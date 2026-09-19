@@ -1,8 +1,13 @@
+import {
+  getLMUSharedTrackName,
+  lmuTrackCatalog,
+} from "./catalog";
 import type { GameAdapter } from "../types";
 
 const carNames = new Map<number, string>();
 const trackNames = new Map<number, string>();
 const trackOrdinals = new Map<string, number>();
+const sharedTrackNames = new Map<number, string>();
 
 /** Stable positive s32 identity for LMU string-native car and track IDs. */
 export function lmuIdentityOrdinal(kind: "car" | "track", name: string): number {
@@ -13,6 +18,23 @@ export function lmuIdentityOrdinal(kind: "car" | "track", name: string): number 
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0) & 0x7fffffff || 1;
+}
+
+for (const track of lmuTrackCatalog) {
+  const canonicalOrdinal = lmuIdentityOrdinal("track", track.layout);
+  trackNames.set(canonicalOrdinal, track.name);
+  for (const alias of [
+    track.id,
+    track.id.split("/").at(-1),
+    track.layout,
+    track.name,
+  ]) {
+    if (!alias) continue;
+    trackOrdinals.set(alias.trim().toLowerCase(), canonicalOrdinal);
+    if (track.commonTrackName) {
+      sharedTrackNames.set(lmuIdentityOrdinal("track", alias), track.commonTrackName);
+    }
+  }
 }
 
 export interface LMUIdentityRecord {
@@ -29,6 +51,8 @@ export function rememberLMUIdentity(identity: LMUIdentityRecord): void {
   if (identity.trackId > 0 && identity.trackName) {
     trackNames.set(identity.trackId, identity.trackName);
     trackOrdinals.set(identity.trackName.trim().toLowerCase(), identity.trackId);
+    const sharedTrackName = getLMUSharedTrackName(identity.trackName);
+    if (sharedTrackName) sharedTrackNames.set(identity.trackId, sharedTrackName);
   }
 }
 
@@ -42,6 +66,8 @@ export function injectDiscoveredLMUIdentity(
   for (const track of tracks) {
     trackNames.set(track.ordinal, track.name);
     trackOrdinals.set(track.name.trim().toLowerCase(), track.ordinal);
+    const sharedTrackName = getLMUSharedTrackName(track.name);
+    if (sharedTrackName) sharedTrackNames.set(track.ordinal, sharedTrackName);
   }
 }
 
@@ -222,6 +248,10 @@ export const lmuAdapter: GameAdapter = {
 
   getTrackName(ordinal: number): string {
     return trackNames.get(ordinal) ?? `LMU track #${ordinal}`;
+  },
+
+  getSharedTrackName(ordinal: number): string | undefined {
+    return sharedTrackNames.get(ordinal);
   },
 
   getTrackOrdinalByName(name: string): number | undefined {

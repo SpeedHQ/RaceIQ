@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "game": "lmu",
+  "artifactKind": "raceiq-lmu-assets",
+  "counts": {
+    "tracks": 36,
+    "cars": 36,
+    "images": 36
+  }
+}

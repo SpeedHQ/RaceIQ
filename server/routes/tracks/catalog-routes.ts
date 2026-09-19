@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { getLapCountsByTrack } from "../../db/lap-read-queries";
 import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/racing/tracks/recording/outlines";
@@ -11,10 +13,23 @@ import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
 import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
 import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
 import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
+import { getLMUTrackByAssetName, lmuTrackCatalog } from "../../../shared/games/lmu/catalog";
+import { lmuIdentityOrdinal } from "../../../shared/games/lmu";
+import { GAMES_DIR } from "../../runtime/config/paths";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
 
+
 export const trackCatalogInfoRoutes = new Hono()
+  .get("/api/lmu-assets/tracks/:asset", (c) => {
+    const track = getLMUTrackByAssetName(c.req.param("asset"));
+    if (!track) return c.json({ error: "LMU track asset not found" }, 404);
+    const file = resolve(GAMES_DIR, "lmu", track.boundariesSvg);
+    if (!existsSync(file)) return c.json({ error: "LMU track asset not found" }, 404);
+    return new Response(readFileSync(file), {
+      headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=31536000, immutable" },
+    });
+  })
 
   // GET /api/tracks/:ordinal (info)
   .get("/api/tracks/:ordinal",
@@ -116,35 +131,46 @@ export const trackCatalogRoutes = new Hono()
         tracks.sort((a, b) => a.name.localeCompare(b.name));
         return c.json(tracks);
       }
-
       if (gameId === "lmu") {
         const lapCounts = await getLapCountsByTrack("lmu");
-        const tracks = (await listDiscoveredTracks("lmu")).map((track) => {
-          const hasGenerated = sharedHasRecordedOutline(track.ordinal, "lmu");
+        const tracks = lmuTrackCatalog.map((track) => {
+          const ordinal = lmuIdentityOrdinal("track", track.layout);
           return {
-            ordinal: track.ordinal,
+            id: track.id,
+            ordinal,
             name: track.name,
-            location: "",
-            country: "",
-            variant: "",
-            lengthKm: 0,
-            category: "",
-            hasOutline: hasGenerated,
-            hasMap: hasGenerated,
-            mapUrl: null,
-            outlineSource: hasGenerated ? "generated" : null,
-            commonTrackName: null,
-            createdAt: track.createdAt,
-            lapCount: lapCounts.get(track.ordinal) ?? 0,
+            location: track.location,
+            country: track.countryCode,
+            variant: track.layout,
+            lengthKm: track.lengthKm,
+            category: track.event,
+            commonTrackName: track.commonTrackName ?? null,
+            hasOutline: false,
+            hasMap: true,
+            mapUrl: `/api/lmu-assets/tracks/${encodeURIComponent(track.boundariesSvg.split("/").pop()!)}`,
+            outlineSource: "extracted",
+            createdAt: null,
+            lapCount: lapCounts.get(ordinal) ?? 0,
           };
         });
-        tracks.sort((left, right) => {
-          if (left.hasOutline !== right.hasOutline) {
-            return left.hasOutline ? -1 : 1;
-          }
-          return left.name.localeCompare(right.name);
-        });
-        return c.json(tracks);
+        const discovered = (await listDiscoveredTracks("lmu")).map((track) => ({
+          id: null,
+          ordinal: track.ordinal,
+          name: track.name,
+          location: "",
+          country: "",
+          variant: "",
+          lengthKm: 0,
+          category: "discovered",
+          commonTrackName: null,
+          hasOutline: sharedHasRecordedOutline(track.ordinal, "lmu"),
+          hasMap: sharedHasRecordedOutline(track.ordinal, "lmu"),
+          mapUrl: null,
+          outlineSource: "generated",
+          createdAt: track.createdAt,
+          lapCount: lapCounts.get(track.ordinal) ?? 0,
+        }));
+        return c.json([...tracks, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
       }
 
       if (gameId === "iracing") {
