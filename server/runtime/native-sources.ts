@@ -34,27 +34,36 @@ export function startNativeSourceSupervisor(
   }), "acc");
   if (!IS_WINDOWS) return { stop: async () => {} };
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
+  const pendingStops = new Set<Promise<void>>();
+  const trackStop = (stop: Promise<void> | null): void => {
+    if (!stop) return;
+    pendingStops.add(stop);
+    void stop.finally(() => pendingStops.delete(stop));
+  };
   let wasAccRunning = false;
   const pollTimer = setInterval(() => {
     const accRunning = isGameRunning("acc");
-    if (liveSpotterEngineerEnabled && accRunning) void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
-    else if (liveSpotterEngineerEnabled && wasAccRunning) void accBroadcastClient.stop().catch((error) => console.error("[ACC Broadcast] Stop failed:", error));
+    if (liveSpotterEngineerEnabled && accRunning) {
+      void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
+    } else if (liveSpotterEngineerEnabled && wasAccRunning) {
+      void accBroadcastClient.stop().catch((error) => console.error("[ACC Broadcast] Stop failed:", error));
+    }
     wasAccRunning = accRunning;
-    superviseSource(
+    trackStop(superviseSource(
       isGameRunning("acc"),
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       getAccReader,
       setAccReader,
-    );
-    superviseSource(
+    ));
+    trackStop(superviseSource(
       isGameRunning("ac-evo"),
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       getAcEvoReader,
       setAcEvoReader,
-    );
-    superviseSource(
+    ));
+    trackStop(superviseSource(
       isGameRunning("iracing"),
       "iRacing",
       () => new IRacingTelemetrySource({
@@ -63,7 +72,7 @@ export function startNativeSourceSupervisor(
       }),
       getIracingSource,
       setIracingSource,
-    );
+    ));
   }, SOURCE_POLL_MS);
 
   return {
@@ -77,7 +86,7 @@ export function startNativeSourceSupervisor(
       for (const reader of readers) {
         if (reader) stopTasks.push(reader.stop());
       }
-      await Promise.allSettled(stopTasks);
+      await Promise.allSettled([...stopTasks, ...pendingStops]);
     },
   };
 }

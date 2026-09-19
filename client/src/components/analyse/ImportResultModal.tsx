@@ -2,6 +2,7 @@ import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { getLocale } from "@/paraglide/runtime";
 
 export interface ImportedLapSummary {
   lapId: number;
@@ -28,7 +29,7 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_result_title()}</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-app-text-muted truncate" title={fileName}>
-          {fileName} · {packetCount.toLocaleString()} {m.analyse_import_packets_label()}
+          {fileName} · {packetCount.toLocaleString(getLocale())} {m.analyse_import_packets_label()}
         </p>
         {laps.length === 0 ? (
           <p className="text-sm text-app-text-muted">{m.analyse_import_no_laps()}</p>

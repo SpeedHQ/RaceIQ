@@ -1,125 +1,165 @@
-import { describe, test, expect, afterEach } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { spawn, type ChildProcess } from "node:child_process";
-import dgram from "node:dgram";
-import { mkdtempSync, rmSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import type { GameId } from "../../shared/games/ids";
+import { ReplayedUdpDataSource } from "../support/recordings/replayed-udp-data-source";
 import { readUdpDump } from "../support/recordings/udp";
 
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
+const RECORDING_CASES: readonly {
+  gameId: GameId;
+  fixture: string;
+  serverPort: number;
+  udpPort: number;
+}[] = [
+  {
+    gameId: "fm-2023",
+    fixture: "test/artifacts/sessions/fm-2023-2026-04-09T21-53-00-102Z.bin.gz",
+    serverPort: 3219,
+    udpPort: 15329,
+  },
+  {
+    gameId: "f1-2025",
+    fixture: "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+    serverPort: 3220,
+    udpPort: 15330,
+  },
+];
 
-async function waitFor(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function killAndWait(proc: ChildProcess, signal: NodeJS.Signals, timeoutMs = 10_000) {
-  return new Promise<void>((resolvePromise, reject) => {
-    const timer = setTimeout(() => reject(new Error(`process did not exit within ${timeoutMs}ms`)), timeoutMs);
-    proc.on("exit", () => {
-      clearTimeout(timer);
-      resolvePromise();
-    });
-    proc.kill(signal);
+async function killAndWait(
+  proc: ChildProcess,
+  signal: NodeJS.Signals,
+  timeoutMs = 10_000,
+): Promise<void> {
+  if (proc.exitCode !== null || proc.signalCode !== null) return;
+  const { promise, resolve: resolveExit, reject } = Promise.withResolvers<void>();
+  const timer = setTimeout(
+    () => reject(new Error(`process did not exit within ${timeoutMs}ms`)),
+    timeoutMs,
+  );
+  proc.on("exit", () => {
+    clearTimeout(timer);
+    resolveExit();
   });
+  proc.kill(signal);
+  return promise;
 }
 
 describe("UDP recording integration", () => {
   let dataDir: string | null = null;
   let createdBin: string | null = null;
+  let server: ChildProcess | null = null;
 
   afterEach(async () => {
+    if (server) {
+      await killAndWait(server, "SIGINT");
+      server = null;
+    }
     if (createdBin) {
-      try { unlinkSync(createdBin); } catch {}
+      try {
+        unlinkSync(createdBin);
+      } catch {}
       createdBin = null;
     }
     if (dataDir) {
-      // Windows sometimes holds file handles briefly after the spawned server
-      // exits — retry rmSync with a short backoff to dodge transient EBUSY.
+      // Windows sometimes holds file handles briefly after spawned server exits.
       for (let attempt = 0; attempt < 10; attempt++) {
         try {
           rmSync(dataDir, { recursive: true, force: true });
           break;
-        } catch (err) {
-          if (attempt === 9) throw err;
-          await new Promise((r) => setTimeout(r, 200));
+        } catch (error) {
+          if (attempt === 9) throw error;
+          const retry = Promise.withResolvers<void>();
+          setTimeout(retry.resolve, 200);
+          await retry.promise;
         }
       }
       dataDir = null;
     }
   });
 
-  test("fm-2023 recording writes raw datagrams and finalises on SIGINT", async () => {
-    dataDir = mkdtempSync(join(tmpdir(), "raceiq-udprec-"));
-    const SERVER_PORT = "3219";
-    const UDP_PORT = "15329";
-    // settings.udpPort has a schema default of 5301 that pre-empts the
-    // UDP_PORT env var, so pre-seed settings.json with our test port.
-    writeFileSync(join(dataDir, "settings.json"), JSON.stringify({ udpPort: Number(UDP_PORT) }));
+  for (const recordingCase of RECORDING_CASES) {
+    test(`${recordingCase.gameId} replays a healthy capture through the live recorder`, async () => {
+      dataDir = mkdtempSync(join(tmpdir(), `raceiq-${recordingCase.gameId}-recording-`));
+      writeFileSync(
+        join(dataDir, "settings.json"),
+        JSON.stringify({ udpPort: recordingCase.udpPort }),
+      );
 
-    const existingBefore = new Set(
-      readdirSync(RECORDINGS_DIR).filter((f) => f.startsWith("fm-2023-") && f.endsWith(".bin"))
-    );
-
-    const server = spawn(
-      "bun",
-      ["run", "server/index.ts", "--record=fm-2023"],
-      {
-        env: {
-          ...process.env,
-          DATA_DIR: dataDir,
-          SERVER_PORT,
-          UDP_PORT,
-          NODE_ENV: "development",
+      const existingBefore = new Set(
+        readdirSync(RECORDINGS_DIR).filter(
+          (file) =>
+            file.startsWith(`${recordingCase.gameId}-`) && file.endsWith(".bin"),
+        ),
+      );
+      server = spawn(
+        "bun",
+        ["run", "server/index.ts", `--record=${recordingCase.gameId}`],
+        {
+          env: {
+            ...process.env,
+            DATA_DIR: dataDir,
+            SERVER_PORT: String(recordingCase.serverPort),
+            UDP_PORT: String(recordingCase.udpPort),
+            NODE_ENV: "development",
+          },
+          stdio: ["ignore", "pipe", "pipe"],
         },
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+      );
 
-    // Wait for the UDP listener to be ready
-    await new Promise<void>((resolvePromise, reject) => {
-      const timer = setTimeout(() => reject(new Error("server boot timed out")), 30_000);
+      const ready = Promise.withResolvers<void>();
+      const timer = setTimeout(
+        () => ready.reject(new Error("server boot timed out")),
+        30_000,
+      );
+      let stdout = "";
       const onData = (chunk: Buffer) => {
-        const str = chunk.toString();
-        if (str.includes("[UDP] Listening on")) {
-          clearTimeout(timer);
-          server.stdout!.off("data", onData);
-          resolvePromise();
-        }
+        stdout += chunk.toString();
+        if (!stdout.includes("[UDP] Listening on")) return;
+        clearTimeout(timer);
+        server!.stdout!.off("data", onData);
+        ready.resolve();
       };
       server.stdout!.on("data", onData);
       server.stderr!.on("data", (chunk: Buffer) => process.stderr.write(chunk));
       server.on("exit", (code) => {
         clearTimeout(timer);
-        reject(new Error(`server exited with code ${code} before becoming ready`));
+        ready.reject(
+          new Error(`server exited with code ${code} before becoming ready`),
+        );
       });
-    });
+      await ready.promise;
 
-    // Blast 50 fake FM-shaped datagrams (324-byte Forza Dash size)
-    const client = dgram.createSocket("udp4");
-    const fake = Buffer.alloc(324);
-    fake.writeUInt32LE(1, 0);
-    const PACKET_COUNT = 50;
-    for (let i = 0; i < PACKET_COUNT; i++) {
-      await new Promise<void>((res, rej) =>
-        client.send(fake, Number(UDP_PORT), "127.0.0.1", (err) => (err ? rej(err) : res())),
+      const source = new ReplayedUdpDataSource(recordingCase.fixture, 80);
+      expect(source.packets.length).toBeGreaterThan(0);
+      await source.replay(recordingCase.udpPort);
+      // UDP has no delivery acknowledgement; allow OS receive queue to drain.
+      const drain = Promise.withResolvers<void>();
+      setTimeout(drain.resolve, 300);
+      await drain.promise;
+      await killAndWait(server, "SIGINT");
+      server = null;
+
+      const createdFile = readdirSync(RECORDINGS_DIR).find(
+        (file) =>
+          file.startsWith(`${recordingCase.gameId}-`) &&
+          file.endsWith(".bin") &&
+          !existingBefore.has(file),
       );
-    }
-    await waitFor(300);
-    client.close();
-
-    // Graceful stop — the SIGINT handler should flush the recorder
-    await killAndWait(server, "SIGINT");
-
-    // Find the new .bin
-    const after = readdirSync(RECORDINGS_DIR).filter((f) => f.startsWith("fm-2023-") && f.endsWith(".bin"));
-    const newFile = after.find((f) => !existingBefore.has(f));
-    expect(newFile, `expected a new fm-2023-*.bin in ${RECORDINGS_DIR}`).toBeTruthy();
-    createdBin = join(RECORDINGS_DIR, newFile!);
-
-    // Read back and verify packet round-trip
-    const packets = readUdpDump(createdBin);
-    expect(packets.length).toBe(PACKET_COUNT);
-    expect(packets[0].length).toBe(324);
-    expect(packets[0].readUInt32LE(0)).toBe(1);
-  }, 60_000);
+      expect(
+        createdFile,
+        `expected a new ${recordingCase.gameId}-*.bin in ${RECORDINGS_DIR}`,
+      ).toBeTruthy();
+      createdBin = join(RECORDINGS_DIR, createdFile!);
+      expect(readUdpDump(createdBin)).toEqual([...source.packets]);
+    }, 60_000);
+  }
 });

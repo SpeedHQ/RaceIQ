@@ -2,12 +2,13 @@ import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildRecapText } from "@/components/SessionRecap";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
 import { useSettings } from "@/hooks/settings";
 import { useTrackOutline, useTrackSectorBoundaries } from "@/hooks/track-queries";
+import { queryKeys } from "@/hooks/query-keys";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { uiStore } from "@/stores/ui";
@@ -32,9 +33,6 @@ export function HomePageContainer() {
   const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
-
-  const [carNames, setCarNames] = useState<Record<string, string>>({});
-  const [trackNames, setTrackNames] = useState<Record<string, string>>({});
 
   const recentLaps = useMemo(
     () =>
@@ -115,55 +113,36 @@ export function HomePageContainer() {
     };
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
-  useEffect(() => {
-    const cars = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
-    const tracks = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
+  const nameTargets = useMemo(() => {
+    const cars = new Map<string, { ordinal: number; gameId: NonNullable<LapMeta["gameId"]> }>();
+    const tracks = new Map<string, { ordinal: number; gameId: NonNullable<LapMeta["gameId"]> }>();
     for (const lap of recentLaps) {
-      if (lap.carOrdinal != null) {
-        cars.set(`${lap.gameId}:${lap.carOrdinal}`, {
-          ordinal: lap.carOrdinal,
-          gameId: lap.gameId,
-        });
-      }
-      if (lap.trackOrdinal != null) {
-        tracks.set(`${lap.gameId}:${lap.trackOrdinal}`, {
-          ordinal: lap.trackOrdinal,
-          gameId: lap.gameId,
-        });
-      }
+      if (!lap.gameId) continue;
+      if (lap.carOrdinal != null) cars.set(`${lap.gameId}:${lap.carOrdinal}`, { ordinal: lap.carOrdinal, gameId: lap.gameId });
+      if (lap.trackOrdinal != null) tracks.set(`${lap.gameId}:${lap.trackOrdinal}`, { ordinal: lap.trackOrdinal, gameId: lap.gameId });
     }
-
-    const missingCars = [...cars].filter(([key]) => !carNames[key]);
-    if (missingCars.length > 0) {
-      void Promise.all(
-        missingCars.map(async ([key, target]) => {
-          const response = await client.api["car-name"][":ordinal"].$get({
-            param: { ordinal: String(target.ordinal) },
-            query: { gameId: target.gameId },
-          });
-          return [key, response.ok ? await response.text() : ""] as const;
-        }),
-      )
-        .then((entries) => setCarNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
-        .catch(() => {});
-    }
-
-    const missingTracks = [...tracks].filter(([key]) => !trackNames[key]);
-    if (missingTracks.length > 0) {
-      void Promise.all(
-        missingTracks.map(async ([key, target]) => {
-          const response = await client.api["track-name"][":ordinal"].$get({
-            param: { ordinal: String(target.ordinal) },
-            query: { gameId: target.gameId },
-          });
-          return [key, response.ok ? await response.text() : ""] as const;
-        }),
-      )
-        .then((entries) => setTrackNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
-        .catch(() => {});
-    }
+    return { cars: [...cars.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal), tracks: [...tracks.values()].sort((a, b) => String(a.gameId).localeCompare(String(b.gameId)) || a.ordinal - b.ordinal) };
   }, [recentLaps]);
-
+  const carNameQueries = useQueries({
+    queries: nameTargets.cars.map((target) => ({
+      queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
+      queryFn: async () => {
+        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        return response.ok ? response.text() : "";
+      },
+    })),
+  });
+  const trackNameQueries = useQueries({
+    queries: nameTargets.tracks.map((target) => ({
+      queryKey: [...queryKeys.trackName(target.ordinal), target.gameId],
+      queryFn: async () => {
+        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        return response.ok ? response.text() : "";
+      },
+    })),
+  });
+  const carNames = useMemo(() => Object.fromEntries(nameTargets.cars.map((target, index) => [`${target.gameId}:${target.ordinal}`, carNameQueries[index]?.data ?? ""])), [carNameQueries, nameTargets.cars]);
+  const trackNames = useMemo(() => Object.fromEntries(nameTargets.tracks.map((target, index) => [`${target.gameId}:${target.ordinal}`, trackNameQueries[index]?.data ?? ""])), [nameTargets.tracks, trackNameQueries]);
   const copyRecap = () => {
     if (!latestRecap) return;
     navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {
@@ -174,7 +153,7 @@ export function HomePageContainer() {
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/analyse` as never,
+      to: `${getGameRoute(latestRecap.gameId)}/sessions/replay` as never,
       search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
     });
   };
@@ -202,7 +181,7 @@ export function HomePageContainer() {
       onAnalyseLap={(lap) => {
         if (!lap.gameId) return;
         void navigate({
-          to: `${getGameRoute(lap.gameId)}/analyse` as never,
+          to: `${getGameRoute(lap.gameId)}/sessions/replay` as never,
           search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
         });
       }}

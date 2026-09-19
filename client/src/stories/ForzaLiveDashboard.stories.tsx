@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
 import { gameStore } from "../stores/game";
-import { telemetryStore } from "../stores/telemetry";
+import { DEFAULT_DISPLAY_SETTINGS, telemetryStore } from "../stores/telemetry";
 import { fakeForzaSemanticFixture, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
@@ -10,6 +10,9 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
+queryClient.setQueryData(["track-name", 7, "fm-2023"], "Road America");
+queryClient.setQueryData(["car-name", 1742, "fm-2023"], "BMW M4");
+queryClient.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
 
 function StoryDecorator({ story }: { story: React.ComponentType }) {
   const { schema, frame, view } = fakeForzaSemanticFixture;

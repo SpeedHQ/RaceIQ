@@ -86,7 +86,8 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
   ),
   TYRES_BRAKES: ids(
     "tires.tire-compound", "tires.tire-compound-code", "tires.tire-compound-name", "tires.tire-wear", "tires.tyre-age", "tires.tire-pressure",
-    "tire.temperature.average", "tire.temperature.carcass.average", "tire.temperature.surface.inner", "tire.temperature.surface.middle",
+    "tire.temperature.core", "tire.temperature.carcass.left", "tire.temperature.carcass.middle", "tire.temperature.carcass.right",
+    "tire.temperature.surface.inner", "tire.temperature.surface.middle",
     "tire.temperature.surface.outer", "brakes.brake-temp", "damage.brake-pad-wear", "damage.brake-disc-life", "tires.tire-sets-available",
     "tires.tire-sets-used", "tires.competitor.age", "tires.competitor.compound",
   ),

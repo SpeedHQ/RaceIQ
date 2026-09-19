@@ -125,7 +125,6 @@ interface TireCarcassTemperature {
   left?: number;
   middle?: number;
   right?: number;
-  average?: number;
 }
 
 function tireCarcassTemperature(
@@ -138,15 +137,8 @@ function tireCarcassTemperature(
     right: scalar(values, `${corner}tempCR`, Number.NaN),
   };
   const result: TireCarcassTemperature = {};
-  const samples: number[] = [];
   for (const [band, value] of Object.entries(raw)) {
-    if (!Number.isFinite(value)) continue;
-    result[band as keyof typeof raw] = value;
-    samples.push(value);
-  }
-  if (samples.length > 0) {
-    result.average =
-      samples.reduce((sum, value) => sum + value, 0) / samples.length;
+    if (Number.isFinite(value)) result[band as keyof typeof raw] = value;
   }
   return result;
 }
@@ -287,7 +279,7 @@ export function normalizeIRacingFrame(
     RR: tireCarcassTemperature(values, "RR"),
   };
   const pitTireTemperatureAvailable = Object.values(tireTemps).every(
-    (temperature) => temperature.average !== undefined,
+    (temperature) => temperature.middle !== undefined,
   );
   const pitTireWearAvailable = (["LF", "RF", "LR", "RR"] as const).every(
     (corner) =>
@@ -392,14 +384,12 @@ export function normalizeIRacingFrame(
     SurfaceRumbleRR_2: 0,
     TireSlipCombinedFL_2: 0,
 
-    TireTempFL: tireTemps.LF.average ?? 0,
-    TireTempFR: tireTemps.RF.average ?? 0,
-    TireTempRL: tireTemps.LR.average ?? 0,
-    TireTempRR: tireTemps.RR.average ?? 0,
-    TireCarcassTempFL: tireTemps.LF.average,
-    TireCarcassTempFR: tireTemps.RF.average,
-    TireCarcassTempRL: tireTemps.LR.average,
-    TireCarcassTempRR: tireTemps.RR.average,
+    // Legacy primary temperature uses one direct native band; canonical
+    // semantics expose all three iRacing carcass bands independently.
+    TireTempFL: tireTemps.LF.middle ?? 0,
+    TireTempFR: tireTemps.RF.middle ?? 0,
+    TireTempRL: tireTemps.LR.middle ?? 0,
+    TireTempRR: tireTemps.RR.middle ?? 0,
     TireCarcassTempLeftFL: tireTemps.LF.left,
     TireCarcassTempLeftFR: tireTemps.RF.left,
     TireCarcassTempLeftRL: tireTemps.LR.left,

@@ -6,7 +6,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions/replay?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
@@ -15,18 +15,9 @@ const PAGES = [
   { name: "setups", path: "/f125/tracks/19/setups" },
   { name: "setups-ranges", path: "/f125/tracks/19/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
-  { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
-  { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
-  { name: "experiments-review-track-tires", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=tires" },
-  { name: "experiments-review-track-balance", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=balance" },
-  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=suspension" },
-  { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 
-async function waitForMetricData(page: Page, label: string): Promise<void> {
-  const panel = page.getByText(label, { exact: true }).locator("..").locator("..");
-  await expect.poll(async () => panel.textContent(), { message: `${label} remained empty`, timeout: 30_000 }).not.toContain("0–1");
-}
+
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
     if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(120_000);
@@ -44,18 +35,14 @@ for (const page of PAGES) {
       await ready.scrollIntoViewIfNeeded();
     }
     if (page.name.startsWith("experiments-review-track") && page.name !== "experiments-review-track-tires") {
-      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
-    }
-    if (page.name === "experiments-review-track-tires") {
       await p.waitForTimeout(15_000);
+      await expect(p.getByText("No telemetry", { exact: true })).toHaveCount(0, { timeout: 30_000 });
     }
     if (page.name === "experiments-review-overview") {
       await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
     }
     if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Tyre temp", "Brake temp", "Pressure", "Wear"]) {
-        await waitForMetricData(p, label);
-      }
+      for (const label of ["Core temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {

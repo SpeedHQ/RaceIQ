@@ -1,5 +1,5 @@
 import { isLocale, setLocale } from "@/paraglide/runtime";
-import { uiStore, } from "@/stores/ui";
+import { uiStore } from "@/stores/ui";
 
 /**
  * Switch the app language without a full page reload.

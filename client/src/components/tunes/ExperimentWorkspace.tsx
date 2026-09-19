@@ -22,6 +22,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
+import { ExperimentGuideModal } from "./ExperimentGuideModal";
 
 /**
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
@@ -39,7 +40,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
-export function ExperimentWorkspace({ gameId, experimentId }: { gameId: ExperimentGameId; experimentId: number }) {
+export function ExperimentWorkspace({ gameId, experimentId, manageActivation = true }: { gameId: ExperimentGameId; experimentId: number; manageActivation?: boolean }) {
   const navigate = useNavigate();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
@@ -70,6 +71,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       const res = await api.experiments[":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
+    enabled: manageActivation,
     refetchInterval: 5000,
     refetchIntervalInBackground: true,
     staleTime: 0,
@@ -80,10 +82,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // an effect. The call is id-guarded server-side so a stale unmount can't
   // clobber a session the driver has since switched to.
   useEffect(() => {
+    if (!manageActivation) return;
     return () => {
       (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
-  }, [experimentId]);
+  }, [experimentId, manageActivation]);
   // A setup-backed session must always expose its selected file as v1. Older
   // sessions and interrupted creates can leave the session row ahead of its
   // version row; repair that invariant before rendering an empty graph.
@@ -203,6 +206,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const lapTarget = session?.lapTarget ?? 3;
 
   const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
@@ -231,17 +235,20 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   return (
     <div className="h-full flex flex-col overflow-hidden p-3 gap-3">
       {/* Header */}
-      <div className="shrink-0">
-        <BackButton onClick={clearSession} className="mb-2" />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-app-title font-semibold text-app-text">
-            <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
-            {session.name}
-          </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-app-title font-semibold text-app-text">
+          <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
+          {session.name}
+        </h1>
+        <div className="flex items-center gap-2">
+          <Button variant="app-outline" size="app-sm" onClick={() => setGuideOpen(true)}>
+            Guide
+          </Button>
           <FocusSwitcher experimentId={session.id} focus={session.focus} />
         </div>
-        {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
       </div>
+      {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
+      {guideOpen && <ExperimentGuideModal onClose={() => setGuideOpen(false)} />}
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}

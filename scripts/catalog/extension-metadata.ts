@@ -68,7 +68,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.grid[].lastS3": "timing.sector.competitor-last.s3",
   "f1.brakeTemp": "brakes.brake-temp",
   "f1.tyrePressure": "tires.tire-pressure",
-  "f1.tyresInnerTemp": "tire.temperature.carcass.average",
+  "f1.tyresInnerTemp": "tire.temperature.core",
   "f1.motionEx.wheelLatForce": "tires.wheel-force.lateral",
   "f1.motionEx.wheelLongForce": "tires.wheel-force.longitudinal",
   "f1.motionEx.wheelVertForce": "tires.wheel-force.vertical",
@@ -85,7 +85,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "acc.brakePadWear": "damage.brake-pad-wear",
   "acc.tireRadius": "tires.tire-radius",
   "acc.tireCamber": "tires.tire-camber",
-  "acc.tireCoreTemp": "tire.temperature.carcass.average",
+  "acc.tireCoreTemp": "tire.temperature.core",
   "acc.tireMiddleTemp": "tire.temperature.surface.middle",
   "acc.tireOuterTemp": "tire.temperature.surface.outer",
   "acc.tireCompound": "tires.tire-compound-name",
@@ -166,6 +166,9 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.carIdxPosition": "race.competitor.position",
   "iracing.carIdxClassPosition": "race.competitor.class-position",
   "iracing.carIdxLapCompleted": "race.competitor.laps-complete",
+  "iracing.carIdxLap": "timing.competitor.current-lap-number",
+  "iracing.carIdxLastLapTime": "timing.competitor.last-lap-time",
+  "iracing.carIdxBestLapTime": "timing.competitor.best-lap-time",
   "iracing.carIdxOnPitRoad": "race.competitor.pit-status",
   "iracing.carIdxTrackSurface": "race.competitor.track-location",
   "iracing.carLeftRight": "identity.car-left-right",
@@ -453,6 +456,18 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
 
 const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, UnavailableExtensionSource>>> = {
   acc: {
+    "acc.tireInnerTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves inner surface temperatures but does not populate them.",
+    },
+    "acc.tireMiddleTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves middle surface temperatures but does not populate them.",
+    },
+    "acc.tireOuterTemp": {
+      reason: "source-not-populated",
+      description: "ACC reserves outer surface temperatures but does not populate them.",
+    },
     "acc.brakePadCompound": {
       reason: "parser-placeholder",
       description: "ACC parser currently emits constant 0; shared-memory source is not wired.",

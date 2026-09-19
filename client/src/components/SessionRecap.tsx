@@ -9,6 +9,7 @@ import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
+import { getLocale } from "@/paraglide/runtime";
 
 export type TrackOutlineData =
   | {
@@ -203,7 +204,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           <div className="break-words text-base font-bold text-app-text/90">
             {recap.carName} · {recap.trackName}
           </div>
-          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString()}</div>
+          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString(getLocale())}</div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canAnalyse && (
@@ -287,10 +288,10 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
     });
   };
   const analyse = () => {
-    if (recap.bestLapId == null) return;
+    if (recap.bestLapId == null || recap.trackOrdinal == null || recap.carOrdinal == null) return;
     void navigate({
-      to: `${getGameRoute(recap.gameId)}/analyse` as never,
-      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId } as never,
+      to: `${getGameRoute(recap.gameId)}/sessions/replay`,
+      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId },
     });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;

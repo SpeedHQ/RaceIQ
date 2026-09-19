@@ -1,7 +1,17 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 
-const DATABASE_FILES = ["app.db", "app.db-wal", "app.db-shm", "test.db", "test.db-wal", "test.db-shm"];
+const DATABASE_FILES = [
+  "app.db",
+  "app.db-wal",
+  "app.db-shm",
+  "test.db",
+  "test.db-wal",
+  "test.db-shm",
+  "chat-memory.db",
+  "chat-memory.db-wal",
+  "chat-memory.db-shm",
+];
 
 export function resetTestDatabase(dataDir: string): void {
   const segments = dataDir.split(/[\\/]+/);

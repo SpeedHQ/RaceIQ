@@ -71,7 +71,7 @@ export const CREWCHIEF_TRIGGER_CATALOG = [
   unavailable("WatchedOpponents", triggerWatchedOpponents),
   unavailable("Strategy", triggerStrategy),
   unavailable("RaceTime", triggerRaceTime),
-  descriptor("TyreMonitor", triggerTyreMonitor, ["timing.lap-number", "timing.sector.current-index", "tire.temperature.average", "race.pit-status"]),
+  descriptor("TyreMonitor", triggerTyreMonitor, ["timing.lap-number", "timing.sector.current-index", "tire.temperature.core", "race.pit-status"]),
   descriptor("EngineMonitor", triggerEngineMonitor, ["engine.coolant-temperature", "race.pit-status"]),
   descriptor("DamageReporting", triggerDamageReporting, ["damage.car-damage-front", "damage.car-damage-rear"]),
   unavailable("PushNow", triggerPushNow),

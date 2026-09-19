@@ -23,7 +23,7 @@ import {
   packTriplet,
 } from "../../games/kunos/pack-triplet";
 import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
-import { NullWsAdapter } from "../../telemetry/pipeline-ports";
+import { NullWsAdapter, NullSessionRecorderAdapter } from "../../telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 import { OwnershipSchema } from "../laps/support";
@@ -78,6 +78,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     const db = new ImportCaptureAdapter({ ownership: ownership.data });
     const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
+      recorder: new NullSessionRecorderAdapter(),
     });
     const start = Date.now();
 

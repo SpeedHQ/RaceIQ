@@ -46,7 +46,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   }, [routeSelectionKey]);
   const { data: allLaps = emptyLaps } = useLapsQuery();
   const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
-  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(selectedLapId);
+  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(search.view === "track" ? null : selectedLapId);
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
     () =>
       semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
@@ -59,8 +59,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       })) ?? [],
     [semanticReplay, selectedLap?.source],
   );
-  const telemetry = semanticFrames;
-  const displayTelemetry = semanticFrames;
   const lapLoading = semanticLoading;
 
   const parseError = semanticError instanceof Error && "parseError" in semanticError ? String((semanticError as Error & { parseError?: unknown }).parseError ?? "") : null;
@@ -160,13 +158,13 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     if (resolvedNames.trackNames) setTrackNames((p) => mergeNameCache(p, resolvedNames.trackNames));
     if (resolvedNames.carNames) setCarNames((p) => mergeNameCache(p, resolvedNames.carNames));
   }, [resolvedNames]);
+  const carName = selectedCar != null ? (carNames[selectedCar] ?? "") : "";
+  const trackName = selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "";
+
   useEffect(() => {
     const pendingKey = pendingRouteSelectionKey.current;
     if (pendingKey != null) {
-      const routeMatchesState =
-        selectedTrack === (search.track ?? null) &&
-        selectedCar === (search.car ?? null) &&
-        selectedLapId === (search.lap ?? null);
+      const routeMatchesState = selectedTrack === (search.track ?? null) && selectedCar === (search.car ?? null) && selectedLapId === (search.lap ?? null);
       if (!routeMatchesState) return;
       pendingRouteSelectionKey.current = null;
       return;
@@ -185,25 +183,20 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedCar(value);
     setSelectedLapId(null);
   }, []);
-  const [carName, setCarName] = useState("");
-  const [trackName, setTrackName] = useState("");
+  const selectLap = useCallback((trackOrdinal: number, carOrdinal: number, lapId: number) => {
+    setSelectedTrack(trackOrdinal);
+    setSelectedCar(carOrdinal);
+    setSelectedLapId(lapId);
+  }, []);
+
   const cursorRef = useRef(0);
-  const lapChangeCount = useRef(0);
-  useEffect(() => {
-    if (selectedLapId == null) return;
-    lapChangeCount.current++;
-    if (lapChangeCount.current !== 1 || !initialCursor) cursorRef.current = 0;
-    setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
-    setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
-  }, [selectedLapId]);
   return {
     laps,
     setLaps,
     lapLoading,
     lapError,
     parseError,
-    telemetry,
-    displayTelemetry,
+    selectedLap,
     semanticReplay,
     semanticFrames,
     selectedTrack,
@@ -240,10 +233,9 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     filteredLaps,
     carName,
     trackName,
-    setCarName,
-    setTrackName,
     handleTrackChange,
     handleCarChange,
+    selectLap,
     cursorRef,
   };
 }

@@ -8,6 +8,7 @@ interface ShardFixture {
   e2e: string[];
   integration: string[];
   tests: string[];
+  tooling: string[];
   unit: string[];
 }
 
@@ -17,6 +18,7 @@ function withShardFixture(fixture: ShardFixture, run: (root: string) => void): v
     mkdirSync(resolve(root, "scripts/test"), { recursive: true });
     writeFileSync(resolve(root, "scripts/test/unit-files.txt"), fixture.unit.join("\n"));
     writeFileSync(resolve(root, "scripts/test/integration-files.txt"), fixture.integration.join("\n"));
+    writeFileSync(resolve(root, "scripts/test/tooling-files.txt"), fixture.tooling.join("\n"));
     writeFileSync(resolve(root, "scripts/test/e2e-files.txt"), fixture.e2e.join("\n"));
     for (const file of fixture.tests) {
       const path = resolve(root, file);
@@ -34,14 +36,15 @@ describe("test shard coverage", () => {
     withShardFixture(
       {
         e2e: ["test/e2e/example.test.ts"],
-        unit: ["test/unit/example.test.ts"],
         integration: ["test/integration/example.test.tsx"],
-        tests: ["test/unit/example.test.ts", "test/integration/example.test.tsx", "test/e2e/example.test.ts"],
+        tooling: ["test/tooling/example.test.ts"],
+        unit: ["test/unit/example.test.ts"],
+        tests: ["test/unit/example.test.ts", "test/integration/example.test.tsx", "test/tooling/example.test.ts", "test/e2e/example.test.ts"],
       },
       (root) => {
         expect(checkTestShards(root)).toEqual({
-          testCount: 3,
-          suiteCounts: { unit: 1, integration: 1, e2e: 1 },
+          testCount: 4,
+          suiteCounts: { unit: 1, integration: 1, tooling: 1, e2e: 1 },
         });
       },
     );
@@ -52,6 +55,7 @@ describe("test shard coverage", () => {
         e2e: ["test/e2e/example.test.ts"],
         unit: ["test/unit/example.test.ts"],
         integration: ["test/integration/example.test.ts"],
+        tooling: ["test/tooling/example.test.ts"],
         tests: ["test/unit/example.test.ts", "test/integration/example.test.ts", "test/e2e/example.test.ts", "test/new.test.ts"],
       },
       (root) => {
@@ -66,6 +70,7 @@ describe("test shard coverage", () => {
         e2e: ["test/shared.test.ts"],
         unit: ["test/shared.test.ts"],
         integration: ["test/integration/example.test.ts"],
+        tooling: ["test/tooling/example.test.ts"],
         tests: ["test/shared.test.ts", "test/e2e/example.test.ts", "test/integration/example.test.ts"],
       },
       (root) => {
@@ -80,6 +85,7 @@ describe("test shard coverage", () => {
         e2e: ["test/e2e/example.test.ts"],
         unit: ["test/unit/example.test.ts"],
         integration: ["test/deleted.test.ts"],
+        tooling: ["test/tooling/example.test.ts"],
         tests: ["test/unit/example.test.ts", "test/e2e/example.test.ts"],
       },
       (root) => {

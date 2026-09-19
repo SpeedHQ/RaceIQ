@@ -15,10 +15,11 @@ export async function bootstrap(client: Client): Promise<void> {
 export async function runMigrations(
   client: Client,
   throughVersion = Number.POSITIVE_INFINITY,
+  migrationSet = migrations,
 ): Promise<number> {
   const appliedRows = await client.execute("SELECT version FROM schema_migrations");
   const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
-  const pending = migrations
+  const pending = migrationSet
     .filter((m) => !applied.has(m.version) && m.version <= throughVersion)
     .sort((a, b) => a.version - b.version);
 
@@ -27,23 +28,23 @@ export async function runMigrations(
   await client.execute("PRAGMA foreign_keys = OFF");
   try {
     for (const migration of pending) {
-      await client.execute("BEGIN");
+      const tx = await client.transaction("write");
       try {
         for (const sql of migration.sql) {
           try {
-            await client.execute(sql);
+            await tx.execute(sql);
           } catch (stmtErr: unknown) {
             const msg = stmtErr instanceof Error ? stmtErr.message : String(stmtErr);
             if (!msg.includes("duplicate column name")) throw stmtErr;
           }
         }
-        await client.execute({
+        await tx.execute({
           sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
           args: [migration.version, migration.name],
         });
-        await client.execute("COMMIT");
+        await tx.commit();
       } catch (err) {
-        await client.execute("ROLLBACK");
+        await tx.rollback();
         throw err;
       }
     }

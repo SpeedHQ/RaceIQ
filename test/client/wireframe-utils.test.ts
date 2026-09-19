@@ -1,19 +1,12 @@
+import { SLIP_ANGLE_PEAK_RAD } from "../../shared/racing/analysis/laps/physics/vehicle";
 import { describe, test, expect } from "bun:test";
-import {
-  buildTrackIndex,
-  filterByDistance,
-  filterByDistanceIndexed,
-  type FilteredTrackSegment,
-  visualWheelRotationSpeed,
-} from "../../client/src/lib/wireframe-utils";
+import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, type FilteredTrackSegment, resolveTrailLateralUtilization, visualWheelRotationSpeed } from "../../client/src/lib/wireframe-utils";
+import { tireStateFromUtilization } from "../../client/src/lib/vehicle-dynamics";
 
 // Deep-equal helper — bun:test's toEqual already does structural compare,
 // but segment arrays are nested so we just sanity-check lengths and
 // first/last points to keep failures readable when they happen.
-function segmentsMatch(
-  a: ReadonlyArray<FilteredTrackSegment>,
-  b: [number, number, number][][],
-): void {
+function segmentsMatch(a: ReadonlyArray<FilteredTrackSegment>, b: [number, number, number][][]): void {
   expect(a.length).toBe(b.length);
   for (let i = 0; i < a.length; i++) {
     const points = a[i].points;
@@ -44,6 +37,32 @@ describe("visualWheelRotationSpeed", () => {
 
   test("does not derive rolling speed without a valid tire radius", () => {
     expect(visualWheelRotationSpeed(undefined, 66, 0, false)).toBe(0);
+  });
+});
+
+describe("resolveTrailLateralUtilization", () => {
+  test("normalizes physical slip angles against peak grip", () => {
+    const frame = { values: { "tires.tire-slip-angle": [0.12, -0.08, 0, 0] } };
+    expect(resolveTrailLateralUtilization(frame, 0)).toBeCloseTo(0.12 / SLIP_ANGLE_PEAK_RAD);
+    expect(resolveTrailLateralUtilization(frame, 1)).toBeCloseTo(0.08 / SLIP_ANGLE_PEAK_RAD);
+  });
+
+  test("preserves normalized slip utilization", () => {
+    expect(resolveTrailLateralUtilization({ values: { "tires.normalized-tire-slip-angle": [0.2, 0.1, 0, 0] } }, 0)).toBe(0.2);
+  });
+
+  test("does not interpret normalized lateral slip as radians", () => {
+    const lateralUtilization = resolveTrailLateralUtilization({ values: { "tires.normalized-tire-slip-angle": [0.2, 0, 0, 0] } }, 0);
+    expect(tireStateFromUtilization("nominal", 0, lateralUtilization).label).toBe("GRIP");
+  });
+
+  test("prefers physical slip angles when both channels exist", () => {
+    expect(resolveTrailLateralUtilization({ values: { "tires.tire-slip-angle": [0.3], "tires.normalized-tire-slip-angle": [0.7] } }, 0)).toBeCloseTo(0.3 / SLIP_ANGLE_PEAK_RAD);
+  });
+
+  test("returns zero for missing or non-finite values", () => {
+    expect(resolveTrailLateralUtilization({ values: { "tires.tire-slip-angle": [NaN], "tires.normalized-tire-slip-angle": [Infinity] } }, 0)).toBe(0);
+    expect(resolveTrailLateralUtilization({ values: {} }, 0)).toBe(0);
   });
 });
 
@@ -123,9 +142,7 @@ describe("filterByDistanceIndexed", () => {
 
   test("empty and tiny inputs are safe", () => {
     expect(filterByDistanceIndexed(buildTrackIndex([]), 0, 0, 0, 0)).toEqual([]);
-    expect(
-      filterByDistanceIndexed(buildTrackIndex([{ x: 0, z: 0 }]), 0, 0, 0, 0),
-    ).toEqual([]); // single point can't form a segment (needs length > 1)
+    expect(filterByDistanceIndexed(buildTrackIndex([{ x: 0, z: 0 }]), 0, 0, 0, 0)).toEqual([]); // single point can't form a segment (needs length > 1)
   });
 });
 

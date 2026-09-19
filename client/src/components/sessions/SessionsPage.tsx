@@ -7,15 +7,18 @@ import { Button } from "@/components/ui/button";
 import { useDeleteLap, useLaps } from "@/hooks/laps";
 import { queryKeys } from "@/hooks/query-keys";
 import { useSessions } from "@/hooks/session-queries";
+import { useResolveNames } from "@/hooks/catalog-queries";
+import { client } from "@/lib/rpc";
 import { exportLapsZip } from "@/lib/lap-export";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
-import { client } from "@/lib/rpc";
+import { routePrefixForGameId } from "@/lib/game-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";
 import { filterSessions, groupLapsBySession, PAGE_SIZE, paginateSessions, selectionIncludesMotec, sortSessions } from "./helpers";
 import { SessionDesktopTable } from "./SessionDesktopTable";
 import { SessionMobileList } from "./SessionMobileList";
 import { SessionToolbar } from "./SessionToolbar";
+import type { SessionMeta } from "@shared/racing/sessions/types";
 import type { LapSortKey, SessionSelectionEvent, SessionsTab, SortDir, SortKey } from "./types";
 
 export function SessionsPage() {
@@ -31,8 +34,12 @@ export function SessionsPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [lapSortKey, setLapSortKey] = useState<LapSortKey>("lap");
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
-  const [trackNames, setTrackNames] = useState<Record<number, string>>({});
-  const [carNames, setCarNames] = useState<Record<number, string>>({});
+  const trackOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.trackOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
+  const carOrdinals = useMemo(() => [...new Set(sessions.map((session) => session.carOrdinal).filter((ordinal): ordinal is number => !!ordinal))].sort((a, b) => a - b), [sessions]);
+  const { data: resolvedNames } = useResolveNames(trackOrdinals, carOrdinals);
+  const trackNames = resolvedNames?.trackNames ?? {};
+  const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
+  const carNames = resolvedNames?.carNames ?? {};
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
@@ -54,52 +61,31 @@ export function SessionsPage() {
     [navigate],
   );
 
-  const runExport = useCallback(async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
-    if (selectionIncludesMotec(selection, sessions, allLaps) &&
-      !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
-      return;
-    }
-    setExporting(true);
-    try {
-      await exportLapsZip(selection);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : String(error));
-    } finally {
-      setExporting(false);
-    }
-  }, [allLaps, sessions]);
-
-  const lapsBySession = useMemo(() => groupLapsBySession(allLaps), [allLaps]);
-  useEffect(() => {
-    const trackOrdinals = new Set<number>();
-    const carOrdinals = new Set<number>();
-    for (const session of sessions) {
-      if (session.trackOrdinal) trackOrdinals.add(session.trackOrdinal);
-      if (session.carOrdinal) carOrdinals.add(session.carOrdinal);
-    }
-    for (const ordinal of trackOrdinals) {
-      if (!trackNames[ordinal]) {
-        client.api["track-name"][":ordinal"]
-          .$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } })
-          .then((response) => (response.ok ? response.text() : ""))
-          .then((name) => {
-            if (name) setTrackNames((previous) => ({ ...previous, [ordinal]: name }));
-          })
-          .catch(() => {});
+  const runExport = useCallback(
+    async (selection: { lapIds?: number[]; sessionIds?: number[] }) => {
+      if (selectionIncludesMotec(selection, sessions, allLaps) && !window.confirm(m.sessions_export_motec_whole_session_confirm())) {
+        return;
       }
-    }
-    for (const ordinal of carOrdinals) {
-      if (!carNames[ordinal]) {
-        client.api["car-name"][":ordinal"]
-          .$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } })
-          .then((response) => (response.ok ? response.text() : ""))
-          .then((name) => {
-            if (name) setCarNames((previous) => ({ ...previous, [ordinal]: name }));
-          })
-          .catch(() => {});
+      setExporting(true);
+      try {
+        await exportLapsZip(selection);
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      } finally {
+        setExporting(false);
       }
-    }
-  }, [sessions, gameId, trackNames, carNames]);
+    },
+    [allLaps, sessions],
+  );
+  const analyseSession = useCallback(
+    (session: SessionMeta) => {
+      if (!gameId) return;
+      const routePrefix = routePrefixForGameId(gameId);
+      if (!routePrefix) return;
+      void navigate({ to: `/${routePrefix}/sessions/${session.id}/analyse` as never });
+    },
+    [gameId, navigate],
+  );
 
   const toggleSort = useCallback(
     (key: SortKey) => {
@@ -252,6 +238,7 @@ export function SessionsPage() {
         expandedSessions={expandedSessions}
         toggleExpand={toggleExpand}
         selectedSessions={selectedSessions}
+        analyseSession={analyseSession}
         toggleSessionSelection={toggleSessionSelection}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
@@ -283,6 +270,7 @@ export function SessionsPage() {
         selectedSessions={selectedSessions}
         setSelectedSessions={setSelectedSessions}
         toggleSessionSelection={toggleSessionSelection}
+        analyseSession={analyseSession}
         selectedLaps={selectedLaps}
         toggleLapSelection={toggleLapSelection}
         sectorCount={sectorCount}

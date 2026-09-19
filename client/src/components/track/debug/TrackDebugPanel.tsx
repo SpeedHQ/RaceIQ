@@ -132,11 +132,7 @@ export function TrackDebugPanel({
           </div>
         </div>
 
-        <CalibrationComparisonSection
-          comparison={calibrationComparison}
-          showHistory={showCalibrationHistory}
-          onShowHistoryChange={setShowCalibrationHistory}
-        />
+        <CalibrationComparisonSection comparison={calibrationComparison} showHistory={showCalibrationHistory} onShowHistoryChange={setShowCalibrationHistory} />
         <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>

@@ -119,8 +119,8 @@ function AppShell() {
             onOpenSettings={openSettings}
             onShowUpdate={() => setShowUpdateModal(true)}
             packetsPerSec={packetsPerSec}
-            updateAvailable={updateState?.updateAvailable ?? false}
-            updateVersion={updateState?.latest ?? null}
+            updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
+            updateVersion={updateState?.updatesDisabled ? null : (updateState?.latest ?? null)}
           />
         </aside>
 
@@ -155,8 +155,8 @@ function AppShell() {
                 onOpenSettings={openSettings}
                 onShowUpdate={() => setShowUpdateModal(true)}
                 packetsPerSec={packetsPerSec}
-                updateAvailable={updateState?.updateAvailable ?? false}
-                updateVersion={updateState?.latest ?? null}
+                updateAvailable={!updateState?.updatesDisabled && (updateState?.updateAvailable ?? false)}
+                updateVersion={updateState?.updatesDisabled ? null : (updateState?.latest ?? null)}
               />
             </div>
           </div>
@@ -179,7 +179,7 @@ function AppShell() {
           </div>
         )}
 
-        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} onClose={() => setShowUpdateModal(false)} />}
+        {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? updateAvailable ?? "?"} currentVersion={updateState?.current ?? "?"} newReleases={updateState?.newReleases ?? []} fullReleaseNotes={updateState?.fullReleaseNotes ?? null} currentReleaseNotes={updateState?.currentReleaseNotes ?? null} currentReleaseDate={updateState?.currentReleaseDate ?? null} updatesDisabled={updateState?.updatesDisabled} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapReprocessing />

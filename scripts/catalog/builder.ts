@@ -168,7 +168,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     const unit = semanticDefinition?.canonicalUnit ?? inferredUnit;
     const description =
       semanticDefinition?.description ??
-      (TIRE_IDS[set.key]?.[0] === "tire.temperature.average"
+      (TIRE_IDS[set.key]?.[0] === "tire.temperature.surface.representative"
         ? "Common one-value-per-tire temperature. Mapping may be native or a documented average of detailed channels."
         : DESCRIPTION_OVERRIDES[set.key] ??
           fieldInfo?.description ??
@@ -513,6 +513,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   addCrossSourceProjections(variables, groups);
   const semanticCapabilityIds = new Set([...CREWCHIEF_CALLOUT_SEMANTIC_IDS, "timing.sector.current-lap.times"]);
   for (const id of semanticCapabilityIds) {
+    if (id === "timing.sector.current-lap.times") continue;
     if (variables.has(id)) continue;
     const definition = SEMANTIC_DEFINITIONS[id];
     if (!definition) continue;
@@ -520,6 +521,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     variables.set(id, variable);
     attachChild(groups, variable.parentId, id);
   }
+  addSectorDerivedVariables(variables, groups);
 
   for (const group of groups.values()) {
     if (group.parentId) attachChild(groups, group.parentId, group.id);

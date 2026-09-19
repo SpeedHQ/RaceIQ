@@ -102,6 +102,17 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       finalized.push({ sessionId, gameId });
     });
     await pipeline.processPacket(pkt());
+    await pipeline.processPacket(pkt({
+      LapNumber: 2,
+      CurrentLap: 0.1,
+      LastLap: 30,
+      DistanceTraveled: 2_100,
+      TimestampMS: 2_000,
+    }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(finalized).toEqual([]);
+
 
     await Promise.all([
       pipeline.finalizeCurrentSession(),

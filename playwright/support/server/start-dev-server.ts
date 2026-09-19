@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { resetTestDatabase } from "./reset-test-database";
-import { seedScreenshotData } from "./seed-screenshot-data";
+import { seedE2ESetupData, seedScreenshotData } from "./seed-screenshot-data";
 
 const repoDir = process.env.RACEIQ_APP_ROOT ? resolve(process.env.RACEIQ_APP_ROOT) : resolve(__dirname, "..", "..", "..");
 const dir = process.env.DATA_DIR ? resolve(process.env.DATA_DIR) : resolve(repoDir, "playwright", "test-data");
@@ -12,8 +12,16 @@ const udpPort = process.env.UDP_PORT ?? "15318";
 resetTestDatabase(dir);
 
 mkdirSync(dir, { recursive: true });
-writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
+writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort), onboardingComplete: process.env.RACEIQ_E2E === "1" }));
 seedScreenshotData(repoDir, dir);
+if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
+
+const paraglide = spawnSync("bun", ["scripts/dev/paraglide-dev.ts", "--once"], {
+  cwd: repoDir,
+  stdio: "inherit",
+  env: process.env,
+});
+if (paraglide.status !== 0) process.exit(paraglide.status ?? 1);
 
 const server = spawn("bun", ["run", "server/index.ts"], {
   cwd: repoDir,

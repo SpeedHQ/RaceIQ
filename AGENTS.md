@@ -15,6 +15,10 @@ feature flows before broad code searches. Use DeepWiki for orientation, then
 verify implementation details against the current checkout because its content
 may be stale or unavailable. Fall back to repository search when needed.
 
+## Completion Verification
+
+Always run `bun run typecheck` before handing work back to user as complete.
+
 ## Commands
 
 ```bash
@@ -221,14 +225,39 @@ ran v39 before the `car`/`driver` rename.
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
 - **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
+- **Telemetry semantics preserve native channels one-to-one.** Never alias, average, merge, or relabel game output into a different physical concept; use `unavailable` when source lacks a semantic. Consumer projections stay explicit. Follow [telemetry semantic rules](docs/reference/semantics.md).
 - Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
-- **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
+- **Translations:** all user-facing client copy must use Paraglide messages from `client/messages/`; add or update every supported locale before using new text.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
+**Release-note wording**
+
+- Write for customers scanning quickly.
+- Every bullet must name an explicit product subject, affected page or surface when relevant, and user-visible outcome.
+- Prefer short capability statements: `Publish RaceIQ as a non-root Linux Docker image`.
+- Use exact user-facing surfaces: `Live dashboards` and `Analyse pages`, not vague terms such as `the app`.
+- Describe data at user-understandable granularity: `inner, middle, and outer surface temperatures plus core temperature`, not unexplained terms such as `temperature fidelity`.
+- Use generic wording when capability applies across games; name a simulator only when it changes scope or behavior.
+- Omit implementation mechanics such as `from compact metadata summaries` unless they materially change what users can do.
+- Use one capability or correction per bullet. Split unrelated outcomes.
+- Lead with outcome, use concise present tense, and avoid vague verbs (`improve`, `enhance`, `handle`).
+- Prefer `Fix <user action or result>` for corrections.
+- Omit internal names, code paths, PR numbers, and test/CI details. Do not claim broader behavior than shipped.
+- Keep `Features` focused on new capability, `Fixes` on corrected behavior, `Breaking` on migration or compatibility risk, and `Internal` on non-user-facing work.
+- Preserve `### Fixes` and `### Internal` headings in `## Unreleased`, even when empty.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
+
+### Branch and PR targeting
+
+- If user names an existing PR, work only on that PR's head branch.
+- Before committing or pushing, inspect current branch and target PR head.
+- Do not create a new branch or PR when target PR exists.
+- Push changes to target PR head branch; update its description in place.
+- If checkout branch differs from target head, switch to target head before editing.
+- Never force-push target PR branch unless user explicitly requests it.
 
 ### Dependency inspection
 
@@ -327,6 +356,15 @@ Signatures live in `shared/tracks/verified.json`; edits make signatures stale.
 
 Full write-up: [track curation](docs/contributing/track-curation.md).
 
+### Command and Script Reference Checks
+
+When adding, removing, renaming, or changing a package command, script entry point, workflow invocation, or documented command:
+
+1. Search repository references to old and new command/script names, including package manifests, workflows, shell wrappers, READMEs, and CI helper scripts.
+2. Update every affected caller and documentation entry in the same change. Do not leave stale references or add a command without its documented execution path.
+3. Run changed command or non-destructive validation path. For CI commands, execute equivalent local steps and verify failure propagation; `continue-on-error` must be followed by explicit failing gate when job must fail.
+4. If command execution requires unavailable external services, run structural check proving command registration, referenced file existence, and expected exit status; report what remains unverified.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs repository-wide checks before every commit:
@@ -343,6 +381,7 @@ When creating or updating a pull request:
 2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
 3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
 4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
+5. Do not list files in the PR description. Describe behavior, motivation, risk, and verification instead.
 
 ### Pull Request Changelog
 
@@ -394,6 +433,8 @@ initServerGameAdapters();
 **Known issue**: ACC shared memory tests fail on macOS due to `@libsql/client` module resolution (Windows-only feature).
 
 ### CI/CD
+**Mars runner labels:** In GitHub Actions, a `runs-on` list of Mars labels is an OR selector. Use both the Windows and macOS labels when a job must be eligible for either platform; do not create a per-OS matrix unless the job must run once on each platform.
+- **Cross-platform CI:** CI scripts and workflow commands must run on Windows and macOS. Prefer Bun/TypeScript and platform-neutral APIs over shell-specific syntax; when shell code is unavoidable, declare and test its shell explicitly.
 
 - **PR/main**: GitHub Actions runs `bun test` and client build (`.github/workflows/build-test.yml`)
 - **Release tags**: Windows x64 binary compilation via `.github/workflows/release.yml` — Bun compiles server to `raceiq.exe`, bundles with Vite client output into `raceiq-windows-x64.zip`

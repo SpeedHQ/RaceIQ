@@ -55,9 +55,3 @@ export function getFuelDisplaySemantic(
 ): FuelDisplay {
   return getFuelDisplay({ Fuel: fuel, FuelCapacity: capacity }, spec);
 }
-
-export function getTireTemperatureSourceUnit(
-  spec: TelemetryModel["tireTemperature"],
-): "C" | "F" {
-  return spec.packetUnit === "fahrenheit" ? "F" : "C";
-}

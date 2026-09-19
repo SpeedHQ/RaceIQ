@@ -14,7 +14,7 @@ function makeStaticFrame(carOrdinal: number): SemanticAnalysisFrame {
     "motion.speed": 0, "motion.position-x": 0, "motion.position-z": 0, "motion.yaw": 0, "motion.pitch": 0, "motion.roll": 0,
     "inputs.accel": 0, "inputs.brake": 0, "inputs.steer": 0, "inputs.gear": 0,
     "engine.current-engine-rpm": 800, "engine.engine-idle-rpm": 800, "engine.engine-max-rpm": 8000, "fuel.fuel": 1,
-    "tire.temperature.average": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
+    "tire.temperature.surface.representative": [0, 0, 0, 0], "suspension.norm-suspension-travel": [0.5, 0.5, 0.5, 0.5],
   }, states: {}, freshness: {} };
 }
 

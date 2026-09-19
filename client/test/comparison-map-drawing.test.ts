@@ -3,33 +3,35 @@ import { drawTrackCanvas } from "../src/lib/comparison-utils";
 import type { AlignedTrace } from "@shared/racing/comparison/types";
 
 function makeContext() {
-   const fills: string[] = [];
-   const arcs: Array<[number, number, number]> = [];
-   return {
-     fills,
-     arcs,
-     ctx: {
-       fillStyle: "",
-       strokeStyle: "",
-       lineWidth: 1,
-       globalAlpha: 1,
-       clearRect() {},
-       beginPath() {},
-       moveTo() {},
-       lineTo() {},
-       closePath() {},
-       arc(x: number, y: number, radius: number) {
-         arcs.push([x, y, radius]);
-       },
-       stroke() {},
-       fill(this: { fillStyle: string }) { fills.push(this.fillStyle); },
-       save() {},
-       restore() {},
-       translate() {},
-       rotate() {},
-     } as unknown as CanvasRenderingContext2D,
-   };
- }
+  const fills: string[] = [];
+  const arcs: Array<[number, number, number]> = [];
+  return {
+    fills,
+    arcs,
+    ctx: {
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      globalAlpha: 1,
+      clearRect() {},
+      beginPath() {},
+      moveTo() {},
+      lineTo() {},
+      closePath() {},
+      arc(x: number, y: number, radius: number) {
+        arcs.push([x, y, radius]);
+      },
+      stroke() {},
+      fill(this: { fillStyle: string }) {
+        fills.push(this.fillStyle);
+      },
+      save() {},
+      restore() {},
+      translate() {},
+      rotate() {},
+    } as unknown as CanvasRenderingContext2D,
+  };
+}
 
 function makeTraces(): AlignedTrace {
   return {
@@ -61,7 +63,24 @@ function makeTraces(): AlignedTrace {
 test("overview can suppress static segment markers while keeping start marker", () => {
   const { ctx, fills } = makeContext();
 
-  drawTrackCanvas(ctx, 400, 300, [{ x: 0, z: 0 }, { x: 10, z: 10 }], makeTraces(), null, null, [{ x: 5, z: 5, type: "corner", label: "Turn 1" }], false, null, (x) => x, false, false);
+  drawTrackCanvas(
+    ctx,
+    400,
+    300,
+    [
+      { x: 0, z: 0 },
+      { x: 10, z: 10 },
+    ],
+    makeTraces(),
+    null,
+    null,
+    [{ x: 5, z: 5, type: "corner", label: "Turn 1" }],
+    false,
+    null,
+    (x) => x,
+    false,
+    false,
+  );
 
   expect(fills).not.toContain("var(--track-corner-marker)");
   expect(fills).toContain("var(--track-start)");
@@ -70,7 +89,24 @@ test("overview can suppress static segment markers while keeping start marker", 
 test("overview shows one white hover dot at the current distance", () => {
   const { ctx, fills } = makeContext();
 
-  drawTrackCanvas(ctx, 400, 300, [{ x: 0, z: 0 }, { x: 10, z: 10 }], makeTraces(), 5, null, undefined, false, null, (x) => x, false, false);
+  drawTrackCanvas(
+    ctx,
+    400,
+    300,
+    [
+      { x: 0, z: 0 },
+      { x: 10, z: 10 },
+    ],
+    makeTraces(),
+    5,
+    null,
+    undefined,
+    false,
+    null,
+    (x) => x,
+    false,
+    false,
+  );
 
   expect(fills).toContain("var(--app-text)");
   expect(fills).not.toContain("var(--comparison-lap-a)");
@@ -80,7 +116,24 @@ test("overview shows one white hover dot at the current distance", () => {
 test("zoomed view keeps both lap hover dots", () => {
   const { ctx, fills } = makeContext();
 
-  drawTrackCanvas(ctx, 400, 300, [{ x: 0, z: 0 }, { x: 10, z: 10 }], makeTraces(), 5, { centerX: 5, centerZ: 5, range: 10 }, undefined, false, null, (x) => x, false, false);
+  drawTrackCanvas(
+    ctx,
+    400,
+    300,
+    [
+      { x: 0, z: 0 },
+      { x: 10, z: 10 },
+    ],
+    makeTraces(),
+    5,
+    { centerX: 5, centerZ: 5, range: 10 },
+    undefined,
+    false,
+    null,
+    (x) => x,
+    false,
+    false,
+  );
 
   expect(fills).toContain("var(--comparison-lap-a)");
   expect(fills).toContain("var(--comparison-lap-b)");
@@ -89,7 +142,24 @@ test("zoomed view keeps both lap hover dots", () => {
 test("zoomed overlapping lap hover dots share one position", () => {
   const { ctx, arcs } = makeContext();
 
-  drawTrackCanvas(ctx, 400, 300, [{ x: 0, z: 0 }, { x: 10, z: 10 }], makeTraces(), 5, { centerX: 5, centerZ: 5, range: 10 }, undefined, false, null, (x) => x, false, false);
+  drawTrackCanvas(
+    ctx,
+    400,
+    300,
+    [
+      { x: 0, z: 0 },
+      { x: 10, z: 10 },
+    ],
+    makeTraces(),
+    5,
+    { centerX: 5, centerZ: 5, range: 10 },
+    undefined,
+    false,
+    null,
+    (x) => x,
+    false,
+    false,
+  );
 
   const dots = arcs.slice(-2);
   expect(dots).toHaveLength(2);

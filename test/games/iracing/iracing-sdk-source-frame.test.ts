@@ -108,7 +108,7 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.Brake).toBe(51);
     expect(packet?.Steer).toBe(-13);
     expect(packet?.TireTempFL).toBeCloseTo(84);
-    expect(packet?.TireCarcassTempFL).toBeCloseTo(84);
+    expect(packet?.TireCarcassTempFL).toBeUndefined();
     expect(packet?.TireCarcassTempLeftFL).toBe(82);
     expect(packet?.TireCarcassTempMiddleFL).toBe(84);
     expect(packet?.TireCarcassTempRightFL).toBe(86);

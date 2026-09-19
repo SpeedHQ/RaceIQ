@@ -1,6 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getLocale } from "@/paraglide/runtime";
+import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { formatLapTime } from "../../lib/format";
@@ -12,7 +13,7 @@ import { SearchSelect } from "../ui/SearchSelect";
 export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
-    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+    label: m.analyse_lap_option({ lap: lap.lapNumber, time: formatLapTime(lap.lapTime), ownership: lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale }), invalid: !lap.isValid ? " ✕" : "" }),
   };
 }
 import { DropdownMenu } from "../ui/DropdownMenu";
@@ -24,6 +25,7 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   gameId: GameId;
+  onBack?: () => void;
   // Selection state
   selectedTrack: number | null;
   selectedCar: number | null;
@@ -63,6 +65,7 @@ interface Props {
 
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
+  onBack,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -114,7 +117,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     return filteredLaps.map((lap) => {
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
       const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-      const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+      const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });
   }, [filteredLaps]);
@@ -122,6 +125,11 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
+        {onBack && (
+          <Button variant="app-outline" size="app-sm" onClick={onBack}>
+            {m.analyse_session_button()}
+          </Button>
+        )}
         {/* Track selector */}
         <SearchSelect
           value={selectedTrack != null ? String(selectedTrack) : ""}
@@ -219,12 +227,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
               {selectedLap?.notes ? m.analyse_notes_button() : m.analyse_add_notes_button()}
             </Button>
           )}
-          {selectedLapId != null && (
-            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
-              <Trash2 className="size-3.5" />
-              {m.common_delete()}
-            </Button>
-          )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
               {m.analyse_guide_button()}
@@ -247,11 +249,22 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           <DropdownMenu
             trigger={
               <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
+                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.label_actions()}
                 <ChevronDown className="size-3.5" />
               </Button>
             }
             items={[
+              ...(selectedLapId != null
+                ? [
+                    {
+                      key: "delete-lap",
+                      label: m.common_delete(),
+                      icon: <Trash2 className="size-3.5" />,
+                      onClick: onDeleteLap,
+                      className: "text-status-danger hover:text-status-danger/80",
+                    },
+                  ]
+                : []),
               ...(hasTelemetry
                 ? [
                     {
@@ -273,23 +286,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                     },
                   ]
                 : []),
-              {
-                key: "import-session",
-                label: "Import session (.bin or .ibt)",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => importInputRef.current?.click(),
-                disabled: importingBin,
-              },
-              {
-                key: "import-motec",
-                label: "Import MoTeC log",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => {
-                  if (motecTarget) setMotecOpen(true);
-                },
-                disabled: !motecTarget,
-                title: motecTarget ? undefined : "MoTeC import is not supported for this game yet.",
-              },
             ]}
           />
           {hasTelemetry && (
@@ -305,7 +301,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
           <DialogContent size="sm">
             <DialogHeader>
-              <DialogTitle>Choose lap ownership</DialogTitle>
+              <DialogTitle>{m.analyse_choose_ownership()}</DialogTitle>
             </DialogHeader>
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>

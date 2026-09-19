@@ -10,6 +10,7 @@ import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -35,6 +36,7 @@ export type SessionMobileListProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionMobileList({
@@ -61,6 +63,7 @@ export function SessionMobileList({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionMobileListProps) {
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
@@ -102,8 +105,8 @@ export function SessionMobileList({
                     <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
-                        {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      {session.source === "motec" && <MotecBadge />}
+                        {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
+                        {session.source === "motec" && <MotecBadge />}
                       </div>
                       <Button
                         variant="app-outline"
@@ -114,6 +117,17 @@ export function SessionMobileList({
                         }}
                       >
                         Recap
+                      </Button>
+                      <Button
+                        variant="app-primary"
+                        size="app-sm"
+                        disabled={false}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          analyseSession(session);
+                        }}
+                      >
+                        {m.sessions_analyse_session()}
                       </Button>
                       <Button
                         variant="app-outline"

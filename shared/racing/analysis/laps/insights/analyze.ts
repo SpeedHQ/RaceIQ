@@ -5,7 +5,7 @@ import { frameDt } from "../frame-time";
 import { buildAccelReference } from "../time-loss";
 import { detectSuspensionOverload, detectSuspensionImbalance } from "./suspension";
 import { detectFuelConsumption, detectPeakPower, detectBoostAnomaly } from "./mechanical";
-import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit, detectInnerOuterTempSpread } from "./tires";
+import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit } from "./tires";
 import { detectBrakeTractionLoss, detectRevLimiter, detectCoasting, detectTrailBraking, detectCounterSteer, detectEarlyBraking, detectOverSlowing, detectThrottleTractionLoss, detectEarlyThrottle, detectBinaryThrottle } from "./driving-core";
 import { detectBrakeDrag, detectDownshiftOverRev, detectLateBrakingOvershoot, detectUndersteerScrub, detectSteeringSawing, detectThrottleMicroLifts, detectKerbRiding } from "./driving-advanced";
 import type { LapInsight, TimeLossCtx } from "./types";
@@ -38,7 +38,6 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (wearImb) insights.push(wearImb);
   const tempSplit = detectTireTempSplit(telemetry, tireTemperatureUnit);
   if (tempSplit) insights.push(tempSplit);
-  insights.push(...detectInnerOuterTempSpread(telemetry));
 
   // Driving
   if (supportsWheelStateAnalysis) {
