@@ -6,6 +6,7 @@
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapDetectorCallbacks } from "../../server/lap-detection/types";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
@@ -56,10 +57,6 @@ function makePipeline(
 }
 
 describe("LiveTelemetryPipeline live issue gating", () => {
-  test("liveIssuesEnabled defaults to false", () => {
-    const { pipeline } = makePipeline();
-    expect(pipeline.liveIssuesEnabled).toBe(false);
-  });
 
   test("disabled: broadcast liveIssues arg is undefined", async () => {
     const { pipeline, ws } = makePipeline();
@@ -122,5 +119,38 @@ describe("LiveTelemetryPipeline live issue gating", () => {
 
     expect(finalized).toEqual([{ sessionId: 1, gameId: "fm-2023" }]);
     expect(pipeline.lapDetector?.session).toBeNull();
+  });
+});
+
+function completedPackets(): TelemetryPacket[] {
+  return Array.from({ length: 180 }, (_, i) => pkt({
+    gameId: "acc", TimestampMS: i * 16, CurrentLap: i / 60,
+    DistanceTraveled: i * 2, Speed: i < 40 ? 50 : 20,
+    VelocityX: i < 40 ? 50 : 20, VelocityY: 0, VelocityZ: 0,
+    Steer: i < 40 ? 0 : 50, Brake: 1, Accel: 0,
+    TireSlipAngleFL: 0.1, TireSlipAngleFR: 0.1, TireSlipAngleRL: 0, TireSlipAngleRR: 0,
+    TireSlipRatioFL: 0.3, TireSlipRatioFR: 0.3, TireSlipRatioRL: 0, TireSlipRatioRR: 0,
+    NormSuspensionTravelFL: 0.5, NormSuspensionTravelFR: 0.5,
+    NormSuspensionTravelRL: 0.5, NormSuspensionTravelRR: 0.5,
+  }));
+}
+
+describe("completed-lap recording boundary", () => {
+  test("saves laps without unsolicited tuning analysis", async () => {
+    const { pipeline, ws } = makePipeline();
+    // Exercise the detector callback boundary with an active notification consumer.
+    const detectorPort = pipeline as unknown as { _buildCallbacks(): LapDetectorCallbacks };
+    const callbacks = detectorPort._buildCallbacks();
+    callbacks.onLapComplete!({
+      packets: completedPackets(), lapDistStart: 0, lapTime: 90, isValid: true, sectors: null,
+    });
+    callbacks.onLapSaved!({
+      lapId: 101, lapNumber: 2, lapTime: 90, isValid: true,
+      sectors: null, estimatedBestLapTime: 90,
+    });
+    await pipeline.flushIncompleteLap();
+    expect(ws.broadcastedNotifications).toEqual([
+      expect.objectContaining({ type: "lap-saved", lapId: 101, lapNumber: 2 }),
+    ]);
   });
 });

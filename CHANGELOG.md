@@ -4,7 +4,12 @@
 
 ### Fixes
 
+- Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
+- Reduce memory use when compressing sessions and closing ACC or AC Evo diagnostic recordings.
+
 ### Internal
+
+- Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 
 ## v0.18.0 - 2026-09-18
 

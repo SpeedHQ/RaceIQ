@@ -51,4 +51,13 @@ describe("websocket message router", () => {
     expect(devTelemetryStore.get().packet).toEqual(packet);
     expect(telemetryStore.get().telemetryFrame).toBeNull();
   });
+  it("does not let dev-state acknowledgments change raw telemetry subscription", () => {
+    devTelemetryStore.actions.clear();
+    handleWebSocketMessage({ type: "subscription", channel: "dev-telemetry", subscribed: true });
+    handleWebSocketMessage({ type: "subscription", channel: "dev-state", subscribed: false });
+    expect(devTelemetryStore.get().subscribed).toBe(true);
+    devTelemetryStore.actions.clear();
+    handleWebSocketMessage({ type: "subscription", channel: "dev-state", subscribed: true });
+    expect(devTelemetryStore.get().subscribed).toBe(false);
+  });
 });

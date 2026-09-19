@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import { gunzipSync } from "node:zlib";
 import { KunosRecorder } from "../../../server/games/kunos/recorder";
 import { readKunosFrames } from "../../../server/games/kunos/frame-reader";
@@ -9,6 +9,7 @@ import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { join } from "node:path";
 import os from "node:os";
 
@@ -205,6 +206,103 @@ describe("readKunosFrames", () => {
       expect(frames).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true });
+    }
+  });
+});
+
+describe("KunosRecorder finalization", () => {
+  test("updates only the frame count while preserving the binary payload", async () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "acc-finalize-"));
+    try {
+      const recorder = new KunosRecorder();
+      const filePath = recorder.start(dir);
+      const physics = Buffer.alloc(128 * 1024 + 1, 0x35);
+      const graphics = Buffer.from([0x11, 0x22, 0x33]);
+      recorder.writePhysics(physics);
+      recorder.writeGraphics(graphics);
+      await recorder.stop();
+
+      const expectedHeader = Buffer.alloc(16);
+      expectedHeader.write("ACCTEST\0", "ascii");
+      expectedHeader.writeUInt32LE(3, 8);
+      expectedHeader.writeUInt32LE(2, 12);
+      const physicsHeader = Buffer.alloc(5);
+      physicsHeader.writeUInt32LE(physics.length, 1);
+      const graphicsHeader = Buffer.alloc(5);
+      graphicsHeader.writeUInt8(1);
+      graphicsHeader.writeUInt32LE(graphics.length, 1);
+      expect(readFileSync(filePath)).toEqual(Buffer.concat([
+        expectedHeader, physicsHeader, physics, graphicsHeader, graphics,
+      ]));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("finishing an old recording cannot overwrite a replacement started in the same millisecond", async () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "acc-overlap-"));
+    const timestamp = spyOn(Date.prototype, "toISOString").mockReturnValue("2026-09-19T12:00:00.000Z");
+    try {
+      const recorder = new KunosRecorder();
+      const firstPath = recorder.start(dir);
+      const firstPayload = Buffer.from([1, 2, 3]);
+      recorder.writePhysics(firstPayload);
+      const firstStop = recorder.stop();
+      const repeatedStop = recorder.stop();
+      const secondPath = recorder.start(dir);
+      timestamp.mockRestore();
+      const staticPayload = Buffer.from([4, 5, 6]);
+      recorder.writeStatic(staticPayload);
+      await Promise.all([firstStop, repeatedStop]);
+
+      expect(secondPath).not.toBe(firstPath);
+      expect(recorder.recording).toBe(true);
+      expect(recorder.path).toBe(secondPath);
+      expect(recorder.frameCount).toBe(1);
+      recorder.writeStatic(staticPayload);
+      recorder.writePhysics(Buffer.from([7, 8]));
+      await recorder.stop();
+
+      const first = readFileSync(firstPath);
+      expect(first.readUInt32LE(12)).toBe(1);
+      expect(first.subarray(21)).toEqual(firstPayload);
+      const second = readFileSync(secondPath);
+      expect(second.readUInt32LE(12)).toBe(2);
+      expect(second.subarray(21, 24)).toEqual(staticPayload);
+      expect(second.subarray(29)).toEqual(Buffer.from([7, 8]));
+    } finally {
+      timestamp.mockRestore();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("propagates a finalization error without clearing a replacement recording", async () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "acc-stop-error-"));
+    const recorder = new KunosRecorder();
+    const firstPath = recorder.start(dir, "first");
+    recorder.writePhysics(Buffer.from([1]));
+    const error = new Error("Injected finalization open failure");
+    const open = fsPromises.open;
+    const openSpy = spyOn(fsPromises, "open").mockImplementation((path, flags, mode) =>
+      path === firstPath ? Promise.reject(error) : open(path, flags, mode),
+    );
+    try {
+      const firstStop = recorder.stop();
+      const secondPath = recorder.start(dir, "second");
+      recorder.writePhysics(Buffer.from([2]));
+      await expect(firstStop).rejects.toBe(error);
+      openSpy.mockRestore();
+
+      expect(recorder.recording).toBe(true);
+      expect(recorder.path).toBe(secondPath);
+      recorder.writeGraphics(Buffer.from([3]));
+      await recorder.stop();
+      expect(readFileSync(secondPath).readUInt32LE(12)).toBe(2);
+      expect(readFileSync(firstPath).readUInt32LE(12)).toBe(0);
+    } finally {
+      openSpy.mockRestore();
+      await recorder.stop();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

@@ -2,7 +2,6 @@ export type PacketSourceReference = Buffer | { rawOffset: number };
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
@@ -16,9 +15,7 @@ import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
-import { detectCorners } from "../lap-analysis/corners";
-import { telemetryToSymptoms } from "../ai/tune-symptoms";
-import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
+import { detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
 import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
@@ -43,9 +40,6 @@ export class LiveTelemetryPipeline {
   /** Live Tuning Dashboard: gates the per-packet transient issue detector.
    *  Off by default — client opts in via `POST /api/live-analysis`. */
   private _liveIssuesEnabled = false;
-  /** Issues computed in onLapComplete (has packets, no lapId yet), consumed in
-   *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
-  private _pendingLapIssues: TuneIssue[] | null = null;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
   private _continuingSegment = false;
   private _pendingSessionContextFrames: Buffer[] = [];
@@ -205,33 +199,11 @@ export class LiveTelemetryPipeline {
           if (session && getServerGame(session.gameId).runtime.pit.useDistanceBasedWearCurves) {
             this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
           }
-
-          // Live Tuning Dashboard per-lap issue feed. Computed here (packets are
-          // available) but pushed from onLapSaved (lapId/lapNumber are available
-          // there) — onLapComplete always fires synchronously before onLapSaved
-          // for the same lap, so this hand-off is safe.
-          try {
-            const corners = detectCorners(event.packets);
-            const symptoms = telemetryToSymptoms(event.packets, corners);
-            this._pendingLapIssues = symptomsToIssues(symptoms);
-          } catch {
-            this._pendingLapIssues = null;
-          }
-        } else {
-          this._pendingLapIssues = null;
         }
       },
 
       onLapSaved: (event) => {
         this.ws.broadcastNotification({ type: "lap-saved", ...event });
-
-        // Flush the per-lap issue feed computed in onLapComplete, now that we
-        // have lapId/lapNumber to stamp on it.
-        if (this._pendingLapIssues) {
-          const issues = this._pendingLapIssues.map((i) => ({ ...i, lapNumber: event.lapNumber }));
-          this._pendingLapIssues = null;
-          this.ws.broadcastNotification({ type: "lap-issues", lapId: event.lapId, lapNumber: event.lapNumber, issues });
-        }
 
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
@@ -324,7 +296,7 @@ export class LiveTelemetryPipeline {
   /**
    * Shared telemetry processing pipeline used by every telemetry source.
    *
-   * Stages: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
+   * Capture and tracking stay full-rate; WebSocket publication has its own cadence.
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
@@ -420,7 +392,7 @@ export class LiveTelemetryPipeline {
     });
     this.ws.publishTelemetry({ packet, sectors, pit, liveIssues, projection });
 
-    if (!this._skipDevState) {
+    if (!this._skipDevState && this.ws.wantsDevState) {
       this.ws.broadcastDevState({
         lapDetector: detector.getDebugState?.() ?? {},
         sectorTracker: this.sectorTracker.getDebugState(),
@@ -499,7 +471,6 @@ export class LiveTelemetryPipeline {
       this._recordingSession = null;
       this._continuingSegment = false;
       this._pendingSessionContextFrames = [];
-      this._pendingLapIssues = null;
       this._sessionLaps = [];
       await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
       this._broadcastSessionLaps();
@@ -526,6 +497,9 @@ export class LiveTelemetryPipeline {
 
 // Module-level pipeline used by live runtime callers.
 const _defaultWs: WsAdapter = {
+  get wantsDevState() {
+    return wsManager.wantsDevState;
+  },
   get wantsDevTelemetry() {
     return wsManager.wantsDevTelemetry;
   },

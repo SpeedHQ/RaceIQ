@@ -5,13 +5,15 @@
  * .bin files older than 24 hours and gzips them in-place, updating the DB path
  * to .bin.gz. Skips if a session is active to avoid competing with live writes.
  */
-import { unlinkSync, existsSync } from "node:fs";
+import { createReadStream, createWriteStream, unlinkSync, existsSync } from "node:fs";
+import { rename, rm } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
+import { createGzip } from "node:zlib";
 import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { gzipBuffer } from "./framing";
 import {
   cleanupOrphanSessionFiles,
   listSessionCaptureFiles,
@@ -28,13 +30,22 @@ interface CompressedFile {
 
 async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
   const gzPath = `${binPath}.gz`;
-  const source = Buffer.from(await Bun.file(binPath).arrayBuffer());
-  const compressed = await gzipBuffer(source);
-  await Bun.write(gzPath, compressed);
-  return {
-    gzPath,
-    sizeSummary: `${(source.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB`,
-  };
+  const tempPath = `${gzPath}.${crypto.randomUUID()}.tmp`;
+  const source = createReadStream(binPath);
+  const destination = createWriteStream(tempPath, { flags: "wx" });
+  try {
+    await pipeline(source, createGzip(), destination);
+    await rename(tempPath, gzPath);
+    return {
+      gzPath,
+      sizeSummary: `${(source.bytesRead / 1024).toFixed(0)}KB → ${(destination.bytesWritten / 1024).toFixed(0)}KB`,
+    };
+  } catch (error) {
+    await rm(tempPath, { force: true }).catch((cleanupError) => {
+      console.error(`[Compressor] Failed to remove temporary file ${tempPath}:`, cleanupError);
+    });
+    throw error;
+  }
 }
 
 async function compressSession(id: number, binPath: string): Promise<void> {
