@@ -150,6 +150,7 @@ export interface TelemetryState {
   lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
   devState: unknown | null;
   devStatePaused: boolean;
+  devStateConsumers: number;
 }
 
 const initialTelemetryState = {
@@ -180,6 +181,7 @@ const initialTelemetryState = {
   lapIssuesFeed: [],
   devState: null,
   devStatePaused: false,
+  devStateConsumers: 0,
 } as TelemetryState;
 
 export interface TelemetryActions extends StoreActionMap {
@@ -208,6 +210,7 @@ export interface TelemetryActions extends StoreActionMap {
   incrementReprocessProgress: () => void;
   setDevState: (state: unknown) => void;
   toggleDevStatePause: () => void;
+  acquireDevState: () => () => void;
   setDisplayUnits: (unit: "metric" | "imperial", temperatureUnit: "C" | "F") => void;
 }
 
@@ -257,6 +260,15 @@ export const telemetryStore = createStore(initialTelemetryState, (store): Teleme
     store.setState((prev) => ({ ...prev, devState: state }));
   },
   toggleDevStatePause: () => store.setState((prev) => ({ ...prev, devStatePaused: !prev.devStatePaused })),
+  acquireDevState: () => {
+    store.setState((prev) => ({ ...prev, devStateConsumers: prev.devStateConsumers + 1 }));
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      store.setState((prev) => ({ ...prev, devStateConsumers: prev.devStateConsumers - 1 }));
+    };
+  },
   setDisplayUnits: (unit, temperatureUnit) => store.setState((prev) => ({ ...prev, unitSystem: unit, temperatureUnit })),
 }));
 

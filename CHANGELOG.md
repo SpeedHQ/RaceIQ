@@ -4,7 +4,12 @@
 
 ### Fixes
 
+- Keep recording responsive while completed-lap tuning analysis runs in the background.
+- Reduce memory use when compressing sessions and closing ACC or AC Evo diagnostic recordings.
+
 ### Internal
+
+- Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 
 ## v0.18.0 - 2026-09-18
 

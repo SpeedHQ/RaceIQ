@@ -1,4 +1,5 @@
 import { m } from "@/paraglide/messages";
+import { useEffect } from "react";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore, telemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
@@ -35,6 +36,7 @@ export function DevStateContent({ server, stores, paused, onTogglePause }: DevSt
 }
 
 export function DevStateViewer() {
+  useEffect(() => telemetryStore.actions.acquireDevState(), []);
   const devState = useTelemetryStore((s) => s.devState);
   const devStatePaused = useTelemetryStore((s) => s.devStatePaused);
   const telemetry = useTelemetryStore((s) => s);

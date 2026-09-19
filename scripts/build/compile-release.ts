@@ -9,6 +9,8 @@ const child = Bun.spawn([
   "bun",
   "build",
   "--compile",
+  "--root",
+  ".",
   "--target=bun-windows-x64",
   "--windows-icon=assets/raceiq.ico",
   "--windows-title=RaceIQ",
@@ -18,6 +20,7 @@ const child = Bun.spawn([
   "--define",
   'process.env.NODE_ENV="production"',
   "server/bootstrap.ts",
+  "server/telemetry/lap-issues-worker.ts",
   "--outfile",
   "dist/raceiq.exe",
 ], {
