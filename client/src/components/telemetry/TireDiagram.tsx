@@ -1,8 +1,9 @@
 import { getGame } from "@shared/games/registry";
-import { resolveWheelMetric, resolveWheelStates } from "@shared/racing/analysis/metric-values";
+import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import { tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { m } from "@/paraglide/messages";
@@ -23,16 +24,11 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const units = useUnits();
   const adapter = getGame(gameId);
   const analysis = resolveAnalysisTelemetry(adapter);
-  const surfaceTemps = numericWheels(frame, "tire.temperature.surface.representative");
-  const coreTemps = numericWheels(frame, "tire.temperature.core");
   const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value"
     ? analysis.tireTemperature.binding
     : undefined;
-  const resolvedPrimaryTemps = temperatureBinding ? resolveWheelMetric(frame, temperatureBinding) : [null, null, null, null];
-  const primaryTemps = resolvedPrimaryTemps.some((value) => value != null) ? resolvedPrimaryTemps : surfaceTemps;
-  const dualTemperature = surfaceTemps.some((value) => value != null)
-    && coreTemps.some((value) => value != null)
-    && temperatureBinding?.semanticId === "tire.temperature.surface.representative";
+  const primarySemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
+  const primaryKind = primarySemanticId.includes("carcass") ? "carcass" as const : primarySemanticId === "tire.temperature.core" ? "core" as const : "surface" as const;
   const angles = numericWheels(frame, "tires.tire-slip-angle");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const suspensionM = numericWheels(frame, "suspension.suspension-travel-m");
@@ -40,7 +36,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const wear = numericWheels(frame, "tires.tire-wear");
   const states = resolveWheelStates(frame, analysis.traction);
   const steering = numeric(frame, "inputs.steer");
-  const temperatureAvailable = primaryTemps.some((value) => value != null);
   const healthAvailable = wear.some((value) => value != null);
   const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
   const showSlipAngle = angles.some((value) => value != null);
@@ -52,8 +47,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
     return (
       <WheelCard
         label={WHEELS[index]}
-        surfaceTemp={primaryTemps[index] ?? 0}
-        coreTemp={dualTemperature ? coreTemps[index] ?? undefined : undefined}
+        temperatureReadings={tireTemperatureReadings(frame, index, outerSide, primarySemanticId, primaryKind)}
         wear={wear[index] ?? 0}
         slipAngle={(angles[index] ?? 0) * (180 / Math.PI)}
         outerSide={outerSide}
@@ -69,7 +63,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         showWheelState={showWheelState}
         tempCaption={analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp()}
         healthCaption={analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? m.analyse_wheels_pit_health() : m.analyse_wheels_health()}
-        temperatureAvailable={temperatureAvailable}
         healthAvailable={healthAvailable}
       />
     );

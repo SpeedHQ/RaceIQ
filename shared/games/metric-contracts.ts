@@ -198,13 +198,18 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "weather.air-temp",
   "fuel.ers-store-energy",
   "fuel.ers-deploy-mode",
-  "brakes.brake-bias",
   "fuel.ers-deployed",
   "fuel.ers-harvested",
   "fuel.fuel-capacity",
+  "brakes.brake-bias",
   "identity.car-ordinal",
   "identity.player-track-surface",
   "tires.tire-radius",
+  "tire.temperature.surface.representative",
+  "tire.temperature.surface.inner",
+  "tire.temperature.surface.middle",
+  "tire.temperature.surface.outer",
+  "tire.temperature.core",
 ] as const satisfies readonly TelemetryVariableId[];
 
 /** Semantic channels consumed by Analyse for one game's adapter. */

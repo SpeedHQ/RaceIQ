@@ -156,6 +156,7 @@ export const CarWireframe = React.memo(function CarWireframe({
 
   return (
     <div className="w-full h-full relative flex-1">
+      <div role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => `${wheel} ${String((frame.values["tire.temperature.surface.representative"] as number[] | undefined)?.[index] ?? "Unavailable")}`).join(", ")}`}>
       <Canvas
         key="raceiq-car-renderer-v2"
         camera={{ position: [4, 2.5, 4], fov: 50 }}
@@ -256,14 +257,16 @@ export const CarWireframe = React.memo(function CarWireframe({
           hideModelWheels={!minimal}
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
+          temperatureThresholds={units.thresholds}
           tireColors={[
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[0] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[1] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[2] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[3] ?? 0, units.thresholds),
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[0]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[0], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[1]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[1], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[2]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[2], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[3]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[3], units.thresholds) : "var(--status-unavailable)",
           ]}
         />
       </Canvas>
+      </div>
       <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}

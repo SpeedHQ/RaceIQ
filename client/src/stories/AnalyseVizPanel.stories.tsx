@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
@@ -36,6 +36,38 @@ const frame: SemanticAnalysisFrame = {
   states: {},
   freshness: {},
 };
+const profileFrame = (offset: number): SemanticAnalysisFrame => ({
+  ...frame,
+  values: {
+    ...frame.values,
+    "tire.temperature.surface.inner": [78 + offset, 80 + offset, 82 + offset, 84 + offset],
+    "tire.temperature.surface.middle": [92 + offset, 94 + offset, 96 + offset, 98 + offset],
+    "tire.temperature.surface.outer": [108 + offset, 110 + offset, 112 + offset, 114 + offset],
+    "tire.temperature.core": [88 + offset, 90 + offset, 92 + offset, 94 + offset],
+  },
+});
+const profileFrameOne = profileFrame(0);
+const profileFrameTwo: SemanticAnalysisFrame = {
+  ...profileFrame(8),
+  values: { ...profileFrame(8).values, "tire.temperature.surface.inner": [86, null, 90, 92] },
+};
+const profileVariantFrame = (variant: "bands" | "core" | "representative"): SemanticAnalysisFrame => {
+  const values = { ...profileFrameOne.values };
+  if (variant !== "bands") {
+    delete values["tire.temperature.surface.inner"];
+    delete values["tire.temperature.surface.middle"];
+    delete values["tire.temperature.surface.outer"];
+  }
+  if (variant === "representative") delete values["tire.temperature.core"];
+  return { ...profileFrameOne, values };
+};
+
+const profileVariantFrames = {
+  bands: profileVariantFrame("bands"),
+  core: profileVariantFrame("core"),
+  representative: profileVariantFrame("representative"),
+} as const;
+
 
 const telemetry = [frame];
 const trackOutline = Array.from({ length: 96 }, (_, index) => {
@@ -99,6 +131,93 @@ function ThreeDPanelStory() {
     </div>
   );
 }
+
+function ProfileTemperaturesStory() {
+  const cursorRef = useRef(0);
+  const [cursorIdx, setCursorIdx] = useState(0);
+  const [profileEnabled, setProfileEnabled] = useState(true);
+  const [vizMode, setVizMode] = useState<"2d" | "3d">("2d");
+  cursorRef.current = cursorIdx;
+  const selectedFrame = cursorIdx === 0 ? profileFrameOne : profileFrameTwo;
+  const frames = [profileFrameOne, profileFrameTwo];
+  const displayTelemetryRef = useRef(frames);
+  displayTelemetryRef.current = profileEnabled ? frames : [frame, frame];
+  return (
+    <div className="h-screen w-screen bg-app-bg">
+      <div className="absolute z-20 flex gap-2 p-2">
+        <button type="button" onClick={() => setCursorIdx((index) => index === 0 ? 1 : 0)}>Next frame</button>
+        <button type="button" onClick={() => setProfileEnabled((enabled) => !enabled)}>Toggle profile data</button>
+        <button type="button" onClick={() => setVizMode(vizMode === "2d" ? "3d" : "2d")}>Switch {vizMode === "2d" ? "3D" : "2D"}</button>
+
+      </div>
+      <AnalyseVizPanel
+        vizMode={vizMode}
+        onVizModeChange={setVizMode}
+        currentFrame={profileEnabled ? selectedFrame : frame}
+        semanticFrames={profileEnabled ? frames : [frame, frame]}
+        displayTelemetryRef={displayTelemetryRef}
+        cursorRef={cursorRef}
+        cursorIdx={cursorRef.current}
+        lapLine={null}
+        boundaries={null}
+        units={{ tempLabel: "°C", temp: (value: number) => value, thresholds: { cold: 75, warm: 115, hot: 150 } } as never}
+        gameId="f1-2025"
+      />
+    </div>
+  );
+}
+
+function ProfileVariantStory({ variant, vizMode }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d" }) {
+  const cursorRef = useRef(0);
+  const frames = [profileVariantFrames[variant]];
+  const telemetryRef = useRef(frames);
+  const variantLabel = variant === "bands" ? "Inner / Middle / Outer + Core" : variant === "core" ? "Core only" : "Representative surface only";
+  return (
+    <div className="h-screen w-screen bg-app-bg">
+      <div className="absolute z-20 p-2 font-mono text-xs text-app-text-muted">Profile: {variantLabel}</div>
+      <AnalyseVizPanel
+        vizMode={vizMode}
+        onVizModeChange={() => {}}
+        currentFrame={frames[0]}
+        semanticFrames={frames}
+        cursorRef={cursorRef}
+        displayTelemetryRef={telemetryRef}
+        cursorIdx={0}
+        lapLine={null}
+        boundaries={null}
+        units={{ tempLabel: "°C", temp: (value: number) => value, thresholds: { cold: 75, warm: 115, hot: 150 } } as never}
+        gameId="f1-2025"
+      />
+    </div>
+  );
+}
+
+export const ProfileTemperatures: Story = {
+  render: () => <ProfileTemperaturesStory />,
+};
+export const ThreeDProfileBands: Story = {
+  render: () => <ProfileVariantStory variant="bands" vizMode="3d" />,
+};
+
+export const ThreeDProfileCoreOnly: Story = {
+  render: () => <ProfileVariantStory variant="core" vizMode="3d" />,
+};
+
+export const ThreeDProfileRepresentative: Story = {
+  render: () => <ProfileVariantStory variant="representative" vizMode="3d" />,
+};
+
+export const TwoDProfileBands: Story = {
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" />,
+};
+
+export const TwoDProfileCoreOnly: Story = {
+  render: () => <ProfileVariantStory variant="core" vizMode="2d" />,
+};
+
+export const TwoDProfileRepresentative: Story = {
+  render: () => <ProfileVariantStory variant="representative" vizMode="2d" />,
+};
 
 export const ThreeD: Story = {
   render: () => <ThreeDPanelStory />,

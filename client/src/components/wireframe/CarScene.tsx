@@ -13,6 +13,7 @@ import { tireStateFromUtilization } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { resolveTrailLateralUtilization, steeringAngleRadians, THREE_COLORS, visualWheelRotationSpeed } from "../../lib/wireframe-utils";
 import { type SemanticAnalysisFrame, semanticNumber } from "../analyse/track-map/types";
+import { tireTemperatureReadings } from "../analyse/tire-temperature-profile";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";
@@ -100,6 +101,7 @@ export function CarScene({
   suspThresholds,
   autoOrbit,
   tireColors,
+  temperatureThresholds,
 }: {
   gameId: GameId;
   frame: SemanticAnalysisFrame;
@@ -116,17 +118,13 @@ export function CarScene({
   hideModelWheels?: boolean;
   autoOrbit?: boolean;
   tireColors: [string, string, string, string];
+  temperatureThresholds: { cold: number; warm: number; hot: number };
 }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, 0);
   const analysis = resolveAnalysisTelemetry(getGame(gameId));
   const temperatureBinding = analysis.tireTemperature.source !== "unavailable" && analysis.tireTemperature.binding?.kind === "value" ? analysis.tireTemperature.binding : undefined;
   const temperatureSemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
-  const temperatureLabel = temperatureSemanticId === "tire.temperature.surface.representative" ? "Surface" : temperatureSemanticId === "tire.temperature.core" ? "Core" : "Carcass";
-  const dualTemperature =
-    temperatureSemanticId === "tire.temperature.surface.representative" &&
-    Array.isArray(frame.values["tire.temperature.surface.representative"]) &&
-    Array.isArray(frame.values["tire.temperature.core"]);
   const brakeTemperatures = frame.values["brakes.brake-temp"];
   const hasWorldPositionTelemetry = useMemo(() => telemetry.some((f) => semanticNumber(f, "motion.position-x") != null && semanticNumber(f, "motion.position-z") != null), [telemetry]);
 
@@ -381,13 +379,11 @@ export function CarScene({
             position={w.pos}
             steerAngle={w.steer}
             camberAngle={w.camber}
-            gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
-            displayTemp={toggles.wheelInfo ? fmtTemp(wheel(frame, temperatureSemanticId, i)) : ""}
-            temperatureLabel={temperatureLabel}
-            displayCoreTemp={toggles.wheelInfo && dualTemperature ? fmtTemp(wheel(frame, "tire.temperature.core", i)) : undefined}
-            rimColorForDisplay={w.rimColor}
+            temperatureReadings={tireTemperatureReadings(frame, i, i % 2 === 0 ? "left" : "right", temperatureSemanticId, temperatureSemanticId === "tire.temperature.core" ? "core" : temperatureSemanticId.includes("carcass") ? "carcass" : "surface")}
+            fmtTemp={fmtTemp}
+            temperatureThresholds={temperatureThresholds}
             displayBrakeTemp={
               toggles.wheelInfo && Array.isArray(brakeTemperatures) && typeof brakeTemperatures[i] === "number" && Number.isFinite(brakeTemperatures[i])
                 ? fmtTemp(brakeTemperatures[i] as number)

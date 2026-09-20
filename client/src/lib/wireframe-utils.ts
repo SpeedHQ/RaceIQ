@@ -14,9 +14,19 @@ export function makeWheelGeometries(radius: number, width: number) {
   const rimRadius = radius * 0.67;
   const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, true);
   tire.rotateX(Math.PI / 2);
+  const bandGap = width * 0.02;
+  const bandWidth = width / 3 - bandGap;
+  const surfaceBands = [-width / 3, 0, width / 3].map((offset) => {
+    const geometry = new THREE.CylinderGeometry(radius, radius, bandWidth, 16, 1, true);
+    geometry.rotateX(Math.PI / 2);
+    geometry.translate(0, 0, offset);
+    return geometry;
+  }) as [THREE.CylinderGeometry, THREE.CylinderGeometry, THREE.CylinderGeometry];
+  const core = new THREE.CylinderGeometry(radius * 0.84, radius * 0.84, width * 0.92, 16, 1, true);
+  core.rotateX(Math.PI / 2);
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
-  return { tire, rim };
+  return { tire, surfaceBands, core, rim };
 }
 
 /** Convert signed int8 steering input to a bounded front-wheel angle. */
