@@ -164,6 +164,41 @@ describe("compiled telemetry resolver native sources", () => {
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
   });
+  test("resolves canonical F1 weather, sector, and aero damage facts", () => {
+    const requested = [
+      "weather.weather-type",
+      "timing.sector.current-index",
+      "damage.front-left-wing-damage",
+      "damage.front-right-wing-damage",
+      "damage.rear-wing-damage",
+      "damage.floor-damage",
+      "damage.diffuser-damage",
+      "damage.sidepod-damage",
+    ] as const;
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: requested.map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(
+      packet("f1-2025", {
+        f1: {
+          weatherType: "3",
+          currentSector: 2,
+          frontLeftWingDamage: 11,
+          frontRightWingDamage: 12,
+          rearWingDamage: 13,
+          floorDamage: 14,
+          diffuserDamage: 15,
+          sidepodDamage: 16,
+        },
+      } as never),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+
+    expect(frame.resolveValue(resolver.slot("weather.weather-type"))).toMatchObject({ state: "ok", value: "3" });
+    expect(frame.resolveValue(resolver.slot("timing.sector.current-index"))).toMatchObject({ state: "ok", value: 2 });
+    expect(requested.slice(2).map((semanticId) => frame.readValue(resolver.slot(semanticId)))).toEqual([11, 12, 13, 14, 15, 16]);
+  });
   test("resolves canonical ACC and iRacing Live Engineer extensions", () => {
     const accResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
       simulator: "acc",

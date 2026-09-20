@@ -1,6 +1,7 @@
 # Live Voice Engineer Engine
 
 ## Scope
+See [Session Engineer Replay and Semantic Availability](decisions/session-engineer-replay-and-semantic-availability.md) for debugger replay boundaries and fail-closed semantic lifecycle.
 
 This document describes **voice-line triggers**, not the full CrewChief parity inventory.
 

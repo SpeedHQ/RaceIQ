@@ -15,7 +15,7 @@ const frame = (sequence: number, seconds: number, values: Record<string, unknown
 const events = (catalog: CrewChiefTriggerCatalog, source: LiveResolvedSemanticFrame) => catalog.consume(source).events;
 const keys = (catalog: CrewChiefTriggerCatalog, source: LiveResolvedSemanticFrame, family: string) => events(catalog, source).filter((event) => event.family === family).map((event) => event.eventKey);
 
-const tyres = (temperature: number[], lap: number) => ({ "tire.temperature.average": temperature, "timing.lap-number": lap, "timing.current-lap": lap });
+const tyres = (temperature: number[], lap: number) => ({ "tire.temperature.core": temperature, "timing.lap-number": lap, "timing.current-lap": lap });
 
 describe("ACC CrewChief car-health and conditions triggers", () => {
   test("waits for two laps and sector 3, then emits tyre temperature buckets once per transition", () => {
@@ -39,18 +39,46 @@ describe("ACC CrewChief car-health and conditions triggers", () => {
 
   test("reports stable aero or suspension damage once after three seconds", () => {
     const c = new CrewChiefTriggerCatalog();
-    const damage = { "damage.car-damage-front": 0.2, "damage.car-damage-rear": 0.1 };
+    const damage = {
+      "damage.car-damage-front": 0.2,
+      "damage.car-damage-rear": 0.1,
+      "damage.car-damage-left": 0,
+      "damage.car-damage-right": 0,
+      "damage.car-damage-centre": 0,
+    };
     c.consume(frame(0, 0, damage));
     expect(keys(c, frame(1, 2.99, damage), "DamageReporting")).toEqual([]);
     expect(keys(c, frame(2, 3, damage), "DamageReporting")).toContain("damage-reported");
     expect(keys(c, frame(3, 4, damage), "DamageReporting")).toEqual([]);
   });
 
+  test("maps F1 aero damage percentages to existing callout zones", () => {
+    const c = new CrewChiefTriggerCatalog();
+    const f1Damage = {
+      "damage.front-left-wing-damage": 20,
+      "damage.front-right-wing-damage": 10,
+      "damage.rear-wing-damage": 0,
+      "damage.floor-damage": 0,
+      "damage.diffuser-damage": 0,
+      "damage.sidepod-damage": 0,
+    };
+    const f1Frame = (sequence: number, seconds: number): LiveResolvedSemanticFrame => ({
+      ...frame(sequence, seconds, f1Damage),
+      simulator: "f1-2025",
+    });
+
+    c.consume(f1Frame(0, 0));
+    expect(keys(c, f1Frame(1, 2.99), "DamageReporting")).toEqual([]);
+    const reported = events(c, f1Frame(2, 3)).find((event) => event.family === "DamageReporting");
+    expect(reported).toMatchObject({ eventKey: "damage-reported", payload: { front: 0.2, rear: 0, centre: 0 } });
+    expect(keys(c, f1Frame(3, 4), "DamageReporting")).toEqual([]);
+  });
+
   test("samples rain for ten seconds, emits bucket transitions once, and ignores unchanged readings", () => {
     const c = new CrewChiefTriggerCatalog();
-    c.consume(frame(0, 0, { "weather.rain-intensity": 0 }));
-    expect(keys(c, frame(1, 9.9, { "weather.rain-intensity": 0.2 }), "ConditionsMonitor")).toEqual([]);
-    expect(keys(c, frame(2, 10, { "weather.rain-intensity": 0.2 }), "ConditionsMonitor")).toContain("rain-changed");
-    expect(keys(c, frame(3, 20, { "weather.rain-intensity": 0.2 }), "ConditionsMonitor")).toEqual([]);
+    c.consume(frame(0, 0, { "weather.rain-intensity-code": 0 }));
+    expect(keys(c, frame(1, 9.9, { "weather.rain-intensity-code": 2 }), "ConditionsMonitor")).toEqual([]);
+    expect(keys(c, frame(2, 10, { "weather.rain-intensity-code": 2 }), "ConditionsMonitor")).toContain("rain-changed");
+    expect(keys(c, frame(3, 20, { "weather.rain-intensity-code": 2 }), "ConditionsMonitor")).toEqual([]);
   });
 });

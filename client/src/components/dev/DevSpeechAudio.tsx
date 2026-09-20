@@ -76,7 +76,6 @@ export function useDevSpeechAudio(spotter: boolean): DevSpeechAudio {
       player = new LiveEngineerAudioPlayer({
         audioContext: context,
         catalog: source,
-        allowUnapprovedCatalog: source?.version === "live-engineer-qwen-v3",
         fetchImpl: (input, init) => fetch(input, { ...init, signal: controller.signal }),
       });
       // Resume during the click gesture, before catalog/network preparation.

@@ -105,18 +105,25 @@ def synthesize(spec: dict, device: str, dtype: str, work_dir: Path) -> dict:
             write_json(metadata_path, record)
         clips.append(record)
         if index % 100 == 0: print(f"generated {index}/{len(expand_spec(spec))}", flush=True)
+    existing_manifest_path = OUT / "manifest.json"
+    existing_manifest = read_json(existing_manifest_path) if existing_manifest_path.is_file() else {}
+    existing_full_lines = {line["lineId"]: line for line in existing_manifest.get("fullLines", [])}
     full_lines = []
     for line in read_json(ROOT / "shared/racing/live/full-lines.json"):
         line_id, text = line["lineId"], line["spokenText"]; seed = int(fingerprint(f"full/{line_id}")[:8], 16); destination = OUT / "full" / f"{line_id}.flac"
-        torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
-        with torch.inference_mode(): wavs, rate = model.generate_voice_clone(text=text, voice_clone_prompt=prompt, **GENERATION)
-        if len(wavs) != 1: raise RuntimeError(f"expected one full-line waveform: {line_id}")
-        audio = save_audio(destination, np.asarray(wavs[0]), rate)
-        full_lines.append({"lineId": line_id, "spokenText": text, **audio, "sourceTranscript": text, "seed": seed})
+        old = existing_full_lines.get(line_id, {})
+        if old.get("spokenText") == text and old.get("sha256") and destination.is_file() and sha256(destination) == old["sha256"]:
+            record = old
+        else:
+            torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
+            with torch.inference_mode(): wavs, rate = model.generate_voice_clone(text=text, voice_clone_prompt=prompt, **GENERATION)
+            if len(wavs) != 1: raise RuntimeError(f"expected one full-line waveform: {line_id}")
+            record = {"lineId": line_id, "spokenText": text, **save_audio(destination, np.asarray(wavs[0]), rate), "sourceTranscript": text, "seed": seed}
+        full_lines.append(record)
     del prompt, model; gc = getattr(torch.cuda, "empty_cache", None); gc and gc()
     oracle_by_line = {line["lineId"]: {"oracleId": f"oracle.{line['lineId']}", "text": line["spokenText"], "path": line["path"], "sha256": line["sha256"], "durationMs": line["durationMs"], "recipeSegmentIds": []} for line in full_lines}
     recipes = [{"approvalId": f"full-line.{line['lineId']}", "mode": "automatic", "scopeOrDirection": line["lineId"], "segmentIds": [], "oracleId": f"oracle.{line['lineId']}", "status": "not-listened"} for line in full_lines]
-    manifest = {"catalogVersion": spec["catalogVersion"], "model": MODEL, "modelRevision": REVISION, "sampleRate": clips[0]["sampleRate"], "channels": 1, "format": "FLAC PCM_16", "approvedForProduction": False, "listeningStatus": "not-listened", "approvals": {"fixed": {clip["segmentId"]: "not-listened" for clip in clips if clip["role"] == "fixed"}, "recipes": recipes}, "assembly": {"mode": "exact-buffer", "gapMs": 0, "edgeFadeMs": 3}, "referenceText": REFERENCE_TEXT, "referenceSha256": sha256(REFERENCE), "sampleSpecification": str(SPEC_PATH.relative_to(ROOT)).replace("\\", "/"), "specificationSha256": sha256(SPEC_PATH), "generator": str(Path(__file__).relative_to(ROOT)).replace("\\", "/"), "generatorSha256": sha256(Path(__file__)), "clips": clips, "fullLines": full_lines, "oracles": list(oracle_by_line.values())}
+    manifest = {"catalogVersion": spec["catalogVersion"], "model": MODEL, "modelRevision": REVISION, "sampleRate": clips[0]["sampleRate"], "channels": 1, "format": "FLAC PCM_16", "listeningStatus": "not-listened", "approvals": {"fixed": {clip["segmentId"]: "not-listened" for clip in clips if clip["role"] == "fixed"}, "recipes": recipes}, "assembly": {"mode": "exact-buffer", "gapMs": 0, "edgeFadeMs": 3}, "referenceText": REFERENCE_TEXT, "referenceSha256": sha256(REFERENCE), "sampleSpecification": str(SPEC_PATH.relative_to(ROOT)).replace("\\", "/"), "specificationSha256": sha256(SPEC_PATH), "generator": str(Path(__file__).relative_to(ROOT)).replace("\\", "/"), "generatorSha256": sha256(Path(__file__)), "clips": clips, "fullLines": full_lines, "oracles": list(oracle_by_line.values())}
     write_json(OUT / "manifest.json", manifest); return {"clipCount": len(clips), "fullLineCount": len(full_lines), "generated": True}
 
 def check_catalog(spec: dict) -> dict:

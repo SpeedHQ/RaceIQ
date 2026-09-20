@@ -37,6 +37,8 @@ export function telemetryCatalogSourceHash(source: string): string {
 export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
+  "race.penalty-code": Array.from({ length: 22 }, (_, code) => String(code)),
+  "weather.rain-intensity-code": ["0", "1", "2", "3", "4", "5"],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
     "7",

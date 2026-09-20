@@ -80,14 +80,15 @@ export class AccBroadcastState {
       playerCarIndex: this.playerCarIndex,
       playerCarClassId: rows.find(({ car }) => car.carIndex === this.playerCarIndex)?.entry.cupCategory.toString(),
       carIndex: rows.map(({ car }) => car.carIndex),
-      driverId: rows.map(({ car }) => `${car.carIndex}:${car.driverIndex}`),
+      driverId: rows.map(({ car, entry }) => entry.drivers[car.driverIndex] ? `${car.carIndex}:${car.driverIndex}` : ""),
       driverName: rows.map(({ entry, car }) => {
-        const driver = entry.drivers.find((candidate) => candidate === entry.drivers[entry.currentDriverIndex]) ?? entry.drivers[0]!;
-        return `${driver.firstName} ${driver.lastName}`.trim() || String(car.carIndex);
+        const driver = entry.drivers[car.driverIndex];
+        return driver ? `${driver.firstName} ${driver.lastName}`.trim() : "";
       }),
       carClassId: rows.map(({ entry }) => String(entry.cupCategory)),
       carClassName: rows.map(({ entry }) => String(entry.cupCategory)),
       lapsComplete: rows.map(({ car }) => car.laps),
+      position: rows.map(({ car }) => car.position),
       pitStatus: rows.map(({ car }) => location(car.location) === "track" ? "out" : location(car.location)),
       trackLocation: rows.map(({ car }) => location(car.location)),
       positionX: rows.map(({ car }) => car.worldPosX),

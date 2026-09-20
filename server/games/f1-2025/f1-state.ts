@@ -34,6 +34,9 @@ import {
   type F1SessionHistoryData,
 } from "./f1-packet-decoders";
 const F1_FORMULA_NAMES: Readonly<Record<number, string>> = { 0: "F1", 1: "F2", 2: "F1 classic", 3: "F1 2025" };
+const f1PitState = (status: number): "out" | "pit_lane" | "in_pit" => status === 1 ? "pit_lane" : status === 2 ? "in_pit" : "out";
+const f1FlagStatus = (flag: number): "invalid" | "none" | "green" | "blue" | "yellow" | "red" =>
+  ({ [-1]: "invalid", 0: "none", 1: "green", 2: "blue", 3: "yellow", 4: "red" } as const)[flag] ?? "invalid";
 
 /**
  * Stateful accumulator for F1 2025 UDP telemetry.
@@ -194,10 +197,10 @@ export class F1StateAccumulator {
         const participant = this.participants[i];
         const csEntry = cs?.allCars[i];
         const history = this.driverHistory.get(i);
-
         const motion = m.allCars[i];
         const formulaClassId = String(sess?.formula ?? 0);
         const formulaClassName = F1_FORMULA_NAMES[sess?.formula ?? 0] ?? `formula-${formulaClassId}`;
+
         grid.push({
           position: car.position,
           driverId: participant.driverId,
@@ -209,15 +212,18 @@ export class F1StateAccumulator {
           classPosition: car.position,
           isPlayer: i === this.playerCarIndex,
           connected: true,
-          completedLapNumber: history?.lastLapNumber ?? 0,
+          currentLapNum: car.currentLapNum,
+          completedLapNumber: history?.lastLapNumber ?? Math.max(0, car.currentLapNum - 1),
           completionSourceSequence: header.overallFrameIdentifier,
           lapValidBitFlags: history?.lastLapValidBitFlags ?? 0,
+          lastLapValid: history ? (history.lastLapValidBitFlags & 1) !== 0 : undefined,
           currentLapTime: car.currentLapTime,
           lastLapTime: car.lastLapTime,
           bestLapTime: history?.bestLapTime ?? car.bestLapTime,
           gapToLeader: car.position === 1 ? 0 : (leaderBestDist - car.totalDistance) / Math.max(1, ct.speed / 3.6),
           gapToCarAhead: 0,
           pitStatus: car.pitStatus,
+          pitState: f1PitState(car.pitStatus),
           numPitStops: car.numPitStops,
           tyreCompound: csEntry ? getF1CompoundName(csEntry.tyreVisualCompound) : "unknown",
           tyreAge: csEntry?.tyreAge ?? 0,
@@ -237,16 +243,28 @@ export class F1StateAccumulator {
         positionSorted[i]!.gapToCarAhead = positionSorted[i]!.gapToLeader - positionSorted[i - 1]!.gapToLeader;
       }
     }
-
+    const playerCar = ld.allCars[this.playerCarIndex];
+    const playerFormulaClassId = String(sess?.formula ?? 0);
+    const playerCurrentLapValid = ld.currentLapInvalid === 0;
+    const playerPitStatus = playerCar ? f1PitState(playerCar.pitStatus) : undefined;
+    const vehicleFIAFlags = cs?.vehicleFIAFlags ?? -1;
+    const flagStatus = f1FlagStatus(vehicleFIAFlags);
+    const weatherType = String(sess?.weather ?? 0);
     const f1: F1ExtendedData = {
       drsAllowed: cs?.drsAllowed ?? false,
       drsActivated: ct.drs,
-      drsZoneApproaching: false, // TODO: from motion extra data
+      drsZoneApproaching: false,
       ersStoreEnergy: cs?.ersStore ?? 0,
       ersDeployMode: cs?.ersDeployMode ?? 0,
       ersDeployedThisLap: cs?.ersDeployedThisLap ?? 0,
       ersHarvestedThisLap: cs?.ersHarvestedThisLap ?? 0,
       isSpectating: sess?.isSpectating ?? false,
+      playerCarIndex: this.playerCarIndex,
+      playerFormulaClassId,
+      playerCurrentLapValid,
+      playerPitStatus,
+      flagStatus,
+      weatherType,
       tyreCompound: cs ? getF1CompoundName(cs.tyreVisualCompound) : "unknown",
       tyreVisualCompound: cs?.tyreVisualCompound ?? 0,
       tyreAge: cs?.tyreAge ?? 0,
@@ -520,7 +538,6 @@ export class F1StateAccumulator {
       ErsHarvested: cs?.ersHarvestedThisLap ?? 0,
 
       // Weather/track conditions
-      WeatherType: sess?.weather ?? 0,
       TrackTemp: sess?.trackTemp ?? 0,
       AirTemp: sess?.airTemp ?? 0,
       RainPercent: sess?.rainPercentage ?? 0,

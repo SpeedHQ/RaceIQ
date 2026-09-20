@@ -5,6 +5,7 @@ import { importRoutes } from "./import-routes";
 import { recordingPacketRoutes, recordingRoutes } from "./recording-routes";
 import { replayRoutes } from "./replay-routes";
 import { liveEngineerRoutes } from "./live-engineer-routes";
+import { liveEngineerReplayRoutes } from "./live-engineer-replay-routes";
 // Initialize game adapters on module load, exactly once for the dev route tree.
 initGameAdapters();
 initServerGameAdapters();
@@ -15,4 +16,5 @@ export const devRoutes = new Hono()
   .route("/", importRoutes)
   .route("/", replayRoutes)
   .route("/", recordingPacketRoutes)
-  .route("/", liveEngineerRoutes);
+  .route("/", liveEngineerRoutes)
+  .route("/", liveEngineerReplayRoutes);

@@ -1,6 +1,6 @@
 {
   "catalogVersion": "live-engineer-qwen-v3",
-  "expectedClipCount": 958,
+  "expectedClipCount": 975,
   "sampleRate": 24000,
   "channels": 1,
   "model": "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
@@ -200,6 +200,22 @@
     ]
   ],
   "raceEngineer": [
+    ["race-time-15-minutes", "Fifteen minutes remaining."],
+    ["race-time-10-minutes", "Ten minutes remaining."],
+    ["race-time-5-minutes", "Five minutes remaining."],
+    ["race-time-2-minutes", "Two minutes remaining."],
+    ["race-time-1-minute", "One minute remaining."],
+    ["session-ended", "Session finished."],
+    ["gap-ahead-closing", "You're closing the gap to the car ahead."],
+    ["gap-ahead-growing", "The car ahead is pulling away."],
+    ["gap-behind-closing", "The car behind is closing in."],
+    ["gap-behind-growing", "You're pulling away from the car behind."],
+    ["driver-changed", "An opponent has changed drivers."],
+    ["fuel-save-required", "At this consumption, you'll need more fuel to finish."],
+    ["fuel-to-finish", "You now have enough fuel to finish at this consumption."],
+    ["push-now", "Closing laps. Fuel looks good. Push now."],
+    ["drs-open", "DRS is open."],
+    ["drs-closed", "DRS is closed."],
     [
       "position-changed",
       "Position changed."
@@ -211,6 +227,10 @@
     [
       "green-flag",
       "Green flag."
+    ],
+    [
+      "final-lap",
+      "Final lap."
     ],
     [
       "lap-completed",
@@ -296,10 +316,6 @@
     "right",
     "centre"
   ],
-  "approval": {
-    "approvedForProduction": false,
-    "listeningStatus": "not-listened"
-  },
   "recipes": {
     "automatic": [
       "pace status both scopes",

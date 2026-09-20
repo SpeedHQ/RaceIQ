@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.gap-behind-growing",
+  "spokenText": "You're pulling away from the car behind.",
+  "seed": 2105831424,
+  "path": "chunks/race-engineer.gap-behind-growing.flac",
+  "sha256": "8806348475870d2ec43f1b96d18d145950d6247aec1d6b338a440ed67222f53d",
+  "frames": 42240,
+  "sampleRate": 24000,
+  "durationMs": 1760,
+  "sourceTranscript": "You're pulling away from the car behind.",
+  "sourceHash": "b9714ceab698e2e021c208861ab27f37504fb8db696653e4e8fc3948310b0f9a",
+  "role": "fixed"
+}

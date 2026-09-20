@@ -4,6 +4,7 @@ import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { LiveEngineerReplaySourceProfileV1 } from "../../shared/racing/live/engineer-replay-contracts";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
@@ -370,6 +371,41 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     }
   }
   return packets;
+}
+export interface SessionTelemetryReplaySource {
+  packets: TelemetryPacket[];
+  sourceProfile: LiveEngineerReplaySourceProfileV1;
+}
+
+export async function getSessionTelemetryReplaySource(sessionId: number, gameId: GameId): Promise<SessionTelemetryReplaySource> {
+  const session = await db.select({ rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
+  const packets = await getSessionTelemetry(sessionId, gameId);
+  const rawFile = session?.rawFile ?? "";
+  const captureKind = rawFile.endsWith(".motec.zip") ? "motec-packets" : rawFile.endsWith(".gz") ? "compressed-capture" : "capture";
+  const sourceClockCaptured = gameId === "iracing" || gameId === "f1-2025";
+  return {
+    packets,
+    sourceProfile: {
+      gameId,
+      captureKind,
+      limitations: gameId === "fm-2023"
+        ? ["player-only-telemetry", "source-clock-not-captured"]
+        : gameId === "acc"
+          ? ["persisted-source-not-captured:broadcast", "source-clock-not-captured"]
+          : gameId === "ac-evo"
+            ? ["persisted-source-not-captured:broadcast", "source-clock-not-captured", "inherited-acc-broadcast-mappings-excluded"]
+            : gameId === "f1-2025"
+              ? ["no-game-branch:spotter"]
+              : ["native-spotter-requires-captured-car-left-right", "v2-and-ibt-session-info-limitations"],
+      sourceClockCaptured,
+      segmentCount: 1,
+      skippedMalformedFrames: 0,
+      nativeSessionInfo: gameId === "iracing",
+      retainedPrefix: rawFile.length > 0,
+    },
+  };
 }
 function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
   try {

@@ -49,7 +49,8 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
     "session.session-type", "session.session-state", "session.phase", "session.session-flags", "session.is-spectating",
     "timing.session-time-remain", "timing.session-time-total", "session.laps-remaining", "timing.lap-number",
     "timing.last-completed-lap-number", "timing.lap-fraction", "timing.current-lap-valid", "timing.last-lap",
-    "timing.predicted-lap-time", "timing.sector.current-index", "timing.track-length", "race.race-position",
+    "timing.predicted-lap-time", "timing.sector.current-index", "timing.track-length", "timing.total-laps", "race.race-position",
+    "timing.session-time-left-ms", "race.is-timed-race", "race.is-race-on",
     "race.player-class-position",
   ),
   OPPONENT: ids(
@@ -59,11 +60,13 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
     "timing.competitor.current-lap-number", "timing.competitor.current-lap-time", "timing.competitor.last-lap-time",
     "timing.competitor.last-lap-valid", "timing.competitor.best-lap-time", "timing.competitor.lap-fraction",
     "timing.competitor.gap-to-ahead", "timing.competitor.gap-to-leader", "timing.sector.competitor-last.s1",
+    "timing.gap-ahead-ms", "timing.gap-behind-ms",
     "timing.sector.competitor-last.s2", "timing.sector.competitor-last.s3",
   ),
   FLAGS_PENALTIES: ids(
     "race.flag-status", "race.safety-car-status", "session.session-flags", "race.incident-flags", "race.session-summary.caution-flags",
     "race.penalties", "race.player-incident-count", "race.driver-incident-count", "race.team-incident-count",
+    "race.penalty-code",
   ),
   SPATIAL_SPOTTER: ids(
     "identity.player-car-index", "identity.player-track-surface", "identity.car-left-right", "motion.position-x", "motion.position-y",
@@ -97,7 +100,7 @@ export const CREWCHIEF_SEMANTIC_GROUPS = {
     "damage.car-damage-left", "damage.car-damage-right", "damage.car-damage-centre", "damage.tyres-damage", "damage.drs-fault", "damage.ers-fault",
     "engine.current-engine-rpm", "engine.coolant-temperature", "engine.oil-temperature", "engine.oil-pressure", "engine.engine-temperature", "engine.exhaust-temp-c",
   ),
-  CONDITIONS: ids("weather.air-temp", "weather.track-temp", "weather.track-wetness", "weather.rain-intensity", "weather.rain-percent", "weather.wind-speed", "weather.wind-direction", "weather.track-grip-status"),
+  CONDITIONS: ids("weather.air-temp", "weather.track-temp", "weather.track-wetness", "weather.weather-type", "weather.rain-intensity", "weather.rain-intensity-code", "weather.rain-percent", "weather.wind-speed", "weather.wind-direction", "weather.track-grip-status"),
   OVERTAKING_AIDS: ids("aero.drs-available", "aero.drs-active", "aero.drs-zone-approaching", "timing.drs-activation-distance", "race.player.push-to-pass-active", "race.player.push-to-pass-count"),
   DRIVER_TEAM_RATINGS: ids("identity.player-driver-id", "race.competitor.team-id", "race.competitor.team-name", "race.competitor.rating", "race.competitor.license-level", "race.competitor.license-name", "race.competitor.driver-incident-count", "race.competitor.team-incident-count", "session.driver-change-rule-set", "session.driver-change.drivers-used"),
 } as const;

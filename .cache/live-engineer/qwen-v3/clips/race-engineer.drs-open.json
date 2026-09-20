@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.drs-open",
+  "spokenText": "DRS is open.",
+  "seed": 3151990742,
+  "path": "chunks/race-engineer.drs-open.flac",
+  "sha256": "91121e3c988417287a5446ce947cca7247b208d692cd63c113fbfb92ff49358b",
+  "frames": 24960,
+  "sampleRate": 24000,
+  "durationMs": 1040,
+  "sourceTranscript": "DRS is open.",
+  "sourceHash": "add967958889efc8848879464b21bcae16facd3eafbda1d1deda32e8e1973c3b",
+  "role": "fixed"
+}

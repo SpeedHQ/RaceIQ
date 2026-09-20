@@ -48,7 +48,8 @@ test("every reachable CrewChief event renders deterministic packaged speech", ()
   if (!renderCrewChiefEvent) return;
   const events = [
     ["position-changed", { position: 2, previousPosition: 3 }], ["pre-lights", { sessionPhase: "formation" }],
-    ["green-flag", { sessionPhase: "green" }], ["lap-completed", { lapNumber: 4, lapTimeMs: 92_417 }],
+    ["green-flag", { sessionPhase: "green" }], ["final-lap", { lap: 5, totalLaps: 5 }],
+    ["lap-completed", { lapNumber: 4, lapTimeMs: 92_417 }],
     ["opponent-lap-completed", { competitorId: "car-12", lapTimeMs: 91_183 }],
     ["multiclass-traffic", { competitorId: "car-12", class: "GT3", relativeDistance: 0.2 }],
     ["penalty-issued", { penalty: "drive-through" }], ["pit-entry", { pitLane: true }], ["pit-exit", { pitLane: false }],
@@ -64,7 +65,7 @@ test("every reachable CrewChief event renders deterministic packaged speech", ()
     expect(rendered.text, eventKey).not.toBe("");
     expect(rendered.segmentIds.length, eventKey).toBeGreaterThan(0);
     const expectedFlag = "current" in payload ? String(payload.current) : "";
-    const expectedSegmentId = expectedFlag === "black" ? "race-engineer.black-flag" : expectedFlag === "blue" ? "race-engineer.blue-flag" : eventKey === "flag-change" && expectedFlag === "green" ? "race-engineer.green-flag" : eventKey === "damage-reported" ? "race-engineer.damage-heavy-front" : `race-engineer.${eventKey}`;
+    const expectedSegmentId = expectedFlag === "black" ? "race-engineer.black-flag" : expectedFlag === "blue" ? "race-engineer.blue-flag" : eventKey === "flag-change" && expectedFlag === "green" ? "race-engineer.green-flag" : eventKey === "damage-reported" ? "race-engineer.damage-heavy-front" : eventKey === "lap-completed" ? "lap.lead.your-lap-was" : `race-engineer.${eventKey}`;
     expect(rendered.segmentIds.some((id) => id === expectedSegmentId), eventKey).toBe(true);
     expect(rendered.voiceMode, eventKey).toBe("automatic");
     expectRenderedClipsReady(eventKey, rendered.segmentIds);

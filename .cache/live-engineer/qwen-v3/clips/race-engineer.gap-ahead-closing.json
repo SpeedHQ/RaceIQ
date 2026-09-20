@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.gap-ahead-closing",
+  "spokenText": "You're closing the gap to the car ahead.",
+  "seed": 668029125,
+  "path": "chunks/race-engineer.gap-ahead-closing.flac",
+  "sha256": "903c0656601ace84d24b60ca57fab66b2000fbaefff0596fceceebe1bd43e039",
+  "frames": 40320,
+  "sampleRate": 24000,
+  "durationMs": 1680,
+  "sourceTranscript": "You're closing the gap to the car ahead.",
+  "sourceHash": "b79b6ee5c6c249e20baa2a4fe6408975b6858312495d5c3c519258de964cf741",
+  "role": "fixed"
+}

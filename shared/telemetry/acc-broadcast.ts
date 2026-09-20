@@ -72,6 +72,7 @@ export interface AccBroadcastExtension {
   carClassId: readonly string[];
   carClassName: readonly string[];
   lapsComplete: readonly number[];
+  position: readonly number[];
   pitStatus: readonly string[];
   trackLocation: readonly string[];
   positionX: readonly number[];

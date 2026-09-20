@@ -1,6 +1,6 @@
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
-import { isLiveEngineerGameId } from "../../shared/telemetry/live/semantics";
+import { isEngineerSupportedGameId } from "../../shared/telemetry/live/semantics";
 import type { CrewChiefTriggerBatchV1, CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
 import { extractLiveEngineerSemanticInput } from "./live-engineer-semantic-input";
 import {
@@ -24,10 +24,16 @@ export type LiveEngineerVoiceLineOptions =
 
 export interface LiveEngineerVoiceEngineOptions {
   emit: (message: LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3) => void;
+  allowUnsupportedGame?: boolean;
+  onCandidate?: (candidate: LiveEngineerRuntimeCandidate, frame: LiveResolvedSemanticFrame) => void;
+  onDecision?: (candidate: LiveEngineerRuntimeCandidate, reason: string, frame: LiveResolvedSemanticFrame) => void;
+  onSelected?: (candidate: LiveEngineerRuntimeCandidate, frame: LiveResolvedSemanticFrame) => void;
+  onSpotterEvent?: (event: unknown, frame: LiveResolvedSemanticFrame) => void;
 }
 
 
 const OPTIONAL_CONTEXT = ["race.safety-car-status", "race.flag-status", "session.session-flags"] as const;
+const NON_ACTIONABLE_AUTOMATIC_EVENTS = new Set(["position-changed", "opponent-lap-completed"]);
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const finitePositive = (value: unknown): value is number => finite(value) && value > 0;
@@ -51,6 +57,7 @@ export function createLiveEngineerVoiceLine(
 
 export class LiveEngineerVoiceEngine {
   readonly triggerDiagnostics: CrewChiefTriggerEventV1[] = [];
+  private readonly options: LiveEngineerVoiceEngineOptions;
   private readonly emitMessage: LiveEngineerVoiceEngineOptions["emit"];
   private readonly tracker = new OpponentPaceTracker();
   private readonly spotter = new SpotterTracker();
@@ -66,16 +73,16 @@ export class LiveEngineerVoiceEngine {
   private armed = false;
   private previousPlayerLap = 0;
   private playerLapInvalid = false;
-  private previousLapPaceAvailable = false;
   private readonly previousCompetitorLaps = new Map<string, number>();
   constructor(options: LiveEngineerVoiceEngineOptions) {
+    this.options = options;
     this.emitMessage = options.emit;
   }
 
   consume(input: LiveResolvedSemanticFrame | CrewChiefTriggerBatchV1): void {
     const batch = "events" in input ? input as CrewChiefTriggerBatchV1 : undefined;
     const frame = batch ? batch.semanticFrame : input as LiveResolvedSemanticFrame;
-    if (!frame || (batch ? !isLiveEngineerGameId(batch.context.simulator) : !isLiveEngineerGameId(frame.simulator))) return;
+    if (!frame || (!this.options.allowUnsupportedGame && !isEngineerSupportedGameId(batch ? batch.context.simulator : frame.simulator))) return;
     const key = `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}`;
     const targetEpoch = batch?.timelineEpoch ?? (key === this.streamKey ? this.timelineEpoch : this.timelineEpoch + 1);
     if (key !== this.streamKey || targetEpoch !== this.timelineEpoch) {
@@ -93,18 +100,23 @@ export class LiveEngineerVoiceEngine {
     const batchSelection = !!batch;
     if (batch) {
       for (const event of batch.events) {
+        if (NON_ACTIONABLE_AUTOMATIC_EVENTS.has(event.eventKey)) continue;
         const candidate: LiveEngineerRuntimeCandidate = {
           candidateId: event.triggerId, actionKey: event.eventKey, cooldownGroup: `race-engineer:${event.family}:${event.eventKey}`, sourceFactIds: [...event.evidenceSemanticIds], policyVersion: "race-engineer-v3",
           renderParameters: { triggerFamily: event.family, eventKey: event.eventKey, payload: event.payload, source: event.source },
           sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: event.severity === "critical" ? "high" : event.severity === "warning" ? "normal" : "low", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 12_000,
         };
-        if (this.runtime.submit(candidate).reason === "selected") {
+        const submission = this.runtime.submit(candidate);
+        this.options.onCandidate?.(candidate, frame);
+        this.options.onDecision?.(candidate, submission.reason, frame);
+        if (submission.reason === "selected") {
           this.triggerEvents.set(event.triggerId, event);
           while (this.triggerEvents.size > 64) this.triggerEvents.delete(this.triggerEvents.keys().next().value!);
         }
       }
       const selected = this.runtime.selectNext(this.runtimeClockMs);
       if (selected) {
+        this.options.onSelected?.(selected, frame);
         const parameters = selected.renderParameters;
         if ("relation" in parameters) {
           this.emitCandidate(selected, frame);
@@ -137,32 +149,31 @@ export class LiveEngineerVoiceEngine {
       this.armed = true;
       this.previousPlayerLap = lapState.lapNumber;
       this.playerLapInvalid = !lapState.currentLapValid;
-      this.previousLapPaceAvailable = semanticInput.pace !== null;
       return;
     }
     if (lapState.lapNumber === this.previousPlayerLap) {
       this.playerLapInvalid ||= !lapState.currentLapValid;
-      this.previousLapPaceAvailable &&= semanticInput.pace !== null;
       return;
     }
     if (lapState.lapNumber < this.previousPlayerLap) return;
     const completedLap = this.previousPlayerLap;
-    const paceAvailableForCompletedLap = this.previousLapPaceAvailable;
     const eligible = !this.playerLapInvalid && !lapState.inPit && !caution;
     this.previousPlayerLap = lapState.lapNumber;
     this.playerLapInvalid = !lapState.currentLapValid;
-    this.previousLapPaceAvailable = semanticInput.pace !== null;
-    if (!eligible || !paceAvailableForCompletedLap || !semanticInput.pace) return;
+    if (!eligible || !semanticInput.pace) return;
     const { pace } = semanticInput;
     const player: PlayerLapForPaceV1 = { sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, lapNumber: completedLap, lapTimeMs: Math.round(lapState.lastLapTimeSeconds * 1000), classId: pace.playerCarClassId, sessionType: pace.sessionType, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, inPit: false, caution: false };
     const candidate = this.tracker.createCandidate(player);
     if (!candidate) return;
     const runtimeCandidate: LiveEngineerRuntimeCandidate = {
-      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
+      candidateId: candidate.candidateId, actionKey: "opponent-pace-status", cooldownGroup: "opponent-pace", sourceFactIds: [candidate.benchmarkFactId], policyVersion: "opponent-pace-v1", renderParameters: { relation: candidate.relation, scope: frame.simulator === "f1-2025" || player.classId === "overall" ? "overall" : "class", playerLapNumber: player.lapNumber, playerLapTimeMs: player.lapTimeMs, benchmarkLapTimeMs: candidate.benchmarkLapTimeMs, deltaMs: candidate.deltaMs, benchmarkKind: pace.sessionType.toLowerCase() === "race" ? "recent-race-pace" : "session-best" }, sessionId: player.sessionId, timelineEpoch: player.timelineEpoch, sourceSequence: player.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000,
     };
-    this.runtime.submit(runtimeCandidate);
+    const submission = this.runtime.submit(runtimeCandidate);
+    this.options.onCandidate?.(runtimeCandidate, frame);
+    this.options.onDecision?.(runtimeCandidate, submission.reason, frame);
     const selected = batchSelection ? null : this.runtime.selectNext(observedMs(frame.observedAt));
     if (!selected) return;
+    this.options.onSelected?.(selected, frame);
     this.emitCandidate(selected, frame);
   }
 
@@ -194,31 +205,38 @@ export class LiveEngineerVoiceEngine {
     this.armed = false;
     this.previousPlayerLap = 0;
     this.playerLapInvalid = false;
-    this.previousLapPaceAvailable = false;
     this.previousCompetitorLaps.clear();
   }
   private addOpponentFacts(values: Map<string, ResolvedValue<unknown>>, frame: LiveResolvedSemanticFrame, playerIndex: number): void {
     const indexes = arrayOf<number>(values.get("race.competitor.car-index")!.value);
-    const ids = arrayOf<unknown>(values.get("race.competitor.driver-id")!.value);
+    const ids = arrayOf<unknown>(values.get("race.competitor.driver-id")?.value) ?? (frame.simulator === "f1-2025" ? indexes : null);
     const names = arrayOf<unknown>(values.get("race.competitor.driver-name")!.value);
     const classes = arrayOf<unknown>(values.get("race.competitor.car-class-id")!.value);
     const classNames = arrayOf<unknown>(values.get("race.competitor.car-class-name")!.value);
     const laps = arrayOf<number>(values.get("race.competitor.laps-complete")!.value);
     const pits = arrayOf<unknown>(values.get("race.competitor.pit-status")!.value);
+    const locations = arrayOf<unknown>(values.get("race.competitor.track-location")?.value);
     const times = arrayOf<number>(values.get("timing.competitor.last-lap-time")!.value);
     const valids = arrayOf<unknown>(values.get("timing.competitor.last-lap-valid")?.value);
     const connected = arrayOf<unknown>(values.get("race.competitor.connected")?.value);
-    const all = [indexes, ids, names, classes, classNames, laps, pits, times, valids, connected];
-    if (all.some((list) => !list || list.length !== indexes?.length || list.length > 64)) return;
+    const iracing = frame.simulator === "iracing";
+    const f1 = frame.simulator === "f1-2025";
+    const required = iracing
+      ? [indexes, ids, names, classes, classNames, laps, pits, times, locations]
+      : f1
+        ? [indexes, ids, names, classes, classNames, laps, pits, times, valids]
+        : [indexes, ids, names, classes, classNames, laps, pits, times, valids, connected];
+    if (required.some((list) => !list || list.length !== indexes?.length || list.length > 64)) return;
     for (let i = 0; i < indexes!.length; i += 1) {
       const index = indexes![i];
       const lap = laps![i];
       const time = times![i];
       const inPit = isPitStatus(pits![i]);
-      const valid = boolish(valids![i]) === true;
-      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || connected![i] !== true || typeof classes![i] !== "string") continue;
+      const valid = iracing ? String(locations![i]).toLowerCase() === "on-track" : boolish(valids![i]) === true && (f1 || connected![i] === true);
+      if (!finite(index) || index === playerIndex || !finitePositive(lap) || !finitePositive(time) || !valid || inPit || typeof classes![i] !== "string") continue;
       const participantId = String(ids![i] ?? index);
-      const fact: OpponentLapFactV1 = { factId: `acc/${frame.sessionId ?? "none"}/${frame.streamId}/${index}/${lap}`, gameId: "acc", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, participantId, participantName: String(names![i] ?? participantId), classId: String(classes![i]), className: String(classNames![i] ?? classes![i]), lapNumber: lap, lapTimeMs: Math.round(time * 1000), valid: true, inPit: false, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, sourceQuality: "native-validity" };
+      const gameId = frame.simulator;
+      const fact: OpponentLapFactV1 = { factId: `${gameId}/${frame.sessionId ?? "none"}/${frame.streamId}/${index}/${lap}`, gameId, sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, participantId, participantName: String(names![i] ?? participantId), classId: String(classes![i]), className: String(classNames![i] ?? classes![i]), lapNumber: lap, lapTimeMs: Math.round(time * 1000), valid: true, inPit: false, completedSessionTimeMs: observedMs(frame.observedAt), sourceSequence: frame.sequence, sourceQuality: iracing ? "conservative-inference" : "native-validity" };
       const previous = this.previousCompetitorLaps.get(participantId);
       this.previousCompetitorLaps.set(participantId, lap);
       if (previous !== undefined && lap <= previous) continue;
@@ -300,6 +318,7 @@ export class LiveEngineerVoiceEngine {
 
   private emitSpotterEvents(events: readonly { state: Exclude<import("../../shared/racing/live/spotter-contracts").SpotterStateV1, "clear">; side: "left" | "right"; overlapCount: number; sourceSequence: number; sessionTimeMs: number; opponentIds: readonly string[] }[], frame: LiveResolvedSemanticFrame): void {
     for (const event of events) {
+      this.options.onSpotterEvent?.(event, frame);
       const rendered = renderSpotter(event.state);
       const candidateId = `${frame.sessionId ?? "none"}/${this.timelineEpoch}/${event.sourceSequence}/${event.state}/${event.opponentIds.join(",")}`;
       const callout: SpotterCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${candidateId}/spotter-v1`, candidateId, family: "spotter", sessionId: String(frame.sessionId ?? ""), timelineEpoch: this.timelineEpoch, sourceSequence: event.sourceSequence, priority: "high", createdSessionTimeMs: event.sessionTimeMs, expiresSessionTimeMs: event.sessionTimeMs + 2_000, render: { renderingVersion: "spotter-v1", textKey: rendered.textKey as SpotterCalloutMessageV3["render"]["textKey"], parameters: { state: event.state, overlapCount: event.opponentIds.length } } };

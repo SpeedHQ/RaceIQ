@@ -1,5 +1,6 @@
 # Telemetry Recording Architecture
 
+See [Session Engineer Replay and Semantic Availability](decisions/session-engineer-replay-and-semantic-availability.md) for replay clock quality and source-fidelity limits.
 RaceIQ retains canonical raw source frames beside normalized lap metadata. Raw retention allows future parser, lap-detector, and derived-channel changes to reprocess existing sessions without another drive.
 
 ## Data flow

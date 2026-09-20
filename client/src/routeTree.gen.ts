@@ -58,6 +58,7 @@ import { Route as AcEvoSetupsNewRouteImport } from './routes/ac-evo/setups/new'
 import { Route as AccSetupsIndexRouteImport } from './routes/acc/setups/index'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
+import { Route as DevSpeechEngineerReplayRouteImport } from './routes/dev/speech/engineer-replay'
 import { Route as DevSpeechRaceEngineerRouteImport } from './routes/dev/speech/race-engineer'
 import { Route as DevSpeechSpotterRouteImport } from './routes/dev/speech/spotter'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
@@ -324,6 +325,11 @@ const AccSetupsNewRoute = AccSetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AccSetupsRoute,
 } as any)
+const DevSpeechEngineerReplayRoute = DevSpeechEngineerReplayRouteImport.update({
+  id: '/engineer-replay',
+  path: '/engineer-replay',
+  getParentRoute: () => DevSpeechRoute,
+} as any)
 const DevSpeechRaceEngineerRoute = DevSpeechRaceEngineerRouteImport.update({
   id: '/race-engineer',
   path: '/race-engineer',
@@ -469,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/dev/speech/engineer-replay': typeof DevSpeechEngineerReplayRoute
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -526,6 +533,7 @@ export interface FileRoutesByTo {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/dev/speech/engineer-replay': typeof DevSpeechEngineerReplayRoute
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -597,6 +605,7 @@ export interface FileRoutesById {
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/dev/speech/engineer-replay': typeof DevSpeechEngineerReplayRoute
   '/dev/speech/race-engineer': typeof DevSpeechRaceEngineerRoute
   '/dev/speech/spotter': typeof DevSpeechSpotterRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -669,6 +678,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/dev/speech/engineer-replay'
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars/$carOrdinal'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/dev/speech/engineer-replay'
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars/$carOrdinal'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/new'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/dev/speech/engineer-replay'
     | '/dev/speech/race-engineer'
     | '/dev/speech/spotter'
     | '/fm23/cars_/$carOrdinal'
@@ -1182,6 +1194,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsNewRouteImport
       parentRoute: typeof AccSetupsRoute
     }
+    '/dev/speech/engineer-replay': {
+      id: '/dev/speech/engineer-replay'
+      path: '/engineer-replay'
+      fullPath: '/dev/speech/engineer-replay'
+      preLoaderRoute: typeof DevSpeechEngineerReplayRouteImport
+      parentRoute: typeof DevSpeechRoute
+    }
     '/dev/speech/race-engineer': {
       id: '/dev/speech/race-engineer'
       path: '/race-engineer'
@@ -1454,11 +1473,13 @@ const AccRouteChildren: AccRouteChildren = {
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
 
 interface DevSpeechRouteChildren {
+  DevSpeechEngineerReplayRoute: typeof DevSpeechEngineerReplayRoute
   DevSpeechRaceEngineerRoute: typeof DevSpeechRaceEngineerRoute
   DevSpeechSpotterRoute: typeof DevSpeechSpotterRoute
 }
 
 const DevSpeechRouteChildren: DevSpeechRouteChildren = {
+  DevSpeechEngineerReplayRoute: DevSpeechEngineerReplayRoute,
   DevSpeechRaceEngineerRoute: DevSpeechRaceEngineerRoute,
   DevSpeechSpotterRoute: DevSpeechSpotterRoute,
 }

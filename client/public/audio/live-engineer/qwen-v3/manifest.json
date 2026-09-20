@@ -5,71 +5,87 @@
   "sampleRate": 24000,
   "channels": 1,
   "format": "FLAC PCM_16",
-  "approvedForProduction": true,
-  "listeningStatus": "approved",
+  "listeningStatus": "not-listened",
   "approvals": {
     "fixed": {
-      "lap.lead.your-lap-was": "approved",
-      "lap.tail.flat": "approved",
-      "pace.lead.you-are": "approved",
-      "pace.lead.that-lap-is": "approved",
-      "phrase.fastest.class": "approved",
-      "phrase.fastest.overall": "approved",
-      "phrase.setting-race-pace": "approved",
-      "opponent-lap.lead.opponent-was": "approved",
-      "opponent-lap.lead.you-were": "approved",
-      "opponent-lap.same-pace": "approved",
-      "spotter.car-left": "approved",
-      "spotter.car-right": "approved",
-      "spotter.still-there": "approved",
-      "spotter.three-wide-left": "approved",
-      "spotter.three-wide-right": "approved",
-      "spotter.clear-left": "approved",
-      "spotter.clear-right": "approved",
-      "race-engineer.opponent-ahead": "approved",
-      "race-engineer.opponent-behind": "approved",
-      "pace.tail.second-from-class": "approved",
-      "pace.tail.seconds-from-class": "approved",
-      "pace.tail.second-off-class": "approved",
-      "pace.tail.seconds-off-class": "approved",
-      "pace.tail.second-from-overall": "approved",
-      "pace.tail.seconds-from-overall": "approved",
-      "pace.tail.second-off-overall": "approved",
-      "pace.tail.seconds-off-overall": "approved",
-      "opponent-lap.tail.second-faster-last-lap": "approved",
-      "opponent-lap.tail.seconds-faster-last-lap": "approved",
-      "race-engineer.position-changed": "approved",
-      "race-engineer.pre-lights": "approved",
-      "race-engineer.green-flag": "approved",
-      "race-engineer.lap-completed": "approved",
-      "race-engineer.lap-invalidated": "approved",
-      "race-engineer.opponent-lap-completed": "approved",
-      "race-engineer.multiclass-traffic": "approved",
-      "race-engineer.penalty-issued": "approved",
-      "race-engineer.pit-entry": "approved",
-      "race-engineer.pit-exit": "approved",
-      "race-engineer.fuel-low": "approved",
-      "race-engineer.fuel-critical": "approved",
-      "race-engineer.flag-change": "approved",
-      "race-engineer.black-flag": "approved",
-      "race-engineer.blue-flag": "approved",
-      "race-engineer.tyres-cold": "approved",
-      "race-engineer.tyres-hot": "approved",
-      "race-engineer.tyres-cooking": "approved",
-      "race-engineer.water-temperature-hot": "approved",
-      "race-engineer.water-temperature-clear": "approved",
-      "race-engineer.damage-reported": "approved",
-      "race-engineer.rain-changed": "approved",
-      "race-engineer.damage-front": "approved",
-      "race-engineer.damage-heavy-front": "approved",
-      "race-engineer.damage-rear": "approved",
-      "race-engineer.damage-heavy-rear": "approved",
-      "race-engineer.damage-left": "approved",
-      "race-engineer.damage-heavy-left": "approved",
-      "race-engineer.damage-right": "approved",
-      "race-engineer.damage-heavy-right": "approved",
-      "race-engineer.damage-centre": "approved",
-      "race-engineer.damage-heavy-centre": "approved"
+      "lap.lead.your-lap-was": "not-listened",
+      "lap.tail.flat": "not-listened",
+      "pace.lead.you-are": "not-listened",
+      "pace.lead.that-lap-is": "not-listened",
+      "phrase.fastest.class": "not-listened",
+      "phrase.fastest.overall": "not-listened",
+      "phrase.setting-race-pace": "not-listened",
+      "opponent-lap.lead.opponent-was": "not-listened",
+      "opponent-lap.lead.you-were": "not-listened",
+      "opponent-lap.same-pace": "not-listened",
+      "spotter.car-left": "not-listened",
+      "spotter.car-right": "not-listened",
+      "spotter.still-there": "not-listened",
+      "spotter.three-wide-left": "not-listened",
+      "spotter.three-wide-right": "not-listened",
+      "spotter.clear-left": "not-listened",
+      "spotter.clear-right": "not-listened",
+      "race-engineer.opponent-ahead": "not-listened",
+      "race-engineer.opponent-behind": "not-listened",
+      "pace.tail.second-from-class": "not-listened",
+      "pace.tail.seconds-from-class": "not-listened",
+      "pace.tail.second-off-class": "not-listened",
+      "pace.tail.seconds-off-class": "not-listened",
+      "pace.tail.second-from-overall": "not-listened",
+      "pace.tail.seconds-from-overall": "not-listened",
+      "pace.tail.second-off-overall": "not-listened",
+      "pace.tail.seconds-off-overall": "not-listened",
+      "opponent-lap.tail.second-faster-last-lap": "not-listened",
+      "opponent-lap.tail.seconds-faster-last-lap": "not-listened",
+      "race-engineer.race-time-15-minutes": "not-listened",
+      "race-engineer.race-time-10-minutes": "not-listened",
+      "race-engineer.race-time-5-minutes": "not-listened",
+      "race-engineer.race-time-2-minutes": "not-listened",
+      "race-engineer.race-time-1-minute": "not-listened",
+      "race-engineer.session-ended": "not-listened",
+      "race-engineer.gap-ahead-closing": "not-listened",
+      "race-engineer.gap-ahead-growing": "not-listened",
+      "race-engineer.gap-behind-closing": "not-listened",
+      "race-engineer.gap-behind-growing": "not-listened",
+      "race-engineer.driver-changed": "not-listened",
+      "race-engineer.fuel-save-required": "not-listened",
+      "race-engineer.fuel-to-finish": "not-listened",
+      "race-engineer.push-now": "not-listened",
+      "race-engineer.drs-open": "not-listened",
+      "race-engineer.drs-closed": "not-listened",
+      "race-engineer.position-changed": "not-listened",
+      "race-engineer.pre-lights": "not-listened",
+      "race-engineer.green-flag": "not-listened",
+      "race-engineer.final-lap": "not-listened",
+      "race-engineer.lap-completed": "not-listened",
+      "race-engineer.lap-invalidated": "not-listened",
+      "race-engineer.opponent-lap-completed": "not-listened",
+      "race-engineer.multiclass-traffic": "not-listened",
+      "race-engineer.penalty-issued": "not-listened",
+      "race-engineer.pit-entry": "not-listened",
+      "race-engineer.pit-exit": "not-listened",
+      "race-engineer.fuel-low": "not-listened",
+      "race-engineer.fuel-critical": "not-listened",
+      "race-engineer.flag-change": "not-listened",
+      "race-engineer.black-flag": "not-listened",
+      "race-engineer.blue-flag": "not-listened",
+      "race-engineer.tyres-cold": "not-listened",
+      "race-engineer.tyres-hot": "not-listened",
+      "race-engineer.tyres-cooking": "not-listened",
+      "race-engineer.water-temperature-hot": "not-listened",
+      "race-engineer.water-temperature-clear": "not-listened",
+      "race-engineer.damage-reported": "not-listened",
+      "race-engineer.rain-changed": "not-listened",
+      "race-engineer.damage-front": "not-listened",
+      "race-engineer.damage-heavy-front": "not-listened",
+      "race-engineer.damage-rear": "not-listened",
+      "race-engineer.damage-heavy-rear": "not-listened",
+      "race-engineer.damage-left": "not-listened",
+      "race-engineer.damage-heavy-left": "not-listened",
+      "race-engineer.damage-right": "not-listened",
+      "race-engineer.damage-heavy-right": "not-listened",
+      "race-engineer.damage-centre": "not-listened",
+      "race-engineer.damage-heavy-centre": "not-listened"
     },
     "recipes": [
       {
@@ -78,7 +94,7 @@
         "scopeOrDirection": "fastest-class",
         "segmentIds": [],
         "oracleId": "oracle.fastest-class",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.fastest-overall",
@@ -86,7 +102,7 @@
         "scopeOrDirection": "fastest-overall",
         "segmentIds": [],
         "oracleId": "oracle.fastest-overall",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.setting-race-pace",
@@ -94,7 +110,7 @@
         "scopeOrDirection": "setting-race-pace",
         "segmentIds": [],
         "oracleId": "oracle.setting-race-pace",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.within-class-pace",
@@ -102,7 +118,7 @@
         "scopeOrDirection": "within-class-pace",
         "segmentIds": [],
         "oracleId": "oracle.within-class-pace",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.within-overall-pace",
@@ -110,7 +126,7 @@
         "scopeOrDirection": "within-overall-pace",
         "segmentIds": [],
         "oracleId": "oracle.within-overall-pace",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.off-class-pace",
@@ -118,7 +134,7 @@
         "scopeOrDirection": "off-class-pace",
         "segmentIds": [],
         "oracleId": "oracle.off-class-pace",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.off-overall-pace",
@@ -126,7 +142,7 @@
         "scopeOrDirection": "off-overall-pace",
         "segmentIds": [],
         "oracleId": "oracle.off-overall-pace",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.outlier-class",
@@ -134,7 +150,7 @@
         "scopeOrDirection": "outlier-class",
         "segmentIds": [],
         "oracleId": "oracle.outlier-class",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.outlier-overall",
@@ -142,7 +158,7 @@
         "scopeOrDirection": "outlier-overall",
         "segmentIds": [],
         "oracleId": "oracle.outlier-overall",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.lap-time",
@@ -150,7 +166,7 @@
         "scopeOrDirection": "lap-time",
         "segmentIds": [],
         "oracleId": "oracle.lap-time",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.opponent-faster-last-lap",
@@ -158,7 +174,7 @@
         "scopeOrDirection": "opponent-faster-last-lap",
         "segmentIds": [],
         "oracleId": "oracle.opponent-faster-last-lap",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.driver-faster-last-lap",
@@ -166,7 +182,7 @@
         "scopeOrDirection": "driver-faster-last-lap",
         "segmentIds": [],
         "oracleId": "oracle.driver-faster-last-lap",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.tires-cold",
@@ -174,7 +190,7 @@
         "scopeOrDirection": "tires-cold",
         "segmentIds": [],
         "oracleId": "oracle.tires-cold",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.tires-optimal",
@@ -182,7 +198,7 @@
         "scopeOrDirection": "tires-optimal",
         "segmentIds": [],
         "oracleId": "oracle.tires-optimal",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.pit-this-lap",
@@ -190,7 +206,7 @@
         "scopeOrDirection": "pit-this-lap",
         "segmentIds": [],
         "oracleId": "oracle.pit-this-lap",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.pit-pit-pit",
@@ -198,7 +214,7 @@
         "scopeOrDirection": "pit-pit-pit",
         "segmentIds": [],
         "oracleId": "oracle.pit-pit-pit",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.car-left",
@@ -206,7 +222,7 @@
         "scopeOrDirection": "car-left",
         "segmentIds": [],
         "oracleId": "oracle.car-left",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.car-right",
@@ -214,7 +230,7 @@
         "scopeOrDirection": "car-right",
         "segmentIds": [],
         "oracleId": "oracle.car-right",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.still-there",
@@ -222,7 +238,7 @@
         "scopeOrDirection": "still-there",
         "segmentIds": [],
         "oracleId": "oracle.still-there",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.clear-left",
@@ -230,7 +246,7 @@
         "scopeOrDirection": "clear-left",
         "segmentIds": [],
         "oracleId": "oracle.clear-left",
-        "status": "approved"
+        "status": "not-listened"
       },
       {
         "approvalId": "full-line.clear-right",
@@ -238,7 +254,7 @@
         "scopeOrDirection": "clear-right",
         "segmentIds": [],
         "oracleId": "oracle.clear-right",
-        "status": "approved"
+        "status": "not-listened"
       }
     ]
   },
@@ -250,9 +266,9 @@
   "referenceText": "G'day mate, Tom here.",
   "referenceSha256": "704c0fce7bb1244d428f4747cf1a9b5dd009510dca88b71049698a94f0b42b0b",
   "sampleSpecification": "scripts/live-engineer/live-engineer-v3-spec.json",
-  "specificationSha256": "c409c7f88515630bfce67d22c77147efd962a42cdad205e645258bbefaac5251",
+  "specificationSha256": "f0dcd09aa3d05fdc65735dc4200830edd422c893cad844480811306eab8ccbd2",
   "generator": "scripts/live-engineer/generate-live-engineer-v3.py",
-  "generatorSha256": "133f7aa578379190a9bd4f7876e01a358a5e8e42ea68d6c45730764693f8b317",
+  "generatorSha256": "40297236cb684c8d22adbe4c58589bbf587b5913a46b54a755b8cf3a1002b7d3",
   "clips": [
     {
       "segmentId": "lap.lead.your-lap-was",
@@ -520,7 +536,9 @@
       "durationMs": 1040,
       "sourceTranscript": "Opponent ahead.",
       "sourceHash": "c57bec36603fd80b3ef83e7c979ebb369f72dc73b672149fb438d7bbf9965a0a",
-      "role": "fixed"
+      "role": "fixed",
+      "text": "Opponent ahead.",
+      "id": "race-engineer.opponent-ahead"
     },
     {
       "segmentId": "race-engineer.opponent-behind",
@@ -533,7 +551,9 @@
       "durationMs": 1120,
       "sourceTranscript": "Opponent behind.",
       "sourceHash": "3648e43fff5b6fb1838639077b2c1ded65504cc33d5ae528d1860041c15ff222",
-      "role": "fixed"
+      "role": "fixed",
+      "text": "Opponent behind.",
+      "id": "race-engineer.opponent-behind"
     },
     {
       "segmentId": "pace.tail.second-from-class",
@@ -686,6 +706,214 @@
       "text": "seconds faster last lap."
     },
     {
+      "segmentId": "race-engineer.race-time-15-minutes",
+      "spokenText": "Fifteen minutes remaining.",
+      "seed": 4222627213,
+      "path": "chunks/race-engineer.race-time-15-minutes.flac",
+      "sha256": "e25e1a495f4b9136e2a5b8c400a1fba739ce0277faafe593054bdb06a566c2da",
+      "frames": 34560,
+      "sampleRate": 24000,
+      "durationMs": 1440,
+      "sourceTranscript": "Fifteen minutes remaining.",
+      "sourceHash": "01850c94c720b923c5ddf79cde2fd8e9e59180b207fc167bde37f0d0f4b0a518",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.race-time-10-minutes",
+      "spokenText": "Ten minutes remaining.",
+      "seed": 43844863,
+      "path": "chunks/race-engineer.race-time-10-minutes.flac",
+      "sha256": "e9f1a8c6e854f0a83c1b4f39397663937059cfa0517ba9ad159638613fe17a7f",
+      "frames": 23040,
+      "sampleRate": 24000,
+      "durationMs": 960,
+      "sourceTranscript": "Ten minutes remaining.",
+      "sourceHash": "be81e760178dddf77437637980b850dba52dedfcbafcd88f92b847b45ce9ddaa",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.race-time-5-minutes",
+      "spokenText": "Five minutes remaining.",
+      "seed": 2422234051,
+      "path": "chunks/race-engineer.race-time-5-minutes.flac",
+      "sha256": "aa7d364203afd65fb2dd507c982733e56dcdafcf87871c8e5cb70ec9085a512b",
+      "frames": 24960,
+      "sampleRate": 24000,
+      "durationMs": 1040,
+      "sourceTranscript": "Five minutes remaining.",
+      "sourceHash": "a0590d1d7b7ccc1afb2a776aef724920134ee6f2a1da84e7ef9540605dfd657b",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.race-time-2-minutes",
+      "spokenText": "Two minutes remaining.",
+      "seed": 1916544704,
+      "path": "chunks/race-engineer.race-time-2-minutes.flac",
+      "sha256": "5918a1cbb0f1aab825aa91a1f06471db65a7255e2b4b341b3bae3dac8cf34407",
+      "frames": 23040,
+      "sampleRate": 24000,
+      "durationMs": 960,
+      "sourceTranscript": "Two minutes remaining.",
+      "sourceHash": "23956b9b5c161dc8aeb4795957aad884c7be36acb90c69bc12c57c3f1c31f09f",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.race-time-1-minute",
+      "spokenText": "One minute remaining.",
+      "seed": 473879624,
+      "path": "chunks/race-engineer.race-time-1-minute.flac",
+      "sha256": "1b8814137d65f8d68b08c0a74233fdc75a533d980a7584d8bdffc1832bbdab6e",
+      "frames": 24960,
+      "sampleRate": 24000,
+      "durationMs": 1040,
+      "sourceTranscript": "One minute remaining.",
+      "sourceHash": "01abf3007d01c6ac0570a901445d6309aac59df2f56ab9023de3fa8cea3890b2",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.session-ended",
+      "spokenText": "Session finished.",
+      "seed": 2472706861,
+      "path": "chunks/race-engineer.session-ended.flac",
+      "sha256": "74addf2264d86dc9c8d896f5abcca3f14d54c82b950d4131b2c0ceef885d3abf",
+      "frames": 19200,
+      "sampleRate": 24000,
+      "durationMs": 800,
+      "sourceTranscript": "Session finished.",
+      "sourceHash": "c547a3971d7f17aa343306c69a92795bac5e40898d6e46f0680fe1981e590ae5",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.gap-ahead-closing",
+      "spokenText": "You're closing the gap to the car ahead.",
+      "seed": 668029125,
+      "path": "chunks/race-engineer.gap-ahead-closing.flac",
+      "sha256": "903c0656601ace84d24b60ca57fab66b2000fbaefff0596fceceebe1bd43e039",
+      "frames": 40320,
+      "sampleRate": 24000,
+      "durationMs": 1680,
+      "sourceTranscript": "You're closing the gap to the car ahead.",
+      "sourceHash": "b79b6ee5c6c249e20baa2a4fe6408975b6858312495d5c3c519258de964cf741",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.gap-ahead-growing",
+      "spokenText": "The car ahead is pulling away.",
+      "seed": 2469786059,
+      "path": "chunks/race-engineer.gap-ahead-growing.flac",
+      "sha256": "28805676bcf7246150f3937a50ada8efe1eb40a670abf73c76fcd55f168217fa",
+      "frames": 34560,
+      "sampleRate": 24000,
+      "durationMs": 1440,
+      "sourceTranscript": "The car ahead is pulling away.",
+      "sourceHash": "60184edf3032348aaee674c7cd11831f1120e4c5785227e52ee7989a08730efe",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.gap-behind-closing",
+      "spokenText": "The car behind is closing in.",
+      "seed": 1882986670,
+      "path": "chunks/race-engineer.gap-behind-closing.flac",
+      "sha256": "f9f59b5541260c8d2b1a6002607411e50fb319a195e211197e2280f0fdac83c8",
+      "frames": 44160,
+      "sampleRate": 24000,
+      "durationMs": 1840,
+      "sourceTranscript": "The car behind is closing in.",
+      "sourceHash": "4af971cd7212d8de7b0a59ff57f84bcd322030cdb0f9d4d5be60782ea1753e62",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.gap-behind-growing",
+      "spokenText": "You're pulling away from the car behind.",
+      "seed": 2105831424,
+      "path": "chunks/race-engineer.gap-behind-growing.flac",
+      "sha256": "8806348475870d2ec43f1b96d18d145950d6247aec1d6b338a440ed67222f53d",
+      "frames": 42240,
+      "sampleRate": 24000,
+      "durationMs": 1760,
+      "sourceTranscript": "You're pulling away from the car behind.",
+      "sourceHash": "b9714ceab698e2e021c208861ab27f37504fb8db696653e4e8fc3948310b0f9a",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.driver-changed",
+      "spokenText": "An opponent has changed drivers.",
+      "seed": 3042679656,
+      "path": "chunks/race-engineer.driver-changed.flac",
+      "sha256": "0694e64cf7e9c1ba6fcea9f037cfc39a96b9abeb57c85108fcfa92873c70c3f4",
+      "frames": 38400,
+      "sampleRate": 24000,
+      "durationMs": 1600,
+      "sourceTranscript": "An opponent has changed drivers.",
+      "sourceHash": "f954aaa8cfdcbc267a78f3ef574976daaee5ac8a4ce7543651adc4623e10a283",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.fuel-save-required",
+      "spokenText": "At this consumption, you'll need more fuel to finish.",
+      "seed": 1811559322,
+      "path": "chunks/race-engineer.fuel-save-required.flac",
+      "sha256": "cafd78d38067774792265ad4e34237f809daf4ddb48b0fddd2f8f245966dc80b",
+      "frames": 69120,
+      "sampleRate": 24000,
+      "durationMs": 2880,
+      "sourceTranscript": "At this consumption, you'll need more fuel to finish.",
+      "sourceHash": "0e80115626f8521cb04b40f8ea505e73d602012e6d07053362b812ca619411b7",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.fuel-to-finish",
+      "spokenText": "You now have enough fuel to finish at this consumption.",
+      "seed": 2390815105,
+      "path": "chunks/race-engineer.fuel-to-finish.flac",
+      "sha256": "48f1fafbeeaf3c77c529624408b9c9fe6fc9c1253f4bbb068d851c4035bf143f",
+      "frames": 90240,
+      "sampleRate": 24000,
+      "durationMs": 3760,
+      "sourceTranscript": "You now have enough fuel to finish at this consumption.",
+      "sourceHash": "08bd2eb7c1e1e6345d3f0a94eac4d94ec66fbf74de6fe107fbe7089089be7749",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.push-now",
+      "spokenText": "Closing laps. Fuel looks good. Push now.",
+      "seed": 2481390446,
+      "path": "chunks/race-engineer.push-now.flac",
+      "sha256": "d1df98d980fe7e40c13f952e4c94fa080a53d1239a2896decc57c734cad07ca7",
+      "frames": 80640,
+      "sampleRate": 24000,
+      "durationMs": 3360,
+      "sourceTranscript": "Closing laps. Fuel looks good. Push now.",
+      "sourceHash": "fea420ba482a08972afaccded13093461e4fe70ee664679a8371c1525e94862b",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.drs-open",
+      "spokenText": "DRS is open.",
+      "seed": 3151990742,
+      "path": "chunks/race-engineer.drs-open.flac",
+      "sha256": "91121e3c988417287a5446ce947cca7247b208d692cd63c113fbfb92ff49358b",
+      "frames": 24960,
+      "sampleRate": 24000,
+      "durationMs": 1040,
+      "sourceTranscript": "DRS is open.",
+      "sourceHash": "add967958889efc8848879464b21bcae16facd3eafbda1d1deda32e8e1973c3b",
+      "role": "fixed"
+    },
+    {
+      "segmentId": "race-engineer.drs-closed",
+      "spokenText": "DRS is closed.",
+      "seed": 3032201624,
+      "path": "chunks/race-engineer.drs-closed.flac",
+      "sha256": "b73a88d5ae246a7fc8976a55817227d7e013fa3e6b0de3740125d69f7f4b2f64",
+      "frames": 36480,
+      "sampleRate": 24000,
+      "durationMs": 1520,
+      "sourceTranscript": "DRS is closed.",
+      "sourceHash": "c969ac564d204568a72667381cc3c832b34b0878e2637a582bf385f478189fe2",
+      "role": "fixed"
+    },
+    {
       "segmentId": "race-engineer.position-changed",
       "spokenText": "Position changed.",
       "seed": 3265565486,
@@ -729,6 +957,19 @@
       "role": "fixed",
       "id": "race-engineer.green-flag",
       "text": "Green flag."
+    },
+    {
+      "segmentId": "race-engineer.final-lap",
+      "spokenText": "Final lap.",
+      "seed": 1462426322,
+      "path": "chunks/race-engineer.final-lap.flac",
+      "sha256": "09bc919b39744f272bfb84a23cb80b87ce55bcd8d117dd2124adf3215be63874",
+      "frames": 23040,
+      "sampleRate": 24000,
+      "durationMs": 960,
+      "sourceTranscript": "Final lap.",
+      "sourceHash": "7fa3a7b80adab0994bf359b8858dba50b23f794fbde9816e415f96f9aa0b0a89",
+      "role": "fixed"
     },
     {
       "segmentId": "race-engineer.lap-completed",

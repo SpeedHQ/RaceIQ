@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.race-time-5-minutes",
+  "spokenText": "Five minutes remaining.",
+  "seed": 2422234051,
+  "path": "chunks/race-engineer.race-time-5-minutes.flac",
+  "sha256": "aa7d364203afd65fb2dd507c982733e56dcdafcf87871c8e5cb70ec9085a512b",
+  "frames": 24960,
+  "sampleRate": 24000,
+  "durationMs": 1040,
+  "sourceTranscript": "Five minutes remaining.",
+  "sourceHash": "a0590d1d7b7ccc1afb2a776aef724920134ee6f2a1da84e7ef9540605dfd657b",
+  "role": "fixed"
+}

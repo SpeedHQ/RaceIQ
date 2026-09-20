@@ -138,11 +138,11 @@ const DEV_LINKS: ReadonlyArray<{ icon: LucideIcon; label: string; segment: strin
   { segment: "telemetry", label: "Native Telemetry", icon: Gauge },
   { segment: "speech", label: "Speech", icon: MessagesSquare },
   { segment: "e2e", label: "E2E Recordings", icon: History },
-  { segment: "import", label: "Import Dump", icon: Binary },
 ];
 const DEV_SPEECH_LINKS = [
   { segment: "spotter", label: "Spotter" },
   { segment: "race-engineer", label: "Race Engineer" },
+  { segment: "engineer-replay", label: "Engineer Replay" },
 ] as const;
 
 const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {

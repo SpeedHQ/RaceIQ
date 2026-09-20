@@ -79,6 +79,7 @@ export class ParsingProcessor implements TripletProcessor {
           broadcastCarClassId: broadcast.carClassId,
           broadcastCarClassName: broadcast.carClassName,
           broadcastLapsComplete: broadcast.lapsComplete,
+          broadcastPosition: broadcast.position,
           broadcastPitStatus: broadcast.pitStatus,
           broadcastTrackLocation: broadcast.trackLocation,
           broadcastPositionX: broadcast.positionX,

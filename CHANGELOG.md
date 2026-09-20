@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### Features
+- F1 race engineer shows car damage, announces final lap, and reports sustained aero damage.
+- Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
 
 ### Fixes
 

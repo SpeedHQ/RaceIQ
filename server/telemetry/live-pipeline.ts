@@ -26,7 +26,7 @@ import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import { LiveEngineerVoiceEngine } from "../live-strategy/live-engineer-voice-engine";
 import { CrewChiefTriggerCatalog } from "../live-strategy/crewchief-triggers/catalog";
 import type { LiveEngineerVoiceRequestV3, LiveEngineerDeliveryStatusV3 } from "../../shared/racing/live/engineer-contracts";
-import { isLiveSpotterEngineerEnabled, releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+import { isLiveEngineerEnabled, releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const LIVE_ENGINEER_FLAGS = releaseFeatureFlags({
   RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
@@ -104,12 +104,12 @@ export class LiveTelemetryPipeline {
       bypassPacketRateFilter?: boolean;
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
-      liveSpotterEngineerEnabled?: boolean | ((gameId: GameId) => boolean);
+      engineerEnabled?: boolean | ((gameId: GameId) => boolean);
       recorder?: SessionRecorderAdapter;
       onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
-    this._engineerEnabled = options?.liveSpotterEngineerEnabled ?? false;
+    this._engineerEnabled = options?.engineerEnabled ?? false;
     this.projector = new LiveTelemetryProjector({ engineerEnabled: this._engineerEnabled });
     this.db = db;
     this.ws = ws;
@@ -574,7 +574,7 @@ const _defaultWs: WsAdapter = {
   broadcastDevState: (state) => wsManager.broadcastDevState(state),
 };
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
-  liveSpotterEngineerEnabled: (gameId: GameId) => isLiveSpotterEngineerEnabled(LIVE_ENGINEER_FLAGS, gameId),
+  engineerEnabled: (gameId: GameId) => isLiveEngineerEnabled(LIVE_ENGINEER_FLAGS, gameId),
   onSessionFinalized: async (sessionId, gameId) => {
     try {
       await reconcileSessionResult(sessionId, gameId);

@@ -28,6 +28,7 @@ EXTRA_CLIPS = (
     {"segmentId": "race-engineer.position-changed", "spokenText": "Position changed.", "path": "clip__race-engineer__position-changed.wav"},
     {"segmentId": "race-engineer.pre-lights", "spokenText": "Get ready for the start.", "path": "clip__race-engineer__pre-lights.wav"},
     {"segmentId": "race-engineer.green-flag", "spokenText": "Green flag.", "path": "clip__race-engineer__green-flag.wav"},
+    {"segmentId": "race-engineer.final-lap", "spokenText": "Final lap.", "path": "clip__race-engineer__final-lap.wav"},
     {"segmentId": "race-engineer.lap-completed", "spokenText": "Lap completed.", "path": "clip__race-engineer__lap-completed.wav"},
     {"segmentId": "race-engineer.lap-invalidated", "spokenText": "Lap invalidated.", "path": "clip__race-engineer__lap-invalidated.wav"},
     {"segmentId": "race-engineer.opponent-lap-completed", "spokenText": "Opponent lap completed.", "path": "clip__race-engineer__opponent-lap-completed.wav"},

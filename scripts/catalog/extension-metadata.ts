@@ -6,7 +6,7 @@ import { GAME_IDS } from "./model";
 
 const EXTENSION_ALIASES: Record<string, string> = {
   ...Object.fromEntries(Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [path, mapping.semanticId])),
-  "f1.drsActivated": "aero.drs-active",
+"f1.playerFormulaClassId": "identity.player-car-class-id",
   "f1.ersStoreEnergy": "fuel.ers-store-energy",
   "f1.ersDeployMode": "fuel.ers-deploy-mode",
   "f1.ersDeployedThisLap": "fuel.ers-deployed",
@@ -15,7 +15,8 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.tyreVisualCompound": "tires.tire-compound-code",
   "f1.trackLength": "timing.track-length",
   "f1.pitSpeedLimit": "race.pit-speed-limit",
-  "f1.weather": "weather.weather-type",
+"f1.weatherType": "weather.weather-type",
+"f1.flagStatus": "race.flag-status",
   "f1.trackTemperature": "weather.track-temp",
   "f1.airTemperature": "weather.air-temp",
   "f1.rainPercentage": "weather.rain-percent",
@@ -25,7 +26,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.antiLockBrakes": "electronics.abs-level",
   "f1.fuelRemainingLaps": "fuel.laps-remaining",
   "f1.totalLaps": "timing.total-laps",
-  "f1.currentLapInvalid": "timing.current-lap-valid",
+"f1.playerCurrentLapValid": "timing.current-lap-valid",
   "f1.currentSector": "timing.sector.current-index",
   "f1.sector1Time": "timing.sector.current-lap.s1",
   "f1.sector2Time": "timing.sector.current-lap.s2",
@@ -36,14 +37,17 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.lapSectors.s2": "timing.sector.lap-history.s2",
   "f1.lapSectors.s3": "timing.sector.lap-history.s3",
   "f1.lapSectors.lapTime": "timing.sector.lap-history.lap-time",
-  "f1.grid[].position": "race.competitor.position",
-  "f1.grid[].driverId": "race.competitor.driver-id",
-  "f1.grid[].teamId": "race.competitor.team-id",
-  "f1.grid[].name": "race.competitor.driver-name",
-  "f1.grid[].currentLapTime": "timing.competitor.current-lap-time",
-  "f1.grid[].carIndex": "race.competitor.car-index",
-  "f1.grid[].connected": "race.competitor.connected",
-  "f1.grid[].posX": "race.competitor.position-x",
+  "f1.playerCarIndex": "identity.player-car-index",
+  "f1.playerPitStatus": "race.pit-status",
+"f1.grid[].carIndex": "race.competitor.car-index",
+"f1.grid[].driverId": "race.competitor.driver-id",
+"f1.grid[].position": "race.competitor.position",
+"f1.grid[].name": "race.competitor.driver-name",
+"f1.grid[].classId": "race.competitor.car-class-id",
+"f1.grid[].className": "race.competitor.car-class-name",
+"f1.grid[].completedLapNumber": "race.competitor.laps-complete",
+"f1.grid[].pitState": "race.competitor.pit-status",
+"f1.grid[].lastLapValid": "timing.competitor.last-lap-valid",
   "f1.grid[].posY": "race.competitor.position-y",
   "f1.grid[].posZ": "race.competitor.position-z",
   "f1.grid[].velX": "race.competitor.velocity-x",
@@ -55,7 +59,6 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "f1.grid[].bestLapTime": "timing.competitor.best-lap-time",
   "f1.grid[].gapToLeader": "timing.competitor.gap-to-leader",
   "f1.grid[].gapToCarAhead": "timing.competitor.gap-to-ahead",
-  "f1.grid[].pitStatus": "race.competitor.pit-status",
   "f1.grid[].numPitStops": "race.competitor.pit-stops",
   "f1.grid[].penalties": "race.competitor.penalties",
   "f1.grid[].tyreCompound": "tires.competitor.compound",
@@ -115,6 +118,15 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "acc.acEvo.acEvoVersion": "diagnostics.sim-build-version",
   "acc.currentSectorIndex": "timing.sector.current-index",
   "acc.lastSectorTime": "timing.sector.last-completed-time",
+  "acc.sessionTimeRemainingSeconds": "timing.session-time-remain",
+  "acc.sessionType": "session.session-type",
+  "acc.penaltyCode": "race.penalty-code",
+  "acc.waterTempC": "engine.coolant-temperature",
+  "acc.rainIntensityCode": "weather.rain-intensity-code",
+  "acc.gapAheadMs": "timing.gap-ahead-ms",
+  "acc.gapBehindMs": "timing.gap-behind-ms",
+  "acc.flagStatus": "race.flag-status",
+  "acc.pitStatus": "race.pit-status",
   "acc.isValidLap": "timing.current-lap-valid",
   "acc.acEvo.timingIsInvalid": "timing.current-lap-valid",
   "acc.acEvo.sessionTotalLaps": "timing.total-laps",
@@ -134,6 +146,7 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "acc.broadcastCarClassId": "race.competitor.car-class-id",
   "acc.broadcastCarClassName": "race.competitor.car-class-name",
   "acc.broadcastLapsComplete": "race.competitor.laps-complete",
+  "acc.broadcastPosition": "race.competitor.position",
   "acc.broadcastPitStatus": "race.competitor.pit-status",
   "acc.broadcastTrackLocation": "race.competitor.track-location",
   "acc.broadcastPositionX": "motion.competitor.position-x",
@@ -187,6 +200,16 @@ const EXTENSION_ALIASES: Record<string, string> = {
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
+  "acc.sessionTimeRemainingSeconds": { unit: "s", description: "ACC session countdown in seconds." },
+  "acc.penaltyCode": { unit: "enum", description: "ACC native penalty type, zero means no penalty." },
+  "acc.waterTempC": { unit: "°C", description: "ACC engine coolant temperature." },
+  "acc.rainIntensityCode": { unit: "enum", description: "ACC current rain intensity enum, zero through five." },
+  "acc.gapAheadMs": { unit: "ms", description: "ACC time gap to car ahead in milliseconds." },
+  "acc.gapBehindMs": { unit: "ms", description: "ACC time gap to car behind in milliseconds." },
+  "acc.acEvo.gapAheadMs": { unit: "ms", description: "AC Evo time gap to car ahead in milliseconds." },
+  "acc.acEvo.gapBehindMs": { unit: "ms", description: "AC Evo time gap to car behind in milliseconds." },
+  "acc.flagStatus": { unit: "unitless", description: "Adapter-normalized textual flag status." },
+  "acc.pitStatus": { unit: "unitless", description: "Adapter-normalized textual pit status." },
   ...Object.fromEntries(
     Object.entries(SETUP_PARSER_SOURCE_MAPPINGS).map(([path, mapping]) => [
       path,
@@ -206,12 +229,6 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     unit: "m",
     description: "Tire radius in metres, FL/FR/RL/RR.",
     freshness: "static",
-  },
-  "f1.currentLapInvalid": {
-    unit: "boolean",
-    description: "Whether F1 has invalidated current lap.",
-    kind: "normalized",
-    normalization: "valid = currentLapInvalid === 0",
   },
   "f1.tyreCompound": {
     unit: "text",
@@ -251,12 +268,6 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.grid[].teamId": {
     unit: "id",
     description: "F1 team identifier for each competitor.",
-  },
-  "f1.grid[].pitStatus": {
-    unit: "enum",
-    description: "F1 pit-status code for each competitor.",
-    kind: "normalized",
-    normalization: "map F1 pit-status code to common pit-state enum",
   },
   "f1.grid[].tyreCompound": {
     unit: "text",
@@ -418,7 +429,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
     description: "AC Evo wind direction in degrees.",
   },
   "acc.broadcastPlayerCarClassId": { unit: "id", description: "ACC broadcast player car class identifier.", kind: "normalized", normalization: "pass through canonical class ID" },
-  "acc.broadcastPhase": { unit: "state", description: "ACC broadcast lifecycle phase.", kind: "normalized", normalization: "pass through canonical phase" },
+  "acc.broadcastPhase": { unit: "state", description: "Native ACC broadcast lifecycle phase enum." },
   "acc.broadcastConnected": { unit: "boolean", description: "ACC broadcast competitor connectivity.", kind: "normalized", normalization: "pass through canonical connectivity" },
   "iracing.playerCarClassId": { unit: "id", description: "iRacing normalized player car class identifier.", kind: "normalized", normalization: "pass through canonical class ID" },
   "iracing.sessionType": { unit: "text", description: "iRacing normalized session type.", kind: "normalized", normalization: "pass through canonical session type" },
@@ -454,6 +465,13 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   },
 };
 
+const AC_EVO_BROADCAST_UNAVAILABLE: Record<string, UnavailableExtensionSource> = Object.fromEntries([
+  "acc.broadcastPlayerCarIndex", "acc.broadcastPlayerCarClassId", "acc.broadcastSessionType", "acc.broadcastPhase",
+  "acc.broadcastCarIndex", "acc.broadcastDriverId", "acc.broadcastDriverName", "acc.broadcastCarClassId",
+  "acc.broadcastCarClassName", "acc.broadcastLapsComplete", "acc.broadcastPitStatus", "acc.broadcastTrackLocation",
+  "acc.broadcastPositionX", "acc.broadcastPositionY", "acc.broadcastPositionZ", "acc.broadcastSpeed",
+  "acc.broadcastYaw", "acc.broadcastLastLapTime", "acc.broadcastLastLapValid", "acc.broadcastConnected",
+].map((path) => [path, { reason: "source-not-provided", description: "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state." }]));
 const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, UnavailableExtensionSource>>> = {
   acc: {
     "acc.tireInnerTemp": {
@@ -490,6 +508,8 @@ const UNAVAILABLE_EXTENSION_SOURCES: Partial<Record<GameId, Record<string, Unava
     },
   },
   "ac-evo": {
+    ...AC_EVO_BROADCAST_UNAVAILABLE,
+    ...Object.fromEntries(["acc.sessionTimeRemainingSeconds", "acc.sessionType", "acc.penaltyCode", "acc.waterTempC", "acc.rainIntensityCode", "acc.gapAheadMs", "acc.gapBehindMs", "acc.broadcastPosition"].map((path) => [path, { reason: "source-not-provided", description: "ACC-only native source; AC Evo has a different shared-memory layout." }])),
     "acc.tireInnerTemp": {
       reason: "source-not-populated",
       description: "AC Evo v0.6 reserves inner surface temperatures but current shared-memory pages report zero placeholders.",

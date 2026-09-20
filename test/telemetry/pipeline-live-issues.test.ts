@@ -133,7 +133,7 @@ describe("LiveTelemetryPipeline live issue gating", () => {
       skipHistorySeeding: true,
       skipDevState: true,
       recorder: new NullSessionRecorderAdapter(),
-      liveSpotterEngineerEnabled: () => false,
+      engineerEnabled: () => false,
     });
     const broadcastNotification = ws.broadcastNotification.bind(ws);
     ws.broadcastNotification = (message) => { notifications.push(message); broadcastNotification(message); };

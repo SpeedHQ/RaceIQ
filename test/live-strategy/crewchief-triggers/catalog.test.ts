@@ -23,15 +23,16 @@ describe("CrewChief ACC trigger catalog", () => {
   test("derives capabilities from each descriptor required semantic IDs", () => {
     const capabilities = new CrewChiefTriggerCatalog().capabilities("acc");
     expect(capabilities.ConditionsMonitor.state).toBe("active");
-    expect(capabilities.Strategy.state).not.toBe(capabilities.ConditionsMonitor.state);
-    expect(capabilities.Strategy.reasonCode).toBeDefined();
+    expect(capabilities.Strategy.state).toBe("active");
+    expect(capabilities.Battery.state).toBe("unavailable");
     expect(capabilities.Position.reasonCode).toBeDefined();
   });
 
-  test("marks unsupported game capabilities unavailable with explicit reason", () => {
+  test("supports Forza position without advertising unavailable telemetry families", () => {
     const capabilities = new CrewChiefTriggerCatalog().capabilities("fm-2023");
     for (const descriptor of CREWCHIEF_TRIGGER_CATALOG) {
-      expect(capabilities[descriptor.family]).toEqual({ state: "unavailable", reasonCode: "no-source-backed-semantic-branch" });
+      if (descriptor.family === "Position") expect(capabilities.Position.state).toBe("active");
+      else expect(capabilities[descriptor.family]).toEqual({ state: "unavailable", reasonCode: "no-game-branch" });
     }
   });
 

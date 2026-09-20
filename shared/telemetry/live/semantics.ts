@@ -19,8 +19,18 @@ export const LIVE_ENGINEER_GAME_IDS = ["acc", "iracing"] as const;
 export function isLiveEngineerGameId(gameId: GameId): gameId is (typeof LIVE_ENGINEER_GAME_IDS)[number] {
   return (LIVE_ENGINEER_GAME_IDS as readonly string[]).includes(gameId);
 }
-
-const LIVE_ENGINEER_PACE_REQUIRED: Record<(typeof LIVE_ENGINEER_GAME_IDS)[number], readonly string[]> = {
+export const ENGINEER_SUPPORTED_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
+export function isEngineerSupportedGameId(gameId: GameId): gameId is (typeof ENGINEER_SUPPORTED_GAME_IDS)[number] {
+  return (ENGINEER_SUPPORTED_GAME_IDS as readonly string[]).includes(gameId);
+}
+const LIVE_ENGINEER_PACE_REQUIRED: Record<string, readonly string[]> = {
+  "f1-2025": [
+    "identity.player-car-index", "identity.player-car-class-id", "timing.lap-number", "timing.last-lap",
+    "timing.current-lap-valid", "race.pit-status", "session.session-type", "race.competitor.car-index",
+    "race.competitor.driver-name", "race.competitor.car-class-id",
+    "race.competitor.car-class-name", "race.competitor.laps-complete", "race.competitor.pit-status",
+    "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid",
+  ],
   acc: [
     "identity.player-car-index", "identity.player-car-class-id", "timing.lap-number", "timing.last-lap",
     "timing.current-lap-valid", "race.pit-status", "session.session-type", "race.competitor.car-index",
@@ -38,7 +48,7 @@ const LIVE_ENGINEER_PACE_REQUIRED: Record<(typeof LIVE_ENGINEER_GAME_IDS)[number
 };
 
 export function liveEngineerPaceRequiredSemanticIds(gameId: GameId): readonly string[] {
-  return isLiveEngineerGameId(gameId) ? LIVE_ENGINEER_PACE_REQUIRED[gameId] : [];
+  return isEngineerSupportedGameId(gameId) ? LIVE_ENGINEER_PACE_REQUIRED[gameId] ?? [] : [];
 }
 
 const LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS: Record<(typeof LIVE_ENGINEER_GAME_IDS)[number], readonly string[]> = {
@@ -47,8 +57,8 @@ const LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS: Record<(typeof LIVE_ENGINEER_GAME_IDS)
 };
 
 export function liveEngineerRequiredSemanticIds(gameId: GameId): readonly string[] {
-  if (!isLiveEngineerGameId(gameId)) return [];
-  return [...new Set([...liveEngineerPaceRequiredSemanticIds(gameId), ...LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS[gameId]])];
+  if (!isEngineerSupportedGameId(gameId)) return [];
+  return [...new Set([...liveEngineerPaceRequiredSemanticIds(gameId), ...(gameId in LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS ? LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS[gameId as keyof typeof LIVE_ENGINEER_SPOTTER_SEMANTIC_IDS] : [])])];
 }
 
 export function liveSemanticIds(gameId: GameId): readonly string[] {

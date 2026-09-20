@@ -80,6 +80,18 @@ export interface KunosExtendedData {
    * null = unavailable in source recording or not meaningful in pit state.
    */
   isValidLap: boolean | null;
+  /** ACC native countdown converted from milliseconds to seconds. */
+  sessionTimeRemainingSeconds?: number;
+  /** ACC shared-memory session type; does not require Broadcasting Protocol. */
+  sessionType?: string;
+  /** ACC penalty enum; never interpret as a cumulative penalty count. */
+  penaltyCode?: number;
+  /** ACC coolant temperature in degrees Celsius. */
+  waterTempC?: number;
+  /** ACC current rain enum (0..5), absent in truncated recordings. */
+  rainIntensityCode?: number;
+  gapAheadMs?: number;
+  gapBehindMs?: number;
 
   // Fuel
   fuelPerLap: number;
@@ -117,6 +129,7 @@ export interface KunosExtendedData {
   broadcastCarClassId?: readonly string[];
   broadcastCarClassName?: readonly string[];
   broadcastLapsComplete?: readonly number[];
+  broadcastPosition?: readonly number[];
   broadcastPitStatus?: readonly string[];
   broadcastTrackLocation?: readonly string[];
   broadcastPositionX?: readonly number[];

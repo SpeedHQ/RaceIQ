@@ -67,6 +67,10 @@ export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFram
       const trackSurface = scalar(values, "identity.player-track-surface");
       const onPitRoad = scalar(values, "race.on-pit-road");
       if (finite(trackSurface) && typeof onPitRoad === "boolean") lapState = { lapNumber, lastLapTimeSeconds, currentLapValid: trackSurface === 3, inPit: onPitRoad };
+    } else if (frame.simulator === "f1-2025") {
+      const currentLapValid = scalar(values, "timing.current-lap-valid");
+      const pitStatus = scalar(values, "race.pit-status");
+      if (typeof currentLapValid === "boolean" && typeof pitStatus === "string") lapState = { lapNumber, lastLapTimeSeconds, currentLapValid, inPit: pitStatus !== "out" };
     }
   }
 
@@ -74,7 +78,7 @@ export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFram
   const playerCarClassId = scalar(values, "identity.player-car-class-id");
   const sessionType = scalar(values, "session.session-type");
   const indexes = array<number>(values, "race.competitor.car-index");
-  const driverIds = array<unknown>(values, "race.competitor.driver-id");
+  const driverIds = array<unknown>(values, "race.competitor.driver-id") ?? (frame.simulator === "f1-2025" ? indexes : null);
   const driverNames = array<unknown>(values, "race.competitor.driver-name");
   const classIds = array<unknown>(values, "race.competitor.car-class-id");
   const classNames = array<unknown>(values, "race.competitor.car-class-name");
@@ -87,7 +91,7 @@ export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFram
   const paceLists = [indexes, driverIds, driverNames, classIds, classNames, laps, pits, times];
   let pace: LiveEngineerPaceInput | null = null;
   if (finite(playerCarIndex) && typeof playerCarClassId === "string" && typeof sessionType === "string" && aligned(paceLists)) {
-    const requiredForGame = frame.simulator === "acc" ? [connected, validities] : [locations];
+    const requiredForGame = frame.simulator === "acc" ? [connected, validities] : frame.simulator === "iracing" ? [locations] : frame.simulator === "f1-2025" ? [validities] : [];
     if (aligned([...paceLists, ...requiredForGame])) pace = { playerCarIndex, playerCarClassId, sessionType, competitorCarIndexes: indexes!, competitorDriverIds: driverIds!, competitorDriverNames: driverNames!, competitorClassIds: classIds!, competitorClassNames: classNames!, competitorLaps: laps!, competitorPitStatuses: pits!, competitorTrackLocations: locations, competitorConnected: connected, competitorLastLapTimes: times!, competitorLastLapValidity: validities };
   }
   return { frame, values, lapState, pace };
