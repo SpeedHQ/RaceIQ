@@ -11,9 +11,9 @@ import { RecordedLaps } from "../RecordedLaps";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
 
-const LMU_GAME = getGame("lmu");
 
 export function LMULiveDashboard() {
+  const lmuGame = getGame("lmu");
   const view = useTelemetryStore((state) => state.telemetryView);
   const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
   const sectors = useTelemetryStore((state) => state.sectors);
@@ -46,9 +46,9 @@ export function LMULiveDashboard() {
             fr={wheelData("fr")}
             rl={wheelData("rl")}
             rr={wheelData("rr")}
-            healthThresholds={LMU_GAME.tireHealthThresholds}
+            healthThresholds={lmuGame.tireHealthThresholds}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-            brakeTempThresholds={LMU_GAME.brakeTempThresholds}
+            brakeTempThresholds={lmuGame.brakeTempThresholds}
             compound={typeof view.tires.compound === "string" ? view.tires.compound : undefined}
             healthAvailable={view.tires.wear !== undefined}
           />
