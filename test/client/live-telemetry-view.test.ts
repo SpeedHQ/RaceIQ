@@ -183,10 +183,11 @@ describe("live telemetry view", () => {
     expect(value.session.type).toBe("race");
   });
 
-  it("projects player pit status and simulator compound names", () => {
-    const definition = schema(["race.pit-status", "tires.tire-compound-name"], "acc");
-    const value = buildLiveTelemetryView(definition, frame(["in_pit", "soft"]))!;
+  it("projects player race state, pit status, and simulator compound names", () => {
+    const definition = schema(["race.is-race-on", "race.pit-status", "tires.tire-compound-name"], "acc");
+    const value = buildLiveTelemetryView(definition, frame([true, "in_pit", "soft"]))!;
 
+    expect(value.race.isRaceOn).toBe(true);
     expect(value.race.pitStatus).toBe("in_pit");
     expect(value.tires.compound).toBe("soft");
   });

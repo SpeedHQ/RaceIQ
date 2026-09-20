@@ -81,7 +81,7 @@ export interface LiveTelemetryView {
     sidepodPct?: number;
   };
   session: { type?: number | string };
-  race: { pitStatus?: number | boolean | string };
+  race: { isRaceOn?: boolean; pitStatus?: number | boolean | string };
   competitors: readonly LiveCompetitorView[];
   statusBySemanticId: Readonly<Record<string, LiveTelemetryValueStatus>>;
 }
@@ -307,7 +307,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       sidepodPct: number("damage.sidepod-damage"),
     },
     session: { type: numberOrString("session.session-type") },
-    race: { pitStatus },
+    race: { isRaceOn: boolean("race.is-race-on"), pitStatus },
     competitors,
     statusBySemanticId,
   };

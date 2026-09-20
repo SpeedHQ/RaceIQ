@@ -40,9 +40,10 @@ export function computeTrackLaps(packets: GearingSample[]): { current: TrackSpee
       lapStartDistance = packet.DistanceTraveled;
     }
     const distance = Math.max(0, packet.DistanceTraveled - lapStartDistance);
-    let samples = [...laps.current!.samples, { distance, speedMps: packet.speedMps, gear: packet.Gear }];
+    const samples = laps.current!.samples;
+    samples.push({ distance, speedMps: packet.speedMps, gear: packet.Gear });
     if (samples.length > MAX_TRACK_SAMPLES) {
-      samples = samples.slice(samples.length - MAX_TRACK_SAMPLES);
+      samples.splice(0, samples.length - MAX_TRACK_SAMPLES);
     }
     laps = { ...laps, current: { lapNumber: laps.current!.lapNumber, samples } };
   }

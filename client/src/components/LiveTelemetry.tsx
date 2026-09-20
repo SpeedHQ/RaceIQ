@@ -35,7 +35,6 @@ interface Props {
 
 export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
-  const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const gameId = view?.simulator ?? null;
   const carOrdinal = view?.identity.carOrdinal;
   const { data: resolvedCarName } = useCarName(carOrdinal);
@@ -78,7 +77,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   // children (PowerBandChart/GearRatioCharts) read the live RPM/power/torque.
   // Rejected (null) while required semantics are unresolved; fall back to the
   // last valid sample instead of fabricated zeros.
-  const packet = viewToGearingSample(view, isRaceOn) ?? lastValidPacketRef.current;
+  const packet = viewToGearingSample(view) ?? lastValidPacketRef.current;
   if (packet) lastValidPacketRef.current = packet;
 
   const speed = view.motion.speedMps === undefined ? undefined : units.speed(view.motion.speedMps);

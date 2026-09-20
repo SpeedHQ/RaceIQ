@@ -309,11 +309,15 @@ export function trackTrackSpeedSample(packet: GearingSample) {
   // Clamp at the baseline: a game that resets DistanceTraveled per lap must
   // not make the x-axis go negative.
   const distance = Math.max(0, packet.DistanceTraveled - trackLapStartDistance);
-  let samples = [...trackLaps.current!.samples, { distance, speedMps: packet.speedMps, gear: packet.Gear }];
+  const currentLap = trackLaps.current!;
+  const samples = currentLap.samples;
+  samples.push({ distance, speedMps: packet.speedMps, gear: packet.Gear });
   if (samples.length > MAX_TRACK_SAMPLES) {
-    samples = samples.slice(samples.length - MAX_TRACK_SAMPLES);
+    samples.splice(0, samples.length - MAX_TRACK_SAMPLES);
   }
-  trackLaps = { ...trackLaps, current: { lapNumber: trackLaps.current!.lapNumber, samples } };
+  // Publish new wrapper identities for React while retaining one bounded
+  // backing array instead of copying the full trace for every sample.
+  trackLaps = { ...trackLaps, current: { lapNumber: currentLap.lapNumber, samples } };
 }
 
 export function getGearingTelemetryState() {

@@ -49,10 +49,10 @@ export function GearingTestViewer() {
 
   const samples = useMemo(
     () => views
-      .map((view) => viewToGearingSample(view, true))
+      .map((view) => viewToGearingSample(view))
       // Frames missing required semantics are rejected, like live ingestion.
       .filter((sample): sample is GearingSample => sample !== null),
-    [views, units],
+    [views],
   );
 
   // Replay the recording at 20 fps so the scrubbed charts update realistically.
