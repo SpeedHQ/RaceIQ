@@ -57,8 +57,8 @@ export function startNativeSourceSupervisor(
       setIracingSource,
     );
     superviseSource(
-      isGameRunning("lmu"),
-      "LMU",
+      isGameRunning("lmu") || recordingGameId === "lmu",
+      recordingGameId === "lmu" && !isGameRunning("lmu") ? "LMU recording" : "LMU",
       () => new LMUTelemetrySource({
         recordingEnabled: recordingGameId === "lmu",
       }),
