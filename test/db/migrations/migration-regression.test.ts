@@ -164,5 +164,31 @@ describe("migration regressions", () => {
     client.close();
   });
 
+  test("v59 marks existing static lap analysis stale without dropping cached data", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 58);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
+    );
+    await client.execute(
+      "INSERT INTO laps (id, session_id, lap_number, lap_time) VALUES (1, 1, 1, 90)",
+    );
+    await client.execute(
+      "INSERT INTO lap_metrics (lap_id, algo_version, insights, segment_stats) VALUES (1, 3, '[{\"id\":\"legacy\"}]', '[]')",
+    );
+
+    await runMigrations(client);
+
+    const rows = await client.execute(
+      "SELECT insight_version, insights FROM lap_metrics WHERE lap_id = 1",
+    );
+    expect(rows.rows[0]).toMatchObject({
+      insight_version: 0,
+      insights: '[{"id":"legacy"}]',
+    });
+    client.close();
+  });
+
 
 });

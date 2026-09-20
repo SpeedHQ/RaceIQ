@@ -6,6 +6,7 @@
 - Lap analysis detects persistent left-right tire-pressure imbalance
 - ACC and AC Evo lap analysis detects late-braking corner overshoots against bundled racing lines
 - Lap analysis detects ABS and traction-control activations when simulators omit native intervention channels
+- Lap analysis distinguishes continuous tire surface and core heat, diagnoses persistent tread-temperature profiles, and ignores pit-snapshot temperatures
 
 ### Fixes
 
@@ -14,6 +15,7 @@
 
 ### Internal
 
+- Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
 - Reuse per-frame wheel dynamics across static insight detectors
 - Avoid per-frame wheel-speed sorting during effective-radius calculation
 - Use linear-time rolling-window analysis for boost-drop detection

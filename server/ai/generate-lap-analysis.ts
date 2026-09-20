@@ -5,6 +5,7 @@ import { getCorners } from "../db/track-queries";
 import { getAnalysis, saveAnalysis } from "../db/analysis-queries";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../lap-analysis/corners";
+import { getOrComputeLapInsights } from "../lap-analysis/metrics-store";
 import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt, type PromptSectors } from "./analyst-prompt";
 import { resolveTrack } from "../tracks/info";
@@ -56,6 +57,7 @@ export interface GenerateLapAnalysisDeps {
   getGame?: typeof getGame;
   loadSettings?: typeof loadSettings;
   buildAnalystPrompt?: typeof buildAnalystPrompt;
+  getOrComputeLapInsights?: typeof getOrComputeLapInsights;
   resolveTrack?: typeof resolveTrack;
   resolveAi?: typeof resolveAi;
   getRuntimeContextLength?: (endpoint: string, model: string) => Promise<number | undefined>;
@@ -199,6 +201,8 @@ export async function generateLapAnalysis(
     // Sector times are optional context.
   }
 
+  const insights = await (deps.getOrComputeLapInsights ?? getOrComputeLapInsights)(lapId) ?? [];
+
   const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
@@ -210,6 +214,7 @@ export async function generateLapAnalysis(
     undefined,
     settings.language,
     sectors,
+    insights,
   );
 
   let ai: ResolvedAi;

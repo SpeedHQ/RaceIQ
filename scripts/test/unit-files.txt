@@ -7,6 +7,7 @@ test/client/speed.test.ts
 test/client/temperature.test.ts
 test/games/forza/forza-lzx.test.ts
 test/games/shared/win-timer-resolution.test.ts
+test/lap-analysis/tire-temperature-insights.test.ts
 test/lap-analysis/aid-activation.test.ts
 test/lap-analysis/aligned-telemetry-codec.test.ts
 test/lap-analysis/aligned-telemetry.test.ts

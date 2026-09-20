@@ -8,7 +8,7 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
-import { analyzeLapWithTrack } from "../../lap-analysis/insights";
+import { backfillLapInsights, getOrComputeLapInsights, recomputeLapInsights } from "../../lap-analysis/metrics-store";
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
@@ -25,7 +25,7 @@ import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema } from "./support";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveTelemetryReplay } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 
@@ -91,7 +91,7 @@ export const resourceRoutes = new Hono()
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLapWithTrack(lap.telemetry, meta.gameId, meta.trackOrdinal), parseError: lap.parseError ?? null,
+        insights: await getOrComputeLapInsights(id) ?? [], parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
@@ -103,6 +103,14 @@ export const resourceRoutes = new Hono()
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to replay telemetry" }, 422);
     }
+  })
+
+  .post("/api/lap-insights/backfill", zValidator("json", LapInsightBackfillSchema), async (c) =>
+    c.json(await backfillLapInsights(c.req.valid("json"))),
+  )
+  .post("/api/laps/:id/insights/rerun", zValidator("param", IdParamSchema), async (c) => {
+    const insights = await recomputeLapInsights(c.req.valid("param").id);
+    return insights ? c.json({ insights }) : c.json({ error: "Lap not found or has no telemetry" }, 404);
   })
 
   .post("/api/laps/bulk-delete", zValidator("json", BulkDeleteSchema), async (c) => {
@@ -234,7 +242,7 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLapWithTrack(packets, gameId, lap.trackOrdinal);
+    const insights = await getOrComputeLapInsights(id) ?? [];
 
     return c.json({ ...lap, sectorTimes, insights });
   })

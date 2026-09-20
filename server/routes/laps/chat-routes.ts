@@ -11,6 +11,7 @@ import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
 import { loadSettings } from "../../runtime/config/settings";
 import { buildChatSystemPrompt } from "../../ai/chat-prompt";
+import { getOrComputeLapInsights } from "../../lap-analysis/metrics-store";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
 import { lapChatAgent } from "../../ai/agents";
@@ -82,8 +83,10 @@ export const chatRoutes = new Hono()
     const cached = await getAnalysis(id);
     const analysisJson = cached?.analysis;
 
+    const insights = await getOrComputeLapInsights(id) ?? [];
+
     // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language, insights);
 
     // Provider/key/model plumbing — inlined from the old startChatStream
     // helper (removed, was the NDJSON transport's shared provider setup)

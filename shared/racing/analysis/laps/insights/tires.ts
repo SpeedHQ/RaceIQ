@@ -5,37 +5,69 @@ import type { LapInsight } from "./types";
 import { groupEvents, midFrame } from "./types";
 
 type TireTemperaturePacketUnit = TelemetryModel["tireTemperature"]["packetUnit"];
+type Wheel = "FL" | "FR" | "RL" | "RR";
+type TireTemperatureLayer = "primary" | "core";
+type TireTemperatureFields = Record<Wheel, keyof TelemetryPacket>;
 
-export function detectTireOverheat(telemetry: TelemetryPacket[], packetUnit: TireTemperaturePacketUnit): LapInsight[] {
-  const wheels = ["FL", "FR", "RL", "RR"] as const;
-  const fields = {
-    FL: "TireTempFL",
-    FR: "TireTempFR",
-    RL: "TireTempRL",
-    RR: "TireTempRR",
-  } as const;
+const WHEELS: readonly Wheel[] = ["FL", "FR", "RL", "RR"];
+const PRIMARY_TEMPERATURE_FIELDS: TireTemperatureFields = {
+  FL: "TireTempFL",
+  FR: "TireTempFR",
+  RL: "TireTempRL",
+  RR: "TireTempRR",
+};
+const CORE_TEMPERATURE_FIELDS: TireTemperatureFields = {
+  FL: "TireCarcassTempFL",
+  FR: "TireCarcassTempFR",
+  RL: "TireCarcassTempRL",
+  RR: "TireCarcassTempRR",
+};
 
-  // Compare in the packet unit declared by the adapter.
+function temperatureFields(layer: TireTemperatureLayer): TireTemperatureFields {
+  return layer === "core" ? CORE_TEMPERATURE_FIELDS : PRIMARY_TEMPERATURE_FIELDS;
+}
+
+function temperatureValue(packet: TelemetryPacket, field: keyof TelemetryPacket): number | undefined {
+  const value = packet[field];
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function temperatureScale(packetUnit: TireTemperaturePacketUnit): { factor: number; unit: string } {
+  return packetUnit === "fahrenheit" ? { factor: 1.8, unit: "°F" } : { factor: 1, unit: "°C" };
+}
+
+export function detectTireOverheat(
+  telemetry: TelemetryPacket[],
+  packetUnit: TireTemperaturePacketUnit,
+  layer: TireTemperatureLayer = "primary",
+  identity: "primary" | "separate-core" = "primary",
+): LapInsight[] {
+  const fields = temperatureFields(layer);
   const fahrenheit = packetUnit === "fahrenheit";
   const warnTemp = fahrenheit ? 250 : 110;
   const critTemp = fahrenheit ? 300 : 130;
   const unit = fahrenheit ? "°F" : "°C";
-
+  const core = identity === "separate-core";
   const insights: LapInsight[] = [];
-  for (const w of wheels) {
-    const flags = telemetry.map((p) => p[fields[w]] > warnTemp);
-    const events = groupEvents(flags, 10, 30);
-    if (events.length > 0) {
-      const peak = Math.max(...telemetry.map((p) => p[fields[w]]));
-      insights.push({
-        id: `tire-overheat-${w}`,
-        category: "tires",
-        severity: peak > critTemp ? "critical" : "warning",
-        label: "Tire Overheat",
-        detail: `${w} exceeded ${warnTemp}${unit} (peak ${peak.toFixed(0)}${unit})`,
-        frameIndices: midFrame(events),
-      });
+
+  for (const wheel of WHEELS) {
+    const flags = new Array<boolean>(telemetry.length);
+    let peak = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < telemetry.length; i++) {
+      const value = temperatureValue(telemetry[i], fields[wheel]);
+      flags[i] = value !== undefined && value > warnTemp;
+      if (value !== undefined && value > peak) peak = value;
     }
+    const events = groupEvents(flags, 10, 30);
+    if (events.length === 0) continue;
+    insights.push({
+      id: `${core ? "tire-core-overheat" : "tire-overheat"}-${wheel}`,
+      category: "tires",
+      severity: peak > critTemp ? "critical" : "warning",
+      label: core ? "Tire Core Overheat" : "Tire Overheat",
+      detail: `${wheel}${core ? " core" : ""} exceeded ${warnTemp}${unit} (peak ${peak.toFixed(0)}${unit})`,
+      frameIndices: midFrame(events),
+    });
   }
   return insights;
 }
@@ -108,22 +140,31 @@ export function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | 
   return null;
 }
 
-export function detectTireTempSplit(telemetry: TelemetryPacket[], packetUnit: TireTemperaturePacketUnit): LapInsight | null {
+export function detectTireTempSplit(
+  telemetry: TelemetryPacket[],
+  packetUnit: TireTemperaturePacketUnit,
+  layer: TireTemperatureLayer = "primary",
+): LapInsight | null {
   // Persistent front/rear temperature split points at setup balance:
   // hot fronts = understeer-prone, hot rears = oversteer/traction-limited.
+  const fields = temperatureFields(layer);
   let front = 0;
   let rear = 0;
-  let n = 0;
-  for (const p of telemetry) {
-    if (p.Speed * 2.23694 < 15) continue;
-    front += (p.TireTempFL + p.TireTempFR) / 2;
-    rear += (p.TireTempRL + p.TireTempRR) / 2;
-    n++;
+  let samples = 0;
+  for (const packet of telemetry) {
+    if (packet.Speed * 2.23694 < 15) continue;
+    const fl = temperatureValue(packet, fields.FL);
+    const fr = temperatureValue(packet, fields.FR);
+    const rl = temperatureValue(packet, fields.RL);
+    const rr = temperatureValue(packet, fields.RR);
+    if (fl === undefined || fr === undefined || rl === undefined || rr === undefined) continue;
+    front += (fl + fr) / 2;
+    rear += (rl + rr) / 2;
+    samples++;
   }
-  if (n < 100) return null;
-  front /= n;
-  rear /= n;
-  if (front <= 0 || rear <= 0) return null; // temps not reported
+  if (samples < 100) return null;
+  front /= samples;
+  rear /= samples;
 
   const fahrenheit = packetUnit === "fahrenheit";
   const warn = fahrenheit ? 25 : 12;
@@ -142,6 +183,80 @@ export function detectTireTempSplit(telemetry: TelemetryPacket[], packetUnit: Ti
     detail: `${hotEnd} axle ${Math.abs(delta).toFixed(0)}${unit} hotter on average — ${hint}`,
     frameIndices: [Math.round(telemetry.length / 2)],
   };
+}
+
+const SURFACE_PROFILE_FIELDS = {
+  FL: ["TireSurfaceTempInnerFL", "TireSurfaceTempMiddleFL", "TireSurfaceTempOuterFL"],
+  FR: ["TireSurfaceTempInnerFR", "TireSurfaceTempMiddleFR", "TireSurfaceTempOuterFR"],
+  RL: ["TireSurfaceTempInnerRL", "TireSurfaceTempMiddleRL", "TireSurfaceTempOuterRL"],
+  RR: ["TireSurfaceTempInnerRR", "TireSurfaceTempMiddleRR", "TireSurfaceTempOuterRR"],
+} as const satisfies Record<Wheel, readonly [keyof TelemetryPacket, keyof TelemetryPacket, keyof TelemetryPacket]>;
+
+/** Diagnose persistent tread-profile gradients from continuous inner/middle/outer surface temperatures. */
+export function detectTireSurfaceProfile(telemetry: TelemetryPacket[], packetUnit: TireTemperaturePacketUnit): LapInsight[] {
+  const { factor, unit } = temperatureScale(packetUnit);
+  const edgeWarn = 10 * factor;
+  const edgeCritical = 20 * factor;
+  const shapeWarn = 8 * factor;
+  const shapeCritical = 15 * factor;
+  const insights: LapInsight[] = [];
+
+  for (const wheel of WHEELS) {
+    const [innerField, middleField, outerField] = SURFACE_PROFILE_FIELDS[wheel];
+    let innerTotal = 0;
+    let middleTotal = 0;
+    let outerTotal = 0;
+    let samples = 0;
+    let peakIndex = 0;
+    let peakDeviation = 0;
+
+    for (let i = 0; i < telemetry.length; i++) {
+      const packet = telemetry[i];
+      if (packet.Speed * 2.23694 < 15) continue;
+      const inner = temperatureValue(packet, innerField);
+      const middle = temperatureValue(packet, middleField);
+      const outer = temperatureValue(packet, outerField);
+      if (inner === undefined || middle === undefined || outer === undefined) continue;
+      innerTotal += inner;
+      middleTotal += middle;
+      outerTotal += outer;
+      samples++;
+      const deviation = Math.max(Math.abs(inner - outer), Math.abs(middle - (inner + outer) / 2));
+      if (deviation > peakDeviation) {
+        peakDeviation = deviation;
+        peakIndex = i;
+      }
+    }
+    if (samples < 100) continue;
+
+    const inner = innerTotal / samples;
+    const middle = middleTotal / samples;
+    const outer = outerTotal / samples;
+    const edgeDelta = inner - outer;
+    if (Math.abs(edgeDelta) >= edgeWarn) {
+      insights.push({
+        id: `tire-surface-edge-imbalance-${wheel}`,
+        category: "tires",
+        severity: Math.abs(edgeDelta) >= edgeCritical ? "critical" : "warning",
+        label: "Tire Surface Edge Imbalance",
+        detail: `${wheel} ${edgeDelta > 0 ? "inner" : "outer"} edge averaged ${Math.abs(edgeDelta).toFixed(1)}${unit} hotter — check camber`,
+        frameIndices: [peakIndex],
+      });
+    }
+
+    const shapeDelta = middle - (inner + outer) / 2;
+    if (Math.abs(shapeDelta) >= shapeWarn) {
+      insights.push({
+        id: `tire-surface-pressure-shape-${wheel}`,
+        category: "tires",
+        severity: Math.abs(shapeDelta) >= shapeCritical ? "critical" : "warning",
+        label: "Tire Surface Pressure Shape",
+        detail: `${wheel} ${shapeDelta > 0 ? "center" : "shoulders"} averaged ${Math.abs(shapeDelta).toFixed(1)}${unit} hotter — check ${shapeDelta > 0 ? "overinflation" : "underinflation"}`,
+        frameIndices: [peakIndex],
+      });
+    }
+  }
+  return insights;
 }
 
 export function detectTirePressureImbalance(telemetry: TelemetryPacket[]): LapInsight | null {

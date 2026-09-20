@@ -1250,5 +1250,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Version deterministic static lap analysis independently from segment
+  // metrics. Existing rows start stale (0) and remain readable by older builds;
+  // current code recomputes them lazily or through the explicit backfill route.
+  {
+    version: 59,
+    name: "version static lap analysis",
+    sql: [
+      `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 

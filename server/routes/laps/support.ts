@@ -63,6 +63,12 @@ export const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
 });
 
+export const LapInsightBackfillSchema = z.object({
+  limit: z.number().int().min(1).max(500).default(100),
+  afterLapId: z.number().int().positive().optional(),
+  force: z.boolean().default(false),
+});
+
 export const IbtImportTokenSchema = z.object({
   token: z.string().uuid(),
 });

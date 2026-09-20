@@ -549,19 +549,19 @@ export const compareAnalyses = sqliteTable(
 );
 
 /**
- * Per-lap derived metrics (insights + per-segment input stats), cached so the
- * tuning views don't re-decode a lap's raw .bin on every read.
+ * Per-lap derived metrics (static insights + per-segment input stats), cached so
+ * consumers don't re-decode or re-analyse a lap on every read.
  *
- * `algo_version` is the cache key alongside `lap_id`: bumping
- * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
- * than requiring a migration to recompute. One row per lap — the recompute
- * overwrites in place.
+ * `algo_version` versions segment stats. `insight_version` independently
+ * versions deterministic static analysis. Stale rows are overwritten in place
+ * on read or through the explicit backfill/rerun endpoint.
  */
 export const lapMetrics = sqliteTable("lap_metrics", {
 	lapId: integer("lap_id")
 		.primaryKey()
 		.references(() => laps.id, { onDelete: "cascade" }),
 	algoVersion: integer("algo_version").notNull().default(1),
+	insightVersion: integer("insight_version").notNull().default(0),
 	insights: text("insights").notNull(),
 	segmentStats: text("segment_stats").notNull(),
 	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),

@@ -7,7 +7,7 @@ Transforms completed-lap telemetry into deterministic comparison traces, corner 
 ## Structure
 
 - `comparison.ts`, `corners.ts`, and `sectors.ts` align laps and derive distance-based structure.
-- `metrics.ts` and `stats.ts` own pure packet metrics and shared numerical primitives; `metrics-store.ts` owns their database cache.
+- `insights.ts` owns the static-analysis version and track-aware detector entry point; `metrics.ts` and `stats.ts` own pure packet metrics and shared numerical primitives; `metrics-store.ts` owns persisted caches, stale backfill, and forced reruns.
 - `quality.ts` applies recording-validity checks.
 - `recap.ts` builds session recap data.
 - `consistency.ts` measures racing-line and input repeatability.
@@ -15,7 +15,7 @@ Transforms completed-lap telemetry into deterministic comparison traces, corner 
 
 ## Boundaries and invariants
 
-Telemetry units, game steering conventions, native sector layouts, and curated track geometry enter from existing shared/game and track APIs. Persistence remains isolated in `metrics-store.ts`; other modules are deterministic apart from the metrics timestamp. Preserve threshold strictness, lap and corner ordering, sector authority and fallback precedence, interpolation rules, rounding precision, and report text exactly when changing calculations. Cached metric shape changes require an algorithm-version bump.
+Telemetry units, game steering conventions, native sector layouts, and curated track geometry enter from existing shared/game and track APIs. Persistence remains isolated in `metrics-store.ts`; other modules are deterministic apart from persisted timestamps. Preserve threshold strictness, lap and corner ordering, sector authority and fallback precedence, interpolation rules, rounding precision, and report text exactly when changing calculations. Bump `LAP_METRICS_ALGO_VERSION` for segment-stat changes and `STATIC_LAP_ANALYSIS_VERSION` for detector-output changes.
 
 ## Testing
 

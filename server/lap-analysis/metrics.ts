@@ -3,7 +3,7 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
-import { analyzeLapWithTrack } from "./insights";
+import { analyzeLapWithTrack, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
@@ -72,6 +72,7 @@ export interface SegmentStat {
 /** What `lap_metrics` stores for one lap. */
 export interface LapMetrics {
   lapId: number;
+  insightVersion: number;
   algoVersion: number;
   insights: LapInsight[];
   segmentStats: SegmentStat[];
@@ -311,12 +312,15 @@ export function computeLapMetrics(
   lapId: number,
   packets: TelemetryPacket[],
   gameId: GameId,
+  trackOrdinal: number | null | undefined,
   segments: NamedSegment[],
+  insights: LapInsight[] = analyzeLapWithTrack(packets, gameId, trackOrdinal ?? undefined),
 ): LapMetrics {
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,
-    insights: analyzeLapWithTrack(packets, gameId),
+    insightVersion: STATIC_LAP_ANALYSIS_VERSION,
+    insights,
     segmentStats: computeLapSegmentStats(packets, segments, steerScaleFor(gameId)),
     computedAt: new Date().toISOString(),
   };

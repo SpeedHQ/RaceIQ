@@ -9,6 +9,7 @@ export const acEvoAdapter: GameAdapter = {
     fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
     tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.surface.representative" } },
     tireCarcassTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.core" } },
+    tireSurfaceProfile: { source: "direct", freshness: "continuous" },
     brakeTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "brakes.brake-temp" } },
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
     weather: { source: "direct", freshness: "continuous", binding: { kind: "group", required: ["weather.air-temp"] } },

@@ -7,6 +7,7 @@ import type { GameId } from "../../../shared/games/ids";
 import { getLapsByIds } from "../../db/lap-read-queries";
 import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnalysis } from "../../db/analysis-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
+import { getOrComputeLapInsightsBatch } from "../../lap-analysis/metrics-store";
 import { loadSettings } from "../../runtime/config/settings";
 import { resolveLapCorners, resolveLapSegments } from "../../tracks/corner-resolution";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
@@ -97,6 +98,8 @@ export const comparisonRoutes = new Hono()
         direction: s.direction,
       })) ?? null;
 
+    const insights = await getOrComputeLapInsightsBatch([id1, id2]);
+
     const prompt = buildInputsComparePrompt(
       {
         lapNumber: lapA.lapNumber,
@@ -117,8 +120,8 @@ export const comparisonRoutes = new Hono()
       comparison,
       segments,
       undefined,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, insights.get(id1) ?? []) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, insights.get(id2) ?? []),
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -258,6 +261,8 @@ export const comparisonRoutes = new Hono()
 
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
+    const insights = await getOrComputeLapInsightsBatch([id1, id2]);
+
     const settings = loadSettings();
     const systemPrompt = buildCompareChatSystemPrompt(
       {
@@ -284,8 +289,8 @@ export const comparisonRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
-      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
-        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, insights.get(id1) ?? []) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, insights.get(id2) ?? []),
     );
 
     const chatProvider = settings.chatProvider;

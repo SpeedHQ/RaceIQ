@@ -6,7 +6,15 @@ import { buildAccelReference } from "../time-loss";
 import { allWheelStates } from "../physics/vehicle";
 import { detectSuspensionOverload, detectSuspensionImbalance } from "./suspension";
 import { detectFuelConsumption, detectPeakPower, detectBoostAnomaly } from "./mechanical";
-import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit, detectTirePressureImbalance } from "./tires";
+import {
+  detectLockups,
+  detectTireOverheat,
+  detectTirePressureImbalance,
+  detectTireSurfaceProfile,
+  detectTireTempSplit,
+  detectWearImbalance,
+  detectWheelspin,
+} from "./tires";
 import {
   detectBrakeTractionLoss,
   detectRevLimiter,
@@ -36,6 +44,14 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, context
   if (telemetry.length < 10) return [];
   const game = getGame(gameId);
   const tireTemperatureUnit = game.telemetry.tireTemperature.packetUnit;
+  const tireTemperature = game.telemetry.analysis?.tireTemperature;
+  const supportsContinuousTireTemperature = tireTemperature?.source === "direct" && tireTemperature.freshness === "continuous";
+  const primaryTemperatureIsCore =
+    tireTemperature?.source === "direct" &&
+    tireTemperature.binding?.kind === "value" &&
+    tireTemperature.binding.semanticId === "tire.temperature.core";
+  const separateCoreTemperature = primaryTemperatureIsCore ? undefined : game.telemetry.tireCarcassTemperature;
+  const supportsContinuousSurfaceProfile = game.telemetry.tireSurfaceProfile?.freshness === "continuous";
   const supportsWheelStateAnalysis = game.telemetry.analysis?.wheelRotation?.source !== "unavailable";
   const tirePressure = game.telemetry.analysis?.tirePressure;
   const supportsTirePressureAnalysis = tirePressure?.source === "direct" && tirePressure.freshness === "continuous";
@@ -58,14 +74,26 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, context
   if (imbalance) insights.push(imbalance);
 
   // Tires
-  insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
+  if (supportsContinuousTireTemperature) {
+    insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
+  }
+  if (separateCoreTemperature) {
+    insights.push(...detectTireOverheat(telemetry, separateCoreTemperature.packetUnit, "core", "separate-core"));
+  }
+  if (supportsContinuousSurfaceProfile) {
+    insights.push(...detectTireSurfaceProfile(telemetry, tireTemperatureUnit));
+  }
   if (wheelStates) {
     insights.push(...detectLockups(wheelStates));
     insights.push(...detectWheelspin(wheelStates));
   }
   const wearImb = detectWearImbalance(telemetry);
   if (wearImb) insights.push(wearImb);
-  const tempSplit = detectTireTempSplit(telemetry, tireTemperatureUnit);
+  const tempSplit = separateCoreTemperature
+    ? detectTireTempSplit(telemetry, separateCoreTemperature.packetUnit, "core")
+    : supportsContinuousTireTemperature
+      ? detectTireTempSplit(telemetry, tireTemperatureUnit)
+      : null;
   if (tempSplit) insights.push(tempSplit);
   if (supportsTirePressureAnalysis) {
     const pressure = detectTirePressureImbalance(telemetry);
