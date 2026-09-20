@@ -19,6 +19,7 @@ import {
   detectEarlyThrottle,
   detectBinaryThrottle,
 } from "./driving-core";
+import { detectAbsActivation, detectTractionControlActivation } from "./electronics";
 import {
   detectBrakeDrag,
   detectDownshiftOverRev,
@@ -40,6 +41,7 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, context
   const supportsTirePressureAnalysis = tirePressure?.source === "direct" && tirePressure.freshness === "continuous";
   const slipAngle = game.telemetry.analysis?.slipAngle;
   const physicalSlipAngles = slipAngle?.source === "direct" && slipAngle.binding?.kind === "value" && slipAngle.binding.semanticId === "tires.tire-slip-angle";
+  const nativeAidInterventionChannel = gameId === "acc" || gameId === "ac-evo";
 
   const insights: LapInsight[] = [];
 
@@ -71,6 +73,10 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, context
   }
 
   // Driving
+  const absActivation = detectAbsActivation(telemetry, nativeAidInterventionChannel);
+  if (absActivation) insights.push(absActivation);
+  const tractionControlActivation = detectTractionControlActivation(telemetry, nativeAidInterventionChannel);
+  if (tractionControlActivation) insights.push(tractionControlActivation);
   if (wheelStates) {
     const brakeLoss = detectBrakeTractionLoss(telemetry, wheelStates);
     if (brakeLoss) insights.push(brakeLoss);

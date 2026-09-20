@@ -1,15 +1,19 @@
 ## Unreleased
 
 ### Features
+
 - Lap analysis detects sustained oversteer slides
 - Lap analysis detects persistent left-right tire-pressure imbalance
 - ACC and AC Evo lap analysis detects late-braking corner overshoots against bundled racing lines
+- Lap analysis detects ABS and traction-control activations when simulators omit native intervention channels
 
 ### Fixes
+
 - Forza lap analysis no longer treats normalized lateral-slip telemetry as physical slip angles
 - Lap analysis avoids wheelspin and traction-loss findings when a simulator does not provide wheel-rotation telemetry
 
 ### Internal
+
 - Reuse per-frame wheel dynamics across static insight detectors
 - Avoid per-frame wheel-speed sorting during effective-radius calculation
 - Use linear-time rolling-window analysis for boost-drop detection
@@ -18,6 +22,7 @@
 ## v0.18.0 - 2026-09-18
 
 ### Features
+
 - Localize client analysis, telemetry, session-import, and developer-state UI with English and German messages
 
 - Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
@@ -43,6 +48,7 @@
 - Lap analysis works with older F1 recordings that lack track or air temperatures
 
 ### Internal
+
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 - Run seeded database upgrade verification in PR and release CI when migrations change.
 
@@ -52,11 +58,13 @@
 ## v0.17.0 - 2026-09-16
 
 ### Features
+
 - Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 - Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+
 - Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session
