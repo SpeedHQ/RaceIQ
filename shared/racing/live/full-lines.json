@@ -8,7 +8,7 @@
   {"lineId": "off-overall-pace", "spokenText": "You are point three seconds off overall pace.", "kind": "pace", "relation": "off-class-pace", "scope": "overall"},
   {"lineId": "outlier-class", "spokenText": "That lap is point three seconds off class pace.", "kind": "pace", "relation": "outlier-lap", "scope": "class"},
   {"lineId": "outlier-overall", "spokenText": "That lap is point three seconds off overall pace.", "kind": "pace", "relation": "outlier-lap", "scope": "overall"},
-  {"lineId": "lap-time", "spokenText": "Your lap was one minute thirty two point four one seven.", "kind": "lap-time"},
+  {"lineId": "lap-time", "spokenText": "Your lap was one thirty two point four.", "kind": "lap-time"},
   {"lineId": "opponent-faster-last-lap", "spokenText": "Opponent was point three seconds faster last lap.", "kind": "opponent-lap-pace"},
   {"lineId": "driver-faster-last-lap", "spokenText": "You were point three seconds faster last lap.", "kind": "opponent-lap-pace"},
   {"lineId": "tires-cold", "spokenText": "Tires are cold. Be careful.", "kind": "preview-line"},

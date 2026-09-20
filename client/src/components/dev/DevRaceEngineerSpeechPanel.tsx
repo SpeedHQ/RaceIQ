@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { useDevSpeechAudio, type SpeechClip } from "./DevSpeechAudio";
+import { DevLapTimeComparison } from "./DevLapTimeComparison";
 import { formatLiveEngineerDeltaText } from "../../../../shared/racing/live/time-text";
 import fullLineCatalog from "../../../../shared/racing/live/full-lines.json";
 
@@ -111,33 +112,38 @@ export function DevRaceEngineerSpeechPanel() {
   };
   const segmentIdsFor = (rendered: RenderedPace): string[] | undefined => rendered.segmentIds ?? rendered.voiceLine?.segmentIds;
   const previewPace = async () => {
+    const isCurrent = audio.beginPreview();
     const rendered = await renderPace(relation);
+    if (!isCurrent()) return;
     audio.setResult(rendered);
     const segmentIds = segmentIdsFor(rendered);
     if (segmentIds) await audio.playSegments("pace", segmentIds);
   };
   const testState = async (nextState: (typeof relations)[number]) => {
+    const isCurrent = audio.beginPreview();
     setEngineState(nextState);
     setRelation(nextState);
     setEngineBusy(true);
     const rendered = await renderPace(nextState);
+    setEngineBusy(false);
+    if (!isCurrent()) return;
     audio.setResult(rendered);
     const segmentIds = segmentIdsFor(rendered);
     if (segmentIds) await audio.playSegments(`pace-state-${nextState}`, segmentIds);
     setEngineEvents((events) =>
       [{ state: nextState, outcome: "selected" as const, at: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) }, ...events].slice(0, 4),
     );
-    setEngineBusy(false);
   };
   const toggleScenarioState = (state: ScenarioState) => {
     setActiveScenarioStates((active) => (active.includes(state) ? active.filter((item) => item !== state) : [...active, state]));
   };
   const testScenario = async () => {
+    const isCurrent = audio.beginPreview();
     setEngineBusy(true);
     const side = activeScenarioStates.includes("three-wide-left") ? "left" : activeScenarioStates.includes("three-wide-right") ? "right" : null;
     const special = scenarioVoiceText(activeScenarioStates);
     const rendered = special
-      ? { text: special.text, segmentIds: special.state === "lap-invalidated" ? ["race-engineer.lap-invalidated"] : [] }
+      ? { text: special.text, segmentIds: [`race-engineer.${special.state}`] }
       : side
         ? ((await (
             await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: `three-wide-${side}`, overlapCount: 2 }) })
@@ -147,6 +153,8 @@ export function DevRaceEngineerSpeechPanel() {
               await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "lap-time", lapTimeMs: 92_417 }) })
             ).json()) as RenderedPace)
           : await renderPace(engineState);
+    setEngineBusy(false);
+    if (!isCurrent()) return;
     audio.setResult(rendered);
     setScenarioOutput(rendered.text ?? "No voice line emitted.");
     setScenarioDecision(
@@ -159,16 +167,15 @@ export function DevRaceEngineerSpeechPanel() {
             : `${engineState} pace candidate selected`,
     );
     const segmentIds = segmentIdsFor(rendered);
-    if (special?.state === "lap-invalidated") await audio.playQwenClip(`scenario-${special.state}`, "race-engineer.lap-invalidated");
-    else if (special) await audio.playText(`scenario-${special.state}`, special.text);
-    else if (segmentIds?.length) await audio.playSegments(`scenario-${side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
-    setEngineBusy(false);
+    if (segmentIds?.length) await audio.playSegments(`scenario-${special?.state ?? side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
   };
   const playSentence = async (example: (typeof sentenceExamples)[number]) => {
+    const isCurrent = audio.beginPreview();
     if (example.kind === "preview-line") {
       const rendered = (await (
         await fetch("/api/dev/live-engineer/preview", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "preview-line", lineId: example.id }) })
       ).json()) as RenderedPace & { lineId?: string };
+      if (!isCurrent()) return;
       audio.setResult(rendered);
       if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
       if (rendered.lineId) await audio.playFullLine(`qwen-sentence-${example.id}`, rendered.lineId);
@@ -184,10 +191,15 @@ export function DevRaceEngineerSpeechPanel() {
               await fetch("/api/dev/live-engineer/preview", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
-                body: JSON.stringify({ kind: "opponent-lap-pace", deltaMs: example.id === "opponent-faster-last-lap" ? 300 : -300 }),
+                body: JSON.stringify({
+                  kind: "opponent-lap-pace",
+                  deltaMs: example.id === "opponent-faster-last-lap" ? 300 : -300,
+                  voiceMode,
+                }),
               })
             ).json()) as RenderedPace)
           : await renderPace((example as Extract<SentenceExample, { kind: "pace" }>).relation, (example as Extract<SentenceExample, { kind: "pace" }>).scope);
+    if (!isCurrent()) return;
     audio.setResult(rendered);
     if (rendered.text) setRenderedSentenceText((previous) => ({ ...previous, [example.id]: rendered.text! }));
     const segmentIds = segmentIdsFor(rendered);
@@ -196,6 +208,7 @@ export function DevRaceEngineerSpeechPanel() {
   const selectedDefinition = stateDefinitionFor(engineState);
   return (
     <div className="h-full overflow-y-auto p-6">
+      <DevLapTimeComparison audio={audio} />
       <section className="mt-6 rounded border border-app-border p-4">
         <div className="flex items-start justify-between gap-4">
           <div>

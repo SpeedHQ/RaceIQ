@@ -5,6 +5,7 @@
 ### Fixes
 
 ### Internal
+- Show ordered v3 lap-time chunks, individual audio previews, source sentences, and join timings in the developer speech comparison.
 
 ## v0.18.0 - 2026-09-18
 

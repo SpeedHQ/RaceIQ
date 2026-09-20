@@ -504,7 +504,6 @@ export interface FileRoutesByTo {
   '/$gameid/compare': typeof GameidCompareRoute
   '/$gameid/driver': typeof GameidDriverRoute
   '/$gameid/raw': typeof GameidRawRoute
-  '/$gameid/sessions': typeof GameidSessionsRoute
   '/dev/e2e': typeof DevE2eRoute
   '/dev/import': typeof DevImportRoute
   '/dev/speech': typeof DevSpeechRouteWithChildren
@@ -705,7 +704,6 @@ export interface FileRouteTypes {
     | '/$gameid/compare'
     | '/$gameid/driver'
     | '/$gameid/raw'
-    | '/$gameid/sessions'
     | '/dev/e2e'
     | '/dev/import'
     | '/dev/speech'

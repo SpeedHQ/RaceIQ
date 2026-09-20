@@ -9,18 +9,18 @@ import { renderLapTime, renderOpponentLapPace, renderOpponentPace, renderPreview
 import { wsManager } from "../../runtime/websocket-manager";
 
 const root = process.cwd();
-const qwenManifestPath = resolve(root, "client/public/audio/live-engineer/qwen-v2/manifest.json");
+const qwenManifestPath = resolve(root, "client/public/audio/live-engineer/qwen-v3/manifest.json");
 interface CatalogFullLine { lineId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
 interface CatalogQwenClip { segmentId: string; spokenText: string; path: string; sha256: string; durationMs: number; }
-const qwenAudioRoot = resolve(root, "client/public/audio/live-engineer/qwen-v2");
+const qwenAudioRoot = resolve(root, "client/public/audio/live-engineer/qwen-v3");
 const previewLineIds: Record<string, true> = Object.fromEntries(fullLineCatalog.filter((line) => line.kind === "preview-line").map((line) => [line.lineId, true]));
 export const liveEngineerRoutes = new Hono();
 
 liveEngineerRoutes.get("/api/dev/live-engineer/catalog", (c) => {
   const qwenManifest = existsSync(qwenManifestPath) ? JSON.parse(readFileSync(qwenManifestPath, "utf8")) : null;
-  const fullLines = (qwenManifest?.fullLines ?? []).map((line: CatalogFullLine) => ({ ...line, url: `/audio/live-engineer/qwen-v2/${line.path}` }));
-  const qwenClips = (qwenManifest?.clips ?? []).map((clip: CatalogQwenClip) => ({ ...clip, url: `/audio/live-engineer/qwen-v2/${clip.path}` }));
-  return c.json({ catalogVersion: LIVE_ENGINEER_AUDIO_CATALOG_VERSION, model: qwenManifest?.model ?? null, validation: Boolean(qwenManifest), fullLineValidation: qwenManifest?.fullLineValidation ?? null, fullLines, qwenClips });
+  const fullLines = (qwenManifest?.fullLines ?? []).map((line: CatalogFullLine) => ({ ...line, url: `/audio/live-engineer/qwen-v3/${line.path}` }));
+  const qwenClips = (qwenManifest?.clips ?? []).map((clip: CatalogQwenClip) => ({ ...clip, url: `/audio/live-engineer/qwen-v3/${clip.path}` }));
+  return c.json({ catalogVersion: qwenManifest?.catalogVersion ?? LIVE_ENGINEER_AUDIO_CATALOG_VERSION, model: qwenManifest?.model ?? null, validation: Boolean(qwenManifest), fullLineValidation: qwenManifest?.fullLineValidation ?? null, fullLines, qwenClips });
 });
 
 liveEngineerRoutes.post("/api/dev/live-engineer/catalog-check", async (c) => {
@@ -47,10 +47,12 @@ liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
   const now = Date.now();
   if (body?.kind === "lap-time") {
     const rendered = renderLapTime(Number(body.lapTimeMs));
-    if (!rendered.segmentIds.length) return c.json({ error: "invalid lap time" }, 400);
+    if (!rendered.segmentIds.length) return c.json({ error: "unsupported spoken value" }, 400);
     return c.json({ type: "live-engineer-lap-time-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds } });
   }
   if (body?.kind === "opponent-lap-pace") {
+    const voiceMode = body.voiceMode === "exact-response" ? "exact-response" : body.voiceMode === "automatic" ? "automatic" : null;
+    if (!voiceMode) return c.json({ error: "invalid voice mode" }, 400);
     const rendered = renderOpponentLapPace({
       relation: "within-class-pace",
       scope: "class",
@@ -59,8 +61,9 @@ liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
       benchmarkLapTimeMs: Number(body.benchmarkLapTimeMs ?? 60_000),
       deltaMs: Number(body.deltaMs ?? 400),
       benchmarkKind: "session-best",
-    });
-    return c.json({ type: "live-engineer-opponent-lap-pace-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds } });
+    }, { voiceMode });
+    if (!rendered.segmentIds.length) return c.json({ error: "unsupported spoken value" }, 400);
+    return c.json({ type: "live-engineer-opponent-lap-pace-preview", text: rendered.text, voiceLine: { segmentIds: rendered.segmentIds, mode: voiceMode } });
   }
   if (body?.kind === "preview-line" && typeof body.lineId === "string" && previewLineIds[body.lineId] === true) {
     const rendered = renderPreviewLine(body.lineId as Parameters<typeof renderPreviewLine>[0]);
@@ -77,12 +80,15 @@ liveEngineerRoutes.post("/api/dev/live-engineer/preview", async (c) => {
     return c.json({ ...message, text: rendered.text, voiceLine: line });
   }
   if (!body || !isOpponentPaceRenderParametersV1(body)) return c.json({ error: "invalid render parameters" }, 400);
-  const rendered = renderOpponentPace(body, { voiceMode: "automatic" });
+  const voiceMode = body.voiceMode === "exact-response" ? "exact-response" : body.voiceMode === "automatic" ? "automatic" : null;
+  if (!voiceMode) return c.json({ error: "invalid voice mode" }, 400);
+  const rendered = renderOpponentPace(body, { voiceMode });
+  if (!rendered.segmentIds.length) return c.json({ error: "unsupported spoken value" }, 400);
   const candidateId = `dev/${now}/${body.relation}`;
   const message = { type: "live-engineer-callout" as const, protocolVersion: 3 as const, decisionId: `${candidateId}/opponent-pace-v1`, candidateId, family: "opponent-pace" as const, sessionId: "dev", timelineEpoch: 1, sourceSequence: now, priority: "normal" as const, createdSessionTimeMs: now, expiresSessionTimeMs: now + 12_000, render: { renderingVersion: "opponent-pace-v1" as const, textKey: rendered.textKey as OpponentPaceTextKeyV1, parameters: body } };
   if (!isLiveEngineerCalloutMessageV3(message)) return c.json({ error: "renderer produced invalid pace message" }, 500);
   wsManager.broadcastNotification(message as unknown as Record<string, unknown>);
-  const line = createLiveEngineerVoiceLine(message, rendered.segmentIds, { mode: "automatic" });
+  const line = createLiveEngineerVoiceLine(message, rendered.segmentIds, { mode: voiceMode, ...(voiceMode === "exact-response" ? { requestId: `dev/${now}` } : {}) } as never);
   wsManager.broadcastNotification(line as unknown as Record<string, unknown>);
   return c.json({ ...message, text: rendered.text, voiceLine: line });
 });

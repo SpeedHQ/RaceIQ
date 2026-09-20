@@ -1,6 +1,6 @@
 import { isSpotterRenderParametersV1, type SpotterRenderParametersV1 } from "./spotter-contracts";
 import { CREWCHIEF_AUTOMATIC_EVENTS, CREWCHIEF_REFERENCE, type CrewChiefEventFamily, type CrewChiefSourceRef } from "../../telemetry/live/crewchief-callout-contract";
-export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = "live-engineer-qwen-v2" as const;
+export const LIVE_ENGINEER_AUDIO_CATALOG_VERSION = "live-engineer-qwen-v3" as const;
 export const LIVE_ENGINEER_PROTOCOL_VERSION = 3 as const;
 export const LIVE_ENGINEER_RENDERING_VERSION = "opponent-pace-v1" as const;
 export const SPOTTER_RENDERING_VERSION = "spotter-v1" as const;
