@@ -8,7 +8,7 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
-import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
+import { analyzeLapWithTrack } from "../../lap-analysis/insights";
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
@@ -91,7 +91,7 @@ export const resourceRoutes = new Hono()
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, meta.gameId), parseError: lap.parseError ?? null,
+        insights: analyzeLapWithTrack(lap.telemetry, meta.gameId, meta.trackOrdinal), parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
@@ -234,7 +234,7 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLap(packets, gameId);
+    const insights = analyzeLapWithTrack(packets, gameId, lap.trackOrdinal);
 
     return c.json({ ...lap, sectorTimes, insights });
   })

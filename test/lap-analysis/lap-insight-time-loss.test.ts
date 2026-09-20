@@ -3,11 +3,11 @@ import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const STEP_S = STEP_MS / 1000;
-
 
 initGameAdapters();
 interface Frame {
@@ -15,6 +15,12 @@ interface Frame {
   accel?: number;
   brake?: number;
   locked?: boolean;
+  steer?: number;
+  accelerationX?: number;
+  yawRate?: number;
+  frontSlip?: number;
+  rearSlip?: number;
+  pressures?: readonly [number, number, number, number];
 }
 
 /**
@@ -43,7 +49,17 @@ function pkt(f: Frame, t: number): TelemetryPacket {
     Speed: f.speed,
     Accel: f.accel ?? 0,
     Brake: f.brake ?? 0,
-    Steer: 0,
+    Steer: f.steer ?? 0,
+    AccelerationX: f.accelerationX ?? 0,
+    AngularVelocityY: f.yawRate ?? 0,
+    TireSlipAngleFL: f.frontSlip ?? 0,
+    TireSlipAngleFR: f.frontSlip ?? 0,
+    TireSlipAngleRL: f.rearSlip ?? 0,
+    TireSlipAngleRR: f.rearSlip ?? 0,
+    TirePressureFrontLeft: f.pressures?.[0],
+    TirePressureFrontRight: f.pressures?.[1],
+    TirePressureRearLeft: f.pressures?.[2],
+    TirePressureRearRight: f.pressures?.[3],
     WheelRotationSpeedFL: f.locked ? 0 : rot,
     WheelRotationSpeedFR: rot,
     WheelRotationSpeedRL: rot,
@@ -51,8 +67,12 @@ function pkt(f: Frame, t: number): TelemetryPacket {
   } as unknown as TelemetryPacket;
 }
 
-function find(insights: ReturnType<typeof analyzeLap>, id: string) {
-  return insights.find((i) => i.id === id);
+function find(insights: LapInsight[], id: string) {
+  return insights.find((insight) => insight.id === id);
+}
+
+function repeated(count: number, frame: Frame): TelemetryPacket[] {
+  return Array.from({ length: count }, (_, index) => pkt(frame, index * STEP_MS));
 }
 
 describe("analyzeLap time-loss quantification", () => {
@@ -135,6 +155,45 @@ describe("analyzeLap wheel-state capabilities", () => {
 
     expect(find(insights, "tire-lockup-FL")).toBeUndefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeUndefined();
+  });
+});
+
+describe("analyzeLap deterministic signal guards", () => {
+  test("does not interpret Forza normalized lateral slip as radians", () => {
+    const telemetry = repeated(30, {
+      speed: 40,
+      steer: 50,
+      accelerationX: -9.81,
+      yawRate: 9.81 / 40,
+      frontSlip: 0.9,
+      rearSlip: 0.1,
+    });
+
+    expect(find(analyzeLap(telemetry, "fm-2023"), "driving-understeer-scrub")).toBeUndefined();
+  });
+
+  test("detects sustained physical oversteer", () => {
+    const telemetry = repeated(30, {
+      speed: 40,
+      steer: 35,
+      accelerationX: -9.81,
+      yawRate: 0.8,
+      frontSlip: 0.02,
+      rearSlip: 0.2,
+    });
+
+    expect(find(analyzeLap(telemetry, "f1-2025"), "driving-oversteer-slide")).toBeDefined();
+  });
+
+  test("detects persistent left-right pressure imbalance", () => {
+    const telemetry = repeated(120, {
+      speed: 40,
+      pressures: [28, 25.5, 27, 27],
+    });
+
+    const insight = find(analyzeLap(telemetry, "f1-2025"), "tire-pressure-imbalance");
+    expect(insight).toBeDefined();
+    expect(insight?.detail).toContain("front left tire averaged 2.5 psi higher");
   });
 });
 

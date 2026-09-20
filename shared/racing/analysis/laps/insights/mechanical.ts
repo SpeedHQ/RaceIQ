@@ -47,19 +47,18 @@ export function detectPeakPower(telemetry: TelemetryPacket[]): LapInsight | null
 }
 
 export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | null {
-  const maxBoost = Math.max(...telemetry.map((p) => p.Boost));
+  let maxBoost = 0;
+  for (const packet of telemetry) maxBoost = Math.max(maxBoost, packet.Boost);
   if (maxBoost <= 0) return null;
 
   const flags: boolean[] = new Array(telemetry.length).fill(false);
-  let rollingPeak = 0;
+  const peakIndices: number[] = [];
+  let peakHead = 0;
   for (let i = 0; i < telemetry.length; i++) {
-    rollingPeak = Math.max(rollingPeak, telemetry[i].Boost);
-    if (i >= 60) {
-      rollingPeak = 0;
-      for (let j = i - 59; j <= i; j++) {
-        rollingPeak = Math.max(rollingPeak, telemetry[j].Boost);
-      }
-    }
+    while (peakHead < peakIndices.length && peakIndices[peakHead] < i - 59) peakHead++;
+    while (peakIndices.length > peakHead && telemetry[peakIndices[peakIndices.length - 1]].Boost <= telemetry[i].Boost) peakIndices.pop();
+    peakIndices.push(i);
+    const rollingPeak = telemetry[peakIndices[peakHead]].Boost;
     if (telemetry[i].Accel > 240 && rollingPeak > 0 && telemetry[i].Boost < rollingPeak * 0.5) {
       flags[i] = true;
     }
@@ -75,4 +74,3 @@ export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | n
     frameIndices: midFrame(events),
   };
 }
-

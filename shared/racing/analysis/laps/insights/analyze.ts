@@ -3,19 +3,43 @@ import type { GameId } from "../../../../games/ids";
 import type { TelemetryPacket } from "../../../../telemetry/types";
 import { frameDt } from "../frame-time";
 import { buildAccelReference } from "../time-loss";
+import { allWheelStates } from "../physics/vehicle";
 import { detectSuspensionOverload, detectSuspensionImbalance } from "./suspension";
 import { detectFuelConsumption, detectPeakPower, detectBoostAnomaly } from "./mechanical";
-import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit } from "./tires";
-import { detectBrakeTractionLoss, detectRevLimiter, detectCoasting, detectTrailBraking, detectCounterSteer, detectEarlyBraking, detectOverSlowing, detectThrottleTractionLoss, detectEarlyThrottle, detectBinaryThrottle } from "./driving-core";
-import { detectBrakeDrag, detectDownshiftOverRev, detectLateBrakingOvershoot, detectUndersteerScrub, detectSteeringSawing, detectThrottleMicroLifts, detectKerbRiding } from "./driving-advanced";
-import type { LapInsight, TimeLossCtx } from "./types";
+import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit, detectTirePressureImbalance } from "./tires";
+import {
+  detectBrakeTractionLoss,
+  detectRevLimiter,
+  detectCoasting,
+  detectTrailBraking,
+  detectCounterSteer,
+  detectEarlyBraking,
+  detectOverSlowing,
+  detectThrottleTractionLoss,
+  detectEarlyThrottle,
+  detectBinaryThrottle,
+} from "./driving-core";
+import {
+  detectBrakeDrag,
+  detectDownshiftOverRev,
+  detectLateBrakingOvershoot,
+  detectUndersteerScrub,
+  detectOversteerSlide,
+  detectSteeringSawing,
+  detectThrottleMicroLifts,
+  detectKerbRiding,
+} from "./driving-advanced";
+import type { LapAnalysisContext, LapInsight, TimeLossCtx } from "./types";
 
-
-export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
+export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId, context?: LapAnalysisContext): LapInsight[] {
   if (telemetry.length < 10) return [];
   const game = getGame(gameId);
   const tireTemperatureUnit = game.telemetry.tireTemperature.packetUnit;
   const supportsWheelStateAnalysis = game.telemetry.analysis?.wheelRotation?.source !== "unavailable";
+  const tirePressure = game.telemetry.analysis?.tirePressure;
+  const supportsTirePressureAnalysis = tirePressure?.source === "direct" && tirePressure.freshness === "continuous";
+  const slipAngle = game.telemetry.analysis?.slipAngle;
+  const physicalSlipAngles = slipAngle?.source === "direct" && slipAngle.binding?.kind === "value" && slipAngle.binding.semanticId === "tires.tire-slip-angle";
 
   const insights: LapInsight[] = [];
 
@@ -23,7 +47,8 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   // clean full-throttle frame, so rebuilding it per detector would be wasteful
   // and — worse — let two detectors disagree about the same counterfactual.
   const dt = frameDt(telemetry);
-  const ctx: TimeLossCtx = { dt, ref: buildAccelReference(telemetry, dt) };
+  const wheelStates = supportsWheelStateAnalysis ? telemetry.map(allWheelStates) : undefined;
+  const ctx: TimeLossCtx = { dt, ref: buildAccelReference(telemetry, dt, wheelStates), wheelStates };
 
   // Suspension
   insights.push(...detectSuspensionOverload(telemetry));
@@ -32,16 +57,22 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
 
   // Tires
   insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
-  if (supportsWheelStateAnalysis) insights.push(...detectLockups(telemetry));
-  insights.push(...detectWheelspin(telemetry));
+  if (wheelStates) {
+    insights.push(...detectLockups(wheelStates));
+    insights.push(...detectWheelspin(wheelStates));
+  }
   const wearImb = detectWearImbalance(telemetry);
   if (wearImb) insights.push(wearImb);
   const tempSplit = detectTireTempSplit(telemetry, tireTemperatureUnit);
   if (tempSplit) insights.push(tempSplit);
+  if (supportsTirePressureAnalysis) {
+    const pressure = detectTirePressureImbalance(telemetry);
+    if (pressure) insights.push(pressure);
+  }
 
   // Driving
-  if (supportsWheelStateAnalysis) {
-    const brakeLoss = detectBrakeTractionLoss(telemetry);
+  if (wheelStates) {
+    const brakeLoss = detectBrakeTractionLoss(telemetry, wheelStates);
     if (brakeLoss) insights.push(brakeLoss);
   }
   const rev = detectRevLimiter(telemetry, ctx);
@@ -56,8 +87,10 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (earlyBrake) insights.push(earlyBrake);
   const overSlow = detectOverSlowing(telemetry, ctx);
   if (overSlow) insights.push(overSlow);
-  const throttleLoss = detectThrottleTractionLoss(telemetry);
-  if (throttleLoss) insights.push(throttleLoss);
+  if (wheelStates) {
+    const throttleLoss = detectThrottleTractionLoss(telemetry, wheelStates);
+    if (throttleLoss) insights.push(throttleLoss);
+  }
   const earlyThrottle = detectEarlyThrottle(telemetry);
   if (earlyThrottle) insights.push(earlyThrottle);
   const binary = detectBinaryThrottle(telemetry);
@@ -67,10 +100,12 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (brakeDrag) insights.push(brakeDrag);
   const downshift = detectDownshiftOverRev(telemetry);
   if (downshift) insights.push(downshift);
-  const overshoot = detectLateBrakingOvershoot(telemetry);
+  const overshoot = detectLateBrakingOvershoot(telemetry, physicalSlipAngles, context?.racingLine);
   if (overshoot) insights.push(overshoot);
-  const scrub = detectUndersteerScrub(telemetry);
+  const scrub = detectUndersteerScrub(telemetry, physicalSlipAngles);
   if (scrub) insights.push(scrub);
+  const oversteer = detectOversteerSlide(telemetry, physicalSlipAngles);
+  if (oversteer) insights.push(oversteer);
   const sawing = detectSteeringSawing(telemetry);
   if (sawing) insights.push(sawing);
   const microLifts = detectThrottleMicroLifts(telemetry, ctx);

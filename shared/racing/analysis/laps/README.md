@@ -16,6 +16,7 @@ Shared, deterministic telemetry analysis used by server-side profiling and user-
 ## Runtime boundary
 
 This directory is browser-safe: modules perform no filesystem, database, network, clock, or UI work. They consume normalized `shared/telemetry/types` packets and game capabilities from `shared/games`. Keep presentation and persistence in their respective client and server layers.
+Server consumers use `server/lap-analysis/insights.ts` to resolve the per-track `track.racing-line` semantic before entering the shared detector pipeline. The shared analyzer remains filesystem-free and only uses reference geometry when that semantic reports `source: "track-data"`; unavailable references fall back to telemetry-only evidence.
 
 Dependency flow is:
 

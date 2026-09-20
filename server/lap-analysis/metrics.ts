@@ -3,7 +3,7 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { analyzeLapWithTrack } from "./insights";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
@@ -15,7 +15,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
  * from the old definition are discarded instead of silently mixing with new
  * ones inside a single experiment.
  */
-export const LAP_METRICS_ALGO_VERSION = 1;
+export const LAP_METRICS_ALGO_VERSION = 3;
 
 const MPH_TO_KMH = 1.609344;
 
@@ -316,7 +316,7 @@ export function computeLapMetrics(
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,
-    insights: analyzeLap(packets, gameId),
+    insights: analyzeLapWithTrack(packets, gameId),
     segmentStats: computeLapSegmentStats(packets, segments, steerScaleFor(gameId)),
     computedAt: new Date().toISOString(),
   };

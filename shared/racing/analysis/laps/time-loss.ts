@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "../../../telemetry/types";
 import { allWheelStates } from "./physics/vehicle";
+import type { AllWheelStates } from "./physics/vehicle";
 
 /**
  * Time-loss estimation primitives for lap insights.
@@ -23,7 +24,6 @@ const MIN_REFERENCE_SAMPLES = 10;
 const REFERENCE_BIN_M_S = 10;
 /** Losses below this are indistinguishable from sampling noise. */
 export const MIN_REPORTABLE_LOSS_S = 0.02;
-
 
 /** Sum of the timesteps covering frames [start, end]. */
 function windowDuration(dt: number[], start: number, end: number): number {
@@ -68,13 +68,13 @@ export interface AccelReference {
   bins: (number | undefined)[];
 }
 
-export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[]): AccelReference {
+export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], wheelStates?: readonly AllWheelStates[]): AccelReference {
   const samples: number[][] = [];
   for (let i = 0; i < telemetry.length - 1; i++) {
     const p = telemetry[i];
     // Clean reference frame: full throttle, no brake, no wheel slip, moving.
     if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5) continue;
-    const ws = allWheelStates(p);
+    const ws = wheelStates?.[i] ?? allWheelStates(p);
     if (ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin") continue;
 
     const a = (telemetry[i + 1].Speed - p.Speed) / dt[i];
@@ -113,13 +113,7 @@ function refAccelAt(ref: AccelReference, speed: number): number | undefined {
  * Returns undefined when the reference has no data for the speeds involved, so
  * callers can omit the estimate instead of extrapolating one.
  */
-export function accelDeficitLoss(
-  telemetry: TelemetryPacket[],
-  dt: number[],
-  start: number,
-  end: number,
-  ref: AccelReference,
-): number | undefined {
+export function accelDeficitLoss(telemetry: TelemetryPacket[], dt: number[], start: number, end: number, ref: AccelReference): number | undefined {
   if (end <= start) return 0;
 
   const actualTime = windowDuration(dt, start, end);

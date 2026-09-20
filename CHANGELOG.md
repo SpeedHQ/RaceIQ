@@ -1,10 +1,19 @@
 ## Unreleased
 
 ### Features
+- Lap analysis detects sustained oversteer slides
+- Lap analysis detects persistent left-right tire-pressure imbalance
+- ACC and AC Evo lap analysis detects late-braking corner overshoots against bundled racing lines
 
 ### Fixes
+- Forza lap analysis no longer treats normalized lateral-slip telemetry as physical slip angles
+- Lap analysis avoids wheelspin and traction-loss findings when a simulator does not provide wheel-rotation telemetry
 
 ### Internal
+- Reuse per-frame wheel dynamics across static insight detectors
+- Avoid per-frame wheel-speed sorting during effective-radius calculation
+- Use linear-time rolling-window analysis for boost-drop detection
+- Represent racing-line availability with an explicit per-track semantic contract
 
 ## v0.18.0 - 2026-09-18
 

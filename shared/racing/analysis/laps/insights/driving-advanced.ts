@@ -1,8 +1,18 @@
 import type { TelemetryPacket } from "../../../../telemetry/types";
+import type { LapPathPoint } from "../../../tracks/path";
 import { reportableLoss, accelDeficitLoss, sumLosses } from "../time-loss";
-import { allWheelStates, steerBalance } from "../physics/vehicle";
-import { groupEvents, midFrame, type TimeLossCtx } from "./types";
+import { steerBalance, steerBalanceFromSignals, type SteerBalance } from "../physics/vehicle";
+import { groupEvents, midFrame, type RacingLineReference, type TimeLossCtx } from "./types";
 import type { LapInsight } from "./types";
+
+function balanceForPacket(packet: TelemetryPacket, physicalSlipAngles: boolean): SteerBalance {
+  if (physicalSlipAngles) return steerBalance(packet);
+  return steerBalanceFromSignals({
+    speedMps: packet.Speed,
+    accelerationX: packet.AccelerationX,
+    yawRate: packet.AngularVelocityY,
+  });
+}
 
 export function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null {
   // Flag frames where throttle is applied AND brake is lightly applied simultaneously
@@ -67,29 +77,129 @@ export function detectDownshiftOverRev(telemetry: TelemetryPacket[]): LapInsight
   };
 }
 
-export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapInsight | null {
-  // Carried too much speed into the corner: still braking hard while turning
-  // hard, with the front tires scrubbing (understeer) — the opposite fault of
-  // over-slowing.
-  const brakeFlags = telemetry.map((p) => p.Brake > 25);
+const RACING_LINE_OUTSIDE_M = 1.5;
+const RACING_LINE_GROWTH_M = 1;
+const RACING_LINE_MAX_PROJECTION_M = 12;
+
+function racingLineOutsideOffsets(telemetry: TelemetryPacket[], racingLine: readonly LapPathPoint[]): (number | undefined)[] | null {
+  if (racingLine.length < 20) return null;
+
+  const segmentCount = racingLine.length;
+  const offsets = new Array<number | undefined>(telemetry.length);
+  let previousSegment = -1;
+  let usable = 0;
+
+  for (let frame = 0; frame < telemetry.length; frame++) {
+    const packet = telemetry[frame];
+    const px = packet.PositionX;
+    const pz = packet.PositionZ;
+    if (!Number.isFinite(px) || !Number.isFinite(pz) || (px === 0 && pz === 0)) continue;
+
+    let bestSegment = -1;
+    let bestDistanceSquared = Number.POSITIVE_INFINITY;
+    let bestProjectionX = 0;
+    let bestProjectionZ = 0;
+
+    let searchAll = previousSegment < 0;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const first = searchAll ? 0 : -16;
+      const last = searchAll ? segmentCount - 1 : 256;
+      for (let candidate = first; candidate <= last; candidate++) {
+        const segment = searchAll ? candidate : previousSegment + candidate;
+        const index = ((segment % segmentCount) + segmentCount) % segmentCount;
+        const nextIndex = (index + 1) % segmentCount;
+        const start = racingLine[index];
+        const end = racingLine[nextIndex];
+        const dx = end.x - start.x;
+        const dz = end.z - start.z;
+        const lengthSquared = dx * dx + dz * dz;
+        if (!(lengthSquared > 0)) continue;
+        const amount = Math.max(0, Math.min(1, ((px - start.x) * dx + (pz - start.z) * dz) / lengthSquared));
+        const projectionX = start.x + dx * amount;
+        const projectionZ = start.z + dz * amount;
+        const distanceSquared = (px - projectionX) ** 2 + (pz - projectionZ) ** 2;
+        if (distanceSquared >= bestDistanceSquared) continue;
+        bestSegment = index;
+        bestDistanceSquared = distanceSquared;
+        bestProjectionX = projectionX;
+        bestProjectionZ = projectionZ;
+      }
+
+      if (searchAll || bestDistanceSquared <= RACING_LINE_MAX_PROJECTION_M ** 2) break;
+      searchAll = true;
+    }
+
+    if (bestSegment < 0 || bestDistanceSquared > RACING_LINE_MAX_PROJECTION_M ** 2) continue;
+    previousSegment = bestSegment;
+
+    const lookback = Math.min(12, Math.floor(segmentCount / 4));
+    const before = racingLine[(bestSegment - lookback + segmentCount) % segmentCount];
+    const start = racingLine[bestSegment];
+    const end = racingLine[(bestSegment + 1) % segmentCount];
+    const after = racingLine[(bestSegment + 1 + lookback) % segmentCount];
+    const incomingX = start.x - before.x;
+    const incomingZ = start.z - before.z;
+    const outgoingX = after.x - end.x;
+    const outgoingZ = after.z - end.z;
+    const incomingLength = Math.hypot(incomingX, incomingZ);
+    const outgoingLength = Math.hypot(outgoingX, outgoingZ);
+    if (!(incomingLength > 0) || !(outgoingLength > 0)) continue;
+    const curvature = (incomingX * outgoingZ - incomingZ * outgoingX) / (incomingLength * outgoingLength);
+    if (Math.abs(curvature) < 0.015) continue;
+
+    const tangentX = end.x - start.x;
+    const tangentZ = end.z - start.z;
+    const tangentLength = Math.hypot(tangentX, tangentZ);
+    if (!(tangentLength > 0)) continue;
+    const signedLateral = (tangentX * (pz - bestProjectionZ) - tangentZ * (px - bestProjectionX)) / tangentLength;
+    offsets[frame] = -Math.sign(curvature) * signedLateral;
+    usable++;
+  }
+
+  return usable >= Math.max(10, telemetry.length * 0.5) ? offsets : null;
+}
+
+export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[], physicalSlipAngles = true, racingLine?: RacingLineReference): LapInsight | null {
+  // A reference line is stronger evidence than inferred tire balance: require the
+  // car to move progressively outside it while braking. An explicitly unavailable
+  // line retains the conservative hard-brake + understeer fallback.
+  const outsideOffsets = racingLine?.source === "track-data" ? racingLineOutsideOffsets(telemetry, racingLine.points) : null;
+  const brakeFlags = telemetry.map((packet) => packet.Brake > 25);
   const brakeZones = groupEvents(brakeFlags, 5, 10);
   if (brakeZones.length === 0) return null;
 
   const events: [number, number][] = [];
   for (const [start, end] of brakeZones) {
+    let minimumOutside = Number.POSITIVE_INFINITY;
     let overlapFrames = 0;
+    let longestOverlap = 0;
     let peakFrame = start;
     for (let i = start; i <= end; i++) {
-      const p = telemetry[i];
-      if (p.Brake > 90 && Math.abs(p.Steer) > 35 && p.Speed * 2.23694 > 30) {
-        const bal = steerBalance(p);
-        if (bal.state === "understeer" && bal.severity > 0.3) {
-          overlapFrames++;
-          peakFrame = i;
+      const outside = outsideOffsets?.[i];
+      if (outside !== undefined) minimumOutside = Math.min(minimumOutside, outside);
+
+      const packet = telemetry[i];
+      let overshooting = false;
+      if (packet.Brake > 90 && Math.abs(packet.Steer) > 35 && packet.Speed * 2.23694 > 30) {
+        if (outsideOffsets) {
+          overshooting = outside !== undefined && outside > RACING_LINE_OUTSIDE_M && outside - minimumOutside > RACING_LINE_GROWTH_M;
+        } else {
+          const balance = balanceForPacket(packet, physicalSlipAngles);
+          overshooting = balance.state === "understeer" && balance.severity > 0.3;
         }
       }
+
+      if (overshooting) {
+        overlapFrames++;
+        if (overlapFrames > longestOverlap) {
+          longestOverlap = overlapFrames;
+          peakFrame = i;
+        }
+      } else {
+        overlapFrames = 0;
+      }
     }
-    if (overlapFrames >= 10) events.push([start, peakFrame]); // ≥~0.17s of hard-brake understeer
+    if (longestOverlap >= 10) events.push([start, peakFrame]);
   }
 
   if (events.length === 0) return null;
@@ -98,17 +208,19 @@ export function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapIns
     category: "driving",
     severity: events.length >= 3 ? "warning" : "info",
     label: "Late Braking Overshoot",
-    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — still braking hard with heavy steering and front scrub. Brake earlier or release sooner to rotate.`,
+    detail: outsideOffsets
+      ? `${events.length} corner${events.length > 1 ? "s" : ""} — braking carried the car progressively outside the reference racing line. Brake earlier or release sooner to rotate.`
+      : `${events.length} corner${events.length > 1 ? "s" : ""} — still braking hard with heavy steering and front scrub. Brake earlier or release sooner to rotate.`,
     frameIndices: events.map(([, peak]) => peak),
   };
 }
 
-export function detectUndersteerScrub(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectUndersteerScrub(telemetry: TelemetryPacket[], physicalSlipAngles = true): LapInsight | null {
   // Sustained understeer mid-corner: lots of steering, front slip well above
   // rear — the fronts are sliding, adding steering won't help.
   const flags = telemetry.map((p) => {
     if (p.Speed * 2.23694 < 30 || Math.abs(p.Steer) < 25) return false;
-    const bal = steerBalance(p);
+    const bal = balanceForPacket(p, physicalSlipAngles);
     return bal.state === "understeer" && bal.severity > 0.4;
   });
   const events = groupEvents(flags, 10, 20);
@@ -120,6 +232,25 @@ export function detectUndersteerScrub(telemetry: TelemetryPacket[]): LapInsight 
     severity: events.length >= 4 || totalFrames > 180 ? "warning" : "info",
     label: "Understeer Scrub",
     detail: `${events.length} corner${events.length > 1 ? "s" : ""} with sustained front scrub (${(totalFrames / 60).toFixed(1)}s total) — slow entry slightly or open the steering to regain front grip`,
+    frameIndices: midFrame(events),
+  };
+}
+
+export function detectOversteerSlide(telemetry: TelemetryPacket[], physicalSlipAngles = true): LapInsight | null {
+  const flags = telemetry.map((p) => {
+    if (p.Speed * 2.23694 < 30 || Math.abs(p.Steer) < 15) return false;
+    const balance = balanceForPacket(p, physicalSlipAngles);
+    return balance.state === "oversteer" && balance.severity > 0.4;
+  });
+  const events = groupEvents(flags, 10, 20);
+  if (events.length === 0) return null;
+  const totalFrames = events.reduce((sum, [start, end]) => sum + end - start + 1, 0);
+  return {
+    id: "driving-oversteer-slide",
+    category: "driving",
+    severity: events.length >= 4 || totalFrames > 180 ? "warning" : "info",
+    label: "Oversteer Slide",
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} with sustained rear slip — reduce entry speed or feed throttle more progressively`,
     frameIndices: midFrame(events),
   };
 }
@@ -166,6 +297,8 @@ export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: Tim
   // Repeated small throttle lifts under power with the rear breaking loose —
   // manually doing traction control's job. Signature: near-full throttle,
   // sharp dip, quick recovery, with wheelspin nearby.
+  const wheelStates = ctx?.wheelStates;
+  if (!wheelStates) return null;
   const liftFrames: number[] = [];
   const liftWindows: [number, number][] = [];
   let i = 1;
@@ -186,7 +319,7 @@ export function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: Tim
         // Require rear slip near the lift to distinguish from deliberate lifts
         let slipNearby = false;
         for (let j = Math.max(0, i - 10); j <= Math.min(recovered + 10, telemetry.length - 1); j++) {
-          const ws = allWheelStates(telemetry[j]);
+          const ws = wheelStates[j];
           if (ws.rl.state === "spin" || ws.rr.state === "spin") {
             slipNearby = true;
             break;
@@ -254,4 +387,3 @@ export function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | nul
     frameIndices: midFrame(events),
   };
 }
-

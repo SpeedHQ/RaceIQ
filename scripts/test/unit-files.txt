@@ -19,6 +19,7 @@ test/lap-analysis/lap-insight-time-loss.test.ts
 test/lap-analysis/lap-path.test.ts
 test/lap-analysis/lap-quality.test.ts
 test/lap-analysis/lap-target.test.ts
+test/lap-analysis/racing-line-overshoot.test.ts
 test/lap-analysis/recap/consistency-personal-best.test.ts
 test/lap-analysis/recap/core-pace.test.ts
 test/lap-analysis/recap/edge-cases.test.ts

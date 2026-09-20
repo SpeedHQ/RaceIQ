@@ -10,7 +10,7 @@ import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-an
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { analyzeLapWithTrack } from "../lap-analysis/insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
@@ -65,7 +65,7 @@ export function buildChatSystemPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Precomputed insights
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  const insights = analyzeLapWithTrack(packets, lap.gameId ?? packets[0]?.gameId, trackOrdinal);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights ---\n";

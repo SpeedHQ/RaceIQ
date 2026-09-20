@@ -1,14 +1,14 @@
 import type { TelemetryPacket } from "../../../../telemetry/types";
 import { reportableLoss, accelDeficitLoss, speedDeficitLoss, sumLosses } from "../time-loss";
-import { allWheelStates } from "../physics/vehicle";
+import type { AllWheelStates } from "../physics/vehicle";
 import { groupEvents, midFrame, type TimeLossCtx } from "./types";
 import type { LapInsight } from "./types";
 
-export function detectBrakeTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectBrakeTractionLoss(telemetry: TelemetryPacket[], wheelStates: readonly AllWheelStates[]): LapInsight | null {
   // Detect braking while any wheel is locked — losing traction under braking
-  const flags = telemetry.map((p) => {
+  const flags = telemetry.map((p, i) => {
     if (p.Brake < 30) return false; // must be braking
-    const ws = allWheelStates(p);
+    const ws = wheelStates[i];
     return ws.fl.state === "lockup" || ws.fr.state === "lockup" || ws.rl.state === "lockup" || ws.rr.state === "lockup";
   });
   const events = groupEvents(flags, 3, 15);
@@ -221,11 +221,11 @@ export function detectCounterSteer(telemetry: TelemetryPacket[]): LapInsight | n
   };
 }
 
-export function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
+export function detectThrottleTractionLoss(telemetry: TelemetryPacket[], wheelStates: readonly AllWheelStates[]): LapInsight | null {
   // Heavy throttle + any wheel spinning = losing drive
-  const flags = telemetry.map((p) => {
+  const flags = telemetry.map((p, i) => {
     if (p.Accel < 150) return false;
-    const ws = allWheelStates(p);
+    const ws = wheelStates[i];
     return ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin";
   });
   const events = groupEvents(flags, 3, 15);
@@ -278,4 +278,3 @@ export function detectBinaryThrottle(telemetry: TelemetryPacket[]): LapInsight |
     frameIndices: [Math.round(telemetry.length / 2)],
   };
 }
-

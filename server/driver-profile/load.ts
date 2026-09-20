@@ -1,5 +1,5 @@
 import { summariseLapStyle, type LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { analyzeLapWithTrack } from "../lap-analysis/insights";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
@@ -35,7 +35,7 @@ export async function loadDriverProfile(opts: { gameId: GameId }): Promise<Drive
     }
     const lapGame = meta.gameId ?? opts.gameId;
     laps.push(meta);
-    perLapInsights.push(analyzeLap(lap.telemetry, lapGame));
+    perLapInsights.push(analyzeLapWithTrack(lap.telemetry, lapGame, meta.trackOrdinal));
     perLapStyle.push(summariseLapStyle(lap.telemetry, lapGame));
   }
 

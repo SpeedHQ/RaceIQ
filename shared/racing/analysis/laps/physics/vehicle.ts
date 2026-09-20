@@ -30,11 +30,30 @@ export function effectiveWheelRadius(pkt: TelemetryPacket): number {
   }
 
   const gs = pkt.Speed; // m/s
-  const rotSpeeds = [Math.abs(pkt.WheelRotationSpeedFL), Math.abs(pkt.WheelRotationSpeedFR), Math.abs(pkt.WheelRotationSpeedRL), Math.abs(pkt.WheelRotationSpeedRR)];
+  let slowest = Math.abs(pkt.WheelRotationSpeedFL);
+  let secondSlowest = Math.abs(pkt.WheelRotationSpeedFR);
+  if (slowest > secondSlowest) {
+    const swap = slowest;
+    slowest = secondSlowest;
+    secondSlowest = swap;
+  }
+  const rearLeft = Math.abs(pkt.WheelRotationSpeedRL);
+  if (rearLeft < slowest) {
+    secondSlowest = slowest;
+    slowest = rearLeft;
+  } else if (rearLeft < secondSlowest) {
+    secondSlowest = rearLeft;
+  }
+  const rearRight = Math.abs(pkt.WheelRotationSpeedRR);
+  if (rearRight < slowest) {
+    secondSlowest = slowest;
+    slowest = rearRight;
+  } else if (rearRight < secondSlowest) {
+    secondSlowest = rearRight;
+  }
   // Use the two slowest wheels — spinning wheels inflate the average and
-  // skew slip ratios, causing false lockup detection on non-driven axle
-  const sorted = [...rotSpeeds].sort((a, b) => a - b);
-  const baseRot = (sorted[0] + sorted[1]) / 2;
+  // skew slip ratios, causing false lockup detection on non-driven axle.
+  const baseRot = (slowest + secondSlowest) / 2;
   return baseRot > 5 && gs > 3 ? gs / baseRot : 0.33;
 }
 
@@ -242,24 +261,10 @@ export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerB
   const yawActive = Math.abs(yawContrib) > 0.05;
   const slipConfident = Math.abs(uSlip) >= 0.15;
   const blended = 0.5 * uSlip + 0.5 * yawContrib;
-  const balanceRaw =
-    speed < SPEED_FLOOR
-      ? 0
-      : !slipAvailable
-        ? yawContrib
-        : !signalsAgree || !slipConfident
-          ? uSlip
-          : yawActive && Math.abs(blended) > Math.abs(uSlip)
-            ? blended
-            : uSlip;
+  const balanceRaw = speed < SPEED_FLOOR ? 0 : !slipAvailable ? yawContrib : !signalsAgree || !slipConfident ? uSlip : yawActive && Math.abs(blended) > Math.abs(uSlip) ? blended : uSlip;
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
   const moving = speed >= SPEED_FLOOR;
-  const state: SteerBalance["state"] =
-    moving && balance > CLASSIFY_THRESHOLD
-      ? "understeer"
-      : moving && balance < -CLASSIFY_THRESHOLD
-        ? "oversteer"
-        : "neutral";
+  const state: SteerBalance["state"] = moving && balance > CLASSIFY_THRESHOLD ? "understeer" : moving && balance < -CLASSIFY_THRESHOLD ? "oversteer" : "neutral";
   return {
     latG,
     yawRate: signals.yawRate,
@@ -341,6 +346,12 @@ export interface WheelState {
   state: "grip" | "lockup" | "spin" | "idle";
   slipRatio: number;
 }
+export interface AllWheelStates {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+}
 
 export function wheelState(
   wheelRotSpeed: number,
@@ -375,12 +386,7 @@ export interface WheelDynamicsFrame {
 }
 
 /** Semantic wheel-dynamics primitive. Units are canonical SI (m/s, rad/s, m). */
-export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
-  fl: WheelState;
-  fr: WheelState;
-  rl: WheelState;
-  rr: WheelState;
-} {
+export function wheelDynamicsFrame(frame: WheelDynamicsFrame): AllWheelStates {
   const { speedMps: gs, steer } = frame;
   const turningRight = steer > 5;
   const turningLeft = steer < -5;
@@ -393,12 +399,7 @@ export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
 }
 
 /** Historical packet compatibility wrapper. Live callers must use wheelDynamicsFrame. */
-export function allWheelStates(pkt: TelemetryPacket): {
-  fl: WheelState;
-  fr: WheelState;
-  rl: WheelState;
-  rr: WheelState;
-} {
+export function allWheelStates(pkt: TelemetryPacket): AllWheelStates {
   const r = effectiveWheelRadius(pkt);
   return wheelDynamicsFrame({
     speedMps: pkt.Speed,

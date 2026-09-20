@@ -66,6 +66,7 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
   ...perWheel("tire-spin-"),
   "tire-wear-imbalance",
   "tire-temp-split",
+  "tire-pressure-imbalance",
   "driving-brake-traction-loss",
   "driving-rev-limiter",
   "driving-coasting",
@@ -80,6 +81,7 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
   "driving-downshift-over-rev",
   "driving-late-braking-overshoot",
   "driving-understeer-scrub",
+  "driving-oversteer-slide",
   "driving-steering-sawing",
   "driving-throttle-micro-lifts",
   "driving-kerb-riding",
@@ -198,11 +200,7 @@ function meanIntensity(byId: Map<string, DetectorStat>, ids: readonly string[]):
 }
 
 const BRAKING_EARLY_IDS = ["driving-early-braking", "driving-over-slowing", "driving-coasting"] as const;
-const BRAKING_LATE_IDS = [
-  "driving-late-braking-overshoot",
-  "driving-brake-traction-loss",
-  ...perWheel("tire-lockup-"),
-] as const;
+const BRAKING_LATE_IDS = ["driving-late-braking-overshoot", "driving-brake-traction-loss", ...perWheel("tire-lockup-")] as const;
 
 /**
  * Build the style axes.
@@ -218,11 +216,7 @@ const BRAKING_LATE_IDS = [
  * ±100 per side, always traceable back to "these detectors fired this often,
  * this badly". See its doc comment for why it has no continuous equivalent.
  */
-export function computeStyleAxes(
-  detectors: readonly DetectorStat[],
-  paceConsistency: number | null,
-  styleSummaries: readonly LapStyleSummary[] = [],
-): StyleAxes {
+export function computeStyleAxes(detectors: readonly DetectorStat[], paceConsistency: number | null, styleSummaries: readonly LapStyleSummary[] = []): StyleAxes {
   const byId = new Map(detectors.map((d) => [d.id, d]));
   const scale = (v: number): number => round4(clamp(v * 100, -100, 100));
 

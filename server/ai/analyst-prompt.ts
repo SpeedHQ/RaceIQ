@@ -6,7 +6,7 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { analyzeLapWithTrack } from "../lap-analysis/insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
@@ -167,7 +167,7 @@ export function buildAnalystPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  const insights = analyzeLapWithTrack(packets, lap.gameId ?? packets[0]?.gameId, lap.trackOrdinal);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";

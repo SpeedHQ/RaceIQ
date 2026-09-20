@@ -1,6 +1,26 @@
 import type { AccelReference } from "../time-loss";
+import type { AllWheelStates } from "../physics/vehicle";
+import type { LapPathPoint } from "../../../tracks/path";
 
 export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
+export const RACING_LINE_SEMANTIC_ID = "track.racing-line" as const;
+
+export type RacingLineReference =
+  | {
+      semanticId: typeof RACING_LINE_SEMANTIC_ID;
+      source: "track-data";
+      points: readonly LapPathPoint[];
+    }
+  | {
+      semanticId: typeof RACING_LINE_SEMANTIC_ID;
+      source: "unavailable";
+      reason: "missing-track-identity" | "missing-track-data";
+    };
+
+export interface LapAnalysisContext {
+  racingLine: RacingLineReference;
+}
+
 export type InsightSeverity = "info" | "warning" | "critical";
 
 export interface LapInsight {
@@ -24,6 +44,7 @@ export interface LapInsight {
 export interface TimeLossCtx {
   dt: number[];
   ref: AccelReference;
+  wheelStates?: readonly AllWheelStates[];
 }
 
 export function groupEvents(flags: boolean[], minFrames: number, mergeGap = 0): [number, number][] {
