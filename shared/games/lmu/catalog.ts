@@ -1,6 +1,11 @@
 import carsJson from "./cars.json";
 import tracksJson from "./tracks.json";
 
+export interface LMUCarVariant {
+  id: string;
+  name: string;
+}
+
 export interface LMUCarCatalogEntry {
   id: string;
   name: string;
@@ -9,8 +14,7 @@ export interface LMUCarCatalogEntry {
   manufacturer: string;
   engine: string;
   thumbnail: string | null;
-  variantIds: string[];
-  modelNames: string[];
+  variants: LMUCarVariant[];
   vehicleNames: string[];
 }
 
@@ -69,9 +73,14 @@ function addAlias<T>(index: Map<string, Set<T>>, alias: string | undefined, valu
   if (!alias) return;
   const normalized = key(alias);
   if (!normalized) return;
+
   const values = index.get(normalized) ?? new Set<T>();
   values.add(value);
   index.set(normalized, values);
+}
+function addCarNameAliases(index: Map<string, Set<LMUCarCatalogEntry>>, name: string, car: LMUCarCatalogEntry): void {
+  addAlias(index, name, car);
+  addAlias(index, name.replace(/\s+\d{4}$/, ""), car);
 }
 
 function resolveTier<T>(index: Map<string, Set<T>>, values: readonly string[]): T | null | undefined {
@@ -92,13 +101,13 @@ const carsByVehicleAlias = new Map<string, Set<LMUCarCatalogEntry>>();
 const carsByModelAlias = new Map<string, Set<LMUCarCatalogEntry>>();
 for (const car of lmuCarCatalog) {
   addAlias(carsByExactId, car.id, car);
-  addAlias(carsByModelAlias, car.name, car);
-  for (const variantId of car.variantIds) {
-    addAlias(carsByExactId, variantId, car);
-    addAlias(carsByVehicleAlias, variantId.split("/").at(-1), car);
+  addCarNameAliases(carsByModelAlias, car.name, car);
+  for (const variant of car.variants) {
+    addAlias(carsByExactId, variant.id, car);
+    addAlias(carsByVehicleAlias, variant.id.split("/").at(-1), car);
+    addAlias(carsByVehicleAlias, variant.name, car);
   }
   for (const vehicleName of car.vehicleNames) addAlias(carsByVehicleAlias, vehicleName, car);
-  for (const modelName of car.modelNames) addAlias(carsByModelAlias, modelName, car);
 }
 
 const tracksByExactId = new Map<string, Set<LMUTrackCatalogEntry>>();
