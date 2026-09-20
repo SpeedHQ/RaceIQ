@@ -69,7 +69,6 @@ export function LMULiveDashboard() {
           sectors={sectors}
           trackName={trackName}
           carName={carName}
-          sessionType={typeof view.session.type === "string" ? view.session.type : undefined}
           showTrackMap={false}
           showSectors={true}
         />

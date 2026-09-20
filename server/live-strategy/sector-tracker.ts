@@ -119,6 +119,20 @@ export class SectorTracker {
           this.lapDistTotal = trackLength;
         }
       }
+    } else if (
+      this.currentGameId === "lmu" &&
+      this.lapDistTotal <= 0 &&
+      packet.lmu?.trackLengthM !== undefined &&
+      packet.lmu.trackLengthM > 0
+    ) {
+      // LMU identities are string-based, so no ordinal-backed track metadata
+      // is available here. Use authoritative telemetry length and thirds until
+      // native sector boundaries become available.
+      this.bounds = {
+        starts: [0, 1 / 3, 2 / 3],
+        trackLength: packet.lmu.trackLengthM,
+      };
+      this.lapDistTotal = packet.lmu.trackLengthM;
     }
 
     if (!this.bounds) return null;
