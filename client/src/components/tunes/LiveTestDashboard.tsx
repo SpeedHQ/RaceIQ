@@ -4,6 +4,7 @@ import type { LiveTelemetryView } from "../../lib/live-telemetry-view";
 import type { ExperimentGameId } from "../../hooks/experiments";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { convertTemp } from "../../lib/temperature";
 import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";
@@ -29,7 +30,12 @@ function viewToSemanticFrame(view: LiveTelemetryView): SemanticAnalysisFrame {
       "inputs.gear": view.inputs.gear,
       "timing.distance-traveled": view.motion.distanceM,
       "timing.current-lap": view.timing.currentLapS,
-      "tire.temperature.average": view.tires.temperatureC && [view.tires.temperatureC.fl, view.tires.temperatureC.fr, view.tires.temperatureC.rl, view.tires.temperatureC.rr],
+      "tire.temperature.surface.representative": view.tires.surfaceTemperatureC && [
+        view.tires.surfaceTemperatureC.fl.representative,
+        view.tires.surfaceTemperatureC.fr.representative,
+        view.tires.surfaceTemperatureC.rl.representative,
+        view.tires.surfaceTemperatureC.rr.representative,
+      ],
     },
     states: {},
     freshness: {},
@@ -49,6 +55,7 @@ const WEATHER_LABELS: Record<number, string> = {
 
 /** Top-level track conditions from catalog-resolved semantic telemetry. */
 export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null | undefined }) {
+  const temperatureUnit = useTelemetryStore((state) => state.temperatureUnit);
   if (!view) return null;
   const weather = view.weather;
   if (weather.kind == null && weather.trackTemperatureC == null && weather.airTemperatureC == null) return null;
@@ -57,8 +64,8 @@ export function LiveTrackConditions({ view }: { view: LiveTelemetryView | null |
       {weather.kind != null && <div className="text-app-text font-medium">{WEATHER_LABELS[weather.kind] ?? "Unknown"}</div>}
       {(weather.trackTemperatureC != null || weather.airTemperatureC != null) && (
         <div className="flex gap-3 text-app-text-muted">
-          {weather.trackTemperatureC != null && <span>Track {weather.trackTemperatureC.toFixed(0)}°C</span>}
-          {weather.airTemperatureC != null && <span>Air {weather.airTemperatureC.toFixed(0)}°C</span>}
+          {weather.trackTemperatureC != null && <span>Track {convertTemp(weather.trackTemperatureC, temperatureUnit, "C").toFixed(0)}°{temperatureUnit}</span>}
+          {weather.airTemperatureC != null && <span>Air {convertTemp(weather.airTemperatureC, temperatureUnit, "C").toFixed(0)}°{temperatureUnit}</span>}
         </div>
       )}
     </div>

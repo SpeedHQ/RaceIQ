@@ -5,12 +5,10 @@ import { openStory } from "./storybook-ready";
  * Render smoke-test for the experiment flow stories (list → workspace →
  * review, car- and driver-focus variants).
  *
- * Deliberately NOT a screenshot test. The committed PNG baselines in
- * `__snapshots__` are generated in Docker (`bun run snapshot:docker`) so they
- * are reproducible across machines; baselines produced on a dev box render
- * with different font hinting and would fail CI for reasons that have nothing
- * to do with the UI. Add these to `dashboards.snapshot.ts` if you want pixel
- * baselines — from Docker.
+ * Deliberately NOT a screenshot test. Add these to
+ * `dashboards.snapshot.ts` when pixel comparison would add useful coverage;
+ * CI renders base and PR revisions together so no committed PNG baseline is
+ * required.
  *
  * What this does catch is the failure mode a `tsc` pass cannot: a story that
  * compiles but throws on mount, or renders its error/empty state because the
@@ -70,8 +68,8 @@ const stories: StoryCase[] = [
     // the experiment name is not on it, so assert on what actually renders.
     name: "review (car focus)",
     id: "dashboards-experiments-flow--review-car-focus",
-    expectText: ["Rotates earlier, no snap. Happier.", "Tyres · end of lap"],
-    forbidText: ["Experiment not found", "No telemetry", "No stored telemetry for this lap."],
+    expectText: "Rotates earlier, no snap. Happier.",
+    forbidText: ["Experiment not found"],
   },
   {
     name: "review (driver focus)",

@@ -1,5 +1,6 @@
 # Explicit DB-free unit tests
 test/archive/bounded-unzip.test.ts
+test/client/analyse-chart-data.test.ts
 test/client/compare-segment-key.test.ts
 test/client/gearing-sample-rejection.test.ts
 test/client/gearing-source-sampling.test.ts
@@ -9,6 +10,8 @@ test/client/speed.test.ts
 test/client/temperature.test.ts
 test/games/forza/forza-lzx.test.ts
 test/games/shared/win-timer-resolution.test.ts
+test/lap-analysis/aligned-telemetry-codec.test.ts
+test/lap-analysis/aligned-telemetry.test.ts
 test/lap-analysis/comparison.test.ts
 test/lap-analysis/corner-data.test.ts
 test/lap-analysis/detection/game-compat.test.ts
@@ -37,6 +40,7 @@ test/tracks/calibration.test.ts
 test/tooling/test-shards.test.ts
 test/tooling/paraglide-cache.test.ts
 test/tooling/release-version.test.ts
+test/tooling/bench-compare.test.ts
 # Moved from integration: deterministic DB-free tests
 test/ai/ai-configured.test.ts
 test/ai/chat/chat-generations.test.ts
@@ -45,6 +49,7 @@ test/ai/context-window.test.ts
 test/ai/extract-json.test.ts
 test/ai/providers/google-provider-options.test.ts
 test/ai/providers/lm-studio-context.test.ts
+test/ai/providers/local-provider-auth.test.ts
 test/ai/providers/provider-error.test.ts
 test/analysis/data-panel-parity.test.ts
 test/analysis/suspension-compression.test.ts
@@ -52,6 +57,7 @@ test/client/car-wireframe.test.ts
 test/client/chat-footer.test.tsx
 test/client/client-game-routes.test.ts
 test/client/connection-status-logic.test.ts
+test/client/aligned-telemetry-fidelity.test.ts
 test/client/lap-analysis-display-data.test.ts
 test/client/reprocess-state.test.ts
 test/client/resumable-chat.test.ts
@@ -61,6 +67,8 @@ test/client/wireframe-utils.test.ts
 test/games/ac-evo/ac-evo-car-data.test.ts
 test/games/acc/acc-shared-memory.test.ts
 test/games/f1-2025/f1-telemetry-contract.test.ts
+test/games/kunos/recording-mode-pipeline.test.ts
+test/games/kunos/triplet-assembler.test.ts
 test/runtime/runtime-options.test.ts
 test/runtime/tray.test.ts
 test/telemetry/analysis-metric-values.test.ts

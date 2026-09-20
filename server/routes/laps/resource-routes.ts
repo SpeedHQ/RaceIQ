@@ -9,10 +9,11 @@ import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
 import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
-import { downsampleLap } from "../../../shared/racing/laps/trace/build";
-import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
-import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
-import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
+import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
+import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
+import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
+import { getLaps, getLapMetaById, getLapById, getLapsByIds, getLapsRaw, getReviewLaps, getSessionLaps } from "../../db/lap-read-queries";
+import { alignedTelemetryCacheGet, alignedTelemetryCacheSet, lapSetAlignmentIndexCacheGet, lapSetAlignmentIndexCacheSet } from "../../db/telemetry-replay-storage";
 import { loadSessionSource } from "../../session-capture/source-loader";
 import { loadRawCaptureIdentity } from "../../session-capture/identity";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
@@ -22,9 +23,11 @@ import { assessLapRecording } from "../../lap-analysis/quality";
 import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
+import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
+import { resolveLapCorners } from "../../tracks/corner-resolution";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema } from "./support";
 import { resolveTelemetryReplay } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
-import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 export function semanticReplayIds(gameId: GameId): readonly string[] {
   return analyseSemanticIds(getGame(gameId));
@@ -35,9 +38,29 @@ const gzipAsync = promisify(gzip);
 
 export const resourceRoutes = new Hono()
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
-    const { gameId } = c.req.valid("query");
-    const lapList = await getLaps(gameId);
+    const { gameId, sessionId } = c.req.valid("query");
+    const lapList = sessionId != null ? await getSessionLaps(gameId!, sessionId) : await getLaps(gameId);
     return c.json(lapList);
+  })
+  .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
+    const { gameId, sessionId, trackOrdinal, carOrdinal, limit } = c.req.valid("query");
+    return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId));
+  })
+  .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
+    const { gameId, sessionId, lapIds } = c.req.valid("query");
+    const loaded = await getLapsByIds(lapIds);
+    if (loaded.length !== lapIds.length || loaded.some((lap) => lap.gameId !== gameId || lap.sessionId !== sessionId)) {
+      return c.json({ error: "Selected laps must belong to session." }, 400);
+    }
+    const ordered = lapIds.map((id) => loaded.find((lap) => lap.id === id)!);
+    const usable = ordered.filter((lap) => lap.telemetry.length >= 30);
+    if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0 });
+    const first = usable[0]!;
+    const corners = await resolveLapCorners(first.trackOrdinal, gameId, first.telemetry);
+    const trace = computeLineSpreadTrace(usable.map((lap) => lap.telemetry), usable.map((lap) => lap.id), corners);
+    if (!trace) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length });
+    const { lapLines: _lapLines, ...compactTrace } = trace;
+    return c.json(compactTrace);
   })
 
   .get("/api/laps/:id/semantic-telemetry", zValidator("param", IdParamSchema), async (c) => {
@@ -91,18 +114,35 @@ export const resourceRoutes = new Hono()
     return c.json({ deleted: count });
   })
 
-  .post("/api/laps/traces", zValidator("json", z.object({ ids: z.array(z.number().int().positive()).max(200) })), async (c) => {
-    const { ids } = c.req.valid("json");
-    if (ids.length === 0) return c.json({ traces: [] as EncodedLapTrace[] });
-
-    const laps = await getLapsByIds(ids);
-    const traces: EncodedLapTrace[] = [];
-    for (const lap of laps) {
-      if (lap.telemetry.length === 0) continue;
-      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
-      if (trace) traces.push(encodeLapTrace(trace));
+  .post("/api/laps/aligned-telemetry", zValidator("json", AlignedTelemetryRequestSchema), async (c) => {
+    const request = c.req.valid("json");
+    if (request.step === 1) {
+      const cached = alignedTelemetryCacheGet(request.ids);
+      if (cached !== undefined) return c.body(cached, 200, { "Content-Type": "application/json; charset=UTF-8", "X-RaceIQ-Cache": "HIT" });
     }
-    return c.json({ traces });
+    const laps = await getLapsByIds(request.ids);
+    const byId = new Map(laps.map((lap) => [lap.id, lap]));
+    for (const id of request.ids) if (!byId.has(id)) return c.json({ error: `Lap ${id} not found` }, 404);
+    for (const id of request.ids) if (byId.get(id)!.telemetry.length === 0) return c.json({ error: `Lap ${id} has no telemetry data` }, 400);
+    const first = byId.get(request.ids[0]!)!;
+    if (laps.some((lap) => lap.gameId !== first.gameId || lap.trackOrdinal !== first.trackOrdinal)) return c.json({ error: "Laps must belong to the same game and track" }, 400);
+    const inputs: AlignmentLapInput[] = request.ids.map((id) => {
+      const lap = byId.get(id)!;
+      return {
+        lapId: lap.id, lapNumber: lap.lapNumber, lapTime: lap.lapTime, isValid: lap.isValid, telemetry: lap.telemetry,
+        sectorTimes: lap.sectorTimes ?? null,
+        sectorStarts: getGame(lap.gameId as GameId).getNativeSectorLayout?.(lap.telemetry[0]!)?.starts ?? null,
+      };
+    });
+    const cachedIndex = lapSetAlignmentIndexCacheGet(request.ids);
+    const alignmentIndex = cachedIndex ?? prepareLapSetAlignmentIndex(inputs, { gridStepMeters: request.step });
+    const range = request.step === 0.1 ? { start: request.start, end: request.end } : undefined;
+    const set = alignLapSet(inputs, { gridStepMeters: request.step, distanceRangeMeters: range, preparedIndex: alignmentIndex });
+    if (!cachedIndex) lapSetAlignmentIndexCacheSet(request.ids, alignmentIndex);
+    if (request.step === 0.1 && set.distanceEndMeters <= set.distanceStartMeters) return c.json({ error: "Detail range is outside aligned lap span" }, 400);
+    const body = JSON.stringify(encodeAlignedLapSet(set) as EncodedAlignedLapSet);
+    if (request.step === 1) alignedTelemetryCacheSet(request.ids, body);
+    return c.body(body, 200, { "Content-Type": "application/json; charset=UTF-8", "X-RaceIQ-Cache": "MISS" });
   })
   .get("/api/laps/:id/setup", zValidator("param", IdParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));

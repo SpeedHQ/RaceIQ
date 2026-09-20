@@ -1,8 +1,9 @@
-import { getGame } from "@shared/games/registry";
+import { getGameRoute } from "../stores/game";
 import { useNavigate } from "@tanstack/react-router";
 import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { useGameId } from "../stores/game";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
@@ -14,9 +15,10 @@ interface LapSummary {
   isValid: boolean;
   carName: string;
   trackName: string;
+  trackOrdinal: number | null;
+  carOrdinal: number | null;
   gameId: string;
 }
-
 interface TuneSummary {
   id: number;
   seq: number;
@@ -53,7 +55,7 @@ function formatRelative(iso: string): string {
   if (hr < 24) return `${hr}h ${m.home_hours_ago()}`;
   const day = Math.floor(hr / 24);
   if (day < 30) return `${day}d ${m.home_days_ago()}`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString(getLocale());
 }
 
 export function ChatsPage() {
@@ -97,19 +99,20 @@ export function ChatsPage() {
 
   const handleOpen = useCallback(
     (row: ChatRow) => {
-      if (!gameId) return;
-      const game = getGame(gameId);
-      const prefix = `/${game.routePrefix}`;
+      const rowGameId = row.laps[0]?.gameId ?? row.tune?.gameId;
+      const routePrefix = rowGameId ? getGameRoute(rowGameId) : undefined;
+      if (!routePrefix) return;
       if (row.type === "analyse" && row.laps[0]) {
         const lap = row.laps[0];
+        if (lap.trackOrdinal == null || lap.carOrdinal == null) return;
         navigate({
-          to: `${prefix}/analyse` as never,
-          search: { lap: lap.id, ai: 1 } as never,
+          to: `${routePrefix}/sessions/replay` as never,
+          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id, ai: 1 } as never,
         });
       } else if (row.type === "compare" && row.laps.length === 2) {
         const [a, b] = row.laps;
         navigate({
-          to: `${prefix}/compare` as never,
+          to: `${routePrefix}/compare` as never,
           search: {
             lapA: a.id,
             lapB: b.id,
@@ -120,12 +123,12 @@ export function ChatsPage() {
         });
       } else if (row.type === "tune" && row.tune) {
         navigate({
-          to: `${prefix}/experiments/$experimentId` as never,
+          to: `${routePrefix}/experiments/$experimentId` as never,
           params: { experimentId: String(row.tune.id) } as never,
         });
       }
     },
-    [gameId, navigate],
+    [navigate],
   );
 
   return (

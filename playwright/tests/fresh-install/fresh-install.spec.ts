@@ -132,7 +132,7 @@ test.describe
       const navigation = page.getByRole("navigation", { name: "Navigation" });
       await expect(navigation).toBeVisible();
       await expect(page.getByRole("combobox", { name: "Games" })).toHaveText("Forza Motorsport 2023");
-      for (const name of ["Live", "Sessions", "Compare", "Analyse", "Driver", "Chats", "Tracks", "Cars", "Setups", "Raw"]) {
+      for (const name of ["Live", "Sessions", "Compare", "Driver", "Chats", "Tracks", "Cars", "Setups", "Raw"]) {
         await expect(navigation.getByRole("link", { name })).toBeVisible();
       }
       await expect(navigation.getByRole("link", { name: "Experiments" })).toHaveCount(0);
@@ -189,7 +189,7 @@ test.describe
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
       await page.getByRole("button", { name: /TestDriver/ }).click();
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await assertImagesLoaded(page);
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);
     });

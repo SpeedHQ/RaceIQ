@@ -1,5 +1,6 @@
 import type { WheelState } from "@shared/racing/analysis/laps/physics/vehicle";
 import { brakeTempColor, slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
+import { m } from "@/paraglide/messages";
 
 /**
  * WheelCard — SVG tire visualization for a single wheel.
@@ -11,7 +12,8 @@ import { brakeTempColor, slipAngleColor, tireState, tireTempColor } from "@/lib/
  */
 export function WheelCard({
   label,
-  temp,
+  surfaceTemp,
+  coreTemp,
   wear,
   slipAngle,
   outerSide,
@@ -31,7 +33,8 @@ export function WheelCard({
   healthAvailable,
 }: {
   label: string;
-  temp: number;
+  surfaceTemp: number;
+  coreTemp?: number;
   wear: number;
   slipAngle: number;
   outerSide: "left" | "right";
@@ -51,12 +54,18 @@ export function WheelCard({
   healthAvailable: boolean;
 }) {
   // Negate for display: physics sign convention is opposite of the visual
-  // "tire heading relative to velocity" we want to show in the SVG.
   const clampedAngle = -Math.max(-25, Math.min(25, slipAngle));
-  const stroke = temperatureAvailable ? tireTempColor(temp, thresholds) : "var(--status-unavailable)";
-  const fill = stroke;
+  const hasCoreTemp = temperatureAvailable && coreTemp !== undefined && Number.isFinite(coreTemp);
+  const stroke = temperatureAvailable ? tireTempColor(surfaceTemp, thresholds) : "var(--status-unavailable)";
+  const fill = hasCoreTemp ? tireTempColor(coreTemp, thresholds) : stroke;
   const slipCol = slipAngleColor(slipAngle);
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
+  const healthY = hasCoreTemp ? 117 : 105;
+  const stateY = healthY + 12;
+  const brakeY = brakeTemp != null ? stateY + 10 : null;
+  const curbY = onRumble ? (brakeY ?? stateY) + 10 : null;
+  const wetY = puddleDepth > 0 ? (curbY ?? brakeY ?? stateY) + 9 : null;
+  const svgHeight = Math.max(145, (wetY ?? curbY ?? brakeY ?? stateY) + 8);
 
   // Use canonical wheel state from vehicle-dynamics
   const isLockup = showWheelState && wheelState.state === "lockup";
@@ -75,7 +84,7 @@ export function WheelCard({
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox="0 0 80 145" width={80} height={145}>
+      <svg viewBox={`0 0 80 ${svgHeight}`} width={80} height={svgHeight}>
         {/* Label */}
         <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {label}
@@ -185,41 +194,50 @@ export function WheelCard({
             "—"
           )}
         </text>
-
-        {/* Below tire: temp, wear, traction */}
-        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-          {tempCaption} {temperatureAvailable ? `${tempFn(temp).toFixed(0)}°${tempUnit}` : "—"}
-        </text>
-        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={7} fontFamily="var(--font-mono)">
+        {hasCoreTemp ? (
+          <>
+            <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+              {m.label_surface()} {temperatureAvailable ? `${tempFn(surfaceTemp).toFixed(0)}°${tempUnit}` : "—"}
+            </text>
+            <text x={cx} y={105} textAnchor="middle" fill={fill} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+              {m.label_core()} {tempFn(coreTemp).toFixed(0)}°{tempUnit}
+            </text>
+          </>
+        ) : (
+          <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+            {tempCaption} {temperatureAvailable ? `${tempFn(surfaceTemp).toFixed(0)}°${tempUnit}` : "—"}
+          </text>
+        )}
+        <text x={cx} y={healthY} textAnchor="middle" fill="var(--app-text-muted)" fontSize={7} fontFamily="var(--font-mono)">
           {healthCaption} {healthAvailable ? `${((1 - wearPct) * 100).toFixed(0)}%` : "—"}
         </text>
         {showWheelState ? (
-          <text x={cx} y={117} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text x={cx} y={stateY} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             {visualState.label}
           </text>
         ) : (
-          <text x={cx} y={117} textAnchor="middle" fill="var(--status-unavailable)" fontSize={8} fontFamily="var(--font-mono)">
+          <text x={cx} y={stateY} textAnchor="middle" fill="var(--status-unavailable)" fontSize={8} fontFamily="var(--font-mono)">
             —
           </text>
         )}
 
         {/* Brake temp */}
         {brakeTemp != null && (
-          <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
-            BRK {tempFn(brakeTemp).toFixed(0)}°
+          <text x={cx} y={brakeY ?? stateY} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
+            BRK {tempFn(brakeTemp).toFixed(0)}°{tempUnit}
           </text>
         )}
 
         {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text x={cx} y={brakeTemp != null ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text x={cx} y={curbY ?? stateY} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
           <text
             x={cx}
-            y={(brakeTemp != null ? 137 : 127) + (onRumble ? 9 : 0)}
+            y={wetY ?? stateY}
             textAnchor="middle"
             fill="var(--surface-wet)"
             fontSize={7}

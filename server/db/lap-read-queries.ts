@@ -6,6 +6,7 @@ import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
+const inFlightSessionDecodes = new Map<string, Promise<void>>();
 
 interface LapStats {
   totalLaps: number;
@@ -66,7 +67,7 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
  * Optionally filter by profileId.
  */
 
-export async function getLaps(gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
+export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: number): Promise<LapMeta[]> {
   const query = db
     .select({
       id: laps.id,
@@ -103,15 +104,72 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .orderBy(desc(laps.id))
-    .limit(limit);
+    .orderBy(sessionId != null ? laps.lapNumber : desc(laps.id))
+    .limit(sessionId != null ? 1_000_000 : limit);
 
-  const rows = gameId
-    ? await query.where(eq(sessions.gameId, gameId)).all()
-    : await query.all();
+  const rows = sessionId != null
+    ? await query.where(and(eq(sessions.gameId, gameId!), eq(laps.sessionId, sessionId))).all()
+    : gameId
+      ? await query.where(eq(sessions.gameId, gameId)).all()
+      : await query.all();
 
   return rows.map(toLapMeta);
 }
+
+export async function getSessionLaps(gameId: GameId, sessionId: number): Promise<LapMeta[]> {
+  return getLaps(gameId, 1_000_000, sessionId);
+}
+/**
+ * Top valid laps for Analyse session review. SQL ranks and limits before
+ * serializing rows, so the browser never receives an entire track/car history.
+ */
+export async function getReviewLaps(gameId: GameId, trackOrdinal: number | null, carOrdinal: number | null, limit = 5, sessionId?: number): Promise<LapMeta[]> {
+  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`];
+  if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
+  else if (trackOrdinal != null && carOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.carOrdinal, carOrdinal));
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      createdAt: laps.createdAt,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      gameId: sessions.gameId,
+      sectorTimes: laps.sectorTimes,
+      ownership: sessions.ownership,
+      source: sessions.source,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      catalogVersion: laps.catalogVersion,
+      catalogHash: laps.catalogHash,
+      catalogSchemaVersion: laps.catalogSchemaVersion,
+      parserVersion: laps.parserVersion,
+      resolverVersion: laps.resolverVersion,
+      derivationVersion: laps.derivationVersion,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...filters))
+    .orderBy(laps.lapTime, desc(laps.id))
+    .limit(Math.max(1, Math.min(limit, 20)))
+    .all();
+  return rows.map(toLapMeta);
+}
+
 
 /**
  * Every lap in a driver-profile scope, newest first — deliberately unlimited.
@@ -420,11 +478,12 @@ export async function getLapsByIds(
 
   const rowById = new Map(rows.map((r) => [r.id, r]));
 
-  // Group cache-miss laps by session raw file so each session decodes once.
+  // Concurrent review queries (line spread + aligned telemetry) often request
+  // same raw session/lap set. Share decode promise to avoid duplicate BIN work.
   type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
   type BatchGroup = { source: string | null; gameId: GameId; carOrdinal: number; trackOrdinal: number; metas: BatchMeta[] };
-  const bySession = new Map<string, BatchGroup>();
   const decoded = new Map<number, TelemetryPacket[]>();
+  const bySession = new Map<string, BatchGroup>();
 
   for (const row of rows) {
     const cached = cacheGet(row.id);
@@ -443,17 +502,33 @@ export async function getLapsByIds(
   }
 
   const decodeSession = async (rawFile: string, group: BatchGroup) => {
-    try {
-      const batch = await parseSessionLapsBatched(
-        { rawFile, source: group.source, gameId: group.gameId, carOrdinal: group.carOrdinal, trackOrdinal: group.trackOrdinal },
-        group.metas,
-      );
-      for (const [lapId, telemetry] of batch) {
-        cacheSet(lapId, telemetry);
-        decoded.set(lapId, telemetry);
+    const key = `${rawFile}:${group.metas.map((meta) => meta.id).sort((a, b) => a - b).join(",")}`;
+    const existing = inFlightSessionDecodes.get(key);
+    if (existing) {
+      await existing;
+      for (const meta of group.metas) {
+        const telemetry = cacheGet(meta.id);
+        if (telemetry) decoded.set(meta.id, telemetry);
       }
-    } catch (err) {
-      console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+      return;
+    }
+    const decode = (async () => {
+      try {
+        const batch = await parseSessionLapsBatched(
+          { rawFile, source: group.source, gameId: group.gameId, carOrdinal: group.carOrdinal, trackOrdinal: group.trackOrdinal },
+          group.metas,
+        );
+        for (const [lapId, telemetry] of batch) cacheSet(lapId, telemetry);
+      } catch (err) {
+        console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+      }
+    })();
+    inFlightSessionDecodes.set(key, decode);
+    await decode;
+    inFlightSessionDecodes.delete(key);
+    for (const meta of group.metas) {
+      const telemetry = cacheGet(meta.id);
+      if (telemetry) decoded.set(meta.id, telemetry);
     }
   };
 

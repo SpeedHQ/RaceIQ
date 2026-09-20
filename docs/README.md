@@ -4,7 +4,12 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 ## Users
 
-- [Local AI setup](user-guides/local-ai.md) — connect RaceIQ to LM Studio, Ollama, or another compatible local provider.
+- [OpenAI-compatible AI setup](user-guides/openai-compatible-ai.md) — connect RaceIQ to LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible provider.
+
+## Installation
+
+- [Windows](installation/windows.md) — install the desktop application and configure native or UDP telemetry.
+- [Docker on Linux](installation/docker.md) — run the published non-root container with persistent storage.
 
 ## Contributors
 

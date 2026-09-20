@@ -16,7 +16,7 @@ type ToolInspectionAgent = {
 async function toolNames(agent: ToolInspectionAgent): Promise<string[]> {
   const ai = await resolveAi("chat", {
     ...loadSettings(),
-    chatProvider: "local",
+    chatProvider: "openai-compatible",
     chatModel: "tool-inspection-model",
   });
   const requestContext = createModelContext(ai, new RequestContext());

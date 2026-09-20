@@ -1,8 +1,8 @@
 import type { GameId } from "../../../../shared/games/ids";
 import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays } from "./track-map/types";
+import type { SemanticAnalysisFrame, Point, SectorBoundaries, TrackMapBoundaries, TrackMapHandle, TrackMapLabel, TrackOverlayKey, TrackOverlays, TrackZoomBehavior } from "./track-map/types";
+import type { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -18,18 +18,15 @@ interface AnalyseTopSectionProps {
   onRightResize: (width: number) => void;
 
   // Data
-  telemetry: SemanticAnalysisFrame[];
+  semanticFrames: SemanticAnalysisFrame[];
   cursorIdx: number;
   outline: Point[] | null;
   mapLabels?: TrackMapLabel[] | null;
   boundaries: TrackMapBoundaries | null;
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
-  currentFrame: SemanticAnalysisFrame | null;
-  displayTelemetry: SemanticAnalysisFrame[];
   lapLine: Point[] | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  units: any;
+  units: ReturnType<typeof useUnits>;
 
   // AI highlights
   aiPanelOpen: boolean;
@@ -39,9 +36,11 @@ interface AnalyseTopSectionProps {
   rotateWithCar: boolean;
   trackOverlays: TrackOverlays;
   mapZoom: number;
+  zoomBehavior: TrackZoomBehavior;
   onRotateWithCarToggle: () => void;
   onTrackOverlayChange: (overlay: TrackOverlayKey, checked: boolean) => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
+  onZoomBehaviorChange: () => void;
 
   // Viz
   vizMode: "2d" | "3d";
@@ -60,14 +59,13 @@ export function AnalyseTopSection({
   rightColWidth,
   onLeftResize,
   onRightResize,
-  telemetry,
+  semanticFrames,
   cursorIdx,
   outline,
   mapLabels,
   boundaries,
   sectors,
   segments,
-  displayTelemetry,
   lapLine,
   units,
   aiPanelOpen,
@@ -75,9 +73,11 @@ export function AnalyseTopSection({
   rotateWithCar,
   trackOverlays,
   mapZoom,
+  zoomBehavior,
   onRotateWithCarToggle,
   onTrackOverlayChange,
   onMapZoomChange,
+  onZoomBehaviorChange,
   vizMode,
   onVizModeChange,
   trackMapRef,
@@ -115,7 +115,7 @@ export function AnalyseTopSection({
           </div>
         </div>
         {/* Segment list */}
-        <AnalyseSegmentList telemetry={telemetry} segments={segments} cursorIdx={cursorIdx} />
+        <AnalyseSegmentList telemetry={semanticFrames} segments={segments} cursorIdx={cursorIdx} />
       </div>
 
       {/* Left resize handle */}
@@ -157,19 +157,21 @@ export function AnalyseTopSection({
       <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:border-r @5xl/workspace:border-b-0">
         <AnalyseTrackPanel
           gameId={gameId}
-          telemetry={telemetry}
+          telemetry={semanticFrames}
           cursorIdx={cursorIdx}
           outline={outline}
           mapLabels={mapLabels}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}
-          currentFrame={telemetry[cursorIdx] ?? null}
+          currentFrame={semanticFrames[cursorIdx] ?? null}
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
           rotateWithCar={rotateWithCar}
           trackOverlays={trackOverlays}
           mapZoom={mapZoom}
+          zoomBehavior={zoomBehavior}
+          onZoomBehaviorChange={onZoomBehaviorChange}
           onRotateWithCarToggle={onRotateWithCarToggle}
           onTrackOverlayChange={onTrackOverlayChange}
           onMapZoomChange={onMapZoomChange}
@@ -216,8 +218,8 @@ export function AnalyseTopSection({
       <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
-        currentFrame={telemetry[cursorIdx] ?? null}
-        displayTelemetry={displayTelemetry}
+        currentFrame={semanticFrames[cursorIdx] ?? null}
+        semanticFrames={semanticFrames}
         cursorRef={cursorRef}
         displayTelemetryRef={displayTelemetryRef}
         cursorIdx={cursorIdx}

@@ -32,7 +32,7 @@ import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { getSecret } from "../runtime/platform/keystore";
+import { configureAiProviderEnvironment } from "../ai/openai-compatible-provider";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
 
@@ -219,27 +219,15 @@ export const tuneChatRoutes = new Hono()
       // the provider matrix changes.
       const settings = loadSettings();
       const chatProvider = settings.chatProvider;
-      if (chatProvider === "gemini") {
-        const key = await getSecret("gemini-api-key");
-        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-        delete process.env.OPENAI_BASE_URL;
-      } else if (chatProvider === "openai") {
-        const key = await getSecret("openai-api-key");
-        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-        process.env.OPENAI_API_KEY = key;
-        delete process.env.OPENAI_BASE_URL;
-      } else if (chatProvider === "local") {
-        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-      }
+      if (!chatProvider) return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+      await configureAiProviderEnvironment(chatProvider, settings.localEndpoint || "http://localhost:1234/v1");
 
       // Same model-label fallback chain chat-stream.ts uses, so thinking support
       // is detected off the model that will actually run.
       const chatModelLabel = settings.chatModel
         || (chatProvider === "openai"
           ? "gpt-4o-mini"
-          : chatProvider === "local"
+          : chatProvider === "openai-compatible"
             ? "local-model"
             : "gemini-flash-latest");
 

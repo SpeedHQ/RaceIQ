@@ -48,6 +48,23 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
 
   const sourcePaths = sources(mapping);
   const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
+  const canonicalUnit = variable.canonicalUnit.trim().toLowerCase();
+  if (variable.id === "tire.temperature.surface.representative" && nativeUnit === "°f" && canonicalUnit === "°c") {
+    const reader = readerFor(variable, mapping);
+    if (!reader) return undefined;
+    const values = new Array<unknown>(4);
+    return (frame, context) => {
+      const sourceReading = reader(frame, context);
+      if (!sourceReading) return undefined;
+      const sourceValues = Array.isArray(sourceReading.value) ? sourceReading.value : [];
+      for (let index = 0; index < values.length; index += 1) {
+        const value = sourceValues[index];
+        values[index] = typeof value === "number" && Number.isFinite(value) ? (value - 32) * (5 / 9) : value;
+      }
+      sourceReading.value = values;
+      return sourceReading;
+    };
+  }
   const reading = {} as SourceReading;
   if (variable.id === "fuel.fuel-percent" && nativeUnit === "fraction") {
     return (frame, context) => {

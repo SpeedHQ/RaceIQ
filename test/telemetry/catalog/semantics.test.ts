@@ -15,12 +15,12 @@ describe("semantic telemetry catalog", () => {
 
 
 
-  test("organizes tire temperature as one detailed-to-simple hierarchy", () => {
+  test("organizes tire temperature by layer and named granularity", () => {
     expect(
-      getTelemetryChildren("tire.temperature").map((node) => node.label),
+      getTelemetryChildren("tire.temperature").map((node) => node.label).sort(),
     ).toEqual([
-      "Representative / average",
       "Carcass temperature",
+      "Core temperature",
       "Surface temperature",
     ]);
     expect(
@@ -28,7 +28,6 @@ describe("semantic telemetry catalog", () => {
         (node) => node.label,
       ),
     ).toEqual([
-      "Average carcass temperature",
       "Left carcass temperature",
       "Middle carcass temperature",
       "Right carcass temperature",
@@ -41,45 +40,28 @@ describe("semantic telemetry catalog", () => {
       "Inner surface temperature",
       "Middle surface temperature",
       "Outer surface temperature",
+      "Representative surface temperature",
     ]);
   });
 
-  test("defines common average as normalized where needed and simplified for iRacing", () => {
-    const average = getTelemetryVariable("tire.temperature.average");
-
-    expect(average.canonicalUnit).toBe("°C");
-    expect(average.games["fm-2023"]).toMatchObject({
+  test("keeps surface, core, and carcass source semantics distinct", () => {
+    const surface = getTelemetryVariable("tire.temperature.surface.representative");
+    expect(surface.canonicalUnit).toBe("°C");
+    expect(surface.games["fm-2023"]).toMatchObject({
       kind: "normalized",
       nativeUnit: "°F",
       normalization: "(fahrenheit - 32) * 5 / 9",
     });
-    expect(average.games["f1-2025"].kind).toBe("direct");
-    expect(average.games.acc.kind).toBe("direct");
-    expect(average.games["ac-evo"].kind).toBe("direct");
-    expect(average.games.iracing).toMatchObject({
-      kind: "simplified",
-      nativeUnit: "°C",
-      freshness: "pit-snapshot",
-    });
+    expect(surface.games["f1-2025"].kind).toBe("direct");
+    expect(surface.games.acc).toMatchObject({ kind: "unavailable", reason: "parser-placeholder" });
+    expect(surface.games["ac-evo"].kind).toBe("direct");
+    expect(surface.games.iracing.kind).toBe("unavailable");
 
-    const iracing = average.games.iracing;
-    if (iracing.kind === "unavailable") throw new Error("mapping missing");
-    expect(iracing.sources).toEqual({
-      FL: ["iRacing.LFtempCL", "iRacing.LFtempCM", "iRacing.LFtempCR"],
-      FR: ["iRacing.RFtempCL", "iRacing.RFtempCM", "iRacing.RFtempCR"],
-      RL: ["iRacing.LRtempCL", "iRacing.LRtempCM", "iRacing.LRtempCR"],
-      RR: ["iRacing.RRtempCL", "iRacing.RRtempCM", "iRacing.RRtempCR"],
-    });
-    expect(iracing.normalization).toBe(
-      "average available left, middle, and right carcass temperatures per tire",
-    );
-
-    expect(
-      getTelemetryVariable("tire.temperature.carcass.average").games.iracing,
-    ).toMatchObject({
-      kind: "simplified",
-      freshness: "pit-snapshot",
-    });
+    const core = getTelemetryVariable("tire.temperature.core");
+    expect(core.games["f1-2025"].kind).toBe("direct");
+    expect(core.games.acc.kind).toBe("direct");
+    expect(core.games["ac-evo"].kind).toBe("direct");
+    expect(core.games.iracing.kind).toBe("unavailable");
   });
 
   test("keeps detailed iRacing carcass bands as direct variables", () => {

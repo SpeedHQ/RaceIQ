@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import { useGameRoute } from "@/stores/game";
 import type { SessionsTab } from "./types";
-
+type RunExport = (selection: { lapIds?: number[]; sessionIds?: number[] }) => void;
 
 export type SessionToolbarProps = {
   sessions: SessionMeta[];
@@ -20,6 +20,8 @@ export type SessionToolbarProps = {
   setPage: (page: number) => void;
   selectedSessions: Set<number>;
   selectedLaps: Set<number>;
+  exporting: boolean;
+  runExport: RunExport;
   setImportOpen: (open: boolean) => void;
   confirmDelete: boolean;
   setConfirmDelete: (confirm: boolean) => void;
@@ -41,6 +43,8 @@ export function SessionToolbar({
   setPage,
   selectedSessions,
   selectedLaps,
+  exporting,
+  runExport,
   setImportOpen,
   confirmDelete,
   setConfirmDelete,
@@ -55,12 +59,23 @@ export function SessionToolbar({
     <div className="flex items-center flex-wrap gap-3">
       <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
         {(["mine", "others"] as const satisfies readonly SessionsTab[]).map((nextTab) => (
-          <Button key={nextTab} variant="app-ghost" size="app-md" onClick={() => { setTab(nextTab); setPage(0); }} className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}>
+          <Button
+            key={nextTab}
+            variant="app-ghost"
+            size="app-md"
+            onClick={() => {
+              setTab(nextTab);
+              setPage(0);
+            }}
+            className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === nextTab ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+          >
             {nextTab === "mine" ? m.sessions_tab_mine() : m.sessions_tab_others()}
           </Button>
         ))}
       </div>
-      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>{m.sessions_import()}</Button>
+      <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
+        {m.sessions_import()}
+      </Button>
       <AppInput
         type="search"
         value={search}
@@ -77,6 +92,11 @@ export function SessionToolbar({
         )}
       </h1>
       <div className="flex items-center flex-wrap gap-2">
+        {selectedLaps.size > 0 && (
+          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: [...selectedLaps] })}>
+            {exporting ? m.common_loading() : m.sessions_export_lap()}
+          </Button>
+        )}
         {selectedLaps.size === 2 &&
           (() => {
             const ids = [...selectedLaps];

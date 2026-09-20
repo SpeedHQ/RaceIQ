@@ -108,13 +108,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {s.label}
           </Button>
         ))}
-        <AppInput
-          type="text"
-          value={author}
-          placeholder={m.setup_search_author()}
-          onChange={(e) => pickAuthor(e.target.value)}
-          className="text-app-compact w-40"
-        />
+        <AppInput type="text" value={author} placeholder={m.setup_search_author()} onChange={(e) => pickAuthor(e.target.value)} className="text-app-compact w-40" />
         {props.onRefresh && (
           <Button
             type="button"

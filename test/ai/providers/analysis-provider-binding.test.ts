@@ -11,7 +11,7 @@ type ModelLookupAgent = {
 describe("lap analyst provider binding", () => {
   test("uses request-scoped resolved model for structured analysis", async () => {
     const requestModel = getMastraModelId(
-      "local",
+      "openai-compatible",
       "request-model",
       "http://request-scoped.test/v1",
     );

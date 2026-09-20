@@ -66,16 +66,19 @@ Lower priority means slower turnaround on new features for that title — it doe
 
 ## Getting Started
 
-### 1. Download and install
+### 1. Install (Windows recommended)
 
-Grab the latest installer from the [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Run RaceIQ and follow the setup wizard. 
+Grab latest installer from [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Windows installation is recommended because it supports all RaceIQ games and live shared-memory telemetry. Run RaceIQ and follow setup wizard.
 * You can reopen the dashboard at any time by double-clicking the RaceIQ icon in the system tray.
+
+Detailed setup: [Windows installation](docs/installation/windows.md) · [Docker installation](docs/installation/docker.md)
+
 
 ### 2. Run and Connect
 
-For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, and iRacing are detected automatically from their native Windows shared-memory telemetry. Start driving and telemetry will appear automatically.
 
-> **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
+For telemetry configuration, see the [Windows installation](docs/installation/windows.md) and [Docker installation](docs/installation/docker.md) guides. For UDP forwarding to multiple destinations, use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder).
+
 
 ## Updates
 
@@ -105,7 +108,7 @@ The database is created automatically on first run. No cloud account or external
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to run AI entirely on your own PC? See the [Local AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/local-ai.md).
+Want to use LM Studio, Ollama, OpenRouter, LiteLLM, or another compatible gateway? See the [OpenAI-compatible AI setup guide](https://github.com/SpeedHQ/RaceIQ/blob/main/docs/user-guides/openai-compatible-ai.md).
 
 ## Sponsorship
 

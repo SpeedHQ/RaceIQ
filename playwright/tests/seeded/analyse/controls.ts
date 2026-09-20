@@ -19,6 +19,29 @@ export async function assertTuneSelector(page: Page): Promise<void> {
   if (await tuneSelector.count()) await expect(tuneSelector).toBeVisible();
 }
 
+export async function exerciseDynamicsTooltip(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
+  const frameIndex = semanticFrames.findIndex((frame) =>
+    ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y"].every((id) => {
+      const value = frame.values[id];
+      return typeof value === "number" && Number.isFinite(value);
+    }),
+  );
+  if (frameIndex < 0) throw new Error("Seeded Analyse fixture lacks frame with available balance inputs");
+  await setAnalyseFrame(page, frameIndex);
+
+  const balanceTrigger = page.getByRole("button", { name: /Balance tooltip/ });
+  await expect(balanceTrigger).toBeVisible();
+  const balanceRow = balanceTrigger.locator("..");
+  const balanceText = await balanceRow.innerText();
+  const decision = balanceText.match(/(Understeer|Neutral|Oversteer)\(([+-]?\d+\.\d{2})\)/);
+  if (!decision) throw new Error(`Balance row lacks decision value: ${balanceText}`);
+
+  await balanceTrigger.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText(`Decision — ${decision[1]} (${decision[2]})`);
+}
+
 export async function exercisePlaybackControls(page: Page, semanticFrames: SemanticFrame[]): Promise<void> {
   const slider = page.getByRole("slider", { name: "Lap timeline" });
   await expect(slider).toHaveAttribute("aria-valuenow", "0");
@@ -51,9 +74,10 @@ export async function exercisePlaybackControls(page: Page, semanticFrames: Seman
     new MutationObserver((records) => { mutations += records.length; }).observe(grid, { childList: true, subtree: true, characterData: true });
     (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations = () => mutations;
   });
-  await page.getByTitle("Play (Space)").click();
+  await page.getByRole("button", { name: "Play playback", exact: true }).click();
   await page.waitForTimeout(2000);
-  await page.getByTitle("Pause (Space)").click({ force: true });
+  // Timeline rerenders every frame; dispatch pause without waiting on replaced DOM.
+  await page.getByRole("button", { name: "Pause playback", exact: true }).evaluate((button) => (button as HTMLButtonElement).click());
   const pausedFrame = Number(await slider.getAttribute("aria-valuenow"));
   expect(await page.evaluate(() => (window as typeof window & { __analyseMetricMutations?: () => number }).__analyseMetricMutations?.() ?? 0)).toBeGreaterThanOrEqual(10);
   expect(pausedFrame).toBeGreaterThan(startFrame);
@@ -91,7 +115,7 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
   const followButton = page.getByRole("button", { name: "Fixed", exact: true });
-  await followButton.click();
+  await followButton.evaluate((button) => (button as HTMLButtonElement).click());
   await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Overlays", exact: true }).click();
   const overlayItems = ["Inputs", "Segments", "Sectors"].map((label) => page.getByRole("menuitemcheckbox", { name: label, exact: true }));
@@ -104,9 +128,9 @@ export async function exerciseInsightsAndMap(page: Page): Promise<void> {
     await expect(item).toHaveAttribute("aria-checked", "false");
   }
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Zoom in map" }).click();
+  await page.getByRole("button", { name: "Zoom in map" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1.25");
-  await page.getByRole("button", { name: "Zoom out map" }).click();
+  await page.getByRole("button", { name: "Zoom out map" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect.poll(() => page.evaluate(() => localStorage.getItem("analyse-mapZoom"))).toBe("1");
 }
 
@@ -132,7 +156,7 @@ export async function exerciseAiSetup(page: Page): Promise<void> {
   await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
   await expect(page.getByText("AI not set up", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Set up AI", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close settings" }).click();
   await page.getByRole("button", { name: "AI Analysis", exact: true }).click();
 }

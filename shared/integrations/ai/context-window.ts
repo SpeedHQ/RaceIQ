@@ -24,7 +24,7 @@ export function contextWindowFor(provider: string, model: string, localContext?:
     case "claude-cli":
     case "anthropic":
       return 200_000;
-    case "local":
+    case "openai-compatible":
       return localContext && localContext > 0 ? localContext : undefined;
     default:
       return undefined;

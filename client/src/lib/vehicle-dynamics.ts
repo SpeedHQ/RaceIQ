@@ -34,12 +34,12 @@ export interface TireState {
   color: string; // CSS var — use in React inline styles / SVG
 }
 
-export function tireState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): TireState {
+export function tireStateFromUtilization(wheelStateLabel: string, slipRatio: number, lateralUtilization: number): TireState {
   if (wheelStateLabel === "lockup") return { label: "LOCK", color: severityColor(3) };
   if (wheelStateLabel === "idle") return { label: "IDLE", color: "var(--app-text-dim)" };
 
   const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
-  const aNorm = Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD;
+  const aNorm = Math.abs(lateralUtilization);
   const util = Math.min(Math.hypot(rNorm, aNorm), 2.0);
 
   if (util < GRIP_WARN_UTIL) return { label: "GRIP", color: severityColor(0) };
@@ -49,6 +49,10 @@ export function tireState(wheelStateLabel: string, slipRatio: number, slipAngleR
   if (wheelStateLabel === "spin") return { label: "SPIN", color: severityColor(2) };
   if (aNorm >= rNorm) return { label: "SLIDE", color: severityColor(3) };
   return { label: "SPIN", color: severityColor(2) };
+}
+
+export function tireState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): TireState {
+  return tireStateFromUtilization(wheelStateLabel, slipRatio, Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD);
 }
 
 // ── Color helpers ──────────────────────────────────────────────────

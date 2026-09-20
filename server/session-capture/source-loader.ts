@@ -101,6 +101,15 @@ export async function* iterateSessionCaptureFrames(
 
       while (pending.length >= 4) {
         const frameLength = pending.readUInt32LE(0);
+        if (frameLength === META_FRAME_MAGIC) {
+          if (pending.length < 8) break;
+          const metaLength = pending.readUInt32LE(4);
+          assertCaptureRecordLength(metaLength);
+          if (pending.length < 8 + metaLength) break;
+          pending = pending.subarray(8 + metaLength);
+          offset += 8 + metaLength;
+          continue;
+        }
         assertCaptureRecordLength(frameLength);
         if (frameLength <= 0 || pending.length < 4 + frameLength) break;
         const frameOffset = offset;

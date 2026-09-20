@@ -61,7 +61,7 @@ async function runDbStartup(dataDir: string): Promise<{ code: number; output: st
   return { code, output: `${stdout}\n${stderr}` };
 }
 
-async function createFixture(databasePath: string, profileName: string): Promise<void> {
+async function createFixture(databasePath: string, profileName: string, throughVersion = Number.POSITIVE_INFINITY): Promise<void> {
   // Separate process guarantees native libSQL handles are gone before rename tests.
   const source = `
     import { createClient } from "@libsql/client/sqlite3";
@@ -70,11 +70,14 @@ async function createFixture(databasePath: string, profileName: string): Promise
     const client = createClient({ url: ${JSON.stringify(`file:${databasePath}`)} });
     try {
       await bootstrap(client);
-      await runMigrations(client);
+      await runMigrations(client, ${throughVersion});
       await client.execute({
         sql: "INSERT INTO profiles (name) VALUES (?)",
         args: [${JSON.stringify(profileName)}],
       });
+      await client.execute(
+        "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id, raw_file) VALUES (1, 10, 20, 'iracing', 'seed.bin.gz')",
+      );
     } finally {
       client.close();
     }
@@ -99,6 +102,15 @@ function profileNames(databasePath: string): string[] {
   try {
     const rows = database.query("SELECT name FROM profiles ORDER BY id").all() as Array<{ name: string }>;
     return rows.map(({ name }) => name);
+  } finally {
+    database.close();
+  }
+}
+function sessionOwnerships(databasePath: string): string[] {
+  const database = new Database(databasePath, { readonly: true });
+  try {
+    const rows = database.query("SELECT ownership FROM sessions ORDER BY id").all() as Array<{ ownership: string }>;
+    return rows.map(({ ownership }) => ownership);
   } finally {
     database.close();
   }
@@ -173,6 +185,28 @@ describe("production database path", () => {
     expectArtifactsAbsent(legacyPath);
     expectArtifactsAbsent(testPath);
   });
+  if (process.env.RACEIQ_DB_UPGRADE_TESTS === "1") {
+    test("upgrades a seeded v57 database during startup", async () => {
+      const seededDataDir = process.env.RACEIQ_UPGRADE_DATA_DIR;
+      const dataDir = seededDataDir ?? makeDataDir();
+      const appPath = join(dataDir, "app.db");
+      const sentinel = `upgrade-profile-${crypto.randomUUID()}`;
+      if (!seededDataDir) await createFixture(appPath, sentinel, 57);
+
+      const result = await runDbStartup(dataDir);
+
+      expect(result.code, result.output).toBe(0);
+      expect(result.output).toContain("[DB]   v58: persist session ownership");
+      if (seededDataDir) {
+        expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
+        expect(sessionOwnerships(appPath).length).toBeGreaterThan(0);
+        expect(sessionOwnerships(appPath).every((ownership) => ownership === "mine")).toBe(true);
+      } else {
+        expect(profileNames(appPath)).toEqual([sentinel]);
+        expect(sessionOwnerships(appPath)).toEqual(["mine"]);
+      }
+    });
+  }
 
   test("dual-file startup keeps app.db and continues", async () => {
     const dataDir = makeDataDir();

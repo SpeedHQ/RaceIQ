@@ -5,6 +5,8 @@ import type { LapMeta, SessionOwnership } from "../../shared/racing/sessions/typ
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
+import { isIRacingSessionFrame } from "../games/iracing/source-frame";
+import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
@@ -43,8 +45,9 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _lapWriteFailure: unknown;
   private readonly _sessionMeta = new Map<
     number,
-    { carOrdinal: number; trackOrdinal: number }
+    { carOrdinal: number; trackOrdinal: number; gameId: GameId }
   >();
+  private _continueSession = false;
   private readonly _sessionSource?: string;
 
 
@@ -68,6 +71,22 @@ export class ImportCaptureAdapter implements DbAdapter {
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
   ): Promise<number> {
+    if (this._continueSession) {
+      this._continueSession = false;
+      const sessionId = [...this.sessionIds].at(-1);
+      if (sessionId === undefined) {
+        throw new Error("Cannot continue import segment before a session has started");
+      }
+      const meta = this._sessionMeta.get(sessionId);
+      if (meta && meta.gameId !== gameId) {
+        throw new Error("Import segment game does not match its source session");
+      }
+      if (meta && (meta.carOrdinal !== carOrdinal || meta.trackOrdinal !== trackOrdinal)) {
+        await this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+      }
+      this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal, gameId });
+      return sessionId;
+    }
     const id = await this._inner.insertSession(
       carOrdinal,
       trackOrdinal,
@@ -77,10 +96,17 @@ export class ImportCaptureAdapter implements DbAdapter {
       ownership,
     );
     this.sessionIds.add(id);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
+    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId });
     if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
 
+  }
+
+  continueSessionOnNextInsert(): void {
+    if (this.sessionIds.size === 0) {
+      throw new Error("Cannot continue import segment before a session has started");
+    }
+    this._continueSession = true;
   }
 
   insertLap(
@@ -136,7 +162,8 @@ export class ImportCaptureAdapter implements DbAdapter {
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
+    const existing = this._sessionMeta.get(sessionId);
+    if (existing) this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
   }
   getLapsForExclusionScope(experimentId: number, tuneId: number) {
@@ -179,6 +206,10 @@ async function rollbackImport(
   throw error;
 }
 
+type SessionFrameSource =
+  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>
+  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>;
+
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
 export class ImportSourceRecorder implements SessionRecorderAdapter {
   private activeState = false;
@@ -201,6 +232,8 @@ export class ImportSourceRecorder implements SessionRecorderAdapter {
   }
   writeMetaFrame(): void {}
   writeRecord(_frame: Buffer): void {}
+  writeRawCaptureBytes(_bytes: Buffer): void {}
+  writeSegmentBoundary(): void {}
   getCurrentByteOffset(): number { return 0; }
   flush(): void {}
   async stop(): Promise<void> { this.activeState = false; }
@@ -230,6 +263,7 @@ type ImportItemHandler<T> = (
   item: T,
   packetIndex: number,
   pipeline: LiveTelemetryPipeline,
+  capture: ImportCaptureAdapter,
 ) => Promise<boolean>;
 
 async function importTelemetrySource<T>(
@@ -253,7 +287,7 @@ async function importTelemetrySource<T>(
   let failure: unknown;
   try {
     for await (const item of source) {
-      if (await processItem(item, packetCount, pipeline)) packetCount++;
+      if (await processItem(item, packetCount, pipeline, db)) packetCount++;
     }
     await pipeline.flushIncompleteLap();
     await db.waitForPendingLapWrites();
@@ -297,18 +331,54 @@ async function importTelemetrySource<T>(
  * while parser and lap detection operate on canonical frames in memory.
  */
 export function importSessionFrames(
-  frames: ImportItemSource<Buffer>,
+  frames: SessionFrameSource,
   gameId: GameId,
   options: ImportSessionOptions = {},
 ): Promise<ImportSessionResult> {
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
+  let expectsSessionContext = gameId === "iracing";
+  let completeLapStart = false;
+  let inParserContext = false;
   return importTelemetrySource(
     frames,
     gameId,
     options,
-    async (sourceFrame, _packetIndex, pipeline) => {
+    async (sourceFrame, _packetIndex, pipeline, capture) => {
       countSourceFrameScanned();
+      if (sourceFrame === SESSION_SEGMENT_BOUNDARY) {
+        if (capture.sessionIds.size > 0) {
+          capture.continueSessionOnNextInsert();
+          pipeline.beginSessionSegment();
+        }
+        state = serverGame.createParserState?.() ?? null;
+        expectsSessionContext = gameId === "iracing";
+        completeLapStart = true;
+        inParserContext = false;
+        return false;
+      }
+      if (sourceFrame === SESSION_SEGMENT_CONTEXT) {
+        inParserContext = true;
+        return false;
+      }
+      if (sourceFrame === SESSION_SEGMENT_CONTEXT_END) {
+        inParserContext = false;
+        return false;
+      }
+      if (inParserContext) {
+        serverGame.tryParse(sourceFrame, state);
+        pipeline.recordSessionContextFrame(sourceFrame);
+        return false;
+      }
+      if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(sourceFrame)) {
+        serverGame.tryParse(sourceFrame, state);
+        pipeline.recordSessionContextFrame(sourceFrame, completeLapStart);
+        expectsSessionContext = false;
+        completeLapStart = false;
+        return false;
+      }
+      expectsSessionContext = false;
+      completeLapStart = false;
       const packet = serverGame.tryParseLapIndex(sourceFrame, state);
       if (!packet) return false;
       countIndexSampleMaterialized();

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { CORE_STORYBOOK_SNAPSHOT_CASES, REUSABLE_UI_SNAPSHOT_CASES, STORYBOOK_SNAPSHOT_CASES } from "../../client/src/stories/snapshot-cases";
@@ -108,8 +108,9 @@ describe("local UI diff report", () => {
     const runtimeConfig = readFileSync(join(repoRoot, "playwright/config/runtime.ts"), "utf8");
     const webServersConfig = readFileSync(join(repoRoot, "playwright/config/web-servers.ts"), "utf8");
     const responsiveWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-screenshots.yml"), "utf8");
-    const buildWorkflow = readFileSync(join(repoRoot, ".github/workflows/build-test.yml"), "utf8");
+    const workflowOps = readFileSync(join(repoRoot, "scripts/ci/workflow-ops.ts"), "utf8");
     const devLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-dev-server.ts"), "utf8");
+    const buildWorkflow = readFileSync(join(repoRoot, ".github/workflows/build-test.yml"), "utf8");
     const productionLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-server.ts"), "utf8");
     const seedHelper = readFileSync(join(repoRoot, "playwright/support/server/seed-screenshot-data.ts"), "utf8");
     const storybookConfig = readFileSync(join(repoRoot, "client/playwright.config.ts"), "utf8");
@@ -120,13 +121,12 @@ describe("local UI diff report", () => {
     expect(screenshots).toContain("RESPONSIVE_VIEWPORTS");
     expect(screenshotCases).toContain('{ name: "mobile", width: 390, height: 844 }');
     expect(screenshotCases).toContain('{ name: "home", path: "/" }');
-    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/analyse" }');
+    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/sessions/analyse" }');
     expect(screenshotCases).toContain('{ name: "acc-setups", path: "/acc/setups" }');
     expect(screenshotCases).toContain('name: "iracing-track-detail"');
     expect(screenshotCases).toContain('path: "/iracing/tracks/18/info"');
     expect(screenshotCases).toContain('name: "iracing-seeded-laps"');
     expect(screenshotCases).toContain('name: "f125-experiment-detail"');
-    expect(screenshotCases).toContain('name: "f125-experiment-review"');
     expect(screenshotCases).toContain('name: "ac-evo-live"');
     expect(screenshotCases).toContain('name: "nav-drawer-open"');
     expect(screenshotCases).toContain('name: "settings-modal"');
@@ -139,7 +139,7 @@ describe("local UI diff report", () => {
     expect(responsiveConfig).toContain("fullyParallel: runtime.parallelScreenshotRun");
     expect(webServersConfig).toContain("support/server/start-dev-server.ts");
     expect(buildWorkflow).toContain("uses: ./.github/workflows/pr-screenshots.yml");
-    expect(responsiveWorkflow).toContain('PW_SEED_SCREENSHOTS: "1"');
+    expect(workflowOps).toContain('PW_SEED_SCREENSHOTS: "1"');
     expect(devLauncher).toContain("seedScreenshotData(repoDir, dir)");
     expect(productionLauncher).toContain("seedScreenshotData(repoDir, dir)");
     expect(seedHelper).toContain('process.env.PW_SEED_SCREENSHOTS !== "1"');
@@ -157,23 +157,21 @@ describe("local UI diff report", () => {
     expect(gitignore).toContain(".ui-diff/");
   });
 
-  test("requires every Storybook baseline in the bounded manifest", () => {
-    const manifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
-    const committed = readdirSync(join(repoRoot, "client/src/stories/__snapshots__"))
-      .filter((entry) => entry.startsWith("snapshot-") && entry.endsWith(".png"))
-      .sort();
+  test("keeps generated Storybook outputs unique and bounded by the manifest", () => {
+    const outputs = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName);
 
-    expect(committed).toEqual(manifest);
+    expect(new Set(outputs).size).toBe(outputs.length);
+    expect(outputs.every((output) => /^snapshot-[A-Za-z0-9-]+\.png$/.test(output))).toBeTrue();
   });
 
   test("keeps screenshot coverage bounded to high-value visual states", () => {
     expect(RESPONSIVE_VIEWPORTS).toHaveLength(3);
-    expect(RESPONSIVE_PAGES).toHaveLength(51);
+    expect(RESPONSIVE_PAGES).toHaveLength(50);
     expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(5);
-    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(98);
-    expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
+    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
+    expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(10);
     expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(17);
-    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(25);
-    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(123);
+    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(27);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(124);
   });
 });

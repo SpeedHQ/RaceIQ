@@ -6,6 +6,12 @@ pre-commit:
 
     - name: test shards
       run: bun run test:shards
+    - name: unit tests
+      run: bun run test:unit
+
+    - name: tooling tests
+      run: bun run test:tooling
+
     - name: lint
       run: bun run lint
 

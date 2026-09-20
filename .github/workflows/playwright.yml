@@ -9,10 +9,10 @@ on:
         type: string
         default: compiled
       runs-on:
-        description: "Runner labels as JSON array; Windows is required for compiled native binary"
+        description: "Runner label; compiled server builds on selected runner"
         required: false
         type: string
-        default: '["mars-windows-x64", "4VCPU", "10G"]'
+        default: '["mars-windows-x64-4vcpu-10g", "mars-macos-arm64-2vcpu-10g"]'
       projects:
         description: "Playwright project flags passed to the gate"
         required: false
@@ -50,6 +50,7 @@ on:
 
 jobs:
   playwright:
+    timeout-minutes: 30
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     steps:
       - uses: actions/checkout@v7
@@ -75,17 +76,10 @@ jobs:
 
 
       - name: Install workspace dependencies
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Continue"
-          bun install --frozen-lockfile
-          if ($LASTEXITCODE -eq 0) {
-            exit 0
-          }
-          Write-Host "Initial Bun install failed; clearing node_modules and retrying with a forced package download."
-          Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
-          bun install --frozen-lockfile --force
-          exit $LASTEXITCODE
+        run: bun scripts/ci/workflow-ops.ts install-retry
+      - name: Build local compiled server
+        if: inputs.server-mode == 'compiled' && inputs.dist-artifact == ''
+        run: bun run build
 
       - name: Install Chromium
         working-directory: playwright
@@ -98,7 +92,6 @@ jobs:
           PW_SERVER_SET: ${{ inputs.server-set }}
           PW_WORKERS: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: cmd
         run: bun run ../scripts/playwright-ci.ts test --list ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
       - name: Run Playwright gate
@@ -109,7 +102,6 @@ jobs:
           PW_WORKERS: "1"
           RACEIQ_DISABLE_TRAY: "1"
           PLAYWRIGHT_PROJECTS: ${{ inputs.projects }}
-        shell: cmd
         run: bun run ../scripts/playwright-ci.ts test ${{ inputs.shard != '' && format('--shard={0}', inputs.shard) || '' }}
 
 

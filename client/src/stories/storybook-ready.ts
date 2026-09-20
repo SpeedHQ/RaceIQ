@@ -3,6 +3,9 @@ import type { Page } from "@playwright/test";
 const STORY_ROOT_CHILD = "#storybook-root > *";
 const REQUIRED_THEME_TOKENS = ["--app-bg", "--app-text", "--app-accent", "--font-sans", "--font-mono"];
 const SNAPSHOT_STYLE = `
+  html[data-visual-test] [data-visual-test-hidden] {
+    visibility: hidden !important;
+  }
   html[data-visual-test] *,
   html[data-visual-test] *::before,
   html[data-visual-test] *::after {
@@ -78,14 +81,27 @@ async function waitForStableCanvases(page: Page, timeoutMs: number): Promise<voi
 }
 
 /**
- * Open a story in deterministic visual-test mode and wait for renderers.
+ * Wait for story-specific renderers to finish deterministic visual setup.
  *
- * Snapshot mode is installed before navigation, so CSS transitions and
- * JavaScript reduced-motion branches never begin in a random phase. After
- * fonts and theme variables resolve, a one-pixel viewport pulse forces
- * ResizeObserver-backed charts and fit-to-viewport layouts to redraw.
+ * Called after Storybook interaction tests have had a chance to run. Waiting
+ * before play functions complete can deadlock stories whose final visual state
+ * is marked ready by their play function.
  */
-export async function openStoryForSnapshot(page: Page, storyUrl: string, timeoutMs = 60_000): Promise<void> {
+export async function waitForVisualReady(page: Page, timeoutMs = 60_000): Promise<void> {
+  await page.waitForFunction(() => Array.from(document.querySelectorAll("[data-visual-ready]")).every((element) => element.getAttribute("data-visual-ready") === "ready"), undefined, {
+    timeout: timeoutMs,
+  });
+  await waitForStableCanvases(page, timeoutMs);
+}
+
+/**
+ * Open one story in deterministic visual-test mode.
+ *
+ * Most stories wait for readiness before assertions. Stories whose Storybook
+ * play function marks readiness must pass `waitForReady=false`, then wait after
+ * navigation so readiness cannot deadlock play.
+ */
+export async function openStoryForSnapshot(page: Page, storyUrl: string, timeoutMs = 60_000, waitForReady = true): Promise<void> {
   await installSnapshotMode(page);
   await openStory(page, storyUrl, timeoutMs);
 
@@ -105,9 +121,5 @@ export async function openStoryForSnapshot(page: Page, storyUrl: string, timeout
     await page.setViewportSize({ width: viewport.width + 1, height: viewport.height });
     await page.setViewportSize(viewport);
   }
-
-  await page.waitForFunction(() => Array.from(document.querySelectorAll("[data-visual-ready]")).every((element) => element.getAttribute("data-visual-ready") === "ready"), undefined, {
-    timeout: timeoutMs,
-  });
-  await waitForStableCanvases(page, timeoutMs);
+  if (waitForReady) await waitForVisualReady(page, timeoutMs);
 }

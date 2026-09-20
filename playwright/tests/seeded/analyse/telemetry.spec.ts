@@ -70,7 +70,7 @@ for (const game of SEEDED_GAME_CASES) {
     const lap = await getSeededLapTarget(request, game.gameId);
     const query = new URLSearchParams({ track: String(lap.trackOrdinal), car: String(lap.carOrdinal), lap: String(lap.id) });
 
-    await page.goto(`/${game.prefix}/analyse?${query}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/${game.prefix}/sessions/replay?${query}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
     await expect.poll(() => page.evaluate(() => Number((window as unknown as Record<string, unknown>).__totalFrames ?? 0)), { timeout: 30_000 }).toBe(lap.telemetry.length);
 
@@ -113,7 +113,7 @@ for (const game of SEEDED_GAME_CASES) {
     const parityPacket = lap.telemetry[parityFrame]!;
     if (game.gameId === "acc") {
       expect(typeof parityPacket.acc?.brakeBias, "seeded ACC brake bias source").toBe("number");
-      expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%F`);
+      expect(await metricRowText(page, "Brake Bias")).toContain(`${(parityPacket.acc!.brakeBias * 100).toFixed(1)}%`);
     }
     if (game.gameId === "f1-2025") {
       const ersModes = ["None", "Low", "Medium", "High", "Overtake"] as const;

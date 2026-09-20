@@ -1,21 +1,16 @@
 import { getSteeringLock } from "@/lib/settings-storage";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
+import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 import { brakeBarColor } from "./AnalyseMetricsPanel";
 
 interface Props {
   frame: SemanticAnalysisFrame;
 }
 
-const number = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]) => {
-  const value = frame.values[id];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
 
 export function AnalyseSteeringOverlay({ frame }: Props) {
-  const steer = number(frame, "inputs.steer");
-  const brake = number(frame, "inputs.brake");
-  const throttle = number(frame, "inputs.accel");
+  const steer = semanticNumber(frame, "inputs.steer");
+  const brake = semanticNumber(frame, "inputs.brake");
+  const throttle = semanticNumber(frame, "inputs.accel");
   const halfLock = getSteeringLock() / 2;
   const steerDeg = steer == null ? null : (steer / 127) * halfLock;
   const steerValue = steer ?? 0;

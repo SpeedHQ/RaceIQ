@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
+import { celsiusToFahrenheit } from "../src/lib/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
 import type { GameId } from "../../shared/games/ids";
-import type { LivePitData } from "../../shared/racing/live/types";
+import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
+import { buildChartData } from "../src/components/analyse/AnalyseChartsPanel";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
 import { AnalyseDataPanel, buildAnalyseClipboardText } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
@@ -16,6 +18,7 @@ import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWhe
 import type { SemanticAnalysisFrame } from "../src/components/analyse/track-map/types";
 import { LiveTelemetry } from "../src/components/LiveTelemetry";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
+import { LapTimes } from "../src/components/telemetry/LapTimes";
 import { PitEstimate } from "../src/components/telemetry/PitEstimate";
 import { SurfaceConditions } from "../src/components/telemetry/SurfaceConditions";
 import { TelemetryCharts } from "../src/components/telemetry/TelemetryCharts";
@@ -37,7 +40,6 @@ if (typeof globalThis.localStorage === "undefined") {
 const units = {
   tempLabel: "°C",
   thresholds: { cold: 75, warm: 115, hot: 150 },
-  toTempC: (value: number) => value,
   temp: (value: number) => value,
 } as never;
 const parityUnits = {
@@ -91,7 +93,7 @@ const f1ParityFrame = semanticFrame({
   "tires.tire-combined-slip": [0.2, 0.4, 0.6, 0.8],
   "tires.tire-slip-ratio": [0.1, 0.2, 0.3, 0.4],
   "tires.tire-slip-angle": [0.01, 0.02, 0.03, 0.04],
-  "tire.temperature.average": [90, 91, 92, 93],
+  "tire.temperature.surface.representative": [90, 91, 92, 93],
   "brakes.brake-temp": [500, 510, 300, 310],
   "tires.wheel-rotation-speed": [100, 101, 102, 103],
   "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
@@ -160,7 +162,7 @@ function renderTireAnalysis(value: TelemetryPacket): string {
       { client: queryClient },
       createElement(AnalyseTireWheelsPanel, {
         frame: semanticFrame({
-          "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+          "tire.temperature.surface.representative": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
           "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
           "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
           "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
@@ -180,7 +182,7 @@ function renderTireDiagram(value: TelemetryPacket): string {
   const queryClient = new QueryClient();
   const frame = semanticFrame({
     "inputs.steer": value.Steer,
-    "tire.temperature.average": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
+    "tire.temperature.surface.representative": [value.TireTempFL, value.TireTempFR, value.TireTempRL, value.TireTempRR],
     "tires.tire-wear": [value.TireWearFL, value.TireWearFR, value.TireWearRL, value.TireWearRR],
     "tires.tire-slip-angle": [value.TireSlipAngleFL, value.TireSlipAngleFR, value.TireSlipAngleRL, value.TireSlipAngleRR],
     "tires.tire-slip-ratio": [value.TireSlipRatioFL, value.TireSlipRatioFR, value.TireSlipRatioRL, value.TireSlipRatioRR],
@@ -237,7 +239,12 @@ describe("telemetry capability UI", () => {
       motion: { speedMps: 10 },
       inputs: { steer: 0 },
       tires: {
-        temperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
+        surfaceTemperatureC: {
+          fl: { representative: 100 },
+          fr: { representative: 100 },
+          rl: { representative: 100 },
+          rr: { representative: 100 },
+        },
         wear: { fl: 0, fr: 0, rl: 0, rr: 0 },
         rotationRadS: { fl: 30, fr: 30, rl: 30, rr: 30 },
         brakeTemperatureC: { fl: 100, fr: 100, rl: 100, rr: 100 },
@@ -430,7 +437,7 @@ describe("telemetry capability UI", () => {
         { client: new QueryClient() },
         createElement(AnalyseTireWheelsPanel, {
           frame: semanticFrame({
-            "tire.temperature.average": [90, 90, 90, 90],
+            "tire.temperature.surface.representative": [90, 90, 90, 90],
             "tires.tire-wear": [0.1, 0.1, 0.1, 0.1],
             "tires.wheel-rotation-speed": [100, 100, 100, 100],
             "brakes.brake-temp": [0, 0, 300, 310],
@@ -474,19 +481,19 @@ describe("telemetry capability UI", () => {
     expect(markup).toMatch(/Ratio[\s\S]*>—</);
   });
 
-  test("converts Forza tire values from their recorded Fahrenheit unit", () => {
-    const fahrenheitToCelsius = (value: number) => ((value - 32) * 5) / 9;
+  test("renders canonical Forza tire values in selected display unit", () => {
     const fmUnits = {
       ...parityUnits,
-      temp: fahrenheitToCelsius,
-      toTempC: fahrenheitToCelsius,
+      temp: celsiusToFahrenheit,
+      tempLabel: "°F",
+      temperatureUnit: "F",
     };
     const frame = semanticFrame({
       "motion.speed": 30,
       "motion.acceleration-x": 0,
       "motion.acceleration-z": 0,
       "motion.angular-velocity-y": 0,
-      "tire.temperature.average": [212, 194, 176, 158],
+      "tire.temperature.surface.representative": [100, 90, 80, 70],
       "tires.wheel-rotation-speed": [1, 1, 1, 1],
       "tires.tire-wear": [0, 0, 0, 0],
       "tires.tire-combined-slip": [0, 0, 0, 0],
@@ -512,7 +519,7 @@ describe("telemetry capability UI", () => {
         units: fmUnits,
       }),
     );
-    expect(wheelMarkup).toContain("100°C");
+    expect(wheelMarkup).toContain("212°F");
     expect(wheelMarkup).not.toContain("212°C");
     expect(dynamicsMarkup).toContain(">OPT</span>");
     expect(dynamicsMarkup).not.toContain(">OVER</span>");
@@ -631,14 +638,14 @@ describe("telemetry capability UI", () => {
         ),
       );
 
-      expect(markup, gameId).toContain("60.0%F");
+      expect(markup, gameId).toContain("60.0%");
       expect(markup, gameId).toContain("Rotation /s");
       if (gameId === "ac-evo") expect(markup, gameId).toContain("Wear /s");
       expect(markup, gameId).toContain("500°C");
       expect(markup, gameId).toContain("24.0 psi");
       expect(markup, gameId).not.toContain("Unavailable in Analyse");
       expect(markup, gameId).toContain("aria-label=\"Unavailable features in Analyse\"");
-      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 4 : 0);
+      expect(markup.match(/>—</g) ?? [], gameId).toHaveLength(gameId === "acc" ? 12 : 0);
     }
   });
 
@@ -659,9 +666,9 @@ describe("telemetry capability UI", () => {
         "G-Force Lat: -0.50g",
         "G-Force Lon: -1.00g",
         "",
-        "--- Tire Temps ---",
-        "FL: 90  FR: 91",
-        "RL: 92  RR: 93",
+        "--- Tire Temps (°C) ---",
+        "FL: 90°C  FR: 91°C",
+        "RL: 92°C  RR: 93°C",
         "",
         "--- Tire Health ---",
         "FL: 90.0%  FR: 80.0%",
@@ -673,18 +680,63 @@ describe("telemetry capability UI", () => {
       ].join("\n"),
     );
   });
+  test("labels iRacing clipboard health as a pit snapshot", () => {
+    const text = buildAnalyseClipboardText({
+      frame: semanticFrame({
+        "tire.temperature.carcass.middle": [80, 81, 82, 83],
+        "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
+      }),
+      gameId: "iracing",
+      units: parityUnits,
+    });
 
-  test("keeps clipboard tire temperatures in the recorded main packet unit", () => {
+    expect(text).toContain("--- Last Pit Tire Health ---");
+    expect(text).not.toContain("\n--- Tire Health ---");
+  });
+  test("treats ACC temperature as one core channel", () => {
+    const frame = semanticFrame({
+      ...f1ParityFrame.values,
+      "tire.temperature.surface.representative": undefined,
+      "tire.temperature.core": [81, 82, 83, 84],
+    });
+    const chartData = buildChartData([frame], "tire.temperature.core");
+    expect(chartData?.tireTempFL).toEqual([81]);
+    expect(chartData?.tireTempRR).toEqual([84]);
+    expect(chartData?.tireCoreTempFL).toBeUndefined();
+
+    const text = buildAnalyseClipboardText({ frame, gameId: "acc", units: parityUnits });
+    expect(text).toContain("--- Tire Temps (°C) ---\nFL: 81°C  FR: 82°C\nRL: 83°C  RR: 84°C");
+    expect(text).not.toContain("Surface Tire Temps");
+    expect(text).not.toContain("Core Tire Temps");
+
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(AnalyseTireWheelsPanel, {
+          frame,
+          gameId: "acc",
+          units: parityUnits,
+          wearRate: null,
+        }),
+      ),
+    );
+    expect(markup).toContain("81°C");
+    expect(markup).not.toContain(">Surface<");
+    expect(markup).not.toContain(">Core<");
+  });
+
+  test("renders canonical clipboard tire temperatures in selected unit", () => {
     const text = buildAnalyseClipboardText({
       frame: semanticFrame({
         ...f1ParityFrame.values,
-        "tire.temperature.average": [212, 194, 176, 158],
+        "tire.temperature.surface.representative": [100, 90, 80, 70],
       }),
       gameId: "fm-2023",
-      units: { ...parityUnits, temperatureUnit: "F" },
+      units: { ...parityUnits, temp: celsiusToFahrenheit, tempLabel: "°F", temperatureUnit: "F" },
     });
-    expect(text).toContain("FL: 212  FR: 194");
-    expect(text).not.toContain("414");
+    expect(text).toContain("FL: 212°F  FR: 194°F");
+    expect(text).not.toContain("414°F");
   });
 
   test("renders catalog-backed wheel and vehicle surface rows", () => {
@@ -752,5 +804,20 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain("Lateral slip");
     expect(markup).not.toContain("Grip Ask");
     expect(markup).not.toContain("Suspension");
+  });
+  test("shows best lap and only same-distance live delta", () => {
+    const view = liveView("f1-2025", { timing: { currentLapS: 30.793, lastLapS: 97.729, bestLapS: 94.023 } });
+    const unavailable = renderToStaticMarkup(createElement(LapTimes, { view }));
+    expect(unavailable).toContain("1:34.023");
+    expect(unavailable).toContain("Est. Lap");
+    expect(unavailable).not.toContain("+3.706");
+    expect(unavailable).not.toContain("+97.729");
+    expect(unavailable).toContain("--:--.---");
+
+    const sectors = { estimatedLap: 93.5, deltaToBest: -0.523 } as LiveSectorData;
+    const available = renderToStaticMarkup(createElement(LapTimes, { view, sectors }));
+    expect(available).toContain("Est. Lap");
+    expect(available).toContain("1:33.500");
+    expect(available).toContain("-0.523");
   });
 });

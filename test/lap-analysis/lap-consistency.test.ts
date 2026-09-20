@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../../server/lap-analysis/consistency"
-import type { Corner } from "../../server/lap-analysis/corners"
+import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../../server/lap-analysis/consistency";
+import type { Corner } from "../../server/lap-analysis/corners";
 
 /**
  * `computeLapConsistencyDelta` is pure math over resampled lap paths — these
@@ -133,10 +133,14 @@ describe("computeLapConsistencyDelta", () => {
 });
 
 describe("computeLineSpreadTrace", () => {
-  test("returns null with fewer than 3 resampled laps", () => {
+  test("requires two resampled laps before measuring spread", () => {
     const lapA = buildLap();
     const lapB = buildLap({ lateralOffsetInCorner: 4 });
-    expect(computeLineSpreadTrace([lapA, lapB], [1, 2], corners)).toBeNull();
+    expect(computeLineSpreadTrace([lapA], [1], corners)).toBeNull();
+    const result = computeLineSpreadTrace([lapA, lapB], [1, 2], corners);
+    expect(result).not.toBeNull();
+    expect(result!.lapCount).toBe(2);
+    expect(result!.spreadM.every((value) => value >= 0)).toBe(true);
   });
 
   test("three laps offset by known amounts through T1: trimmed spread reflects the inner two, not the outlier", () => {
@@ -230,11 +234,7 @@ describe("computeLineSpreadTrace", () => {
     expect(tight!.overallSpreadM).toBeCloseTo(0, 3);
 
     // A ~4m offset through T1 lifts the mean spread, so the score drops below 100.
-    const spread = computeLineSpreadTrace(
-      [buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })],
-      [301, 302, 303],
-      corners,
-    );
+    const spread = computeLineSpreadTrace([buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })], [301, 302, 303], corners);
     expect(spread!.consistencyScore).toBeLessThan(100);
     expect(spread!.consistencyScore).toBeGreaterThanOrEqual(0);
   });

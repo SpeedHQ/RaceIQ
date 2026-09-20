@@ -16,16 +16,37 @@ export function tireSnapshot(samples: SemanticTuneSample[]): Record<"FL" | "FR" 
     const values = samples.map((sample) => wheelValue(sample, metric, index)).filter((value): value is number => value !== undefined);
     return values.length === 0 ? undefined : values.reduce((sum, value) => sum + value, 0) / values.length;
   };
+  const temperatureMetric: TuneWheelMetric = samples.some((sample) => sample.tireSurfaceTemperatureC !== undefined)
+    ? "tireSurfaceTemperatureC"
+    : samples.some((sample) => sample.tireCoreTemperatureC !== undefined)
+      ? "tireCoreTemperatureC"
+      : "tireCarcassMiddleTemperatureC";
   const corners = ["FL", "FR", "RL", "RR"] as const;
   const snapshots = {} as Record<(typeof corners)[number], CornerSnap>;
   for (let index = 0; index < corners.length; index++) {
-    const tempC = average("tireTemperatureC", index);
+    const tempC = average(temperatureMetric, index);
     const wear = wheelValue(last, "tireWearFraction", index);
     snapshots[corners[index]] = {
       tempC,
       wear,
       pressure: average("tirePressurePsi", index),
       brakeTemp: average("brakeTemperatureC", index),
+    };
+  }
+  return snapshots;
+}
+
+import type { AlignedLapTrace } from "@shared/racing/laps/alignment/types";
+export function tireSnapshotFromAlignedTrace(trace: AlignedLapTrace): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
+  if (trace.speedMps.length === 0) return null;
+  const corners = ["FL", "FR", "RL", "RR"] as const;
+  const snapshots = {} as Record<(typeof corners)[number], CornerSnap>;
+  for (const corner of corners) {
+    snapshots[corner] = {
+      tempC: trace.tireAverages?.[corner],
+      wear: trace.tireWear?.[corner][trace.tireWear[corner].length - 1],
+      pressure: trace.pressureAverages?.[corner],
+      brakeTemp: trace.brakeTempAverages?.[corner],
     };
   }
   return snapshots;

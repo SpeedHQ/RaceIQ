@@ -3,7 +3,7 @@ import type { CalibrationComparison, CalibrationTransform } from "./calibration-
 function TransformValues({ transform }: { transform: CalibrationTransform }) {
   return (
     <span className="font-mono tabular-nums text-app-text">
-      {transform.scale.toFixed(3)}× · {(transform.rotation * 180 / Math.PI).toFixed(1)}° · ({transform.tx.toFixed(1)}, {transform.tz.toFixed(1)})
+      {transform.scale.toFixed(3)}× · {((transform.rotation * 180) / Math.PI).toFixed(1)}° · ({transform.tx.toFixed(1)}, {transform.tz.toFixed(1)})
     </span>
   );
 }
@@ -42,7 +42,9 @@ export function CalibrationComparisonSection({
               <div key={entry.sequence} className="flex items-start gap-2">
                 <span className="mt-1.5 h-0.5 w-3 shrink-0 bg-status-warning/60" aria-hidden="true" />
                 <div className="min-w-0">
-                  <div className="text-app-text-secondary">Fit #{entry.sequence} · Lap {entry.lapNumber}</div>
+                  <div className="text-app-text-secondary">
+                    Fit #{entry.sequence} · Lap {entry.lapNumber}
+                  </div>
                   <div className="font-mono tabular-nums text-app-text-dim">
                     {entry.rmse == null ? "RMSE —" : `${entry.rmse.toFixed(2)} m RMSE`} · {entry.points} pts
                   </div>

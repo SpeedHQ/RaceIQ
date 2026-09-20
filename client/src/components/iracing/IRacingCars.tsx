@@ -19,14 +19,8 @@ function iracingCarSortName(name: string): string {
 }
 
 export function sortIRacingCars<T extends Pick<IRacingCatalogCar, "ordinal" | "name">>(cars: readonly T[]): T[] {
-  return cars.toSorted(
-    (a, b) =>
-      iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) ||
-      a.name.localeCompare(b.name) ||
-      a.ordinal - b.ordinal,
-  );
+  return cars.toSorted((a, b) => iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) || a.name.localeCompare(b.name) || a.ordinal - b.ordinal);
 }
-
 
 function categoryLabel(category: string): string {
   switch (category) {
@@ -68,11 +62,7 @@ export function IRacingCars() {
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return sortIRacingCars(
-      cars.filter(
-        (car) =>
-          (!filterCategory || car.category === filterCategory) &&
-          (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query)),
-      ),
+      cars.filter((car) => (!filterCategory || car.category === filterCategory) && (!query || car.name.toLowerCase().includes(query) || categoryLabel(car.category).toLowerCase().includes(query))),
     );
   }, [cars, filterCategory, search]);
 

@@ -5,8 +5,11 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getServerGame } from "../games/registry";
+import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
+import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
+import { iterateSessionCaptureRecords } from "../session-capture/framing";
 import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime } from "../session-capture/test-instrumentation";
@@ -35,8 +38,15 @@ interface ComparisonCacheEntry {
   idA: number;
   idB: number;
 }
+interface AlignedTelemetryCacheEntry {
+  kind: "aligned";
+  body?: string;
+  alignmentIndex?: LapSetAlignmentIndex;
+  bytes: number;
+  ids: number[];
+}
 
-type CacheEntry = TelemetryCacheEntry | ComparisonCacheEntry;
+type CacheEntry = TelemetryCacheEntry | ComparisonCacheEntry | AlignedTelemetryCacheEntry;
 
 const telemetryCache = new Map<string, CacheEntry>();
 let cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
@@ -130,6 +140,34 @@ export function comparisonAlignmentIndexCacheSet(idA: number, idB: number, index
   replaceComparisonEntry(idA, idB, { alignmentIndex: index });
 }
 
+
+function alignedKey(ids: readonly number[]): string { return `aligned:${ids.join(",")}`; }
+function alignedBytes(body: string | undefined, index: LapSetAlignmentIndex | undefined): number {
+  return (body ? Buffer.byteLength(body, "utf8") : 0) + (index ? [...index.distancesByLapId.values()].reduce((sum, values) => sum + values.length * 8, 0) : 0);
+}
+export function alignedTelemetryCacheGet(ids: readonly number[]): string | undefined {
+  const entry = telemetryCache.get(alignedKey(ids));
+  if (entry?.kind !== "aligned" || entry.body === undefined) return undefined;
+  touch(alignedKey(ids), entry); return entry.body;
+}
+export function alignedTelemetryCacheSet(ids: readonly number[], body: string): void {
+  const key = alignedKey(ids); const existing = telemetryCache.get(key);
+  if (existing) cacheBytesUsed -= existing.bytes;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, bytes: alignedBytes(body, existing?.kind === "aligned" ? existing.alignmentIndex : undefined), ids: [...ids] };
+  telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
+}
+export function lapSetAlignmentIndexCacheGet(ids: readonly number[]): LapSetAlignmentIndex | undefined {
+  const entry = telemetryCache.get(alignedKey(ids));
+  if (entry?.kind !== "aligned" || !entry.alignmentIndex) return undefined;
+  touch(alignedKey(ids), entry); return entry.alignmentIndex;
+}
+export function lapSetAlignmentIndexCacheSet(ids: readonly number[], alignmentIndex: LapSetAlignmentIndex): void {
+  const key = alignedKey(ids); const existing = telemetryCache.get(key);
+  if (existing) cacheBytesUsed -= existing.bytes;
+  const body = existing?.kind === "aligned" ? existing.body : undefined;
+  const entry: AlignedTelemetryCacheEntry = { kind: "aligned", body, alignmentIndex, bytes: alignedBytes(body, alignmentIndex), ids: [...ids] };
+  telemetryCache.set(key, entry); cacheBytesUsed += entry.bytes; evictUntilWithinBudget();
+}
 export function cacheDelete(id: number): boolean {
   let deleted = false;
   const key = lapKey(id);
@@ -140,7 +178,7 @@ export function cacheDelete(id: number): boolean {
     deleted = true;
   }
   for (const [entryKey, entry] of telemetryCache) {
-    if (entry.kind === "comparison" && (entry.idA === id || entry.idB === id)) {
+    if ((entry.kind === "comparison" && (entry.idA === id || entry.idB === id)) || (entry.kind === "aligned" && entry.ids.includes(id))) {
       cacheBytesUsed -= entry.bytes;
       telemetryCache.delete(entryKey);
       deleted = true;
@@ -241,8 +279,11 @@ function appendDelayedFinishPacket(packets: TelemetryPacket[], trailing: Telemet
   if (!game.appendsDelayedFinishFrame || !trailing || !last) return;
 
   const finishTime = trailing.LastLap ?? 0;
-  if (finishTime <= (last.CurrentLap ?? 0)) return;
-
+  const boundaryAdvanced = (trailing.LapNumber ?? 0) > (last.LapNumber ?? 0);
+  if (
+    finishTime <= (last.CurrentLap ?? 0) ||
+    (finishTime === last.LastLap && !boundaryAdvanced)
+  ) return;
   packets.push({
     ...trailing,
     CurrentLap: finishTime,
@@ -300,15 +341,33 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     return packets;
   }
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
-  let offset = 12;
-  while (offset + 4 <= buf.length) {
-    const frameLen = buf.readUInt32LE(offset); offset += 4;
-    if (frameLen <= 0 || offset + frameLen > buf.length) break;
-    const sourceFrame = buf.subarray(offset, offset + frameLen); offset += frameLen;
-    try { const packet = serverGame.tryParse(sourceFrame, state); if (packet) { normalizeReplayPacket(packet, serverGame); packets.push(packet); } } catch {}
+  let inContext = false;
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.kind === "segment-boundary") {
+      state = serverGame.createParserState?.() ?? null;
+      inContext = false;
+      continue;
+    }
+    if (record.kind === "segment-context") {
+      inContext = true;
+      continue;
+    }
+    if (record.kind === "segment-context-end") {
+      inContext = false;
+      continue;
+    }
+    if (record.kind !== "frame") continue;
+    try {
+      const packet = serverGame.tryParse(record.frame, state);
+      if (!packet) continue;
+      normalizeReplayPacket(packet, serverGame);
+      if (!inContext) packets.push(packet);
+    } catch {
+      // Match lap replay: one malformed native frame does not discard session.
+    }
   }
   return packets;
 }
@@ -391,7 +450,7 @@ export async function parseRawLapFrames(source: SessionCaptureSource, rawByteOff
 }
 export function parseRawLapFramesFromBuffer(buf: Buffer, rawByteOffset: number, rawFrameCount: number, gameId: GameId, rawFile = "<preloaded capture>"): TelemetryPacket[] {
   const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const fileSize = buf.length;
 
   // rawByteOffset past EOF means the lap row was written before the
@@ -588,10 +647,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     }
     return out;
   }
-
   const loaded = await loadSessionSource(source);
   if (loaded.kind !== "capture") throw new Error("Expected BIN capture source");
-  const state = serverGame.createParserState?.() ?? null;
+  let state = serverGame.createParserState?.() ?? null;
   const metas = lapMetas
     .map((meta) => ({ meta, record: loaded.frameIndex.byOffset.get(meta.rawByteOffset) }))
     .filter((item): item is { meta: (typeof lapMetas)[number]; record: SessionCaptureFrameRecord } => item.record !== undefined)
@@ -609,6 +667,9 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     let packet: TelemetryPacket | null = null;
     try {
       const frame = loaded.buffer.subarray(record.offset + 4, record.offset + 4 + record.length);
+      if (source.gameId === "iracing" && isIRacingSessionFrame(frame)) {
+        state = serverGame.createParserState?.() ?? null;
+      }
       if (needsFull) {
         countFullPacketMaterialized();
         packet = serverGame.tryParse(frame, state);

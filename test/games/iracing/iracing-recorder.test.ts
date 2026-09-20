@@ -112,6 +112,36 @@ describe("iRacing recorder container", () => {
     expect(packets.at(-1)?.LapNumber).toBe(3);
   });
 
+  test("matches recorder output metadata and parsed packets with fixture output", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "iracing-recorder-test-"));
+    const fixtureFrames = readIRacingFrames(FIXTURE, 12);
+    const fixtureAdapter = getServerGame("iracing");
+    const fixtureState = fixtureAdapter.createParserState?.() ?? null;
+    const fixturePackets = fixtureFrames
+      .map((frame) => fixtureAdapter.tryParse(frame, fixtureState))
+      .filter((packet) => packet !== null);
+    const recorder = new IRacingRecorder();
+    const path = recorder.start(tempDir);
+    for (const frame of fixtureFrames) recorder.writeFrame(frame);
+    await recorder.stop();
+
+    const raw = readFileSync(path);
+    const recordedFrames = readIRacingFrames(path);
+    const recordedState = fixtureAdapter.createParserState?.() ?? null;
+    const recordedPackets = recordedFrames
+      .map((frame) => fixtureAdapter.tryParse(frame, recordedState))
+      .filter((packet) => packet !== null);
+
+    expect(raw.readUInt32LE(12)).toBe(fixtureFrames.length);
+    expect(recordedFrames).toHaveLength(fixtureFrames.length);
+    expect(recordedPackets).toHaveLength(fixturePackets.length);
+    for (let i = 0; i < fixturePackets.length; i++) {
+      expect(recordedPackets[i]!.CurrentLap).toBeCloseTo(fixturePackets[i]!.CurrentLap, 6);
+      expect(recordedPackets[i]!.LastLap).toBeCloseTo(fixturePackets[i]!.LastLap, 6);
+      expect(recordedPackets[i]!.LapNumber).toBe(fixturePackets[i]!.LapNumber);
+    }
+  });
+
   test("recovers all complete frames from an interrupted zero-count header", () => {
     tempDir = mkdtempSync(join(tmpdir(), "iracing-recorder-test-"));
     const raw = Buffer.from(gunzipSync(readFileSync(FIXTURE)));

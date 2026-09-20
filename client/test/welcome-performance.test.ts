@@ -81,5 +81,5 @@ test("generates canonical pedal and tire channels for demo packets", () => {
   expect(values["suspension.norm-suspension-travel"]).toEqual([0.25, 0.3, 0.35, 0.4]);
   expect(values["tires.tire-slip-ratio"]).toEqual([expect.closeTo(0.109, 2), 0, 0, 0]);
   expect(values["tires.normalized-tire-slip-angle"]).toEqual([0.2, 0.1, 0.05, 0.02]);
-  expect(values["tire.temperature.average"]).toEqual([180, 181, 182, 183]);
+  expect(values["tire.temperature.surface.representative"]).toEqual([180, 181, 182, 183]);
 });

@@ -5,6 +5,7 @@ import {
   generateLapAnalysis,
   type GenerateLapAnalysisDeps,
 } from "../../../server/ai/generate-lap-analysis";
+import { AnalystOutputSchema } from "../../../server/ai/schemas";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -67,7 +68,7 @@ function makeDeps(
     },
     loadSettings: () =>
       ({
-        aiProvider: "local",
+        aiProvider: "openai-compatible",
         aiModel: "test-model",
         localEndpoint: "http://localhost:1234/v1",
         unit: "metric",
@@ -79,7 +80,7 @@ function makeDeps(
     buildAnalystPrompt: () => "prompt" as never,
     resolveAi: async () => ({
       feature: "analysis",
-      provider: "local",
+      provider: "openai-compatible",
       model: "test-model",
       generateText: async () => {
         throw new Error("unused");
@@ -88,6 +89,7 @@ function makeDeps(
         throw new Error("unused");
       },
     }),
+    getRuntimeContextLength: async () => undefined,
     runAiStructured: async () => {
       generateCalls++;
       if (options.generateError) throw options.generateError;
@@ -158,6 +160,43 @@ describe("generateLapAnalysis", () => {
     expect(result.analysis).toBeNull();
     expect(deps.generateCalls).toBe(0);
   });
+  test("uses Mastra structured output and caches canonical object", async () => {
+    const deps = makeDeps();
+    let capturedOptions: Record<string, unknown> | undefined;
+    deps.generate = async (_prompt, options) => {
+      capturedOptions = options;
+      return { object: JSON.parse(validAnalysis) };
+    };
+    deps.runAiStructured = async (_ai, _input, runMastra) => {
+      const response = await runMastra(undefined as never) as { object: unknown };
+      return {
+        analysis: JSON.stringify(response.object),
+        usage: {
+          inputTokens: 4,
+          outputTokens: 5,
+          costUsd: 0,
+          durationMs: 6,
+          model: "test-model",
+        },
+      };
+    };
+
+    const result = await generateLapAnalysis(7, { regenerate: true }, deps);
+
+    expect(result.error).toBeUndefined();
+    expect(result.cached).toBe(false);
+    expect(JSON.parse(result.analysis!)).toEqual(JSON.parse(validAnalysis));
+    expect(deps.saves).toHaveLength(1);
+    expect(capturedOptions?.structuredOutput).toMatchObject({
+      schema: AnalystOutputSchema,
+      jsonPromptInjection: "auto",
+    });
+    expect(capturedOptions?.providerOptions).toEqual({
+      openai: { reasoningEffort: "none" },
+      google: {},
+    });
+  });
+
 
   test("rejects malformed and schema-invalid output without caching", async () => {
     const malformedDeps = makeDeps({ generated: "not-json" });

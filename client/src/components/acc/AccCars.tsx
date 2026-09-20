@@ -4,6 +4,7 @@ import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { getLocale } from "@/paraglide/runtime";
 
 interface AccCarSpecs {
   maxRpm: number;
@@ -166,7 +167,7 @@ export function AccCars() {
                       {specs && (
                         <div className="flex items-center gap-3 pt-2 border-t border-app-border/10 text-xs text-app-text-secondary">
                           <span>{specs.engine}</span>
-                          <span className="font-mono">{specs.maxRpm.toLocaleString()} RPM</span>
+                          <span className="font-mono">{specs.maxRpm.toLocaleString(getLocale())} RPM</span>
                           <span>{specs.drivetrain}</span>
                         </div>
                       )}

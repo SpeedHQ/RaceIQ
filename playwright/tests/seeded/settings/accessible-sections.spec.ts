@@ -30,7 +30,7 @@ test("settings sections expose accessible controls and state changes", async ({ 
       soundVolume: localStorage.getItem("forza-sound-volume"),
     }));
     await page.getByRole("button", { name: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
 
     const language = page.getByRole("combobox", { name: "Language" });
     await expect(language).toBeVisible();

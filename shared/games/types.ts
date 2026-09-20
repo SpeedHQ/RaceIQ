@@ -56,6 +56,9 @@ export interface TelemetryChannelSpec {
 export interface TelemetryModel {
   fuel: ScalarTelemetrySpec<"fraction" | "litre">;
   tireTemperature: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
+  tireCarcassTemperature?: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
+  tireSurfaceProfile?: TelemetryChannelSpec;
+  tireCarcassProfile?: TelemetryChannelSpec;
   boost?: ScalarTelemetrySpec<"psi">;
   power?: ScalarTelemetrySpec<"watt">;
   ers?: TelemetryChannelSpec;

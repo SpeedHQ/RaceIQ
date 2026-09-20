@@ -97,6 +97,25 @@ describe("settings with unit system", () => {
     expect(settings.localEndpoint).toBe("http://127.0.0.1:4321/v1");
     expect(settings.hiddenGames).toEqual(["ac", "acc"]);
   });
+
+  test("migrates shipped Local provider selections to OpenAI-compatible", () => {
+    if (!existsSync(SETTINGS_DIR)) mkdirSync(SETTINGS_DIR, { recursive: true });
+    writeFileSync(SETTINGS_PATH, JSON.stringify({
+      aiProvider: "local",
+      chatProvider: "local",
+      autoTuneProvider: "local",
+      driverProfileProvider: "local",
+      localEndpoint: "https://openrouter.ai/api/v1",
+    }));
+
+    const settings = loadSettings();
+
+    expect(settings.aiProvider).toBe("openai-compatible");
+    expect(settings.chatProvider).toBe("openai-compatible");
+    expect(settings.autoTuneProvider).toBe("openai-compatible");
+    expect(settings.driverProfileProvider).toBe("openai-compatible");
+    expect(settings.localEndpoint).toBe("https://openrouter.ai/api/v1");
+  });
 });
 describe("driver profile output budget", () => {
   let originalContent: string | null = null;
@@ -137,11 +156,11 @@ describe("AI model discovery", () => {
     ) satisfies typeof fetch;
     globalThis.fetch = mockedFetch;
     try {
-      const response = await settingsRoutes.request("/api/ai-models?providers=local");
+      const response = await settingsRoutes.request("/api/ai-models?providers=openai-compatible");
       expect(response.status).toBe(200);
-      const body = await response.json() as { local: unknown[]; _errors?: { local?: string | null } };
-      expect(body.local).toEqual([]);
-      expect(body._errors?.local).toContain("503");
+      const body = await response.json() as { "openai-compatible": unknown[]; _errors?: { "openai-compatible"?: string | null } };
+      expect(body["openai-compatible"]).toEqual([]);
+      expect(body._errors?.["openai-compatible"]).toContain("503");
     } finally {
       globalThis.fetch = originalFetch;
     }

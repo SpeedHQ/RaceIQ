@@ -117,8 +117,6 @@ function headersForRewrittenBody(source: Headers): Headers {
  * Anything else is returned unchanged.
  */
 function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
-  // Cast: the returned wrapper satisfies FetchFunction's call signature, but
-  // bun-types' `typeof fetch` also carries a `preconnect` static we don't proxy.
   return (async (input, init) => {
     const response = await baseFetch(input, init);
     const contentType = response.headers.get("content-type") ?? "";
@@ -245,11 +243,10 @@ export function getMastraModelId(
       if (!apiKey) return `openai/${id}`;
       return bindMastraModel(createOpenAI({ apiKey }).chat(id));
     }
-    case "local": {
+    case "openai-compatible": {
       const openai = createOpenAI({
         baseURL: localEndpoint ?? "http://localhost:1234/v1",
-        apiKey: "local",
-        // Surface the non-standard `reasoning_content` field that LM Studio /
+        apiKey: apiKey || "local",
         // Ollama thinking models emit; see the file header for the full chain.
         fetch: reasoningContentToThinkFetch(globalThis.fetch as FetchFunction),
       });

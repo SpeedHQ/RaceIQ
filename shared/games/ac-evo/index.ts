@@ -7,7 +7,8 @@ export const acEvoAdapter: GameAdapter = {
   routePrefix: "ac-evo",
   telemetry: {
     fuel: { packetUnit: "litre", binding: { kind: "value", semanticId: "fuel.fuel" } },
-    tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+    tireTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.surface.representative" } },
+    tireCarcassTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "tire.temperature.core" } },
     brakeTemperature: { packetUnit: "celsius", binding: { kind: "value", semanticId: "brakes.brake-temp" } },
     tirePressure: { packetUnit: "psi", binding: { kind: "value", semanticId: "tires.tire-pressure" } },
     weather: { source: "direct", freshness: "continuous", binding: { kind: "group", required: ["weather.air-temp"] } },
@@ -32,7 +33,7 @@ export const acEvoAdapter: GameAdapter = {
         display: "per-wheel",
         binding: { kind: "derived", derivation: "traction-v1", requires: ["motion.speed", "inputs.steer", "tires.wheel-rotation-speed"] },
       },
-      tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.average" } },
+      tireTemperature: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tire.temperature.surface.representative" } },
       surface: { source: "unavailable", reason: "source-limitation" },
       slipRatio: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-ratio" } },
       slipAngle: { source: "direct", freshness: "continuous", display: "per-wheel", binding: { kind: "value", semanticId: "tires.tire-slip-angle" } },

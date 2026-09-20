@@ -12,6 +12,7 @@ import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -42,6 +43,7 @@ export type SessionDesktopTableProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionDesktopTable({
@@ -73,6 +75,7 @@ export function SessionDesktopTable({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionDesktopTableProps) {
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
@@ -140,8 +143,8 @@ export function SessionDesktopTable({
                     <TD nowrap tone="primary">
                       <div className="flex items-center gap-2">
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          {new Date(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <Button
@@ -153,6 +156,17 @@ export function SessionDesktopTable({
                           }}
                         >
                           Recap
+                        </Button>
+                        <Button
+                          variant="app-primary"
+                          size="app-sm"
+                          disabled={false}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            analyseSession(session);
+                          }}
+                        >
+                          {m.sessions_analyse_session()}
                         </Button>
                         <Button
                           variant="app-outline"

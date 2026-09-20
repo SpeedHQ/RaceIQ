@@ -3,13 +3,8 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TuneIssue } from "../../shared/racing/tuning/issues";
-import {
-  type DbAdapter,
-  type WsAdapter,
-  type SessionRecorderAdapter,
-  RealDbAdapter,
-  RealSessionRecorderAdapter,
-} from "./pipeline-ports";
+import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
+import { type DbAdapter, type WsAdapter, type SessionRecorderAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "./pipeline-ports";
 import { LiveTelemetryProjector } from "./live-projector";
 import type { ILapDetector, LapDetectorCallbacks, LapIndexPacket } from "../lap-detection/types";
 import { SectorTracker } from "../live-strategy/sector-tracker";
@@ -21,10 +16,11 @@ import type { TrackBoundary } from "../../shared/racing/tracks/geometry/types";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
-import { detectCorners } from "../lap-analysis/corners"
+import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { encodeFrameLength, encodeSegmentContextEndFrame, encodeSegmentContextFrame } from "../session-capture/framing";
 import { wsManager } from "../runtime/websocket-manager";
 import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 
@@ -51,11 +47,15 @@ export class LiveTelemetryPipeline {
    *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
   private _pendingLapIssues: TuneIssue[] | null = null;
   private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
+  private _continuingSegment = false;
+  private _pendingSessionContextFrames: Buffer[] = [];
+  private _expectCompleteLapStart = false;
   private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
   private _finalizedResultSessions = new Set<number>();
-  private _lapReconciliations = new Map<number, Promise<void>>();
   private _resultFinalizations = new Map<number, Promise<void>>();
   private _calibrationBoundary: TrackBoundary | null = null;
+  private _ingressBarrier: Promise<void> | null = null;
+  private _activePacketProcessing = new Set<Promise<void>>();
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -102,39 +102,30 @@ export class LiveTelemetryPipeline {
     this._onSessionFinalized = options?.onSessionFinalized;
   }
 
-  private _scheduleLapReconciliation(sessionId: number, gameId: GameId): void {
-    const reconcile = this._onSessionFinalized;
-    if (!reconcile) return;
-    const previous = this._lapReconciliations.get(sessionId) ?? Promise.resolve();
-    let current: Promise<void>;
-    current = previous
-      .catch(() => {})
-      .then(() => reconcile(sessionId, gameId))
-      .catch((error) => {
-        console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
-      })
-      .finally(() => {
-        if (this._lapReconciliations.get(sessionId) === current) {
-          this._lapReconciliations.delete(sessionId);
-        }
-      });
-    this._lapReconciliations.set(sessionId, current);
+  private async _withIngressPaused<T>(operation: () => Promise<T>): Promise<T> {
+    while (this._ingressBarrier) await this._ingressBarrier;
+
+    let releaseIngress!: () => void;
+    const ingressBarrier = new Promise<void>((resolve) => {
+      releaseIngress = resolve;
+    });
+    this._ingressBarrier = ingressBarrier;
+    try {
+      await Promise.allSettled([...this._activePacketProcessing]);
+      return await operation();
+    } finally {
+      if (this._ingressBarrier === ingressBarrier) this._ingressBarrier = null;
+      releaseIngress();
+    }
   }
 
-  private async _drainLapReconciliations(sessionId: number): Promise<void> {
-    await this._lapReconciliations.get(sessionId);
-  }
-
-  private _reconcileRecordedSession(
-    session: { sessionId: number; gameId: GameId },
-  ): Promise<void> {
+  private _reconcileRecordedSession(session: { sessionId: number; gameId: GameId }): Promise<void> {
     if (this._finalizedResultSessions.has(session.sessionId)) {
       return Promise.resolve();
     }
     const pending = this._resultFinalizations.get(session.sessionId);
     if (pending) return pending;
     const finalization = (async () => {
-      await this._drainLapReconciliations(session.sessionId);
       await this._onSessionFinalized?.(session.sessionId, session.gameId);
       this._finalizedResultSessions.add(session.sessionId);
     })();
@@ -149,15 +140,16 @@ export class LiveTelemetryPipeline {
     return finalization;
   }
 
-  private async _finishRecordedSession(
-    session = this._recordingSession,
-  ): Promise<void> {
+  private async _finishRecordedSession(session = this._recordingSession): Promise<void> {
     await withSessionCaptureMaintenanceLock(async () => {
       if (session && this._recordingSession?.sessionId === session.sessionId) {
         this._recordingSession = null;
       }
       await this.recorder.stop();
     });
+    // Reconciliation parses and hashes complete capture. Run only after recorder
+    // closes; doing this after every lap blocks shared-memory polling and corrupts
+    // following lap's opening frames.
     if (session) await this._reconcileRecordedSession(session);
   }
 
@@ -165,30 +157,27 @@ export class LiveTelemetryPipeline {
     return {
       onSessionStart: async (session) => {
         const previousSession = this._recordingSession;
-        await withSessionCaptureMaintenanceLock(async () => {
-          this._recordingSession = null;
-          await this.recorder.stop();
-          this.recorder.start(session.gameId);
-          this.recorder.writeMetaFrame();
-          this._recordingSession = {
-            sessionId: session.sessionId,
-            gameId: session.gameId,
-          };
-          if (this.recorder.path) {
-            await this.db.updateSessionRawFile(
-              session.sessionId,
-              this.recorder.path,
-              this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
-            );
-          }
-        });
-        if (previousSession) {
-          void this._reconcileRecordedSession(previousSession).catch((error) => {
-            console.error(
-              `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
-              error,
-            );
+        const continuing = this._continuingSegment && previousSession?.sessionId === session.sessionId && previousSession.gameId === session.gameId;
+        this._continuingSegment = false;
+        if (!continuing) {
+          await withSessionCaptureMaintenanceLock(async () => {
+            this._recordingSession = null;
+            await this.recorder.stop();
+            this.recorder.start(session.gameId);
+            this.recorder.writeMetaFrame();
+            this._recordingSession = {
+              sessionId: session.sessionId,
+              gameId: session.gameId,
+            };
+            if (this.recorder.path) {
+              await this.db.updateSessionRawFile(session.sessionId, this.recorder.path, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
+            }
           });
+          if (previousSession) {
+            void this._reconcileRecordedSession(previousSession).catch((error) => {
+              console.error(`[Race Results] Failed to reconcile session ${previousSession.sessionId}:`, error);
+            });
+          }
         }
 
         resetLiveCalibration(session.trackOrdinal);
@@ -198,14 +187,9 @@ export class LiveTelemetryPipeline {
         this.pitTracker.reset();
         const adapter = getServerGame(session.gameId);
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
+        this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
         if (!this._skipHistorySeeding) {
-          await this.pitTracker.seedFromHistory(
-            session.trackOrdinal,
-            session.carOrdinal,
-            session.carPI,
-            session.gameId,
-            adapter.runtime.pit,
-          );
+          await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId, adapter.runtime.pit);
           await this._seedSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
         } else {
           this._sessionLaps = [];
@@ -252,7 +236,6 @@ export class LiveTelemetryPipeline {
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
         if (session) {
-          this._scheduleLapReconciliation(session.sessionId, session.gameId);
           this._sessionLaps.push({
             id: event.lapId,
             sessionId: session.sessionId,
@@ -266,10 +249,7 @@ export class LiveTelemetryPipeline {
             sectorTimes: event.sectors ?? undefined,
           });
           if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
-            this._sessionLaps.splice(
-              0,
-              this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT,
-            );
+            this._sessionLaps.splice(0, this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
           }
           this._broadcastSessionLaps();
         }
@@ -287,6 +267,10 @@ export class LiveTelemetryPipeline {
         callbacks: this._buildCallbacks(),
       });
       this._lapDetectorGameId = gameId;
+      if (this._expectCompleteLapStart) {
+        this._lapDetector.expectCompleteLapStart?.();
+        this._expectCompleteLapStart = false;
+      }
     }
     return this._lapDetector;
   }
@@ -301,34 +285,28 @@ export class LiveTelemetryPipeline {
 
   /** Finalize detector, durable capture, then authoritative session result. */
   async finalizeCurrentSession(): Promise<void> {
-    const session = this._recordingSession;
-    await this._lapDetector?.finalizeCurrentSession?.();
-    await this._finishRecordedSession(session);
+    await this._withIngressPaused(async () => {
+      const session = this._recordingSession;
+      await this._lapDetector?.finalizeCurrentSession?.();
+      await this._finishRecordedSession(session);
+    });
   }
 
   /** Detect game-specific stale finalization and finish its durable capture. */
   async flushStaleSession(): Promise<void> {
-    const session = this._recordingSession;
-    await this._lapDetector?.flushStaleLap?.();
-    if (session && !this._lapDetector?.session) {
-      await this._finishRecordedSession(session);
-    }
+    await this._withIngressPaused(async () => {
+      const session = this._recordingSession;
+      await this._lapDetector?.flushStaleLap?.();
+      if (session && !this._lapDetector?.session) {
+        await this._finishRecordedSession(session);
+      }
+    });
   }
-
   /** Seed in-memory session laps from DB (called once on session start). */
-  private async _seedSessionLaps(
-    sessionId: number,
-    trackOrdinal: number,
-    carOrdinal: number,
-    gameId: GameId
-  ): Promise<void> {
+  private async _seedSessionLaps(sessionId: number, trackOrdinal: number, carOrdinal: number, gameId: GameId): Promise<void> {
     try {
       const allLaps = await this.db.getLaps(gameId, CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
-      const sessionLaps = allLaps
-        .filter(
-          (l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal,
-        )
-        .sort((a, b) => a.id - b.id);
+      const sessionLaps = allLaps.filter((l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal).sort((a, b) => a.id - b.id);
       if (sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
         sessionLaps.splice(0, sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
       }
@@ -350,6 +328,17 @@ export class LiveTelemetryPipeline {
    * Stages: record sourceFrame → optional native dev copy → normalize → detector/sector/pit/BestLap → project → publish.
    */
   async processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
+    while (this._ingressBarrier) await this._ingressBarrier;
+    const processing = this._processPacket(packet, source);
+    this._activePacketProcessing.add(processing);
+    try {
+      await processing;
+    } finally {
+      this._activePacketProcessing.delete(processing);
+    }
+  }
+
+  private async _processPacket(packet: TelemetryPacket, source?: PacketSourceReference): Promise<void> {
     this._totalProcessed++;
 
     let rawByteOffset: number | undefined;
@@ -368,17 +357,21 @@ export class LiveTelemetryPipeline {
       this.ws.stageDevTelemetry(structuredClone(packet));
     }
 
-    normalizeTelemetryPacket(
-      packet,
-      adapter.coordSystem === "standard-xyz",
-      adapter.runtime.normSuspensionTravelMm,
-    );
+    normalizeTelemetryPacket(packet, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
 
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
 
+    // If feed rotates the session, write the triggering source into the new recorder
+    // and patch the detector offset to the canonical source position.
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) {
+            this.recorder.writeRawCaptureBytes(contextFrame);
+          }
+          this._pendingSessionContextFrames = [];
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
@@ -395,11 +388,7 @@ export class LiveTelemetryPipeline {
       packet.BestLap = sessionBest;
     }
 
-    const pit = this.pitTracker.feed(
-      packet,
-      this.sectorTracker.getTrackLength(),
-      this.sectorTracker.getLapDistStart()
-    );
+    const pit = this.pitTracker.feed(packet, this.sectorTracker.getTrackLength(), this.sectorTracker.getLapDistStart());
 
     // Collect calibration positions for adapters that require track-outline alignment.
     if (this._totalProcessed % 6 === 0 && adapter.runtime.requiresTrackCalibration) {
@@ -408,27 +397,18 @@ export class LiveTelemetryPipeline {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
           const trackLength = this.sectorTracker.getTrackLength();
-          const normalizedProgress = Number.isFinite(packet.DistanceTraveled) &&
-            Number.isFinite(trackLength) && trackLength > 0
-            ? ((packet.DistanceTraveled % trackLength) + trackLength) % trackLength / trackLength
-            : undefined;
-          feedCalibrationPosition(
-            session.trackOrdinal,
-            { x: packet.PositionX, z: packet.PositionZ },
-            packet.LapNumber,
-            outline,
-            normalizedProgress,
-            this._calibrationBoundary ?? undefined
-          );
+          const normalizedProgress =
+            Number.isFinite(packet.DistanceTraveled) && Number.isFinite(trackLength) && trackLength > 0
+              ? (((packet.DistanceTraveled % trackLength) + trackLength) % trackLength) / trackLength
+              : undefined;
+          feedCalibrationPosition(session.trackOrdinal, { x: packet.PositionX, z: packet.PositionZ }, packet.LapNumber, outline, normalizedProgress, this._calibrationBoundary ?? undefined);
         }
       }
     }
 
     // Live Tuning Dashboard transient detector — gated, off by default. Stateless
     // per-packet call; skipped entirely (no cost) unless the client opted in.
-    const liveIssues = this._liveIssuesEnabled
-      ? detectLiveIssues(packet, this.sectorTracker.getTrackLength())
-      : undefined;
+    const liveIssues = this._liveIssuesEnabled ? detectLiveIssues(packet, this.sectorTracker.getTrackLength()) : undefined;
 
     const projection = this.projector.project({
       packet,
@@ -467,15 +447,17 @@ export class LiveTelemetryPipeline {
     }
     const adapter = getServerGame(packet.gameId);
     const telemetryPacket = packet as unknown as TelemetryPacket;
-    normalizeTelemetryPacket(
-      telemetryPacket,
-      adapter.coordSystem === "standard-xyz",
-      adapter.runtime.normSuspensionTravelMm,
-    );
+    normalizeTelemetryPacket(telemetryPacket, adapter.coordSystem === "standard-xyz", adapter.runtime.normSuspensionTravelMm);
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(telemetryPacket, rawByteOffset);
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) {
+            this.recorder.writeRawCaptureBytes(contextFrame);
+          }
+          this._pendingSessionContextFrames = [];
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
@@ -489,6 +471,53 @@ export class LiveTelemetryPipeline {
     await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
   }
 
+  /**
+   * Preserve parser context in imported captures without feeding its stale
+   * telemetry values through the lap detector.
+   */
+  recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
+    this._expectCompleteLapStart = completeLapStart;
+    const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length), sourceFrame, encodeSegmentContextEndFrame()]);
+    if (this.recorder.active) {
+      this.recorder.writeRawCaptureBytes(contextRecord);
+      return;
+    }
+    this._pendingSessionContextFrames.push(contextRecord);
+  }
+
+  /**
+   * Drop in-memory ownership of a session deleted through the API.
+   * Next packet creates a fresh DB session and capture without restarting game source.
+   */
+  async recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
+    return this._withIngressPaused(async () => {
+      const activeSessionId = this._lapDetector?.session?.sessionId;
+      if (activeSessionId === undefined || !sessionIds.includes(activeSessionId)) return false;
+
+      this._lapDetector = null;
+      this._lapDetectorGameId = null;
+      this._recordingSession = null;
+      this._continuingSegment = false;
+      this._pendingSessionContextFrames = [];
+      this._pendingLapIssues = null;
+      this._sessionLaps = [];
+      await withSessionCaptureMaintenanceLock(() => this.recorder.stop());
+      this._broadcastSessionLaps();
+      return true;
+    });
+  }
+
+  /** Start next offline capture segment without rotating canonical session. */
+  beginSessionSegment(): void {
+    if (!this.recorder.active || !this._recordingSession) {
+      throw new Error("Cannot begin import segment before a session has started");
+    }
+    this.recorder.writeSegmentBoundary();
+    this._lapDetector = null;
+    this._lapDetectorGameId = null;
+    this._continuingSegment = true;
+  }
+
   /** Flush buffered writes to disk without closing. */
   flushSessionRecorderBuffer(): void {
     this.recorder.flush();
@@ -497,7 +526,9 @@ export class LiveTelemetryPipeline {
 
 // Module-level pipeline used by live runtime callers.
 const _defaultWs: WsAdapter = {
-  get wantsDevTelemetry() { return wsManager.wantsDevTelemetry; },
+  get wantsDevTelemetry() {
+    return wsManager.wantsDevTelemetry;
+  },
   broadcast: (packet, sectors, pit, liveIssues) => wsManager.broadcast(packet, sectors, pit, liveIssues),
   stageDevTelemetry: (packet) => wsManager.stageDevTelemetry(packet),
   publishTelemetry: ({ packet, sectors, pit, liveIssues, projection }) => {
@@ -512,27 +543,35 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
     try {
       await reconcileSessionResult(sessionId, gameId);
     } catch (error) {
-      console.error(
-        `[Race Results] Failed to reconcile session ${sessionId}:`,
-        error,
-      );
+      console.error(`[Race Results] Failed to reconcile session ${sessionId}:`, error);
     }
   },
 });
 
 // Wire session laps provider so WS manager can send laps on client connect
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
-export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference) =>
-  _default.processPacket(packet, source);
+export const processPacket = (packet: TelemetryPacket, source?: PacketSourceReference) => _default.processPacket(packet, source);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {
-  get session() { return _default.lapDetector?.session ?? null; },
-  get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
-  get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
-  async finalizeCurrentSession() { await _default.finalizeCurrentSession(); },
+  get session() {
+    return _default.lapDetector?.session ?? null;
+  },
+  get fuelHistory() {
+    return _default.lapDetector?.fuelHistory ?? [];
+  },
+  get tireWearHistory() {
+    return _default.lapDetector?.tireWearHistory ?? [];
+  },
+  async finalizeCurrentSession() {
+    await _default.finalizeCurrentSession();
+  },
 };
 
+/** Reset live ownership when user deletes active session. */
+export function recoverDeletedSessions(sessionIds: readonly number[]): Promise<boolean> {
+  return _default.recoverDeletedSessions(sessionIds);
+}
 
 /** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */
 export function setLiveIssuesEnabled(enabled: boolean): void {

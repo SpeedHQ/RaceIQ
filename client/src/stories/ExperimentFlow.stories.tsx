@@ -7,6 +7,7 @@ import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
 import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
 import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import type { SemanticLapTelemetry } from "@/hooks/laps";
+import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
 
 /**
@@ -237,7 +238,7 @@ const semanticIds = [
   "timing.distance-traveled",
   "motion.speed",
   "identity.track-ordinal",
-  "tire.temperature.average",
+  "tire.temperature.surface.representative",
   "brakes.brake-temp",
   "tires.tire-pressure",
   "tires.tire-wear",
@@ -272,7 +273,7 @@ function lapTelemetry(lap: (typeof allLaps)[number], lapIndex: number): Semantic
           values("timing.distance-traveled", progress * 7_004),
           values("motion.speed", 54 + Math.cos(angle * 3) * 16 - cornerLoad * 8),
           values("identity.track-ordinal", lap.trackOrdinal),
-          values("tire.temperature.average", [82 + cornerLoad * 9 + lapOffset, 83 + cornerLoad * 8 + lapOffset, 78 + cornerLoad * 6 + lapOffset, 79 + cornerLoad * 7 + lapOffset]),
+          values("tire.temperature.surface.representative", [82 + cornerLoad * 9 + lapOffset, 83 + cornerLoad * 8 + lapOffset, 78 + cornerLoad * 6 + lapOffset, 79 + cornerLoad * 7 + lapOffset]),
           values("brakes.brake-temp", [315 + cornerLoad * 245, 320 + cornerLoad * 250, 240 + cornerLoad * 170, 245 + cornerLoad * 175]),
           values("tires.tire-pressure", [27.2 + progress * 0.45, 27.3 + progress * 0.42, 26.9 + progress * 0.38, 27 + progress * 0.4]),
           values("tires.tire-wear", [0.04 + progress * 0.032, 0.042 + progress * 0.034, 0.035 + progress * 0.026, 0.036 + progress * 0.028]),
@@ -305,6 +306,15 @@ function seededClient() {
   // has no API behind it, and an unseeded fetch leaves the list stuck on its
   // loading state instead of rendering.
   qc.setQueryData(["acc-cars"], [{ model: "huracan_gt3_evo2", name: "Huracan GT3" }]);
+  qc.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
+  qc.setQueryData(["experiment-focus-history", CAR_ID], []);
+  qc.setQueryData(["experiment-focus-history", DRIVER_ID], []);
+  for (const sessionId of [CAR_ID, DRIVER_ID]) {
+    const threadId = `tune-session-${sessionId}`;
+    qc.setQueryData(["chat-generations", threadId], { generations: [], activeThreadId: threadId });
+    qc.setQueryData(["experiment-chat-history", sessionId, 1], []);
+    qc.setQueryData(["chat-run-status", threadId], { status: "none" });
+  }
   return qc;
 }
 
@@ -350,6 +360,7 @@ export const ListEmpty: StoryObj = {
     (Story) => {
       const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
       qc.setQueryData(["experiments", "acc"], []);
+      qc.setQueryData(["settings"], DEFAULT_DISPLAY_SETTINGS);
       const Comp = () => (
         <QueryClientProvider client={qc}>
           <div style={{ height: "100vh", background: "var(--app-bg)" }}>
@@ -430,7 +441,7 @@ export const NewExperimentDroppedSetup: StoryObj = {
 
 /** Car focus: two setup arms, the applied knob change on v2, driver comment. */
 export const WorkspaceCarFocus: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} />,
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} manageActivation={false} />,
   decorators: [(Story) => withProviders(Story)],
 };
 
@@ -446,7 +457,7 @@ export const WorkspaceCarFocus: StoryObj = {
  * `AppliedChangesList` the car-focus variant uses.
  */
 export const WorkspaceDriverFocus: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVER_ID} />,
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVER_ID} manageActivation={false} />,
   decorators: [(Story) => withProviders(Story)],
 };
 

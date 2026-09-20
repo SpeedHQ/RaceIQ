@@ -92,13 +92,7 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
 
         <label className="flex flex-col gap-1">
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
-          <AppInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={car && track ? `${car} @ ${track}` : "Session name"}
-            maxLength={120}
-            className="text-xs"
-          />
+          <AppInput value={name} onChange={(e) => setName(e.target.value)} placeholder={car && track ? `${car} @ ${track}` : "Session name"} maxLength={120} className="text-xs" />
         </label>
 
         {error && <div className="text-xs text-status-danger">{error}</div>}
