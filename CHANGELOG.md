@@ -8,6 +8,7 @@
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 
 ### Internal
+- Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 

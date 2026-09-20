@@ -15,6 +15,11 @@ export interface ScreenshotDiffOptions {
   includeMissing?: boolean;
 }
 
+interface ScreenshotDiffCliOptions {
+  comparison: ScreenshotDiffOptions;
+  failOnChange: boolean;
+}
+
 interface DecodedImage {
   data: Buffer;
   width: number;
@@ -136,12 +141,8 @@ async function writeTriplet(
   const width = Math.max(baseImage?.width ?? 0, currentImage?.width ?? 0);
   const height = Math.max(baseImage?.height ?? 0, currentImage?.height ?? 0);
 
-  const before = basePath
-    ? await fitOnCanvas(basePath, width, height)
-    : await placeholder(width, height, "New screenshot");
-  const after = currentPath
-    ? await fitOnCanvas(currentPath, width, height)
-    : await placeholder(width, height, "Screenshot removed");
+  const before = basePath ? await fitOnCanvas(basePath, width, height) : await placeholder(width, height, "New screenshot");
+  const after = currentPath ? await fitOnCanvas(currentPath, width, height) : await placeholder(width, height, "Screenshot removed");
   const blank = !basePath || !currentPath ? await blankCanvas(width, height) : undefined;
   const diffBefore = basePath ? before : blank!;
   const diffAfter = currentPath ? after : blank!;
@@ -154,11 +155,7 @@ async function writeTriplet(
   const afterFile = `${stem}-after.png`;
   const diffFile = `${stem}-diff.png`;
 
-  await Promise.all([
-    Bun.write(join(options.outDir, beforeFile), before),
-    Bun.write(join(options.outDir, afterFile), after),
-    Bun.write(join(options.outDir, diffFile), diff),
-  ]);
+  await Promise.all([Bun.write(join(options.outDir, beforeFile), before), Bun.write(join(options.outDir, afterFile), after), Bun.write(join(options.outDir, diffFile), diff)]);
   console.log(`${status} screenshot: ${relativePath}`);
   return { stem, width, height, beforeFile, afterFile, diffFile };
 }
@@ -203,13 +200,20 @@ export async function collectScreenshotDiffs(options: ScreenshotDiffOptions): Pr
   return changes;
 }
 
-function parseArgs(args: string[]): ScreenshotDiffOptions {
+function parseArgs(args: string[]): ScreenshotDiffCliOptions {
   const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 2) {
+  let failOnChange = false;
+  for (let index = 0; index < args.length;) {
     const key = args[index];
+    if (key === "--fail-on-change") {
+      failOnChange = true;
+      index += 1;
+      continue;
+    }
     const value = args[index + 1];
     if (!key?.startsWith("--") || !value) throw new Error(`Invalid argument: ${key ?? ""}`);
     values.set(key.slice(2), value);
+    index += 2;
   }
 
   const baseDir = values.get("base");
@@ -217,13 +221,17 @@ function parseArgs(args: string[]): ScreenshotDiffOptions {
   const outDir = values.get("out");
   const prefix = values.get("prefix");
   if (!baseDir || !currentDir || !outDir || !prefix) {
-    throw new Error("Usage: collect-screenshot-diffs --base DIR --current DIR --out DIR --prefix NAME");
+    throw new Error("Usage: collect-screenshot-diffs --base DIR --current DIR --out DIR --prefix NAME [--fail-on-change]");
   }
-  return { baseDir, currentDir, outDir, prefix };
+  return { comparison: { baseDir, currentDir, outDir, prefix }, failOnChange };
 }
 
 if (import.meta.main) {
   const options = parseArgs(process.argv.slice(2));
-  const changes = await collectScreenshotDiffs(options);
+  const changes = await collectScreenshotDiffs(options.comparison);
   console.log(`Collected ${changes.length} screenshot diff${changes.length === 1 ? "" : "s"}.`);
+  if (options.failOnChange && changes.length > 0) {
+    console.error(`Responsive visual baseline differs in ${changes.length} screenshot${changes.length === 1 ? "" : "s"}.`);
+    process.exitCode = 1;
+  }
 }
