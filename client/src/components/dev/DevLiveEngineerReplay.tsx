@@ -516,7 +516,7 @@ export function DevLiveEngineerReplay() {
               </div>
             </div>
           </section>
-          <Card className="sticky bottom-0 z-10 border-app-accent/30 shadow-2xl">
+          <Card className="sticky bottom-0 z-50 border-app-accent/30 bg-app-bg shadow-2xl">
             <CardHeader className="border-b">
               <CardTitle>Session timeline</CardTitle>
               <CardDescription>Lap filter changes presentation only. Playback always uses recorded frame order and session time.</CardDescription>
