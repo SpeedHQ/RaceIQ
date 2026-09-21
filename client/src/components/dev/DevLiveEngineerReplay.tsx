@@ -193,33 +193,52 @@ function SummaryMetric({ label, value, detail, icon: Icon }: { label: string; va
     </Card>
   );
 }
+
 function opponentValues(frame: SemanticAnalysisFrame, id: string): readonly unknown[] {
   const value = frame.values[id];
   return Array.isArray(value) ? value : [];
 }
 
 function OpponentDataPanel({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: string }) {
+  const carIndices = opponentValues(frame, "race.competitor.car-index");
   const names = opponentValues(frame, "race.competitor.driver-name");
   const positions = opponentValues(frame, "race.competitor.position");
   const gaps = opponentValues(frame, "timing.competitor.gap-to-ahead");
   const laps = opponentValues(frame, "race.competitor.laps-complete");
   const lastLaps = opponentValues(frame, "timing.competitor.last-lap-time");
   const pits = opponentValues(frame, "race.competitor.pit-status");
-  const count = Math.max(names.length, positions.length, gaps.length, laps.length, lastLaps.length, pits.length);
+  const count = Math.max(carIndices.length, names.length, positions.length, gaps.length, laps.length, lastLaps.length, pits.length);
+  const [expanded, setExpanded] = useState(false);
   if (!count) return null;
   const value = (values: readonly unknown[], index: number) => {
     const item = values[index];
     return item == null || item === "" ? "—" : String(item);
   };
+  const sortedIndices = Array.from({ length: count }, (_, index) => index).sort((a, b) => {
+    const positionA = typeof positions[a] === "number" ? positions[a] as number : Number.POSITIVE_INFINITY;
+    const positionB = typeof positions[b] === "number" ? positions[b] as number : Number.POSITIVE_INFINITY;
+    return positionA - positionB;
+  });
+  const playerIndex = sortedIndices.find((index) => positions[index] === 1);
+  const focusedIndices = expanded || count <= 7 || playerIndex == null
+    ? sortedIndices
+    : sortedIndices.filter((index) => {
+      const rank = sortedIndices.indexOf(index);
+      const playerRank = sortedIndices.indexOf(playerIndex);
+      return rank === 0 || Math.abs(rank - playerRank) <= 2;
+    });
   return <div className="border-t border-app-border p-3">
-    <div className="mb-2 text-app-label font-semibold uppercase tracking-wider text-app-text-muted">Opponent data · {gameId}</div>
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="text-app-label font-semibold uppercase tracking-wider text-app-text-muted">Opponent data · {gameId}</div>
+      {count > 7 && <Button type="button" variant="plain" size="content" className="text-app-label text-app-accent" onClick={() => setExpanded((value) => !value)}>{expanded ? "Focus view" : `Show all (${count})`}</Button>}
+    </div>
     <div className="overflow-x-auto">
       <div className="min-w-[34rem] font-mono text-app-compact">
         <div className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border pb-1 text-app-text-muted">
-          <span>Driver</span><span>Pos</span><span>Gap</span><span>Lap</span><span>Last lap</span><span>Pit</span>
+          <span>Driver / car</span><span>Pos</span><span>Gap</span><span>Lap</span><span>Last lap</span><span>Pit</span>
         </div>
-        {Array.from({ length: count }, (_, index) => <div key={index} className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border/50 py-1 last:border-0">
-          <span className="truncate">{value(names, index)}</span>
+        {focusedIndices.map((index) => <div key={index} className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border/50 py-1 last:border-0">
+          <span className="truncate">{value(names, index)} · Car {value(carIndices, index)}</span>
           <span>{value(positions, index)}</span>
           <span>{value(gaps, index)}</span>
           <span>{value(laps, index)}</span>
