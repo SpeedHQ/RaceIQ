@@ -2,9 +2,7 @@ import { resolveWheelStates } from "../../../../shared/racing/analysis/metric-va
 import { getGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { Grid, Line } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/catalog-queries";
@@ -131,12 +129,6 @@ export function CarScene({
   const suspensionRange = gameId === "acc" ? { min: 0, max: 50 } : gameId === "iracing" ? { min: 0, max: 100 } : undefined;
   const [suspFL, suspFR, suspRL, suspRR] = normalizedSuspension(frame, suspensionRange);
 
-  // Keep packet in a ref so useFrame reads latest without triggering re-render
-  const packetRef = useRef(frame);
-  useEffect(() => {
-    packetRef.current = frame;
-  });
-  const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(semanticNumber(frame, "diagnostics.timestamp-ms") ?? 0);
   const prevWear = useRef([wheel(frame, "tires.tire-wear", 0), wheel(frame, "tires.tire-wear", 1), wheel(frame, "tires.tire-wear", 2), wheel(frame, "tires.tire-wear", 3)]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
@@ -167,12 +159,7 @@ export function CarScene({
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
 
-  useFrame(() => {
-    if (carGroupRef.current) {
-      carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-      carGroupRef.current.rotation.set(bodyRoll, 0, bodyPitch, "YXZ");
-    }
-  });
+  const bodyRotation: [number, number, number] = [bodyRoll, 0, bodyPitch];
 
   // Compute tire wear rate (/s) — smoothed with EMA
   useEffect(() => {
@@ -366,7 +353,7 @@ export function CarScene({
         })()}
 
       {/* Body — rolls with pitch/roll */}
-      <group ref={carGroupRef}>
+      <group position={[posOffset, bodyDrop, 0]} rotation={bodyRotation}>
         <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
       </group>
 

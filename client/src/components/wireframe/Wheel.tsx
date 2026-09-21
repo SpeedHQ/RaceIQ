@@ -1,12 +1,12 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
 import { tireTempColor } from "../../lib/vehicle-dynamics";
 import { makeWheelGeometries, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
 import { WheelInfoCard } from "./WheelLabels";
 
-const useWheelGeometries = (radius = 0.34, width = 0.3) => makeWheelGeometries(radius, width);
+const useWheelGeometries = (radius = 0.34, width = 0.3) => useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
 
 export function Wheel({
   position,

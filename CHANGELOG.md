@@ -9,6 +9,7 @@
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
+- Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
 
 - Label sector-time columns S1, S2, S3 in Analyse session lap-selection dialog and allow sorting by sector.
 - Improve logging and diagnostic exports

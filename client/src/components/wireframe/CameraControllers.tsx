@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
@@ -30,19 +30,15 @@ export function AutoChaseCamera({ packet }: { packet: SemanticAnalysisFrame }) {
 export function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
-  const lastPreset = useRef<ViewPreset>(viewPreset);
 
-  useFrame(() => {
-    if (viewPreset !== lastPreset.current) {
-      lastPreset.current = viewPreset;
-      const preset = VIEW_PRESETS[viewPreset];
-      camera.position.set(...preset.position);
-      if (controlsRef.current) {
-        controlsRef.current.target.set(...preset.target);
-        controlsRef.current.update();
-      }
+  useEffect(() => {
+    const preset = VIEW_PRESETS[viewPreset];
+    camera.position.set(...preset.position);
+    if (controlsRef.current) {
+      controlsRef.current.target.set(...preset.target);
+      controlsRef.current.update();
     }
-  });
+  }, [camera, viewPreset]);
 
   return <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={3} maxDistance={2000} minPolarAngle={0} maxPolarAngle={Math.PI} />;
 }
