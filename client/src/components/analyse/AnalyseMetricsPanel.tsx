@@ -103,10 +103,6 @@ export function WheelSpeedValue({ label, value }: { label: string; value: number
     </span>
   );
 }
-export function brakeBarColor(brake: number): string {
-  const t = Math.min(1, Math.max(0, brake / 255));
-  return `color-mix(in srgb, var(--brake-warm) ${(1 - t) * 100}%, var(--brake-hot))`;
-}
 export function SuspValue({ label, value }: { label: string; value: number }) {
   const color = operatingRangeColor(value, [0.25, 0.65, 0.85]);
   return (
