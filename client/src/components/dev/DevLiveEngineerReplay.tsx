@@ -193,6 +193,44 @@ function SummaryMetric({ label, value, detail, icon: Icon }: { label: string; va
     </Card>
   );
 }
+function opponentValues(frame: SemanticAnalysisFrame, id: string): readonly unknown[] {
+  const value = frame.values[id];
+  return Array.isArray(value) ? value : [];
+}
+
+function OpponentDataPanel({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: string }) {
+  const names = opponentValues(frame, "race.competitor.driver-name");
+  const positions = opponentValues(frame, "race.competitor.position");
+  const gaps = opponentValues(frame, "timing.competitor.gap-to-ahead");
+  const laps = opponentValues(frame, "race.competitor.laps-complete");
+  const lastLaps = opponentValues(frame, "timing.competitor.last-lap-time");
+  const pits = opponentValues(frame, "race.competitor.pit-status");
+  const count = Math.max(names.length, positions.length, gaps.length, laps.length, lastLaps.length, pits.length);
+  if (!count) return null;
+  const value = (values: readonly unknown[], index: number) => {
+    const item = values[index];
+    return item == null || item === "" ? "—" : String(item);
+  };
+  return <div className="border-t border-app-border p-3">
+    <div className="mb-2 text-app-label font-semibold uppercase tracking-wider text-app-text-muted">Opponent data · {gameId}</div>
+    <div className="overflow-x-auto">
+      <div className="min-w-[34rem] font-mono text-app-compact">
+        <div className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border pb-1 text-app-text-muted">
+          <span>Driver</span><span>Pos</span><span>Gap</span><span>Lap</span><span>Last lap</span><span>Pit</span>
+        </div>
+        {Array.from({ length: count }, (_, index) => <div key={index} className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border/50 py-1 last:border-0">
+          <span className="truncate">{value(names, index)}</span>
+          <span>{value(positions, index)}</span>
+          <span>{value(gaps, index)}</span>
+          <span>{value(laps, index)}</span>
+          <span>{value(lastLaps, index)}</span>
+          <span>{value(pits, index)}</span>
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+
 
 
 export function DevLiveEngineerReplay() {
@@ -514,6 +552,7 @@ export function DevLiveEngineerReplay() {
               <div className="rounded border border-app-border bg-app-surface/50">
                 {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
+              {playback.frame && <OpponentDataPanel frame={{ values: playback.frame.values, states: {}, freshness: {} }} gameId={gameId} />}
               </div>
             </div>
           </section>
