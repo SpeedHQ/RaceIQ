@@ -196,7 +196,7 @@ function SummaryMetric({ label, value, detail, icon: Icon }: { label: string; va
 
 
 export function DevLiveEngineerReplay() {
-  const search = useSearch({ from: "/dev/speech/engineer-replay" }) as { gameId?: string; sessionId?: number };
+  const search = useSearch({ from: "/dev/speech/engineer-replay" }) as { gameId?: string; sessionId?: number; scenario?: string };
   const navigate = useNavigate({ from: "/dev/speech/engineer-replay" });
   const initialGameId = games.includes(search.gameId as (typeof games)[number]) ? search.gameId as (typeof games)[number] : games[0];
   const [gameId, setGameId] = useState<(typeof games)[number]>(initialGameId);
@@ -215,6 +215,7 @@ export function DevLiveEngineerReplay() {
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const autoLoadKeyRef = useRef<string | null>(null);
+  const autoScenarioRef = useRef<string | null>(null);
   const previousCursorRef = useRef(0);
   const audio = useLiveEngineerReplayAudio();
   const units = useUnits();
@@ -342,6 +343,13 @@ export function DevLiveEngineerReplay() {
   }, [gameId, search.sessionId, sessionId, sessions, replay, replayLoading]);
 
   useEffect(() => {
+    const scenario = scenarioCatalog.find((candidate) => candidate.id === search.scenario);
+    if (!scenario || replay || replayLoading || scenarioLoading || autoScenarioRef.current === scenario.id) return;
+    autoScenarioRef.current = scenario.id;
+    void load(scenario.id);
+  }, [search.scenario, replay, replayLoading, scenarioLoading]);
+
+  useEffect(() => {
     if (!playback.playing || !audioEnabled || !replay) {
       previousCursorRef.current = playback.cursorIdx;
       return;
@@ -362,12 +370,12 @@ export function DevLiveEngineerReplay() {
     audio.stop();
     setGameId(nextGame);
     setSessionId("");
-    void navigate({ search: { gameId: nextGame, sessionId: undefined } });
+    void navigate({ search: { gameId: nextGame, sessionId: undefined, scenario: undefined } });
   };
   const selectSession = (value: string) => {
     audio.stop();
     setSessionId(value);
-    void navigate({ search: { gameId, sessionId: Number(value) } });
+    void navigate({ search: { gameId, sessionId: Number(value), scenario: undefined } });
   };
   const seekTo = (index: number, annotationId?: string) => {
     audio.stop();
@@ -382,9 +390,6 @@ export function DevLiveEngineerReplay() {
   };
   const playAnnotation = (annotation: LiveEngineerReplayAnnotationV1) => {
     void (annotation.audioLineId ? audio.playFullLine(annotation.id, annotation.audioLineId) : audio.play(annotation.id, annotation.segmentIds));
-  };
-  const runScenario = (scenario: ScenarioId) => {
-    void load(scenario);
   };
 
   return (
@@ -420,22 +425,6 @@ export function DevLiveEngineerReplay() {
             </CardContent>
           </Card>
         )}
-        <Card size="sm">
-          <CardHeader><CardTitle>Scenario catalog</CardTitle><CardDescription>Recorded bins. Scenario runs use fixed source recordings; no game or session picker.</CardDescription></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-left text-app-detail">
-              <thead><tr className="border-b border-app-border text-app-caption text-app-text-muted"><th className="px-3 py-2 font-medium">Scenario</th><th className="px-3 py-2 font-medium">Source recording bin</th><th className="px-3 py-2 font-medium">Expected sequence</th><th className="px-3 py-2" /></tr></thead>
-              <tbody>{scenarioCatalog.map((scenario) => (
-                <tr key={scenario.id} className="border-b border-app-border last:border-0">
-                  <td className="px-3 py-3 align-top font-medium">{scenario.label}</td>
-                  <td className="px-3 py-3 align-top font-mono text-app-caption text-app-text-muted">{scenario.recordingBin}</td>
-                  <td className="px-3 py-3 align-top text-app-text-muted">{scenario.detail}</td>
-                  <td className="px-3 py-3 text-right align-top"><Button variant="app-outline" size="app-sm" disabled={scenarioLoading !== null} onClick={() => runScenario(scenario.id)}>{scenarioLoading === scenario.id ? "Loading…" : "Run"}</Button></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </CardContent>
-        </Card>
 
 
         {replay && <>
@@ -482,21 +471,24 @@ export function DevLiveEngineerReplay() {
                 {filteredAnnotations.map((annotation) => <button key={annotation.id} type="button" className={cn("absolute top-1 size-5 -translate-x-1/2 rounded-full border-2 border-app-bg", annotation.stage === "voice-line" ? "bg-status-success" : annotation.stage === "decision" ? "bg-status-warning" : "bg-app-accent")} style={{ left: `${((annotation.timelineMs - startTime) / timelineDuration) * 100}%` }} title={`${annotation.stage}: ${annotation.action}`} aria-label={`Seek to ${annotation.stage} ${annotation.action}`} onClick={() => seekTo(annotation.frameIndex, annotation.id)} />)}
               </div>
               <input className="w-full accent-app-accent" type="range" min={playback.startFrameIndex} max={playback.endFrameIndex} value={playback.cursorIdx} aria-label="Replay frame" onChange={(event) => seekTo(Number(event.target.value))} />
-              {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               {audio.error && <div className="flex items-center justify-between gap-3 rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-app-detail text-status-danger"><span>{audio.error}</span><Button variant="plain" size="content" onClick={audio.clearError}>Dismiss</Button></div>}
             </CardContent>
           </Card>
 
-          <section className="grid min-h-[34rem] gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(30rem,1fr)]">
+          <section className="grid min-h-[34rem] gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.85fr)]">
             <Card className="min-h-[34rem]">
               <CardHeader className="border-b"><CardTitle>Track and frame context</CardTitle><CardDescription>{outline ? "Captured world position" : "World coordinates unavailable for this capture"}</CardDescription></CardHeader>
               <CardContent className="relative min-h-[28rem] flex-1 p-0">
                 {outline ? <AnalyseTrackMap gameId={gameId as GameId} telemetry={telemetry} cursorIdx={mapCursorIndex} outline={outline} boundaries={null} sectors={null} segments={null} rotateWithCar={false} showTrace /> : <div className="flex h-full min-h-[28rem] flex-col items-center justify-center gap-3 p-8 text-center text-app-text-muted"><Map /><div><b className="text-app-text">Map unavailable</b><p className="mt-1 max-w-md text-app-detail">Capture has no trustworthy world coordinates. Timeline, lap fraction, runtime evidence, and audio remain usable.</p></div></div>}
               </CardContent>
             </Card>
-            <Card className="min-h-[34rem]">
-              <Tabs key={`${replay.sessionId}-${lapFilter}`} defaultValue={filteredAnnotations.length ? "events" : "systems"} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="max-h-[28rem] overflow-y-auto rounded border border-app-border bg-app-surface/50">
+                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
+              </div>
+              <Card className="min-h-[34rem]">
+                <Tabs key={`${replay.sessionId}-${lapFilter}`} defaultValue={filteredAnnotations.length ? "events" : "systems"} className="flex min-h-0 flex-1 flex-col">
                 <CardHeader className="border-b">
                   <CardTitle>Engineer evidence</CardTitle>
                   <CardDescription>Inspect emitted events or every callout system, including disabled features.</CardDescription>
@@ -540,6 +532,7 @@ export function DevLiveEngineerReplay() {
                 </TabsContent>
               </Tabs>
             </Card>
+            </div>
           </section>
         </>}
       </main>
