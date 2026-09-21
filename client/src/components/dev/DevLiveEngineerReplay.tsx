@@ -457,52 +457,15 @@ export function DevLiveEngineerReplay() {
               <CardContent className="flex flex-wrap gap-2">{[...new Set([...replay.sourceProfile.limitations, ...replay.warnings])].map((limitation) => <Badge key={limitation} variant="warning">{humanize(limitation)}</Badge>)}</CardContent>
             </Card>
           )}
-          <Card>
-            <CardHeader className="border-b">
-              <CardTitle>Session timeline</CardTitle>
-              <CardDescription>Lap filter changes presentation only. Playback always uses recorded frame order and session time.</CardDescription>
-              <CardAction className="flex flex-wrap items-center gap-2">
-                <SearchSelect className="w-44" value={lapFilter} onChange={(value) => { audio.stop(); setLapFilter(value); }} options={lapOptions} ariaLabel="Visible lap" />
-                <Button variant={audioEnabled ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={audioEnabled} onClick={() => { audio.stop(); setAudioEnabled((enabled) => !enabled); }}>
-                  {audioEnabled ? <Volume2 data-icon="inline-start" /> : <VolumeX data-icon="inline-start" />}{audioEnabled ? "Auto audio" : "Audio muted"}
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 pt-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="app-outline" size="icon-sm" aria-label="Previous frame" disabled={playback.cursorIdx <= playback.startFrameIndex} onClick={() => { audio.stop(); playback.step(-1); }}><ChevronLeft /></Button>
-                {playback.playing
-                  ? <Button variant="app-primary" size="app-md" onClick={() => { playback.pause(); audio.stop(); }}><Pause data-icon="inline-start" />Pause</Button>
-                  : <Button variant="app-primary" size="app-md" onClick={() => void playTimeline()}><Play data-icon="inline-start" />Play</Button>}
-                <Button variant="app-outline" size="icon-sm" aria-label="Next frame" disabled={playback.cursorIdx >= playback.endFrameIndex} onClick={() => { audio.stop(); playback.step(1); }}><ChevronRight /></Button>
-                <div className="flex flex-wrap gap-1">{speeds.map((speed) => <Button key={speed} variant={playback.speed === speed ? "selected-toggle" : "app-outline"} size="app-sm" onClick={() => playback.setSpeed(speed)}>{speed}×</Button>)}</div>
-                <div className="ml-auto text-right font-mono text-app-detail tabular-nums"><div>{formatTime((playback.frame?.timelineMs ?? startTime) - startTime)} / {formatTime(endTime - startTime)}</div><div className="text-app-caption text-app-text-muted">Frame {playback.cursorIdx.toLocaleString()} · source {playback.frame?.sourceSequence ?? "—"}</div></div>
-              </div>
-              <div className="relative h-7" aria-label="Replay event timeline">
-                <div className="absolute inset-x-0 top-3 h-1 rounded-full bg-app-border" />
-                {transitionMarkers.filter((marker) => marker.frameIndex >= playback.startFrameIndex && marker.frameIndex <= playback.endFrameIndex).map((marker, index) => {
-                  const time = replay.frames[marker.frameIndex]?.timelineMs ?? startTime;
-                  return <button key={`${marker.systemId}-${marker.frameIndex}-${index}`} type="button" className={cn("absolute top-2 size-3 -translate-x-1/2 rounded-full border border-app-bg", marker.lifecycle === "unavailable" ? "bg-status-danger" : marker.lifecycle === "baseline" ? "bg-status-warning" : "bg-status-success")} style={{ left: `${((time - startTime) / timelineDuration) * 100}%` }} title={`${marker.systemId}: ${marker.lifecycle} · ${marker.reasonCode}`} onClick={() => { setSelectedSystemId(marker.systemId); seekTo(marker.frameIndex); }} />;
-                })}
-                {filteredAnnotations.map((annotation) => <button key={annotation.id} type="button" className={cn("absolute top-1 size-5 -translate-x-1/2 rounded-full border-2 border-app-bg", annotation.stage === "voice-line" ? "bg-status-success" : annotation.stage === "decision" ? "bg-status-warning" : "bg-app-accent")} style={{ left: `${((annotation.timelineMs - startTime) / timelineDuration) * 100}%` }} title={`${annotation.stage}: ${annotation.action}`} aria-label={`Seek to ${annotation.stage} ${annotation.action}`} onClick={() => seekTo(annotation.frameIndex, annotation.id)} />)}
-              </div>
-              <input className="w-full accent-app-accent" type="range" min={playback.startFrameIndex} max={playback.endFrameIndex} value={playback.cursorIdx} aria-label="Replay frame" onChange={(event) => seekTo(Number(event.target.value))} />
-              {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
-              {audio.error && <div className="flex items-center justify-between gap-3 rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-app-detail text-status-danger"><span>{audio.error}</span><Button variant="plain" size="content" onClick={audio.clearError}>Dismiss</Button></div>}
-            </CardContent>
-          </Card>
 
-          <section className="grid min-h-[34rem] gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.85fr)]">
-            <Card className="min-h-[34rem]">
+          <section className="flex flex-col gap-4">
+            <Card className="h-[22rem] min-h-0">
               <CardHeader className="border-b"><CardTitle>Track and frame context</CardTitle><CardDescription>{outline ? "Captured world position" : "World coordinates unavailable for this capture"}</CardDescription></CardHeader>
-              <CardContent className="relative min-h-[28rem] flex-1 p-0">
-                {outline ? <AnalyseTrackMap gameId={gameId as GameId} telemetry={telemetry} cursorIdx={mapCursorIndex} outline={outline} boundaries={null} sectors={null} segments={null} rotateWithCar={false} showTrace /> : <div className="flex h-full min-h-[28rem] flex-col items-center justify-center gap-3 p-8 text-center text-app-text-muted"><Map /><div><b className="text-app-text">Map unavailable</b><p className="mt-1 max-w-md text-app-detail">Capture has no trustworthy world coordinates. Timeline, lap fraction, runtime evidence, and audio remain usable.</p></div></div>}
+              <CardContent className="relative min-h-0 flex-1 p-0">
+                {outline ? <AnalyseTrackMap gameId={gameId as GameId} telemetry={telemetry} cursorIdx={mapCursorIndex} outline={outline} boundaries={null} sectors={null} segments={null} rotateWithCar={false} showTrace /> : <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 p-8 text-center text-app-text-muted"><Map /><div><b className="text-app-text">Map unavailable</b><p className="mt-1 max-w-md text-app-detail">Capture has no trustworthy world coordinates. Timeline, lap fraction, runtime evidence, and audio remain usable.</p></div></div>}
               </CardContent>
             </Card>
-            <div className="flex min-w-0 flex-col gap-4">
-              <div className="max-h-[28rem] overflow-y-auto rounded border border-app-border bg-app-surface/50">
-                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
-              </div>
+            <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.85fr)]">
               <Card className="min-h-[34rem]">
                 <Tabs key={`${replay.sessionId}-${lapFilter}`} defaultValue={filteredAnnotations.length ? "events" : "systems"} className="flex min-h-0 flex-1 flex-col">
                 <CardHeader className="border-b">
@@ -548,8 +511,45 @@ export function DevLiveEngineerReplay() {
                 </TabsContent>
               </Tabs>
             </Card>
+              <div className="max-h-[28rem] overflow-y-auto rounded border border-app-border bg-app-surface/50">
+                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
+              </div>
             </div>
           </section>
+          <Card className="sticky bottom-0 z-10 border-app-accent/30 shadow-2xl">
+            <CardHeader className="border-b">
+              <CardTitle>Session timeline</CardTitle>
+              <CardDescription>Lap filter changes presentation only. Playback always uses recorded frame order and session time.</CardDescription>
+              <CardAction className="flex flex-wrap items-center gap-2">
+                <SearchSelect className="w-44" value={lapFilter} onChange={(value) => { audio.stop(); setLapFilter(value); }} options={lapOptions} ariaLabel="Visible lap" />
+                <Button variant={audioEnabled ? "selected-toggle" : "app-outline"} size="app-sm" aria-pressed={audioEnabled} onClick={() => { audio.stop(); setAudioEnabled((enabled) => !enabled); }}>
+                  {audioEnabled ? <Volume2 data-icon="inline-start" /> : <VolumeX data-icon="inline-start" />}{audioEnabled ? "Auto audio" : "Audio muted"}
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="app-outline" size="icon-sm" aria-label="Previous frame" disabled={playback.cursorIdx <= playback.startFrameIndex} onClick={() => { audio.stop(); playback.step(-1); }}><ChevronLeft /></Button>
+                {playback.playing
+                  ? <Button variant="app-primary" size="app-md" onClick={() => { playback.pause(); audio.stop(); }}><Pause data-icon="inline-start" />Pause</Button>
+                  : <Button variant="app-primary" size="app-md" onClick={() => void playTimeline()}><Play data-icon="inline-start" />Play</Button>}
+                <Button variant="app-outline" size="icon-sm" aria-label="Next frame" disabled={playback.cursorIdx >= playback.endFrameIndex} onClick={() => { audio.stop(); playback.step(1); }}><ChevronRight /></Button>
+                <div className="flex flex-wrap gap-1">{speeds.map((speed) => <Button key={speed} variant={playback.speed === speed ? "selected-toggle" : "app-outline"} size="app-sm" onClick={() => playback.setSpeed(speed)}>{speed}×</Button>)}</div>
+                <div className="ml-auto text-right font-mono text-app-detail tabular-nums"><div>{formatTime((playback.frame?.timelineMs ?? startTime) - startTime)} / {formatTime(endTime - startTime)}</div><div className="text-app-caption text-app-text-muted">Frame {playback.cursorIdx.toLocaleString()} · source {playback.frame?.sourceSequence ?? "—"}</div></div>
+              </div>
+              <div className="relative h-7" aria-label="Replay event timeline">
+                <div className="absolute inset-x-0 top-3 h-1 rounded-full bg-app-border" />
+                {transitionMarkers.filter((marker) => marker.frameIndex >= playback.startFrameIndex && marker.frameIndex <= playback.endFrameIndex).map((marker, index) => {
+                  const time = replay.frames[marker.frameIndex]?.timelineMs ?? startTime;
+                  return <button key={`${marker.systemId}-${marker.frameIndex}-${index}`} type="button" className={cn("absolute top-2 size-3 -translate-x-1/2 rounded-full border border-app-bg", marker.lifecycle === "unavailable" ? "bg-status-danger" : marker.lifecycle === "baseline" ? "bg-status-warning" : "bg-status-success")} style={{ left: `${((time - startTime) / timelineDuration) * 100}%` }} title={`${marker.systemId}: ${marker.lifecycle} · ${marker.reasonCode}`} onClick={() => { setSelectedSystemId(marker.systemId); seekTo(marker.frameIndex); }} />;
+                })}
+                {filteredAnnotations.map((annotation) => <button key={annotation.id} type="button" className={cn("absolute top-1 size-5 -translate-x-1/2 rounded-full border-2 border-app-bg", annotation.stage === "voice-line" ? "bg-status-success" : annotation.stage === "decision" ? "bg-status-warning" : "bg-app-accent")} style={{ left: `${((annotation.timelineMs - startTime) / timelineDuration) * 100}%` }} title={`${annotation.stage}: ${annotation.action}`} aria-label={`Seek to ${annotation.stage} ${annotation.action}`} onClick={() => seekTo(annotation.frameIndex, annotation.id)} />)}
+              </div>
+              <input className="w-full accent-app-accent" type="range" min={playback.startFrameIndex} max={playback.endFrameIndex} value={playback.cursorIdx} aria-label="Replay frame" onChange={(event) => seekTo(Number(event.target.value))} />
+              {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
+              {audio.error && <div className="flex items-center justify-between gap-3 rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-app-detail text-status-danger"><span>{audio.error}</span><Button variant="plain" size="content" onClick={audio.clearError}>Dismiss</Button></div>}
+            </CardContent>
+          </Card>
         </>}
       </main>
     </div>
