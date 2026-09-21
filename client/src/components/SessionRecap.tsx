@@ -10,6 +10,7 @@ import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 import { getLocale } from "@/paraglide/runtime";
+import { buildRecapText } from "./sessions/helpers";
 
 export type TrackOutlineData =
   | {
@@ -164,23 +165,6 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
   );
 }
 
-export function buildRecapText(recap: SessionRecapDto): string {
-  const lines: string[] = [`RaceIQ — ${recap.trackName} · ${recap.carName}`];
-  const best = recap.bestLapSec,
-    pb = recap.personalBest;
-  const bestPart = best != null ? `${m.recap_text_best()} ${formatLapTime(best)}` : null;
-  const pbPart =
-    pb?.isNew !== true ? null : pb.previousBestSec != null && best != null ? `${m.recap_new_pb()}, ${formatDelta(pb.previousBestSec - best)}` : `${m.recap_new_pb()}, ${m.recap_new_pb_first_ever()}`;
-  const lapsLine = [`${recap.lapsValid} ${m.recap_text_laps()}`, bestPart ? (pbPart ? `${bestPart} (${pbPart})` : bestPart) : null].filter(Boolean).join(" · ");
-  if (lapsLine) lines.push(lapsLine);
-  if (recap.theoretical != null) lines.push(`${m.recap_text_theoretical()} ${formatLapTime(recap.theoretical.sumSec)} (${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()})`);
-  const tailParts: string[] = [];
-  if (recap.consistency != null) tailParts.push(`${m.recap_text_consistency()} ${recap.consistency.rating}★`);
-  if (recap.distanceM != null) tailParts.push(formatDistance(recap.distanceM));
-  tailParts.push(`${formatDuration(recap.timeOnTrackSec)} ${m.recap_text_on_track()}`);
-  if (tailParts.length > 0) lines.push(tailParts.join(" · "));
-  return lines.join("\n");
-}
 
 export interface SessionRecapViewProps {
   recap: SessionRecapDto;

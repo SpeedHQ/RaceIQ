@@ -80,6 +80,10 @@ export function useWebSocket() {
         if (devTelemetryStore.get().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
+        const telemetry = telemetryStore.get();
+        if (telemetry.devStateConsumers > 0 && !telemetry.devStatePaused) {
+          ws.send(JSON.stringify({ type: "subscribe", channel: "dev-state" }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -129,12 +133,6 @@ export function useWebSocket() {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
             queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
-          } else if (data.type === "lap-issues") {
-            telemetryStore.actions.addLapIssues({
-              lapId: data.lapId as number,
-              lapNumber: data.lapNumber as number,
-              issues: data.issues,
-            });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;
           }
@@ -173,6 +171,17 @@ export function useWebSocket() {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
       }
     });
+    const telemetry = telemetryStore.get();
+    let previousDevStateWanted = telemetry.devStateConsumers > 0 && !telemetry.devStatePaused;
+    const unsubscribeDevState = telemetryStore.subscribe((state) => {
+      const wanted = state.devStateConsumers > 0 && !state.devStatePaused;
+      if (wanted === previousDevStateWanted) return;
+      previousDevStateWanted = wanted;
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: wanted ? "subscribe" : "unsubscribe", channel: "dev-state" }));
+      }
+    });
 
     connect();
 
@@ -183,6 +192,7 @@ export function useWebSocket() {
 
     return () => {
       unsubscribeDev.unsubscribe();
+      unsubscribeDevState.unsubscribe();
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);
       abortVersionRequest();

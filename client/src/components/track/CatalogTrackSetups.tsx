@@ -5,7 +5,7 @@ import type { RawUserTune } from "@/components/tune/browser/buildRows";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useResolveNames } from "@/hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes } from "@/hooks/tunes";
-import { tracksMatch } from "@/lib/track-match";
+import { tuneMatchesTrack } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TuneSettings } from "../../../../shared/racing/tuning/types";
@@ -37,14 +37,6 @@ const DEFAULT_BADGE = { label: "SET", cls: "bg-app-surface-alt text-app-text-mut
 const isNum = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
 const fmt = (n: unknown, d = 2) => (isNum(n) ? n.toFixed(d) : "—");
 
-/** Does a catalog/user tune belong to a track? Matches by explicit trackOrdinal
- *  or a fuzzy bestTracks name match. (Car-scoped tunes with neither — most of
- *  Forza's "circuit" catalog — deliberately don't attach to any track page.) */
-export function tuneMatchesTrack(tune: { trackOrdinal?: number | null; bestTracks?: string[] }, track: { ordinal: number; name: string; variant: string }): boolean {
-  if (tune.trackOrdinal != null && tune.trackOrdinal === track.ordinal) return true;
-  if (tune.bestTracks?.some((bt) => tracksMatch(bt, track.name, track.variant))) return true;
-  return false;
-}
 
 /** Forza's flat TuneSettings rendered in the same grouped grid the F1/ACC
  *  setup detail uses (a labelled value list per section). */

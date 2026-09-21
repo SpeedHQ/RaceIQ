@@ -91,6 +91,8 @@ export interface ILapDetector {
   flushStaleLap?(): Promise<void>;
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
+  /** Persist a replaceable incomplete-lap snapshot while telemetry is paused. */
+  snapshotIncompleteLap?(): Promise<void>;
   /** Finalize current session immediately (e.g., when game disconnects). */
   finalizeCurrentSession?(): Promise<void>;
   /**

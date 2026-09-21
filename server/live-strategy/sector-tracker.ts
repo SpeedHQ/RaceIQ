@@ -128,7 +128,7 @@ export class SectorTracker {
       this.initialized = true;
       this.lapDistStart = packet.DistanceTraveled;
       this.lastLap = packet.LapNumber;
-      this.sectorStartTime = packet.CurrentLap;
+      this.sectorStartTime = 0;
       this.prevCurrentLap = packet.CurrentLap;
     }
 

@@ -150,12 +150,16 @@ export function installClientErrorReporting(): void {
 
   console.error = (...args: unknown[]) => {
     rawConsoleError?.(...args);
-    reportClientError("console", formatArgs(args), undefined, "error");
+    if (!isViteRuntimeMessage(args)) reportClientError("console", formatArgs(args), undefined, "error");
   };
   console.warn = (...args: unknown[]) => {
     rawConsoleWarn?.(...args);
-    reportClientError("console", formatArgs(args), undefined, "warn");
+    if (!isViteRuntimeMessage(args)) reportClientError("console", formatArgs(args), undefined, "warn");
   };
+}
+
+function isViteRuntimeMessage(args: unknown[]): boolean {
+  return typeof args[0] === "string" && args[0].startsWith("[vite]");
 }
 
 function formatArgs(args: unknown[]): string {
