@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useLiveEngineerReplayAudio } from "../../hooks/useLiveEngineerReplayAudio";
 import { useLiveEngineerReplayPlayback, type ReplayFrameRange } from "../../hooks/useLiveEngineerReplayPlayback";
 import { AnalyseTrackMap } from "../analyse/AnalyseTrackMap";
+import { MetricsPanel } from "../analyse/AnalyseMetricsPanel";
 import type { Point, SemanticAnalysisFrame } from "../analyse/track-map/types";
 import { F1CarDamageSection } from "../f1/F1CarDamageSection";
 import { Badge, type BadgeProps } from "../ui/badge";
@@ -114,19 +115,6 @@ function formatTime(milliseconds: number): string {
   const millis = Math.floor(value % 1_000);
   return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
 }
-function formatValue(value: unknown, suffix = ""): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  return `${Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2)}${suffix}`;
-}
-function formatLapTimeSeconds(value: unknown): string {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "—";
-  return formatTime(value * 1000);
-}
-
-function formatWheelValues(value: unknown, transform: (value: number) => number = (entry) => entry, suffix = ""): string {
-  if (!Array.isArray(value) || value.length !== 4 || !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))) return "—";
-  return value.map((entry) => `${transform(entry as number).toFixed(0)}${suffix}`).join(" / ");
-}
 function finiteValue(values: Readonly<Record<string, unknown>>, semanticId: string): number | undefined {
   const value = values[semanticId];
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -149,10 +137,7 @@ const stageDepth: Readonly<Record<LiveEngineerReplayStage, number>> = {
 };
 
 interface ReplayGraphRow {
-  annotation: LiveEngineerReplayAnnotationV1;
-  depth: number;
-  startsChain: boolean;
-  endsChain: boolean;
+  annotations: readonly LiveEngineerReplayAnnotationV1[];
 }
 
 function replayGraphRows(visible: readonly LiveEngineerReplayAnnotationV1[], all: readonly LiveEngineerReplayAnnotationV1[]): ReplayGraphRow[] {
@@ -169,9 +154,9 @@ function replayGraphRows(visible: readonly LiveEngineerReplayAnnotationV1[], all
   }
   return [...groups.values()]
     .sort((left, right) => Math.min(...left.map((annotation) => annotation.frameIndex)) - Math.min(...right.map((annotation) => annotation.frameIndex)))
-    .flatMap((group) => group
-      .sort((left, right) => stageDepth[left.stage] - stageDepth[right.stage] || left.frameIndex - right.frameIndex)
-      .map((annotation, index) => ({ annotation, depth: stageDepth[annotation.stage], startsChain: index === 0, endsChain: index === group.length - 1 })));
+    .map((annotations) => ({
+      annotations: annotations.sort((left, right) => stageDepth[left.stage] - stageDepth[right.stage] || left.frameIndex - right.frameIndex),
+    }));
 }
 
 function systemIsEnabled(system: LiveEngineerCalloutSystemV1): boolean {
@@ -208,26 +193,6 @@ function SummaryMetric({ label, value, detail, icon: Icon }: { label: string; va
   );
 }
 
-function FrameReadout({ frame }: { frame: { values: Readonly<Record<string, unknown>> } | null }) {
-  const values = frame?.values ?? {};
-  const lapFraction = values["timing.lap-fraction"];
-  const fuelPercent = finiteValue(values, "fuel.fuel-percent");
-  const fuelVolume = finiteValue(values, "fuel.remaining-volume");
-  const tireHealth = formatWheelValues(values["tires.tire-wear"], (wear) => (1 - wear) * 100, "%");
-  const tireTemperature = formatWheelValues(values["tire.temperature.surface.representative"], (temperature) => temperature, "°");
-  return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-app-detail sm:grid-cols-4">
-      <div><div className="text-app-caption text-app-text-muted">Lap</div><div className="font-mono tabular-nums">{String(values["timing.lap-number"] ?? "—")}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Current lap time</div><div className="font-mono tabular-nums">{formatLapTimeSeconds(values["timing.current-lap"])}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Position</div><div className="font-mono tabular-nums">{String(values["race.race-position"] ?? "—")}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Speed</div><div className="font-mono tabular-nums">{formatValue(values["motion.speed"], " m/s")}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Lap progress</div><div className="font-mono tabular-nums">{typeof lapFraction === "number" ? `${(lapFraction * 100).toFixed(1)}%` : "—"}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Fuel level</div><div className="font-mono tabular-nums">{fuelPercent !== undefined ? `${fuelPercent.toFixed(1)}%` : fuelVolume !== undefined ? `${fuelVolume.toFixed(1)} L` : "—"}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Tire health FL / FR / RL / RR</div><div className="font-mono tabular-nums">{tireHealth}</div></div>
-      <div><div className="text-app-caption text-app-text-muted">Tire temp FL / FR / RL / RR</div><div className="font-mono tabular-nums">{tireTemperature}</div></div>
-    </div>
-  );
-}
 
 export function DevLiveEngineerReplay() {
   const search = useSearch({ from: "/dev/speech/engineer-replay" }) as { gameId?: string; sessionId?: number };
@@ -515,7 +480,7 @@ export function DevLiveEngineerReplay() {
                 {filteredAnnotations.map((annotation) => <button key={annotation.id} type="button" className={cn("absolute top-1 size-5 -translate-x-1/2 rounded-full border-2 border-app-bg", annotation.stage === "voice-line" ? "bg-status-success" : annotation.stage === "decision" ? "bg-status-warning" : "bg-app-accent")} style={{ left: `${((annotation.timelineMs - startTime) / timelineDuration) * 100}%` }} title={`${annotation.stage}: ${annotation.action}`} aria-label={`Seek to ${annotation.stage} ${annotation.action}`} onClick={() => seekTo(annotation.frameIndex, annotation.id)} />)}
               </div>
               <input className="w-full accent-app-accent" type="range" min={playback.startFrameIndex} max={playback.endFrameIndex} value={playback.cursorIdx} aria-label="Replay frame" onChange={(event) => seekTo(Number(event.target.value))} />
-              <FrameReadout frame={playback.frame} />
+              {playback.frame && <MetricsPanel frame={{ values: playback.frame.values, states: {}, freshness: {} }} gameId={gameId as GameId} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               {audio.error && <div className="flex items-center justify-between gap-3 rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-app-detail text-status-danger"><span>{audio.error}</span><Button variant="plain" size="content" onClick={audio.clearError}>Dismiss</Button></div>}
             </CardContent>
@@ -528,7 +493,6 @@ export function DevLiveEngineerReplay() {
                 {outline ? <AnalyseTrackMap gameId={gameId as GameId} telemetry={telemetry} cursorIdx={mapCursorIndex} outline={outline} boundaries={null} sectors={null} segments={null} rotateWithCar={false} showTrace /> : <div className="flex h-full min-h-[28rem] flex-col items-center justify-center gap-3 p-8 text-center text-app-text-muted"><Map /><div><b className="text-app-text">Map unavailable</b><p className="mt-1 max-w-md text-app-detail">Capture has no trustworthy world coordinates. Timeline, lap fraction, runtime evidence, and audio remain usable.</p></div></div>}
               </CardContent>
             </Card>
-
             <Card className="min-h-[34rem]">
               <Tabs key={`${replay.sessionId}-${lapFilter}`} defaultValue={filteredAnnotations.length ? "events" : "systems"} className="flex min-h-0 flex-1 flex-col">
                 <CardHeader className="border-b">
@@ -544,18 +508,20 @@ export function DevLiveEngineerReplay() {
                     <Badge variant="neutral" className="ml-auto">{frameAnnotations.length} at cursor</Badge>
                   </div>
                   <div className="max-h-72 min-h-48 overflow-y-auto">
-                    {graphRows.length ? graphRows.map(({ annotation, depth, startsChain, endsChain }) => (
-                      <div key={annotation.id} className={cn("relative flex items-start border-b border-app-border transition-colors hover:bg-app-surface-hover", selectedAnnotation?.id === annotation.id && "bg-app-accent/10")}>
-                        <span aria-hidden className="absolute w-px bg-app-border" style={{ left: 14, top: startsChain ? "50%" : 0, bottom: endsChain ? "50%" : 0 }} />
-                        <span aria-hidden className="absolute h-px bg-app-border" style={{ left: 14, top: "50%", width: 12 + depth * 18 }} />
-                        <button type="button" className="flex min-w-0 flex-1 items-start gap-3 py-2 pr-3 text-left" style={{ paddingLeft: 34 + depth * 18 }} onClick={() => seekTo(annotation.frameIndex, annotation.id)}>
-                          <Badge variant={stageVariant(annotation.stage)} size="compact">{humanize(annotation.stage)}</Badge>
-                          <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-1.5"><b>{humanize(annotation.action)}</b><span className="text-app-caption text-app-text-muted">{humanize(annotation.family)}</span></span><span className="block truncate text-app-caption text-app-text-muted">{annotation.renderedText || annotation.reason || annotation.segmentIds.join(" · ") || `Frame ${annotation.frameIndex}`}</span></span>
-                          <span className="font-mono text-app-caption tabular-nums text-app-text-muted">{formatTime(annotation.timelineMs - startTime)}</span>
+                    {graphRows.length ? graphRows.map(({ annotations }) => {
+                      const target = annotations.find((annotation) => annotation.stage === "callout") ?? annotations.at(-1)!;
+                      const playable = annotations.find((annotation) => annotation.segmentIds.length > 0 || annotation.audioLineId);
+                      const detail = annotations.find((annotation) => annotation.renderedText || annotation.reason) ?? target;
+                      const selected = annotations.some((annotation) => annotation.id === selectedAnnotation?.id);
+                      return <div key={target.id} className={cn("flex items-start border-b border-app-border transition-colors hover:bg-app-surface-hover", selected && "bg-app-accent/10")}>
+                        <button type="button" className="flex min-w-0 flex-1 items-start gap-3 px-3 py-2 text-left" onClick={() => seekTo(target.frameIndex, target.id)}>
+                          <span className="flex shrink-0 flex-wrap gap-1">{annotations.map((annotation) => <Badge key={annotation.id} variant={stageVariant(annotation.stage)} size="compact">{humanize(annotation.stage)}</Badge>)}</span>
+                          <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-1.5"><b>{humanize(target.action)}</b><span className="text-app-caption text-app-text-muted">{humanize(target.family)}</span></span><span className="block truncate text-app-caption text-app-text-muted">{detail.renderedText || detail.reason || detail.segmentIds.join(" · ") || `Frame ${target.frameIndex}`}</span></span>
+                          <span className="font-mono text-app-caption tabular-nums text-app-text-muted">{formatTime(target.timelineMs - startTime)}</span>
                         </button>
-                        {(annotation.segmentIds.length > 0 || annotation.audioLineId) && <Button className="mr-3 mt-1" variant={audio.playingId === annotation.id ? "selected-toggle" : "app-outline"} size="icon-sm" aria-label={`Play ${annotation.action}`} onClick={() => playAnnotation(annotation)}>{audio.playingId === annotation.id ? <CircleStop /> : <Volume2 />}</Button>}
-                      </div>
-                    )) : <div className="p-6 text-center text-app-text-muted">No events match visible lap and filters. Check Systems for unavailable producers.</div>}
+                        {playable && <Button className="mr-3 mt-1" variant={audio.playingId === playable.id ? "selected-toggle" : "app-outline"} size="icon-sm" aria-label={`Play ${playable.action}`} onClick={() => playAnnotation(playable)}>{audio.playingId === playable.id ? <CircleStop /> : <Volume2 />}</Button>}
+                      </div>;
+                    }) : <div className="p-6 text-center text-app-text-muted">No events match visible lap and filters. Check Systems for unavailable producers.</div>}
                   </div>
                   <EventDetail annotation={selectedAnnotation} onPlay={playAnnotation} playing={selectedAnnotation?.id === audio.playingId} />
                 </TabsContent>
