@@ -102,3 +102,7 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
 - `server/session-capture/reprocess.ts` — detector replay and index refresh
 - `server/session-capture/compressor.ts` — background gzip
+
+## ACC Broadcast metadata
+
+ACC canonical captures retain raw Broadcast evidence in same file as ACCP telemetry. Each ACCB v1 metadata envelope precedes one persisted telemetry frame and contains ordered datagrams/lifecycle events, event receive timestamps, and shared-memory frame receive time. Metadata does not increment telemetry record count; old captures remain valid and readers may skip ACCB records. A malformed complete ACCB record is reported and iteration continues; a truncated final envelope stops at tail while preserving prior records.

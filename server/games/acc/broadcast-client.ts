@@ -1,6 +1,7 @@
 import dgram from "node:dgram";
 import { encodeAccBroadcastEntryListRequest, encodeAccBroadcastRegistration, parseAccBroadcastMessage } from "./broadcast-protocol";
 import { accBroadcastState, AccBroadcastState } from "./broadcast-state";
+import { AccBroadcastCaptureBuffer, accBroadcastCapture } from "./broadcast-capture";
 
 type DatagramSocket = {
   connect(port: number, address: string, callback?: () => void): void;
@@ -18,11 +19,12 @@ export interface AccBroadcastClientOptions {
   realtimeIntervalMs?: number;
   now?: () => number;
   state?: AccBroadcastState;
+  capture?: AccBroadcastCaptureBuffer;
   socketFactory?: () => DatagramSocket;
 }
 
 export class AccBroadcastClient {
-  private readonly options: Required<Omit<AccBroadcastClientOptions, "state" | "socketFactory">> & Pick<AccBroadcastClientOptions, "state" | "socketFactory">;
+  private readonly options: Required<Omit<AccBroadcastClientOptions, "state" | "capture" | "socketFactory">> & Pick<AccBroadcastClientOptions, "state" | "capture" | "socketFactory">;
   private socket: DatagramSocket | null = null;
   private connectPromise: Promise<void> | null = null;
   private registered = false;
@@ -41,6 +43,7 @@ export class AccBroadcastClient {
       realtimeIntervalMs: options.realtimeIntervalMs ?? 100,
       now: options.now ?? Date.now,
       state: options.state,
+      capture: options.capture,
       socketFactory: options.socketFactory,
     };
   }
@@ -60,12 +63,19 @@ export class AccBroadcastClient {
     const socket = this.options.socketFactory?.() ?? dgram.createSocket("udp4");
     this.socket = socket;
     const state = this.options.state ?? accBroadcastState;
+    const capture = this.options.capture;
+    const receivedAt = () => this.options.now();
+    capture?.recordLifecycle("socket-open", receivedAt());
+    state.setSocketConnected(true);
     socket.on("message", (payload) => {
+      const at = receivedAt();
+      capture?.recordDatagram(payload, at);
       const message = parseAccBroadcastMessage(payload);
-      if (!message) return;
+      if (!message) { state.markMalformed("malformed-datagram"); return; }
       if (message.type === "registration-result") {
         if (!message.success || this.registered || this.socket !== socket || this.generation !== generation) return;
         this.registered = true;
+        state.setRegistered(true);
         this.registrationConnectionId = message.connectionId;
         this.lastEntryListRequestAt = -Infinity;
         this.sendEntryListRequest(socket, generation);
@@ -77,9 +87,13 @@ export class AccBroadcastClient {
       state.apply(message);
     });
     socket.on("error", () => {
+      capture?.recordLifecycle("socket-error", receivedAt());
+      state.markMalformed("malformed-datagram");
       if (!this.stopped) this.stop().catch(() => {});
     });
     socket.on("close", () => {
+      capture?.recordLifecycle("socket-close", receivedAt());
+      state.setSocketConnected(false);
       if (this.socket !== socket) return;
       this.socket = null;
       this.registered = false;
@@ -124,10 +138,13 @@ export class AccBroadcastClient {
     this.registered = false;
     this.registrationConnectionId = null;
     this.lastEntryListRequestAt = -Infinity;
-    (this.options.state ?? accBroadcastState).reset();
+    const state = this.options.state ?? accBroadcastState;
+    state.setRegistered(false);
+    state.setSocketConnected(false);
+    state.reset();
     if (!socket) return;
     await new Promise<void>((resolve) => socket.close(resolve));
   }
 }
 
-export const accBroadcastClient = new AccBroadcastClient();
+export const accBroadcastClient = new AccBroadcastClient({ capture: accBroadcastCapture });

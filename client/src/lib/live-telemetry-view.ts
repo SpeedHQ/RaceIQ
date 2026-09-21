@@ -1,5 +1,5 @@
 import type { GameId } from "../../../shared/games/ids";
-import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1, OpponentSourceStatusV1 } from "../../../shared/telemetry/live/contracts";
 import type { FreshnessState, ResolutionState } from "../../../shared/telemetry/resolver/contracts";
 
 export type WheelValues<T> = Readonly<{ fl: T; fr: T; rl: T; rr: T }>;
@@ -7,6 +7,11 @@ export type TireSurfaceBand = "representative" | "inner" | "middle" | "outer";
 export type TireCarcassBand = "left" | "middle" | "right";
 export type TireTemperatureProfile<Band extends string> = WheelValues<Readonly<Partial<Record<Band, number>>>>;
 export interface LiveCompetitorView {
+  carIndex?: number;
+  classId?: number | string;
+  className?: string;
+  lapsComplete?: number;
+  connected?: boolean;
   position?: number;
   name?: string;
   gapToAheadS?: number;
@@ -15,6 +20,8 @@ export interface LiveCompetitorView {
   tireAge?: number;
   pitStatus?: number | boolean | string;
   pitStops?: number;
+  lastLapS?: number;
+  lastLapValid?: boolean;
   lastS1S?: number;
   lastS2S?: number;
   lastS3S?: number;
@@ -29,7 +36,8 @@ export interface LiveTelemetryView {
   sessionId: number | null;
   sequence: number;
   observedAtMs: number;
-  identity: { carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number };
+  identity: { carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number; playerCarIndex?: number; playerCarClass?: number | string };
+  opponentSource?: OpponentSourceStatusV1 | null;
   motion: {
     speedMps?: number;
     acceleration?: { x: number; z: number };
@@ -167,37 +175,41 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     return roll === undefined || pitch === undefined || yaw === undefined ? undefined : { roll, pitch, yaw };
   })();
   const statusBySemanticId: Record<string, LiveTelemetryValueStatus> = Object.fromEntries(
-    schema.definitions.map((definition, index) => [
-      definition.semanticId,
-      {
-        resolution: frame.states?.[index] ?? "ok",
-        freshness: frame.freshness?.[index] ?? "fresh",
-      },
-    ]),
+    schema.definitions.map((definition, index) => [definition.semanticId, { resolution: frame.states?.[index] ?? "ok", freshness: frame.freshness?.[index] ?? "fresh" }]),
   );
   const competitorFields = [
-    ["position", "race.competitor.position"],
+    ["carIndex", "race.competitor.car-index"],
     ["name", "race.competitor.driver-name"],
+    ["classId", "race.competitor.car-class-id"],
+    ["className", "race.competitor.car-class-name"],
+    ["position", "race.competitor.position"],
+    ["lapsComplete", "race.competitor.laps-complete"],
+    ["pitStatus", "race.competitor.pit-status"],
+    ["connected", "race.competitor.connected"],
+    ["lastLapS", "timing.competitor.last-lap-time"],
+    ["lastLapValid", "timing.competitor.last-lap-valid"],
     ["gapToAheadS", "timing.competitor.gap-to-ahead"],
     ["gapToLeaderS", "timing.competitor.gap-to-leader"],
     ["tireCompound", "tires.competitor.compound"],
     ["tireAge", "tires.competitor.age"],
-    ["pitStatus", "race.competitor.pit-status"],
     ["pitStops", "race.competitor.pit-stops"],
     ["lastS1S", "timing.sector.competitor-last.s1"],
     ["lastS2S", "timing.sector.competitor-last.s2"],
     ["lastS3S", "timing.sector.competitor-last.s3"],
   ] as const;
   const competitorArrays = competitorFields.map(([key, semanticId]) => [key, value(semanticId)] as const);
-  const competitorCount = Math.max(0, ...competitorArrays.map(([, items]) => (Array.isArray(items) ? items.length : 0)));
+  const requiredAccIds = ["race.competitor.car-index", "race.competitor.driver-name", "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.position", "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.connected", "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid"];
+  const accSource = frame.context.opponentSource ?? null;
+  const sourceAvailable = schema.simulator !== "acc" || accSource?.state === "available";
+  const requiredAccArrays = requiredAccIds.map((id) => value(id));
+  const firstAccArray = requiredAccArrays[0];
+  const firstAccLength = Array.isArray(firstAccArray) ? firstAccArray.length : 0;
+  const alignedAcc = firstAccLength > 0 && firstAccLength <= 64 && requiredAccArrays.every((items) => Array.isArray(items) && items.length === firstAccLength);
+  const competitorCount = schema.simulator === "acc" ? (sourceAvailable && alignedAcc ? firstAccLength : 0) : Math.max(0, ...competitorArrays.map(([, items]) => (Array.isArray(items) ? items.length : 0)));
   const competitors: LiveCompetitorView[] = [];
   for (let index = 0; index < competitorCount; index++) {
     const competitor: LiveCompetitorView = {};
-    for (const [key, items] of competitorArrays) {
-      if (Array.isArray(items) && items[index] !== undefined && items[index] !== null) {
-        (competitor as Record<string, unknown>)[key] = items[index];
-      }
-    }
+    for (const [key, items] of competitorArrays) if (Array.isArray(items) && items[index] !== undefined && items[index] !== null) (competitor as Record<string, unknown>)[key] = items[index];
     competitors.push(competitor);
   }
   const racePosition = number("race.race-position");
@@ -218,7 +230,10 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
       carClass: number("identity.car-class"),
       performanceIndex: number("identity.car-performance-index"),
       drivetrainType: number("identity.drivetrain-type"),
+      playerCarIndex: number("identity.player-car-index"),
+      playerCarClass: numberOrString("identity.player-car-class-id"),
     },
+    opponentSource: frame.context.opponentSource ?? null,
     motion: {
       speedMps: number("motion.speed"),
       distanceM: number("timing.distance-traveled"),

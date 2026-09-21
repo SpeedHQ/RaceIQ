@@ -81,3 +81,7 @@ the expected lap or parser behavior in the test that consumes it.
 - Do not rename fixtures after capture without preserving the game identifier.
 - Stage developer-only recordings under `test/artifacts/`, not production
   session storage.
+
+## Normal ACC capture
+
+Use normal `bun run dev` with ACC running; do not use `dev:dump:acc` when validating canonical Broadcast evidence. ACC starts Broadcast registration whenever ACC starts. Capture endpoint defaults to `127.0.0.1:9000`; set `ACC_BROADCAST_HOST`, `ACC_BROADCAST_PORT`, and password variables when needed. ACCB records are embedded beside ACCP frames and replay/import preserve player telemetry when Broadcast is unavailable or malformed.

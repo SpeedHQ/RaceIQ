@@ -6,6 +6,10 @@ import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import type { LiveEngineerReplaySourceProfileV1 } from "../../shared/racing/live/engineer-replay-contracts";
 import { getServerGame } from "../games/registry";
+import { parseAccBroadcastMessage } from "../games/acc/broadcast-protocol";
+import { AccBroadcastState } from "../games/acc/broadcast-state";
+import { unpackTriplet } from "../games/kunos/pack-triplet";
+import { GRAPHICS } from "../games/acc/structs";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
@@ -343,12 +347,15 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
   }
   const serverGame = getServerGame(gameId);
   let state = serverGame.createParserState?.() ?? null;
+  let replayClock = 0;
+  const replayBroadcast = gameId === "acc" ? new AccBroadcastState({ now: () => replayClock }) : null;
   const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
   let inContext = false;
   for (const record of iterateSessionCaptureRecords(buf)) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
+      replayBroadcast?.reset();
       inContext = false;
       continue;
     }
@@ -360,11 +367,55 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
       inContext = false;
       continue;
     }
+    if (record.kind === "acc-broadcast") {
+      for (const event of record.batch.events) {
+        replayClock = event.receivedAtMs;
+        if (event.kind === "datagram") {
+          const message = parseAccBroadcastMessage(event.payload);
+          if (message) replayBroadcast?.apply(message, event.receivedAtMs);
+          else replayBroadcast?.markMalformed("malformed-datagram");
+        } else if (event.kind === "socket-open") replayBroadcast?.setSocketConnected(true);
+        else if (event.kind === "socket-close" || event.kind === "socket-error") replayBroadcast?.setSocketConnected(false);
+        else if (event.kind === "explicit-reset") replayBroadcast?.reset();
+      }
+      replayClock = record.batch.frameReceivedAtMs;
+      continue;
+    }
+    if (record.kind === "acc-broadcast-malformed") { replayBroadcast?.markMalformed("malformed-capture-record"); continue; }
     if (record.kind !== "frame") continue;
     try {
       const packet = serverGame.tryParse(record.frame, state);
       if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
+      if (gameId === "acc" && replayBroadcast) {
+        const triplet = unpackTriplet(record.frame);
+        if (triplet && triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4) replayBroadcast.setPlayerCarIndex(triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset));
+        const snapshot = replayBroadcast.snapshot();
+        if (snapshot.extension && packet.acc) Object.assign(packet.acc, {
+          broadcastSessionIndex: snapshot.extension.sessionIndex,
+          broadcastSessionType: snapshot.extension.sessionType,
+          broadcastPhase: snapshot.extension.phase,
+          broadcastPlayerCarIndex: snapshot.extension.playerCarIndex,
+          broadcastPlayerCarClassId: snapshot.extension.playerCarClassId,
+          broadcastCarIndex: snapshot.extension.carIndex,
+          broadcastDriverId: snapshot.extension.driverId,
+          broadcastDriverName: snapshot.extension.driverName,
+          broadcastCarClassId: snapshot.extension.carClassId,
+          broadcastCarClassName: snapshot.extension.carClassName,
+          broadcastLapsComplete: snapshot.extension.lapsComplete,
+          broadcastPosition: snapshot.extension.position,
+          broadcastPitStatus: snapshot.extension.pitStatus,
+          broadcastTrackLocation: snapshot.extension.trackLocation,
+          broadcastPositionX: snapshot.extension.positionX,
+          broadcastPositionY: snapshot.extension.positionY,
+          broadcastPositionZ: snapshot.extension.positionZ,
+          broadcastSpeed: snapshot.extension.speed,
+          broadcastYaw: snapshot.extension.yaw,
+          broadcastLastLapTime: snapshot.extension.lastLapTime,
+          broadcastLastLapValid: snapshot.extension.lastLapValid,
+          broadcastConnected: snapshot.extension.connected,
+        });
+        packet.TimestampMS = record.kind === "frame" ? replayClock : packet.TimestampMS;
+      }
       if (!inContext) packets.push(packet);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
@@ -385,6 +436,12 @@ export async function getSessionTelemetryReplaySource(sessionId: number, gameId:
   const rawFile = session?.rawFile ?? "";
   const captureKind = rawFile.endsWith(".motec.zip") ? "motec-packets" : rawFile.endsWith(".gz") ? "compressed-capture" : "capture";
   const sourceClockCaptured = gameId === "iracing" || gameId === "f1-2025";
+  const accBroadcastRecords: { kind: "acc-broadcast" | "acc-broadcast-malformed" }[] = [];
+  const opponentSourceCapture = gameId === "acc" ? {
+    source: "acc-broadcast" as const,
+    status: accBroadcastRecords.some((record) => record.kind === "acc-broadcast-malformed") ? "malformed" as const : accBroadcastRecords.length ? "captured" as const : "unavailable" as const,
+    recordCount: accBroadcastRecords.filter((record) => record.kind === "acc-broadcast").length,
+  } : null;
   return {
     packets,
     sourceProfile: {
@@ -393,13 +450,14 @@ export async function getSessionTelemetryReplaySource(sessionId: number, gameId:
       limitations: gameId === "fm-2023"
         ? ["player-only-telemetry", "source-clock-not-captured"]
         : gameId === "acc"
-          ? ["persisted-source-not-captured:broadcast", "source-clock-not-captured"]
+          ? (opponentSourceCapture?.status === "captured" ? ["source-clock-captured:acc-broadcast"] : ["persisted-source-not-captured:broadcast", "source-clock-not-captured"])
           : gameId === "ac-evo"
             ? ["persisted-source-not-captured:broadcast", "source-clock-not-captured", "inherited-acc-broadcast-mappings-excluded"]
             : gameId === "f1-2025"
               ? ["no-game-branch:spotter"]
               : ["native-spotter-requires-captured-car-left-right", "v2-and-ibt-session-info-limitations"],
-      sourceClockCaptured,
+      sourceClockCaptured: sourceClockCaptured || opponentSourceCapture?.status === "captured",
+      opponentSourceCapture,
       segmentCount: 1,
       skippedMalformedFrames: 0,
       nativeSessionInfo: gameId === "iracing",

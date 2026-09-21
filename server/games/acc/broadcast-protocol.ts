@@ -9,7 +9,8 @@ export const ACC_BROADCAST_PROTOCOL_VERSION = 4;
 
 class Reader {
   private offset = 0;
-  constructor(private readonly bytes: Uint8Array) {}
+  private readonly bytes: Uint8Array;
+  constructor(bytes: Uint8Array) { this.bytes = bytes; }
   get remaining(): number { return this.bytes.length - this.offset; }
   u8(): number { this.need(1); return this.bytes[this.offset++]!; }
   u16(): number { this.need(2); const v = this.bytes[this.offset]! | (this.bytes[this.offset + 1]! << 8); this.offset += 2; return v; }

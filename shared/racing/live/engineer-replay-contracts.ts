@@ -7,7 +7,7 @@ export type LiveEngineerReplayClockQuality = "captured" | "native-session" | "no
 export type LiveEngineerSystemLifecycle = "unavailable" | "baseline" | "ready";
 export type LiveEngineerImplementationStatus = "implemented" | "detector-not-implemented" | "renderer-unavailable" | "no-game-branch";
 export type LiveEngineerReplayStage = "trigger" | "candidate" | "decision" | "selected" | "spotter" | "callout" | "voice-line";
-
+export interface OpponentSourceCaptureV1 { source: "acc-broadcast"; status: "captured" | "unavailable" | "malformed"; recordCount: number; }
 export interface LiveEngineerReplayFrameV1 {
   frameIndex: number;
   sourceSequence: number;
@@ -16,6 +16,9 @@ export interface LiveEngineerReplayFrameV1 {
   timelineMs: number;
   triggerContext: Readonly<Record<string, boolean | null>>;
   values: Readonly<Record<string, number | string | boolean | null | readonly (number | string | boolean | null)[]>>;
+  states?: Readonly<Record<string, ResolvedValue<unknown>["state"]>>;
+  freshness?: Readonly<Record<string, ResolvedValue<unknown>["freshness"]>>;
+  opponentSource?: import("../../telemetry/live/contracts").OpponentSourceStatusV1 | null;
 }
 
 export interface LiveEngineerReplayLapV1 {
@@ -79,6 +82,7 @@ export interface LiveEngineerReplaySourceProfileV1 {
   captureKind: string;
   limitations: readonly string[];
   sourceClockCaptured: boolean;
+  opponentSourceCapture?: OpponentSourceCaptureV1 | null;
   segmentCount: number;
   skippedMalformedFrames: number;
   nativeSessionInfo: boolean;

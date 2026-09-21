@@ -43,9 +43,9 @@ export function startNativeSourceSupervisor(
   let wasAccRunning = false;
   const pollTimer = setInterval(() => {
     const accRunning = isGameRunning("acc");
-    if (liveSpotterEngineerEnabled && accRunning) {
+    if (accRunning) {
       void accBroadcastClient.start().catch((error) => console.error("[ACC Broadcast] Start failed:", error));
-    } else if (liveSpotterEngineerEnabled && wasAccRunning) {
+    } else if (wasAccRunning) {
       void accBroadcastClient.stop().catch((error) => console.error("[ACC Broadcast] Stop failed:", error));
     }
     wasAccRunning = accRunning;

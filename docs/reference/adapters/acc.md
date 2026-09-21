@@ -87,3 +87,9 @@ The packed bytes enter the common session recorder. Replay and import call the s
 - `server/games/acc/broadcast-protocol.ts` — protocol v4 binary encoding/decoding
 - `server/games/acc/broadcast-client.ts` — UDP registration and receive lifecycle
 - `server/games/acc/broadcast-state.ts` — entry-list/realtime join and semantic snapshot
+
+## ACC Broadcast capture
+
+Canonical ACC sessions interleave one ACCB v1 metadata record immediately before each ACCP frame. ACCB stores raw protocol-v4 datagrams and socket lifecycle events with Unix-ms receive timestamps, plus shared-memory frame receive time. Existing ACCP and ACCTEST recordings remain player-only; readers that do not consume ACCB skip metadata.
+
+Broadcast capability is fail-closed: `available` requires connected and registered source, current realtime session, complete aligned entry/realtime identities, and at most 64 unique cars. `unavailable` means no complete source; `stale` means source clock timeout; `malformed` means invalid protocol or capture evidence. Replay applies ordered ACCB events before each following ACCP frame.

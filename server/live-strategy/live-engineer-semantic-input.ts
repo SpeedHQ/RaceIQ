@@ -43,10 +43,11 @@ const array = <T>(values: ReadonlyMap<string, ResolvedValue<unknown>>, id: strin
   return Array.isArray(value) ? value as readonly T[] : null;
 };
 const aligned = (lists: readonly (readonly unknown[] | null)[], max = 64): lists is readonly (readonly unknown[])[] => {
-  if (lists.some((list) => !list || list.length > max)) return false;
+  if (lists.some((list) => !list || list.length === 0 || list.length > max)) return false;
   const length = lists[0]!.length;
   return lists.every((list) => list!.length === length);
 };
+const validIndexes = (values: readonly unknown[]): values is readonly number[] => values.every(finite) && new Set(values).size === values.length;
 
 export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFrame): LiveEngineerSemanticInput {
   const values = new Map<string, ResolvedValue<unknown>>();
@@ -89,9 +90,14 @@ export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFram
   const times = array<number>(values, "timing.competitor.last-lap-time");
   const validities = array<unknown>(values, "timing.competitor.last-lap-valid");
   const paceLists = [indexes, driverIds, driverNames, classIds, classNames, laps, pits, times];
+  const accFactsValid = frame.simulator !== "acc" || (
+    validIndexes(indexes ?? []) &&
+    !!locations && !!connected && !!validities &&
+    locations.length === indexes?.length && connected.length === indexes?.length && validities.length === indexes?.length
+  );
   let pace: LiveEngineerPaceInput | null = null;
-  if (finite(playerCarIndex) && typeof playerCarClassId === "string" && typeof sessionType === "string" && aligned(paceLists)) {
-    const requiredForGame = frame.simulator === "acc" ? [connected, validities] : frame.simulator === "iracing" ? [locations] : frame.simulator === "f1-2025" ? [validities] : [];
+  if (accFactsValid && finite(playerCarIndex) && typeof playerCarClassId === "string" && typeof sessionType === "string" && aligned(paceLists)) {
+    const requiredForGame = frame.simulator === "acc" ? [connected, validities, locations] : frame.simulator === "iracing" ? [locations] : frame.simulator === "f1-2025" ? [validities] : [];
     if (aligned([...paceLists, ...requiredForGame])) pace = { playerCarIndex, playerCarClassId, sessionType, competitorCarIndexes: indexes!, competitorDriverIds: driverIds!, competitorDriverNames: driverNames!, competitorClassIds: classIds!, competitorClassNames: classNames!, competitorLaps: laps!, competitorPitStatuses: pits!, competitorTrackLocations: locations, competitorConnected: connected, competitorLastLapTimes: times!, competitorLastLapValidity: validities };
   }
   return { frame, values, lapState, pace };

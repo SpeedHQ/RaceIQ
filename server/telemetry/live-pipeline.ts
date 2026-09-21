@@ -1,4 +1,4 @@
-export type PacketSourceReference = Buffer | { rawOffset: number };
+export type PacketSourceReference = Buffer | { rawOffset: number } | { frame: Buffer; capturePrefixRecords: () => readonly Buffer[]; acknowledgeRecorded: () => void };
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
@@ -351,9 +351,12 @@ export class LiveTelemetryPipeline {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
-      } else {
-        rawByteOffset = source.rawOffset;
-      }
+      } else if ("frame" in source) {
+        rawByteOffset = this.recorder.getCurrentByteOffset();
+        for (const prefix of source.capturePrefixRecords()) this.recorder.writeRawCaptureBytes(prefix);
+        this.recorder.writeRecord(source.frame);
+        source.acknowledgeRecorded();
+      } else if ("rawOffset" in source) rawByteOffset = source.rawOffset;
     }
 
     const adapter = getServerGame(packet.gameId);
@@ -366,22 +369,26 @@ export class LiveTelemetryPipeline {
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
 
-    // If feed rotates the session, write the triggering source into the new recorder
-    // and patch the detector offset to the canonical source position.
     if (source && this.recorder.active && this.recorder.epoch !== epochBefore) {
       if (Buffer.isBuffer(source)) {
         if (this._pendingSessionContextFrames.length > 0) {
-          for (const contextFrame of this._pendingSessionContextFrames) {
-            this.recorder.writeRawCaptureBytes(contextFrame);
-          }
+          for (const contextFrame of this._pendingSessionContextFrames) this.recorder.writeRawCaptureBytes(contextFrame);
           this._pendingSessionContextFrames = [];
         }
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
-      } else {
-        detector.setCurrentLapByteOffset?.(source.rawOffset);
-      }
+      } else if ("frame" in source) {
+        if (this._pendingSessionContextFrames.length > 0) {
+          for (const contextFrame of this._pendingSessionContextFrames) this.recorder.writeRawCaptureBytes(contextFrame);
+          this._pendingSessionContextFrames = [];
+        }
+        const firstOffset = this.recorder.getCurrentByteOffset();
+        for (const prefix of source.capturePrefixRecords()) this.recorder.writeRawCaptureBytes(prefix);
+        this.recorder.writeRecord(source.frame);
+        source.acknowledgeRecorded();
+        detector.setCurrentLapByteOffset?.(firstOffset);
+      } else if ("rawOffset" in source) detector.setCurrentLapByteOffset?.(source.rawOffset);
     }
 
     const sectors = this.sectorTracker.feed(packet);
@@ -452,7 +459,7 @@ export class LiveTelemetryPipeline {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
-      } else {
+      } else if ("rawOffset" in source) {
         rawByteOffset = source.rawOffset;
       }
     }
@@ -472,7 +479,7 @@ export class LiveTelemetryPipeline {
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
-      } else {
+      } else if ("rawOffset" in source) {
         detector.setCurrentLapByteOffset?.(source.rawOffset);
       }
     }
