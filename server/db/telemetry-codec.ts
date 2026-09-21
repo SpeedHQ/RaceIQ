@@ -57,7 +57,7 @@ const F1_LIVE_ONLY_KEYS = new Set([
   "engineICEWear", "engineMGUKWear", "engineTCWear",
 ]);
 
-function buildMeta(packets: TelemetryPacket[], storeF1Grid: boolean): Record<string, unknown> | null {
+function buildMeta(packets: TelemetryPacket[], storeOpponentGrid: boolean): Record<string, unknown> | null {
   if (packets.length === 0) return null;
   const first = packets[0];
   const meta: Record<string, unknown> = {};
@@ -66,7 +66,7 @@ function buildMeta(packets: TelemetryPacket[], storeF1Grid: boolean): Record<str
   if (first.f1) {
     const stripped: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(first.f1)) {
-      if (k === "grid" && storeF1Grid) {
+      if (k === "grid" && storeOpponentGrid) {
         stripped[k] = v;
       } else if (!F1_LIVE_ONLY_KEYS.has(k)) {
         stripped[k] = v;
@@ -78,13 +78,13 @@ function buildMeta(packets: TelemetryPacket[], storeF1Grid: boolean): Record<str
 }
 
 export interface TelemetryCompressionOptions {
-  /** Preserve F1 opponent grid snapshots in compressed telemetry metadata. */
-  storeF1Grid?: boolean;
+  /** Preserve opponent grid snapshots in compressed telemetry metadata. */
+  storeOpponentGrid?: boolean;
 }
 
 export function compressTelemetry(packets: TelemetryPacket[], options: TelemetryCompressionOptions = {}): Buffer {
-  const storeF1Grid = options.storeF1Grid ?? process.env.RACEIQ_RECORD_F1_GRID === "true";
-  const meta = buildMeta(packets, storeF1Grid);
+  const storeOpponentGrid = options.storeOpponentGrid ?? process.env.RACEIQ_RECORD_OPPONENT_GRID === "true";
+  const meta = buildMeta(packets, storeOpponentGrid);
   const csvHeader = TELEMETRY_FIELDS.join(",");
   const parts: string[] = [];
   if (meta) parts.push(JSON.stringify(meta));
