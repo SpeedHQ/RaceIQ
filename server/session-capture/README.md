@@ -16,6 +16,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 
 - Capture bytes are an optional 12-byte metadata frame (`0xffffffff`, payload length `4`, frame count), followed by ordered `[uint32 LE length][payload]` records. Readers stop at truncated tails; they do not repair or reorder data.
 - Gzip changes storage encoding only. Identity hashes, parsing, and reprocessing operate on decompressed bytes.
+- Compression streams through a temporary gzip file and publishes it only after successful completion. The database path changes before the raw source is removed; failures preserve the source.
 - Recording paths and names are chosen by telemetry/runtime adapters. This domain must not change their naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence. Race-result reconciliation runs only after a successful import.
 - Import rollback deletes sessions and their newly recorded files. Scheduled maintenance skips active recordings; background compression remains age-gated, while user-triggered compression also includes untracked `.bin` files.

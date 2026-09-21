@@ -13,7 +13,7 @@ export function handleWebSocketMessage(data: unknown): boolean {
     return true;
   }
   if (isDevTelemetrySubscriptionMessageV1(data)) {
-    devTelemetryStore.actions.setSubscription(data.subscribed, data.error ?? null);
+    if (data.channel === "dev-telemetry") devTelemetryStore.actions.setSubscription(data.subscribed, data.error ?? null);
     return false;
   }
   if (isDevTelemetryPacketMessageV1(data)) {

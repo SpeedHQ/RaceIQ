@@ -38,11 +38,11 @@ describe("LiveTelemetryProjector", () => {
     expect(result.semanticFrame.values).toEqual([]);
     expect(result.frame?.values.length).toBeGreaterThan(0);
   });
-  test("unsupported games omit engineer projection", () => {
+  test("F1 engineer projection includes semantic data", () => {
     const projector = new LiveTelemetryProjector();
     const result = projector.project({ packet: packet("f1-2025"), sessionId: 1, receivedAtMs: 1000 });
-    expect(result.semanticFrame.ids).toEqual([]);
-    expect(result.semanticFrame.values).toEqual([]);
+    expect(result.semanticFrame.ids.length).toBeGreaterThan(0);
+    expect(result.semanticFrame.values.length).toBe(result.semanticFrame.ids.length);
     expect(result.frame?.values.length).toBeGreaterThan(0);
   });
 

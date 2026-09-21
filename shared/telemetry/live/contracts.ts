@@ -12,8 +12,8 @@ export const LIVE_TELEMETRY_PROTOCOL_VERSION = 1 as const;
 export interface LiveTelemetryDefinitionV1 { semanticId: string; unit: string | null; mappingStatus: MappingStatus; schemaVersion: string; limitations: readonly string[]; }
 export interface LiveTelemetrySchemaMessageV1 { type: "telemetry-schema"; protocolVersion: 1; schemaId: string; simulator: GameId; catalogVersion: string; catalogHash: string; catalogSchemaVersion: string; parserVersion: string; resolverVersion: string; derivationVersion: string; definitions: readonly LiveTelemetryDefinitionV1[]; }
 export interface LiveTelemetryFrameMessageV1 { type: "telemetry-frame"; protocolVersion: 1; schemaId: string; streamId: string; sessionId: number | null; sequence: number; observedAt: { domain: "session" | "wall-clock"; milliseconds: number }; receivedAtMs: number; values: readonly CanonicalTelemetryScalar[]; states?: Readonly<Record<number, Exclude<ResolutionState, "ok">>>; freshness?: Readonly<Record<number, Exclude<FreshnessState, "fresh">>>; context: { sectors?: LiveSectorData; pit?: LivePitData; liveIssues?: readonly TuneIssue[]; }; }
-export type DevTelemetryControlMessageV1 = { type: "subscribe"; channel: "dev-telemetry" } | { type: "unsubscribe"; channel: "dev-telemetry" };
-export interface DevTelemetrySubscriptionMessageV1 { type: "subscription"; channel: "dev-telemetry"; subscribed: boolean; error?: "not-available" | "invalid-message"; }
+export type DevTelemetryControlMessageV1 = { type: "subscribe"; channel: "dev-telemetry" | "dev-state" } | { type: "unsubscribe"; channel: "dev-telemetry" | "dev-state" };
+export interface DevTelemetrySubscriptionMessageV1 { type: "subscription"; channel: "dev-telemetry" | "dev-state"; subscribed: boolean; error?: "not-available" | "invalid-message"; }
 export interface DevTelemetryPacketMessageV1 { type: "dev-telemetry"; protocolVersion: 1; packet: TelemetryPacket; }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -68,11 +68,11 @@ export function isLiveTelemetryFrameMessageV1(value: unknown, schema?: LiveTelem
 }
 export function isDevTelemetryControlMessageV1(value: unknown): value is DevTelemetryControlMessageV1 {
   const v = record(value);
-  return !!v && v.channel === "dev-telemetry" && (v.type === "subscribe" || v.type === "unsubscribe");
+  return !!v && (v.channel === "dev-telemetry" || v.channel === "dev-state") && (v.type === "subscribe" || v.type === "unsubscribe");
 }
 export function isDevTelemetrySubscriptionMessageV1(value: unknown): value is DevTelemetrySubscriptionMessageV1 {
   const v = record(value);
-  return !!v && v.type === "subscription" && v.channel === "dev-telemetry" && typeof v.subscribed === "boolean" &&
+  return !!v && v.type === "subscription" && (v.channel === "dev-telemetry" || v.channel === "dev-state") && typeof v.subscribed === "boolean" &&
     (v.error === undefined || v.error === "not-available" || v.error === "invalid-message");
 }
 export function isDevTelemetryPacketMessageV1(value: unknown): value is DevTelemetryPacketMessageV1 {

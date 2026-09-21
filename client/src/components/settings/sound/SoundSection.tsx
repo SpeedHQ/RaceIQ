@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume, SOUND_PRESETS, setSoundEnabled, setSoundType, setSoundUrl, setSoundVolume } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
-import { playBlip, preloadSound, removeCachedSound } from "../../SectorTimes";
+import { playBlip, preloadSound, removeCachedSound } from "@/lib/sound";
 
 export function SoundSection() {
   const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compareSegmentKey } from "../../client/src/components/comparison/CompareSegmentTable";
+import { compareSegmentKey } from "../../client/src/lib/comparison-utils";
 
 describe("compareSegmentKey", () => {
   test("distinguishes repeated display names by segment position", () => {

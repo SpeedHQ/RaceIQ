@@ -45,7 +45,7 @@ export interface MotecMetricAvailability {
   group: string;
 }
 
-export function buildMotecMetricAvailability({ frame, gameId }: { frame: Pick<SemanticAnalysisFrame, "values" | "states">; gameId: GameId }): {
+function buildMotecMetricAvailability({ frame, gameId }: { frame: Pick<SemanticAnalysisFrame, "values" | "states">; gameId: GameId }): {
   available: MotecMetricAvailability[];
   unavailable: MotecMetricAvailability[];
 } {
