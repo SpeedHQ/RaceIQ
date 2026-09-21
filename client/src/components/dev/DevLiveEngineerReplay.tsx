@@ -425,17 +425,22 @@ export function DevLiveEngineerReplay() {
             </CardContent>
           </Card>
         )}
-        <Card size="sm">
+        {!search.scenario && <Card size="sm">
           <CardHeader><CardTitle>Replay scenarios</CardTitle><CardDescription>Open fixed recordings through shareable scenario routes.</CardDescription></CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            {scenarioCatalog.map((scenario) => (
-              <button key={scenario.id} type="button" className="rounded border border-app-border p-3 text-left transition-colors hover:bg-app-surface-hover" onClick={() => void navigate({ search: { gameId: scenario.recordingGameId, sessionId: scenario.recordingSessionId, scenario: scenario.id } })}>
-                <span className="flex items-center justify-between gap-2"><b>{scenario.label}</b><Badge size="compact">Open</Badge></span>
-                <span className="mt-1 block text-app-caption text-app-text-muted">{scenario.detail}</span>
-              </button>
-            ))}
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-[42rem] text-left text-app-detail">
+              <thead><tr className="border-b border-app-border text-app-caption text-app-text-muted"><th className="px-3 py-2 font-medium">Scenario</th><th className="px-3 py-2 font-medium">Source</th><th className="px-3 py-2 font-medium">Expected sequence</th><th className="px-3 py-2" /></tr></thead>
+              <tbody>{scenarioCatalog.map((scenario) => (
+                <tr key={scenario.id} className="border-b border-app-border last:border-0">
+                  <td className="px-3 py-3 align-top font-medium">{scenario.label}</td>
+                  <td className="px-3 py-3 align-top font-mono text-app-caption text-app-text-muted">{scenario.recordingBin}</td>
+                  <td className="px-3 py-3 align-top text-app-text-muted">{scenario.detail}</td>
+                  <td className="px-3 py-3 text-right align-top"><Button variant="app-outline" size="app-sm" onClick={() => void navigate({ search: { gameId: scenario.recordingGameId, sessionId: scenario.recordingSessionId, scenario: scenario.id } })}>Open</Button></td>
+                </tr>
+              ))}</tbody>
+            </table>
           </CardContent>
-        </Card>
+        </Card>}
 
 
         {replay && <>
