@@ -25,13 +25,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 const games = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
 const speeds = [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5] as const;
-const syntheticScenarios = [
-  { id: "fuel-low", label: "Fuel low", detail: "Clone selected ACC lap; replace with 1.8 laps remaining" },
-  { id: "fuel-critical", label: "Fuel critical", detail: "Clone selected ACC lap; replace with 0.8 laps remaining" },
-  { id: "pit-this-lap", label: "Pit this lap", detail: "Clone selected lap; replace strategy callout" },
-  { id: "pit-pit-pit", label: "Pit pit pit", detail: "Clone selected lap; replace with urgent full-line callout" },
-] as const;
-type SyntheticScenario = (typeof syntheticScenarios)[number]["id"];
+const scenarioCatalog = [{
+  id: "fuel-shortage-pit-sequence",
+  backendScenario: "critical-fuel-pit-sequence",
+  label: "Not enough fuel to finish race",
+  detail: "Fuel critical → pit this lap after line crossing → pit pit pit before pit entry.",
+  recordingGameId: "fm-2023",
+  recordingSessionId: 9,
+  recordingBin: "test/artifacts/sessions/fm-2023-2026-09-21T02-02-34-009Z.bin.gz",
+}, {
+  id: "f1-opponent-lap-pace",
+  backendScenario: "f1-opponent-lap-pace",
+  label: "F1 opponent lap pace",
+  detail: "Replays recorded F1 grid and completed opponent laps through pace callouts.",
+  recordingGameId: "f1-2025",
+  recordingSessionId: 4,
+  recordingBin: "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz",
+}] as const;
+type ScenarioId = (typeof scenarioCatalog)[number]["id"];
 const stages: LiveEngineerReplayStage[] = ["trigger", "candidate", "decision", "selected", "spotter", "callout", "voice-line"];
 type Replay = LiveEngineerSessionReplayV1;
 type JsonResponse = Record<string, unknown>;
@@ -75,12 +86,19 @@ function formatTime(milliseconds: number): string {
   const millis = Math.floor(value % 1_000);
   return `${minutes}:${seconds.toString().padStart(2, "0")}.${millis.toString().padStart(3, "0")}`;
 }
-
 function formatValue(value: unknown, suffix = ""): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return `${Math.abs(value) >= 100 ? value.toFixed(0) : value.toFixed(2)}${suffix}`;
 }
+function formatLapTimeSeconds(value: unknown): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "—";
+  return formatTime(value * 1000);
+}
 
+function formatWheelValues(value: unknown, transform: (value: number) => number = (entry) => entry, suffix = ""): string {
+  if (!Array.isArray(value) || value.length !== 4 || !value.every((entry) => typeof entry === "number" && Number.isFinite(entry))) return "—";
+  return value.map((entry) => `${transform(entry as number).toFixed(0)}${suffix}`).join(" / ");
+}
 function finiteValue(values: Readonly<Record<string, unknown>>, semanticId: string): number | undefined {
   const value = values[semanticId];
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -165,12 +183,20 @@ function SummaryMetric({ label, value, detail, icon: Icon }: { label: string; va
 function FrameReadout({ frame }: { frame: { values: Readonly<Record<string, unknown>> } | null }) {
   const values = frame?.values ?? {};
   const lapFraction = values["timing.lap-fraction"];
+  const fuelPercent = finiteValue(values, "fuel.fuel-percent");
+  const fuelVolume = finiteValue(values, "fuel.remaining-volume");
+  const tireHealth = formatWheelValues(values["tires.tire-wear"], (wear) => (1 - wear) * 100, "%");
+  const tireTemperature = formatWheelValues(values["tire.temperature.surface.representative"], (temperature) => temperature, "°");
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-app-detail sm:grid-cols-4">
       <div><div className="text-app-caption text-app-text-muted">Lap</div><div className="font-mono tabular-nums">{String(values["timing.lap-number"] ?? "—")}</div></div>
+      <div><div className="text-app-caption text-app-text-muted">Current lap time</div><div className="font-mono tabular-nums">{formatLapTimeSeconds(values["timing.current-lap"])}</div></div>
       <div><div className="text-app-caption text-app-text-muted">Position</div><div className="font-mono tabular-nums">{String(values["race.race-position"] ?? "—")}</div></div>
       <div><div className="text-app-caption text-app-text-muted">Speed</div><div className="font-mono tabular-nums">{formatValue(values["motion.speed"], " m/s")}</div></div>
       <div><div className="text-app-caption text-app-text-muted">Lap progress</div><div className="font-mono tabular-nums">{typeof lapFraction === "number" ? `${(lapFraction * 100).toFixed(1)}%` : "—"}</div></div>
+      <div><div className="text-app-caption text-app-text-muted">Fuel level</div><div className="font-mono tabular-nums">{fuelPercent !== undefined ? `${fuelPercent.toFixed(1)}%` : fuelVolume !== undefined ? `${fuelVolume.toFixed(1)} L` : "—"}</div></div>
+      <div><div className="text-app-caption text-app-text-muted">Tire health FL / FR / RL / RR</div><div className="font-mono tabular-nums">{tireHealth}</div></div>
+      <div><div className="text-app-caption text-app-text-muted">Tire temp FL / FR / RL / RR</div><div className="font-mono tabular-nums">{tireTemperature}</div></div>
     </div>
   );
 }
@@ -184,7 +210,7 @@ export function DevLiveEngineerReplay() {
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
-  const [scenarioLoading, setScenarioLoading] = useState<SyntheticScenario | null>(null);
+  const [scenarioLoading, setScenarioLoading] = useState<ScenarioId | null>(null);
   const [replay, setReplay] = useState<Replay | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lapFilter, setLapFilter] = useState("all");
@@ -252,7 +278,7 @@ export function DevLiveEngineerReplay() {
   const disabledSystems = replay?.systems.filter((system) => !sessionAvailableSystems.includes(system)) ?? [];
   const sessionTriggerCount = replay?.annotations.filter((annotation) => annotation.stage === "trigger").length ?? 0;
   const visibleTriggerCount = filteredAnnotations.filter((annotation) => annotation.stage === "trigger").length;
-  const voiceEvents = replay?.annotations.filter((annotation) => annotation.stage === "voice-line" && annotation.segmentIds.length > 0) ?? [];
+  const voiceEvents = replay?.annotations.filter((annotation) => annotation.stage === "voice-line" && (annotation.segmentIds.length > 0 || annotation.audioLineId)) ?? [];
   const transitionMarkers = replay?.systems.flatMap((system) => system.transitions.map((transition) => ({ systemId: system.systemId, ...transition }))) ?? [];
   const startTime = replay?.frames[playback.startFrameIndex]?.timelineMs ?? 0;
   const endTime = replay?.frames[playback.endFrameIndex]?.timelineMs ?? startTime;
@@ -275,19 +301,19 @@ export function DevLiveEngineerReplay() {
     return () => { cancelled = true; };
   }, [gameId]);
 
-  async function load(scenario?: SyntheticScenario, lapId?: number) {
-    if (!sessionId || replayLoading || scenarioLoading) return;
+  async function load(scenario?: ScenarioId) {
+    const catalogEntry = scenario ? scenarioCatalog.find((candidate) => candidate.id === scenario) : undefined;
+    const requestGameId = catalogEntry?.recordingGameId ?? gameId;
+    const requestSessionId = catalogEntry ? String(catalogEntry.recordingSessionId) : sessionId;
+    if (!requestSessionId || replayLoading || scenarioLoading) return;
     if (scenario) setScenarioLoading(scenario);
     else setReplayLoading(true);
     setError(null);
     setReplay(null);
     audio.stop();
     try {
-      const query = new URLSearchParams({ gameId, sessionId });
-      if (scenario) {
-        query.set("scenario", scenario);
-        if (lapId != null) query.set("lapId", String(lapId));
-      }
+      const query = new URLSearchParams({ gameId: requestGameId, sessionId: requestSessionId });
+      if (catalogEntry) query.set("scenario", catalogEntry.backendScenario);
       const response = await fetchWithTimeout(`/api/dev/live-engineer/session-replay?${query.toString()}`);
       const body = await readJson(response);
       if (!response.ok) throw new Error((body as JsonResponse).error as string ?? `Replay failed (${response.status})`);
@@ -355,21 +381,8 @@ export function DevLiveEngineerReplay() {
   const playAnnotation = (annotation: LiveEngineerReplayAnnotationV1) => {
     void (annotation.audioLineId ? audio.playFullLine(annotation.id, annotation.audioLineId) : audio.play(annotation.id, annotation.segmentIds));
   };
-  const runSyntheticScenario = (scenario: SyntheticScenario) => {
-    const selectedLap = replay?.laps.find((lap) => String(lap.lapId ?? lap.lapNumber) === lapFilter) ?? replay?.laps.find((lap) => lap.lapId != null);
-    if (!sessionId || !replay) {
-      setError("Load an ACC session before running synthetic scenarios.");
-      return;
-    }
-    if (gameId !== "acc") {
-      setError("Synthetic scenarios use ACC source semantics. Select ACC, then load session.");
-      return;
-    }
-    if (selectedLap?.lapId == null) {
-      setError("Selected replay has no persisted lap identity.");
-      return;
-    }
-    void load(scenario, selectedLap.lapId);
+  const runScenario = (scenario: ScenarioId) => {
+    void load(scenario);
   };
 
   return (
@@ -406,13 +419,19 @@ export function DevLiveEngineerReplay() {
           </Card>
         )}
         <Card size="sm">
-          <CardHeader><CardTitle>Synthetic scenarios</CardTitle><CardDescription>Replay cloned ACC laps with controlled replacements. Independent from production game feature categories.</CardDescription></CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {syntheticScenarios.map((scenario) => (
-              <Button key={scenario.id} variant="app-outline" disabled={scenarioLoading !== null} onClick={() => runSyntheticScenario(scenario.id)}>
-                {scenarioLoading === scenario.id ? "Building…" : scenario.label}
-              </Button>
-            ))}
+          <CardHeader><CardTitle>Scenario catalog</CardTitle><CardDescription>Recorded bins. Scenario runs use fixed source recordings; no game or session picker.</CardDescription></CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-[52rem] text-left text-app-detail">
+              <thead><tr className="border-b border-app-border text-app-caption text-app-text-muted"><th className="px-3 py-2 font-medium">Scenario</th><th className="px-3 py-2 font-medium">Source recording bin</th><th className="px-3 py-2 font-medium">Expected sequence</th><th className="px-3 py-2" /></tr></thead>
+              <tbody>{scenarioCatalog.map((scenario) => (
+                <tr key={scenario.id} className="border-b border-app-border last:border-0">
+                  <td className="px-3 py-3 align-top font-medium">{scenario.label}</td>
+                  <td className="px-3 py-3 align-top font-mono text-app-caption text-app-text-muted">{scenario.recordingBin}</td>
+                  <td className="px-3 py-3 align-top text-app-text-muted">{scenario.detail}</td>
+                  <td className="px-3 py-3 text-right align-top"><Button variant="app-outline" size="app-sm" disabled={scenarioLoading !== null} onClick={() => runScenario(scenario.id)}>{scenarioLoading === scenario.id ? "Loading…" : "Run"}</Button></td>
+                </tr>
+              ))}</tbody>
+            </table>
           </CardContent>
         </Card>
 
@@ -425,14 +444,12 @@ export function DevLiveEngineerReplay() {
             <SummaryMetric icon={Gauge} label="Session-available systems" value={enabledSystems.length} detail={`${disabledSystems.length} disabled or unavailable`} />
             <SummaryMetric icon={Headphones} label="Execution" value={replay.executionMode === "production-equivalent" ? "Production" : "Diagnostic"} detail={replay.sourceProfile.captureKind} />
           </section>
-
           {(replay.sourceProfile.limitations.length > 0 || replay.warnings.length > 0) && (
             <Card size="sm">
               <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="text-status-warning" />Capture limitations</CardTitle><CardDescription>Permanent source limits. Disabled systems below show runtime impact.</CardDescription></CardHeader>
               <CardContent className="flex flex-wrap gap-2">{[...new Set([...replay.sourceProfile.limitations, ...replay.warnings])].map((limitation) => <Badge key={limitation} variant="warning">{humanize(limitation)}</Badge>)}</CardContent>
             </Card>
           )}
-
           <Card>
             <CardHeader className="border-b">
               <CardTitle>Session timeline</CardTitle>

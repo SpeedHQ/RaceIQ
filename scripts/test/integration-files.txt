@@ -187,5 +187,6 @@ test/live-strategy/live-engineer-runtime.test.ts
 test/live-strategy/live-engineer-voice-engine.test.ts
 test/live-strategy/opponent-pace-tracker.test.ts
 test/live-strategy/spotter-tracker.test.ts
+test/live-strategy/f1-opponent-replay-scenarios.test.ts
 test/runtime/live-engineer-websocket.test.ts
 test/telemetry/catalog/crewchief-callout-coverage.test.ts

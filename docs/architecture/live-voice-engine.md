@@ -133,15 +133,16 @@ Automatic pace uses one decimal place for deltas. Exact response uses three deci
 
 ## Per-game availability
 
-“Available” in this table means **RaceIQ’s current live engine** has an implemented source path that can emit the family. It does not mean every session has enough data at every frame.
+See [Opponent Callout Capabilities and Phasing](decisions/opponent-callout-capabilities-and-phasing.md) for the accepted capability matrix, telemetry prerequisites, replay limits, and delivery phases.
 
-| Game | RaceIQ opponent pace | RaceIQ spotter | Current RaceIQ trigger source and limits | CrewChief source status |
-|---|---|---|---|---|
-| **F1 25** (`f1-2025`) | **Available** when UDP Session History exposes valid completed-lap facts | **Available** from projected competitor geometry | Pace waits for valid player/opponent lap facts. Spotter uses projected world positions and is suppressed in pit/caution/formation/low-speed contexts. | Source-equivalent mapping; no claim of native CrewChief adapter parity. |
-| **iRacing** (`iracing`) | **Available** using SDK/YAML completed-lap facts; conservative track-surface validity is accepted when native competitor validity is absent | **Available** from native `CarLeftRight` | Pace rejects pit-road/ineligible surfaces. Spotter uses native occupancy codes; no synthetic world-pose reconstruction. | Native source-backed coverage with known unavailable competitor fields. |
-| **ACC** (`acc`) | **Available** when ACC Broadcasting Protocol supplies valid completed-lap facts | **Available** when ACC Broadcasting Protocol supplies realtime car positions | Shared memory remains player telemetry; registered ACC UDP protocol v4 supplies competitor identity, class, timing, pit/location, speed, and world positions. | **Supported by CrewChief** and now consumed through RaceIQ’s protocol client. |
-| **AC Evo** (`ac-evo`) | **Unavailable** | **Unavailable** | Upstream opponent identity, timing, connectivity, and speed are not stable enough for source-backed callouts. | Source is currently treated as unstable/TBD for these competitor fields. |
-| **Forza Motorsport** (`fm-2023`) | **Unavailable** | **Unavailable** | No pinned CrewChief/Forza adapter or stable competitor source is present for this engine. | No pinned CrewChief adapter in the referenced source. |
+Current production contract:
+
+- **Opponent pace**: F1 25, ACC, and iRacing, implemented and production-supported behind the existing release gates.
+- **Spotter**: ACC and iRacing, implemented and production-supported behind the existing release gates.
+- **F1 25 spotter**: detector implemented from projected competitor geometry; not production-enabled.
+- **AC Evo and FM 2023**: opponent pace and spotter unavailable because complete source-backed competitor evidence is absent.
+
+The release gate requires `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=true` plus game inclusion in `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS`. “Production-supported” does not mean every frame has valid evidence; missing, stale, invalid, or misaligned opponent facts fail closed.
 
 ACC uses two concurrent sources:
 

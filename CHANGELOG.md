@@ -15,6 +15,7 @@
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+- Replay multiple synthetic race-engineer scenarios across complete multi-lap sessions, including fuel escalation and pit-entry sequences.
 
 ## v0.18.0 - 2026-09-18
 
