@@ -511,7 +511,7 @@ export function DevLiveEngineerReplay() {
                 </TabsContent>
               </Tabs>
             </Card>
-              <div className="max-h-[28rem] overflow-y-auto rounded border border-app-border bg-app-surface/50">
+              <div className="rounded border border-app-border bg-app-surface/50">
                 {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
               </div>
             </div>
