@@ -51,7 +51,7 @@ const AppSettingsSchema = z.object({
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   // Preserve opponent grid snapshots in compressed recordings for Engineer Replay.
-  storeOpponentGrid: z.boolean().default(false),
+  storeOpponentGrid: z.boolean().default(true),
   radioSpotterEnabled: z.boolean().default(false),
   radioRaceEngineerEnabled: z.boolean().default(false),
   radioTextCalloutsEnabled: z.boolean().default(true),

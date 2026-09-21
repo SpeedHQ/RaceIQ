@@ -67,7 +67,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,
-  storeOpponentGrid: false,
+  storeOpponentGrid: true,
   cacheMaxMB: 256,
   radioSpotterEnabled: false,
   radioRaceEngineerEnabled: false,

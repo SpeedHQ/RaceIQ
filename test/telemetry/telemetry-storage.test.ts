@@ -28,7 +28,7 @@ describe("detailed telemetry storage", () => {
     const grid = [{ position: 1, driverId: 7, driverName: "Driver 7", completedLapNumber: 3 }];
     const packet = { gameId: "f1-2025", f1: { grid } } as unknown as TelemetryPacket;
 
-    const omitted = decompressTelemetry(compressTelemetry([packet]))[0];
+    const omitted = decompressTelemetry(compressTelemetry([packet], { storeOpponentGrid: false }))[0];
     expect(omitted.f1?.grid).toBeUndefined();
 
     const stored = decompressTelemetry(compressTelemetry([packet], { storeOpponentGrid: true }))[0];
