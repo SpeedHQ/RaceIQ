@@ -513,6 +513,7 @@ export function DevLiveEngineerReplay() {
             </Card>
               <div className="rounded border border-app-border bg-app-surface/50">
                 {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
+              {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               </div>
             </div>
           </section>
@@ -546,7 +547,6 @@ export function DevLiveEngineerReplay() {
                 {filteredAnnotations.map((annotation) => <button key={annotation.id} type="button" className={cn("absolute top-1 size-5 -translate-x-1/2 rounded-full border-2 border-app-bg", annotation.stage === "voice-line" ? "bg-status-success" : annotation.stage === "decision" ? "bg-status-warning" : "bg-app-accent")} style={{ left: `${((annotation.timelineMs - startTime) / timelineDuration) * 100}%` }} title={`${annotation.stage}: ${annotation.action}`} aria-label={`Seek to ${annotation.stage} ${annotation.action}`} onClick={() => seekTo(annotation.frameIndex, annotation.id)} />)}
               </div>
               <input className="w-full accent-app-accent" type="range" min={playback.startFrameIndex} max={playback.endFrameIndex} value={playback.cursorIdx} aria-label="Replay frame" onChange={(event) => seekTo(Number(event.target.value))} />
-              {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               {audio.error && <div className="flex items-center justify-between gap-3 rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-app-detail text-status-danger"><span>{audio.error}</span><Button variant="plain" size="content" onClick={audio.clearError}>Dismiss</Button></div>}
             </CardContent>
           </Card>
