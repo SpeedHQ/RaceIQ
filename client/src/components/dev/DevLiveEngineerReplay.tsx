@@ -414,8 +414,9 @@ export function DevLiveEngineerReplay() {
     const previous = previousCursorRef.current;
     const crossed = replay.annotations.filter((annotation) => annotation.stage === "voice-line" && (annotation.segmentIds.length > 0 || annotation.audioLineId) && annotation.frameIndex > previous && annotation.frameIndex <= playback.cursorIdx);
     previousCursorRef.current = playback.cursorIdx;
-    const event = crossed.at(-1);
-    if (event) void (event.audioLineId ? audio.playFullLine(event.id, event.audioLineId) : audio.play(event.id, event.segmentIds));
+    for (const event of crossed) {
+      void (event.audioLineId ? audio.playFullLine(event.id, event.audioLineId) : audio.play(event.id, event.segmentIds));
+    }
   }, [playback.cursorIdx, playback.playing, audioEnabled, replay]);
 
   useEffect(() => {
