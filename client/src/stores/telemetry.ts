@@ -21,6 +21,8 @@ export interface DisplaySettings {
   wsRefreshRate: string;
   /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
   renderFpsCap: number;
+  /** Preserve opponent grid snapshots in compressed recordings. */
+  storeOpponentGrid: boolean;
   /** Max in-memory parsed-lap cache, in megabytes. */
   cacheMaxMB: number;
   radioSpotterEnabled: boolean;
@@ -65,6 +67,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,
+  storeOpponentGrid: false,
   cacheMaxMB: 256,
   radioSpotterEnabled: false,
   radioRaceEngineerEnabled: false,

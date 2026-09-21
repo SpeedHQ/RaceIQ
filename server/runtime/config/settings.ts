@@ -50,6 +50,8 @@ const AppSettingsSchema = z.object({
   // size of the per-lap TelemetryPacket[] cache used by analyse/compare/chat
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
+  // Preserve opponent grid snapshots in compressed recordings for Engineer Replay.
+  storeOpponentGrid: z.boolean().default(false),
   radioSpotterEnabled: z.boolean().default(false),
   radioRaceEngineerEnabled: z.boolean().default(false),
   radioTextCalloutsEnabled: z.boolean().default(true),

@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { loadSettings } from "../runtime/config/settings";
 import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
 import type { ServerGameAdapter } from "../games/types";
@@ -83,7 +84,7 @@ export interface TelemetryCompressionOptions {
 }
 
 export function compressTelemetry(packets: TelemetryPacket[], options: TelemetryCompressionOptions = {}): Buffer {
-  const storeOpponentGrid = options.storeOpponentGrid ?? process.env.RACEIQ_RECORD_OPPONENT_GRID === "true";
+  const storeOpponentGrid = options.storeOpponentGrid ?? (loadSettings().storeOpponentGrid || process.env.RACEIQ_RECORD_OPPONENT_GRID === "true");
   const meta = buildMeta(packets, storeOpponentGrid);
   const csvHeader = TELEMETRY_FIELDS.join(",");
   const parts: string[] = [];
