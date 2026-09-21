@@ -425,6 +425,17 @@ export function DevLiveEngineerReplay() {
             </CardContent>
           </Card>
         )}
+        <Card size="sm">
+          <CardHeader><CardTitle>Replay scenarios</CardTitle><CardDescription>Open fixed recordings through shareable scenario routes.</CardDescription></CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2">
+            {scenarioCatalog.map((scenario) => (
+              <button key={scenario.id} type="button" className="rounded border border-app-border p-3 text-left transition-colors hover:bg-app-surface-hover" onClick={() => void navigate({ search: { gameId: scenario.recordingGameId, sessionId: scenario.recordingSessionId, scenario: scenario.id } })}>
+                <span className="flex items-center justify-between gap-2"><b>{scenario.label}</b><Badge size="compact">Open</Badge></span>
+                <span className="mt-1 block text-app-caption text-app-text-muted">{scenario.detail}</span>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
 
 
         {replay && <>
