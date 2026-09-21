@@ -43,6 +43,7 @@ export interface LiveEngineerReplayAnnotationV1 {
   evidence: readonly string[];
   renderedText: string | null;
   segmentIds: readonly string[];
+  audioLineId?: string;
 }
 
 export interface LiveEngineerDependencyEvidenceV1 {

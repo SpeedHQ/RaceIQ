@@ -36,18 +36,31 @@ const scenarioStates = [
   { id: "opponent-behind", label: "Opponent behind", detail: "Car behind within gap", priority: "high", color: "text-app-signal-amber" },
   { id: "three-wide-left", label: "Three wide · left", detail: "2+ cars left", priority: "high", color: "text-app-signal-red" },
   { id: "three-wide-right", label: "Three wide · right", detail: "2+ cars right", priority: "high", color: "text-app-signal-red" },
+  { id: "fuel-low", label: "Fuel low", detail: "Less than two laps", priority: "high", color: "text-app-signal-amber" },
+  { id: "fuel-critical", label: "Fuel critical", detail: "Less than one lap", priority: "critical", color: "text-app-signal-red" },
+  { id: "pit-this-lap", label: "Pit this lap", detail: "Strategy instruction", priority: "high", color: "text-app-signal-amber" },
+  { id: "pit-pit-pit", label: "Pit pit pit", detail: "Immediate pit instruction", priority: "critical", color: "text-app-signal-red" },
 ] as const;
 type ScenarioState = (typeof scenarioStates)[number]["id"];
-export const scenarioVoiceText = (activeStates: readonly ScenarioState[]): { state: ScenarioState; text: string } | null => {
-  const state = activeStates.find((candidate) => ["damage-detected", "lap-invalidated", "opponent-ahead", "opponent-behind"].includes(candidate));
+export const scenarioVoiceText = (activeStates: readonly ScenarioState[]): { state: ScenarioState; text: string; lineId?: string } | null => {
+  const state = activeStates.find((candidate) => ["fuel-critical", "pit-pit-pit", "fuel-low", "pit-this-lap", "damage-detected", "lap-invalidated", "opponent-ahead", "opponent-behind"].includes(candidate));
   if (!state) return null;
+  const lineId = state === "pit-this-lap" || state === "pit-pit-pit" ? state : undefined;
   return {
     state,
     text: (
-      { "lap-invalidated": "Lap invalidated.", "damage-detected": "Damage detected.", "opponent-ahead": "Opponent ahead.", "opponent-behind": "Opponent behind." } as Partial<
-        Record<ScenarioState, string>
-      >
+      {
+        "fuel-low": "Fuel is low.",
+        "fuel-critical": "Fuel is critical.",
+        "pit-this-lap": "Pit this lap.",
+        "pit-pit-pit": "Pit pit pit.",
+        "lap-invalidated": "Lap invalidated.",
+        "damage-detected": "Damage detected.",
+        "opponent-ahead": "Opponent ahead.",
+        "opponent-behind": "Opponent behind.",
+      } as Partial<Record<ScenarioState, string>>
     )[state]!,
+    ...(lineId ? { lineId } : {}),
   };
 };
 type EngineEvent = { state: (typeof relations)[number]; outcome: "selected"; at: string };
@@ -166,8 +179,12 @@ export function DevRaceEngineerSpeechPanel() {
             ? "Lap boundary selected"
             : `${engineState} pace candidate selected`,
     );
-    const segmentIds = segmentIdsFor(rendered);
-    if (segmentIds?.length) await audio.playSegments(`scenario-${special?.state ?? side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
+    const lineId = typeof rendered.lineId === "string" ? rendered.lineId : undefined;
+    if (lineId) await audio.playFullLine(`scenario-${lineId}`, lineId);
+    else {
+      const segmentIds = segmentIdsFor(rendered);
+      if (segmentIds?.length) await audio.playSegments(`scenario-${special?.state ?? side ?? (activeScenarioStates.includes("cross-finish") ? "finish" : engineState)}`, segmentIds);
+    }
   };
   const playSentence = async (example: (typeof sentenceExamples)[number]) => {
     const isCurrent = audio.beginPreview();

@@ -7,3 +7,24 @@ test("scenario voice text preserves highest-priority special state", () => {
     text: "Opponent behind.",
   });
 });
+
+test("scenario voice text exposes fuel thresholds and pit urgency lines", () => {
+  expect(scenarioVoiceText(["fuel-low"])).toEqual({
+    state: "fuel-low",
+    text: "Fuel is low.",
+  });
+  expect(scenarioVoiceText(["fuel-critical", "fuel-low"])).toEqual({
+    state: "fuel-critical",
+    text: "Fuel is critical.",
+  });
+  expect(scenarioVoiceText(["pit-this-lap"])).toEqual({
+    state: "pit-this-lap",
+    text: "Pit this lap.",
+    lineId: "pit-this-lap",
+  });
+  expect(scenarioVoiceText(["pit-pit-pit"])).toEqual({
+    state: "pit-pit-pit",
+    text: "Pit pit pit.",
+    lineId: "pit-pit-pit",
+  });
+});

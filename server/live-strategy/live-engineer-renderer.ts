@@ -153,6 +153,8 @@ const CREW_CHIEF_EVENT_TEXT: Readonly<Record<string, string>> = {
   "push-now": "Closing laps. Fuel looks good. Push now.", "drs-open": "DRS is open.", "drs-closed": "DRS is closed.",
 };
 export function renderCrewChiefEvent(event: CrewChiefTriggerEventV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech | null {
+  // Entry notification arrives after driver already committed to pit lane; it adds no actionable information.
+  if (event.eventKey === "pit-entry") return null;
   const minutes = event.payload.minutesRemaining;
   const speechKey = event.eventKey === "race-time-remaining"
     ? typeof minutes === "number" && [15, 10, 5, 2, 1].includes(minutes)

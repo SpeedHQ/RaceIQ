@@ -32,6 +32,22 @@ test("renders compound v3 pace and lap recipes", () => {
   });
 });
 
+test("does not voice pit entry after commitment", () => {
+  expect(renderCrewChiefEvent({
+    eventKey: "pit-entry",
+    family: "PitStops",
+    severity: "info",
+    triggerId: "test/pit-entry",
+    sessionId: "test",
+    timelineEpoch: 1,
+    sourceSequence: 1,
+    sessionTimeMs: 10_000,
+    source: crewChiefSource("PitStops"),
+    payload: { status: "in-pit" },
+    evidenceSemanticIds: [],
+  })).toBeNull();
+});
+
 test("preserves fixed developer preview lines", () => {
   expect(renderPreviewLine("tires-cold")).toEqual({ lineId: "tires-cold", text: "Tires are cold. Be careful." });
   expect(renderPreviewLine("tires-optimal")).toEqual({ lineId: "tires-optimal", text: "Tires are optimal." });

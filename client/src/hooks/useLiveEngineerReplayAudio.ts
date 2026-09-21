@@ -47,8 +47,26 @@ export function useLiveEngineerReplayAudio() {
       setError(message);
     }
   }, [ensurePlayer]);
-
+  const playFullLine = useCallback(async (id: string, lineId: string) => {
+    const operation = operationRef.current + 1;
+    operationRef.current = operation;
+    const { context, player } = ensurePlayer();
+    player.stop();
+    setError(null);
+    setPlayingId(id);
+    try {
+      if (context.state === "suspended") await context.resume();
+      await player.playFullLine(lineId);
+      if (operationRef.current === operation) setPlayingId(null);
+    } catch (cause) {
+      if (operationRef.current !== operation) return;
+      setPlayingId(null);
+      const message = cause instanceof LiveEngineerAudioError ? `${cause.code}: ${cause.message}` : cause instanceof Error ? cause.message : "Audio playback failed";
+      setError(message);
+    }
+  }, [ensurePlayer]);
   const clearError = useCallback(() => setError(null), []);
+
 
   useEffect(() => () => {
     operationRef.current += 1;
@@ -56,5 +74,5 @@ export function useLiveEngineerReplayAudio() {
     void contextRef.current?.close();
   }, []);
 
-  return { play, stop, unlock, playingId, error, clearError };
+  return { play, playFullLine, stop, unlock, playingId, error, clearError };
 }

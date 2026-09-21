@@ -52,7 +52,7 @@ test("every reachable CrewChief event renders deterministic packaged speech", ()
     ["lap-completed", { lapNumber: 4, lapTimeMs: 92_417 }],
     ["opponent-lap-completed", { competitorId: "car-12", lapTimeMs: 91_183 }],
     ["multiclass-traffic", { competitorId: "car-12", class: "GT3", relativeDistance: 0.2 }],
-    ["penalty-issued", { penalty: "drive-through" }], ["pit-entry", { pitLane: true }], ["pit-exit", { pitLane: false }],
+    ["penalty-issued", { penalty: "drive-through" }], ["pit-exit", { pitLane: false }],
     ["fuel-low", { fuelPercent: 12 }], ["fuel-critical", { fuelPercent: 4 }], ["flag-change", { current: "black" }], ["flag-change", { current: "blue" }],
     ["tyres-cold", { tyreTemperatureC: 62 }], ["tyres-hot", { tyreTemperatureC: 103 }], ["tyres-cooking", { tyreTemperatureC: 118 }],
     ["water-temperature-hot", { waterTemperatureC: 108 }], ["water-temperature-clear", { waterTemperatureC: 94 }],

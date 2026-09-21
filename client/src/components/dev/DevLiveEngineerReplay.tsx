@@ -25,6 +25,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 const games = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
 const speeds = [0.1, 0.25, 0.5, 1, 1.5, 2, 2.5] as const;
+const syntheticScenarios = [
+  { id: "fuel-low", label: "Fuel low", detail: "Clone selected ACC lap; replace with 1.8 laps remaining" },
+  { id: "fuel-critical", label: "Fuel critical", detail: "Clone selected ACC lap; replace with 0.8 laps remaining" },
+  { id: "pit-this-lap", label: "Pit this lap", detail: "Clone selected lap; replace strategy callout" },
+  { id: "pit-pit-pit", label: "Pit pit pit", detail: "Clone selected lap; replace with urgent full-line callout" },
+] as const;
+type SyntheticScenario = (typeof syntheticScenarios)[number]["id"];
 const stages: LiveEngineerReplayStage[] = ["trigger", "candidate", "decision", "selected", "spotter", "callout", "voice-line"];
 type Replay = LiveEngineerSessionReplayV1;
 type JsonResponse = Record<string, unknown>;
@@ -177,6 +184,7 @@ export function DevLiveEngineerReplay() {
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
+  const [scenarioLoading, setScenarioLoading] = useState<SyntheticScenario | null>(null);
   const [replay, setReplay] = useState<Replay | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lapFilter, setLapFilter] = useState("all");
@@ -267,14 +275,20 @@ export function DevLiveEngineerReplay() {
     return () => { cancelled = true; };
   }, [gameId]);
 
-  async function load() {
-    if (!sessionId || replayLoading) return;
-    setReplayLoading(true);
+  async function load(scenario?: SyntheticScenario, lapId?: number) {
+    if (!sessionId || replayLoading || scenarioLoading) return;
+    if (scenario) setScenarioLoading(scenario);
+    else setReplayLoading(true);
     setError(null);
     setReplay(null);
     audio.stop();
     try {
-      const response = await fetchWithTimeout(`/api/dev/live-engineer/session-replay?gameId=${encodeURIComponent(gameId)}&sessionId=${encodeURIComponent(sessionId)}`);
+      const query = new URLSearchParams({ gameId, sessionId });
+      if (scenario) {
+        query.set("scenario", scenario);
+        if (lapId != null) query.set("lapId", String(lapId));
+      }
+      const response = await fetchWithTimeout(`/api/dev/live-engineer/session-replay?${query.toString()}`);
       const body = await readJson(response);
       if (!response.ok) throw new Error((body as JsonResponse).error as string ?? `Replay failed (${response.status})`);
       const nextReplay = body as Replay;
@@ -288,6 +302,7 @@ export function DevLiveEngineerReplay() {
       setError(cause instanceof Error ? cause.message : "Replay failed");
     } finally {
       setReplayLoading(false);
+      setScenarioLoading(null);
     }
   }
 
@@ -304,10 +319,10 @@ export function DevLiveEngineerReplay() {
       return;
     }
     const previous = previousCursorRef.current;
-    const crossed = replay.annotations.filter((annotation) => annotation.stage === "voice-line" && annotation.segmentIds.length > 0 && annotation.frameIndex > previous && annotation.frameIndex <= playback.cursorIdx);
+    const crossed = replay.annotations.filter((annotation) => annotation.stage === "voice-line" && (annotation.segmentIds.length > 0 || annotation.audioLineId) && annotation.frameIndex > previous && annotation.frameIndex <= playback.cursorIdx);
     previousCursorRef.current = playback.cursorIdx;
     const event = crossed.at(-1);
-    if (event) void audio.play(event.id, event.segmentIds);
+    if (event) void (event.audioLineId ? audio.playFullLine(event.id, event.audioLineId) : audio.play(event.id, event.segmentIds));
   }, [playback.cursorIdx, playback.playing, audioEnabled, replay]);
 
   useEffect(() => {
@@ -336,6 +351,25 @@ export function DevLiveEngineerReplay() {
     if (audioEnabled) await audio.unlock();
     previousCursorRef.current = playback.cursorIdx - 1;
     playback.play();
+  };
+  const playAnnotation = (annotation: LiveEngineerReplayAnnotationV1) => {
+    void (annotation.audioLineId ? audio.playFullLine(annotation.id, annotation.audioLineId) : audio.play(annotation.id, annotation.segmentIds));
+  };
+  const runSyntheticScenario = (scenario: SyntheticScenario) => {
+    const selectedLap = replay?.laps.find((lap) => String(lap.lapId ?? lap.lapNumber) === lapFilter) ?? replay?.laps.find((lap) => lap.lapId != null);
+    if (!sessionId || !replay) {
+      setError("Load an ACC session before running synthetic scenarios.");
+      return;
+    }
+    if (gameId !== "acc") {
+      setError("Synthetic scenarios use ACC source semantics. Select ACC, then load session.");
+      return;
+    }
+    if (selectedLap?.lapId == null) {
+      setError("Selected replay has no persisted lap identity.");
+      return;
+    }
+    void load(scenario, selectedLap.lapId);
   };
 
   return (
@@ -371,6 +405,17 @@ export function DevLiveEngineerReplay() {
             </CardContent>
           </Card>
         )}
+        <Card size="sm">
+          <CardHeader><CardTitle>Synthetic scenarios</CardTitle><CardDescription>Replay cloned ACC laps with controlled replacements. Independent from production game feature categories.</CardDescription></CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {syntheticScenarios.map((scenario) => (
+              <Button key={scenario.id} variant="app-outline" disabled={scenarioLoading !== null} onClick={() => runSyntheticScenario(scenario.id)}>
+                {scenarioLoading === scenario.id ? "Building…" : scenario.label}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+
 
         {replay && <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -456,11 +501,11 @@ export function DevLiveEngineerReplay() {
                           <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-1.5"><b>{humanize(annotation.action)}</b><span className="text-app-caption text-app-text-muted">{humanize(annotation.family)}</span></span><span className="block truncate text-app-caption text-app-text-muted">{annotation.renderedText || annotation.reason || annotation.segmentIds.join(" · ") || `Frame ${annotation.frameIndex}`}</span></span>
                           <span className="font-mono text-app-caption tabular-nums text-app-text-muted">{formatTime(annotation.timelineMs - startTime)}</span>
                         </button>
-                        {annotation.segmentIds.length > 0 && <Button className="mr-3 mt-1" variant={audio.playingId === annotation.id ? "selected-toggle" : "app-outline"} size="icon-sm" aria-label={`Play ${annotation.action}`} onClick={() => void audio.play(annotation.id, annotation.segmentIds)}>{audio.playingId === annotation.id ? <CircleStop /> : <Volume2 />}</Button>}
+                        {(annotation.segmentIds.length > 0 || annotation.audioLineId) && <Button className="mr-3 mt-1" variant={audio.playingId === annotation.id ? "selected-toggle" : "app-outline"} size="icon-sm" aria-label={`Play ${annotation.action}`} onClick={() => playAnnotation(annotation)}>{audio.playingId === annotation.id ? <CircleStop /> : <Volume2 />}</Button>}
                       </div>
                     )) : <div className="p-6 text-center text-app-text-muted">No events match visible lap and filters. Check Systems for unavailable producers.</div>}
                   </div>
-                  <EventDetail annotation={selectedAnnotation} onPlay={(annotation) => void audio.play(annotation.id, annotation.segmentIds)} playing={selectedAnnotation?.id === audio.playingId} />
+                  <EventDetail annotation={selectedAnnotation} onPlay={playAnnotation} playing={selectedAnnotation?.id === audio.playingId} />
                 </TabsContent>
 
                 <TabsContent value="systems" className="flex min-h-0 flex-1 flex-col">

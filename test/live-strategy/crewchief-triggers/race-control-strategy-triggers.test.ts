@@ -108,6 +108,16 @@ describe("Source-backed strategy boundaries", () => {
     expect(fuel.consume()).toEqual([]);
     expect(fuel.consume()).toEqual([]);
   });
+  test("F1 fuel-lap scenario calls out low then critical once across recovery", () => {
+    const fuel = detector(triggerFuel, "f1-2025", { "fuel.laps-remaining": 3 });
+    expect(fuel.consume()).toEqual([]);
+    expect(fuel.consume({ "fuel.laps-remaining": 1.8 }).map((event) => event.eventKey)).toEqual(["fuel-low"]);
+    expect(fuel.consume({ "fuel.laps-remaining": 0.8 }).map((event) => event.eventKey)).toEqual(["fuel-critical"]);
+    expect(fuel.consume({ "fuel.laps-remaining": 0.7 })).toEqual([]);
+    expect(fuel.consume({ "fuel.laps-remaining": 3 })).toEqual([]);
+    expect(fuel.consume({ "fuel.laps-remaining": 1.5 }).map((event) => event.eventKey)).toEqual(["fuel-low"]);
+  });
+
 
   test("ACC fuel-to-finish projection includes post-timer lap and hysteresis", () => {
     const strategy = detector(triggerStrategy, "acc", accRace);

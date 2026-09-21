@@ -181,6 +181,7 @@ test/live-strategy/crewchief-triggers/race-control-strategy-triggers.test.ts
 test/live-strategy/crewchief-triggers/session-triggers.test.ts
 test/live-strategy/crewchief-triggers/timing-opponent-triggers.test.ts
 test/live-strategy/live-engineer-contracts.test.ts
+test/live-strategy/acc-fuel-scenarios.test.ts
 test/live-strategy/live-engineer-renderer.test.ts
 test/live-strategy/live-engineer-runtime.test.ts
 test/live-strategy/live-engineer-voice-engine.test.ts
