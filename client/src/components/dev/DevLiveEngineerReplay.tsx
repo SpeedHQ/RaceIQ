@@ -58,6 +58,34 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+interface ReplayProgress {
+  phase: "loading" | "replaying";
+  processed: number;
+  total: number;
+  message: string;
+}
+
+async function readReplayStream(response: Response, onProgress: (progress: ReplayProgress) => void): Promise<Replay> {
+  if (!response.ok || !response.body) throw new Error(`Replay failed (${response.status})`);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    for (const line of buffer.split("\n").slice(0, done ? undefined : -1)) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line) as { type: string; message?: string; replay?: Replay } & Partial<ReplayProgress>;
+      if (event.type === "progress") onProgress({ phase: event.phase!, processed: event.processed ?? 0, total: event.total ?? 0, message: event.message ?? "Loading replay…" });
+      if (event.type === "error") throw new Error(event.message ?? "Replay failed");
+      if (event.type === "result" && event.replay) return event.replay;
+    }
+    buffer = done ? "" : buffer.slice(buffer.lastIndexOf("\n") + 1);
+    if (done) break;
+  }
+  throw new Error("Replay stream ended without result");
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = 60_000): Promise<Response> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -211,8 +239,9 @@ export function DevLiveEngineerReplay() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
   const [scenarioLoading, setScenarioLoading] = useState<ScenarioId | null>(null);
-  const [replay, setReplay] = useState<Replay | null>(null);
+  const [replayProgress, setReplayProgress] = useState<ReplayProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [replay, setReplay] = useState<Replay | null>(null);
   const [lapFilter, setLapFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [familyFilter, setFamilyFilter] = useState("all");
@@ -308,16 +337,21 @@ export function DevLiveEngineerReplay() {
     if (!requestSessionId || replayLoading || scenarioLoading) return;
     if (scenario) setScenarioLoading(scenario);
     else setReplayLoading(true);
+    setReplayProgress(catalogEntry ? { phase: "loading", processed: 0, total: 0, message: "Loading captured lap…" } : null);
     setError(null);
     setReplay(null);
     audio.stop();
     try {
       const query = new URLSearchParams({ gameId: requestGameId, sessionId: requestSessionId });
       if (catalogEntry) query.set("scenario", catalogEntry.backendScenario);
-      const response = await fetchWithTimeout(`/api/dev/live-engineer/session-replay?${query.toString()}`);
-      const body = await readJson(response);
-      if (!response.ok) throw new Error((body as JsonResponse).error as string ?? `Replay failed (${response.status})`);
-      const nextReplay = body as Replay;
+      const response = await fetchWithTimeout(`${catalogEntry ? "/api/dev/live-engineer/session-replay-stream" : "/api/dev/live-engineer/session-replay"}?${query.toString()}`);
+      const nextReplay = catalogEntry
+        ? await readReplayStream(response, setReplayProgress)
+        : await (async () => {
+            const body = await readJson(response);
+            if (!response.ok) throw new Error((body as JsonResponse).error as string ?? `Replay failed (${response.status})`);
+            return body as Replay;
+          })();
       setReplay(nextReplay);
       setLapFilter("all");
       setStageFilter("all");
@@ -329,6 +363,7 @@ export function DevLiveEngineerReplay() {
     } finally {
       setReplayLoading(false);
       setScenarioLoading(null);
+      setReplayProgress(null);
     }
   }
 
@@ -403,7 +438,7 @@ export function DevLiveEngineerReplay() {
             {replayLoading ? "Decoding…" : "Load session"}
           </Button>
         </div>
-        {(sessionsLoading || replayLoading) && <div className="mt-3 h-1 overflow-hidden rounded-full bg-app-border" role="progressbar" aria-label={sessionsLoading ? "Loading sessions" : "Loading replay"}><div className="h-full w-2/3 rounded-full bg-app-accent" /></div>}
+        {(sessionsLoading || replayLoading || scenarioLoading) && <div className="mt-3 space-y-1" role="progressbar" aria-label={sessionsLoading ? "Loading sessions" : replayProgress?.message ?? "Loading replay"} aria-valuemin={0} aria-valuemax={replayProgress?.total || undefined} aria-valuenow={replayProgress?.total ? replayProgress.processed : undefined}><div className="h-1 overflow-hidden rounded-full bg-app-border"><div className={cn("h-full rounded-full bg-app-accent transition-[width]", replayProgress?.total ? "w-0" : "w-2/3")} style={replayProgress?.total ? { width: `${Math.min(100, (replayProgress.processed / replayProgress.total) * 100)}%` } : undefined} /></div>{replayProgress && <div className="text-app-caption text-app-text-muted">{replayProgress.message}</div>}</div>}
       </header>
 
       <main className="flex flex-col gap-4 p-5">
