@@ -458,7 +458,7 @@ export function DevLiveEngineerReplay() {
             </Card>
           )}
 
-          <section className="flex flex-col gap-4">
+          <section className="flex flex-col gap-4 pb-64">
             <Card className="h-[22rem] min-h-0">
               <CardHeader className="border-b"><CardTitle>Track and frame context</CardTitle><CardDescription>{outline ? "Captured world position" : "World coordinates unavailable for this capture"}</CardDescription></CardHeader>
               <CardContent className="relative min-h-0 flex-1 p-0">
