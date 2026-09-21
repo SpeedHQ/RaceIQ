@@ -91,9 +91,8 @@ const evoRace = {
     keys(catalog, frame(0, 0));
     const changed = catalog.consume(frame(1, 1000, { "engine.battery-state-of-charge": 0.1, "race.player.push-to-pass-active": true, "aero.drs-active": true }));
     expect(changed.events.filter((event) => ["Battery", "OvertakingAidsMonitor"].includes(event.family))).toEqual([]);
-    for (const family of ["Battery", "OvertakingAidsMonitor"] as const) {
-      expect(catalog.capabilities("acc")[family]).toMatchObject({ state: "unavailable", reasonCode: "no-game-branch" });
-    }
+    expect(catalog.capabilities("acc").Battery).toMatchObject({ state: "unavailable", reasonCode: "detector-not-implemented" });
+    expect(catalog.capabilities("acc").OvertakingAidsMonitor).toMatchObject({ state: "unavailable", reasonCode: "semantic-not-projected" });
   });
 });
 

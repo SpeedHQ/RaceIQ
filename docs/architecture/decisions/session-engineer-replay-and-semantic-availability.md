@@ -15,6 +15,10 @@ Every system reports implementation status separately from runtime lifecycle. Re
 
 Replay returns stable frame/annotation IDs, source sequence, raw timestamps only when captured, monotonic timeline milliseconds, lap spans, dependency evidence, transitions, rendered text, and segment IDs. ACC and AC Evo use nominal 100 Hz order and label source clock as unavailable. UDP/iRacing session time is retained where trustworthy.
 
+Completed-lap and opponent-pace speech may form one chained voice line when session, timeline epoch, and completed player lap number match. Lap number is the correlation key because the trigger and pace decision can be selected on different source sequences. The chained recipe emits the lap-time clips once, inserts a 300 ms phrase-boundary pause, then emits the pace continuation without a second `lap.lead.your-lap-was`; standalone lap-time and pace lines keep their complete recipes.
+
+Engineer Replay reconstructs the resulting playback schedule from voice-line annotations and the packaged audio manifest. Its audio lane is a moving, session-bounded 10-second window. Each catalog asset is an independent duration-scaled block with its decoded waveform; the 250 ms playback lead and explicit phrase pause are separate, duration-scaled blocks. Clips are never collapsed into one visual group. The replay lane is diagnostic projection only: it does not alter persisted annotations, runtime selection, browser queue order, or production playback timing.
+
 ## Persisted source matrix
 
 | Game | Persisted limitations | Debugger behavior |

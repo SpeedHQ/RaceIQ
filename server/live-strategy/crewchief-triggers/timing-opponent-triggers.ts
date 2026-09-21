@@ -137,6 +137,15 @@ export const triggerDriverSwaps: CrewChiefTriggerFunction<PreviousValueState> = 
 };
 
 export const triggerLapTimes: CrewChiefTriggerFunction<PreviousValueState> = (input, state) => {
+  if (input.frame.simulator === "fm-2023") {
+    const lap = input.frame.ok("timing.lap-number");
+    const last = input.frame.ok("timing.last-lap");
+    const previous = state.previous as { lap?: unknown } | undefined;
+    if (!state.armed) { state.armed = true; state.previous = { lap }; return null; }
+    state.previous = { lap };
+    if (!finite(lap) || !finite(previous?.lap) || lap <= previous.lap || !finite(last) || last <= 0) return null;
+    return draft("lap-completed", { lap: previous.lap, time: last }, ["timing.lap-number", "timing.last-lap"]);
+  }
   const lap = input.frame.ok("timing.lap-number");
   const valid = input.frame.ok("timing.current-lap-valid");
   const pit = input.frame.ok("race.pit-status");

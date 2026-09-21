@@ -8,6 +8,7 @@ test("renders compound v3 pace and lap recipes", () => {
   expect(renderOpponentPace(base).segmentIds).toEqual(["pace.lead.you-are", "number.tenth.4", "pace.tail.seconds-from-class"]);
   expect(renderOpponentPaceText({ ...base, relation: "off-class-pace", scope: "overall", deltaMs: 900 })).toBe("Your lap was point nine seconds off overall pace.");
   expect(renderOpponentPace({ ...base, relation: "off-class-pace", scope: "overall", deltaMs: 900 }).segmentIds).toEqual(["lap.lead.your-lap-was", "number.tenth.9", "pace.tail.seconds-off-overall"]);
+  expect(renderOpponentPace({ ...base, relation: "off-class-pace", scope: "overall", deltaMs: 900 }, { continuation: true }).segmentIds).toEqual(["number.tenth.9", "pace.tail.seconds-off-overall"]);
   expect(renderOpponentPaceText({ ...base, relation: "fastest-in-class", scope: "overall", deltaMs: -100 })).toBe("Fastest overall.");
   expect(renderOpponentPace({ ...base, deltaMs: 1000 }, { voiceMode: "exact-response" }).segmentIds).toEqual(["pace.lead.you-are", "number.integer.1", "pace.tail.second-from-class"]);
   expect(renderOpponentLapPace({ ...base, deltaMs: 0 })).toMatchObject({ text: "Same pace as opponent last lap.", segmentIds: ["opponent-lap.same-pace"] });

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { GameId } from "../../shared/games/ids";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import { LiveEngineerVoiceEngine } from "../../server/live-strategy/live-engineer-voice-engine";
-import { crewChiefSource } from "../../server/live-strategy/crewchief-triggers/contracts";
+import { crewChiefSource, type CrewChiefTriggerEventV1 } from "../../server/live-strategy/crewchief-triggers/contracts";
 
 const ok = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({
   semanticId, value, unit: null, mappingStatus: "direct", state: "ok", confidence: 1, freshness: "fresh",
@@ -20,7 +20,7 @@ const frame = (sequence: number, lap: number, overrides: Record<string, Resolved
     "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out", "race.on-pit-road": false,
     "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [1], "race.competitor.connected": [true], "race.competitor.driver-id": ["opp"],
     "race.competitor.driver-name": ["Opponent"], "race.competitor.car-class-id": ["gt3"], "race.competitor.car-class-name": ["GT3"],
-    "race.competitor.laps-complete": [lap], "race.competitor.pit-status": ["out"],
+    "race.competitor.laps-complete": [lap], "race.competitor.pit-status": ["out"], "race.competitor.track-location": ["track"],
     "timing.competitor.last-lap-time": [88], "timing.competitor.last-lap-valid": [true],
     "race.safety-car-status": false, "race.flag-status": "green", "session.session-flags": 0,
   };
@@ -136,6 +136,59 @@ test("F1 pace falls back to car index identity and follows a lap time with overa
   }));
 });
 
+test("chains lap time and pace without repeating the lap lead", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const batch = (semanticFrame: ReturnType<typeof frame>, events: readonly CrewChiefTriggerEventV1[]) => ({
+    streamId: semanticFrame.streamId,
+    sessionId: "1",
+    timelineEpoch: 1,
+    sourceSequence: semanticFrame.sequence,
+    sessionTimeMs: semanticFrame.observedAt.milliseconds,
+    context: { simulator: "acc" as const, sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame,
+    events,
+  });
+  const pace = (laps: readonly number[]) => ({
+    "identity.player-car-index": ok("identity.player-car-index", 0),
+    "identity.player-car-class-id": ok("identity.player-car-class-id", "formula-0"),
+    "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
+    "race.competitor.driver-id": missing("race.competitor.driver-id"),
+    "race.competitor.driver-name": ok("race.competitor.driver-name", ["Player", "Opponent"]),
+    "race.competitor.car-class-id": ok("race.competitor.car-class-id", ["formula-0", "formula-0"]),
+    "race.competitor.car-class-name": ok("race.competitor.car-class-name", ["F1", "F1"]),
+    "race.competitor.laps-complete": ok("race.competitor.laps-complete", laps),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", ["out", "out"]),
+    "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [90, 88]),
+    "timing.competitor.last-lap-valid": ok("timing.competitor.last-lap-valid", [true, true]),
+  });
+  engine.consume(batch(frame(0, 1, pace([1, 1]), "f1-2025"), []));
+  engine.consume(batch(frame(1, 2, pace([2, 2]), "f1-2025"), [{
+    eventKey: "lap-completed",
+    family: "LapTimes" as const,
+    severity: "info" as const,
+    triggerId: "stream/1/0/LapTimes/lap-completed/0",
+    sessionId: "1",
+    timelineEpoch: 1,
+    sourceSequence: 0,
+    sessionTimeMs: 1_000,
+    source: crewChiefSource("LapTimes"),
+    payload: { lap: 1, time: 90.5 },
+    evidenceSemanticIds: ["timing.lap-number", "timing.last-lap"],
+  }]));
+  expect(messagesOfType(emitted, "live-engineer-voice-line")).toHaveLength(0);
+  engine.consume(batch(frame(2, 2, pace([2, 2]), "f1-2025"), []));
+  const voiceLines = messagesOfType(emitted, "live-engineer-voice-line");
+  expect(voiceLines).toHaveLength(1);
+  expect(voiceLines[0]?.segmentIds).toEqual([
+    "lap.lead.your-lap-was",
+    "lap.body.1-30",
+    "lap.tenth.5",
+    "number.integer.2",
+    "pace.tail.seconds-off-overall",
+  ]);
+});
+
 test("ACC broadcast semantics emit pace and spotter callouts", () => {
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
@@ -145,7 +198,7 @@ test("ACC broadcast semantics emit pace and spotter callouts", () => {
       "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out",
       "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.connected": [true, true], "race.competitor.driver-id": ["p", "o"],
       "race.competitor.driver-name": ["Player", "Opponent"], "race.competitor.car-class-id": ["gt3", "gt3"], "race.competitor.car-class-name": ["GT3", "GT3"],
-      "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"],
+      "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"], "race.competitor.track-location": ["track", "track"],
       "timing.competitor.last-lap-time": [90, 88], "timing.competitor.last-lap-valid": [true, true],
       "motion.position-x": 0, "motion.position-z": 0, "motion.speed": 20, "motion.yaw": 0,
       "motion.competitor.position-x": [0, 2.2], "motion.competitor.position-z": [0, -1], "motion.competitor.speed": [20, 20],

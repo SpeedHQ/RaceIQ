@@ -87,6 +87,18 @@ const lapCounter: CrewChiefTriggerFunction<SessionTriggerState> = (input, state)
     };
     return event;
   }
+  if (frame.simulator === "fm-2023") {
+    const current = frame.hasFresh("timing.lap-number") ? frame.ok<number>("timing.lap-number") : undefined;
+    if (!state.armed) {
+      state.armed = true;
+      state.previous = current;
+      return null;
+    }
+    const previous = typeof state.previous === "number" ? state.previous : undefined;
+    state.previous = current;
+    if (typeof current !== "number" || !Number.isInteger(current) || previous === undefined || !Number.isInteger(previous) || current <= previous) return null;
+    return { eventKey: "lap-completed" as const, severity: "info" as const, payload: { lap: current }, evidenceSemanticIds: ["timing.lap-number"] };
+  }
   if (frame.simulator === "iracing") {
     const current = frame.hasFresh("session.session-state") ? frame.ok<number>("session.session-state") : undefined;
     if (!state.armed) {

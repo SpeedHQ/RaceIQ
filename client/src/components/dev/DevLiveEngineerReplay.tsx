@@ -14,6 +14,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { useLiveEngineerReplayAudio } from "../../hooks/useLiveEngineerReplayAudio";
 import { useLiveEngineerReplayPlayback, type ReplayFrameRange } from "../../hooks/useLiveEngineerReplayPlayback";
+import { ReplayAudioTimeline } from "./ReplayAudioTimeline";
 import { AnalyseTrackMap } from "../analyse/AnalyseTrackMap";
 import { AnalyseDataPanel } from "../analyse/AnalyseDataPanel";
 import { useUnits } from "../../hooks/useUnits";
@@ -597,6 +598,14 @@ export function DevLiveEngineerReplay() {
                 <div className="flex flex-wrap gap-1">{speeds.map((speed) => <Button key={speed} variant={playback.speed === speed ? "selected-toggle" : "app-outline"} size="app-sm" onClick={() => playback.setSpeed(speed)}>{speed}×</Button>)}</div>
                 <div className="ml-auto text-right font-mono text-app-detail tabular-nums"><div>{formatTime((playback.frame?.timelineMs ?? startTime) - startTime)} / {formatTime(endTime - startTime)}</div><div className="text-app-caption text-app-text-muted">Frame {playback.cursorIdx.toLocaleString()} · source {playback.frame?.sourceSequence ?? "—"}</div></div>
               </div>
+              <ReplayAudioTimeline
+                events={voiceEvents}
+                startTimeMs={startTime}
+                endTimeMs={endTime}
+                currentTimeMs={playback.frame?.timelineMs ?? startTime}
+                playingId={audio.playingId}
+                onSeek={(event) => seekTo(event.frameIndex, event.id)}
+              />
               <div className="relative h-7" aria-label="Replay event timeline">
                 <div className="absolute inset-x-0 top-3 h-1 rounded-full bg-app-border" />
                 {transitionMarkers.filter((marker) => marker.frameIndex >= playback.startFrameIndex && marker.frameIndex <= playback.endFrameIndex).map((marker, index) => {

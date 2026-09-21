@@ -7,9 +7,6 @@ import {
   type CrewChiefEventFamily,
 } from "../../../shared/telemetry/live/crewchief-callout-contract";
 import type { LiveResolvedSemanticFrame } from "../../telemetry/live-projector";
-import { isEngineerSupportedGameId } from "../../../shared/telemetry/live/semantics";
-import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
-import { createPreviousValueState, type PreviousValueState } from "./common";
 import type {
   CrewChiefTriggerBatchV1,
   CrewChiefTriggerDraftV1,
@@ -17,6 +14,7 @@ import type {
   CrewChiefTriggerFunction,
   CrewChiefTriggerResultV1,
 } from "./contracts";
+import { createPreviousValueState, type PreviousValueState } from "./common";
 import { CrewChiefTriggerFrame } from "./frame";
 import { triggerTyreMonitor, triggerEngineMonitor, triggerDamageReporting } from "./car-health-triggers";
 import { triggerConditionsMonitor } from "./conditions-triggers";
@@ -95,7 +93,6 @@ const EVO_FINISH_REQUIREMENTS = [
   "session.session-type", "race.is-race-on", "race.pit-status", "race.flag-status", "race.is-timed-race",
   "timing.session-time-left-ms", "timing.last-lap", "timing.total-laps", "timing.lap-number", "fuel.laps-remaining",
 ] as const;
-const sourceMappings: ReadonlyMap<string, (typeof TELEMETRY_CATALOG.variables)[number]["games"]> = new Map(TELEMETRY_CATALOG.variables.map((variable) => [variable.id, variable.games]));
 
 export const CREWCHIEF_TRIGGER_CATALOG = [
   descriptor("Position", triggerPosition, ["race.race-position", "identity.player-car-class-id", "race.competitor.car-class-id"], "partial", undefined, "implemented", {
@@ -104,6 +101,7 @@ export const CREWCHIEF_TRIGGER_CATALOG = [
   }),
   descriptor("LapCounter", triggerLapCounter, ["session.session-state"], "partial", undefined, "implemented", {
     "f1-2025": ["timing.lap-number", "timing.total-laps"],
+    "fm-2023": ["timing.lap-number"],
   }),
   implementedFor("Timings", triggerTimings, { acc: [
     "session.session-type", "session.session-state", "identity.player-car-index", "race.pit-status",
@@ -112,6 +110,7 @@ export const CREWCHIEF_TRIGGER_CATALOG = [
   ] }),
   descriptor("LapTimes", triggerLapTimes, ["timing.lap-number", "timing.last-lap", "timing.current-lap-valid", "race.pit-status"], "partial", undefined, "implemented", {
     "f1-2025": ["timing.lap-number", "timing.last-lap", "timing.current-lap-valid", "race.pit-status"],
+    "fm-2023": ["timing.lap-number", "timing.last-lap"],
   }),
   descriptor("Opponents", triggerOpponents, ["race.competitor.car-index", "race.competitor.laps-complete"], "partial", undefined, "implemented", {
     "f1-2025": ["race.competitor.car-index", "race.competitor.laps-complete"],
@@ -130,6 +129,7 @@ export const CREWCHIEF_TRIGGER_CATALOG = [
   }),
   descriptor("TyreMonitor", triggerTyreMonitor, ["timing.lap-number", "timing.sector.current-index", "tire.temperature.core", "race.pit-status"], "partial", undefined, "implemented", {
     "f1-2025": ["timing.lap-number", "timing.sector.current-index", "tire.temperature.core", "race.pit-status"],
+    "fm-2023": ["timing.lap-number", "tire.temperature.surface.representative"],
   }),
   descriptor("EngineMonitor", triggerEngineMonitor, ["engine.coolant-temperature", "race.pit-status"], "partial", undefined, "implemented", { "f1-2025": null }),
   descriptor("DamageReporting", triggerDamageReporting, ["damage.car-damage-front", "damage.car-damage-rear", "damage.car-damage-left", "damage.car-damage-right", "damage.car-damage-centre"], "partial", undefined, "implemented", {
@@ -184,16 +184,9 @@ const chooseReason = (reasons: readonly string[]): string => [...reasons].sort((
 export function gameRequirements(
   descriptor: CrewChiefTriggerDescriptor<any>,
   gameId: GameId,
-): readonly string[] | null {
-  const required = descriptor.requiredSemanticIdsByGame && Object.prototype.hasOwnProperty.call(descriptor.requiredSemanticIdsByGame, gameId)
-    ? descriptor.requiredSemanticIdsByGame[gameId] ?? null
-    : descriptor.requiredSemanticIds;
-  // Unsupported source families are static, not telemetry failures. Leave the
-  // existing F1/iRacing decisions alone while repairing Kunos/Forza support.
-  if (gameId === "acc" || gameId === "ac-evo" || gameId === "fm-2023") {
-    if (!required?.length || required.some((id) => sourceMappings.get(id)?.[gameId]?.kind === "unavailable")) return null;
-  }
-  return required;
+): readonly string[] {
+  const gameRequirements = descriptor.requiredSemanticIdsByGame?.[gameId];
+  return gameRequirements ?? descriptor.requiredSemanticIds;
 }
 export function evaluateCrewChiefAvailability(
   descriptor: CrewChiefTriggerDescriptor<any>,
@@ -201,12 +194,8 @@ export function evaluateCrewChiefAvailability(
   gameId: GameId = frame.simulator,
 ): CrewChiefSystemEvaluation {
   const required = gameRequirements(descriptor, gameId);
-  if (required === null) return { lifecycle: "unavailable", reasonCode: "no-game-branch", dependencies: [] };
   if (descriptor.implementationStatus !== "implemented") return { lifecycle: "unavailable", reasonCode: descriptor.implementationStatus, dependencies: [] };
-  if (required.length === 0) return { lifecycle: "unavailable", reasonCode: "no-game-branch", dependencies: [] };
-  if (!isEngineerSupportedGameId(gameId) || descriptor.accParity === "unavailable") {
-    return { lifecycle: "unavailable", reasonCode: "no-game-branch", dependencies: [] };
-  }
+  if (descriptor.accParity === "unavailable") return { lifecycle: "unavailable", reasonCode: "source-unavailable", dependencies: [] };
   const values = new Map(frame.ids.map((id, index) => [id, frame.values[index]]));
   const dependencies = required.map((semanticId) => {
     const value = values.get(semanticId);
@@ -232,14 +221,14 @@ export function evaluateCrewChiefAvailability(
   });
   return { lifecycle: reasons.length ? "unavailable" : "ready", reasonCode: reasons.length ? chooseReason(reasons) : "ready", dependencies: normalizedDependencies };
 }
-const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, allowUnsupportedGame = false): Record<CrewChiefEventFamily, CrewChiefCapability> =>
+const capabilityMap = (gameId: GameId, observed?: ReadonlyMap<string, boolean>, _allowUnsupportedGame = false): Record<CrewChiefEventFamily, CrewChiefCapability> =>
   Object.fromEntries(CREWCHIEF_TRIGGER_CATALOG.map((item) => {
     const required = gameRequirements(item, gameId);
-    if ((!allowUnsupportedGame && !isEngineerSupportedGameId(gameId)) || required === null) {
-      return [item.family, { state: "unavailable", reasonCode: "no-game-branch" }];
+    if (item.implementationStatus !== "implemented") {
+      return [item.family, { state: "unavailable", reasonCode: item.implementationStatus === "detector-not-implemented" ? "detector-not-implemented" : item.implementationStatus }];
     }
-    if (item.implementationStatus !== "implemented" || item.accParity === "unavailable") {
-      return [item.family, { state: "unavailable", reasonCode: item.implementationStatus === "detector-not-implemented" ? "detector-not-implemented" : "no-game-branch" }];
+    if (item.accParity === "unavailable") {
+      return [item.family, { state: "unavailable", reasonCode: "source-unavailable" }];
     }
     if (!required.length) return [item.family, { state: "unavailable", reasonCode: "semantic-not-projected" }];
     if (observed && required.some((id) => observed.get(id) !== true)) {

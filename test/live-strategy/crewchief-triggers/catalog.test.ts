@@ -28,12 +28,10 @@ describe("CrewChief ACC trigger catalog", () => {
     expect(capabilities.Position.reasonCode).toBeDefined();
   });
 
-  test("supports Forza position without advertising unavailable telemetry families", () => {
+  test("uses canonical semantic requirements instead of game branches", () => {
     const capabilities = new CrewChiefTriggerCatalog().capabilities("fm-2023");
-    for (const descriptor of CREWCHIEF_TRIGGER_CATALOG) {
-      if (descriptor.family === "Position") expect(capabilities.Position.state).toBe("active");
-      else expect(capabilities[descriptor.family]).toEqual({ state: "unavailable", reasonCode: "no-game-branch" });
-    }
+    expect(capabilities.Position.state).toBe("active");
+    expect(Object.values(capabilities).every((capability) => capability.reasonCode !== "no-game-branch")).toBe(true);
   });
 
   test("does not emit when fresh arrays are value-equal", () => {

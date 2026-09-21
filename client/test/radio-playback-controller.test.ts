@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { LiveEngineerVoiceLineMessageV2 } from "../../shared/racing/live/engineer-contracts";
-import { DEFAULT_JOIN_GAP_MS, DEFAULT_RADIO_COMPRESSOR, DEFAULT_RADIO_FILTER, LiveEngineerAudioPlayer, speechBoundsMs } from "../src/lib/live-engineer-audio";
+import { CHAINED_LAP_PAUSE_MS, DEFAULT_JOIN_GAP_MS, DEFAULT_RADIO_COMPRESSOR, DEFAULT_RADIO_FILTER, getSegmentPauseMs, LiveEngineerAudioPlayer, speechBoundsMs } from "../src/lib/live-engineer-audio";
 import { LiveEngineerPlaybackSession } from "../src/lib/live-engineer-playback-session";
 
 const line: LiveEngineerVoiceLineMessageV2 = { type: "live-engineer-voice-line", protocolVersion: 2, deliveryId: "delivery-1", decisionId: "decision-1", family: "spotter", mode: "automatic", priority: "high", sourceSequence: 1, catalogVersion: "v1", segmentIds: ["spotter.car-left"] };
@@ -54,4 +54,9 @@ test("radio playback applies a speech-band filter by default", () => {
 });
 test("legacy minute pauses are removed for exact-buffer catalogs", () => {
   expect(DEFAULT_JOIN_GAP_MS).toBe(0);
+});
+test("completed lap clips add one phrase-boundary pause before chained pace", () => {
+  expect(getSegmentPauseMs("lap.tenth.4")).toBe(CHAINED_LAP_PAUSE_MS);
+  expect(getSegmentPauseMs("lap.tail.flat")).toBe(CHAINED_LAP_PAUSE_MS);
+  expect(getSegmentPauseMs("number.tenth.4")).toBe(0);
 });

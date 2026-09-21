@@ -10,6 +10,7 @@ import type { LiveEngineerSessionReplayV1 } from "../../shared/racing/live/engin
 ensureInit();
 
 const RECORDING = join("test", "artifacts", "sessions", "acc-2026-04-12T21-16-07-841Z.bin.gz");
+const FM_RECORDING = join("test", "artifacts", "sessions", "fm-2023-2026-09-21T02-02-34-009Z.bin.gz");
 
 test("ACC fixture lap can drive artificial fuel and pit strategy scenarios", async () => {
   const { rawPackets } = await parseDump("acc", RECORDING, { capturePackets: true });
@@ -95,4 +96,32 @@ test("ACC multi-lap scenarios isolate fuel escalation and scheduled pit sequence
 
   expect(relevantTriggers(runScenario(source, "fuel-warning-escalation"))).toEqual(["fuel-low", "fuel-critical"]);
   expect(relevantTriggers(runScenario(source, "scheduled-pit-sequence"))).toEqual(["pit-this-lap", "pit-pit-pit", "pit-entry"]);
+});
+
+test("FM recording tells driver to pit before fuel runs out on lap two", async () => {
+  const { rawPackets } = await parseDump("fm-2023", FM_RECORDING, { capturePackets: true });
+  const replay = runLiveEngineerSessionReplay({
+    session: { id: 1, gameId: "fm-2023" },
+    laps: [],
+    packets: rawPackets,
+    sourceProfile: {
+      gameId: "fm-2023",
+      captureKind: "test",
+      limitations: [],
+      sourceClockCaptured: true,
+      segmentCount: 1,
+      skippedMalformedFrames: 0,
+      nativeSessionInfo: false,
+      retainedPrefix: false,
+    },
+  });
+
+  const pitCalls = replay.annotations.filter((annotation) =>
+    annotation.stage === "callout" && annotation.renderedText === "Fuel is low. Pit this lap.");
+  expect(pitCalls).toHaveLength(1);
+  expect(pitCalls[0]?.lapNumber).toBe(1);
+  const reminder = replay.annotations.find((annotation) => annotation.stage === "trigger" && annotation.action === "pit-pit-pit");
+  expect(reminder?.lapNumber).toBe(1);
+  expect(reminder!.frameIndex).toBeLessThan(replay.frames.findIndex((frame) => frame.values["timing.lap-number"] === 2));
+  expect(replay.annotations.some((annotation) => annotation.stage === "voice-line" && annotation.segmentIds.includes("pit-pit-pit"))).toBe(true);
 });

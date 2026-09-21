@@ -3,8 +3,11 @@
 ### Features
 - F1 race engineer shows car damage, announces final lap, and reports sustained aero damage.
 - Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
+- Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
 
 ### Fixes
+- Forza Motorsport race engineer pairs its finish-line low-fuel warning with a pit-this-lap call, then repeats the pit call before pit entry.
+- Chain completed-lap time and pace announcements with a natural pause and without repeating "Your lap was."
 
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.

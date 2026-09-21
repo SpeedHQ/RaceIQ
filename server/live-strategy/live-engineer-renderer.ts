@@ -100,7 +100,7 @@ export function renderLapTime(ms: number): LiveEngineerRenderedSpeech {
   return { textKey: "live_engineer_exact_lap_time", text: `${parts.join(" ")}.`, segmentIds, voiceMode };
 }
 
-export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1; catalogVersion?: string } = {}): LiveEngineerRenderedSpeech {
+export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1; catalogVersion?: string; continuation?: boolean } = {}): LiveEngineerRenderedSpeech {
   const voiceMode = options.voiceMode ?? "automatic";
   if (parameters.relation === "fastest-in-class" || parameters.relation === "setting-race-pace") {
     const segmentIds = parameters.relation === "fastest-in-class" ? [`phrase.fastest.${parameters.scope}`] : ["phrase.setting-race-pace"];
@@ -110,7 +110,8 @@ export function renderOpponentPace(parameters: OpponentPaceRenderParametersV1, o
   if (!number) return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds: [], voiceMode };
   const scope = scopeWord(parameters.scope);
   const lead = parameters.relation === "within-class-pace" ? "pace.lead.you-are" : "lap.lead.your-lap-was";
-  return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds: [lead, ...number.segmentIds, paceTail(scope, parameters.relation, number.singular)], voiceMode };
+  const segmentIds = options.continuation ? [...number.segmentIds, paceTail(scope, parameters.relation, number.singular)] : [lead, ...number.segmentIds, paceTail(scope, parameters.relation, number.singular)];
+  return { textKey: textKeyFor(parameters.relation), text: renderOpponentPaceText(parameters, voiceMode), segmentIds, voiceMode };
 }
 
 export function renderOpponentLapPace(parameters: OpponentPaceRenderParametersV1, options: { voiceMode?: LiveEngineerVoiceModeV1 } = {}): LiveEngineerRenderedSpeech {

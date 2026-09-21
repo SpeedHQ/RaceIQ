@@ -1,6 +1,5 @@
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import type { LiveResolvedSemanticFrame } from "../telemetry/live-projector";
-import { isEngineerSupportedGameId } from "../../shared/telemetry/live/semantics";
 import type { CrewChiefTriggerBatchV1, CrewChiefTriggerEventV1 } from "./crewchief-triggers/contracts";
 import { extractLiveEngineerSemanticInput } from "./live-engineer-semantic-input";
 import {
@@ -74,6 +73,7 @@ export class LiveEngineerVoiceEngine {
   private previousPlayerLap = 0;
   private playerLapInvalid = false;
   private readonly previousCompetitorLaps = new Map<string, number>();
+  private pendingLapVoice: { callout: RaceEngineerCalloutMessageV3; segmentIds: readonly string[]; lapNumber: number } | null = null;
   constructor(options: LiveEngineerVoiceEngineOptions) {
     this.options = options;
     this.emitMessage = options.emit;
@@ -82,7 +82,7 @@ export class LiveEngineerVoiceEngine {
   consume(input: LiveResolvedSemanticFrame | CrewChiefTriggerBatchV1): void {
     const batch = "events" in input ? input as CrewChiefTriggerBatchV1 : undefined;
     const frame = batch ? batch.semanticFrame : input as LiveResolvedSemanticFrame;
-    if (!frame || (!this.options.allowUnsupportedGame && !isEngineerSupportedGameId(batch ? batch.context.simulator : frame.simulator))) return;
+    if (!frame) return;
     const key = `${frame.simulator}/${frame.sessionId ?? "none"}/${frame.streamId}`;
     const targetEpoch = batch?.timelineEpoch ?? (key === this.streamKey ? this.timelineEpoch : this.timelineEpoch + 1);
     if (key !== this.streamKey || targetEpoch !== this.timelineEpoch) {
@@ -126,10 +126,21 @@ export class LiveEngineerVoiceEngine {
           const rendered = event ? renderCrewChiefEvent(event, { voiceMode: "automatic" }) : null;
           if (event && rendered) {
             const callout: RaceEngineerCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${event.triggerId}/race-engineer-v3`, candidateId: event.triggerId, family: "race-engineer", sessionId: event.sessionId, timelineEpoch: event.timelineEpoch, sourceSequence: event.sourceSequence, priority: selected.priority, createdSessionTimeMs: selected.createdSessionTimeMs, expiresSessionTimeMs: selected.expiresSessionTimeMs, render: { renderingVersion: "crewchief-v1", text: rendered.text, textKey: event.eventKey, parameters } };
-            this.emitMessage(callout);
-            this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+            if (event.eventKey === "lap-completed" && this.armed) {
+              this.flushPendingLapVoice();
+              this.emitMessage(callout);
+              this.pendingLapVoice = { callout, segmentIds: rendered.segmentIds, lapNumber: Number(event.payload.lap ?? event.payload.lapNumber) };
+            } else {
+              this.flushPendingLapVoice();
+              this.emitMessage(callout);
+              this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+            }
+          } else {
+            this.flushPendingLapVoice();
           }
         }
+      } else {
+        this.flushPendingLapVoice();
       }
     }
     const semanticInput = extractLiveEngineerSemanticInput(frame);
@@ -206,6 +217,7 @@ export class LiveEngineerVoiceEngine {
     this.previousPlayerLap = 0;
     this.playerLapInvalid = false;
     this.previousCompetitorLaps.clear();
+    this.pendingLapVoice = null;
   }
   private addOpponentFacts(values: Map<string, ResolvedValue<unknown>>, frame: LiveResolvedSemanticFrame, playerIndex: number): void {
     const indexes = arrayOf<number>(values.get("race.competitor.car-index")!.value);
@@ -330,12 +342,26 @@ export class LiveEngineerVoiceEngine {
   private emitCandidate(candidate: LiveEngineerRuntimeCandidate, frame: LiveResolvedSemanticFrame): void {
     const parameters = candidate.renderParameters;
     if (!("relation" in parameters)) return;
-    const rendered = renderOpponentPace(parameters);
+    const chainedLap = this.pendingLapVoice?.lapNumber === parameters.playerLapNumber
+      && this.pendingLapVoice.callout.sessionId === candidate.sessionId
+      && this.pendingLapVoice.callout.timelineEpoch === candidate.timelineEpoch
+      ? this.pendingLapVoice
+      : null;
+    if (!chainedLap) this.flushPendingLapVoice();
+    const rendered = renderOpponentPace(parameters, { continuation: chainedLap !== null });
     const callout: OpponentPaceCalloutMessageV3 = { type: "live-engineer-callout", protocolVersion: 3, decisionId: `${candidate.candidateId}/opponent-pace-v1`, candidateId: candidate.candidateId, family: "opponent-pace", sessionId: candidate.sessionId, timelineEpoch: candidate.timelineEpoch, sourceSequence: candidate.sourceSequence, priority: candidate.priority, createdSessionTimeMs: observedMs(frame.observedAt), expiresSessionTimeMs: observedMs(frame.observedAt) + 12_000, render: { renderingVersion: "opponent-pace-v1", textKey: rendered.textKey as OpponentPaceCalloutMessageV3["render"]["textKey"], parameters } };
     this.decisions.set(callout.decisionId, callout);
     while (this.decisions.size > 64) this.decisions.delete(this.decisions.keys().next().value!);
     this.emitMessage(callout);
-    this.emitMessage(createLiveEngineerVoiceLine(callout, rendered.segmentIds, { mode: "automatic" }));
+    this.emitMessage(createLiveEngineerVoiceLine(callout, chainedLap ? [...chainedLap.segmentIds, ...rendered.segmentIds] : rendered.segmentIds, { mode: "automatic" }));
+    if (chainedLap) this.pendingLapVoice = null;
+  }
+
+  private flushPendingLapVoice(): void {
+    if (!this.pendingLapVoice) return;
+    const pending = this.pendingLapVoice;
+    this.pendingLapVoice = null;
+    this.emitMessage(createLiveEngineerVoiceLine(pending.callout, pending.segmentIds, { mode: "automatic" }));
   }
 
   private currentContextEligible(): boolean {
