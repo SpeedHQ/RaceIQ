@@ -22,11 +22,18 @@ export interface LiveEngineerSessionReplayInput {
 }
 
 const REPLAY_VALUE_IDS = new Set([
-  "motion.position-x", "motion.position-z", "motion.yaw", "motion.speed",
+  "motion.position-x", "motion.position-z", "motion.yaw", "motion.speed", "motion.acceleration-x", "motion.acceleration-z", "motion.angular-velocity-y",
   "timing.lap-number", "timing.lap-fraction", "timing.current-lap", "timing.distance-traveled", "timing.last-lap",
-  "fuel.remaining-volume", "fuel.fuel-percent",
-  "tire.temperature.core", "tire.temperature.surface.representative", "tires.tire-wear",
-  "race.race-position",
+  "inputs.accel", "inputs.brake", "inputs.steer", "inputs.gear", "inputs.clutch",
+  "engine.current-engine-rpm", "engine.boost", "engine.power", "engine.torque",
+  "fuel.fuel", "fuel.fuel-capacity", "fuel.remaining-volume", "fuel.fuel-percent",
+  "fuel.ers-store-energy", "fuel.ers-deployed", "fuel.ers-harvested", "fuel.ers-deploy-mode", "aero.drs-active",
+  "brakes.brake-bias", "brakes.brake-temp",
+  "tire.temperature.core", "tire.temperature.surface.representative", "tire.temperature.carcass.middle",
+  "tires.tire-wear", "tires.tire-pressure", "tires.tire-slip-ratio", "tires.tire-slip-angle", "tires.normalized-tire-slip-angle", "tires.tire-combined-slip", "tires.wheel-rotation-speed", "tires.wheel-on-rumble-strip", "tires.wheel-in-puddle-depth",
+  "suspension.norm-suspension-travel", "suspension.suspension-travel-m",
+  "identity.player-track-surface", "identity.car-ordinal",
+  "race.pit-status", "race.on-pit-road",
   "damage.front-left-wing-damage", "damage.front-right-wing-damage", "damage.rear-wing-damage",
   "damage.floor-damage", "damage.diffuser-damage", "damage.sidepod-damage",
 ]);

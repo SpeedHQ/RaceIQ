@@ -29,6 +29,18 @@ test("F1 recording drives opponent-lap pace replay scenario", () => {
     scenario: "f1-opponent-lap-pace",
   });
 
+  const firstFrameValues = replay.frames[0]?.values ?? {};
+  expect(Object.keys(firstFrameValues)).toEqual(expect.arrayContaining([
+    "inputs.accel",
+    "inputs.brake",
+    "inputs.steer",
+    "inputs.gear",
+    "engine.current-engine-rpm",
+    "fuel.fuel",
+    "brakes.brake-bias",
+    "tires.tire-pressure",
+    "suspension.suspension-travel-m",
+  ]));
   const paceCallouts = replay.annotations.filter(
     (annotation) => annotation.stage === "callout" && annotation.family === "opponent-pace",
   );
