@@ -32,7 +32,13 @@ describe("FM-2023 recording", () => {
       console.log(`Car: ${carModel}, Track: ${trackName}`);
 
       expect(rawPackets.length).toBeGreaterThan(0);
-      expect(laps).toHaveLength(0);
+      expect(laps).toHaveLength(1);
+      expect(laps[0]).toMatchObject({
+        lapNumber: 0,
+        isValid: false,
+        invalidReason: "incomplete",
+      });
+      expect(laps[0].lapTime).toBeCloseTo(12.847, 3);
 
       // Check WebSocket notifications exist for completed laps
       const lapSavedNotifications = wsNotifications.filter(
@@ -192,4 +198,30 @@ describe("FM-2023 recording", () => {
       }
     }, { timeout: 30000 });
   });
+  describe("fm-2023-2026-09-21T02-02-34-009Z", () => {
+    const recordingFile = "fm-2023-2026-09-21T02-02-34-009Z.bin.gz";
+
+    test("keeps the pit lap and records the final lap", async () => {
+      const recording = getRecordingFixture(recordingFile);
+      if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
+
+      const { laps, rawPackets } = await parseDump("fm-2023", recording);
+
+      expect(laps.map((lap) => lap.lapNumber)).toEqual([0, 1, 2]);
+      expect(laps[1]).toMatchObject({
+        isValid: false,
+        invalidReason: "inlap",
+      });
+      expect(laps[1].lapTime).toBeCloseTo(98.955, 3);
+      expect(laps[1].packets.length).toBeGreaterThan(4_000);
+      expect(laps[2]).toMatchObject({
+        isValid: false,
+        invalidReason: "outlap",
+      });
+      expect(laps[2].lapTime).toBeCloseTo(82.296, 3);
+      expect(laps[2].packets.length).toBeGreaterThan(4_000);
+      generateRecordingVisualizations(recordingFile, laps, rawPackets);
+    }, { timeout: 30_000 });
+  });
+
 });

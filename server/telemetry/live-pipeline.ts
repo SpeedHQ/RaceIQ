@@ -254,6 +254,10 @@ export class LiveTelemetryPipeline {
   async flushIncompleteLap(): Promise<void> {
     await this._lapDetector?.flushIncompleteLap?.();
   }
+  /** Persist a replaceable snapshot without ending the active session. */
+  async snapshotIncompleteLap(): Promise<void> {
+    await this._lapDetector?.snapshotIncompleteLap?.();
+  }
 
   /** Finalize detector, durable capture, then authoritative session result. */
   async finalizeCurrentSession(): Promise<void> {
@@ -536,6 +540,9 @@ export const lapDetector = {
   },
   get tireWearHistory() {
     return _default.lapDetector?.tireWearHistory ?? [];
+  },
+  async snapshotIncompleteLap() {
+    await _default.snapshotIncompleteLap();
   },
   async finalizeCurrentSession() {
     await _default.finalizeCurrentSession();

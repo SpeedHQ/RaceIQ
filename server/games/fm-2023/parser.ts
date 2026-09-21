@@ -10,6 +10,10 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
  *
  * Returns null if IsRaceOn == 0.
  */
+export function isForzaRaceOffPacket(buf: Buffer): boolean {
+  return buf.length >= 324 && buf.length <= 400 && buf.readInt32LE(0) === 0;
+}
+
 export function parseForzaPacket(buf: Buffer): TelemetryPacket | null {
   // Accept both 311 (V1 sled) and 324 (dash) byte packets, and 331 (car dash with extras)
   if (buf.length < 324) {
