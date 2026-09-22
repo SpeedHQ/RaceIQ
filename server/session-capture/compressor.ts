@@ -14,14 +14,8 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import {
-  cleanupOrphanSessionFiles,
-  listSessionCaptureFiles,
-} from "./cleanup";
+import { cleanupOrphanSessionFiles, listSessionCaptureFiles } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
-import { loadSettings } from "../runtime/config/settings";
-import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
-
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -55,21 +49,11 @@ async function compressSession(id: number, binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
 
   // Fetch current lapDetectorVersion to preserve it in the update
-  const row = await db
-    .select({ lapDetectorVersion: sessions.lapDetectorVersion })
-    .from(sessions)
-    .where(eq(sessions.id, id))
-    .get();
+  const row = await db.select({ lapDetectorVersion: sessions.lapDetectorVersion }).from(sessions).where(eq(sessions.id, id)).get();
 
-  await updateSessionRawFile(
-    id,
-    compressedFile.gzPath,
-    row?.lapDetectorVersion ?? "",
-  );
+  await updateSessionRawFile(id, compressedFile.gzPath, row?.lapDetectorVersion ?? "");
   unlinkSync(binPath);
-  console.log(
-    `[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
-  );
+  console.log(`[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
 /**
@@ -79,9 +63,7 @@ async function compressSession(id: number, binPath: string): Promise<void> {
 async function compressOrphanFile(binPath: string): Promise<void> {
   const compressedFile = await writeCompressedFile(binPath);
   unlinkSync(binPath);
-  console.log(
-    `[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
-  );
+  console.log(`[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`);
 }
 
 /** Background-style compression: respects the 24-hour age filter. */
@@ -104,11 +86,7 @@ async function runCompression(userTriggered = false): Promise<void> {
   // User-triggered: also sweep .bin files that live on disk without a DB row.
   // Background (age-gated) runs stay DB-driven so we don't compress brand-new
   // files still being written by a just-finished session.
-  const orphanPaths = userTriggered
-    ? (await listSessionCaptureFiles()).filter(
-        (path) => path.endsWith(".bin") && !dbPaths.has(path),
-      )
-    : [];
+  const orphanPaths = userTriggered ? (await listSessionCaptureFiles()).filter((path) => path.endsWith(".bin") && !dbPaths.has(path)) : [];
 
   const total = candidates.length + orphanPaths.length;
   if (total === 0) {
@@ -146,34 +124,12 @@ async function runMaintenance(): Promise<void> {
 
 export async function runSessionCaptureMaintenanceNow(): Promise<void> {
   await runCompression();
-  const [orphanCount, stagedMotecCount] = await Promise.all([
-    cleanupOrphanSessionFiles(isSessionActive),
-    cleanupExpiredStagedMotec(),
-  ]);
-  console.debug(
-    orphanCount > 0
-      ? `[Cleanup] Removed ${orphanCount} orphan session file(s)`
-      : "[Cleanup] No orphan session files found",
-  );
+  const [orphanCount, stagedMotecCount] = await Promise.all([cleanupOrphanSessionFiles(isSessionActive), cleanupExpiredStagedMotec()]);
+  console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
   if (stagedMotecCount > 0) {
     console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
   }
-  const settings = loadSettings();
-  if (!settings.sessionCleanupEnabled) return;
-  try {
-    const result = await executeSessionCleanup({
-      mode: "older-than",
-      olderThanDays: settings.sessionCleanupOlderThanDays,
-    });
-    if (result.failed.length > 0) {
-      console.error("[Cleanup] Session capture cleanup had failures", result.failed);
-    }
-  } catch (err) {
-    if (err instanceof SessionCleanupBusyError) return;
-    console.error("[Cleanup] Session capture cleanup failed", err);
-  }
 }
-
 
 export function startSessionCompressor(): void {
   if (_interval) return;

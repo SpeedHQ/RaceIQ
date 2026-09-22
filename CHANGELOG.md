@@ -1,18 +1,22 @@
 ## Unreleased
 
 ### Features
-- Storage settings and Sessions let drivers remove old or selected telemetry while preserving session and lap metadata, with favourite protections and opt-in automatic cleanup
+
+- Storage settings and Sessions let drivers manually remove old or selected telemetry while preserving session and lap metadata and protecting favourites
 - Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
+- Filter Sessions by favourite status.
 
 ### Fixes
 
 - Align settings switch thumbs fully left when off and fully right when on
+- Let drivers choose cleanup age and inspect per-game session, lap, count, and storage details before removing telemetry
 - Use consistent switch controls for boolean settings and view toggles
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
@@ -20,6 +24,7 @@
 ## v0.18.0 - 2026-09-18
 
 ### Features
+
 - Localize client analysis, telemetry, session-import, and developer-state UI with English and German messages
 
 - Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
@@ -45,6 +50,7 @@
 - Lap analysis works with older F1 recordings that lack track or air temperatures
 
 ### Internal
+
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 - Run seeded database upgrade verification in PR and release CI when migrations change.
 
@@ -54,11 +60,13 @@
 ## v0.17.0 - 2026-09-16
 
 ### Features
+
 - Support optional bearer API keys for OpenAI-compatible endpoints, including local servers and hosted gateways
 - Centralize AI provider credentials and endpoint setup, then select configured providers and models per AI feature with searchable controls
 - Export one or multiple selected laps directly from Sessions toolbar
 
 ### Fixes
+
 - Show F1 live dashboards' fastest valid lap and same-distance current-lap delta without completed-lap fallback
 - Fix issues causing unreadable or unfinished recording files and incorrect lap timing
 - Fix issue preventing live recording from restarting after deleting the active session

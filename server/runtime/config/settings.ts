@@ -56,8 +56,6 @@ const AppSettingsSchema = z.object({
   // sync job (server/tunes/community-sync.ts) to skip unchanged manifests.
   communityTunesVersion: z.string().nullable().default(null),
   communityTunesSyncedAt: z.string().nullable().default(null),
-  sessionCleanupEnabled: z.boolean().default(false),
-  sessionCleanupOlderThanDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]).default(90),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
