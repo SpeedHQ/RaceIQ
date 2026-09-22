@@ -23,10 +23,6 @@ export interface DisplaySettings {
   renderFpsCap: number;
   /** Max in-memory parsed-lap cache, in megabytes. */
   cacheMaxMB: number;
-  /** Whether scheduled raw-capture cleanup is enabled. */
-  sessionCleanupEnabled: boolean;
-  /** Age threshold for scheduled raw-capture cleanup. */
-  sessionCleanupOlderThanDays: 30 | 90 | 180 | 365;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -67,8 +63,6 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   renderFpsCap: 60,
   cacheMaxMB: 256,
   language: "en",
-  sessionCleanupEnabled: false,
-  sessionCleanupOlderThanDays: 90,
 };
 
 export interface ReleaseInfo {

@@ -1,3 +1,4 @@
+import { Star } from "lucide-react";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useNavigate } from "@tanstack/react-router";
 import { AppInput } from "@/components/ui/AppInput";
@@ -15,6 +16,8 @@ export type SessionToolbarProps = {
   sessionsError: boolean;
   tab: SessionsTab;
   setTab: (tab: SessionsTab) => void;
+  favoriteOnly: boolean;
+  setFavoriteOnly: (value: boolean) => void;
   search: string;
   setSearch: (value: string) => void;
   setPage: (page: number) => void;
@@ -39,6 +42,8 @@ export function SessionToolbar({
   sessionsError,
   tab,
   setTab,
+  favoriteOnly,
+  setFavoriteOnly,
   search,
   setSearch,
   setPage,
@@ -46,7 +51,6 @@ export function SessionToolbar({
   selectedLaps,
   exporting,
   runExport,
-  setImportOpen,
   openCleanup,
   confirmDelete,
   setConfirmDelete,
@@ -76,6 +80,19 @@ export function SessionToolbar({
           </Button>
         ))}
       </div>
+      <Button
+        variant="app-outline"
+        size="app-md"
+        aria-pressed={favoriteOnly}
+        onClick={() => {
+          setFavoriteOnly(!favoriteOnly);
+          setPage(0);
+        }}
+        className={favoriteOnly ? "border-app-accent text-app-accent" : undefined}
+      >
+        <Star className={favoriteOnly ? "fill-current" : ""} aria-hidden="true" />
+        {m.sessions_filter_favorites()}
+      </Button>
       <Button variant="app-outline" size="app-md" onClick={() => setImportOpen(true)}>
         {m.sessions_import()}
       </Button>

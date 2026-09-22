@@ -9,11 +9,10 @@ import { isSessionActive } from "../telemetry/live-pipeline";
 import { withSessionCaptureMaintenanceLock } from "./cleanup";
 import { clearSessionCaptureCache } from "./source-loader";
 import { isOwnedSessionRawFile } from "../db/session-queries";
-import type {
-  SessionCleanupPreview,
-  SessionCleanupRequest,
-  SessionCleanupResult,
-} from "../../shared/racing/sessions/cleanup";
+import { tryGetGame } from "../../shared/games/registry";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import type { SessionCleanupGameSummary, SessionCleanupPreview, SessionCleanupRequest, SessionCleanupResult } from "../../shared/racing/sessions/cleanup";
 
 export class SessionCleanupBusyError extends Error {
   constructor() {
@@ -27,6 +26,9 @@ type SessionRow = {
   createdAt: string;
   rawFile: string | null;
   isFavorite: boolean;
+  gameId: SessionCleanupGameSummary["gameId"];
+  carOrdinal: number;
+  trackOrdinal: number;
 };
 
 type LapFavoriteRow = { sessionId: number; isFavorite: boolean };
@@ -49,33 +51,28 @@ async function loadRows(request: SessionCleanupRequest): Promise<{
   all: SessionRow[];
   favoriteSessions: Set<number>;
 }> {
-  const all = await db
+  const all = (await db
     .select({
       id: sessions.id,
       createdAt: sessions.createdAt,
       rawFile: sessions.rawFile,
       isFavorite: sessions.isFavorite,
+      gameId: sessions.gameId,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
     })
     .from(sessions)
-    .all() as SessionRow[];
+    .all()) as SessionRow[];
 
-  const ids = request.mode === "selected"
-    ? new Set(normalizeSelectedIds(request.sessionIds))
-    : null;
-  const cutoffMs = request.mode === "older-than"
-    ? Date.now() - request.olderThanDays * 24 * 60 * 60 * 1000
-    : null;
-  const requested = all.filter((row) => ids
-    ? ids.has(row.id)
-    : Date.parse(row.createdAt) < cutoffMs!);
-  const favoriteSessions = new Set<number>(
-    all.filter((row) => row.isFavorite).map((row) => row.id),
-  );
-  const favoriteLaps = await db
+  const ids = request.mode === "selected" ? new Set(normalizeSelectedIds(request.sessionIds)) : null;
+  const cutoffMs = request.mode === "older-than" ? Date.now() - request.olderThanDays * 24 * 60 * 60 * 1000 : null;
+  const requested = all.filter((row) => (ids ? ids.has(row.id) : Date.parse(row.createdAt) < cutoffMs!));
+  const favoriteSessions = new Set<number>(all.filter((row) => row.isFavorite).map((row) => row.id));
+  const favoriteLaps = (await db
     .select({ sessionId: laps.sessionId, isFavorite: laps.isFavorite })
     .from(laps)
     .where(sql`${laps.isFavorite} = 1`)
-    .all() as LapFavoriteRow[];
+    .all()) as LapFavoriteRow[];
   for (const lap of favoriteLaps) favoriteSessions.add(lap.sessionId);
   return { requested, all, favoriteSessions };
 }
@@ -94,11 +91,60 @@ async function fileState(rawFile: string): Promise<{ path: string; missing: bool
   }
 }
 
+async function buildGameSummaries(groups: CleanupGroup[]): Promise<SessionCleanupGameSummary[]> {
+  const availableGroups = groups.filter((group) => !group.missing);
+  const candidateSessions = availableGroups.flatMap((group) => group.rows);
+  const candidateIds = candidateSessions.map((session) => session.id);
+  const candidateLaps =
+    candidateIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: laps.id,
+            sessionId: laps.sessionId,
+            lapNumber: laps.lapNumber,
+            lapTime: laps.lapTime,
+            isValid: laps.isValid,
+          })
+          .from(laps)
+          .where(inArray(laps.sessionId, candidateIds))
+          .orderBy(laps.sessionId, laps.lapNumber)
+          .all();
+  const lapsBySession = new Map<number, typeof candidateLaps>();
+  for (const lap of candidateLaps) {
+    const sessionLaps = lapsBySession.get(lap.sessionId) ?? [];
+    sessionLaps.push({ ...lap, isValid: Boolean(lap.isValid) });
+    lapsBySession.set(lap.sessionId, sessionLaps);
+  }
+
+  return [...new Set(candidateSessions.map((session) => session.gameId))]
+    .map((gameId) => {
+      const adapter = tryGetGame(gameId);
+      const gameSessions = candidateSessions
+        .filter((session) => session.gameId === gameId)
+        .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+        .map((session) => ({
+          id: session.id,
+          createdAt: session.createdAt,
+          trackName: adapter?.getTrackName(session.trackOrdinal) ?? resolveTrackName(session.trackOrdinal, gameId),
+          carName: adapter?.getCarName(session.carOrdinal) ?? resolveCarName(session.carOrdinal, gameId),
+          laps: lapsBySession.get(session.id) ?? [],
+        }));
+
+      return {
+        gameId,
+        gameName: adapter?.shortName ?? gameId,
+        sessionCount: gameSessions.length,
+        reclaimableBytes: availableGroups.filter((group) => group.rows.some((session) => session.gameId === gameId)).reduce((sum, group) => sum + group.size, 0),
+        sessions: gameSessions,
+      };
+    })
+    .sort((left, right) => left.gameName.localeCompare(right.gameName));
+}
+
 async function buildPlan(request: SessionCleanupRequest, includeMissing: boolean): Promise<CleanupPlan> {
   const { requested, all, favoriteSessions } = await loadRows(request);
-  const protectedIds = new Set<number>(
-    requested.filter((row) => favoriteSessions.has(row.id)).map((row) => row.id),
-  );
+  const protectedIds = new Set<number>(requested.filter((row) => favoriteSessions.has(row.id)).map((row) => row.id));
   const unavailableIds = new Set<number>();
   if (request.mode === "selected") {
     const existingIds = new Set(all.map((row) => row.id));
@@ -148,17 +194,14 @@ async function buildPlan(request: SessionCleanupRequest, includeMissing: boolean
     }
   }
 
-  const candidateSessionIds = groups
-    .filter((group) => !group.missing)
-    .flatMap((group) => group.rows.map((row) => row.id));
+  const candidateSessionIds = groups.filter((group) => !group.missing).flatMap((group) => group.rows.map((row) => row.id));
   return {
     candidateSessionIds: candidateSessionIds.sort((a, b) => a - b),
     protectedSessionIds: [...protectedIds].sort((a, b) => a - b),
     unavailableSessionIds: [...unavailableIds].sort((a, b) => a - b),
     fileCount: groups.filter((group) => !group.missing).length,
-    reclaimableBytes: groups
-      .filter((group) => !group.missing)
-      .reduce((sum, group) => sum + group.size, 0),
+    reclaimableBytes: groups.filter((group) => !group.missing).reduce((sum, group) => sum + group.size, 0),
+    games: await buildGameSummaries(groups),
     groups,
   };
 }
@@ -170,7 +213,6 @@ function previewOnly(plan: CleanupPlan): SessionCleanupPreview {
 export async function previewSessionCleanup(request: SessionCleanupRequest): Promise<SessionCleanupPreview> {
   return previewOnly(await buildPlan(request, false));
 }
-
 
 async function setRawFiles(values: { id: number; rawFile: string | null }[]): Promise<void> {
   await db.transaction(async (tx) => {
@@ -186,17 +228,9 @@ async function restoreGroup(group: CleanupGroup): Promise<void> {
 
 async function evictGroupCaches(group: CleanupGroup): Promise<void> {
   const ids = group.rows.map((row) => row.id);
-  const lapRows = await db
-    .select({ id: laps.id })
-    .from(laps)
-    .where(inArray(laps.sessionId, ids))
-    .all();
+  const lapRows = await db.select({ id: laps.id }).from(laps).where(inArray(laps.sessionId, ids)).all();
   for (const lap of lapRows) cacheDelete(lap.id);
-  const rawFiles = new Set(
-    group.rows
-      .map((row) => row.rawFile)
-      .filter((rawFile): rawFile is string => rawFile != null),
-  );
+  const rawFiles = new Set(group.rows.map((row) => row.rawFile).filter((rawFile): rawFile is string => rawFile != null));
   rawFiles.add(group.path);
   for (const rawFile of rawFiles) clearSessionCaptureCache(rawFile);
 }
@@ -249,7 +283,6 @@ async function executeGroup(group: CleanupGroup): Promise<{ deleted: boolean; by
     throw error;
   }
 }
-
 
 export async function executeSessionCleanup(request: SessionCleanupRequest): Promise<SessionCleanupResult> {
   if (isSessionActive()) throw new SessionCleanupBusyError();

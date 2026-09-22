@@ -15,32 +15,36 @@ const createdSessionIds: number[] = [];
 const createdLapIds: number[] = [];
 const temporaryDirectories: string[] = [];
 
-async function createSession(options: {
-  rawFile: string | null;
-  createdAt?: string;
-  isFavorite?: boolean;
-}): Promise<number> {
-  const row = await db.insert(sessions).values({
-    gameId: "fm-2023",
-    carOrdinal: 1,
-    trackOrdinal: 1,
-    rawFile: options.rawFile,
-    createdAt: options.createdAt ?? OLD_DATE,
-    isFavorite: options.isFavorite ?? false,
-    lapDetectorVersion: "lapdetector_v1",
-  }).returning({ id: sessions.id }).get();
+async function createSession(options: { rawFile: string | null; createdAt?: string; isFavorite?: boolean }): Promise<number> {
+  const row = await db
+    .insert(sessions)
+    .values({
+      gameId: "fm-2023",
+      carOrdinal: 1,
+      trackOrdinal: 1,
+      rawFile: options.rawFile,
+      createdAt: options.createdAt ?? OLD_DATE,
+      isFavorite: options.isFavorite ?? false,
+      lapDetectorVersion: "lapdetector_v1",
+    })
+    .returning({ id: sessions.id })
+    .get();
   createdSessionIds.push(row.id);
   return row.id;
 }
 
 async function createLap(sessionId: number, isFavorite = false): Promise<number> {
-  const row = await db.insert(laps).values({
-    sessionId,
-    lapNumber: 1,
-    lapTime: 90,
-    isValid: true,
-    isFavorite,
-  }).returning({ id: laps.id }).get();
+  const row = await db
+    .insert(laps)
+    .values({
+      sessionId,
+      lapNumber: 1,
+      lapTime: 90,
+      isValid: true,
+      isFavorite,
+    })
+    .returning({ id: laps.id })
+    .get();
   createdLapIds.push(row.id);
   return row.id;
 }
@@ -71,9 +75,10 @@ describe("session cleanup edge cases", () => {
     writeFileSync(oldPath, Buffer.from("old capture"));
     writeFileSync(recentPath, Buffer.from("recent capture"));
     const oldId = await createSession({ rawFile: oldPath });
+    const oldLapId = await createLap(oldId);
     const recentId = await createSession({ rawFile: recentPath, createdAt: RECENT_DATE });
 
-    const preview = await previewSessionCleanup({ mode: "older-than", olderThanDays: 30 });
+    const preview = await previewSessionCleanup({ mode: "older-than", olderThanDays: 7 });
 
     expect(preview.candidateSessionIds).toEqual([oldId]);
     expect(preview.fileCount).toBe(1);
@@ -81,6 +86,18 @@ describe("session cleanup edge cases", () => {
     expect(existsSync(oldPath)).toBe(true);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, oldId)).get())?.rawFile).toBe(oldPath);
     expect(preview.candidateSessionIds).not.toContain(recentId);
+    expect(preview.games).toHaveLength(1);
+    expect(preview.games[0]).toMatchObject({
+      gameId: "fm-2023",
+      sessionCount: 1,
+      reclaimableBytes: Buffer.byteLength("old capture"),
+      sessions: [
+        {
+          id: oldId,
+          laps: [{ id: oldLapId, sessionId: oldId, lapNumber: 1, lapTime: 90, isValid: true }],
+        },
+      ],
+    });
   });
 
   test("selected mode deduplicates IDs and reports missing selections as unavailable", async () => {
@@ -94,7 +111,7 @@ describe("session cleanup edge cases", () => {
     expect(preview.unavailableSessionIds).toContain(999999999);
   });
 
-  test("favourite session and favourite lap protect complete capture", async () => {
+  test("favourite session and favourite lap protect complete capture in age cleanup", async () => {
     const sessionPath = capturePath("favorite-session.bin");
     const lapPath = capturePath("favorite-lap.bin");
     writeFileSync(sessionPath, Buffer.from("session"));
@@ -103,7 +120,7 @@ describe("session cleanup edge cases", () => {
     const lapProtectedSessionId = await createSession({ rawFile: lapPath });
     await createLap(lapProtectedSessionId, true);
 
-    const preview = await previewSessionCleanup({ mode: "selected", sessionIds: [favoriteSessionId, lapProtectedSessionId] });
+    const preview = await previewSessionCleanup({ mode: "older-than", olderThanDays: 7 });
 
     expect(preview.candidateSessionIds).toEqual([]);
     expect(preview.protectedSessionIds.sort()).toEqual([favoriteSessionId, lapProtectedSessionId].sort());

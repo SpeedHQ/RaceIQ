@@ -46,13 +46,14 @@ export function SessionsPage() {
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
-  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const routeSearch = useSearch({ strict: false }) as { tab?: string };
   const tab: SessionsTab = routeSearch.tab === "others" ? "others" : "mine";
   const setTab = useCallback(
@@ -112,11 +113,11 @@ export function SessionsPage() {
   );
 
   const sorted = useMemo(() => sortSessions(sessions, sortKey, sortDir, { trackNames, carNames }), [sessions, sortKey, sortDir, trackNames, carNames]);
-  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }), [sorted, search, tab, trackNames, carNames]);
+  const filtered = useMemo(() => filterSessions(sorted, search, tab, { trackNames, carNames }, favoriteOnly), [sorted, search, tab, trackNames, carNames, favoriteOnly]);
   const { items: pageItems, totalPages } = useMemo(() => paginateSessions(filtered, page), [filtered, page]);
   useEffect(() => {
     setPage(0);
-  }, [sessions.length, search]);
+  }, [sessions.length, search, favoriteOnly]);
 
   const toggleSessionSelection = useCallback(
     (sessionId: number, event: SessionSelectionEvent) => {
@@ -212,7 +213,7 @@ export function SessionsPage() {
   );
   const showSessionType = gameId === "f1-2025" || gameId === "lmu";
   const colCount = showSessionType ? 9 : 8;
-  const emptyMessage = tab === "others" ? m.sessions_none_others() : m.sessions_none();
+  const emptyMessage = favoriteOnly ? m.sessions_none_favorites() : tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
@@ -236,6 +237,11 @@ export function SessionsPage() {
         sessionsError={sessionsError}
         tab={tab}
         setTab={setTab}
+        favoriteOnly={favoriteOnly}
+        setFavoriteOnly={(value) => {
+          setFavoriteOnly(value);
+          setPage(0);
+        }}
         search={search}
         setSearch={setSearch}
         setPage={setPage}

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { queryKeys } from "@/hooks/query-keys";
@@ -244,11 +243,8 @@ function StorageFilesSection() {
     },
     queryKey: queryKeys.storageSessions,
   });
-  const { displaySettings } = useSettings();
-  const saveSettings = useSaveSettings();
   const queryClient = useQueryClient();
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
-  const cleanupAge = displaySettings.sessionCleanupOlderThanDays ?? 90;
 
   const compress = useMutation({
     mutationFn: async () => {
@@ -273,48 +269,15 @@ function StorageFilesSection() {
   return (
     <section className="space-y-6">
       <div>
-        <div className="flex flex-col gap-3 rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h4 className="text-sm font-semibold text-app-text">{m.sessions_cleanup_title()}</h4>
-              <p className="mt-1 text-xs text-app-text-dim">{m.sessions_cleanup_explanation()}</p>
-            </div>
-            <Button variant="app-outline" size="app-sm" onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: cleanupAge })}>
-              {m.sessions_cleanup_review()}
-            </Button>
-          </div>
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <Label htmlFor="session-cleanup-age" className="text-xs text-app-text-secondary">
-                {m.sessions_cleanup_age_label()}
-              </Label>
-              <select
-                id="session-cleanup-age"
-                value={cleanupAge}
-                onChange={(event) => saveSettings.mutate({ sessionCleanupOlderThanDays: Number(event.target.value) as 30 | 90 | 180 | 365 })}
-                className="mt-1 block rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-sm text-app-text"
-              >
-                {[30, 90, 180, 365].map((days) => (
-                  <option key={days} value={days}>
-                    {m.sessions_cleanup_age_option({ days })}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={!!displaySettings.sessionCleanupEnabled}
-                aria-label={m.sessions_cleanup_automatic()}
-                onCheckedChange={(checked) => saveSettings.mutate({ sessionCleanupEnabled: checked })}
-              />
-              <span className="text-xs text-app-text-muted">{displaySettings.sessionCleanupEnabled ? m.common_enabled() : m.common_disabled()}</span>
-            </div>
-          </div>
+        <div className="mb-1 flex items-center justify-between gap-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-app-text">
+            <HardDrive className="size-4 text-app-text-dim" aria-hidden="true" />
+            {m.storage_recording_files_title()}
+          </h3>
+          <Button variant="app-outline" size="app-sm" onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: 30 })}>
+            {m.sessions_cleanup_free_space()}
+          </Button>
         </div>
-        <h3 className="text-sm font-semibold text-app-text mb-1 flex items-center gap-2">
-          <HardDrive className="size-4 text-app-text-dim" />
-          {m.storage_recording_files_title()}
-        </h3>
         <p className="text-xs text-app-text-dim mb-4">
           {m.storage_recording_files_desc_prefix()} <code className="font-mono">data/sessions/</code>. {m.storage_recording_files_desc_suffix()}
         </p>
