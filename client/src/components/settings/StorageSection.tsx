@@ -1,12 +1,15 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, HardDrive, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
+import { queryKeys } from "@/hooks/query-keys";
 import { m } from "@/paraglide/messages";
+import { formatBytes } from "@/lib/format-bytes";
 import { useSaveSettings, useSettings } from "../../hooks/settings";
-
 interface CacheStatus {
   bytesUsed: number;
   maxBytes: number;
@@ -32,12 +35,6 @@ interface SessionStorageStats {
   diskFree: number;
 }
 
-function fmt(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -120,7 +117,7 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-app-text uppercase tracking-wide">{gameId}</span>
         <span className="text-xs text-app-text-dim">
-          {total} {m.storage_file_count()} — {fmt(totalBytes)}
+          {total} {m.storage_file_count()} — {formatBytes(totalBytes)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -128,14 +125,14 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
           <span className="size-2 rounded-sm bg-app-text/20 inline-block" />
           {m.storage_uncompressed()}
         </span>
-        <span className="text-xs text-app-text-secondary">{stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.binCount > 0 ? `${stats.binCount} — ${formatBytes(stats.binBytes)}` : "—"}</span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-app-text-muted flex items-center gap-1.5">
           <span className="size-2 rounded-sm inline-block" style={{ backgroundColor: "var(--storage-compressed)" }} />
           {m.storage_compressed()}
         </span>
-        <span className="text-xs text-app-text-secondary">{stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.gzCount > 0 ? `${stats.gzCount} — ${formatBytes(stats.gzBytes)}` : "—"}</span>
       </div>
     </div>
   );
@@ -153,13 +150,12 @@ function CacheSection() {
   }, [displaySettings.cacheMaxMB]);
 
   const { data: cache, isError: cacheError } = useQuery<CacheStatus>({
-    queryKey: ["cache", "status"],
     queryFn: async () => {
       const response = await fetch("/api/cache/status");
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<CacheStatus>;
     },
-    refetchInterval: 5_000,
+    queryKey: queryKeys.cacheStatus,
   });
 
   const usedFraction = cache && cache.maxBytes > 0 ? Math.min(1, cache.bytesUsed / cache.maxBytes) : 0;
@@ -207,7 +203,7 @@ function CacheSection() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-app-text-secondary">{m.storage_used()}</span>
             <span className="text-sm font-medium text-app-text">
-              {fmt(cache.bytesUsed)} / {fmt(cache.maxBytes)} <span className="text-app-text-dim">({usedPct}%)</span>
+              {formatBytes(cache.bytesUsed)} / {formatBytes(cache.maxBytes)} <span className="text-app-text-dim">({usedPct}%)</span>
             </span>
           </div>
           <div className="h-2 rounded-full bg-app-text/10 overflow-hidden">
@@ -240,14 +236,18 @@ function CacheSection() {
 
 export function StorageSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
-    queryKey: ["storage", "sessions"],
     queryFn: async () => {
       const response = await fetch("/api/storage/sessions");
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
       return response.json() as Promise<SessionStorageStats>;
     },
-    refetchInterval: 30_000,
+    queryKey: queryKeys.storageSessions,
   });
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const queryClient = useQueryClient();
+  const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const cleanupAge = displaySettings.sessionCleanupOlderThanDays ?? 90;
 
   const compress = useMutation({
     mutationFn: async () => {
@@ -257,6 +257,15 @@ export function StorageSection() {
     },
     onSuccess: () => void refetch(),
   });
+  const completeCleanup = (result: SessionCleanupResult) => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.storageSessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.laps }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.cacheStatus }),
+    ]);
+    if (result.failed.length === 0) setCleanupRequest(null);
+  };
 
   const gameEntries = data?.byGame ? Object.entries(data.byGame) : [];
 
@@ -284,14 +293,14 @@ export function StorageSection() {
         )}
         {data && (
           <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 divide-y divide-app-border/50 mb-4">
-            <StatRow label={m.storage_total_size()} value={fmt(data.totalBytes)} />
-            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${fmt(data.binBytes)}` : m.label_none()} />
-            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${fmt(data.gzBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_total_size()} value={formatBytes(data.totalBytes)} />
+            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${formatBytes(data.binBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${formatBytes(data.gzBytes)}` : m.label_none()} />
             {data.binCount > 0 && data.gzCount > 0 && <StatRow label={m.storage_space_saved()} value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`} />}
             {data.diskTotal > 0 && (
               <>
-                <StatRow label={m.storage_disk_total()} value={fmt(data.diskTotal)} />
-                <StatRow label={m.storage_disk_free()} value={fmt(data.diskFree)} />
+                <StatRow label={m.storage_disk_total()} value={formatBytes(data.diskTotal)} />
+                <StatRow label={m.storage_disk_free()} value={formatBytes(data.diskFree)} />
               </>
             )}
           </div>
@@ -304,6 +313,42 @@ export function StorageSection() {
             ))}
           </div>
         )}
+        <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3 space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold text-app-text">{m.sessions_cleanup_title()}</h4>
+            <p className="text-xs text-app-text-dim mt-1">{m.sessions_cleanup_explanation()}</p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label htmlFor="session-cleanup-age" className="text-xs text-app-text-secondary">{m.sessions_cleanup_age_label()}</Label>
+              <select
+                id="session-cleanup-age"
+                value={cleanupAge}
+                onChange={(event) => saveSettings.mutate({ sessionCleanupOlderThanDays: Number(event.target.value) as 30 | 90 | 180 | 365 })}
+                className="mt-1 block rounded border border-app-border-input bg-app-surface px-2 py-1.5 text-sm text-app-text"
+              >
+                {[30, 90, 180, 365].map((days) => <option key={days} value={days}>{m.sessions_cleanup_age_option({ days })}</option>)}
+              </select>
+            </div>
+            <Button variant="app-outline" size="app-sm" onClick={() => setCleanupRequest({ mode: "older-than", olderThanDays: cleanupAge })}>
+              {m.sessions_cleanup_review()}
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                role="switch"
+                aria-checked={!!displaySettings.sessionCleanupEnabled}
+                aria-label={m.sessions_cleanup_automatic()}
+                onClick={() => saveSettings.mutate({ sessionCleanupEnabled: !displaySettings.sessionCleanupEnabled })}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${displaySettings.sessionCleanupEnabled ? "cursor-pointer bg-app-accent" : "cursor-pointer bg-app-surface-alt border border-app-border-input"}`}
+              >
+                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-app-text shadow-lg transition-transform ${displaySettings.sessionCleanupEnabled ? "translate-x-4" : "translate-x-0"}`} />
+              </Button>
+              <span className="text-xs text-app-text-muted">{displaySettings.sessionCleanupEnabled ? m.common_enabled() : m.common_disabled()}</span>
+            </div>
+          </div>
+        </div>
+        <SessionCleanupDialog request={cleanupRequest} onClose={() => setCleanupRequest(null)} onCompleted={completeCleanup} />
         {data && data.total === 0 && <p className="text-sm text-app-text-dim">{m.storage_no_files()}</p>}
         {data && data.binCount > 0 && (
           <div className="mt-4">

@@ -1,18 +1,22 @@
+import { Fragment } from "react";
+import { Star } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
-import { Fragment } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
+import { queryKeys } from "@/hooks/query-keys";
 import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { NoteCell } from "./NoteCell";
+import { client } from "@/lib/rpc";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -77,6 +81,11 @@ export function SessionDesktopTable({
   setRecapSessionId,
   analyseSession,
 }: SessionDesktopTableProps) {
+  const queryClient = useQueryClient();
+  const toggleFavorite = async (session: SessionMeta) => {
+    const response = await client.api.sessions[":id"].favorite.$patch({ param: { id: String(session.id) }, json: { favorite: !session.isFavorite } });
+    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+  };
   return (
     <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
       <Table fit>
@@ -148,6 +157,19 @@ export function SessionDesktopTable({
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <Button
+                          type="button"
+                          variant="app-ghost"
+                          size="icon-xs"
+                          aria-label={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
+                          title={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void toggleFavorite(session);
+                          }}
+                        >
+                          <Star className={session.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
+                        </Button>
+                        <Button
                           variant="app-outline"
                           size="app-sm"
                           onClick={(event) => {
@@ -160,7 +182,8 @@ export function SessionDesktopTable({
                         <Button
                           variant="app-primary"
                           size="app-sm"
-                          disabled={false}
+                          disabled={session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                           onClick={(event) => {
                             event.stopPropagation();
                             analyseSession(session);
@@ -171,8 +194,8 @@ export function SessionDesktopTable({
                         <Button
                           variant="app-outline"
                           size="app-sm"
-                          disabled={exporting}
-                          title={m.sessions_export_session()}
+                          disabled={exporting || session.telemetryAvailable === false}
+                          title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
                           onClick={(event) => {
                             event.stopPropagation();
                             runExport({ sessionIds: [session.id] });

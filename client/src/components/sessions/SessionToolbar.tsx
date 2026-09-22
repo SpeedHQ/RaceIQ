@@ -23,6 +23,7 @@ export type SessionToolbarProps = {
   exporting: boolean;
   runExport: RunExport;
   setImportOpen: (open: boolean) => void;
+  openCleanup: () => void;
   confirmDelete: boolean;
   setConfirmDelete: (confirm: boolean) => void;
   deleteSelected: () => void;
@@ -46,6 +47,7 @@ export function SessionToolbar({
   exporting,
   runExport,
   setImportOpen,
+  openCleanup,
   confirmDelete,
   setConfirmDelete,
   deleteSelected,
@@ -54,6 +56,7 @@ export function SessionToolbar({
 }: SessionToolbarProps) {
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
+  const selectedTelemetryLaps = allLaps.filter((lap) => selectedLaps.has(lap.id) && lap.telemetryAvailable !== false);
 
   return (
     <div className="flex items-center flex-wrap gap-3">
@@ -92,8 +95,8 @@ export function SessionToolbar({
         )}
       </h1>
       <div className="flex items-center flex-wrap gap-2">
-        {selectedLaps.size > 0 && (
-          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: [...selectedLaps] })}>
+        {selectedTelemetryLaps.length > 0 && (
+          <Button variant="app-primary" size="app-md" disabled={exporting} onClick={() => runExport({ lapIds: selectedTelemetryLaps.map((lap) => lap.id) })}>
             {exporting ? m.common_loading() : m.sessions_export_lap()}
           </Button>
         )}
@@ -105,7 +108,7 @@ export function SessionToolbar({
             if (!lapA || !lapB) return null;
             const sessionA = sessions.find((session) => session.id === lapA.sessionId);
             const sessionB = sessions.find((session) => session.id === lapB.sessionId);
-            if (!sessionA || !sessionB || sessionA.trackOrdinal !== sessionB.trackOrdinal) return null;
+            if (!sessionA || !sessionB || sessionA.trackOrdinal !== sessionB.trackOrdinal || lapA.telemetryAvailable === false || lapB.telemetryAvailable === false) return null;
             return (
               <Button
                 variant="app-primary"
@@ -121,6 +124,11 @@ export function SessionToolbar({
               </Button>
             );
           })()}
+        {selectedSessions.size > 0 && (
+          <Button variant="app-outline" size="app-md" onClick={openCleanup}>
+            {m.sessions_cleanup_free_space()}
+          </Button>
+        )}
         {(selectedSessions.size > 0 || selectedLaps.size > 0) &&
           (!confirmDelete ? (
             <Button variant="app-danger" size="app-md" onClick={() => setConfirmDelete(true)}>

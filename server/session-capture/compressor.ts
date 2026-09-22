@@ -19,6 +19,9 @@ import {
   listSessionCaptureFiles,
 } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
+import { loadSettings } from "../runtime/config/settings";
+import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
+
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -138,9 +141,11 @@ async function runCompression(userTriggered = false): Promise<void> {
 let _interval: ReturnType<typeof setInterval> | null = null;
 
 async function runMaintenance(): Promise<void> {
+  await runSessionCaptureMaintenanceNow();
+}
+
+export async function runSessionCaptureMaintenanceNow(): Promise<void> {
   await runCompression();
-  // Re-check activity inside the async orphan sweep so a session that starts
-  // during file enumeration cannot have its capture removed.
   const [orphanCount, stagedMotecCount] = await Promise.all([
     cleanupOrphanSessionFiles(isSessionActive),
     cleanupExpiredStagedMotec(),
@@ -153,7 +158,22 @@ async function runMaintenance(): Promise<void> {
   if (stagedMotecCount > 0) {
     console.debug(`[Cleanup] Removed ${stagedMotecCount} expired MoTeC staging director${stagedMotecCount === 1 ? "y" : "ies"}`);
   }
+  const settings = loadSettings();
+  if (!settings.sessionCleanupEnabled) return;
+  try {
+    const result = await executeSessionCleanup({
+      mode: "older-than",
+      olderThanDays: settings.sessionCleanupOlderThanDays,
+    });
+    if (result.failed.length > 0) {
+      console.error("[Cleanup] Session capture cleanup had failures", result.failed);
+    }
+  } catch (err) {
+    if (err instanceof SessionCleanupBusyError) return;
+    console.error("[Cleanup] Session capture cleanup failed", err);
+  }
 }
+
 
 export function startSessionCompressor(): void {
   if (_interval) return;

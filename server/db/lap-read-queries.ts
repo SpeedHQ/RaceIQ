@@ -90,6 +90,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200, sessionId?: 
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      isFavorite: laps.isFavorite,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
       ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
@@ -136,7 +140,7 @@ export async function getReviewLaps(
   trackId?: string,
   carId?: string,
 ): Promise<LapMeta[]> {
-  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`];
+  const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`, sql`${sessions.rawFile} IS NOT NULL`];
   if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
   else if (gameId === "lmu" && (trackId ?? trackOrdinal) != null && (carId ?? carOrdinal) != null) {
     filters.push(
@@ -166,6 +170,10 @@ export async function getReviewLaps(
       trackId: sessions.trackId,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      isFavorite: laps.isFavorite,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
       ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
@@ -227,6 +235,10 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      isFavorite: laps.isFavorite,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
       ownership: sessions.ownership,
       source: sessions.source,
       experimentId: laps.experimentId,
@@ -332,6 +344,7 @@ type LapMetadataRow = {
   lapNumber: number;
   lapTime: number;
   isValid: number | boolean;
+  isFavorite: number | boolean;
   createdAt: string;
   rawByteOffset: number | null;
   rawFrameCount: number | null;
@@ -359,7 +372,7 @@ async function getLapMetadataRow(id: number): Promise<LapMetadataRow | undefined
   return db
     .select({
       id: laps.id, sessionId: laps.sessionId, lapNumber: laps.lapNumber, lapTime: laps.lapTime,
-      isValid: laps.isValid, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
+      isValid: laps.isValid, isFavorite: laps.isFavorite, createdAt: laps.createdAt, rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount, rawFile: sessions.rawFile, source: sessions.source,
       carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
       carId: sessions.carId, trackId: sessions.trackId,
@@ -415,6 +428,7 @@ type LapResultRow = {
   lapTime: number;
   isValid: number | boolean;
   createdAt: string;
+  isFavorite: number | boolean;
   carOrdinal: number;
   trackOrdinal: number;
   carId: string | null;
@@ -428,10 +442,12 @@ type LapResultRow = {
   catalogHash: string | null;
   catalogSchemaVersion: string | null;
   parserVersion: string | null;
-  ownership: string | null;
   resolverVersion: string | null;
   derivationVersion: string | null;
   rawFile?: string | null;
+  ownership?: string | null;
+  rawByteOffset?: number | null;
+  rawFrameCount?: number | null;
   source?: string | null;
 };
 
@@ -445,11 +461,13 @@ function buildLapResult(
     lapNumber: row.lapNumber,
     lapTime: row.lapTime,
     isValid: Boolean(row.isValid),
-    createdAt: row.createdAt,
+    isFavorite: Boolean(row.isFavorite),
+    telemetryAvailable: row.rawFile != null && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
     carId: row.carId ?? row.carOrdinal,
     trackId: row.trackId ?? row.trackOrdinal,
+    createdAt: row.createdAt,
     ownership: row.ownership === "others" ? "others" : "mine",
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
@@ -489,6 +507,7 @@ export async function getLapsByIds(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      isFavorite: laps.isFavorite,
       createdAt: laps.createdAt,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
