@@ -10,6 +10,8 @@
 
 ### Fixes
 - Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
+- Restore full-size 3D car views and temperature-colored brake discs
+- Announce simulator-specific tire temperatures with selected units in 3D views
 
 - Label sector-time columns S1, S2, S3 in Analyse session lap-selection dialog and allow sorting by sector.
 - Improve logging and diagnostic exports

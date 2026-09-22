@@ -156,7 +156,10 @@ export const CarWireframe = React.memo(function CarWireframe({
 
   return (
     <div className="w-full h-full relative flex-1">
-      <div role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => `${wheel} ${String((frame.values["tire.temperature.surface.representative"] as number[] | undefined)?.[index] ?? "Unavailable")}`).join(", ")}`}>
+      <div className="w-full h-full" role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => {
+        const value = (frame.values[temperatureSemanticId] as number[] | undefined)?.[index];
+        return `${wheel} ${value != null && Number.isFinite(value) ? fmtTemp(value) : m.analyse_unavailable()}`;
+      }).join(", ")}`}>
       <Canvas
         key="raceiq-car-renderer-v2"
         camera={{ position: [4, 2.5, 4], fov: 50 }}

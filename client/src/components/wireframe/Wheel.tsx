@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
-import { tireTempColor } from "../../lib/vehicle-dynamics";
+import { brakeTempColor, tireTempColor } from "../../lib/vehicle-dynamics";
 import { makeWheelGeometries, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
 import { WheelInfoCard } from "./WheelLabels";
 
@@ -94,6 +94,13 @@ export function Wheel({
           </mesh>
           </group>
         </group>
+        {/* Brake disc — vertical, inboard of wheel (between wheel and spring) */}
+        {brakeTemp > 0 && (
+          <mesh position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]} rotation={[Math.PI / 2, 0, 0]} renderOrder={10}>
+            <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
+            <meshBasicMaterial color={threeColor(brakeTempColor(brakeTemp, isRear))} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
+          </mesh>
+        )}
       </group>
       {temperatureReadings.length > 0 && (
         <WheelInfoCard
