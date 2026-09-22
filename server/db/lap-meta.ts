@@ -113,6 +113,7 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     // incorrectly rank an excluded lap back into the fastest-N pool.
     experimentExcludedSource:
       (experimentExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: fuelPerLap ?? null,
     tyreWear: tyreWear ?? null,
     isFavorite: Boolean(isFavorite),
     telemetryAvailable: lapTelemetryAvailable,

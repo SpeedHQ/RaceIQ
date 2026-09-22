@@ -26,11 +26,11 @@ function CleanupGameTables({ game }: { game: SessionCleanupGameSummary }) {
     <TabsContent value={game.gameId} className="space-y-4 pt-3">
       <div className="flex flex-wrap gap-2">
         <div className="min-w-32 rounded-md bg-app-surface-alt/60 px-3 py-2">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-app-text-dim">{m.label_sessions()}</div>
+          <div className="text-app-caption font-medium uppercase tracking-wider text-app-text-dim">{m.label_sessions()}</div>
           <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-app-text">{game.sessionCount}</div>
         </div>
         <div className="min-w-32 rounded-md bg-app-surface-alt/60 px-3 py-2">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-app-text-dim">{m.sessions_cleanup_reclaimable()}</div>
+          <div className="text-app-caption font-medium uppercase tracking-wider text-app-text-dim">{m.sessions_cleanup_reclaimable()}</div>
           <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-app-text">{formatBytes(game.reclaimableBytes)}</div>
         </div>
       </div>
@@ -216,7 +216,7 @@ export function SessionCleanupDialog({ request, onClose, onCompleted }: Props) {
                   {preview.games.map((game) => (
                     <TabsTrigger key={game.gameId} value={game.gameId} variant="underline">
                       {game.gameName}
-                      <span className="ml-1.5 rounded bg-app-surface-alt px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-app-text-muted">{game.sessionCount}</span>
+                      <span className="ml-1.5 rounded bg-app-surface-alt px-1.5 py-0.5 font-mono text-app-caption tabular-nums text-app-text-muted">{game.sessionCount}</span>
                     </TabsTrigger>
                   ))}
                 </TabsList>

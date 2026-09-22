@@ -178,6 +178,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         detected.lapNumber,
         detected.lapTime,
         detected.isValid,
+        preserved?.isFavorite ?? false,
         detected.rawByteOffset,
         detected.rawFrameCount,
         preserved?.tuneId ?? null,

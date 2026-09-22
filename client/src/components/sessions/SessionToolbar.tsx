@@ -51,6 +51,7 @@ export function SessionToolbar({
   selectedLaps,
   exporting,
   runExport,
+  setImportOpen,
   openCleanup,
   confirmDelete,
   setConfirmDelete,

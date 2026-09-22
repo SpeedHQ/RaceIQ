@@ -3,10 +3,11 @@ import { inArray } from "drizzle-orm";
 import { db } from "../../../server/db/index";
 import { laps, sessions, experiments } from "../../../server/db/schema";
 import { getLapsForExperiment } from "../../../server/db/experiment-lap-queries";
-import { insertLap } from "../../../server/db/lap-mutation-queries";
+import { insertLap, setLapMetrics } from "../../../server/db/lap-mutation-queries";
 import { insertSession } from "../../../server/db/session-queries";
 import { createExperiment } from "../../../server/db/experiment-queries";
 import { getActiveExperiment, setActiveExperiment } from "../../../server/experiments/active"
+import { experimentLapAnalysisRoutes } from "../../../server/routes/experiments/lap-routes";
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +
@@ -69,6 +70,21 @@ describe("lap ↔ experiment explicit link", () => {
     expect(ids).not.toContain(afterLap);
     // Every returned lap carries the link.
     expect(linked.every((l) => l.experimentId === tsId)).toBe(true);
+  });
+
+  test("serves persisted fuel and tyre metrics without raw telemetry", async () => {
+    const experimentId = await createExperiment({ gameId: "acc", name: "Stored metrics" });
+    createdExperimentIds.push(experimentId);
+    const sessionId = await insertSession(1, 2, "acc");
+    createdSessionIds.push(sessionId);
+    setActiveExperiment(experimentId);
+    const lapId = await insertLap(sessionId, 1, 90, true, null, 0);
+    await setLapMetrics(lapId, 2.7, 20);
+
+    const response = await experimentLapAnalysisRoutes.request(`/api/experiments/${experimentId}/lap-metrics`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([{ lapId, fuelPerLap: 2.7, tyreWear: 20 }]);
   });
 
   test("a session with no laps recorded while active returns an empty pool", async () => {

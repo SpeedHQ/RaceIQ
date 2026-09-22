@@ -8,6 +8,10 @@
 
 ### Fixes
 
+- Keep telemetry cleanup effective when session compression runs at the same time.
+- Restore saved fuel consumption in experiment lap metrics.
+- Preserve lap favourites and their cleanup protection when session reprocessing replaces laps.
+- Open the session import dialog correctly from the Sessions toolbar.
 - Align settings switch thumbs fully left when off and fully right when on
 - Let drivers choose cleanup age and inspect per-game session, lap, count, and storage details before removing telemetry
 - Use consistent switch controls for boolean settings and view toggles
