@@ -34,6 +34,7 @@
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Align settings switch thumbs fully left when off and fully right when on
+- Use consistent switch controls for boolean settings and view toggles
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
