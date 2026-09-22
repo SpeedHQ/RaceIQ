@@ -12,6 +12,7 @@
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
 - Fetch available OpenAI models using configured API key
 - Storage settings and Sessions let drivers remove old or selected telemetry while preserving session and lap metadata, with favourite protections and opt-in automatic cleanup
+- Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
 
 ### Fixes
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
@@ -32,6 +33,7 @@
 - Improve logging and diagnostic exports
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Align settings switch thumbs fully left when off and fully right when on
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
