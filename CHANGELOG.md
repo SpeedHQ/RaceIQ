@@ -11,6 +11,7 @@
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
 - Fetch available OpenAI models using configured API key
+- Storage settings and Sessions let drivers remove old or selected telemetry while preserving session and lap metadata, with favourite protections and opt-in automatic cleanup
 
 ### Fixes
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
