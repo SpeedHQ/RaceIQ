@@ -14,16 +14,18 @@ interface LapStats {
   totalTimeSec: number;
   uniqueCars: number;
   uniqueTracks: number;
-  lapsByTrack: { trackOrdinal: number; count: number }[];
+  lapsByTrack: { gameId: GameId; trackId: number | string; count: number }[];
 }
 
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
   const owned = sql`COALESCE(sessions.ownership, 'mine') != 'others'`;
   const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId} AND ${owned}` : sql`WHERE ${owned}`;
+  const carIdentity = sql`COALESCE(sessions.car_id, sessions.car_ordinal)`;
+  const trackIdentity = sql`COALESCE(sessions.track_id, sessions.track_ordinal)`;
   const whereClauseByTrack = gameId
-    ? sql`WHERE sessions.game_id = ${gameId} AND ${owned} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`
-    : sql`WHERE ${owned} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`;
+    ? sql`WHERE sessions.game_id = ${gameId} AND ${owned} AND laps.lap_time > 0 AND ${trackIdentity} IS NOT NULL`
+    : sql`WHERE ${owned} AND laps.lap_time > 0 AND ${trackIdentity} IS NOT NULL`;
 
   const totals = await db.all<{
     totalLaps: number;
@@ -36,19 +38,19 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
       COUNT(*) as totalLaps,
       SUM(CASE WHEN laps.is_valid AND laps.lap_time > 0 THEN 1 ELSE 0 END) as validLaps,
       COALESCE(SUM(CASE WHEN laps.lap_time > 0 THEN laps.lap_time ELSE 0 END), 0) as totalTimeSec,
-      COUNT(DISTINCT sessions.car_ordinal) as uniqueCars,
-      COUNT(DISTINCT sessions.track_ordinal) as uniqueTracks
+      COUNT(DISTINCT CASE WHEN ${carIdentity} IS NOT NULL THEN json_array(sessions.game_id, ${carIdentity}) END) as uniqueCars,
+      COUNT(DISTINCT CASE WHEN ${trackIdentity} IS NOT NULL THEN json_array(sessions.game_id, ${trackIdentity}) END) as uniqueTracks
     FROM laps
     INNER JOIN sessions ON laps.session_id = sessions.id
     ${whereClause}
   `);
 
-  const byTrack = await db.all<{ trackOrdinal: number; count: number }>(sql`
-    SELECT sessions.track_ordinal as trackOrdinal, COUNT(*) as count
+  const byTrack = await db.all<{ gameId: GameId; trackId: number | string; count: number }>(sql`
+    SELECT sessions.game_id as gameId, ${trackIdentity} as trackId, COUNT(*) as count
     FROM laps
     INNER JOIN sessions ON laps.session_id = sessions.id
     ${whereClauseByTrack}
-    GROUP BY sessions.track_ordinal
+    GROUP BY sessions.game_id, ${trackIdentity}
   `);
 
   const row = totals[0] ?? { totalLaps: 0, validLaps: 0, totalTimeSec: 0, uniqueCars: 0, uniqueTracks: 0 };
@@ -58,7 +60,7 @@ export async function getLapStats(gameId?: GameId): Promise<LapStats> {
     totalTimeSec: Number(row.totalTimeSec),
     uniqueCars: Number(row.uniqueCars),
     uniqueTracks: Number(row.uniqueTracks),
-    lapsByTrack: byTrack.map((r) => ({ trackOrdinal: r.trackOrdinal, count: Number(r.count) })),
+    lapsByTrack: byTrack.map((r) => ({ gameId: r.gameId, trackId: r.trackId, count: Number(r.count) })),
   };
 }
 
@@ -136,10 +138,10 @@ export async function getReviewLaps(
 ): Promise<LapMeta[]> {
   const filters = [eq(sessions.gameId, gameId), eq(laps.isValid, true), sql`${laps.lapTime} > 0`];
   if (sessionId != null) filters.push(eq(laps.sessionId, sessionId));
-  else if (gameId === "lmu" && trackId != null && carId != null) {
+  else if (gameId === "lmu" && (trackId ?? trackOrdinal) != null && (carId ?? carOrdinal) != null) {
     filters.push(
-      eq(sessions.trackId, trackId),
-      eq(sessions.carId, carId),
+      sql`COALESCE(${sessions.trackId}, CAST(${sessions.trackOrdinal} AS TEXT)) = ${String(trackId ?? trackOrdinal)}`,
+      sql`COALESCE(${sessions.carId}, CAST(${sessions.carOrdinal} AS TEXT)) = ${String(carId ?? carOrdinal)}`,
     );
   } else if (trackOrdinal != null && carOrdinal != null) {
     filters.push(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.carOrdinal, carOrdinal));
@@ -293,10 +295,10 @@ export async function getLapSummariesByTrack(trackKey: number | string, gameId?:
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
-      gameId === "lmu" && typeof trackKey === "string"
+      gameId === "lmu"
         ? and(
             eq(sessions.gameId, gameId),
-            eq(sessions.trackId, trackKey),
+            sql`COALESCE(${sessions.trackId}, CAST(${sessions.trackOrdinal} AS TEXT)) = ${String(trackKey)}`,
           )
         : gameId
           ? and(eq(sessions.trackOrdinal, Number(trackKey)), eq(sessions.gameId, gameId))

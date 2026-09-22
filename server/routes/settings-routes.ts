@@ -15,6 +15,7 @@ import { getLapStats } from "../db/lap-read-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
+import { getLMUTrack } from "../../shared/games/lmu/catalog";
 import { withOnboardingOverride } from "../runtime/options";
 
 import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
@@ -284,8 +285,10 @@ export const settingsRoutes = new Hono()
     const stats = await getLapStats(gameId);
 
     let totalDistanceMeters = 0;
-    for (const { trackOrdinal, count } of stats.lapsByTrack) {
-      const trackLen = gameId ? getTrackLengthMeters(trackOrdinal, gameId) : null;
+    for (const { gameId: trackGameId, trackId, count } of stats.lapsByTrack) {
+      const trackLen = trackGameId === "lmu" && typeof trackId === "string"
+        ? (getLMUTrack(trackId)?.lengthKm ?? 0) * 1_000
+        : typeof trackId === "number" ? getTrackLengthMeters(trackId, trackGameId) : null;
       if (trackLen !== null) {
         totalDistanceMeters += trackLen * count;
       }

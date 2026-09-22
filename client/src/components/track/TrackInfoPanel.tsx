@@ -68,7 +68,7 @@ export function TrackInfoPanel({
     queryKey: ["track-guide", track.ordinal, gameId ?? null],
     queryFn: () =>
       client.api["track-guide"][":ordinal"]
-        .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as ResolvedTrackGuide | null),
     enabled: !!gameId,
     staleTime: 5 * 60 * 1000,

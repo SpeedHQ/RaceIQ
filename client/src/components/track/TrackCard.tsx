@@ -108,7 +108,7 @@ export function TrackCard({
   useEffect(() => {
     if (!track.hasOutline || !outlineVisible) return;
     client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {

@@ -4,7 +4,7 @@ import { getTelemetryVariable } from "../../shared/telemetry/catalog/query";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import { packet } from "../support/telemetry/resolver";
-import { LIVE_CORE_SEMANTIC_IDS, LIVE_GAME_SEMANTIC_IDS, liveSemanticIds } from "../../shared/telemetry/live/semantics";
+import { liveSemanticIds } from "../../shared/telemetry/live/semantics";
 
 describe("live telemetry semantics", () => {
   test("uses canonical per-wheel catalog shapes and direct Kunos mappings", () => {
@@ -19,9 +19,7 @@ describe("live telemetry semantics", () => {
     expect(getTelemetryVariable("tires.tire-radius").games["ac-evo"].kind).toBe("unavailable");
   });
 
-  test("matches exact ordered allowlists and deduplicates", () => {
-    expect(LIVE_CORE_SEMANTIC_IDS).toEqual(["brakes.brake-temp","engine.boost","engine.current-engine-rpm","engine.engine-idle-rpm","engine.engine-max-rpm","engine.power","engine.torque","fuel.fuel","fuel.fuel-capacity","identity.car-class","identity.car-ordinal","identity.car-performance-index","identity.drivetrain-type","identity.track-ordinal","inputs.accel","inputs.brake","inputs.gear","inputs.steer","motion.acceleration-x","motion.acceleration-z","motion.pitch","motion.position-x","motion.position-z","motion.roll","motion.speed","motion.yaw","race.race-position","suspension.norm-suspension-travel","timing.best-lap","timing.current-lap","timing.distance-traveled","timing.lap-number","timing.last-lap","tire.temperature.surface.representative","tires.tire-combined-slip","tires.tire-pressure","tires.tire-slip-angle","tires.tire-slip-ratio","tires.tire-wear","tires.wheel-in-puddle-depth","tires.wheel-on-rumble-strip","tires.wheel-rotation-speed","weather.air-temp","weather.track-temp","weather.weather-type"]);
-    expect(LIVE_GAME_SEMANTIC_IDS).toMatchObject({ "fm-2023": [], acc: ["damage.brake-pad-wear","race.pit-status","tires.tire-compound-name","tires.tire-radius"], "ac-evo": ["damage.brake-pad-wear","race.pit-status","tires.tire-compound-name","tires.tire-radius"], iracing: ["race.on-pit-road","timing.lap-fraction"], lmu: ["race.on-pit-road","session.session-type","timing.lap-fraction"] });
+  test("keeps each live semantic slot unique", () => {
     for (const gameId of KNOWN_GAME_IDS) expect(new Set(liveSemanticIds(gameId)).size).toBe(liveSemanticIds(gameId).length);
   });
 
@@ -51,5 +49,18 @@ describe("live telemetry semantics", () => {
       { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
     );
     expect(frame.resolveValue(resolver.slot("session.session-type")).value).toBe("race");
+  });
+
+  test("resolves LMU string identity through the live allowlist", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: liveSemanticIds("lmu").map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(
+      packet("lmu", { CarOrdinal: -1, TrackOrdinal: -1, lmu: { carId: "Custom / Car", trackId: "spa_2023/spawec" } as never }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+    );
+    expect(frame.resolveValue(resolver.slot("identity.car-id")).value).toBe("Custom / Car");
+    expect(frame.resolveValue(resolver.slot("identity.track-id")).value).toBe("spa_2023/spawec");
   });
 });

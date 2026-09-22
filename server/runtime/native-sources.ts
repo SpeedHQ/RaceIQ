@@ -30,23 +30,33 @@ export function startNativeSourceSupervisor(
     return { stop: async () => {} };
   }
 
+  const pendingStops = new Set<Promise<void>>();
+  const trackStop = (stop: Promise<void> | null): void => {
+    if (!stop) return;
+    pendingStops.add(stop);
+    void stop.then(
+      () => pendingStops.delete(stop),
+      () => pendingStops.delete(stop),
+    );
+  };
+
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
   const pollTimer = setInterval(() => {
-    superviseSource(
+    trackStop(superviseSource(
       isGameRunning("acc"),
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       getAccReader,
       setAccReader,
-    );
-    superviseSource(
+    ));
+    trackStop(superviseSource(
       isGameRunning("ac-evo"),
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       getAcEvoReader,
       setAcEvoReader,
-    );
-    superviseSource(
+    ));
+    trackStop(superviseSource(
       isGameRunning("iracing"),
       "iRacing",
       () => new IRacingTelemetrySource({
@@ -55,8 +65,8 @@ export function startNativeSourceSupervisor(
       }),
       getIracingSource,
       setIracingSource,
-    );
-    superviseSource(
+    ));
+    trackStop(superviseSource(
       isGameRunning("lmu") || recordingGameId === "lmu",
       recordingGameId === "lmu" && !isGameRunning("lmu") ? "LMU recording" : "LMU",
       () => new LMUTelemetrySource({
@@ -64,7 +74,7 @@ export function startNativeSourceSupervisor(
       }),
       getLmuSource,
       setLmuSource,
-    );
+    ));
   }, SOURCE_POLL_MS);
 
   return {
@@ -80,11 +90,10 @@ export function startNativeSourceSupervisor(
       setAcEvoReader(null);
       setIracingSource(null);
       setLmuSource(null);
-      const stopTasks: Promise<void>[] = [];
       for (const reader of readers) {
-        if (reader) stopTasks.push(reader.stop());
+        if (reader) trackStop(reader.stop());
       }
-      await Promise.allSettled(stopTasks);
+      await Promise.allSettled(pendingStops);
     },
   };
 }

@@ -89,9 +89,11 @@ test/games/iracing/iracing-sdk-decoding.test.ts
 test/games/iracing/iracing-sdk-lap-sectors.test.ts
 test/games/iracing/iracing-sdk-source-frame.test.ts
 test/games/iracing/iracing-sdk-source-integration.test.ts
+test/games/lmu/duckdb-import-security.test.ts
 test/games/lmu/lmu-adapter.test.ts
 test/games/lmu/track-boundaries.test.ts
 test/games/shared/release-game-registration.test.ts
+test/lap-analysis/detection/session-start.test.ts
 test/lap-analysis/lap-cache.test.ts
 test/lap-analysis/lap-consistency.test.ts
 test/lap-analysis/persist-lap-metrics.test.ts
@@ -115,6 +117,7 @@ test/routes/lmu-string-identity.test.ts
 test/routes/place-setup-sanitise.test.ts
 test/routes/recording-support.test.ts
 test/routes/storage-routes.test.ts
+test/runtime/native-sources.test.ts
 test/runtime/release-feature-flags.test.ts
 test/runtime/runtime-options.test.ts
 test/runtime/settings.test.ts

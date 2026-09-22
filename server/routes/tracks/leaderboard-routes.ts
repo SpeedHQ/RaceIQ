@@ -45,7 +45,7 @@ export const trackLeaderboardRoutes = new Hono()
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
           carOrdinal: lap.carOrdinal,
-          carId: lap.carId,
+          carId: lap.carId ?? lap.carOrdinal,
           carName: lap.gameId === "lmu"
             ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
             : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
@@ -106,7 +106,7 @@ export const trackLeaderboardRoutes = new Hono()
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
           carOrdinal: lap.carOrdinal,
-          carId: lap.carId,
+          carId: lap.carId ?? lap.carOrdinal,
           carName: lap.gameId === "lmu"
             ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
             : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),

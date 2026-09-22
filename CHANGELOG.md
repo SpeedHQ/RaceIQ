@@ -8,13 +8,19 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
-- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and upload LMU `.duckdb` recordings from Sessions
+- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and import LMU `.duckdb` recordings from Sessions
 - Record Le Mans Ultimate shared-memory sessions with exact car and track identity, named and native session type shown in Sessions, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
 - Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
 - Show a lightweight Peugeot 9X8 Evo representative model in Le Mans Ultimate analysis views
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Restore session recording and live-state resets when a new LMU, Forza, or F1 session starts
+- Finish pending telemetry writes before closing RaceIQ after a simulator disconnects
+- Open LMU tracks with slash-containing identifiers and resolve live car and track names
+- Show native LMU sector durations and extracted timing boundaries
+- Preserve legacy LMU lap lookups and count distinct cars, tracks, and driven distance correctly
+- Keep in-app installer updates disabled in Docker builds
 - Record completed Le Mans Ultimate laps when shared-memory updates arrive at a low rate
 - Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
 - Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
@@ -88,7 +94,8 @@
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
 
 ### Internal
-- Package DuckDB native runtime files in local Windows installer builds
+- Package DuckDB native runtime files in local and CI Windows releases and resolve them when launched outside the install directory
+- Restrict LMU database imports to database-contained data without removing recorded telemetry channels
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI

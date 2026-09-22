@@ -139,8 +139,12 @@ export const trackSectorBoundaryRoutes = new Hono()
       const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
       if (gameId === "lmu") {
-        const lengthKm = getLMUTrack(trackKey)?.lengthKm;
-        return c.json({ s1End: 1 / 3, s2End: 2 / 3, trackLength: lengthKm ? lengthKm * 1_000 : 0 });
+        const track = getLMUTrack(trackKey);
+        return c.json({
+          s1End: track?.sectorFractions?.[0] ?? 1 / 3,
+          s2End: track?.sectorFractions?.[1] ?? 2 / 3,
+          trackLength: (track?.lengthKm ?? 0) * 1_000,
+        });
       }
       const ordinal = Number(trackKey);
       if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);

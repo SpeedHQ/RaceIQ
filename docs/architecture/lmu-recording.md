@@ -59,6 +59,8 @@ DuckDB remains an optional manual import method for historical sessions recorded
 
 Synthetic source frames are an internal compatibility boundary for manual import. They do not make DuckDB equivalent to native shared memory and do not establish live source cadence or fidelity.
 
+Preview and conversion open the database read-only with external file/network access and automatic extension installation/loading disabled. This retains database-contained telemetry channels and the explicitly selected WAL sidecar; embedded views cannot read unrelated host files or external sources.
+
 DuckDB is the source for:
 
 - manual historical-session import;

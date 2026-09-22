@@ -127,7 +127,7 @@ export function HomePageContainer() {
     queries: nameTargets.cars.map((target) => ({
       queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
       queryFn: async () => {
-        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
         return response.ok ? response.text() : "";
       },
     })),
@@ -136,7 +136,7 @@ export function HomePageContainer() {
     queries: nameTargets.tracks.map((target) => ({
       queryKey: [...queryKeys.trackName(target.ordinal), target.gameId],
       queryFn: async () => {
-        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
         return response.ok ? response.text() : "";
       },
     })),

@@ -140,17 +140,19 @@ export async function computeLapSectors(
   }
   const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
 
-  // LMU exposes completed sector 1/2 times in player scoring. Prefer those
-  // native values over track-fraction reconstruction when available.
+  // LMU sector 2 is cumulative (includes sector 1). Prefer native scoring
+  // splits over track-fraction reconstruction when available.
   if (gameId === "lmu") {
-    const native = [...packets].reverse().find(
+    const native = packets.findLast(
       (packet) =>
         (packet.lmu?.lastSector1 ?? 0) > 0 &&
         (packet.lmu?.lastSector2 ?? 0) > 0,
     );
     if (native?.lmu) {
-      const s3 = lapTime - native.lmu.lastSector1 - native.lmu.lastSector2;
-      if (s3 > 0) return [native.lmu.lastSector1, native.lmu.lastSector2, s3];
+      const s1 = native.lmu.lastSector1;
+      const s2 = native.lmu.lastSector2 - s1;
+      const s3 = lapTime - native.lmu.lastSector2;
+      if (Number.isFinite(lapTime) && s2 > 0 && s3 > 0) return [s1, s2, s3];
     }
   }
 

@@ -328,7 +328,7 @@ export const CarWireframe = React.memo(function CarWireframe({
                   setSaveStatus("saving");
                   try {
                     const res = await client.api["car-model-configs"][":ordinal"].$put({
-                      param: { ordinal: String(carOrdinal) },
+                      param: { ordinal: encodeURIComponent(String(carOrdinal)) },
                       json: { glbOffsetX: modelOffsetX },
                     });
                     if (res.ok) {

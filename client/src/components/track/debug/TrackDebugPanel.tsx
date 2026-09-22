@@ -51,15 +51,15 @@ export function TrackDebugPanel({
     setLoading(true);
     Promise.all([
       client.api["track-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
         .catch(() => null),
       client.api["track-curbs"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
         .catch(() => null),
       client.api["track-calibration"][":ordinal"].comparison
-        .$get({ param: { ordinal: String(trackOrdinal) } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) } })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ]).then(([b, c, comparison]) => {

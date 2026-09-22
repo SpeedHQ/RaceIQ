@@ -10,7 +10,7 @@ export function useTrackName(ord: number | string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.trackName(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      const res = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
     enabled: ord != null && gameId != null,
@@ -22,7 +22,7 @@ export function useTrackSectors(ord: number | string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.trackSectors(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      const res = await client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
       return rpcJson(res);
     },
     enabled: ord != null && !!gameId,
@@ -35,7 +35,7 @@ export function useTrackSectorBoundaries(ord: number | string | undefined, gameI
   return useQuery({
     queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      const res = await client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
       return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
     enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
@@ -48,7 +48,7 @@ export function useTrackOutline(ord: number | string | undefined, gameIdOverride
   return useQuery({
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
       return rpcJson<{ points?: { x: number; z: number }[]; labels?: { text: string; x: number; z: number }[]; flipX?: boolean; recorded?: boolean; source?: string } | { x: number; z: number }[]>(
         res,
       );
@@ -63,7 +63,7 @@ export function useTrackBoundaries(ord: number | string | undefined, gameIdOverr
   return useQuery({
     queryKey: ["track-boundaries", ord!, gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId ?? undefined } });
+      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId ?? undefined } });
       return rpcJson(res);
     },
     enabled: ord != null && (typeof ord === "string" || ord >= 0) && !!gameId,
@@ -86,7 +86,7 @@ export function useTrackCorners(ord: number | undefined, gameIdOverride?: GameId
     queryKey: ["track-corners", ord!, gameId ?? null],
     queryFn: async () => {
       const res = await (client.api as any).tracks[":trackOrdinal"].corners.$get({
-        param: { trackOrdinal: String(ord!) },
+        param: { trackOrdinal: encodeURIComponent(String(ord!)) },
         query: { gameId: gameId! },
       });
       return rpcJson<TrackCorner[]>(res);

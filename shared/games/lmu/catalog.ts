@@ -27,6 +27,7 @@ export interface LMUTrackCatalogEntry {
   location: string;
   countryCode: string;
   lengthKm: number;
+  sectorFractions?: readonly number[];
   boundariesSvg: string;
   commonTrackName?: string;
 }

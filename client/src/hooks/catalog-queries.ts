@@ -88,7 +88,7 @@ export function useCarName(ord: number | string | undefined) {
   return useQuery({
     queryKey: [...queryKeys.carName(ord!), gameId ?? null],
     queryFn: async () => {
-      const res = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(ord!) }, query: { gameId: gameId! } });
+      const res = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord!)) }, query: { gameId: gameId! } });
       return res.ok ? res.text() : "";
     },
     enabled: ord != null && (typeof ord === "string" || ord > 0) && gameId != null,
@@ -111,7 +111,7 @@ function useAccCarClass(ordinal: number | undefined) {
   return useQuery({
     queryKey: ["acc-car-class", ordinal],
     queryFn: async () => {
-      const res = await client.api.acc.cars[":ordinal"].class.$get({ param: { ordinal: String(ordinal!) } });
+      const res = await client.api.acc.cars[":ordinal"].class.$get({ param: { ordinal: encodeURIComponent(String(ordinal!)) } });
       if (!res.ok) return null;
       const body = (await res.json()) as { class: string | null };
       return body.class;

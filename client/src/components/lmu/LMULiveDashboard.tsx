@@ -18,8 +18,8 @@ export function LMULiveDashboard() {
   const sessionLaps = useTelemetryStore((state) => state.sessionLaps);
   const sectors = useTelemetryStore((state) => state.sectors);
   const pit = useTelemetryStore((state) => state.pit);
-  const { data: trackName } = useTrackName(view?.identity.trackOrdinal);
-  const { data: carName } = useCarName(view?.identity.carOrdinal);
+  const { data: trackName } = useTrackName(view?.identity.trackId);
+  const { data: carName } = useCarName(view?.identity.carId);
 
   if (!view || view.simulator !== "lmu") {
     return (

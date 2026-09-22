@@ -285,6 +285,9 @@ const EVENT_CHANNELS = {
 async function loadLMUDuckDB(path: string): Promise<LoadedLMUDuckDB> {
   const instance = await DuckDBInstance.create(path, {
     access_mode: "READ_ONLY",
+    enable_external_access: "false",
+    autoinstall_known_extensions: "false",
+    autoload_known_extensions: "false",
     threads: "1",
     memory_limit: "512MB",
   });
@@ -751,6 +754,9 @@ export function isDuckDBFile(bytes: Buffer): boolean {
 export async function previewLMUDuckDB(path: string): Promise<LMUDuckDBPreview> {
   const instance = await DuckDBInstance.create(path, {
     access_mode: "READ_ONLY",
+    enable_external_access: "false",
+    autoinstall_known_extensions: "false",
+    autoload_known_extensions: "false",
     threads: "1",
     memory_limit: "256MB",
   });

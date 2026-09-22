@@ -15,11 +15,11 @@
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
-      "server/games/lmu/normalizer.ts": "5e02e0ea2fac324aaff7ffb1f78916797cae16fa0f3d4f097d1e8269c743df5e",
+      "server/games/lmu/normalizer.ts": "b62ef43e60ee92804d0a912861e2cbc41ce88569ae57bc402c3ee690ffe9ed62",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "52d8351c179e666a433d8d289a95538557cc0b749ba82efafc3fa248c28c4332"
+    "contentHash": "909c663982e75ee90a5e7b034de1980c7ae028d44d5a057bb0f275b3262cced1"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -134,6 +134,8 @@
       "label": "Diagnostics",
       "description": "Source identity, packet counters, and diagnostic values.",
       "children": [
+        "diagnostics.best-sector1",
+        "diagnostics.best-sector2",
         "diagnostics.car-number-texture-loading",
         "diagnostics.chan-avg-latency",
         "diagnostics.chan-clock-skew",
@@ -145,6 +147,8 @@
         "diagnostics.cpu-usage-bg",
         "diagnostics.cpu-usage-fg",
         "diagnostics.current-bhp",
+        "diagnostics.current-sector1",
+        "diagnostics.current-sector2",
         "diagnostics.display-units",
         "diagnostics.dp-fast-repair",
         "diagnostics.dp-windshield-tearoff",
@@ -160,6 +164,8 @@
         "diagnostics.is-disk-logging-active",
         "diagnostics.is-disk-logging-enabled",
         "diagnostics.is-garage-visible",
+        "diagnostics.last-sector1",
+        "diagnostics.last-sector2",
         "diagnostics.mem-page-fault-sec",
         "diagnostics.mem-soft-page-fault-sec",
         "diagnostics.migration",
@@ -3583,6 +3589,120 @@
       "limitations": []
     },
     {
+      "id": "diagnostics.best-sector1",
+      "label": "Best Sector1",
+      "description": "Best Sector1 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.bestSector1"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.best-sector2",
+      "label": "Best Sector2",
+      "description": "Best Sector2 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.bestSector2"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "diagnostics.camera.active-camera-number",
       "label": "Active camera number",
       "description": "Source number identifying active simulator camera.",
@@ -4859,6 +4979,120 @@
       "limitations": []
     },
     {
+      "id": "diagnostics.current-sector1",
+      "label": "Current Sector1",
+      "description": "Current Sector1 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.currentSector1"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.current-sector2",
+      "label": "Current Sector2",
+      "description": "Current Sector2 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.currentSector2"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "diagnostics.display-units",
       "label": "Display Units",
       "description": "Default units for the user interface 0 = english 1 = metric",
@@ -5709,6 +5943,120 @@
         }
       },
       "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.last-sector1",
+      "label": "Last Sector1",
+      "description": "Last Sector1 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.lastSector1"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.last-sector2",
+      "label": "Last Sector2",
+      "description": "Last Sector2 source value reported by lmu in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.lastSector2"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
       "dimensions": [
         "dimensionless"
       ],
@@ -46853,18 +47201,9 @@
           }
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "fraction",
-          "sources": [
-            "lmu.lapDistancePct"
-          ],
-          "freshness": "continuous",
-          "description": "lmu parser exposes 1 linked field.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       },
       "valueType": "number",
@@ -47063,7 +47402,7 @@
             "LMU.Telemetry.lapNumber"
           ],
           "freshness": "continuous",
-          "normalization": "Math.max( 0, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber), )",
+          "normalization": "Math.max( 1, telemetry.readInt32LE(LMU_TELEMETRY.lapNumber) + 1, )",
           "description": "lmu maps 1 native source channel into this value.",
           "provenance": {
             "origin": "parser",
@@ -47079,7 +47418,7 @@
               "LMU.Telemetry.lapNumber"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "840534646f19abbf64fcb0218347fd6c190018e68b7aed2568e3754fd2bc8599"
+            "codeHash": "9cfcfd1d95aa71ef688e84fcc84c2709227d30feaeef43698063bb13dd34cc19"
           }
         }
       },
@@ -81373,6 +81712,30 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.bestSector1",
+        "label": "Best Sector1",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Best Sector1 source value reported by lmu in count.",
+        "semanticId": "diagnostics.best-sector1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.bestSector2",
+        "label": "Best Sector2",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Best Sector2 source value reported by lmu in count.",
+        "semanticId": "diagnostics.best-sector2",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.carId",
         "label": "Car Id",
         "unit": "text",
@@ -81416,6 +81779,30 @@
         "count": 1,
         "description": "Cloud Coverage source value reported by lmu in count.",
         "semanticId": "diagnostics.cloud-coverage",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.currentSector1",
+        "label": "Current Sector1",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Current Sector1 source value reported by lmu in count.",
+        "semanticId": "diagnostics.current-sector1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.currentSector2",
+        "label": "Current Sector2",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Current Sector2 source value reported by lmu in count.",
+        "semanticId": "diagnostics.current-sector2",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -81505,18 +81892,6 @@
         "retention": "exact"
       },
       {
-        "path": "lmu.lapDistancePct",
-        "label": "Lap Distance Pct",
-        "unit": "fraction",
-        "dataType": "number",
-        "count": 1,
-        "description": "LMU player lap distance normalized to 0-1.",
-        "semanticId": "timing.lap-fraction",
-        "sourceKind": "extension",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "lmu.lapInvalidated",
         "label": "Lap Invalidated",
         "unit": "boolean",
@@ -81524,6 +81899,30 @@
         "count": 1,
         "description": "Lap Invalidated source value reported by lmu in boolean.",
         "semanticId": "timing.lap-invalidated",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.lastSector1",
+        "label": "Last Sector1",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Last Sector1 source value reported by lmu in count.",
+        "semanticId": "diagnostics.last-sector1",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "lmu.lastSector2",
+        "label": "Last Sector2",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Last Sector2 source value reported by lmu in count.",
+        "semanticId": "diagnostics.last-sector2",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83320,7 +83719,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 764,
+    "semanticVariables": 770,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -83368,13 +83767,13 @@
         "recorded": 701
       },
       "lmu": {
-        "total": 165,
+        "total": 170,
         "packet": 126,
-        "extension": 39,
+        "extension": 44,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 165
+        "recorded": 170
       }
     }
   }

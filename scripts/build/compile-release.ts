@@ -15,6 +15,8 @@ const child = Bun.spawn([
   "--windows-publisher=SpeedHQ",
   "--windows-description=RaceIQ",
   `--windows-version=${version}`,
+  "--external",
+  "@duckdb/node-bindings-*",
   "--define",
   'process.env.NODE_ENV="production"',
   "server/bootstrap.ts",

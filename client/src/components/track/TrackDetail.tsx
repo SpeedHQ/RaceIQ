@@ -119,13 +119,13 @@ export function TrackDetail({
     queryFn: () =>
       Promise.all([
         client.api["track-outline"][":ordinal"]
-          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid ?? undefined } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid ?? undefined } })
           .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
         client.api["track-sectors"][":ordinal"]
-          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
         client.api["track-sector-boundaries"][":ordinal"]
-          .$get({ param: { ordinal: String(trackKey) }, query: { gameId: gid! } })
+          .$get({ param: { ordinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gid! } })
           .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
       ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
     enabled: !!gameId && (track.hasOutline || !!track.hasMap),
@@ -153,7 +153,7 @@ export function TrackDetail({
     queryKey: ["track-laps", trackKey, gameId ?? null],
     queryFn: () =>
       client.api.tracks[":trackOrdinal"]["all-laps"]
-        .$get({ param: { trackOrdinal: String(trackKey) }, query: { gameId: gameId ?? undefined } } as never)
+        .$get({ param: { trackOrdinal: encodeURIComponent(String(trackKey)) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as TrackLap[] | null)
         .then((data) => data ?? []),
     staleTime: 30 * 1000,

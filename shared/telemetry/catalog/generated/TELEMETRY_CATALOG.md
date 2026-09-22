@@ -8,7 +8,7 @@
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator source SHA-256: `0dce3eda54b8b2dd51e78fad96d4f5e2d16cf373aa726fcbf79729e92ad0f6ed`
-- Content SHA-256: `52d8351c179e666a433d8d289a95538557cc0b749ba82efafc3fa248c28c4332`
+- Content SHA-256: `909c663982e75ee90a5e7b034de1980c7ae028d44d5a057bb0f275b3262cced1`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
 | iracing | 951 | 701 | 115 | 17 | 324 | 495 | 0 |
-| lmu | 165 | 165 | 126 | 39 | 0 | 0 | 0 |
+| lmu | 170 | 170 | 126 | 44 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -59,6 +59,8 @@
 | `damage.rear-wing-damage` | Rear Wing Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.sidepod-damage` | Sidepod Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.tyres-damage` | Tyres Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
+| `diagnostics.best-sector1` | Best Sector1 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.best-sector2` | Best Sector2 | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.camera.active-camera-number` | Active camera number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.active-group-number` | Active camera group number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.group-name` | Camera group name | structured | dimensionless | text | variable:0-* | group-index:source-order | indices: group-index (variable:0-*, source-order); fields: value:string |  |
@@ -78,6 +80,8 @@
 | `diagnostics.cpu-usage-bg` | Cpu Usage BG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.cpu-usage-fg` | Cpu Usage FG | number | dimensionless | % | scalar |  |  |  |
 | `diagnostics.current-bhp` | Current Bhp | number | unit:bhp | bhp | scalar |  |  |  |
+| `diagnostics.current-sector1` | Current Sector1 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.current-sector2` | Current Sector2 | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.display-units` | Display Units | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-fast-repair` | Dp Fast Repair | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.dp-windshield-tearoff` | Dp Windshield Tearoff | number | unit:unitless | unitless | scalar |  |  |  |
@@ -93,6 +97,8 @@
 | `diagnostics.is-disk-logging-active` | Is Disk Logging Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-disk-logging-enabled` | Is Disk Logging Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.is-garage-visible` | Is Garage Visible | boolean | dimensionless | boolean | scalar |  |  |  |
+| `diagnostics.last-sector1` | Last Sector1 | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.last-sector2` | Last Sector2 | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.mem-page-fault-sec` | Mem Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.mem-soft-page-fault-sec` | Mem Soft Page Fault Sec | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.migration` | Migration | number | dimensionless | ratio | scalar |  |  |  |

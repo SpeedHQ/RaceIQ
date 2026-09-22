@@ -103,6 +103,7 @@ export class LapDetector implements ILapDetector {
     this.db = opts.db;
     this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
     this.lapPolicy = opts.policy ?? DEFAULT_LAP_POLICY;
+    this.onSessionStart = opts.callbacks?.onSessionStart;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
   }
