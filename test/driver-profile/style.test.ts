@@ -6,7 +6,7 @@ import { SCOPE, habitualDriver, insight, lap, styleLap, unusableLap } from "../s
 
 describe("style axes", () => {
   test("braking style is bipolar and signed", () => {
-    const early = buildDriverFingerprint({ scope: SCOPE, ...habitualDriver(6, [insight("driving-early-braking"), insight("driving-over-slowing")]) });
+    const early = buildDriverFingerprint({ scope: SCOPE, ...habitualDriver(6, [insight("driving-coasting")]) });
     const late = buildDriverFingerprint({ scope: SCOPE, ...habitualDriver(6, [insight("driving-late-braking-overshoot"), insight("driving-brake-traction-loss")]) });
     expect(early.style!.brakingStyle).toBeLessThan(0);
     expect(late.style!.brakingStyle).toBeGreaterThan(0);

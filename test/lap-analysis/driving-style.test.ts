@@ -21,8 +21,8 @@ const G = 9.81;
 const RADIUS = 0.33;
 const STEP_MS = 16;
 const FM: GameId = "fm-2023";
-/** fm-2023 centres steering at 127 over a range of 127 (see shared/games/fm-2023). */
-const FM_CENTRE = 127;
+/** Forza's parser reads signed steering centered at zero. */
+const FM_CENTRE = 0;
 
 interface Frame {
   /** km/h */

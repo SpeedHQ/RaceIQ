@@ -11,12 +11,16 @@ Shared, deterministic telemetry analysis used by server-side profiling and user-
 - `insights/analyze.ts` orchestrates the detector pipeline.
 - `insights/driving-core.ts` and `insights/driving-advanced.ts` detect driving events.
 - `insights/tires.ts`, `insights/suspension.ts`, and `insights/mechanical.ts` detect component-specific conditions.
-- `insights/types.ts` defines insight contracts and event-grouping helpers.
+- `insights/electronics.ts` observes native/inferred driver-aid intervention and F1 DRS/ERS opportunities.
+- `insights/types.ts` defines insight contracts and timestamp-based evidence grouping. Unlike display-oriented `frame-time.ts`, invalid or discontinuous intervals contribute zero evidence and split events.
 
 ## Runtime boundary
 
 This directory is browser-safe: modules perform no filesystem, database, network, clock, or UI work. They consume normalized `shared/telemetry/types` packets and game capabilities from `shared/games`. Keep presentation and persistence in their respective client and server layers.
 Server consumers use `server/lap-analysis/insights.ts` to resolve the per-track `track.racing-line` semantic before entering the shared detector pipeline. The shared analyzer remains filesystem-free and only uses reference geometry when that semantic reports `source: "track-data"`; unavailable references fall back to telemetry-only evidence.
+Lap traction detectors use `calibratedWheelStates`: authoritative per-wheel radii when available, otherwise a sustained clean rolling calibration frozen during traction events. Unknown calibration is not clean grip and cannot train the acceleration reference. F1 speed-derived fallback wheel rotations are not independent traction evidence.
+
+Neutral post-braking, aid, thermal-profile, and exit observations do not establish driver fault or a setup cause. Preserve these distinctions in downstream driver-profile ranking. See [the detector catalog](../../../../docs/reference/static-lap-analysis-catalog.md) for source gates, thresholds, and versioning.
 
 Dependency flow is:
 

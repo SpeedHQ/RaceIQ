@@ -1,7 +1,7 @@
 import type { TelemetryPacket } from "../../../../telemetry/types";
 import type { TelemetryModel } from "../../../../games/types";
 import type { LapInsight } from "./types";
-import { groupEvents, midFrame } from "./types";
+import { eventDurations, groupEvents, midFrame } from "./types";
 
 type FuelPacketUnit = TelemetryModel["fuel"]["packetUnit"];
 
@@ -52,10 +52,17 @@ export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | n
   if (maxBoost <= 0) return null;
 
   const flags: boolean[] = new Array(telemetry.length).fill(false);
+  const dt = eventDurations(telemetry);
   const peakIndices: number[] = [];
   let peakHead = 0;
   for (let i = 0; i < telemetry.length; i++) {
-    while (peakHead < peakIndices.length && peakIndices[peakHead] < i - 59) peakHead++;
+    const packet = telemetry[i];
+    if (!(dt[i] > 0) || !Number.isFinite(packet.Boost) || packet.Accel <= 240 || (i > 0 && packet.Gear !== telemetry[i - 1].Gear)) {
+      peakIndices.length = 0;
+      peakHead = 0;
+      continue;
+    }
+    while (peakHead < peakIndices.length && packet.TimestampMS - telemetry[peakIndices[peakHead]].TimestampMS > 1000) peakHead++;
     while (peakIndices.length > peakHead && telemetry[peakIndices[peakIndices.length - 1]].Boost <= telemetry[i].Boost) peakIndices.pop();
     peakIndices.push(i);
     const rollingPeak = telemetry[peakIndices[peakHead]].Boost;
@@ -63,7 +70,7 @@ export function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | n
       flags[i] = true;
     }
   }
-  const events = groupEvents(flags, 5);
+  const events = groupEvents(flags, dt, 5 / 60);
   if (events.length === 0) return null;
   return {
     id: "mech-boost-anomaly",

@@ -1,6 +1,7 @@
 import type { AccelReference } from "../time-loss";
 import type { AllWheelStates } from "../physics/vehicle";
 import type { LapPathPoint } from "../../../tracks/path";
+import type { TelemetryPacket } from "../../../../telemetry/types";
 
 export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
 export const RACING_LINE_SEMANTIC_ID = "track.racing-line" as const;
@@ -30,6 +31,8 @@ export interface LapInsight {
   label: string;
   detail: string;
   frameIndices: number[];
+  /** Native intervention is observed; inferred modulation is not confirmation. */
+  evidenceSource?: "native" | "inferred";
   /**
    * Conservative estimate of the seconds this fault cost, when one can be
    * defended (see `time-loss.ts`). Absent means "not quantified", which is not
@@ -47,31 +50,51 @@ export interface TimeLossCtx {
   wheelStates?: readonly AllWheelStates[];
 }
 
-export function groupEvents(flags: boolean[], minFrames: number, mergeGap = 0): [number, number][] {
-  // Runs separated by fewer than mergeGap false frames are merged before the
-  // minFrames filter, so a flickering signal counts as one event, not several.
-  const runs: [number, number][] = [];
-  let start = -1;
-  for (let i = 0; i < flags.length; i++) {
-    if (flags[i]) {
-      if (start === -1) start = i;
-    } else {
-      if (start !== -1) runs.push([start, i - 1]);
-      start = -1;
-    }
+/** Evidence duration per sample. Unknown time never supplies positive evidence. */
+export function eventDurations(telemetry: readonly TelemetryPacket[]): number[] {
+  const dt = new Array<number>(telemetry.length).fill(0);
+  for (let i = 0; i < telemetry.length - 1; i++) {
+    const seconds = (telemetry[i + 1].TimestampMS - telemetry[i].TimestampMS) / 1000;
+    if (Number.isFinite(seconds) && seconds > 0 && seconds <= 0.1) dt[i] = seconds;
   }
-  if (start !== -1) runs.push([start, flags.length - 1]);
+  return dt;
+}
 
-  const merged: [number, number][] = [];
-  for (const run of runs) {
-    const last = merged[merged.length - 1];
-    if (last && run[0] - last[1] - 1 <= mergeGap) {
-      last[1] = run[1];
-    } else {
-      merged.push([run[0], run[1]]);
+export function eventSeconds(dt: readonly number[], start: number, end: number, flags?: readonly boolean[]): number {
+  let seconds = 0;
+  for (let i = start; i <= end; i++) {
+    if (dt[i] > 0 && (!flags || flags[i])) seconds += dt[i];
+  }
+  return seconds;
+}
+
+export function groupEvents(flags: readonly boolean[], dt: readonly number[], minSeconds: number, mergeGapSeconds = 0): [number, number][] {
+  const events: [number, number][] = [];
+  let start = -1;
+  let end = -1;
+  let active = 0;
+  let gap = 0;
+  const flush = () => {
+    if (start >= 0 && active + 1e-9 >= minSeconds) events.push([start, end]);
+    start = -1;
+    active = 0;
+    gap = 0;
+  };
+  for (let i = 0; i < flags.length; i++) {
+    if (!(dt[i] > 0) || !Number.isFinite(dt[i])) {
+      flush();
+    } else if (flags[i]) {
+      if (start < 0) start = i;
+      end = i;
+      active += dt[i];
+      gap = 0;
+    } else if (start >= 0) {
+      gap += dt[i];
+      if (gap > mergeGapSeconds + 1e-9) flush();
     }
   }
-  return merged.filter(([s, e]) => e - s + 1 >= minFrames);
+  flush();
+  return events;
 }
 
 export function midFrame(events: [number, number][]): number[] {

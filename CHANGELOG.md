@@ -6,12 +6,24 @@
 - Lap analysis detects persistent left-right tire-pressure imbalance
 - ACC and AC Evo lap analysis detects late-braking corner overshoots against bundled racing lines
 - Lap analysis detects ABS and traction-control activations when simulators omit native intervention channels
-- Lap analysis distinguishes continuous tire surface and core heat, diagnoses persistent tread-temperature profiles, and ignores pit-snapshot temperatures
+- Lap analysis distinguishes continuous tire surface and core heat, reports persistent tread-temperature patterns, and ignores pit-snapshot temperatures
+- Lap analysis detects sustained rapid tire-pressure loss while filtering cooling, pit stops, and tire changes
+- F1 lap analysis identifies DRS that remains closed during eligible full-throttle opportunities
+- F1 lap analysis reports ERS depletion corroborated by reduced electrical power and deployment
+- Lap analysis highlights low throttle after a stable corner exit without claiming unproven time loss
 
 ### Fixes
 
 - Forza lap analysis no longer treats normalized lateral-slip telemetry as physical slip angles
 - Lap analysis avoids wheelspin and traction-loss findings when a simulator does not provide wheel-rotation telemetry
+- Distinguish partial wheel lockups from wheelspin using independently calibrated tire radii
+- Keep sustained-event detection consistent across telemetry sample rates and recording gaps
+- Avoid flagging flat-out straights and smooth corner throttle as poor pedal control
+- Treat normal aid intervention and unverified corner observations as information rather than driver weaknesses
+- Apply equivalent tire-temperature thresholds in Celsius and Fahrenheit
+- Preserve usable corner racing-line evidence on straight-heavy laps
+- Avoid treating display-scaled suspension movement as physical bottoming
+- Correct Forza steering centering in lap metrics and driver-style analysis
 
 ### Internal
 

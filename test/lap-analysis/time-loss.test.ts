@@ -37,6 +37,7 @@ function pkt(f: Frame): TelemetryPacket {
     Accel: f.accel ?? 0,
     Brake: f.brake ?? 0,
     Steer: 0,
+    acc: { tireRadius: [RADIUS, RADIUS, RADIUS, RADIUS] },
     WheelRotationSpeedFL: rot,
     WheelRotationSpeedFR: rot,
     WheelRotationSpeedRL: rear,
@@ -141,6 +142,13 @@ describe("buildAccelReference", () => {
     const tel = ramp(30, 4, 5, { accel: 255 });
     const ref = buildAccelReference(tel, frameDt(tel));
     expect(ref.bins[3]).toBeUndefined();
+  });
+
+  test("unproven wheel grip never supplies an acceleration reference", () => {
+    const telemetry = ramp(30, 4, 120, { accel: 255 }).map((p) => ({ ...p, acc: undefined }));
+    const ref = buildAccelReference(telemetry, frameDt(telemetry));
+    expect(ref.bins[3]).toBeUndefined();
+    expect(accelDeficitLoss(telemetry, frameDt(telemetry), 0, 60, ref)).toBeUndefined();
   });
 });
 

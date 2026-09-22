@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../../telemetry/types";
-import { allWheelStates } from "./physics/vehicle";
+import { calibratedWheelStates } from "./physics/vehicle";
 import type { AllWheelStates } from "./physics/vehicle";
 
 /**
@@ -18,8 +18,8 @@ import type { AllWheelStates } from "./physics/vehicle";
  * wheelspin event and a micro-lift, for example) and their costs overlap.
  */
 
-/** Minimum clean samples needed in a speed bin before it can serve as a reference. */
-const MIN_REFERENCE_SAMPLES = 10;
+/** Minimum clean evidence duration in a speed bin before it can serve as a reference. */
+const MIN_REFERENCE_SECONDS = 1 / 6;
 /** Speed bin width for the acceleration reference, m/s. */
 const REFERENCE_BIN_M_S = 10;
 /** Losses below this are indistinguishable from sampling noise. */
@@ -69,13 +69,14 @@ export interface AccelReference {
 }
 
 export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], wheelStates?: readonly AllWheelStates[]): AccelReference {
-  const samples: number[][] = [];
+  const states = wheelStates ?? calibratedWheelStates(telemetry);
+  const samples: { acceleration: number; seconds: number }[][] = [];
   for (let i = 0; i < telemetry.length - 1; i++) {
     const p = telemetry[i];
     // Clean reference frame: full throttle, no brake, no wheel slip, moving.
-    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5) continue;
-    const ws = wheelStates?.[i] ?? allWheelStates(p);
-    if (ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin") continue;
+    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5 || !(dt[i] > 0)) continue;
+    const ws = states[i];
+    if (!ws || ws.fl.state !== "grip" || ws.fr.state !== "grip" || ws.rl.state !== "grip" || ws.rr.state !== "grip") continue;
 
     const a = (telemetry[i + 1].Speed - p.Speed) / dt[i];
     // Discard physically implausible steps (packet reordering, respawns).
@@ -83,15 +84,24 @@ export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], 
 
     const bin = Math.floor(p.Speed / REFERENCE_BIN_M_S);
     samples[bin] ??= [];
-    samples[bin].push(a);
+    samples[bin].push({ acceleration: a, seconds: dt[i] });
   }
 
   const bins: (number | undefined)[] = [];
   for (let b = 0; b < samples.length; b++) {
     const s = samples[b];
-    if (!s || s.length < MIN_REFERENCE_SAMPLES) continue;
-    s.sort((x, y) => x - y);
-    bins[b] = s[Math.floor(s.length / 2)];
+    if (!s) continue;
+    const seconds = s.reduce((total, sample) => total + sample.seconds, 0);
+    if (seconds + 1e-9 < MIN_REFERENCE_SECONDS) continue;
+    s.sort((x, y) => x.acceleration - y.acceleration);
+    let accumulated = 0;
+    for (const sample of s) {
+      accumulated += sample.seconds;
+      if (accumulated >= seconds / 2) {
+        bins[b] = sample.acceleration;
+        break;
+      }
+    }
   }
   return { bins };
 }

@@ -5,6 +5,7 @@
  */
 
 import type { TelemetryPacket } from "../../../../telemetry/types";
+import { eventDurations } from "../insights/types";
 
 // ── Slip Ratio (longitudinal) ──────────────────────────────────────
 // SAE J670 definition: SR = (Vwheel - Vground) / max(Vwheel, Vground)
@@ -412,6 +413,100 @@ export function allWheelStates(pkt: TelemetryPacket): AllWheelStates {
     },
     wheelRadiusM: r,
   });
+}
+
+/**
+ * Causal lap-only wheel states. Learn radius from a sustained coast, never from
+ * the braking/traction sample being classified. Live packet helpers retain their
+ * existing behavior. Unknown radius is idle, not evidence of clean grip.
+ *
+ * Equal all-wheel spin cannot be identified from rotation agreement alone:
+ * controls, motion and persistence gate calibration, then radii stay frozen.
+ * Without a trustworthy coast or static radius, deliberately abstain.
+ */
+export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): AllWheelStates[] {
+  const dt = eventDurations(telemetry);
+  const result: AllWheelStates[] = new Array(telemetry.length);
+  let learned: number[] | undefined;
+  let candidate: number[] | undefined;
+  let cleanSeconds = 0;
+  let previousClean = false;
+
+  for (let i = 0; i < telemetry.length; i++) {
+    const p = telemetry[i];
+    const rotations = [
+      Math.abs(p.WheelRotationSpeedFL), Math.abs(p.WheelRotationSpeedFR),
+      Math.abs(p.WheelRotationSpeedRL), Math.abs(p.WheelRotationSpeedRR),
+    ];
+    const continuous = i > 0 && dt[i - 1] > 0;
+    const validMotion = Number.isFinite(p.Speed) && p.Speed >= 1.5 &&
+      Number.isFinite(p.Steer) && rotations.every(Number.isFinite) &&
+      (p.gameId !== "f1-2025" || !!p.f1?.motionEx);
+    // A stopped wheel can be a real lockup under brakes; zero rotation while
+    // coasting/accelerating is instead unavailable telemetry, not calibration.
+    const dropout = rotations.some((rotation) => rotation < 0.5) &&
+      !(Number.isFinite(p.Brake) && p.Brake >= 5);
+    if (!continuous || !validMotion || dropout) {
+      learned = undefined;
+      candidate = undefined;
+      cleanSeconds = 0;
+      previousClean = false;
+    }
+
+    const minRotation = Math.min(...rotations);
+    const maxRotation = Math.max(...rotations);
+    const clean = validMotion && !dropout && p.Speed >= 10 &&
+      p.Accel >= 0 && p.Accel <= 25 && p.Brake >= 0 && p.Brake < 5 &&
+      p.HandBrake === 0 && Math.abs(p.Steer) <= 5 &&
+      Math.abs(p.AccelerationX) <= 0.1 * G && Math.abs(p.AngularVelocityY) <= 0.05 &&
+      minRotation > 5 && maxRotation / minRotation <= 1.05 &&
+      (!continuous || Math.abs(p.Speed - telemetry[i - 1].Speed) / dt[i - 1] <= 2);
+
+    if (!learned && clean) {
+      const radii = rotations.map((rotation) => p.Speed / rotation);
+      // Broad physical bounds reject implausible/mis-scaled rotation channels;
+      // they are not fallback tire sizes.
+      const plausible = radii.every((radius) => radius >= 0.1 && radius <= 1);
+      const consistent = candidate && radii.every((radius, wheel) =>
+        Math.abs(radius / candidate![wheel] - 1) <= 0.02);
+      if (!plausible) {
+        candidate = undefined;
+        cleanSeconds = 0;
+      } else if (!consistent || !previousClean) {
+        candidate = radii;
+        cleanSeconds = 0;
+      } else {
+        cleanSeconds += dt[i - 1];
+        if (cleanSeconds >= 0.5) learned = candidate;
+      }
+    } else if (!clean) {
+      candidate = undefined;
+      cleanSeconds = 0;
+    }
+    previousClean = clean;
+
+    const authoritative = p.acc?.tireRadius;
+    const states: WheelState[] = new Array(4);
+    for (let wheel = 0; wheel < 4; wheel++) {
+      const nativeRadius = authoritative?.[wheel];
+      const radius = nativeRadius !== undefined && Number.isFinite(nativeRadius) && nativeRadius > 0
+        ? nativeRadius
+        : learned?.[wheel];
+      // Reject discontinuous samples even with static radii. A first packet can
+      // be classified when its following interval establishes valid timing.
+      if (!validMotion || dropout || (!continuous && !(i === 0 && dt[i] > 0)) ||
+          radius === undefined) {
+        states[wheel] = { state: "idle", slipRatio: 0 };
+      } else {
+        states[wheel] = wheelState(
+          rotations[wheel], p.Speed, radius, wheel < 2 ? p.Steer : 0,
+          wheel % 2 === 0 ? p.Steer > 5 : p.Steer < -5,
+        );
+      }
+    }
+    result[i] = { fl: states[0], fr: states[1], rl: states[2], rr: states[3] };
+  }
+  return result;
 }
 
 // ── Cornering Efficiency ───────────────────────────────────────────

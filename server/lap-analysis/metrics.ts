@@ -15,7 +15,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
  * from the old definition are discarded instead of silently mixing with new
  * ones inside a single experiment.
  */
-export const LAP_METRICS_ALGO_VERSION = 3;
+export const LAP_METRICS_ALGO_VERSION = 4;
 
 const MPH_TO_KMH = 1.609344;
 
@@ -85,10 +85,8 @@ export interface LapMetrics {
  *
  * Passed in rather than hardcoded because the two are game-specific and the
  * game adapters already declare them (`steeringCenter` / `steeringRange`).
- * `computeStatsRange` previously baked in `(steer - 127) / 127`, which silently
- * assumed FM's convention for every game; `lap-analysis/corners.ts` reads the
- * adapter for the same two numbers. One source of truth, so a correction to an
- * adapter reaches both.
+ * Shared with corner detection, so parser/adapter scale corrections reach
+ * both metrics and corner segmentation.
  */
 export interface SteerScale {
   center: number;
@@ -98,7 +96,7 @@ export interface SteerScale {
 /** The steering convention declared by a game's adapter. */
 export function steerScaleFor(gameId: string | undefined): SteerScale {
   const adapter = gameId ? tryGetGame(gameId) : undefined;
-  return { center: adapter?.steeringCenter ?? 127, range: adapter?.steeringRange ?? 127 };
+  return { center: adapter?.steeringCenter ?? 0, range: adapter?.steeringRange ?? 127 };
 }
 
 /**

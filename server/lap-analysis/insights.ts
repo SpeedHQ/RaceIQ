@@ -8,7 +8,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
  * Persisted static-insight contract. Bump whenever detector output changes.
  * Rows written by older versions are recomputed lazily or by the backfill route.
  */
-export const STATIC_LAP_ANALYSIS_VERSION = 2;
+export const STATIC_LAP_ANALYSIS_VERSION = 3;
 export function resolveRacingLineReference(gameId: GameId, trackOrdinal: number | null | undefined): RacingLineReference {
   if (trackOrdinal == null) {
     return {

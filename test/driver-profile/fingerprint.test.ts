@@ -20,7 +20,7 @@ describe("rollUpDetectors — per-lap normalisation", () => {
   });
 
   test("a 5-lap and a 50-lap driver with the same habit rank identically", () => {
-    const habit = [insight("driving-over-slowing", { timeLossS: 0.3 }), insight("driving-steering-sawing")];
+    const habit = [insight("driving-coasting", { timeLossS: 0.3 }), insight("driving-steering-sawing")];
     const five = habitualDriver(5, habit);
     const fifty = habitualDriver(50, habit);
 
@@ -98,6 +98,19 @@ describe("time-loss handling", () => {
     expect(fp.unquantifiedWeaknesses).toEqual([]);
     // …but they are still visible in the raw detector table.
     expect(fp.detectors.map((d) => d.id).sort()).toEqual(["driving-trail-brake", "mech-fuel", "mech-peak-power"]);
+  });
+
+  test("corner observations and normal aid activation cannot become driver faults", () => {
+    const observations = [
+      insight("driving-early-braking"), insight("driving-over-slowing"),
+      insight("driving-abs-activation"), insight("driving-traction-control-activation"),
+      insight("driving-delayed-throttle-pickup"), insight("mech-ers-depletion"),
+    ];
+    const fp = buildDriverFingerprint({ scope: SCOPE, ...habitualDriver(5, observations) });
+    expect(fp.weaknesses).toEqual([]);
+    expect(fp.unquantifiedWeaknesses).toEqual([]);
+    expect(fp.style?.brakingStyle).toBe(0);
+    expect(fp.detectors.map((d) => d.id).sort()).toEqual(observations.map((d) => d.id).sort());
   });
 });
 
