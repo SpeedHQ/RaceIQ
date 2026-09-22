@@ -12,6 +12,8 @@ import type {
   LiveEngineerSessionReplayV1,
 } from "@shared/racing/live/engineer-replay-contracts";
 import { cn } from "@/lib/utils";
+import { normalizeAccCompetitors } from "@/lib/live-telemetry-view";
+import { AccOpponentStandings } from "../acc/AccOpponentStandings";
 import { useLiveEngineerReplayAudio } from "../../hooks/useLiveEngineerReplayAudio";
 import { useLiveEngineerReplayPlayback, type ReplayFrameRange } from "../../hooks/useLiveEngineerReplayPlayback";
 import { ReplayAudioTimeline } from "./ReplayAudioTimeline";
@@ -220,7 +222,8 @@ function OpponentDataPanel({ frame, gameId }: { frame: SemanticAnalysisFrame; ga
     const positionB = typeof positions[b] === "number" ? positions[b] as number : Number.POSITIVE_INFINITY;
     return positionA - positionB;
   });
-  const playerIndex = sortedIndices.find((index) => positions[index] === 1);
+  const playerCarIndex = finiteValue(frame.values, "identity.player-car-index");
+  const playerIndex = sortedIndices.find((index) => carIndices[index] === playerCarIndex);
   const focusedIndices = expanded || count <= 7 || playerIndex == null
     ? sortedIndices
     : sortedIndices.filter((index) => {
@@ -238,7 +241,7 @@ function OpponentDataPanel({ frame, gameId }: { frame: SemanticAnalysisFrame; ga
         <div className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border pb-1 text-app-text-muted">
           <span>Driver / car</span><span>Pos</span><span>Gap</span><span>Lap</span><span>Last lap</span><span>Pit</span>
         </div>
-        {focusedIndices.map((index) => <div key={index} className="grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border/50 py-1 last:border-0">
+        {focusedIndices.map((index) => <div key={index} aria-current={index === playerIndex ? "true" : undefined} className={cn("grid grid-cols-[minmax(10rem,1.6fr)_3rem_5rem_4rem_6rem_5rem] gap-2 border-b border-app-border/50 py-1 last:border-0", index === playerIndex && "bg-app-accent/10")}>
           <span className="truncate">{value(names, index)} · Car {value(carIndices, index)}</span>
           <span>{value(positions, index)}</span>
           <span>{value(gaps, index)}</span>
@@ -275,6 +278,9 @@ export function DevLiveEngineerReplay() {
   const autoLoadKeyRef = useRef<string | null>(null);
   const autoScenarioRef = useRef<string | null>(null);
   const previousCursorRef = useRef(0);
+  const requestRef = useRef(0);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [timelineHeight, setTimelineHeight] = useState(0);
   const audio = useLiveEngineerReplayAudio();
   const units = useUnits();
 
@@ -284,13 +290,14 @@ export function DevLiveEngineerReplay() {
     return lap?.startFrameIndex != null && lap.endFrameIndex != null ? { startFrameIndex: lap.startFrameIndex, endFrameIndex: lap.endFrameIndex } : null;
   }, [replay, lapFilter]);
   const playback = useLiveEngineerReplayPlayback(replay, range);
+  const accCompetitors = useMemo(() => playback.frame && replay?.gameId === "acc" ? normalizeAccCompetitors(playback.frame) : [], [playback.frame, replay?.gameId]);
   const visibleFrames = useMemo(() => replay?.frames.slice(playback.startFrameIndex, playback.endFrameIndex + 1) ?? [], [replay, playback.startFrameIndex, playback.endFrameIndex]);
   const telemetry = useMemo<SemanticAnalysisFrame[]>(() => {
-    if (visibleFrames.length <= 5_000) return visibleFrames.map((frame) => ({ values: frame.values, states: {}, freshness: {} }));
+    if (visibleFrames.length <= 5_000) return visibleFrames.map((frame) => ({ values: frame.values, states: frame.states, freshness: frame.freshness }));
     const last = visibleFrames.length - 1;
     return Array.from({ length: 5_000 }, (_, index) => {
       const frame = visibleFrames[Math.round((index * last) / 4_999)]!;
-      return { values: frame.values, states: {}, freshness: {} };
+      return { values: frame.values, states: frame.states, freshness: frame.freshness };
     });
   }, [visibleFrames]);
   const mapCursorIndex = visibleFrames.length <= 5_000
@@ -340,6 +347,18 @@ export function DevLiveEngineerReplay() {
   const timelineDuration = Math.max(1, endTime - startTime);
 
   useEffect(() => {
+    const timeline = timelineRef.current;
+    if (!timeline) return;
+    const measure = () => setTimelineHeight(timeline.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(timeline);
+    return () => observer.disconnect();
+  }, [replay]);
+
+  useEffect(() => () => { requestRef.current += 1; }, []);
+
+  useEffect(() => {
     let cancelled = false;
     setSessionsLoading(true);
     setReplay(null);
@@ -361,6 +380,7 @@ export function DevLiveEngineerReplay() {
     const requestGameId = catalogEntry?.recordingGameId ?? gameId;
     const requestSessionId = catalogEntry ? String(catalogEntry.recordingSessionId) : sessionId;
     if (!requestSessionId || replayLoading || scenarioLoading) return;
+    const request = ++requestRef.current;
     if (scenario) setScenarioLoading(scenario);
     else setReplayLoading(true);
     setReplayProgress(catalogEntry ? { phase: "loading", processed: 0, total: 0, message: "Loading captured lap…" } : null);
@@ -372,12 +392,13 @@ export function DevLiveEngineerReplay() {
       if (catalogEntry) query.set("scenario", catalogEntry.backendScenario);
       const response = await fetchWithTimeout(`${catalogEntry ? "/api/dev/live-engineer/session-replay-stream" : "/api/dev/live-engineer/session-replay"}?${query.toString()}`);
       const nextReplay = catalogEntry
-        ? await readReplayStream(response, setReplayProgress)
+        ? await readReplayStream(response, (progress) => { if (requestRef.current === request) setReplayProgress(progress); })
         : await (async () => {
             const body = await readJson(response);
             if (!response.ok) throw new Error((body as JsonResponse).error as string ?? `Replay failed (${response.status})`);
             return body as Replay;
           })();
+      if (requestRef.current !== request) return;
       setReplay(nextReplay);
       setLapFilter("all");
       setStageFilter("all");
@@ -385,11 +406,13 @@ export function DevLiveEngineerReplay() {
       setSelectedAnnotationId(null);
       setSelectedSystemId(nextReplay.systems.find((system) => !systemIsEnabled(system))?.systemId ?? nextReplay.systems[0]?.systemId ?? null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Replay failed");
+      if (requestRef.current === request) setError(cause instanceof Error ? cause.message : "Replay failed");
     } finally {
-      setReplayLoading(false);
-      setScenarioLoading(null);
-      setReplayProgress(null);
+      if (requestRef.current === request) {
+        setReplayLoading(false);
+        setScenarioLoading(null);
+        setReplayProgress(null);
+      }
     }
   }
 
@@ -426,12 +449,24 @@ export function DevLiveEngineerReplay() {
 
   const selectGame = (value: string) => {
     const nextGame = value as (typeof games)[number];
+    requestRef.current += 1;
+    setReplay(null);
+    setReplayLoading(false);
+    setScenarioLoading(null);
+    setReplayProgress(null);
+    setSessions([]);
     audio.stop();
     setGameId(nextGame);
     setSessionId("");
     void navigate({ search: { gameId: nextGame, sessionId: undefined, scenario: undefined } });
   };
   const selectSession = (value: string) => {
+    requestRef.current += 1;
+    setReplay(null);
+    setReplayLoading(false);
+    setScenarioLoading(null);
+    setReplayProgress(null);
+    setError(null);
     audio.stop();
     setSessionId(value);
     void navigate({ search: { gameId, sessionId: Number(value), scenario: undefined } });
@@ -472,7 +507,7 @@ export function DevLiveEngineerReplay() {
         {(sessionsLoading || replayLoading || scenarioLoading) && <div className="mt-3 space-y-1" role="progressbar" aria-label={sessionsLoading ? "Loading sessions" : replayProgress?.message ?? "Loading replay"} aria-valuemin={0} aria-valuemax={replayProgress?.total || undefined} aria-valuenow={replayProgress?.total ? replayProgress.processed : undefined}><div className="h-1 overflow-hidden rounded-full bg-app-border"><div className={cn("h-full rounded-full bg-app-accent transition-[width]", replayProgress?.total ? "w-0" : "w-2/3")} style={replayProgress?.total ? { width: `${Math.min(100, (replayProgress.processed / replayProgress.total) * 100)}%` } : undefined} /></div>{replayProgress && <div className="text-app-caption text-app-text-muted">{replayProgress.message}</div>}</div>}
       </header>
 
-      <main className="flex flex-col gap-4 p-5">
+      <main className="flex flex-col gap-4 p-5" style={{ paddingBottom: replay ? timelineHeight + 16 : undefined }}>
         {error && <Card size="sm"><CardHeader><CardTitle className="flex items-center gap-2 text-status-danger"><AlertTriangle />Replay unavailable</CardTitle><CardDescription>{error}</CardDescription></CardHeader></Card>}
         {!replay && !replayLoading && !error && (
           <Card className="mx-auto mt-12 max-w-2xl">
@@ -517,7 +552,7 @@ export function DevLiveEngineerReplay() {
             </Card>
           )}
 
-          <section className="flex flex-col gap-4 pb-64">
+          <section className="flex flex-col gap-4">
             <Card className="h-[22rem] min-h-0">
               <CardHeader className="border-b"><CardTitle>Track and frame context</CardTitle><CardDescription>{outline ? "Captured world position" : "World coordinates unavailable for this capture"}</CardDescription></CardHeader>
               <CardContent className="relative min-h-0 flex-1 p-0">
@@ -571,13 +606,14 @@ export function DevLiveEngineerReplay() {
               </Tabs>
             </Card>
               <div className="rounded border border-app-border bg-app-surface/50">
-                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={{ values: playback.frame.values, states: {}, freshness: {} }} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
+                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={playback.frame} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
-              {playback.frame && <OpponentDataPanel frame={{ values: playback.frame.values, states: {}, freshness: {} }} gameId={gameId} />}
+              {playback.frame && gameId !== "acc" && <OpponentDataPanel frame={playback.frame} gameId={gameId} />}
               </div>
             </div>
+            {replay.gameId === "acc" && playback.frame && <AccOpponentStandings competitors={accCompetitors} playerCarIndex={finiteValue(playback.frame.values, "identity.player-car-index")} opponentSource={playback.frame.opponentSource} />}
           </section>
-          <Card className="sticky bottom-0 z-50 border-app-accent/30 bg-app-bg shadow-2xl">
+          <Card ref={timelineRef} aria-label="Session timeline" className="sticky bottom-0 z-50 border-app-accent/30 bg-app-bg shadow-2xl">
             <CardHeader className="border-b">
               <CardTitle>Session timeline</CardTitle>
               <CardDescription>Lap filter changes presentation only. Playback always uses recorded frame order and session time.</CardDescription>

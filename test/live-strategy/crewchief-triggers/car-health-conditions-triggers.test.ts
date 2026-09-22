@@ -28,6 +28,15 @@ describe("ACC CrewChief car-health and conditions triggers", () => {
     expect(keys(c, frame(5, 240, tyres([185, 185, 185, 185], 3)), "TyreMonitor")).toContain("tyres-cooking");
   });
 
+  test("keeps ACC tyre transitions suppressed in pit and before the final sector", () => {
+    const catalog = new CrewChiefTriggerCatalog();
+    catalog.consume(frame(0, 0, tyres([80, 80, 80, 80], 1)));
+    const cold = tyres([65, 65, 65, 65], 3);
+    expect(keys(catalog, frame(1, 120, cold, true), "TyreMonitor")).toEqual([]);
+    expect(keys(catalog, frame(2, 130, { ...cold, "timing.sector.current-index": 1 }), "TyreMonitor")).toEqual([]);
+    expect(keys(catalog, frame(3, 140, cold), "TyreMonitor")).toEqual(["tyres-cold"]);
+  });
+
   test("arms water warning after 120 seconds and clears only on safe transition, suppressed in pit", () => {
     const c = new CrewChiefTriggerCatalog();
     c.consume(frame(0, 0, { "engine.coolant-temperature": 90 }));

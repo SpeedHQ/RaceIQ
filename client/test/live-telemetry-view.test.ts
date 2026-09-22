@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { GameId } from "../../shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
-import { buildLiveTelemetryView, indexTelemetrySchema, readIndexedValue } from "../src/lib/live-telemetry-view";
+import { buildLiveTelemetryView, indexTelemetrySchema, normalizeAccCompetitors, readIndexedValue } from "../src/lib/live-telemetry-view";
 
 function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {
   return {
@@ -199,5 +199,92 @@ describe("live telemetry view", () => {
 
     expect(iracing.race.pitStatus).toBe("pit_lane");
     expect(f1.race.pitStatus).toBe(2);
+  });
+});
+
+describe("ACC opponent normalization", () => {
+  function capturedGrid() {
+    const values: Record<string, unknown> = {
+      "identity.player-car-index": 42,
+      "race.competitor.car-index": [7, 42],
+      "race.competitor.driver-name": ["Leader", "Player"],
+      "race.competitor.car-class-id": ["0", "0"],
+      "race.competitor.car-class-name": ["GT3", "GT3"],
+      "race.competitor.position": [1, 2],
+      "race.competitor.laps-complete": [5, 5],
+      "race.competitor.pit-status": ["out", "pit_lane"],
+      "race.competitor.connected": [true, false],
+      "timing.competitor.last-lap-time": [90.123, 91.456],
+      "timing.competitor.last-lap-valid": [true, false],
+    };
+    return {
+      values,
+      states: Object.fromEntries(Object.keys(values).map((id) => [id, "ok" as const])) as Record<string, "ok" | "missing">,
+      freshness: Object.fromEntries(Object.keys(values).map((id) => [id, "fresh" as const])) as Record<string, "fresh" | "stale">,
+      opponentSource: { source: "acc-broadcast", state: "available", reasonCode: "ready" } as const,
+    };
+  }
+
+  it("normalizes live and retained replay evidence identically without inferring player from position", () => {
+    const captured = capturedGrid();
+    const ids = Object.keys(captured.values);
+    const live = frame(ids.map((id) => captured.values[id]));
+    live.context.opponentSource = captured.opponentSource;
+    const view = buildLiveTelemetryView(schema(ids), live)!;
+    expect(view.competitors).toEqual(normalizeAccCompetitors(captured));
+    expect(view.identity.playerCarIndex).toBe(42);
+    expect(view.competitors[1]).toMatchObject({ carIndex: 42, position: 2, connected: false, pitStatus: "pit_lane", lastLapS: 91.456, lastLapValid: false });
+  });
+
+  it("replaces previously available live rows with source-loss status", () => {
+    const captured = capturedGrid();
+    const ids = Object.keys(captured.values);
+    const live = frame(ids.map((id) => captured.values[id]));
+    for (const state of ["unavailable", "stale", "malformed"] as const) {
+      live.context.opponentSource = { ...captured.opponentSource, state, reasonCode: "source-timeout" };
+      const view = buildLiveTelemetryView(schema(ids), live)!;
+      expect(view.competitors).toEqual([]);
+      expect(view.opponentSource?.state).toBe(state);
+      expect(view.identity.playerCarIndex).toBe(42);
+    }
+  });
+
+  it("withholds entire grid for stale, unresolved, or absent retained quality", () => {
+    const captured = capturedGrid();
+    captured.freshness["race.competitor.position"] = "stale";
+    expect(normalizeAccCompetitors(captured)).toEqual([]);
+    captured.freshness["race.competitor.position"] = "fresh";
+    captured.states["race.competitor.driver-name"] = "missing";
+    expect(normalizeAccCompetitors(captured)).toEqual([]);
+    delete captured.states["race.competitor.driver-name"];
+    expect(normalizeAccCompetitors(captured)).toEqual([]);
+  });
+
+  it("rejects misaligned arrays, duplicate indexes, missing player, and malformed elements", () => {
+    for (const [id, value] of [
+      ["race.competitor.position", [1]],
+      ["race.competitor.car-index", [42, 42]],
+      ["race.competitor.car-index", [7, Number.NaN]],
+      ["identity.player-car-index", 99],
+      ["identity.player-car-index", undefined],
+      ["race.competitor.connected", [true, 1]],
+      ["race.competitor.driver-name", ["Leader", null]],
+      ["timing.competitor.last-lap-time", [90, Number.POSITIVE_INFINITY]],
+    ] as const) {
+      const captured = capturedGrid();
+      captured.values[id] = value;
+      expect(normalizeAccCompetitors(captured)).toEqual([]);
+    }
+  });
+
+  it("accepts bounded complete grids but rejects empty or oversized grids", () => {
+    for (const count of [0, 64, 65]) {
+      const captured = capturedGrid();
+      for (const [id, value] of Object.entries(captured.values)) {
+        if (Array.isArray(value)) captured.values[id] = Array.from({ length: count }, (_, index) => id === "race.competitor.car-index" ? index : value[0]);
+      }
+      captured.values["identity.player-car-index"] = 42;
+      expect(normalizeAccCompetitors(captured).length).toBe(count === 64 ? 64 : 0);
+    }
   });
 });

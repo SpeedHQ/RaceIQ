@@ -12,13 +12,13 @@ export interface IRacingCompetitor {
   carClassShortName?: string;
   isSpectator?: boolean;
   carIsPaceCar?: boolean;
-  position?: number;
-  classPosition?: number;
-  lapsComplete?: number;
-  lastLapTime?: number;
-  bestLapTime?: number;
-  onPitRoad?: boolean;
-  trackLocation?: number;
+  position: number;
+  classPosition: number;
+  lapsComplete: number;
+  lastLapTime: number;
+  bestLapTime: number;
+  onPitRoad: boolean;
+  trackLocation: number;
 }
 
 export interface IRacingExtendedData {
@@ -43,8 +43,6 @@ export interface IRacingExtendedData {
   sessionTimeRemain?: number;
   carIdxPosition?: readonly number[];
   carIdxClassPosition?: readonly number[];
-  carIdxLapCompleted?: readonly number[];
-  carIdxOnPitRoad?: readonly boolean[];
   incidents: number;
   trackWetness: number;
   pitTireTemperatureAvailable?: boolean;
@@ -53,14 +51,15 @@ export interface IRacingExtendedData {
   carClassName: string;
   trackName: string;
   competitors?: readonly IRacingCompetitor[];
+  competitorCarIndex?: readonly number[];
   competitorDriverId?: readonly string[];
   competitorDriverName?: readonly string[];
   competitorCarClassIdString?: readonly string[];
   competitorCarClassName?: readonly string[];
   competitorPitStatus?: readonly ("in_pit" | "out")[];
   competitorTrackLocationName?: readonly IRacingCompetitor["trackLocationName"][];
+  competitorLapsComplete?: readonly number[];
+  competitorLastLapTime?: readonly number[];
   carIdxLap?: readonly number[];
-  carIdxLastLapTime?: readonly number[];
   carIdxBestLapTime?: readonly number[];
-  carIdxTrackSurface?: readonly number[];
 }

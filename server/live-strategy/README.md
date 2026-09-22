@@ -21,7 +21,9 @@ Computes live sector timing and pit-strategy estimates from normalized telemetry
 
 `server/telemetry/live-projector.ts` resolves semantic frames; `live-engineer-semantic-input.ts` owns availability and alignment; voice and spotter trackers consume semantic values only. Browser clients own Radio switches, queueing, preemption, playback, and volume. See [Opponent Callout Capabilities and Phasing](../../docs/architecture/decisions/opponent-callout-capabilities-and-phasing.md) for accepted capability status, replay limits, and phased delivery gates.
 
-Opponent pace is implemented and production-supported for F1 25, ACC, and iRacing behind `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=true` plus game inclusion in `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS`. Spotter is implemented and production-supported for ACC and iRacing only; F1 25 geometry detection is implemented but not production-enabled. ACC opponent recording remains unavailable because canonical capture excludes Broadcast UDP; AC Evo and FM opponent callouts remain unavailable without complete source-backed competitor feeds.
+Opponent pace is implemented and production-supported for F1 25, ACC, and iRacing behind `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=true` plus game inclusion in `RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS`. Spotter is implemented and production-supported for ACC and iRacing only; F1 25 geometry detection is implemented but not production-enabled. ACCB raw capture and diagnostic replay reconstruction are implemented and fixture-tested, but accepted native persisted-replay support remains unavailable pending a real ACC capture and human audio acceptance. Old ACCP/ACCTEST remains player-only. AC Evo and FM opponent callouts remain unavailable without complete source-backed competitor feeds.
+
+Capture runs independently of those voice gates. ACC source loss clears competitor arrays and detector baselines without fabricating a spotter clearance. Replay keeps per-frame source status, resolver quality, and historical values; iRacing pace uses one aligned joined roster rather than mixing sparse identities with raw SDK arrays.
 
 ## Testing
 

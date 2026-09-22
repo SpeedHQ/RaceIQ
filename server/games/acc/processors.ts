@@ -4,7 +4,7 @@ import { processPacket } from "../../telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
-import { accBroadcastState } from "./broadcast-state";
+import { accBroadcastState, attachAccBroadcastSnapshot } from "./broadcast-state";
 import { accBroadcastCapture } from "./broadcast-capture";
 import { AC_STATUS, GRAPHICS, STATIC } from "./structs";
 import { readWString } from "./utils";
@@ -64,42 +64,20 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: "acc",
       });
       if (packet) {
-        if (triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4) {
-          accBroadcastState.setPlayerCarIndex(triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset));
-        }
-        const broadcastSnapshot = accBroadcastState.snapshot();
-        const broadcast = broadcastSnapshot.extension;
-        if (broadcast && packet.acc) Object.assign(packet.acc, {
-          broadcastSessionIndex: broadcast.sessionIndex,
-          broadcastSessionType: broadcast.sessionType,
-          broadcastPhase: broadcast.phase,
-          broadcastPlayerCarIndex: broadcast.playerCarIndex,
-          broadcastPlayerCarClassId: broadcast.playerCarClassId,
-          broadcastCarIndex: broadcast.carIndex,
-          broadcastDriverId: broadcast.driverId,
-          broadcastDriverName: broadcast.driverName,
-          broadcastCarClassId: broadcast.carClassId,
-          broadcastCarClassName: broadcast.carClassName,
-          broadcastLapsComplete: broadcast.lapsComplete,
-          broadcastPosition: broadcast.position,
-          broadcastPitStatus: broadcast.pitStatus,
-          broadcastTrackLocation: broadcast.trackLocation,
-          broadcastPositionX: broadcast.positionX,
-          broadcastPositionY: broadcast.positionY,
-          broadcastPositionZ: broadcast.positionZ,
-          broadcastSpeed: broadcast.speed,
-          broadcastYaw: broadcast.yaw,
-          broadcastLastLapTime: broadcast.lastLapTime,
-          broadcastLastLapValid: broadcast.lastLapValid,
-          broadcastConnected: broadcast.connected,
-        });
         const frameReceivedAtMs = Date.now();
+        packet.TimestampMS = frameReceivedAtMs;
+        const playerCarIndex = triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4
+          ? triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset)
+          : -1;
+        accBroadcastState.setPlayerCarIndex(playerCarIndex);
+        attachAccBroadcastSnapshot(packet, playerCarIndex, accBroadcastState.snapshot());
         const cursor = accBroadcastCapture.prepare(frameReceivedAtMs);
         const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, {
           frame: sourceFrame,
           capturePrefixRecords: () => [accBroadcastCapture.encode(cursor)],
-          acknowledgeRecorded: () => accBroadcastCapture.acknowledge(cursor),
+          captureSessionContextRecords: () => accBroadcastCapture.encodeSessionContext(cursor),
+          acknowledgeRecorded: () => accBroadcastCapture.acknowledge(cursor, playerCarIndex),
         });
       }
     } catch (err) {

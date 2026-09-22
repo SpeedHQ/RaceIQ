@@ -105,4 +105,23 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 
 ## ACC Broadcast metadata
 
-ACC canonical captures retain raw Broadcast evidence in same file as ACCP telemetry. Each ACCB v1 metadata envelope precedes one persisted telemetry frame and contains ordered datagrams/lifecycle events, event receive timestamps, and shared-memory frame receive time. Metadata does not increment telemetry record count; old captures remain valid and readers may skip ACCB records. A malformed complete ACCB record is reported and iteration continues; a truncated final envelope stops at tail while preserving prior records.
+ACC canonical captures retain raw Broadcast evidence in the same file as unchanged ACCP telemetry. Each ordinary ACCB v1 record immediately precedes one persisted telemetry frame, including frames with no new UDP events. Metadata does not increment telemetry record count; a lap byte offset may point at the metadata prefix. Frame indexing, range reads, gzip/plain offsets, ZIP export/import, and reprocess skip metadata when counting player frames while preserving its bytes.
+
+All fields are little-endian:
+
+```text
+[0xffffffff u32][payloadBytes u32]
+[ACCB magic 0x42434341 u32][version 1 u32]
+[shared-memory frame receive time f64 Unix ms][event count u32]
+repeated event:
+  [sequence u32][receive time f64 Unix ms][kind u8]
+  [payload length u32][payload bytes]
+```
+
+Event kinds are raw UDP datagram `1`, socket-open `2`, socket-close `3`, socket-error `4`, explicit-reset `5`, and queue-overflow `6`. Lifecycle payloads are empty. Every received protocol-v4 datagram is recorded before parsing, including malformed bytes. Pending capture bytes are capped at 8 MiB, below the source loader's 16 MiB record ceiling. Overflow invalidates joined evidence and recycles the transport so subsequent registration and complete fresh source data can establish recovery.
+
+Source prefixes are encoded lazily only when a frame is persisted. Rotation writes identical ordinary prefixes to both captures before acknowledging queued events. New recordings may begin with bounded compacted raw source evidence enclosed by existing segment-context markers; these baseline records contain no player frames. Their original sequences may have forward gaps from compaction, but duplicates/backward order are rejected. Ordinary stream sequence continuity is enforced independently after context ends.
+
+A malformed complete ACCB record reports malformed source and iteration continues to player telemetry. Unknown metadata versions remain skippable. A physically truncated final envelope stops at that tail and preserves prior complete records. Legacy ACCP and ACCTEST v2/v3 remain valid and opponent-unavailable; no migration or companion file is needed.
+
+The full-session replay profile derives capture status/counts and clock availability from actual records. A captured ACC clock requires a valid ACCB clock on every emitted player frame; legacy/mixed-clock replay uses nominal timing instead of claiming parser wall clock as recorded evidence. Current-frame source status and resolver state/freshness determine eligibility. Native ACC replay acceptance is still pending as described in the [capability ADR](decisions/opponent-callout-capabilities-and-phasing.md).

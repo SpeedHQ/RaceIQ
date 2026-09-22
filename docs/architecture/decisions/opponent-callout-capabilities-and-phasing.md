@@ -18,12 +18,14 @@ This decision is bounded to opponent callouts and their telemetry prerequisites.
 | Game | Live opponent source | Recorded replay | Opponent pace | Spotter | Primary limit |
 |---|---|---|---|---|---|
 | F1 25 (`f1-2025`) | **source available** — `F1ExtendedData.grid` | **recorded/replayable** — raw UDP packet families can rebuild retained state, but sparse prefixes can fail closed | **detector implemented; production enabled** behind flags | **detector implemented; unavailable for production** — geometry detector exists, but game is not production-enabled for `live-spotter` | UDP history, validity, class, and geometry evidence must remain aligned and fresh |
-| ACC (`acc`) | **source available** — `AccBroadcastExtension` joined to shared-memory player state | **unavailable** — canonical ACC capture excludes Broadcast UDP | **detector implemented; production enabled** behind flags | **detector implemented; production enabled** behind flags | Broadcast UDP is required for opponent identity, timing, and position; shared memory alone is player-only |
+| ACC (`acc`) | **source available** — Broadcast UDP joined to shared-memory player state | **unavailable pending native acceptance** — ACCB v1 capture and diagnostic reconstruction are implemented and fixture-tested; legacy ACCP/ACCTEST remains player-only | **detector implemented; production enabled** behind existing flags | **detector implemented; production enabled** behind existing flags | A real Windows ACC Broadcast capture, live/replay comparison, and human audio acceptance remain required before promoting persisted-replay support |
 | iRacing (`iracing`) | **source available** — `IRacingExtendedData.competitors` plus SDK arrays/native `CarLeftRight` | **recorded/replayable** — v3 source frames retain SDK deltas and SessionInfo YAML; v2/IBT have limitations | **detector implemented; production enabled** behind flags | **detector implemented; production enabled** behind flags | Replay source version, YAML roster, native occupancy, and trustworthy track-location evidence vary |
 | AC Evo (`ac-evo`) | **unavailable** — no complete opponent source | **unavailable** | **unavailable** | **unavailable** | No trustworthy source-backed opponent identity, timing, validity, or occupancy |
 | FM 2023 (`fm-2023`) | **unavailable** — no complete opponent source | **unavailable** | **unavailable** | **unavailable** | Player-only telemetry; no stable competitor feed or adapter contract |
 
 Minimum pace evidence is defined once for all supported implementations: player index and class; completed player lap, time, and eligibility; session type; aligned competitor index, identity, class, lap, pit, and time facts; plus game-specific validity, connectivity, and track-location requirements. Competitor arrays must be aligned and contain no more than 64 entries. Missing, stale, invalid, misaligned, or unsupported evidence fails closed.
+
+ACC capture instrumentation runs whenever ACC runs, independently of voice enablement. This is not a release-gate change. New canonical files retain raw Broadcast evidence and receive clocks in ACCB records; replay reports typed capture evidence separately from each frame's `available`, `unavailable`, `stale`, or `malformed` source state. Missing or invalid source evidence removes opponent rows and silently resets detector baselines without suppressing player telemetry.
 
 ### Phase 1
 
@@ -35,11 +37,12 @@ Minimum pace evidence is defined once for all supported implementations: player 
 
 ### Phase 2
 
-- **Status:** Planned
+- **Status:** Planned; ACC native acceptance blocked
 - **Scope:** Persist every source-backed input needed by callouts, beginning with ACC Broadcast data; old recordings remain player-only.
 - **Prerequisites:** Capture and replay changes preserve accepted persisted-source constraints and fail-closed semantics.
 - **Game coverage:** F1 25, ACC, and iRacing.
-- **Completion evidence:** Saved F1 25, ACC, and iRacing sessions replay the same eligible opponent facts used live.
+- **Implementation evidence:** ACCB framing, raw recording-start context, metadata-aware lap reads/export/import/reprocess, source lifecycle recovery, and deterministic live/replay source parity are covered by focused fixtures. Browser coverage verifies standings, source-loss replacement, player focus, and replay audio cancellation.
+- **Completion evidence:** Saved F1 25, ACC, and iRacing sessions replay the same eligible opponent facts used live. ACC still needs a normal `bun run dev` multiplayer capture with configured protocol-v4 Broadcast, session transitions, source loss/recovery, and human-observed audio/mute/preemption/seek/reset behavior. No native ACC process was available during this verification; automated fixtures do not satisfy that gate.
 
 ### Phase 3
 

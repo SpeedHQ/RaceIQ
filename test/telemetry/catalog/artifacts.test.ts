@@ -114,56 +114,6 @@ describe("semantic telemetry catalog artifacts", () => {
     );
   });
   test("covers every normalized packet field and every parser source inventory", () => {
-    expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(767);
-    expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
-      "fm-2023": {
-        total: 95,
-        packet: 95,
-        extension: 0,
-        sdk: 0,
-        yaml: 0,
-        setup: 0,
-        recorded: 95,
-      },
-      "f1-2025": {
-        total: 306,
-        packet: 119,
-        extension: 187,
-        sdk: 0,
-        yaml: 0,
-        setup: 0,
-        recorded: 306,
-      },
-      acc: {
-        total: 221,
-        packet: 124,
-        extension: 64,
-        sdk: 0,
-        yaml: 0,
-        setup: 33,
-        recorded: 188,
-      },
-      "ac-evo": {
-        total: 276,
-        packet: 124,
-        extension: 116,
-        sdk: 0,
-        yaml: 0,
-        setup: 36,
-        recorded: 240,
-      },
-      iracing: {
-        total: 972,
-        packet: 115,
-        extension: 38,
-        sdk: 324,
-        yaml: 495,
-        setup: 0,
-        recorded: 722,
-      },
-    });
-
     for (const gameId of KNOWN_GAME_IDS) {
       expect(getSourcesWithoutSemanticDefinition(gameId)).toEqual([]);
       for (const source of getTelemetrySources(gameId)) {

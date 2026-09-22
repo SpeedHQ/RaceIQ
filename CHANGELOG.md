@@ -6,7 +6,11 @@
 - Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
 
 ### Fixes
-- Forza Motorsport race engineer pairs its finish-line low-fuel warning with a pit-this-lap call, then repeats the pit call before pit entry.
+- Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
+- Restore source-backed iRacing opponent pace announcements for sparse grids.
+- Recognize F1 25 race sessions correctly when evaluating opponent pace.
+- Keep ACC tyre-temperature warnings suppressed during warm-up, pit visits, and earlier sectors.
+- Keep Engineer Replay focused on the actual player, preserve source-loss history, and stop queued audio after mute, seek, or session changes.
 - Chain completed-lap time and pace announcements with a natural pause and without repeating "Your lap was."
 
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.

@@ -3,6 +3,8 @@ import type { GameId } from "../../shared/games/ids";
 import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
 import { LiveEngineerVoiceEngine } from "../../server/live-strategy/live-engineer-voice-engine";
 import { crewChiefSource, type CrewChiefTriggerEventV1 } from "../../server/live-strategy/crewchief-triggers/contracts";
+import { extractLiveEngineerSemanticInput } from "../../server/live-strategy/live-engineer-semantic-input";
+import type { LiveResolvedSemanticFrame } from "../../server/telemetry/live-projector";
 
 const ok = (semanticId: string, value: unknown): ResolvedValue<unknown> => ({
   semanticId, value, unit: null, mappingStatus: "direct", state: "ok", confidence: 1, freshness: "fresh",
@@ -18,10 +20,10 @@ const frame = (sequence: number, lap: number, overrides: Record<string, Resolved
   const values: Record<string, unknown> = {
     "identity.player-car-index": 0, "identity.player-car-class-id": "gt3", "identity.player-track-surface": 3,
     "timing.lap-number": lap, "timing.last-lap": 90, "timing.current-lap-valid": true, "race.pit-status": "out", "race.on-pit-road": false,
-    "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [1], "race.competitor.connected": [true], "race.competitor.driver-id": ["opp"],
-    "race.competitor.driver-name": ["Opponent"], "race.competitor.car-class-id": ["gt3"], "race.competitor.car-class-name": ["GT3"],
-    "race.competitor.laps-complete": [lap], "race.competitor.pit-status": ["out"], "race.competitor.track-location": ["track"],
-    "timing.competitor.last-lap-time": [88], "timing.competitor.last-lap-valid": [true],
+    "session.session-state": 5, "session.session-type": "practice", "race.competitor.car-index": [0, 1], "race.competitor.connected": [true, true], "race.competitor.driver-id": ["player", "opp"],
+    "race.competitor.driver-name": ["Player", "Opponent"], "race.competitor.car-class-id": ["gt3", "gt3"], "race.competitor.car-class-name": ["GT3", "GT3"],
+    "race.competitor.laps-complete": [lap, lap], "race.competitor.pit-status": ["out", "out"], "race.competitor.track-location": ["track", "track"],
+    "timing.competitor.last-lap-time": [90, 88], "timing.competitor.last-lap-valid": [true, true],
     "race.safety-car-status": false, "race.flag-status": "green", "session.session-flags": 0,
   };
   const ids = [...new Set([...Object.keys(values), ...Object.keys(overrides)])];
@@ -86,6 +88,7 @@ test("F1 remains silent without complete player pace identity or a spotter branc
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
   engine.consume(frame(0, 1, {
+    "identity.player-car-index": missing("identity.player-car-index"),
     "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
     "race.competitor.connected": ok("race.competitor.connected", [true, true]),
     "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
@@ -98,6 +101,7 @@ test("F1 remains silent without complete player pace identity or a spotter branc
     "motion.yaw": ok("motion.yaw", 0),
   }, "f1-2025"));
   engine.consume(frame(1, 2, {
+    "identity.player-car-index": missing("identity.player-car-index"),
     "race.competitor.car-index": ok("race.competitor.car-index", [0, 1]),
     "race.competitor.connected": ok("race.competitor.connected", [true, true]),
     "race.competitor.position-x": ok("race.competitor.position-x", [0, 2.2]),
@@ -139,12 +143,12 @@ test("F1 pace falls back to car index identity and follows a lap time with overa
 test("chains lap time and pace without repeating the lap lead", () => {
   const emitted: unknown[] = [];
   const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
-  const batch = (semanticFrame: ReturnType<typeof frame>, events: readonly CrewChiefTriggerEventV1[]) => ({
+  const batch = (semanticFrame: LiveResolvedSemanticFrame, events: readonly CrewChiefTriggerEventV1[]) => ({
     streamId: semanticFrame.streamId,
     sessionId: "1",
     timelineEpoch: 1,
     sourceSequence: semanticFrame.sequence,
-    sessionTimeMs: semanticFrame.observedAt.milliseconds,
+    sessionTimeMs: semanticFrame.sequence * 1000,
     context: { simulator: "acc" as const, sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
     semanticFrame,
     events,
@@ -343,4 +347,91 @@ test("structured batch epoch remains authoritative across reset and stream chang
   engine.reset();
   engine.consume(makeBatch("two", 9, 2));
   expect(messagesOfType(emitted, "live-engineer-callout").map((message) => message.timelineEpoch)).toEqual([4, 9]);
+});
+
+test("ACC pace rejects missing location, non-fresh required values, and invalid player/grid identity", () => {
+  const failures: Record<string, ResolvedValue<unknown>>[] = [
+    { "race.competitor.track-location": missing("race.competitor.track-location") },
+    { "race.competitor.laps-complete": { ...ok("race.competitor.laps-complete", [1, 1]), freshness: "stale" as const } },
+    { "identity.player-car-index": ok("identity.player-car-index", 9) },
+    { "race.competitor.car-index": ok("race.competitor.car-index", [0, 0]) },
+    { "race.competitor.car-index": ok("race.competitor.car-index", [0, Number.NaN]) },
+    { "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [88]) },
+  ];
+  for (const failure of failures) {
+    const emitted: unknown[] = [];
+    const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+    for (const lap of [1, 2]) {
+      const invalid = frame(lap, lap, failure);
+      expect(extractLiveEngineerSemanticInput(invalid).pace).toBeNull();
+      engine.consume(invalid);
+    }
+    expect(emitted).toEqual([]);
+  }
+});
+
+test("ACC source loss drops prior pace facts and exact responses without a clearance", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  engine.consume(frame(0, 1));
+  engine.consume(frame(1, 2));
+  const callout = messagesOfType(emitted, "live-engineer-callout")[0]!;
+  expect(callout).toMatchObject({ family: "opponent-pace" });
+  engine.consume({
+    ...frame(2, 2),
+    opponentSource: { source: "acc-broadcast", state: "stale", reasonCode: "source-timeout" },
+  });
+  expect(engine.handle({ type: "live-engineer-voice-request", protocolVersion: 3, action: "exact-pace", requestId: "lost", decisionId: String(callout.decisionId) })).toBeUndefined();
+  const candidates: unknown[] = [];
+  const recovered = new LiveEngineerVoiceEngine({ emit: () => {}, onCandidate: (candidate) => candidates.push(candidate.renderParameters) });
+  recovered.consume(frame(0, 1));
+  recovered.consume({ ...frame(1, 1), opponentSource: { source: "acc-broadcast", state: "unavailable", reasonCode: "session-reset" } });
+  recovered.consume(frame(2, 2, { "timing.competitor.last-lap-time": ok("timing.competitor.last-lap-time", [90, 100]) }));
+  expect(candidates).toEqual([expect.objectContaining({ benchmarkLapTimeMs: 100_000 })]);
+});
+
+test("queued opponent pace is revalidated before source-loss dispatch", () => {
+  const emitted: unknown[] = [];
+  const engine = new LiveEngineerVoiceEngine({ emit: (message) => emitted.push(message) });
+  const consume = (semanticFrame: LiveResolvedSemanticFrame) => engine.consume({
+    streamId: "stream", sessionId: "1", timelineEpoch: 1, sourceSequence: semanticFrame.sequence,
+    sessionTimeMs: semanticFrame.sequence * 1000,
+    context: { simulator: "acc", sessionActive: true, formation: false, caution: false, pit: false, spectating: false },
+    semanticFrame, events: [],
+  });
+  consume(frame(0, 1));
+  consume(frame(1, 2));
+  consume(frame(2, 2, { "race.competitor.connected": missing("race.competitor.connected") }));
+  consume(frame(3, 2));
+  expect(emitted).toEqual([]);
+});
+
+test("ACC spotter clears baselines silently for stale, empty, duplicate, oversized, and misaligned source", () => {
+  const poses = (indexes: readonly unknown[], far = false) => ({
+    "race.competitor.car-index": ok("race.competitor.car-index", indexes),
+    "race.competitor.connected": ok("race.competitor.connected", indexes.map(() => true)),
+    "race.competitor.pit-status": ok("race.competitor.pit-status", indexes.map(() => "out")),
+    "motion.competitor.position-x": ok("motion.competitor.position-x", indexes.map((_, i) => i === 0 ? 0 : 2.2)),
+    "motion.competitor.position-z": ok("motion.competitor.position-z", indexes.map((_, i) => i === 0 ? 0 : far ? 100 : -1)),
+    "motion.competitor.speed": ok("motion.competitor.speed", indexes.map(() => 20)),
+    "motion.position-x": ok("motion.position-x", 0), "motion.position-z": ok("motion.position-z", 0),
+    "motion.speed": ok("motion.speed", 20), "motion.yaw": ok("motion.yaw", 0),
+  });
+  for (const failure of ["source", "freshness", "empty", "duplicate", "oversized", "misaligned", "missing-player", "non-finite", "disconnected", "removed"] as const) {
+    const events: unknown[] = [];
+    const engine = new LiveEngineerVoiceEngine({ emit: () => {}, onSpotterEvent: (event) => events.push(event) });
+    engine.consume(frame(0, 1, poses([0, 1])));
+    expect(events).toEqual([expect.objectContaining({ state: "car-left" })]);
+    const indexes = failure === "empty" ? [] : failure === "duplicate" ? [0, 0] :
+      failure === "oversized" ? Array.from({ length: 65 }, (_, i) => i) :
+      failure === "missing-player" ? [5, 7] : failure === "non-finite" ? [0, Number.NaN] : failure === "removed" ? [0] : [0, 1];
+    const overrides = poses(indexes, true);
+    if (failure === "freshness") overrides["motion.competitor.position-z"].freshness = "stale";
+    if (failure === "misaligned") overrides["motion.competitor.position-z"] = ok("motion.competitor.position-z", [0]);
+    if (failure === "disconnected") overrides["race.competitor.connected"] = ok("race.competitor.connected", [true, false]);
+    const bad = frame(1, 1, overrides);
+    engine.consume(failure === "source" ? { ...bad, opponentSource: { source: "acc-broadcast", state: "malformed", reasonCode: "duplicate-car-index" } } : bad);
+    engine.consume(frame(2, 1, poses([0, 1], true)));
+    expect(events).toEqual([expect.objectContaining({ state: "car-left" })]);
+  }
 });

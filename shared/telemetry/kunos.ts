@@ -1,3 +1,5 @@
+import type { OpponentSourceStatusV1 } from "./live/contracts";
+
 export interface KunosExtendedData {
   // Tire detail
   tireCompound: string;
@@ -118,6 +120,7 @@ export interface KunosExtendedData {
    */
   acEvo?: AcEvoExtendedData;
   /** Runtime-only ACC Broadcasting Protocol competitor snapshot fields. */
+  broadcastSource?: OpponentSourceStatusV1;
   broadcastSessionIndex?: number;
   broadcastSessionType?: string;
   broadcastPhase?: number;

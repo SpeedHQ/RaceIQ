@@ -41,6 +41,22 @@ function sourcesForOrderingKey(keyedSources: Record<string, readonly string[]>, 
   return keyedSources[key] ?? keyedSources[WHEEL_SOURCE_KEY_ALIASES[key]];
 }
 
+const CANONICAL_PASS_THROUGH: Readonly<Record<string, true>> = {
+  "identity.player-car-index": true,
+  "identity.player-car-class-id": true,
+  "session.session-type": true,
+  "race.competitor.car-index": true,
+  "race.competitor.driver-id": true,
+  "race.competitor.driver-name": true,
+  "race.competitor.car-class-id": true,
+  "race.competitor.car-class-name": true,
+  "race.competitor.laps-complete": true,
+  "race.competitor.pit-status": true,
+  "race.competitor.track-location": true,
+  "race.competitor.connected": true,
+  "timing.competitor.last-lap-time": true,
+};
+
 export function trustedNativeExecutor(variable: TelemetryVariableDefinition, mapping: Exclude<Mapping, { kind: "unavailable" }>): Reader | undefined {
   if (mapping.kind !== "normalized" || mapping.execution?.kind !== "conversion") {
     return undefined;
@@ -88,16 +104,16 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
       return undefined;
     };
   }
-  const canonicalPassThrough = new Set([
-    "identity.player-car-index", "identity.player-car-class-id", "session.session-type",
-    "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.car-class-id",
-    "race.competitor.pit-status", "race.competitor.track-location", "race.competitor.connected",
-  ]);
-  if (canonicalPassThrough.has(variable.id)) {
+  if (CANONICAL_PASS_THROUGH[variable.id]) {
+    // Native iRacing arrays are indexed by CarIdx, not by joined identity row.
+    // Only normalized extension values may execute these canonical mappings.
+    const canonicalSources = sourcePaths.filter((source) =>
+      !source.startsWith("iRacing.") &&
+      (!variable.id.includes(".competitor.") || !source.startsWith("iracing.") || source.startsWith("iracing.competitor")));
     return (frame, context) => {
-      for (const source of sourcePaths) {
+      for (const source of canonicalSources) {
         const value = sourceValue(frame, source);
-        const valid = variable.shape === "scalar" ? !Array.isArray(value) : Array.isArray(value);
+        const valid = value !== undefined && value !== null && (variable.shape === "scalar" ? !Array.isArray(value) : Array.isArray(value));
         if (valid) return setReading(reading, context, mapping, source, value);
       }
       return undefined;

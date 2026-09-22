@@ -149,9 +149,11 @@ ACC uses two concurrent sources:
 - `AccSharedMemoryReader` parses the existing physics, graphics, and static pages for player state.
 - `AccBroadcastClient` registers an ACC Broadcasting Protocol v4 UDP client on `127.0.0.1:9000` (overridable with `ACC_BROADCAST_HOST`, `ACC_BROADCAST_PORT`, `ACC_BROADCAST_PASSWORD`, and `ACC_BROADCAST_COMMAND_PASSWORD`).
 
-The broadcast state is joined by `carIndex`, attached to `packet.acc` as runtime-only fields, and resolved through the normal semantic telemetry projector. If the UDP source is absent or incomplete, ACC voice output stays silent; shared-memory telemetry and recording continue.
+Broadcast state is joined by `carIndex`; source status is attached to `packet.acc` and carried through the semantic frame and live wire context. Only available snapshots expose competitor arrays. Raw UDP/lifecycle evidence and frame receive clocks are retained in canonical ACCB metadata alongside unchanged ACCP shared-memory frames. If the source is absent, stale, malformed, or incomplete, opponent baselines reset silently and player telemetry remains usable.
 
 Unavailable means silent by design. The engine does not fabricate opponent facts or fall back to raw packet-specific guesses.
+
+Engineer Replay reconstructs ACC through a replay-local instance of the same state machine and retains resolver state/freshness plus per-frame source status. Source profile evidence comes from actual records, not diagnostic strings. Old ACCP/ACCTEST recordings remain opponent-unavailable. Capture/reconstruction and deterministic fixtures are implemented; accepted native persisted-replay support remains blocked pending the real-game and human audio checks in the capability ADR. Existing voice release gates are unchanged.
 
 ## Browser delivery triggers
 
@@ -173,7 +175,7 @@ The semantic coverage contract currently names these automatic events:
 
 `Position`, `LapCounter`, `Timings`, `LapTimes`, `Opponents`, `Penalties`, `PitStops`, `Fuel`, `Battery`, `WatchedOpponents`, `Strategy`, `RaceTime`, `TyreMonitor`, `EngineMonitor`, `DamageReporting`, `PushNow`, `FlagsMonitor`, `ConditionsMonitor`, `OvertakingAidsMonitor`, `FrozenOrderMonitor`, `Ratings`, `MulticlassWarnings`, `DriverSwaps`, and `SessionEndMessages`.
 
-These names define future trigger families and required semantic groups. Current emitted voice lines remain limited to opponent pace, positional spotter, and exact pace response described above.
+The inventory distinguishes implemented detectors from unavailable families and production gates. Current implementations include source-backed session/position/lap, fuel/strategy, timing, car-health, weather/flags, and selected adjacent-opponent events in addition to opponent pace, positional spotter, and exact-pace response. Game-specific requirements in `CREWCHIEF_TRIGGER_CATALOG` and executable semantic mappings are authoritative; inventory membership alone promises neither a ready detector nor spoken output. Watched-opponent and rating capabilities remain unavailable without their required source and user-selection contracts.
 
 ## Extension rule
 

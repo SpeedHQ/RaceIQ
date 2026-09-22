@@ -15,8 +15,6 @@ import {
 import { superviseSource } from "./source-supervisor";
 import { IS_WINDOWS } from "./platform/shell";
 
-import { isLiveSpotterEngineerEnabled, releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
-
 const SOURCE_POLL_MS = 2000;
 
 export interface NativeSourceSupervisor {
@@ -26,12 +24,6 @@ export interface NativeSourceSupervisor {
 export function startNativeSourceSupervisor(
   recordingGameId: string | null,
 ): NativeSourceSupervisor {
-  const liveSpotterEngineerEnabled = isLiveSpotterEngineerEnabled(releaseFeatureFlags({
-    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
-    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
-    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
-    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
-  }), "acc");
   if (!IS_WINDOWS) return { stop: async () => {} };
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
   const pendingStops = new Set<Promise<void>>();
@@ -82,7 +74,7 @@ export function startNativeSourceSupervisor(
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
-      const stopTasks: Promise<void>[] = liveSpotterEngineerEnabled ? [accBroadcastClient.stop()] : [];
+      const stopTasks: Promise<void>[] = [accBroadcastClient.stop()];
       for (const reader of readers) {
         if (reader) stopTasks.push(reader.stop());
       }

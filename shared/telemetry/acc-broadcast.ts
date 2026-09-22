@@ -1,3 +1,11 @@
+export type AccBroadcastSourceState = "available" | "unavailable" | "stale" | "malformed";
+export type AccBroadcastSourceReason = "ready" | "not-connected" | "not-registered" | "no-session" | "incomplete-grid" | "session-reset" | "source-timeout" | "malformed-datagram" | "sequence-gap" | "duplicate-car-index" | "too-many-competitors" | "invalid-driver-index" | "capture-overflow" | "malformed-capture-record";
+
+export interface AccBroadcastSnapshot {
+  source: { state: AccBroadcastSourceState; reasonCode: AccBroadcastSourceReason };
+  extension?: AccBroadcastExtension;
+}
+
 export type AccBroadcastLocation = number;
 
 export interface AccBroadcastLap {

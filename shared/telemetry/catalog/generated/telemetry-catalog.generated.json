@@ -6,19 +6,19 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.18.0",
-      "sourceHash": "97f659b57f926597aaff0fc5ece7ea8a7cc05d586ea0cc17b45f3dba5e1ff174"
+      "sourceHash": "72dfc4c0c1cacd0c82456e367eb13646a81058099112ca77d493935a2212d30b"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "9a6d0bd8e8f853d2114b7d52cf176238a2525d9d5a9a884cd65766235d541d30",
       "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
       "server/games/acc/parser.ts": "f8ed97cccda1a6e9f164bb6bc95bd906b3b3b666c0b63927d5a00d8974f70357",
       "server/games/f1-2025/f1-state.ts": "904ea12fe5bc15640f90c8ce40a18d43b0a86bac62d7d25c4718714efcfa8a56",
-      "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
-      "server/games/iracing/normalizer.ts": "48d80797f3c497be95872def5299f2d71552249a970b572978b47281dfca542a",
+      "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
+      "server/games/iracing/normalizer.ts": "1885187305a82333c4e6ab0b8313301d844d99bd764f6ae212d659edb61f01f0",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "02c50ce5c7348319f622a1b9b4b5e7770281a1c7f27bb61da166915a147cddb6"
+    "contentHash": "0eed688bffbdd5577775a1c27aeda61c6b2c00a0b6c5b5aaa3dbbd0737727a52"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -132,6 +132,7 @@
       "label": "Diagnostics",
       "description": "Source identity, packet counters, and diagnostic values.",
       "children": [
+        "diagnostics.broadcast-source",
         "diagnostics.car-number-texture-loading",
         "diagnostics.chan-avg-latency",
         "diagnostics.chan-clock-skew",
@@ -3425,6 +3426,67 @@
       "range": {
         "min": 0,
         "max": 100
+      },
+      "limitations": []
+    },
+    {
+      "id": "diagnostics.broadcast-source",
+      "label": "Broadcast Source",
+      "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "unitless",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "direct",
+          "nativeUnit": "unitless",
+          "sources": [
+            "acc.broadcastSource"
+          ],
+          "freshness": "continuous",
+          "description": "acc parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
+        },
+        "ac-evo": {
+          "kind": "direct",
+          "nativeUnit": "unitless",
+          "sources": [
+            "acc.broadcastSource"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "unit:unitless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
       },
       "limitations": []
     },
@@ -21740,16 +21802,17 @@
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "count",
+          "nativeUnit": "index",
           "sources": [
+            "iracing.competitorCarIndex",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsFastestLap[].CarIdx",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].CarIdx",
             "iRacing.SessionInfo.QualifyResultsInfo.Results[].CarIdx",
             "iRacing.SessionInfo.DriverInfo.Drivers[].CarIdx"
           ],
-          "freshness": "session-update",
-          "normalization": "parse YAML count as index",
-          "description": "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+          "freshness": "continuous",
+          "normalization": "pass through joined competitor car indexes",
+          "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
@@ -21761,13 +21824,14 @@
             "version": "0.18.0",
             "deterministic": true,
             "declaredInputs": [
+              "iracing.competitorCarIndex",
               "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsFastestLap[].CarIdx",
               "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].CarIdx",
               "iRacing.SessionInfo.QualifyResultsInfo.Results[].CarIdx",
               "iRacing.SessionInfo.DriverInfo.Drivers[].CarIdx"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "090a0e67c1902798242c83d57c4cbb70264bce9b2d69a4285c06e0d090ead0d1"
+            "codeHash": "221c7acd6f85366f502d7eaacb6342c78bde44a7015a5fb8306f3a6324fb7a82"
           }
         }
       },
@@ -24230,20 +24294,34 @@
           "description": "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state."
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "count",
           "sources": [
-            "iracing.carIdxLapCompleted",
+            "iracing.competitorLapsComplete",
             "iRacing.CarIdxLapCompleted",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].LapsComplete"
           ],
           "freshness": "continuous",
+          "normalization": "pass through joined competitor completed laps",
           "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:race.competitor.laps-complete:normalized",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorLapsComplete",
+              "iRacing.CarIdxLapCompleted",
+              "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].LapsComplete"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "706596a9314aaf9662d514bbe41b47622f3e5543b607af1ade1c061c94a44503"
+          }
         }
       },
       "valueType": "structured",
@@ -25156,15 +25234,14 @@
         },
         "iracing": {
           "kind": "normalized",
-          "nativeUnit": "boolean",
+          "nativeUnit": "enum",
           "sources": [
-            "iracing.carIdxOnPitRoad",
             "iracing.competitorPitStatus",
             "iRacing.CarIdxOnPitRoad"
           ],
           "freshness": "continuous",
+          "normalization": "pass through canonical pit statuses",
           "description": "iracing parser exposes 1 linked field.",
-          "normalization": "convert boolean to enum",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
@@ -25176,12 +25253,11 @@
             "version": "0.18.0",
             "deterministic": true,
             "declaredInputs": [
-              "iracing.carIdxOnPitRoad",
               "iracing.competitorPitStatus",
               "iRacing.CarIdxOnPitRoad"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "20bb360d78f74f22f7ac252cf7194f7d16af7761501966457c0be06d23472823"
+            "codeHash": "fc70275f1ea4decf9ae8301450882410369639f68ba2e6fce506613df6f46d19"
           }
         }
       },
@@ -26653,7 +26729,6 @@
           "nativeUnit": "enum",
           "sources": [
             "iracing.competitorTrackLocationName",
-            "iracing.carIdxTrackSurface",
             "iRacing.CarIdxTrackSurface"
           ],
           "freshness": "static",
@@ -26671,11 +26746,10 @@
             "deterministic": true,
             "declaredInputs": [
               "iracing.competitorTrackLocationName",
-              "iracing.carIdxTrackSurface",
               "iRacing.CarIdxTrackSurface"
             ],
             "missingDataPolicy": "require-all",
-            "codeHash": "6007dc6acac932b1e47604ae3d6838d3677a2b81221216f92678204bae4d0014"
+            "codeHash": "437393876acd2fa533dc07f2d6bc65b7c7fe8c5787f2cab148ede2d03e3d0de8"
           }
         }
       },
@@ -30228,7 +30302,7 @@
     {
       "id": "session.broadcast-session-index",
       "label": "Broadcast Session Index",
-      "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+      "description": "Broadcast Session Index source value reported by acc in count.",
       "parentId": "session",
       "canonicalUnit": "count",
       "shape": "scalar",
@@ -33506,7 +33580,7 @@
       "label": "Broadcast Phase",
       "description": "Native ACC broadcast lifecycle phase enum.",
       "parentId": "diagnostics",
-      "canonicalUnit": "state",
+      "canonicalUnit": "count",
       "shape": "scalar",
       "games": {
         "fm-2023": {
@@ -33521,7 +33595,7 @@
         },
         "acc": {
           "kind": "direct",
-          "nativeUnit": "state",
+          "nativeUnit": "count",
           "sources": [
             "acc.broadcastPhase"
           ],
@@ -33539,7 +33613,7 @@
           "description": "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state."
         },
         "iracing": {
-          "kind": "normalized",
+          "kind": "direct",
           "nativeUnit": "count",
           "sources": [
             "iracing.sessionState",
@@ -33547,29 +33621,16 @@
           ],
           "freshness": "continuous",
           "description": "iracing parser exposes 1 linked field.",
-          "normalization": "convert count to state",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts"
           },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "iracing:session.session-state:normalized",
-            "version": "0.18.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "iracing.sessionState",
-              "iRacing.SessionState"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "832f7b0bf18312ca2312e4b1776f64ce6e5c0ec21aa2ca35f92d4b7890415e57"
-          }
+          "limitations": []
         }
       },
       "valueType": "number",
       "dimensions": [
-        "unit:state"
+        "dimensionless"
       ],
       "cardinality": {
         "kind": "scalar"
@@ -42455,20 +42516,34 @@
           "description": "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state."
         },
         "iracing": {
-          "kind": "direct",
+          "kind": "normalized",
           "nativeUnit": "s",
           "sources": [
-            "iracing.carIdxLastLapTime",
+            "iracing.competitorLastLapTime",
             "iRacing.CarIdxLastLapTime",
             "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].LastTime"
           ],
           "freshness": "continuous",
+          "normalization": "pass through joined competitor last lap times",
           "description": "iracing parser exposes 1 linked field.",
           "provenance": {
             "origin": "yaml",
             "artifact": "shared/games/iracing/session-info/catalog.ts"
           },
-          "limitations": []
+          "limitations": [],
+          "execution": {
+            "kind": "conversion",
+            "id": "iracing:timing.competitor.last-lap-time:normalized",
+            "version": "0.18.0",
+            "deterministic": true,
+            "declaredInputs": [
+              "iracing.competitorLastLapTime",
+              "iRacing.CarIdxLastLapTime",
+              "iRacing.SessionInfo.SessionInfo.Sessions[].ResultsPositions[].LastTime"
+            ],
+            "missingDataPolicy": "require-all",
+            "codeHash": "1e969eca2c50b6ebc102ce5ecc4223bc08dbfe9b8711fdabc58b6f7fde973f57"
+          }
         }
       },
       "valueType": "structured",
@@ -61552,7 +61627,7 @@
       {
         "path": "acc.broadcastPhase",
         "label": "Broadcast Phase",
-        "unit": "state",
+        "unit": "count",
         "dataType": "number",
         "count": 1,
         "description": "Native ACC broadcast lifecycle phase enum.",
@@ -61646,7 +61721,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "description": "Broadcast Session Index source value reported by acc in count.",
         "semanticId": "session.broadcast-session-index",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -61660,6 +61735,18 @@
         "count": 1,
         "description": "Broadcast Session Type source value reported by acc in text.",
         "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSource",
+        "label": "Broadcast Source",
+        "unit": "unitless",
+        "dataType": "OpponentSourceStatusV1",
+        "count": 1,
+        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "semanticId": "diagnostics.broadcast-source",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -64909,7 +64996,7 @@
       {
         "path": "acc.broadcastPhase",
         "label": "Broadcast Phase",
-        "unit": "state",
+        "unit": "count",
         "dataType": "number",
         "count": 1,
         "description": "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state.",
@@ -65003,7 +65090,7 @@
         "unit": "count",
         "dataType": "number",
         "count": 1,
-        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "description": "Broadcast Session Index source value reported by ac-evo in count.",
         "semanticId": "session.broadcast-session-index",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
@@ -65017,6 +65104,18 @@
         "count": 1,
         "description": "AC Evo persisted shared-memory capture does not contain ACC Broadcast UDP state.",
         "semanticId": "session.session-type",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "acc.broadcastSource",
+        "label": "Broadcast Source",
+        "unit": "unitless",
+        "dataType": "OpponentSourceStatusV1",
+        "count": 1,
+        "description": "Runtime-only ACC Broadcasting Protocol competitor snapshot fields.",
+        "semanticId": "diagnostics.broadcast-source",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -68534,56 +68633,12 @@
         "retention": "exact"
       },
       {
-        "path": "iracing.carIdxLapCompleted",
-        "label": "Car Idx Lap Completed",
-        "unit": "count",
-        "dataType": "readonly number[]",
-        "description": "Car Idx Lap Completed source value reported by iracing in count.",
-        "semanticId": "race.competitor.laps-complete",
-        "sourceKind": "extension",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "iracing.carIdxLastLapTime",
-        "label": "Car Idx Last Lap Time",
-        "unit": "s",
-        "dataType": "readonly number[]",
-        "description": "Car Idx Last Lap Time source value reported by iracing in s.",
-        "semanticId": "timing.competitor.last-lap-time",
-        "sourceKind": "extension",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "iracing.carIdxOnPitRoad",
-        "label": "Car Idx On Pit Road",
-        "unit": "boolean",
-        "dataType": "readonly boolean[]",
-        "description": "Car Idx On Pit Road source value reported by iracing in boolean.",
-        "semanticId": "race.competitor.pit-status",
-        "sourceKind": "extension",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
         "path": "iracing.carIdxPosition",
         "label": "Car Idx Position",
         "unit": "count",
         "dataType": "readonly number[]",
         "description": "Car Idx Position source value reported by iracing in count.",
         "semanticId": "race.competitor.position",
-        "sourceKind": "extension",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "iracing.carIdxTrackSurface",
-        "label": "Car Idx Track Surface",
-        "unit": "count",
-        "dataType": "readonly number[]",
-        "description": "Car Idx Track Surface source value reported by iracing in count.",
-        "semanticId": "race.competitor.track-location",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -68635,6 +68690,17 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.competitorCarIndex",
+        "label": "Competitor Car Index",
+        "unit": "index",
+        "dataType": "readonly number[]",
+        "description": "iRacing car indexes aligned to joined competitor identities and timing.",
+        "semanticId": "race.competitor.car-index",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.competitorDriverId",
         "label": "Competitor Driver Id",
         "unit": "id",
@@ -68652,6 +68718,28 @@
         "dataType": "readonly string[]",
         "description": "iRacing canonical competitor driver names.",
         "semanticId": "race.competitor.driver-name",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorLapsComplete",
+        "label": "Competitor Laps Complete",
+        "unit": "count",
+        "dataType": "readonly number[]",
+        "description": "iRacing completed laps aligned to joined competitor identities.",
+        "semanticId": "race.competitor.laps-complete",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.competitorLastLapTime",
+        "label": "Competitor Last Lap Time",
+        "unit": "s",
+        "dataType": "readonly number[]",
+        "description": "iRacing last lap seconds aligned to joined competitor identities.",
+        "semanticId": "timing.competitor.last-lap-time",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -79024,7 +79112,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 774,
+    "semanticVariables": 775,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -79045,31 +79133,31 @@
         "recorded": 314
       },
       "acc": {
-        "total": 229,
+        "total": 230,
         "packet": 124,
-        "extension": 72,
+        "extension": 73,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 196
+        "recorded": 197
       },
       "ac-evo": {
-        "total": 284,
+        "total": 285,
         "packet": 124,
-        "extension": 124,
+        "extension": 125,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 248
+        "recorded": 249
       },
       "iracing": {
-        "total": 972,
+        "total": 971,
         "packet": 115,
-        "extension": 38,
+        "extension": 37,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 722
+        "recorded": 721
       }
     }
   }

@@ -17,7 +17,13 @@ class Reader {
   i16(): number { const value = this.u16(); return value & 0x8000 ? value - 0x10000 : value; }
   u32(): number { this.need(4); const v = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 4).getUint32(0, true); this.offset += 4; return v; }
   i32(): number { this.need(4); const v = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 4).getInt32(0, true); this.offset += 4; return v; }
-  f32(): number { this.need(4); const v = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 4).getFloat32(0, true); this.offset += 4; return v; }
+  f32(): number {
+    this.need(4);
+    const value = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 4).getFloat32(0, true);
+    this.offset += 4;
+    if (!Number.isFinite(value)) throw new RangeError("non-finite ACC broadcast value");
+    return value;
+  }
   string(): string { const length = this.u16(); this.need(length); const value = new TextDecoder().decode(this.bytes.slice(this.offset, this.offset + length)); this.offset += length; return value; }
   private need(count: number): void { if (this.remaining < count) throw new RangeError("truncated ACC broadcast message"); }
 }
@@ -55,14 +61,20 @@ export function parseAccBroadcastMessage(payload: Uint8Array): AccBroadcastMessa
         return { type: "registration-result", connectionId, success, readOnly, error: reader.string() };
       }
       case 2: {
-        return {
-          type: "realtime-update",
+        const header = {
+          type: "realtime-update" as const,
           eventIndex: reader.u16(), sessionIndex: reader.u16(), sessionType: reader.u8(), phase: reader.u8(),
           sessionTimeMs: reader.f32(), sessionEndTimeMs: reader.f32(), focusedCarIndex: reader.i32(),
           activeCameraSet: reader.string(), activeCamera: reader.string(), currentHudPage: reader.string(),
           replayPlaying: reader.u8() > 0,
-          bestSessionLap: lap(reader),
         };
+        if (header.replayPlaying) {
+          reader.f32(); // Replay session time.
+          reader.f32(); // Replay remaining time.
+        }
+        reader.f32(); // Time of day.
+        for (let i = 0; i < 5; i++) reader.u8(); // Ambient, track, clouds, rain, wetness.
+        return { ...header, bestSessionLap: lap(reader) };
       }
       case 3: {
         const carIndex = reader.u16();

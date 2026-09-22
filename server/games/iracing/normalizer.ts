@@ -62,6 +62,7 @@ function numberArray(values: Record<string, IRacingValue>, name: string): number
 function booleanArray(values: Record<string, IRacingValue>, name: string): boolean[] | undefined {
   const value = values[name];
   if (!Array.isArray(value)) return undefined;
+  if (value.some((entry) => typeof entry !== "boolean" && entry !== 0 && entry !== 1)) return undefined;
   return value.map((entry) => entry === true || (typeof entry === "number" && entry !== 0));
 }
 
@@ -69,6 +70,14 @@ function bool(values: Record<string, IRacingValue>, name: string): boolean {
   const value = values[name];
   return value === true || (typeof value === "number" && value !== 0);
 }
+const TRACK_LOCATIONS: Readonly<Record<number, IRacingCompetitor["trackLocationName"]>> = {
+  [-1]: "not-in-world",
+  0: "off-track",
+  1: "pit-stall",
+  2: "approaching-pits",
+  3: "track",
+};
+
 function buildCompetitors(
   values: Record<string, IRacingValue>,
   drivers: readonly IRacingDriverSnapshot[],
@@ -81,22 +90,24 @@ function buildCompetitors(
   const bestLaps = numberArray(values, "CarIdxBestLapTime");
   const locations = numberArray(values, "CarIdxTrackSurface");
   if (!positions || !classPositions || !laps || !pits || !lastLaps || !bestLaps || !locations) return [];
-  const locationName = (value: number): IRacingCompetitor["trackLocationName"] => ({ 0: "not-in-world", 1: "off-track", 2: "pit-stall", 3: "track", 4: "approaching-pits" } as Record<number, IRacingCompetitor["trackLocationName"]>)[value] ?? "off-track";
+  if (drivers.length > 64 || new Set(drivers.map((driver) => driver.carIndex)).size !== drivers.length) return [];
   const rows: IRacingCompetitor[] = [];
   for (const driver of drivers) {
-    if (driver.carClassId === undefined) continue;
+    if (driver.isSpectator || driver.carIsPaceCar || driver.carClassId === undefined || driver.userId === undefined || !driver.displayName || !driver.carClassShortName) continue;
     const i = driver.carIndex;
     const row = { position: positions[i], classPosition: classPositions[i], lapsComplete: laps[i], onPitRoad: pits[i], lastLapTime: lastLaps[i], bestLapTime: bestLaps[i], trackLocation: locations[i] };
     if (![row.position, row.classPosition, row.lapsComplete, row.lastLapTime, row.bestLapTime, row.trackLocation].every((value) => typeof value === "number" && Number.isFinite(value)) || row.onPitRoad === undefined) continue;
+    const trackLocationName = TRACK_LOCATIONS[row.trackLocation!];
+    if (!trackLocationName) continue;
     rows.push({
       ...driver,
       ...row,
-      driverId: String(driver.userId ?? driver.carIndex),
-      driverName: driver.displayName ?? String(driver.carIndex),
+      driverId: String(driver.userId),
+      driverName: driver.displayName,
       carClassIdString: String(driver.carClassId),
-      carClassName: driver.carClassShortName ?? String(driver.carClassId),
+      carClassName: driver.carClassShortName,
       pitStatus: row.onPitRoad ? "in_pit" : "out",
-      trackLocationName: locationName(row.trackLocation),
+      trackLocationName,
     });
   }
   return rows.sort((a, b) => a.carIndex - b.carIndex);
@@ -305,22 +316,22 @@ export function normalizeIRacingFrame(
       sessionTimeRemain: scalar(values, "SessionTimeRemain", 0),
       carIdxPosition: numberArray(values, "CarIdxPosition"),
       carIdxClassPosition: numberArray(values, "CarIdxClassPosition"),
-      carIdxLapCompleted: numberArray(values, "CarIdxLapCompleted"),
       competitors,
+      competitorCarIndex: competitors.map((competitor) => competitor.carIndex),
       competitorDriverId: competitors.map((competitor) => competitor.driverId),
       competitorDriverName: competitors.map((competitor) => competitor.driverName),
       competitorCarClassIdString: competitors.map((competitor) => competitor.carClassIdString),
       competitorCarClassName: competitors.map((competitor) => competitor.carClassName),
       competitorPitStatus: competitors.map((competitor) => competitor.pitStatus),
       competitorTrackLocationName: competitors.map((competitor) => competitor.trackLocationName),
+      competitorLapsComplete: competitors.map((competitor) => competitor.lapsComplete),
+      competitorLastLapTime: competitors.map((competitor) => competitor.lastLapTime),
       sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
       carLeftRight: Math.trunc(scalar(values, "CarLeftRight", 0)),
       carIdxLap: numberArray(values, "CarIdxLap"),
-      carIdxLastLapTime: numberArray(values, "CarIdxLastLapTime"),
       carIdxBestLapTime: numberArray(values, "CarIdxBestLapTime"),
-      carIdxTrackSurface: numberArray(values, "CarIdxTrackSurface"),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
       pitTireTemperatureAvailable,

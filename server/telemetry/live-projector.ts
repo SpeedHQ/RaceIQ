@@ -18,6 +18,7 @@ export interface LiveResolvedSemanticFrame {
   observedAt: TelemetryTimestamp;
   ids: readonly string[];
   values: readonly ResolvedValue<unknown>[];
+  opponentSource?: LiveTelemetryFrameMessageV1["context"]["opponentSource"];
 }
 export interface LiveTelemetryProjectorOptions { engineerSemanticIds?: readonly string[]; engineerEnabled?: boolean | ((gameId: GameId) => boolean); allowUnsupportedGame?: boolean; }
 export interface LiveProjection { schema?: LiveTelemetrySchemaMessageV1; frame?: LiveTelemetryFrameMessageV1; semanticFrame: LiveResolvedSemanticFrame; }
@@ -65,11 +66,12 @@ export class LiveTelemetryProjector {
     }
     const sequence = this.sequence + 1;
     this.sequence = sequence;
-    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence, observedAt, receivedAtMs: input.receivedAtMs, values: publicResolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}) } });
+    const opponentSource = gameId === "acc" ? input.packet.acc?.broadcastSource ?? { source: "acc-broadcast" as const, state: "unavailable" as const, reasonCode: "not-connected" } : undefined;
+    const frame = encodeLiveFrame({ schemaId: this.schema!.schemaId, streamId: this.streamId, sessionId: this.sessionId, sequence, observedAt, receivedAtMs: input.receivedAtMs, values: publicResolved, ...(Object.keys(states).length ? { states } : {}), ...(Object.keys(freshness).length ? { freshness } : {}), context: { ...(input.sectors ? { sectors: input.sectors } : {}), ...(input.pit ? { pit: input.pit } : {}), ...(input.liveIssues ? { liveIssues: input.liveIssues } : {}), ...(opponentSource ? { opponentSource } : {}) } });
     return {
       ...(sequence === 0 ? { schema: this.schema } : {}),
       frame,
-      semanticFrame: { simulator: gameId, sessionId: this.sessionId, streamId: this.streamId, sequence, observedAt, ids: this.engineerIds, values: engineerResolved },
+      semanticFrame: { simulator: gameId, sessionId: this.sessionId, streamId: this.streamId, sequence, observedAt, ids: this.engineerIds, values: engineerResolved, ...(opponentSource ? { opponentSource } : {}) },
     };
   }
 

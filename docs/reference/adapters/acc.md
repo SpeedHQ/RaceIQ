@@ -16,9 +16,9 @@ The graphics parser accepts the 1,320-byte legacy base layout and reads extended
 
 `AccBroadcastClient` registers protocol version 4 with ACC at `127.0.0.1:9000`. Override the endpoint or passwords with `ACC_BROADCAST_HOST`, `ACC_BROADCAST_PORT`, `ACC_BROADCAST_PASSWORD`, and `ACC_BROADCAST_COMMAND_PASSWORD`.
 
-The client parses realtime updates and entry-list messages, joins them by ACC `carIndex`, and attaches the runtime-only competitor snapshot to `packet.acc`. The semantic resolver then exposes competitor identity, class, lap count, pit/location, world position, speed, last-lap time, and validity to the existing live engineer engine.
+The client parses realtime updates and entry-list messages, joins them by ACC `carIndex`, and attaches a source-status snapshot to `packet.acc`. Competitor arrays are attached only for a complete available source. The semantic resolver exposes competitor identity, class, lap count, pit/location, world position, speed, last-lap time, and validity to the existing live engineer engine.
 
-UDP state is not written into `ACCP` recordings. Missing or incomplete broadcast data disables ACC voice candidates without suppressing shared-memory telemetry.
+Broadcast datagrams are retained as ACCB metadata in the same canonical file; the ACCP shared-memory payload is unchanged. Missing or incomplete Broadcast data disables opponent candidates without suppressing player telemetry. Capture instrumentation starts and stops with ACC, independently of voice release flags.
 
 ## Read and parse flow
 
@@ -90,6 +90,10 @@ The packed bytes enter the common session recorder. Replay and import call the s
 
 ## ACC Broadcast capture
 
-Canonical ACC sessions interleave one ACCB v1 metadata record immediately before each ACCP frame. ACCB stores raw protocol-v4 datagrams and socket lifecycle events with Unix-ms receive timestamps, plus shared-memory frame receive time. Existing ACCP and ACCTEST recordings remain player-only; readers that do not consume ACCB skip metadata.
+Canonical ACC sessions interleave an ACCB v1 metadata record immediately before each persisted ACCP frame, including zero-event batches. ACCB stores raw protocol-v4 datagrams before parsing, socket lifecycle events, their Unix-ms receive timestamps, and the shared-memory frame receive time. Existing ACCP and ACCTEST v2/v3 recordings remain player-only; readers that do not reconstruct opponents skip metadata.
 
-Broadcast capability is fail-closed: `available` requires connected and registered source, current realtime session, complete aligned entry/realtime identities, and at most 64 unique cars. `unavailable` means no complete source; `stale` means source clock timeout; `malformed` means invalid protocol or capture evidence. Replay applies ordered ACCB events before each following ACCP frame.
+Each new recording can also contain bounded, compacted raw source context inside the existing segment-context markers. This preserves the acknowledged connection, registration, session, roster, and car evidence needed to replay an independently opened second recording without reconnecting the live client. Context retains original bytes, timestamps, and ordered sequence numbers; it is not a synthesized opponent snapshot.
+
+Broadcast capability is fail-closed: `available` requires a connected and registered source, current realtime session, complete aligned entry-list identities and realtime rows, the current player, and at most 64 unique cars. `unavailable` means no complete source; `stale` means no realtime-session update for more than 1,000 ms; `malformed` means invalid protocol/capture evidence, sequence loss, or capture overflow. A car's individual timeout sets its connected flag false while a fresh whole source remains available. Session change or source loss clears joined facts; malformed recovery requires fresh complete evidence.
+
+Replay applies ordered events through a replay-local instance of the live state machine, then uses the captured frame clock and shared-memory player ID. Source status reaches live standings, Engineer Replay, and engineer availability without becoming a catalog semantic. Legacy/malformed captures retain usable player packets. See [recording architecture](../../architecture/telemetry-recording.md#acc-broadcast-metadata) for exact framing and [the capability ADR](../../architecture/decisions/opponent-callout-capabilities-and-phasing.md) for the still-blocked native acceptance gate; fixture parity is not native-game certification.

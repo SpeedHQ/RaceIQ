@@ -6,7 +6,7 @@ import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession, updateSessionSource } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
-import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END } from "./framing";
+import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END, encodeFrameLength, type SessionImportFrame } from "./framing";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
 import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
@@ -211,9 +211,7 @@ async function rollbackImport(
   throw error;
 }
 
-type SessionFrameSource =
-  | Iterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>
-  | AsyncIterable<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END>;
+type SessionFrameSource = Iterable<SessionImportFrame> | AsyncIterable<SessionImportFrame>;
 
 /** Tracks canonical offsets for imports without persisting derived `.bin` bytes. */
 export class ImportSourceRecorder implements SessionRecorderAdapter {
@@ -345,6 +343,8 @@ export function importSessionFrames(
   let expectsSessionContext = gameId === "iracing";
   let completeLapStart = false;
   let inParserContext = false;
+  let capturePrefixes: Buffer[] = [];
+  let parserContextRecords: Buffer[] = [];
   return importTelemetrySource(
     frames,
     gameId,
@@ -360,6 +360,8 @@ export function importSessionFrames(
         expectsSessionContext = gameId === "iracing";
         completeLapStart = true;
         inParserContext = false;
+        capturePrefixes = [];
+        parserContextRecords = [];
         return false;
       }
       if (sourceFrame === SESSION_SEGMENT_CONTEXT) {
@@ -368,11 +370,17 @@ export function importSessionFrames(
       }
       if (sourceFrame === SESSION_SEGMENT_CONTEXT_END) {
         inParserContext = false;
+        pipeline.recordSessionContextRecords(parserContextRecords);
+        parserContextRecords = [];
+        return false;
+      }
+      if (!Buffer.isBuffer(sourceFrame)) {
+        (inParserContext ? parserContextRecords : capturePrefixes).push(sourceFrame.bytes);
         return false;
       }
       if (inParserContext) {
         serverGame.tryParse(sourceFrame, state);
-        pipeline.recordSessionContextFrame(sourceFrame);
+        parserContextRecords.push(encodeFrameLength(sourceFrame.length), sourceFrame);
         return false;
       }
       if (completeLapStart && expectsSessionContext && isIRacingSessionFrame(sourceFrame)) {
@@ -387,7 +395,13 @@ export function importSessionFrames(
       const packet = serverGame.tryParseLapIndex(sourceFrame, state);
       if (!packet) return false;
       countIndexSampleMaterialized();
-      await pipeline.processLapIndexPacket(packet, sourceFrame);
+      const prefixes = capturePrefixes;
+      capturePrefixes = [];
+      await pipeline.processLapIndexPacket(packet, prefixes.length > 0 ? {
+        frame: sourceFrame,
+        capturePrefixRecords: () => prefixes,
+        acknowledgeRecorded: () => {},
+      } : sourceFrame);
       return true;
     },
   );

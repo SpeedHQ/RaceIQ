@@ -1,22 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-interface ReplayFrame {
-  frameIndex: number;
-  timelineMs: number;
-  sourceSequence: number;
-  values: Readonly<Record<string, unknown>>;
-}
-
-interface ReplayPayload {
-  frames: readonly ReplayFrame[];
-}
+import type { LiveEngineerSessionReplayV1 } from "@shared/racing/live/engineer-replay-contracts";
 
 export interface ReplayFrameRange {
   startFrameIndex: number;
   endFrameIndex: number;
 }
 
-export function useLiveEngineerReplayPlayback(replay: ReplayPayload | null, range: ReplayFrameRange | null) {
+export function useLiveEngineerReplayPlayback(replay: LiveEngineerSessionReplayV1 | null, range: ReplayFrameRange | null) {
   const startFrameIndex = Math.max(0, range?.startFrameIndex ?? 0);
   const endFrameIndex = Math.min(Math.max(0, (replay?.frames.length ?? 1) - 1), range?.endFrameIndex ?? Math.max(0, (replay?.frames.length ?? 1) - 1));
   const [playing, setPlaying] = useState(false);

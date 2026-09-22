@@ -7,8 +7,8 @@
 - Catalog version: `0.18.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.18.0`
-- Generator source SHA-256: `97f659b57f926597aaff0fc5ece7ea8a7cc05d586ea0cc17b45f3dba5e1ff174`
-- Content SHA-256: `02c50ce5c7348319f622a1b9b4b5e7770281a1c7f27bb61da166915a147cddb6`
+- Generator source SHA-256: `72dfc4c0c1cacd0c82456e367eb13646a81058099112ca77d493935a2212d30b`
+- Content SHA-256: `0eed688bffbdd5577775a1c27aeda61c6b2c00a0b6c5b5aaa3dbbd0737727a52`
 
 ## Coverage
 
@@ -16,9 +16,9 @@
 |---|---:|---:|---:|---:|---:|---:|---:|
 | fm-2023 | 95 | 95 | 95 | 0 | 0 | 0 | 0 |
 | f1-2025 | 314 | 314 | 118 | 196 | 0 | 0 | 0 |
-| acc | 229 | 196 | 124 | 72 | 0 | 0 | 33 |
-| ac-evo | 284 | 248 | 124 | 124 | 0 | 0 | 36 |
-| iracing | 972 | 722 | 115 | 38 | 324 | 495 | 0 |
+| acc | 230 | 197 | 124 | 73 | 0 | 0 | 33 |
+| ac-evo | 285 | 249 | 124 | 125 | 0 | 0 | 36 |
+| iracing | 971 | 721 | 115 | 37 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -59,6 +59,7 @@
 | `damage.rear-wing-damage` | Rear Wing Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.sidepod-damage` | Sidepod Damage | number | dimensionless | % | scalar |  |  |  |
 | `damage.tyres-damage` | Tyres Damage | number | dimensionless | % | fixed:4 | FL, FR, RL, RR |  |  |
+| `diagnostics.broadcast-source` | Broadcast Source | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.camera.active-camera-number` | Active camera number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.active-group-number` | Active camera group number | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.camera.group-name` | Camera group name | structured | dimensionless | text | variable:0-* | group-index:source-order | indices: group-index (variable:0-*, source-order); fields: value:string |  |
@@ -497,7 +498,7 @@
 | `session.session-joker-laps-remain` | Session Joker Laps Remain | number | dimensionless | count | scalar |  |  |  |
 | `session.session-km` | Session Km | number | dimensionless | count | scalar |  |  |  |
 | `session.session-num` | Session Num | number | dimensionless | count | scalar |  |  |  |
-| `session.session-state` | Broadcast Phase | number | unit:state | state | scalar |  |  |  |
+| `session.session-state` | Broadcast Phase | number | dimensionless | count | scalar |  |  |  |
 | `session.session-tick` | Session Tick | number | dimensionless | count | scalar |  |  |  |
 | `session.session-type` | Session Type | string | dimensionless | text | scalar |  |  |  |
 | `session.session-uid` | Session UID | string | dimensionless | text | scalar |  |  |  |

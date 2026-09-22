@@ -64,18 +64,35 @@ export class AccBroadcastClient {
     this.socket = socket;
     const state = this.options.state ?? accBroadcastState;
     const capture = this.options.capture;
-    const receivedAt = () => this.options.now();
-    capture?.recordLifecycle("socket-open", receivedAt());
+    const openedAt = this.options.now();
     state.setSocketConnected(true);
+    if (capture?.recordLifecycle("socket-open", openedAt).overflowed) state.markMalformed("capture-overflow");
     socket.on("message", (payload) => {
-      const at = receivedAt();
-      capture?.recordDatagram(payload, at);
+      if (this.stopped || this.socket !== socket || this.generation !== generation) return;
+      const at = this.options.now();
+      if (capture?.recordDatagram(payload, at).overflowed) {
+        state.markMalformed("capture-overflow");
+        this.requestEntryListIfReady(socket, generation);
+        // Overflow can discard the original socket/registration evidence.
+        // Reconnect through the native supervisor so recovery records both again.
+        void this.stop().catch(() => {});
+        return; // Overflow marker replaces this datagram in the canonical stream.
+      }
       const message = parseAccBroadcastMessage(payload);
-      if (!message) { state.markMalformed("malformed-datagram"); return; }
+      if (!message) {
+        state.markMalformed("malformed-datagram");
+        this.requestEntryListIfReady(socket, generation);
+        return;
+      }
       if (message.type === "registration-result") {
-        if (!message.success || this.registered || this.socket !== socket || this.generation !== generation) return;
+        state.apply(message, at);
+        if (!message.success) {
+          this.registered = false;
+          this.registrationConnectionId = null;
+          return;
+        }
+        if (this.registered) return;
         this.registered = true;
-        state.setRegistered(true);
         this.registrationConnectionId = message.connectionId;
         this.lastEntryListRequestAt = -Infinity;
         this.sendEntryListRequest(socket, generation);
@@ -84,17 +101,21 @@ export class AccBroadcastClient {
       if (message.type === "realtime-car-update" && !state.hasEntry(message.carIndex)) {
         this.requestEntryListIfReady(socket, generation);
       }
-      state.apply(message);
+      state.apply(message, at);
+      if (state.needsEntryList()) this.requestEntryListIfReady(socket, generation);
     });
     socket.on("error", () => {
-      capture?.recordLifecycle("socket-error", receivedAt());
-      state.markMalformed("malformed-datagram");
+      if (this.socket !== socket || this.generation !== generation) return;
+      const overflowed = capture?.recordLifecycle("socket-error", this.options.now()).overflowed;
+      state.setSocketConnected(false);
+      if (overflowed) state.markMalformed("capture-overflow");
       if (!this.stopped) this.stop().catch(() => {});
     });
     socket.on("close", () => {
-      capture?.recordLifecycle("socket-close", receivedAt());
+      if (this.socket !== socket || this.generation !== generation) return;
+      const overflowed = capture?.recordLifecycle("socket-close", this.options.now()).overflowed;
       state.setSocketConnected(false);
-      if (this.socket !== socket) return;
+      if (overflowed) state.markMalformed("capture-overflow");
       this.socket = null;
       this.registered = false;
       this.registrationConnectionId = null;
@@ -139,10 +160,9 @@ export class AccBroadcastClient {
     this.registrationConnectionId = null;
     this.lastEntryListRequestAt = -Infinity;
     const state = this.options.state ?? accBroadcastState;
-    state.setRegistered(false);
     state.setSocketConnected(false);
-    state.reset();
     if (!socket) return;
+    if (this.options.capture?.recordLifecycle("socket-close", this.options.now()).overflowed) state.markMalformed("capture-overflow");
     await new Promise<void>((resolve) => socket.close(resolve));
   }
 }

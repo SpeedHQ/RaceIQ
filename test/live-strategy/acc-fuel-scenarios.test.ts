@@ -57,6 +57,7 @@ const runScenario = (source: TelemetryPacket, scenario: LiveEngineerReplayScenar
     captureKind: "test",
     limitations: [],
     sourceClockCaptured: true,
+    opponentSourceCapture: null,
     segmentCount: 1,
     skippedMalformedFrames: 0,
     nativeSessionInfo: false,
@@ -98,7 +99,7 @@ test("ACC multi-lap scenarios isolate fuel escalation and scheduled pit sequence
   expect(relevantTriggers(runScenario(source, "scheduled-pit-sequence"))).toEqual(["pit-this-lap", "pit-pit-pit", "pit-entry"]);
 });
 
-test("FM recording tells driver to pit before fuel runs out on lap two", async () => {
+test("FM recording preserves player fuel without inventing pit advice from missing consumption evidence", async () => {
   const { rawPackets } = await parseDump("fm-2023", FM_RECORDING, { capturePackets: true });
   const replay = runLiveEngineerSessionReplay({
     session: { id: 1, gameId: "fm-2023" },
@@ -109,6 +110,7 @@ test("FM recording tells driver to pit before fuel runs out on lap two", async (
       captureKind: "test",
       limitations: [],
       sourceClockCaptured: true,
+      opponentSourceCapture: null,
       segmentCount: 1,
       skippedMalformedFrames: 0,
       nativeSessionInfo: false,
@@ -116,12 +118,26 @@ test("FM recording tells driver to pit before fuel runs out on lap two", async (
     },
   });
 
-  const pitCalls = replay.annotations.filter((annotation) =>
-    annotation.stage === "callout" && annotation.renderedText === "Fuel is low. Pit this lap.");
-  expect(pitCalls).toHaveLength(1);
-  expect(pitCalls[0]?.lapNumber).toBe(1);
-  const reminder = replay.annotations.find((annotation) => annotation.stage === "trigger" && annotation.action === "pit-pit-pit");
-  expect(reminder?.lapNumber).toBe(1);
-  expect(reminder!.frameIndex).toBeLessThan(replay.frames.findIndex((frame) => frame.values["timing.lap-number"] === 2));
-  expect(replay.annotations.some((annotation) => annotation.stage === "voice-line" && annotation.segmentIds.includes("pit-pit-pit"))).toBe(true);
+  const activeIndex = rawPackets.findIndex((packet) => packet.IsRaceOn === 1 && packet.LapNumber === 1);
+  expect(activeIndex).toBeGreaterThanOrEqual(0);
+  const activePacket = rawPackets[activeIndex]!;
+  const activeFrame = replay.frames[activeIndex]!;
+  expect(activeFrame.values["timing.lap-number"]).toBe(activePacket.LapNumber);
+  expect(activeFrame.values["fuel.fuel-percent"]).toBeCloseTo(activePacket.Fuel * 100);
+  expect(activeFrame.states["fuel.fuel-percent"]).toBe("ok");
+  expect(activeFrame.freshness["fuel.fuel-percent"]).toBe("fresh");
+
+  const fuelSystem = replay.systems.find((system) => system.systemId === "crewchief:Fuel");
+  expect(fuelSystem?.lifecycle).toBe("unavailable");
+  expect(fuelSystem?.transitions.every((transition) => transition.lifecycle === "unavailable")).toBe(true);
+  for (const semanticId of ["fuel.remaining-volume", "fuel.fuel-per-lap"]) {
+    const dependency = fuelSystem?.transitions[0]?.dependencies.find((item) => item.semanticId === semanticId);
+    expect(dependency).toBeDefined();
+    expect(dependency?.state).not.toBe("ok");
+  }
+  expect(replay.annotations.filter((annotation) =>
+    annotation.family === "Fuel"
+    || ["pit-this-lap", "pit-pit-pit"].includes(annotation.action)
+    || annotation.segmentIds.some((segment) => ["pit-this-lap", "pit-pit-pit"].includes(segment)),
+  )).toEqual([]);
 });

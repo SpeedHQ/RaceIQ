@@ -240,14 +240,18 @@ function iracingSegmentEnd(
   return end;
 }
 function buildParserContextRecords(buf: Buffer, beforeOffset: number): Buffer[] {
-  return [...iterateSessionCaptureRecords(buf)]
-    .filter((record): record is Extract<SessionCaptureRecord, { kind: "frame" }> =>
-      record.kind === "frame" && record.offset < beforeOffset,
-    )
-    .map((record) => Buffer.concat([
-      encodeFrameLength(record.frame.length),
-      record.frame,
-    ]));
+  const records: Buffer[] = [];
+  for (const record of iterateSessionCaptureRecords(buf)) {
+    if (record.offset >= beforeOffset) break;
+    if (record.kind === "segment-boundary") {
+      records.length = 0;
+    } else if (record.kind === "frame") {
+      records.push(buf.subarray(record.offset, record.offset + 4 + record.frame.length));
+    } else if (record.kind === "acc-broadcast" || record.kind === "acc-broadcast-malformed" || record.kind === "metadata") {
+      records.push(buf.subarray(record.offset, record.offset + 8 + buf.readUInt32LE(record.offset + 4)));
+    }
+  }
+  return records;
 }
 
 function slugify(s: string): string {
@@ -318,7 +322,7 @@ export async function buildLapsZip(
           : null;
       const context = first.gameId === "f1-2025"
         ? buildF1ContextRecords(buf, start)
-        : first.gameId === "ac-evo"
+        : first.gameId === "ac-evo" || first.gameId === "acc"
           ? buildParserContextRecords(buf, start)
           : [];
       const end = first.gameId === "iracing"

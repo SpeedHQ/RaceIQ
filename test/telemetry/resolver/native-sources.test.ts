@@ -230,4 +230,28 @@ describe("compiled telemetry resolver native sources", () => {
     expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.pit-status"))).toEqual(["out"]);
     expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.track-location"))).toEqual(["track"]);
   });
+  test("iRacing canonical opponent mappings never fall back to unjoined native arrays", () => {
+    const requested = [
+      "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name",
+      "race.competitor.car-class-id", "race.competitor.car-class-name",
+      "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.track-location",
+      "timing.competitor.last-lap-time",
+    ];
+    const resolver = compileTelemetryResolver<{ packet: TelemetryPacket; nativeValues: Record<string, unknown> }>(TELEMETRY_CATALOG, {
+      simulator: "iracing", requested: requested.map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView({
+      packet: packet("iracing"),
+      nativeValues: {
+        CarIdxLapCompleted: [1, 0, 0, 0, 0, 0, 0, 4],
+        CarIdxLastLapTime: [90, 0, 0, 0, 0, 0, 0, 88],
+        CarIdxOnPitRoad: [false, false], CarIdxTrackSurface: [3, 3], CarIdxClass: [1, 1],
+        SessionInfo: { DriverInfo: { Drivers: [
+          { CarIdx: 0, UserID: 11, UserName: "Player", CarClassID: 1, CarClassShortName: "GT3" },
+          { CarIdx: 7, UserID: 22, UserName: "Opponent", CarClassID: 1, CarClassShortName: "GT3" },
+        ] } },
+      },
+    }, { timestamp: { domain: "session", milliseconds: 1000 }, updateSequence: 1n });
+    for (const semanticId of requested) expect(frame.resolveValue(resolver.slot(semanticId)).state).toBe("missing");
+  });
 });

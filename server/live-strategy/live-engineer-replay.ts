@@ -31,7 +31,7 @@ const REPLAY_VALUE_IDS = new Set([
   "tire.temperature.core", "tire.temperature.surface.representative", "tire.temperature.carcass.middle",
   "tires.tire-wear", "tires.tire-pressure", "tires.tire-slip-ratio", "tires.tire-slip-angle", "tires.normalized-tire-slip-angle", "tires.tire-combined-slip", "tires.wheel-rotation-speed", "tires.wheel-on-rumble-strip", "tires.wheel-in-puddle-depth",
   "suspension.norm-suspension-travel", "suspension.suspension-travel-m",
-  "identity.player-track-surface", "identity.car-ordinal",
+  "identity.player-track-surface", "identity.car-ordinal", "identity.player-car-index", "identity.player-car-class-id",
   "race.pit-status", "race.on-pit-road",
   "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name", "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.connected", "race.competitor.position", "race.competitor.pit-stops", "race.competitor.track-location",
   "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid", "timing.competitor.gap-to-ahead", "timing.competitor.gap-to-leader",
@@ -45,7 +45,19 @@ const scalar = (value: unknown): number | string | boolean | null | readonly (nu
   if (Array.isArray(value)) return value.map((item) => scalar(item) as number | string | boolean | null);
   return null;
 };
-const frameValues = (frame: LiveResolvedSemanticFrame): Record<string, number | string | boolean | null | readonly (number | string | boolean | null)[]> => Object.fromEntries(frame.ids.flatMap((id, index) => REPLAY_VALUE_IDS.has(id) ? [[id, scalar(frame.values[index]?.value)]] : []));
+const frameEvidence = (frame: LiveResolvedSemanticFrame): Pick<LiveEngineerReplayFrameV1, "values" | "states" | "freshness"> => {
+  const values: Record<string, LiveEngineerReplayFrameV1["values"][string]> = {};
+  const states: Record<string, LiveEngineerReplayFrameV1["states"][string]> = {};
+  const freshness: Record<string, LiveEngineerReplayFrameV1["freshness"][string]> = {};
+  frame.ids.forEach((id, index) => {
+    if (!REPLAY_VALUE_IDS.has(id)) return;
+    const resolved = frame.values[index];
+    values[id] = scalar(resolved?.value);
+    states[id] = resolved?.state ?? "missing";
+    freshness[id] = resolved?.freshness ?? "unknown";
+  });
+  return { values, states, freshness };
+};
 
 const findFrameIndex = (frames: readonly LiveEngineerReplayFrameV1[], sequence: number): number => {
   const exact = frames.findIndex((frame) => frame.sourceSequence === sequence);
@@ -93,6 +105,7 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
   const semanticFrames: LiveResolvedSemanticFrame[] = [];
   const messages: Array<{ message: LiveEngineerCalloutMessageV3 | LiveEngineerVoiceLineMessageV3; frame: LiveResolvedSemanticFrame }> = [];
   let lastTimelineMs = 0;
+  let previousCapturedTimestamp: number | null = null;
   const addAnnotation = (stage: LiveEngineerReplayAnnotationV1["stage"], action: string, frame: LiveResolvedSemanticFrame, details: Partial<LiveEngineerReplayAnnotationV1> = {}) => {
     const index = findFrameIndex(frames, frame.sequence);
     const replayFrame = frames[index];
@@ -128,13 +141,16 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       ? replaceAccScenarioPacket(packet, index, input.scenario, scenarioPlan, scenarioFuelPerLap)
       : packet;
     const capturedTimestamp = input.sourceProfile.sourceClockCaptured && Number.isFinite(scenarioPacket.TimestampMS) ? scenarioPacket.TimestampMS : null;
-    const timelineMs = capturedTimestamp !== null ? Math.max(lastTimelineMs, capturedTimestamp) : index * 10;
+    const timelineMs = index === 0 ? 0 : lastTimelineMs + (capturedTimestamp !== null && previousCapturedTimestamp !== null ? Math.max(0, capturedTimestamp - previousCapturedTimestamp) : 10);
+    previousCapturedTimestamp = capturedTimestamp;
     lastTimelineMs = timelineMs;
-    const projection = projector.project({ packet: scenarioPacket, sessionId: input.session.id, receivedAtMs: timelineMs });
+    const projectionPacket = capturedTimestamp === null ? { ...scenarioPacket, TimestampMS: timelineMs } : scenarioPacket;
+    const projection = projector.project({ packet: projectionPacket, sessionId: input.session.id, receivedAtMs: timelineMs });
     if (Number.isFinite(packet.LapNumber)) replayLapBySequence.set(projection.semanticFrame.sequence, packet.LapNumber);
-    latestFrame = projection.semanticFrame;
-    semanticFrames.push(projection.semanticFrame);
-    frames.push({ frameIndex: index, sourceSequence: projection.semanticFrame.sequence, rawSourceTimestampMs: capturedTimestamp, rawSourceTimestampDomain: capturedTimestamp === null ? null : "session", timelineMs, triggerContext: {}, values: frameValues(projection.semanticFrame) });
+    const semanticFrame = { ...projection.semanticFrame, values: [...projection.semanticFrame.values] };
+    latestFrame = semanticFrame;
+    semanticFrames.push(semanticFrame);
+    frames.push({ frameIndex: index, sourceSequence: semanticFrame.sequence, rawSourceTimestampMs: capturedTimestamp, rawSourceTimestampDomain: capturedTimestamp === null ? null : gameId === "acc" ? "wall-clock" : "session", timelineMs, triggerContext: {}, ...frameEvidence(semanticFrame), opponentSource: projection.frame?.context.opponentSource ?? null });
     const batch = catalog.consume(projection.semanticFrame);
     for (const event of batch.events) addAnnotation("trigger", event.eventKey, projection.semanticFrame, { family: event.family, candidateId: event.triggerId, lapNumber: event.eventKey === "lap-completed" && typeof event.payload.lap === "number" ? event.payload.lap : Number.isFinite(packet.LapNumber) ? packet.LapNumber : undefined, payload: event.payload, evidence: event.evidenceSemanticIds, priority: event.severity });
     engine.consume(batch);
@@ -161,7 +177,13 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       const baseEvaluation = descriptor
         ? evaluateCrewChiefAvailability(descriptor, semanticFrame, gameId)
         : evaluateCrewChiefAvailability({ family: "Spotter", source: CREWCHIEF_TRIGGER_CATALOG[0]!.source, requiredSemanticIds: requiredSemanticIds as never, requiredGroups: [], implementationStatus, createState: () => ({}), trigger: () => null } as CrewChiefTriggerDescriptor<any>, semanticFrame, gameId);
-      const evaluation = staticReason ? { ...baseEvaluation, lifecycle: "unavailable" as const, reasonCode: staticReason } : baseEvaluation;
+      const opponentSource = frames[frameIndex]?.opponentSource;
+      const sourceReason = gameId === "acc" && (systemId === "opponent-pace" || systemId === "live-spotter")
+        ? opponentSource && opponentSource.state !== "available" ? opponentSource.reasonCode
+          : !opponentSource ? "source-unavailable" : undefined
+        : undefined;
+      const unavailableReason = staticReason ?? sourceReason;
+      const evaluation = unavailableReason ? { ...baseEvaluation, lifecycle: "unavailable" as const, reasonCode: unavailableReason } : baseEvaluation;
       const lifecycle: LiveEngineerAvailabilityTransitionV1["lifecycle"] = evaluation.lifecycle === "ready"
         ? previous === "ready" || previous === "baseline" ? "ready" : "baseline"
         : "unavailable";
@@ -192,9 +214,10 @@ export function runLiveEngineerSessionReplay(input: LiveEngineerSessionReplayInp
       descriptor.implementationStatus,
     );
   });
+  const persistedOpponentReason = (gameId === "acc" && input.sourceProfile.opponentSourceCapture?.status === "unavailable") || gameId === "ac-evo" ? "persisted-source-not-captured" : undefined;
   systems.push(
-    buildSystem("opponent-pace", null, liveEngineerPaceRequiredSemanticIds(gameId), isLiveEngineerSubsystemSupported(gameId, "opponent-pace"), "implemented", input.sourceProfile.limitations.some((limitation) => limitation.includes("persisted-source-not-captured:broadcast")) ? "persisted-source-not-captured" : undefined),
-    buildSystem("live-spotter", null, gameId === "iracing" ? ["identity.car-left-right"] : gameId === "acc" ? ["identity.player-car-index", "session.session-state", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "motion.competitor.position-x", "motion.competitor.position-z", "motion.competitor.speed", "race.competitor.pit-status"] : [], isLiveEngineerSubsystemSupported(gameId, "live-spotter"), "implemented", input.sourceProfile.limitations.some((limitation) => limitation.includes("persisted-source-not-captured:broadcast")) ? "persisted-source-not-captured" : undefined),
+    buildSystem("opponent-pace", null, liveEngineerPaceRequiredSemanticIds(gameId), isLiveEngineerSubsystemSupported(gameId, "opponent-pace"), "implemented", persistedOpponentReason),
+    buildSystem("live-spotter", null, gameId === "iracing" ? ["identity.car-left-right"] : gameId === "acc" ? ["identity.player-car-index", "session.session-state", "motion.position-x", "motion.position-z", "motion.speed", "motion.yaw", "race.pit-status", "race.competitor.car-index", "race.competitor.connected", "motion.competitor.position-x", "motion.competitor.position-z", "motion.competitor.speed", "race.competitor.pit-status"] : [], isLiveEngineerSubsystemSupported(gameId, "live-spotter"), "implemented", persistedOpponentReason),
   );
-  return { sessionId: input.session.id, gameId, car: { carOrdinal: input.session.carOrdinal ?? null }, track: { trackOrdinal: input.session.trackOrdinal ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
+  return { sessionId: input.session.id, gameId, car: { carOrdinal: input.session.carOrdinal ?? null }, track: { trackOrdinal: input.session.trackOrdinal ?? null }, executionMode, sourceProfile: input.sourceProfile, clockQuality: input.sourceProfile.sourceClockCaptured ? gameId === "acc" ? "captured" : "native-session" : "nominal-100hz", frames, laps, annotations, systems, warnings: input.sourceProfile.limitations, sourceCounts: { packets: input.packets.length, annotations: annotations.length } };
 }

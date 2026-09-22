@@ -19,6 +19,7 @@ export function useLiveEngineerReplayAudio() {
     let context = contextRef.current;
     if (!context || context.state === "closed") {
       context = new AudioContext();
+      contextRef.current = context;
       playerRef.current = new LiveEngineerAudioPlayer({ audioContext: context });
     }
     return { context, player: playerRef.current! };
@@ -58,7 +59,7 @@ export function useLiveEngineerReplayAudio() {
             const message = cause instanceof LiveEngineerAudioError ? `${cause.code}: ${cause.message}` : cause instanceof Error ? cause.message : "Audio playback failed";
             setError(message);
           } finally {
-            pendingIdsRef.current.delete(next.id);
+            if (operationRef.current === operation) pendingIdsRef.current.delete(next.id);
           }
         }
       } finally {
@@ -72,15 +73,19 @@ export function useLiveEngineerReplayAudio() {
 
   const play = useCallback(async (id: string, segmentIds: readonly string[]) => {
     if (segmentIds.length === 0) return;
+    const operation = operationRef.current;
     const { context } = ensurePlayer();
     if (context.state === "suspended") await context.resume();
+    if (operationRef.current !== operation) return;
     setError(null);
     enqueue({ id, kind: "segments", values: segmentIds });
   }, [ensurePlayer, enqueue]);
 
   const playFullLine = useCallback(async (id: string, lineId: string) => {
+    const operation = operationRef.current;
     const { context } = ensurePlayer();
     if (context.state === "suspended") await context.resume();
+    if (operationRef.current !== operation) return;
     setError(null);
     enqueue({ id, kind: "full-line", values: lineId });
   }, [ensurePlayer, enqueue]);
@@ -94,6 +99,8 @@ export function useLiveEngineerReplayAudio() {
     pendingIdsRef.current.clear();
     playerRef.current?.stop();
     void contextRef.current?.close();
+    contextRef.current = null;
+    playerRef.current = null;
   }, []);
 
   return { play, playFullLine, stop, unlock, playingId, error, clearError };

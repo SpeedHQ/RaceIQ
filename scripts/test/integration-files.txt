@@ -173,6 +173,7 @@ test/ai/prompts/tune-chat-prompt.test.ts
 test/games/acc/acc-broadcast-client.test.ts
 test/games/acc/acc-broadcast-protocol.test.ts
 test/games/acc/acc-broadcast-state.test.ts
+test/games/acc/acc-broadcast-capture.test.ts
 test/games/f1-2025/f1-opponent-laps.test.ts
 test/games/iracing/iracing-opponent-laps.test.ts
 test/live-strategy/crewchief-triggers/car-health-conditions-triggers.test.ts
@@ -188,5 +189,8 @@ test/live-strategy/live-engineer-voice-engine.test.ts
 test/live-strategy/opponent-pace-tracker.test.ts
 test/live-strategy/spotter-tracker.test.ts
 test/live-strategy/f1-opponent-replay-scenarios.test.ts
+test/live-strategy/live-engineer-replay.test.ts
+test/live-strategy/acc-opponent-replay.test.ts
+test/telemetry/live-pipeline-capture-prefix.test.ts
 test/runtime/live-engineer-websocket.test.ts
 test/telemetry/catalog/crewchief-callout-coverage.test.ts

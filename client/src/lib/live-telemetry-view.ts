@@ -26,6 +26,50 @@ export interface LiveCompetitorView {
   lastS2S?: number;
   lastS3S?: number;
 }
+
+const accCompetitorFields = [
+  ["carIndex", "race.competitor.car-index", "number"],
+  ["name", "race.competitor.driver-name", "string"],
+  ["classId", "race.competitor.car-class-id", "class"],
+  ["className", "race.competitor.car-class-name", "string"],
+  ["position", "race.competitor.position", "number"],
+  ["lapsComplete", "race.competitor.laps-complete", "number"],
+  ["pitStatus", "race.competitor.pit-status", "string"],
+  ["connected", "race.competitor.connected", "boolean"],
+  ["lastLapS", "timing.competitor.last-lap-time", "number"],
+  ["lastLapValid", "timing.competitor.last-lap-valid", "boolean"],
+] as const;
+
+export function normalizeAccCompetitors(frame: {
+  values: Readonly<Record<string, unknown>>;
+  states: Readonly<Record<string, ResolutionState>>;
+  freshness: Readonly<Record<string, FreshnessState>>;
+  opponentSource: OpponentSourceStatusV1 | null;
+}): LiveCompetitorView[] {
+  if (frame.opponentSource?.state !== "available") return [];
+  const freshValue = (id: string) => frame.states[id] === "ok" && frame.freshness[id] === "fresh" ? frame.values[id] : undefined;
+  const playerCarIndex = freshValue("identity.player-car-index");
+  if (typeof playerCarIndex !== "number" || !Number.isFinite(playerCarIndex)) return [];
+  const arrays = accCompetitorFields.map(([, id]) => freshValue(id));
+  const indexes = arrays[0];
+  if (!Array.isArray(indexes) || indexes.length === 0 || indexes.length > 64 || new Set(indexes).size !== indexes.length || !indexes.includes(playerCarIndex)) return [];
+  if (!arrays.every((items, field) => Array.isArray(items) && items.length === indexes.length && items.every((item) => {
+    const type = accCompetitorFields[field]![2];
+    return type === "class"
+      ? typeof item === "string" || (typeof item === "number" && Number.isFinite(item))
+      : typeof item === type && (type !== "number" || Number.isFinite(item));
+  }))) return [];
+  const rows: LiveCompetitorView[] = indexes.map((_, index) => Object.fromEntries(
+    accCompetitorFields.map(([key], field) => [key, (arrays[field] as unknown[])[index]]),
+  ));
+  for (const [key, id] of [["gapToAheadS", "timing.competitor.gap-to-ahead"], ["gapToLeaderS", "timing.competitor.gap-to-leader"]] as const) {
+    const items = freshValue(id);
+    if (Array.isArray(items) && items.length === rows.length && items.every((item) => typeof item === "number" && Number.isFinite(item))) {
+      rows.forEach((row, index) => { row[key] = items[index]; });
+    }
+  }
+  return rows;
+}
 export interface LiveTelemetryValueStatus {
   resolution: ResolutionState;
   freshness: FreshnessState;
@@ -198,15 +242,13 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     ["lastS3S", "timing.sector.competitor-last.s3"],
   ] as const;
   const competitorArrays = competitorFields.map(([key, semanticId]) => [key, value(semanticId)] as const);
-  const requiredAccIds = ["race.competitor.car-index", "race.competitor.driver-name", "race.competitor.car-class-id", "race.competitor.car-class-name", "race.competitor.position", "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.connected", "timing.competitor.last-lap-time", "timing.competitor.last-lap-valid"];
-  const accSource = frame.context.opponentSource ?? null;
-  const sourceAvailable = schema.simulator !== "acc" || accSource?.state === "available";
-  const requiredAccArrays = requiredAccIds.map((id) => value(id));
-  const firstAccArray = requiredAccArrays[0];
-  const firstAccLength = Array.isArray(firstAccArray) ? firstAccArray.length : 0;
-  const alignedAcc = firstAccLength > 0 && firstAccLength <= 64 && requiredAccArrays.every((items) => Array.isArray(items) && items.length === firstAccLength);
-  const competitorCount = schema.simulator === "acc" ? (sourceAvailable && alignedAcc ? firstAccLength : 0) : Math.max(0, ...competitorArrays.map(([, items]) => (Array.isArray(items) ? items.length : 0)));
-  const competitors: LiveCompetitorView[] = [];
+  const competitors: LiveCompetitorView[] = schema.simulator === "acc" ? normalizeAccCompetitors({
+    values: Object.fromEntries([...accCompetitorFields.map(([, id]) => id), "identity.player-car-index", "timing.competitor.gap-to-ahead", "timing.competitor.gap-to-leader"].map((id) => [id, value(id)])),
+    states: Object.fromEntries(Object.entries(statusBySemanticId).map(([id, status]) => [id, status.resolution])),
+    freshness: Object.fromEntries(Object.entries(statusBySemanticId).map(([id, status]) => [id, status.freshness])),
+    opponentSource: frame.context.opponentSource ?? null,
+  }) : [];
+  const competitorCount = schema.simulator === "acc" ? 0 : Math.max(0, ...competitorArrays.map(([, items]) => (Array.isArray(items) ? items.length : 0)));
   for (let index = 0; index < competitorCount; index++) {
     const competitor: LiveCompetitorView = {};
     for (const [key, items] of competitorArrays) if (Array.isArray(items) && items[index] !== undefined && items[index] !== null) (competitor as Record<string, unknown>)[key] = items[index];

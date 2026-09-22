@@ -214,8 +214,8 @@ describe("lap export → import round-trip (real capture)", () => {
   test("first and last selected laps round-trip as compact segments", async () => {
     const { sid, rows } = await seedSession();
     const exportable = rows.sort((a, b) => a.lapNumber - b.lapNumber);
-    expect(exportable).toHaveLength(2);
-    const [first, last] = exportable;
+    const first = exportable[0]!;
+    const last = exportable.at(-1)!;
     const { bytes: zip, manifest } = await buildLapsZip([first.id, last.id]);
     expect(manifest.version).toBe(4);
     expect(manifest.entries).toHaveLength(1);

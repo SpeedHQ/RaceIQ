@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
+import { isLiveEngineerSubsystemEnabled, releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 function loadReleaseEnvironment(path: string) {
   const env = { ...process.env };
@@ -44,7 +44,13 @@ describe("release feature flags", () => {
 
   test("rejects non-boolean spotter flag and unsupported game IDs", () => {
     expect(() => releaseFeatureFlags({ ...developmentEnv, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: "yes" })).toThrow("RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER");
-    expect(() => releaseFeatureFlags({ ...developmentEnv, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: "f1-2025" })).toThrow("RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS");
+    expect(() => releaseFeatureFlags({ ...developmentEnv, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: "not-a-game" })).toThrow("RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS");
+  });
+
+  test("allows F1 opponent pace without enabling F1 positional spotter", () => {
+    const flags = releaseFeatureFlags({ ...developmentEnv, RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: "f1-2025" });
+    expect(isLiveEngineerSubsystemEnabled(flags, "f1-2025", "opponent-pace")).toBe(true);
+    expect(isLiveEngineerSubsystemEnabled(flags, "f1-2025", "live-spotter")).toBe(false);
   });
 
   test("parses disabled production flags", () => {

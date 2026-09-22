@@ -276,6 +276,9 @@ describe("source-backed timing and driver changes", () => {
   test("broadcast realtime driver index supplies swap identity and name despite stale entry-list index", () => {
     let now = 0;
     const broadcast = new AccBroadcastState({ now: () => now });
+    broadcast.setSocketConnected(true);
+    broadcast.apply({ type: "registration-result", connectionId: 1, success: true, readOnly: true, error: "" });
+    broadcast.apply({ type: "entry-list", connectionId: 1, carIndexes: [7] });
     broadcast.apply({
       type: "realtime-update", eventIndex: 1, sessionIndex: 1, sessionType: 10, phase: 5,
       sessionTimeMs: 0, sessionEndTimeMs: 0, focusedCarIndex: 7,
@@ -299,20 +302,20 @@ describe("source-backed timing and driver changes", () => {
     const state = createPreviousValueState();
     const update = (driverIndex: number) => {
       broadcast.apply({ type: "realtime-car-update", ...car, driverIndex });
-      const snapshot = broadcast.snapshot()!;
+      const snapshot = broadcast.snapshot().extension;
       return {
         snapshot,
         events: run(triggerDriverSwaps, state, now / 1000, {
-          "race.competitor.car-index": snapshot.carIndex,
-          "race.competitor.driver-id": snapshot.driverId,
-          "race.competitor.connected": snapshot.connected,
+          "race.competitor.car-index": snapshot?.carIndex,
+          "race.competitor.driver-id": snapshot?.driverId,
+          "race.competitor.connected": snapshot?.connected,
         }),
       };
     };
     expect(update(0).events).toEqual([]);
     now = 1000;
     const swapped = update(1);
-    expect(swapped.snapshot.driverName).toEqual(["Second Driver"]);
+    expect(swapped.snapshot?.driverName).toEqual(["Second Driver"]);
     expect(swapped.events).toEqual([expect.objectContaining({
       eventKey: "driver-changed", payload: { competitorIndex: 7, previousDriverId: "7:0", driverId: "7:1" },
     })]);

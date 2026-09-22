@@ -1,4 +1,9 @@
-export type PacketSourceReference = Buffer | { rawOffset: number } | { frame: Buffer; capturePrefixRecords: () => readonly Buffer[]; acknowledgeRecorded: () => void };
+export type PacketSourceReference = Buffer | { rawOffset: number } | {
+  frame: Buffer;
+  capturePrefixRecords: () => readonly Buffer[];
+  captureSessionContextRecords?: () => readonly Buffer[];
+  acknowledgeRecorded: () => void;
+};
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
@@ -347,15 +352,18 @@ export class LiveTelemetryPipeline {
 
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
+    let capturePrefixes: readonly Buffer[] | undefined;
+    let sourceRecorded = false;
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
       } else if ("frame" in source) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
-        for (const prefix of source.capturePrefixRecords()) this.recorder.writeRawCaptureBytes(prefix);
+        capturePrefixes ??= source.capturePrefixRecords();
+        for (const prefix of capturePrefixes) this.recorder.writeRawCaptureBytes(prefix);
         this.recorder.writeRecord(source.frame);
-        source.acknowledgeRecorded();
+        sourceRecorded = true;
       } else if ("rawOffset" in source) rawByteOffset = source.rawOffset;
     }
 
@@ -383,13 +391,21 @@ export class LiveTelemetryPipeline {
           for (const contextFrame of this._pendingSessionContextFrames) this.recorder.writeRawCaptureBytes(contextFrame);
           this._pendingSessionContextFrames = [];
         }
+        const sourceContext = source.captureSessionContextRecords?.();
+        if (sourceContext?.length) {
+          this.recorder.writeRawCaptureBytes(encodeSegmentContextFrame());
+          for (const record of sourceContext) this.recorder.writeRawCaptureBytes(record);
+          this.recorder.writeRawCaptureBytes(encodeSegmentContextEndFrame());
+        }
         const firstOffset = this.recorder.getCurrentByteOffset();
-        for (const prefix of source.capturePrefixRecords()) this.recorder.writeRawCaptureBytes(prefix);
+        capturePrefixes ??= source.capturePrefixRecords();
+        for (const prefix of capturePrefixes) this.recorder.writeRawCaptureBytes(prefix);
         this.recorder.writeRecord(source.frame);
-        source.acknowledgeRecorded();
+        sourceRecorded = true;
         detector.setCurrentLapByteOffset?.(firstOffset);
       } else if ("rawOffset" in source) detector.setCurrentLapByteOffset?.(source.rawOffset);
     }
+    if (sourceRecorded && source && !Buffer.isBuffer(source) && "frame" in source) source.acknowledgeRecorded();
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -455,10 +471,18 @@ export class LiveTelemetryPipeline {
     this._totalProcessed++;
     let rawByteOffset: number | undefined;
     const epochBefore = this.recorder.epoch;
+    let capturePrefixes: readonly Buffer[] | undefined;
+    let sourceRecorded = false;
     if (source && this.recorder.active) {
       if (Buffer.isBuffer(source)) {
         rawByteOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
+      } else if ("frame" in source) {
+        rawByteOffset = this.recorder.getCurrentByteOffset();
+        capturePrefixes ??= source.capturePrefixRecords();
+        for (const prefix of capturePrefixes) this.recorder.writeRawCaptureBytes(prefix);
+        this.recorder.writeRecord(source.frame);
+        sourceRecorded = true;
       } else if ("rawOffset" in source) {
         rawByteOffset = source.rawOffset;
       }
@@ -479,10 +503,26 @@ export class LiveTelemetryPipeline {
         const firstOffset = this.recorder.getCurrentByteOffset();
         this.recorder.writeRecord(source);
         detector.setCurrentLapByteOffset?.(firstOffset);
+      } else if ("frame" in source) {
+        for (const contextFrame of this._pendingSessionContextFrames) this.recorder.writeRawCaptureBytes(contextFrame);
+        this._pendingSessionContextFrames = [];
+        const sourceContext = source.captureSessionContextRecords?.();
+        if (sourceContext?.length) {
+          this.recorder.writeRawCaptureBytes(encodeSegmentContextFrame());
+          for (const record of sourceContext) this.recorder.writeRawCaptureBytes(record);
+          this.recorder.writeRawCaptureBytes(encodeSegmentContextEndFrame());
+        }
+        const firstOffset = this.recorder.getCurrentByteOffset();
+        capturePrefixes ??= source.capturePrefixRecords();
+        for (const prefix of capturePrefixes) this.recorder.writeRawCaptureBytes(prefix);
+        this.recorder.writeRecord(source.frame);
+        sourceRecorded = true;
+        detector.setCurrentLapByteOffset?.(firstOffset);
       } else if ("rawOffset" in source) {
         detector.setCurrentLapByteOffset?.(source.rawOffset);
       }
     }
+    if (sourceRecorded && source && !Buffer.isBuffer(source) && "frame" in source) source.acknowledgeRecorded();
   }
 
   async flushSessionRecorder(): Promise<void> {
@@ -494,13 +534,16 @@ export class LiveTelemetryPipeline {
    * telemetry values through the lap detector.
    */
   recordSessionContextFrame(sourceFrame: Buffer, completeLapStart = false): void {
+    this.recordSessionContextRecords([encodeFrameLength(sourceFrame.length), sourceFrame], completeLapStart);
+  }
+  recordSessionContextRecords(records: readonly Buffer[], completeLapStart = false): void {
     this._expectCompleteLapStart = completeLapStart;
-    const contextRecord = Buffer.concat([encodeSegmentContextFrame(), encodeFrameLength(sourceFrame.length), sourceFrame, encodeSegmentContextEndFrame()]);
+    const context = [encodeSegmentContextFrame(), ...records, encodeSegmentContextEndFrame()];
     if (this.recorder.active) {
-      this.recorder.writeRawCaptureBytes(contextRecord);
-      return;
+      for (const record of context) this.recorder.writeRawCaptureBytes(record);
+    } else {
+      this._pendingSessionContextFrames.push(...context);
     }
-    this._pendingSessionContextFrames.push(contextRecord);
   }
 
   /**

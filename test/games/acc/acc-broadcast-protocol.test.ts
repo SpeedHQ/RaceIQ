@@ -38,6 +38,45 @@ describe("ACC Broadcasting Network Protocol", () => {
     for (const value of [91_234, 91_500, 92_000]) { view.setInt32(offset, value, true); offset += 4; view.setUint16(offset, 7, true); offset += 2; view.setUint16(offset, 2, true); offset += 2; view.setUint8(offset++, 0); view.setUint8(offset++, 0); view.setUint8(offset++, 0); view.setUint8(offset++, 0); view.setUint8(offset++, 0); }
     const message = parseAccBroadcastMessage(bytes);
     expect(message).toMatchObject({ type: "realtime-car-update", carIndex: 7, worldPosX: 10.5, worldPosY: 1.25, yaw: -4.5, kmh: 123, laps: 5, lastLapTimeMs: 91_500, lastLapValid: true });
+    view.setFloat32(7, NaN, true);
+    expect(parseAccBroadcastMessage(bytes)).toBeNull();
+  });
+
+  test.each([false, true])("decodes SDK v4 realtime header before best lap (replay=%s)", (replayPlaying) => {
+    const bytes = Buffer.alloc(128);
+    let at = 0;
+    bytes.writeUInt8(2, at++);
+    bytes.writeUInt16LE(3, at); at += 2;
+    bytes.writeUInt16LE(4, at); at += 2;
+    bytes.writeUInt8(10, at++);
+    bytes.writeUInt8(5, at++);
+    bytes.writeFloatLE(12_000, at); at += 4;
+    bytes.writeFloatLE(60_000, at); at += 4;
+    bytes.writeInt32LE(-1, at); at += 4;
+    for (const value of ["camera-set", "camera", "hud"]) {
+      bytes.writeUInt16LE(Buffer.byteLength(value), at); at += 2;
+      at += bytes.write(value, at);
+    }
+    bytes.writeUInt8(Number(replayPlaying), at++);
+    if (replayPlaying) {
+      bytes.writeFloatLE(8_000, at); at += 4;
+      bytes.writeFloatLE(4_000, at); at += 4;
+    }
+    bytes.writeFloatLE(45_000_000, at); at += 4;
+    for (const weather of [22, 31, 3, 4, 5]) bytes.writeUInt8(weather, at++);
+    const lapOffset = at;
+    bytes.writeInt32LE(93_000, at); at += 4;
+    bytes.writeUInt16LE(7, at); at += 2;
+    bytes.writeUInt16LE(2, at); at += 2;
+    bytes.writeUInt8(3, at++);
+    for (const split of [30_000, 31_000, 32_000]) { bytes.writeInt32LE(split, at); at += 4; }
+    for (const flag of [0, 1, 0, 0]) bytes.writeUInt8(flag, at++);
+    expect(parseAccBroadcastMessage(bytes.subarray(0, at))).toMatchObject({
+      type: "realtime-update", eventIndex: 3, sessionIndex: 4, focusedCarIndex: -1, replayPlaying,
+      bestSessionLap: { timeMs: 93_000, carIndex: 7, driverIndex: 2, splitsMs: [30_000, 31_000, 32_000], isValidForBest: true },
+    });
+    expect(parseAccBroadcastMessage(bytes.subarray(0, lapOffset - 1))).toBeNull();
+    expect(parseAccBroadcastMessage(bytes.subarray(0, at - 1))).toBeNull();
   });
 
   test("rejects truncated and unknown messages", () => {

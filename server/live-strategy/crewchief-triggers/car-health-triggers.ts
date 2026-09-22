@@ -8,19 +8,26 @@ const bucket = (v: number): "cold" | "normal" | "hot" | "cooking" => v <= 70 ? "
 export const triggerTyreMonitor: CrewChiefTriggerFunction<State> = (input, state) => {
   const lap = input.frame.hasFresh("timing.lap-number") ? input.frame.ok("timing.lap-number") : undefined;
   const sector = input.frame.hasFresh("timing.sector.current-index") ? input.frame.ok("timing.sector.current-index") : undefined;
-  const temperatureId: "tire.temperature.surface.representative" | "tire.temperature.core" = input.frame.simulator === "fm-2023" ? "tire.temperature.surface.representative" : "tire.temperature.core";
+  const fm = input.frame.simulator === "fm-2023";
+  const temperatureId: "tire.temperature.surface.representative" | "tire.temperature.core" = fm ? "tire.temperature.surface.representative" : "tire.temperature.core";
   const raw = input.frame.hasFresh(temperatureId) ? input.frame.ok(temperatureId) : undefined;
   const temps = Array.isArray(raw) && raw.length === 4 && raw.every(finite) ? raw.reduce((a, b) => a + b, 0) / 4 : undefined;
   const s = state.previous as { startLap?: number; bucket?: string } | undefined;
   if (!state.armed) { state.armed = true; state.previous = { startLap: finite(lap) ? lap : undefined, bucket: finite(temps) ? bucket(temps) : undefined }; return null; }
-  if (!finite(lap) || (input.frame.simulator !== "fm-2023" && !finite(sector)) || !finite(temps)) return null;
+  if (!finite(lap) || (!fm && sector !== 2) || input.context.pit || !finite(temps)) return null;
   const nextBucket = bucket(temps);
-  state.previous = { startLap: lap, bucket: nextBucket };
-  if (s?.bucket === nextBucket || s?.startLap === lap) return null;
+  state.previous = { startLap: fm ? lap : s?.startLap, bucket: nextBucket };
+  if (s?.bucket === nextBucket) return null;
+  if (fm) {
+    if (s?.startLap === lap) return null;
+  } else {
+    if (!finite(s?.startLap) || lap < s.startLap + 2 || nextBucket === "normal") return null;
+  }
   const payload: Record<string, number> = { lap, temperature: temps };
   const evidence: TelemetryVariableId[] = input.frame.simulator === "fm-2023" ? ["timing.lap-number", temperatureId] : ["timing.lap-number", "timing.sector.current-index", temperatureId];
   if (input.frame.simulator !== "fm-2023") payload.sector = sector as number;
-  return draft(`tyres-${nextBucket}`, nextBucket === "cold" || nextBucket === "cooking" ? "warning" : "info", payload, evidence);
+  const severity = fm ? nextBucket === "cold" || nextBucket === "cooking" ? "warning" : "info" : nextBucket === "cooking" ? "critical" : "warning";
+  return draft(`tyres-${nextBucket}`, severity, payload, evidence);
 };
 export const triggerEngineMonitor: CrewChiefTriggerFunction<State> = (input, state) => { const temp = input.frame.hasFresh("engine.coolant-temperature") ? input.frame.ok("engine.coolant-temperature") : undefined, s = (state.previous ?? {}) as { started?: number; hot?: boolean }; if (!state.armed) state.armed = true; state.previous = s; if (!finite(temp)) return null; s.started ??= input.sessionTimeMs; if (input.context.pit || input.sessionTimeMs - s.started < 120000) return null; if (temp >= 110 && !s.hot) { s.hot = true; return draft("water-temperature-hot", "critical", { temperature: temp }, ["engine.coolant-temperature"]); } if (temp <= 100 && s.hot) { s.hot = false; return draft("water-temperature-clear", "info", { temperature: temp }, ["engine.coolant-temperature"]); } return null; };
 export const triggerDamageReporting: CrewChiefTriggerFunction<State> = (input, state) => {

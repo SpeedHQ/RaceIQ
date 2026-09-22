@@ -32,7 +32,7 @@ export type LiveEngineerSemanticInput = {
   pace: LiveEngineerPaceInput | null;
 };
 
-const ok = (value: ResolvedValue<unknown> | undefined): value is ResolvedValue<unknown> => value?.state === "ok";
+const ok = (value: ResolvedValue<unknown> | undefined): value is ResolvedValue<unknown> => value?.state === "ok" && value.freshness === "fresh";
 const scalar = (values: ReadonlyMap<string, ResolvedValue<unknown>>, id: string): unknown => {
   const value = values.get(id);
   return ok(value) ? value.value : undefined;
@@ -47,7 +47,9 @@ const aligned = (lists: readonly (readonly unknown[] | null)[], max = 64): lists
   const length = lists[0]!.length;
   return lists.every((list) => list!.length === length);
 };
-const validIndexes = (values: readonly unknown[]): values is readonly number[] => values.every(finite) && new Set(values).size === values.length;
+const carIndex = (value: unknown): value is number => finite(value) && Number.isInteger(value) && value >= 0;
+const validIndexes = (values: readonly unknown[]): values is readonly number[] => values.every(carIndex) && new Set(values).size === values.length;
+const text = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
 
 export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFrame): LiveEngineerSemanticInput {
   const values = new Map<string, ResolvedValue<unknown>>();
@@ -90,15 +92,18 @@ export function extractLiveEngineerSemanticInput(frame: LiveResolvedSemanticFram
   const times = array<number>(values, "timing.competitor.last-lap-time");
   const validities = array<unknown>(values, "timing.competitor.last-lap-valid");
   const paceLists = [indexes, driverIds, driverNames, classIds, classNames, laps, pits, times];
-  const accFactsValid = frame.simulator !== "acc" || (
-    validIndexes(indexes ?? []) &&
-    !!locations && !!connected && !!validities &&
-    locations.length === indexes?.length && connected.length === indexes?.length && validities.length === indexes?.length
-  );
+  const sourceAvailable = frame.simulator !== "acc" || !frame.opponentSource || frame.opponentSource.state === "available";
   let pace: LiveEngineerPaceInput | null = null;
-  if (accFactsValid && finite(playerCarIndex) && typeof playerCarClassId === "string" && typeof sessionType === "string" && aligned(paceLists)) {
+  if (lapState && sourceAvailable && carIndex(playerCarIndex) && text(playerCarClassId) && text(sessionType) && sessionType !== "unknown" && indexes && validIndexes(indexes) && indexes.includes(playerCarIndex) && aligned(paceLists)) {
     const requiredForGame = frame.simulator === "acc" ? [connected, validities, locations] : frame.simulator === "iracing" ? [locations] : frame.simulator === "f1-2025" ? [validities] : [];
-    if (aligned([...paceLists, ...requiredForGame])) pace = { playerCarIndex, playerCarClassId, sessionType, competitorCarIndexes: indexes!, competitorDriverIds: driverIds!, competitorDriverNames: driverNames!, competitorClassIds: classIds!, competitorClassNames: classNames!, competitorLaps: laps!, competitorPitStatuses: pits!, competitorTrackLocations: locations, competitorConnected: connected, competitorLastLapTimes: times!, competitorLastLapValidity: validities };
+    const identitiesValid = driverIds!.every((value) => text(value) || (frame.simulator === "f1-2025" && carIndex(value))) &&
+      driverNames!.every(text) && classIds!.every(text) && classNames!.every(text) &&
+      classIds![indexes.indexOf(playerCarIndex)] === playerCarClassId;
+    if (identitiesValid && aligned([...paceLists, ...requiredForGame]) && laps!.every((value) => finite(value) && Number.isInteger(value) && value >= 0) && times!.every(finite) && pits!.every(text) &&
+      (!locations || locations.every(text)) && (!connected || connected.every((value) => typeof value === "boolean")) &&
+      (!validities || validities.every((value) => typeof value === "boolean"))) {
+      pace = { playerCarIndex, playerCarClassId, sessionType, competitorCarIndexes: indexes, competitorDriverIds: driverIds!, competitorDriverNames: driverNames!, competitorClassIds: classIds!, competitorClassNames: classNames!, competitorLaps: laps!, competitorPitStatuses: pits!, competitorTrackLocations: locations, competitorConnected: connected, competitorLastLapTimes: times!, competitorLastLapValidity: validities };
+    }
   }
   return { frame, values, lapState, pace };
 }
