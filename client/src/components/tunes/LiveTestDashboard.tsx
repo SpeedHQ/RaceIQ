@@ -9,7 +9,6 @@ import { semanticTuneSampleFromView } from "./semantic-tune";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import type { Point } from "../analyse/track-map/types";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
-import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
 
@@ -144,8 +143,8 @@ export function LiveTestDashboard({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Top row: live track position + car vitals + lap info */}
-      <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr_1.3fr]">
+      {/* Top row: live track position + lap info */}
+      <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr]">
         <div className="flex flex-col border-app-border @5xl/workspace:border-r">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
           <div className="relative h-[22.5rem]">
@@ -169,11 +168,8 @@ export function LiveTestDashboard({
             />
           </div>
         </div>
-        <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
+        <div className="overflow-y-auto">
           <LiveLapInfo sectors={gameSectors} currentLap={currentView?.timing.lapNumber ?? null} totalLaps={gameLaps.length} />
-        </div>
-        <div className="h-full min-h-0">
-          <LiveIssuesFeed />
         </div>
       </div>
 

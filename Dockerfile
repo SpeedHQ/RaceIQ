@@ -5,7 +5,6 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY client/package.json client/package.json
 COPY playwright/package.json playwright/package.json
-COPY patches/ patches/
 RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY . .

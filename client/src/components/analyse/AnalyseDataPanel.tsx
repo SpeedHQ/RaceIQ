@@ -94,7 +94,7 @@ function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; game
   );
 }
 
-export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits> }): string {
+function buildAnalyseClipboardText({ frame, gameId, units }: { frame: SemanticAnalysisFrame; gameId: GameId; units: ReturnType<typeof useUnits> }): string {
   const game = getGame(gameId);
   const display = (value: number | null, digits = 0) => (value == null ? "Unavailable" : value.toFixed(digits));
   const value = (id: TelemetryVariableId) => semanticNumber(frame, id);

@@ -147,6 +147,11 @@ export class ImportCaptureAdapter implements DbAdapter {
     );
     return pending;
   }
+  async deleteLap(lapId: number): Promise<void> {
+    await this._inner.deleteLap(lapId);
+    const index = this.laps.findIndex((lap) => lap.lapId === lapId);
+    if (index >= 0) this.laps.splice(index, 1);
+  }
 
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);

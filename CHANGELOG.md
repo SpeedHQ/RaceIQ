@@ -1,6 +1,21 @@
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+- Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
+- Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
+- Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
+
+### Internal
+- Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+
+- Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+
+## v0.18.0 - 2026-09-18
+
+### Features
 - Localize client analysis, telemetry, session-import, and developer-state UI with English and German messages
 
 - Session review lets drivers inspect recorded ACC and AC Evo sessions, see top laps first, and open Analyse
@@ -28,10 +43,10 @@
 ### Internal
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 - Run seeded database upgrade verification in PR and release CI when migrations change.
-
 - Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
 - Add UI-level agent testing.
 - Increase Playwright E2E test timeouts by 20 seconds for more reliable CI runs.
+
 ## v0.17.0 - 2026-09-16
 
 ### Features

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { sortIRacingCars } from "../cars/helpers";
 import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
@@ -14,13 +15,6 @@ interface IRacingCatalogCar {
   imageUrl: string;
 }
 
-function iracingCarSortName(name: string): string {
-  return name.replace(/^\[Legacy\]\s*/i, "");
-}
-
-export function sortIRacingCars<T extends Pick<IRacingCatalogCar, "ordinal" | "name">>(cars: readonly T[]): T[] {
-  return cars.toSorted((a, b) => iracingCarSortName(a.name).localeCompare(iracingCarSortName(b.name)) || a.name.localeCompare(b.name) || a.ordinal - b.ordinal);
-}
 
 function categoryLabel(category: string): string {
   switch (category) {

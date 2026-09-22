@@ -10,7 +10,7 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 
-export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
+function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
     label: m.analyse_lap_option({ lap: lap.lapNumber, time: formatLapTime(lap.lapTime), ownership: lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale }), invalid: !lap.isValid ? " ✕" : "" }),
