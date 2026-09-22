@@ -19,6 +19,7 @@ import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from
 import { useGameId } from "../stores/game";
 import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 import { Button } from "./ui/button";
+import { Switch } from "./ui/switch";
 import { DropdownMenu } from "./ui/DropdownMenu";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
@@ -289,7 +290,12 @@ export const CarWireframe = React.memo(function CarWireframe({
               items={viewToggleItems}
             />
           )}
-          {minimal && <ToggleButton label={m.carwire_dims()} active={toggles.dimensions} onClick={() => setToggles((previous) => ({ ...previous, dimensions: !previous.dimensions }))} />}
+          {minimal && (
+            <div className="flex items-center gap-2 rounded border border-app-border-input bg-app-surface-alt/80 px-2 py-1">
+              <Switch size="sm" checked={toggles.dimensions} aria-label={m.carwire_dims()} onCheckedChange={(checked) => setToggles((previous) => ({ ...previous, dimensions: checked }))} />
+              <span className="text-app-micro font-semibold uppercase tracking-wider text-app-text-muted">{m.carwire_dims()}</span>
+            </div>
+          )}
         </div>
       )}
 

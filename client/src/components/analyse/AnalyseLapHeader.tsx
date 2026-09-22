@@ -1,13 +1,14 @@
 import { memo, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocale } from "@/paraglide/runtime";
-import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileDown, NotebookPen, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { formatLapTime } from "../../lib/format";
 import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queries";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
+import { Switch } from "../ui/switch";
 import { SearchSelect } from "../ui/SearchSelect";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
@@ -289,10 +290,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
-              <Sparkles className="size-3.5" />
-              {m.label_ai_analysis()}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Switch size="sm" checked={aiPanelOpen} aria-label={m.label_ai_analysis()} onCheckedChange={() => onToggleAi()} />
+              <span className="text-app-caption text-app-text-muted">{m.label_ai_analysis()}</span>
+            </div>
           )}
           {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
