@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Storage settings and Sessions let drivers remove old or selected telemetry while preserving session and lap metadata, with favourite protections and opt-in automatic cleanup
 
 ### Fixes
 
