@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Features
+- Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
 - Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
@@ -22,6 +23,7 @@
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 - Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
 - Let seed tooling assemble numbered recording parts and stream large LMU capture imports.

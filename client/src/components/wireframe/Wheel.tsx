@@ -104,10 +104,9 @@ export function Wheel({
       </group>
       {temperatureReadings.length > 0 && (
         <WheelInfoCard
-          displayTemp={temperatureReadings[0]?.value == null ? "—" : fmtTemp(temperatureReadings[0].value)}
-          temperatureLabel={temperatureReadings[0]?.kind === "core" ? "Core" : temperatureReadings[0]?.kind === "carcass" ? "Carcass" : "Surface"}
-          displayCoreTemp={coreReading == null ? undefined : fmtTemp(coreReading)}
-          tempColor={fallbackColor}
+          temperatureReadings={temperatureReadings}
+          fmtTemp={fmtTemp}
+          temperatureThresholds={temperatureThresholds}
           wear={wear}
           wearRate={wearRate}
           displayBrakeTemp={displayBrakeTemp}

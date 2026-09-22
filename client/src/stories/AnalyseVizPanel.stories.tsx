@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { KNOWN_GAME_IDS, type GameId } from "../../../shared/games/ids";
+import { useMemo, useRef, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
@@ -59,6 +60,7 @@ const profileVariantFrame = (variant: "bands" | "core" | "representative"): Sema
     delete values["tire.temperature.surface.outer"];
   }
   if (variant === "representative") delete values["tire.temperature.core"];
+  if (variant === "core") delete values["tire.temperature.surface.representative"];
   return { ...profileFrameOne, values };
 };
 
@@ -143,8 +145,8 @@ function ProfileTemperaturesStory() {
   const displayTelemetryRef = useRef(frames);
   displayTelemetryRef.current = profileEnabled ? frames : [frame, frame];
   return (
-    <div className="h-screen w-screen bg-app-bg">
-      <div className="absolute z-20 flex gap-2 p-2">
+    <div className="flex h-screen w-screen flex-col bg-app-bg">
+      <div className="flex shrink-0 flex-wrap gap-4 p-2 text-app-text">
         <button type="button" onClick={() => setCursorIdx((index) => index === 0 ? 1 : 0)}>Next frame</button>
         <button type="button" onClick={() => setProfileEnabled((enabled) => !enabled)}>Toggle profile data</button>
         <button type="button" onClick={() => setVizMode(vizMode === "2d" ? "3d" : "2d")}>Switch {vizMode === "2d" ? "3D" : "2D"}</button>
@@ -167,14 +169,23 @@ function ProfileTemperaturesStory() {
   );
 }
 
-function ProfileVariantStory({ variant, vizMode }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d" }) {
+function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025" }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d"; gameId?: GameId }) {
   const cursorRef = useRef(0);
-  const frames = [profileVariantFrames[variant]];
+  const frames = useMemo(() => {
+    const selected = profileVariantFrames[variant];
+    return [gameId === "iracing" ? {
+      ...selected,
+      values: { ...selected.values, "tire.temperature.carcass.middle": [88, 90, 92, 94] },
+    } : selected];
+  }, [variant, gameId]);
   const telemetryRef = useRef(frames);
+  telemetryRef.current = frames;
   const variantLabel = variant === "bands" ? "Inner / Middle / Outer + Core" : variant === "core" ? "Core only" : "Representative surface only";
   return (
-    <div className="h-screen w-screen bg-app-bg">
-      <div className="absolute z-20 p-2 font-mono text-xs text-app-text-muted">Profile: {variantLabel}</div>
+    <div className="flex h-screen w-screen flex-col bg-app-bg">
+      <div className="shrink-0 p-2 font-mono text-xs text-app-text-muted">
+        {gameId} · Synthetic profile: {variantLabel} · Rendering fixture, not simulator channel availability
+      </div>
       <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={() => {}}
@@ -186,7 +197,7 @@ function ProfileVariantStory({ variant, vizMode }: { variant: keyof typeof profi
         lapLine={null}
         boundaries={null}
         units={{ tempLabel: "°C", temp: (value: number) => value, thresholds: { cold: 75, warm: 115, hot: 150 } } as never}
-        gameId="f1-2025"
+        gameId={gameId}
       />
     </div>
   );
@@ -196,11 +207,38 @@ export const ProfileTemperatures: Story = {
   render: () => <ProfileTemperaturesStory />,
 };
 export const ThreeDProfileBands: Story = {
-  render: () => <ProfileVariantStory variant="bands" vizMode="3d" />,
+  name: "3D Profile Bands — F1 2025",
+  args: { gameId: "f1-2025" },
+  argTypes: { gameId: { control: "select", options: KNOWN_GAME_IDS } },
+  render: ({ gameId }) => <ProfileVariantStory variant="bands" vizMode="3d" gameId={gameId} />,
+};
+
+export const ThreeDProfileBandsForza: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — Forza Motorsport",
+  args: { gameId: "fm-2023" },
+};
+
+export const ThreeDProfileBandsACC: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — ACC",
+  args: { gameId: "acc" },
+};
+
+export const ThreeDProfileBandsACEvo: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — AC Evo",
+  args: { gameId: "ac-evo" },
+};
+
+export const ThreeDProfileBandsIRacing: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — iRacing",
+  args: { gameId: "iracing" },
 };
 
 export const ThreeDProfileCoreOnly: Story = {
-  render: () => <ProfileVariantStory variant="core" vizMode="3d" />,
+  render: () => <ProfileVariantStory variant="core" vizMode="3d" gameId="acc" />,
 };
 
 export const ThreeDProfileRepresentative: Story = {
@@ -212,7 +250,7 @@ export const TwoDProfileBands: Story = {
 };
 
 export const TwoDProfileCoreOnly: Story = {
-  render: () => <ProfileVariantStory variant="core" vizMode="2d" />,
+  render: () => <ProfileVariantStory variant="core" vizMode="2d" gameId="acc" />,
 };
 
 export const TwoDProfileRepresentative: Story = {

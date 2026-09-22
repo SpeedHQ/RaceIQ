@@ -56,11 +56,12 @@ export function WheelCard({
   const coreTemp = temperatureReadings.find(({ kind }) => kind === "core")?.value ?? null;
   const hasCoreTemp = coreTemp != null;
   const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  const cardWidth = hasProfile ? 112 : 80;
   const stroke = surfaceTemp != null ? tireTempColor(surfaceTemp, thresholds) : "var(--status-unavailable)";
   const fill = hasCoreTemp ? tireTempColor(coreTemp, thresholds) : stroke;
   const slipCol = slipAngleColor(slipAngle);
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
-  const tempRows = hasProfile ? 4 : hasCoreTemp ? 2 : 1;
+  const tempRows = hasProfile ? 3 : temperatureReadings.length;
   const healthY = 93 + tempRows * 12;
   const stateY = healthY + 12;
   const brakeY = brakeTemp != null ? stateY + 10 : null;
@@ -79,13 +80,13 @@ export function WheelCard({
   // Tire dimensions in SVG units
   const tW = 28,
     tH = 50,
-    cx = 40,
+    cx = cardWidth / 2,
     cy = 55;
   const wearTop = tH * (1 - wearPct);
 
   return (
     <div className="flex flex-col items-center">
-      <svg role="img" aria-label={`${label} ${temperatureReadings.map(({ kind, value }) => `${kind}: ${value == null ? m.analyse_unavailable() : `${tempFn(value).toFixed(0)}°${tempUnit}`}`).join(", ")}`} viewBox={`0 0 80 ${svgHeight}`} width={80} height={svgHeight}>
+      <svg role="img" aria-label={`${label} ${temperatureReadings.map(({ kind, value }) => `${kind}: ${value == null ? m.analyse_unavailable() : `${tempFn(value).toFixed(0)}°${tempUnit}`}`).join(", ")}`} viewBox={`0 0 ${cardWidth} ${svgHeight}`} width={cardWidth} height={svgHeight}>
         {/* Label */}
         <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {label}
@@ -195,9 +196,22 @@ export function WheelCard({
           </>
         ) : "—"}
         </text>
-        {temperatureReadings.map(({ kind, value }, index) => {
+        {hasProfile && temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(({ kind, value }, index) => {
+          const x = (index + 0.5) * (cardWidth / 3);
+          const color = value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds);
+          return <g key={kind}>
+            <text x={x} y={93} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">
+              {kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : m.label_outer()}
+            </text>
+            <text x={x} y={105} textAnchor="middle" fill={color} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+              {value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`}
+            </text>
+            <line x1={x - 15} x2={x + 15} y1={110} y2={110} stroke={color} strokeWidth={1.5} />
+          </g>;
+        })}
+        {temperatureReadings.filter(({ kind }) => !hasProfile || kind === "core").map(({ kind, value }, index) => {
           const labelText = kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : tempCaption;
-          const y = 93 + index * 12;
+          const y = 93 + (hasProfile ? 2 : index) * 12;
           return <text key={kind} x={cx} y={y} textAnchor="middle" fill={value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds)} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             {labelText} {value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`}
           </text>;
