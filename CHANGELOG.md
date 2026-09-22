@@ -34,6 +34,10 @@
 - Improve logging and diagnostic exports
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Keep telemetry cleanup effective when session compression runs at the same time.
+- Restore saved fuel consumption in experiment lap metrics.
+- Preserve lap favourites and their cleanup protection when session reprocessing replaces laps.
+- Open the session import dialog correctly from the Sessions toolbar.
 - Align settings switch thumbs fully left when off and fully right when on
 - Let drivers choose cleanup age and inspect per-game session, lap, count, and storage details before removing telemetry
 - Use consistent switch controls for boolean settings and view toggles

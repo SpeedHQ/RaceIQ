@@ -5,8 +5,10 @@ import { tmpdir } from "node:os";
 import { eq, inArray } from "drizzle-orm";
 import { db, client } from "../../server/db";
 import { laps, sessions } from "../../server/db/schema";
-import { resolveDataDir } from "../../server/runtime/config/data-dir";
 import { executeSessionCleanup, previewSessionCleanup } from "../../server/session-capture/session-cleanup";
+import { runUserCompressionNow } from "../../server/session-capture/compressor";
+import { withSessionCaptureMaintenanceLock } from "../../server/session-capture/cleanup";
+import { resolveDataDir } from "../../server/runtime/config/data-dir";
 
 const OLD_DATE = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString();
 const RECENT_DATE = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -208,5 +210,25 @@ describe("session cleanup edge cases", () => {
 
     expect(readFileSync(path)).toEqual(payload);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+  });
+
+  test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
+    const path = capturePath("overlap.bin");
+    writeFileSync(path, Buffer.from("overlap capture"));
+    const sessionId = await createSession({ rawFile: path });
+
+    const gate = Promise.withResolvers<void>();
+    const held = withSessionCaptureMaintenanceLock(() => gate.promise);
+    const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    const compression = runUserCompressionNow();
+    gate.resolve();
+
+    await held;
+    await cleanup;
+    await compression;
+
+    expect(existsSync(path)).toBe(false);
+    expect(existsSync(`${path}.gz`)).toBe(false);
+    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
 });
