@@ -40,6 +40,16 @@ export async function updateSession(
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
 }
 
+export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
+  const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
+  return result.rowsAffected > 0;
+}
+
+export async function setLapFavorite(id: number, favorite: boolean): Promise<boolean> {
+  const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
+  return result.rowsAffected > 0;
+}
+
 export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
@@ -125,7 +135,7 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
-function isOwnedSessionRawFile(rawFile: string): boolean {
+export function isOwnedSessionRawFile(rawFile: string): boolean {
   const sessionsDir = resolve(resolveDataDir(), "sessions");
   const relativePath = relative(sessionsDir, resolve(rawFile));
   return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
@@ -207,16 +217,18 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       trackOrdinal: sessions.trackOrdinal,
       createdAt: sessions.createdAt,
       gameId: sessions.gameId,
-      sessionType: sessions.sessionType,
+      ownership: sessions.ownership,
+      isFavorite: sessions.isFavorite,
+      telemetryAvailable: sql<number>`${sessions.rawFile} IS NOT NULL`,
       notes: sessions.notes,
       source: sessions.source,
+      sessionType: sessions.sessionType,
       catalogVersion: sessions.catalogVersion,
       catalogHash: sessions.catalogHash,
       catalogSchemaVersion: sessions.catalogSchemaVersion,
       parserVersion: sessions.parserVersion,
       resolverVersion: sessions.resolverVersion,
       derivationVersion: sessions.derivationVersion,
-      ownership: sessions.ownership,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -239,6 +251,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     const normalizedSession = {
       ...session,
       sessionType: session.sessionType ?? undefined,
+      telemetryAvailable: Boolean(session.telemetryAvailable),
+      isFavorite: Boolean(session.isFavorite),
     };
     const resultRow = await db
       .select({

@@ -10,7 +10,7 @@ import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
 import { iterateSessionCaptureRecords } from "../session-capture/framing";
-import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
+import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearSessionCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime } from "../session-capture/test-instrumentation";
 
@@ -258,7 +258,7 @@ export class LapParseError extends Error {
 // re-gunzip the whole session raw file; a stint of N laps then paid N full
 
 /** Compatibility hook for callers that clear replay source caches. */
-export function clearRawFileCacheForTest(): void { clearSourceCaptureCache(); }
+export function clearRawFileCacheForTest(): void { clearSessionCaptureCache(); }
 
 type ReplayGame = ReturnType<typeof getServerGame>;
 function packetIndexForOffset(gameId: GameId, offset: number, encoding: "packet-index" | "legacy-bin-byte-offset"): number {

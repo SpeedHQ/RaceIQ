@@ -48,7 +48,16 @@ export function indexCaptureFrames(buffer: Buffer): SessionCaptureFrameIndex {
   }
   return { records, byOffset };
 }
-export function clearRawFileCacheForTest(): void { cache.clear(); }
+export function clearSessionCaptureCache(rawFile?: string): void {
+  if (rawFile === undefined) {
+    cache.clear();
+    return;
+  }
+  const prefix = `${rawFile}\0`;
+  for (const cacheKey of cache.keys()) {
+    if (cacheKey.startsWith(prefix)) cache.delete(cacheKey);
+  }
+}
 export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null): void {
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }

@@ -3,6 +3,8 @@ import type { GameId } from "../../../shared/games/ids";
 export const queryKeys = {
   laps: ["laps"] as const,
   settings: ["settings"] as const,
+  storageSessions: ["storage", "sessions"] as const,
+  cacheStatus: ["cache", "status"] as const,
   trackName: (ord: number) => ["track-name", ord] as const,
   trackSectors: (ord: number) => ["track-sectors", ord] as const,
   trackSectorBoundaries: (ord: number) => ["track-sector-boundaries", ord] as const,

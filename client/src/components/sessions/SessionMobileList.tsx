@@ -1,16 +1,20 @@
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { Star } from "lucide-react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { queryKeys } from "@/hooks/query-keys";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
+import { client } from "@/lib/rpc";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { getLocale } from "@/paraglide/runtime";
+import { m } from "@/paraglide/messages";
+import { formatSessionType } from "./helpers";
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -65,6 +69,11 @@ export function SessionMobileList({
   setRecapSessionId,
   analyseSession,
 }: SessionMobileListProps) {
+  const queryClient = useQueryClient();
+  const toggleFavorite = async (session: SessionMeta) => {
+    const response = await client.api.sessions[":id"].favorite.$patch({ param: { id: String(session.id) }, json: { favorite: !session.isFavorite } });
+    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
+  };
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
       {isLoading ? (
@@ -109,6 +118,19 @@ export function SessionMobileList({
                         {session.source === "motec" && <MotecBadge />}
                       </div>
                       <Button
+                        type="button"
+                        variant="app-ghost"
+                        size="icon-xs"
+                        aria-label={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
+                        title={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void toggleFavorite(session);
+                        }}
+                      >
+                        <Star className={session.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
+                      </Button>
+                      <Button
                         variant="app-outline"
                         size="app-sm"
                         onClick={(event) => {
@@ -121,7 +143,8 @@ export function SessionMobileList({
                       <Button
                         variant="app-primary"
                         size="app-sm"
-                        disabled={false}
+                        disabled={session.telemetryAvailable === false}
+                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                         onClick={(event) => {
                           event.stopPropagation();
                           analyseSession(session);
@@ -132,8 +155,8 @@ export function SessionMobileList({
                       <Button
                         variant="app-outline"
                         size="app-sm"
-                        disabled={exporting}
-                        title={m.sessions_export_session()}
+                        disabled={exporting || session.telemetryAvailable === false}
+                        title={session.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : m.sessions_export_session()}
                         onClick={(event) => {
                           event.stopPropagation();
                           runExport({ sessionIds: [session.id] });

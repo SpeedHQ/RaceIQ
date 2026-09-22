@@ -2,6 +2,10 @@ import { existsSync } from "node:fs";
 import { readdir, stat, statfs } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Hono } from "hono";
+import { z } from "zod";
+import { previewSessionCleanup, executeSessionCleanup, SessionCleanupBusyError } from "../../session-capture/session-cleanup";
+import type { SessionCleanupRequest } from "../../../shared/racing/sessions/cleanup";
+
 
 import { getAllGames } from "../../../shared/games/registry";
 import { resolveDataDir } from "../../runtime/config/data-dir";
@@ -12,6 +16,11 @@ interface GameStorageStats {
   binBytes: number;
   gzBytes: number;
 }
+
+const sessionCleanupRequestSchema: z.ZodType<SessionCleanupRequest> = z.union([
+  z.object({ mode: z.literal("older-than"), olderThanDays: z.union([z.literal(30), z.literal(90), z.literal(180), z.literal(365)]) }).strict(),
+  z.object({ mode: z.literal("selected"), sessionIds: z.array(z.number().int().positive()) }).strict(),
+]);
 
 export const storageRoutes = new Hono()
   // GET /api/storage/sessions — recording file stats
@@ -76,8 +85,22 @@ export const storageRoutes = new Hono()
   // POST /api/storage/compress — trigger immediate compression of eligible sessions
   .post("/api/storage/compress", async (c) => {
     console.log("[Compressor] User triggered compression");
-    // Keep compressor lazy: this route must not start session maintenance at import time.
     const { runUserCompressionNow } = await import("../../session-capture/compressor");
     await runUserCompressionNow();
     return c.json({ ok: true });
+  })
+  .post("/api/storage/session-cleanup/preview", async (c) => {
+    const parsed = sessionCleanupRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: "Invalid cleanup request" }, 400);
+    return c.json(await previewSessionCleanup(parsed.data));
+  })
+  .post("/api/storage/session-cleanup", async (c) => {
+    const parsed = sessionCleanupRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) return c.json({ error: "Invalid cleanup request" }, 400);
+    try {
+      return c.json(await executeSessionCleanup(parsed.data));
+    } catch (err) {
+      if (err instanceof SessionCleanupBusyError) return c.json({ error: err.message }, 409);
+      throw err;
+    }
   });

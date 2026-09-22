@@ -1250,5 +1250,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Persist session and lap favourite protection for capture cleanup.
+  {
+    version: 59,
+    name: "persist session and lap favorites",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE laps ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 

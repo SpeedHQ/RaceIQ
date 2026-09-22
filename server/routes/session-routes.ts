@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema } from "../../shared/games/ids";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, setSessionFavorite } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds } from "../db/session-result-queries";
 import { reprocessSession, SessionNotFoundError, SessionRawFileMissingError } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
@@ -76,6 +76,12 @@ export const sessionRoutes = new Hono()
     const { id } = c.req.valid("param");
     await updateSession(id, { notes: c.req.valid("json").notes });
     return c.json({ ok: true });
+  })
+  .patch("/api/sessions/:id/favorite", zValidator("param", IdParamSchema), zValidator("json", z.object({ favorite: z.boolean() }).strict()), async (c) => {
+    const { id } = c.req.valid("param");
+    const { favorite } = c.req.valid("json");
+    if (!await setSessionFavorite(id, favorite)) return c.json({ error: "Session not found" }, 404);
+    return c.json({ ok: true, sessionId: id, favorite });
   })
   .post("/api/sessions/:id/reprocess", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");

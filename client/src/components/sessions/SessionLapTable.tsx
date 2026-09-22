@@ -1,15 +1,16 @@
 import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { queryKeys } from "@/hooks/query-keys";
-import { exportLapsZip } from "@/lib/lap-export";
 import { bestSectorLapIds } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { exportLapsZip } from "@/lib/lap-export";
 import { useGameRoute } from "@/stores/game";
 import { sortLaps } from "./helpers";
 import { NoteCell } from "./NoteCell";
@@ -21,6 +22,10 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toggleFavorite = async (lapId: number, favorite: boolean) => {
+    const response = await client.api.laps[":id"].favorite.$patch({ param: { id: String(lapId) }, json: { favorite } });
+    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
+  };
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const bestSectorLaps = useMemo(
@@ -31,6 +36,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
       ),
     [laps, sectorCount],
   );
+  const contextLap = contextMenu ? laps.find((lap) => lap.id === contextMenu.lapId) : undefined;
   const sortedLaps = useMemo(() => sortLaps(laps, lapSortKey, lapSortDir), [laps, lapSortKey, lapSortDir]);
 
   return (
@@ -73,7 +79,18 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                 <TD align="center">
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
-                <TD />
+                <TD align="center" onClick={(event) => event.stopPropagation()}>
+                  <Button
+                    type="button"
+                    variant="app-ghost"
+                    size="icon-xs"
+                    aria-label={lap.isFavorite ? m.sessions_remove_lap_favorite() : m.sessions_add_lap_favorite()}
+                    title={lap.isFavorite ? m.sessions_remove_lap_favorite() : m.sessions_add_lap_favorite()}
+                    onClick={() => void toggleFavorite(lap.id, !lap.isFavorite)}
+                  >
+                    <Star className={lap.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
+                  </Button>
+                </TD>
                 <TD numeric tone="primary">
                   {lap.lapNumber}
                 </TD>
@@ -90,6 +107,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                     <Button
                       variant="app-primary"
                       size="app-sm"
+                      disabled={lap.telemetryAvailable === false}
+                      title={lap.telemetryAvailable === false ? m.sessions_raw_telemetry_removed() : undefined}
                       onClick={(event) => {
                         event.stopPropagation();
                         navigate({ to: `${gameRoute}/sessions/replay`, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } });
@@ -134,9 +153,13 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             }}
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
+            {contextLap?.telemetryAvailable !== false && (
+              <>
             <Button
               variant="app-ghost"
               size="app-sm"
+              disabled={false}
+              title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const response = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
@@ -151,6 +174,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             <Button
               variant="app-ghost"
               size="app-sm"
+              disabled={false}
+              title={undefined}
               className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
@@ -164,6 +189,8 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
             >
               {m.sessions_export_lap()}
             </Button>
+              </>
+            )}
           </div>
         </>
       )}

@@ -32,9 +32,12 @@ type StoredLapMetaRow = {
   resolverVersion?: string | null;
   derivationVersion?: string | null;
   rawFrameCount?: number | null;
+  rawByteOffset?: number | null;
+  rawFile?: string | null;
+  isFavorite?: boolean | number | null;
+  telemetryAvailable?: boolean | number | null;
   ownership?: string | null;
 };
-
 /** Normalize nullable SQLite fields into the public LapMeta representation. */
 export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const {
@@ -62,6 +65,10 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     derivationVersion,
     ownership,
     rawFrameCount,
+    rawByteOffset,
+    rawFile: _rawFile,
+    isFavorite,
+    telemetryAvailable,
     ...base
   } = row;
 
@@ -78,9 +85,16 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
   const frameCount = "rawFrameCount" in row
     ? { rawFrameCount: rawFrameCount ?? null }
     : {};
+  const lapTelemetryAvailable = telemetryAvailable !== undefined
+    ? Boolean(telemetryAvailable)
+    : _rawFile !== undefined
+      ? _rawFile !== null && rawByteOffset != null && (rawFrameCount ?? 0) > 0
+      : undefined;
 
   return {
     ...base,
+    ...versionIdentity,
+    ...frameCount,
     isValid: Boolean(isValid),
     invalidReason: invalidReason ?? undefined,
     notes: notes ?? undefined,
@@ -99,9 +113,8 @@ export function toLapMeta(row: StoredLapMetaRow): LapMeta {
     // incorrectly rank an excluded lap back into the fastest-N pool.
     experimentExcludedSource:
       (experimentExcludedSource as "auto" | "manual" | null) ?? null,
-    fuelPerLap: fuelPerLap ?? null,
     tyreWear: tyreWear ?? null,
-    ...versionIdentity,
-    ...frameCount,
+    isFavorite: Boolean(isFavorite),
+    telemetryAvailable: lapTelemetryAvailable,
   };
 }
