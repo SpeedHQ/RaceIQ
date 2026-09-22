@@ -2,9 +2,11 @@
 
 ### Features
 - Storage settings and Sessions let drivers remove old or selected telemetry while preserving session and lap metadata, with favourite protections and opt-in automatic cleanup
+- Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
 
 ### Fixes
 
+- Align settings switch thumbs fully left when off and fully right when on
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
