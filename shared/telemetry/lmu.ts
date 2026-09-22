@@ -4,6 +4,7 @@ export interface LMUExtendedData {
   gameVersion: number;
   sessionType: string;
   sessionTypeOrdinal: number;
+  deltaBest: number;
   vehicleId: number;
   driverName: string;
   carName: string;

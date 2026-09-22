@@ -161,7 +161,8 @@ function wheel(telemetry: Buffer, index: number): NormalizedWheel {
         offset + LMU_WHEEL.tireCarcassTemperature,
         KELVIN_TO_CELSIUS,
       ) - KELVIN_TO_CELSIUS,
-    wear: clamp(finiteDouble(telemetry, offset + LMU_WHEEL.wear), 0, 1),
+    // LMU reports remaining tire health; RaceIQ packet field stores consumed wear.
+    wear: 1 - clamp(finiteDouble(telemetry, offset + LMU_WHEEL.wear), 0, 1),
     onRumbleStrip:
       telemetry.readUInt8(offset + LMU_WHEEL.surfaceType) === 5 ? 1 : 0,
   };
@@ -322,6 +323,7 @@ export function normalizeLMUSourceFrame(
     gameVersion: frame.gameVersion,
     sessionType: LMU_SESSION_TYPES[sessionTypeOrdinal] ?? "unknown",
     sessionTypeOrdinal,
+    deltaBest: finiteDouble(telemetry, LMU_TELEMETRY.deltaBest),
     vehicleId: telemetry.readInt32LE(LMU_TELEMETRY.id),
     driverName,
     carName,
