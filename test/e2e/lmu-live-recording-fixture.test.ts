@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { open, type FileHandle } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createGunzip } from "node:zlib";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "../../server/games/lmu/layout";
 import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
 import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-const FIXTURE = "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin";
+const FIXTURE = "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz";
 const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;
 const SAMPLE_INDICES = [0, 500, 5_000, 10_000, 20_000, 30_000, 40_000];
@@ -16,46 +17,56 @@ type Sample = {
   nativeDelta: number;
 };
 
-async function readSample(handle: FileHandle, frameSize: number, index: number): Promise<Sample> {
-  const offset = HEADER_SIZE + index * (FRAME_HEADER_SIZE + frameSize);
-  const header = Buffer.alloc(FRAME_HEADER_SIZE);
-  await handle.read(header, 0, header.length, offset);
-  expect(header.readUInt8(0)).toBe(0);
-  expect(header.readUInt32LE(1)).toBe(frameSize);
-
-  const frameBytes = Buffer.alloc(frameSize);
-  await handle.read(frameBytes, 0, frameBytes.length, offset + FRAME_HEADER_SIZE);
-  const frame = decodeLMUSourceFrame(frameBytes);
-  if (!frame) throw new Error(`LMU fixture frame ${index} failed to decode`);
-  const packet = normalizeLMUSourceFrame(frame);
-  const nativeWear = [0, 1, 2, 3].map((wheel) =>
-    frame.telemetry.readDoubleLE(
-      LMU_TELEMETRY.wheels + wheel * LMU_WHEEL_SIZE + LMU_WHEEL.wear,
-    ),
-  );
-  return {
-    packet,
-    nativeWear,
-    nativeDelta: frame.telemetry.readDoubleLE(LMU_TELEMETRY.deltaBest),
+async function readSamples(): Promise<Sample[]> {
+  const stream = createReadStream(FIXTURE).pipe(createGunzip());
+  const iterator = stream[Symbol.asyncIterator]();
+  let buffered = Buffer.alloc(0);
+  const readExact = async (size: number): Promise<Buffer> => {
+    while (buffered.length < size) {
+      const next = await iterator.next();
+      if (next.done) throw new Error(`LMU fixture ended before ${size} bytes`);
+      buffered = Buffer.concat([buffered, next.value as Buffer]);
+    }
+    const result = buffered.subarray(0, size);
+    buffered = buffered.subarray(size);
+    return result;
   };
+
+  const dumpHeader = await readExact(HEADER_SIZE);
+  expect(dumpHeader.subarray(0, 8).toString("ascii")).toBe("LMUQDMP\0");
+  const firstFrameHeader = await readExact(FRAME_HEADER_SIZE);
+  const frameSize = firstFrameHeader.readUInt32LE(1);
+  const samples: Sample[] = [];
+  for (let index = 0; index <= Math.max(...SAMPLE_INDICES); index++) {
+    const frameHeader = index === 0 ? firstFrameHeader : await readExact(FRAME_HEADER_SIZE);
+    expect(frameHeader.readUInt8(0)).toBe(0);
+    expect(frameHeader.readUInt32LE(1)).toBe(frameSize);
+    const frameBytes = await readExact(frameSize);
+    if (!SAMPLE_INDICES.includes(index)) continue;
+    const frame = decodeLMUSourceFrame(frameBytes);
+    if (!frame) throw new Error(`LMU fixture frame ${index} failed to decode`);
+    const packet = normalizeLMUSourceFrame(frame);
+    const nativeWear = [0, 1, 2, 3].map((wheel) =>
+      frame.telemetry.readDoubleLE(
+        LMU_TELEMETRY.wheels + wheel * LMU_WHEEL_SIZE + LMU_WHEEL.wear,
+      ),
+    );
+    samples.push({
+      packet,
+      nativeWear,
+      nativeDelta: frame.telemetry.readDoubleLE(LMU_TELEMETRY.deltaBest),
+    });
+  }
+  await iterator.return?.();
+  return samples;
 }
 
 let samples: Sample[];
 
 beforeAll(async () => {
-  const handle = await open(FIXTURE, "r");
-  try {
-    const firstHeader = Buffer.alloc(FRAME_HEADER_SIZE);
-    await handle.read(firstHeader, 0, firstHeader.length, HEADER_SIZE);
-    const frameSize = firstHeader.readUInt32LE(1);
-    samples = [];
-    for (const index of SAMPLE_INDICES) {
-      samples.push(await readSample(handle, frameSize, index));
-    }
-  } finally {
-    await handle.close();
-  }
-});
+  samples = await readSamples();
+}, 600_000);
+
 
 afterAll(() => stopMaintenanceTasks());
 
