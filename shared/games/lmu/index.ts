@@ -67,7 +67,10 @@ export const lmuAdapter: GameAdapter = {
     weather: {
       source: "direct",
       freshness: "continuous",
-      binding: { kind: "value", semanticId: "weather.rain-percent" },
+      binding: {
+        kind: "group",
+        required: ["weather.air-temp", "weather.track-temp", "weather.rain-percent", "weather.weather-type"],
+      },
     },
     pitStatus: {
       source: "direct",

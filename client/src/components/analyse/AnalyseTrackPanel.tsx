@@ -87,6 +87,14 @@ export function AnalyseTrackPanel({
   hideSteeringOverlay,
   weatherBottomRight,
 }: AnalyseTrackPanelProps) {
+  const weatherValues = telemetry[cursorIdx]?.values ?? {};
+  const weatherData = {
+    weather: weatherValues["weather.weather-type"] as number | undefined,
+    rainPercentage: weatherValues["weather.rain-percent"] as number | undefined,
+    trackTemperature: weatherValues["weather.track-temp"] as number | undefined,
+    airTemperature: weatherValues["weather.air-temp"] as number | undefined,
+  };
+  const hasAirTemperature = weatherData.airTemperature != null;
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
   const anyTrackOverlay = Object.values(trackOverlays).some(Boolean);
   const overlayItems = (Object.keys(DEFAULT_TRACK_OVERLAYS) as TrackOverlayKey[])
@@ -128,7 +136,7 @@ export function AnalyseTrackPanel({
         zoomBehavior={zoomBehavior}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
-      {telemetry[cursorIdx]?.values["weather.air-temp"] != null && <WeatherWidget f1={telemetry[cursorIdx].values as never} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
+      {hasAirTemperature && <WeatherWidget {...weatherData} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
 
       {/* View toggles — top left */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1">
