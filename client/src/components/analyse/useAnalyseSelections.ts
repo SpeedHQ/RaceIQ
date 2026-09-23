@@ -10,6 +10,7 @@ import { useCookieState } from "../../hooks/useCookieState";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 import type { AnalyseSearch } from "../../lib/game-routes";
 import { mergeNameCache } from "../../lib/name-cache";
+import { routePrefixForGameId } from "../../lib/game-routes";
 import {
   DEFAULT_TRACK_OVERLAYS,
   semanticValues,
@@ -40,7 +41,7 @@ function lapCarKey(lap: LapMeta): IdentityKey | null {
   return carIdentityKey(lap);
 }
 
-export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0]) {
+export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<typeof getGame>[0], sessionId?: number) {
   const navigate = useNavigate();
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<IdentityKey | null>(search.track ?? null);
@@ -133,8 +134,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   useEffect(() => {
-    setLaps(allLaps.filter((l) => l.lapTime > 0));
-  }, [allLaps]);
+    setLaps(allLaps.filter((l) => l.lapTime > 0 && (sessionId == null || l.sessionId === sessionId)));
+  }, [allLaps, sessionId]);
   const [trackNames, setTrackNames] = useState<Record<string, string>>({});
   const [carNames, setCarNames] = useState<Record<string, string>>({});
   const tracks = useMemo(() => {
@@ -156,10 +157,12 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     return Array.from(seen.entries()).sort((a, b) => (carNames[a[0]] ?? `Car ${a[0]}`).localeCompare(carNames[b[0]] ?? `Car ${b[0]}`));
   }, [laps, selectedTrack, carNames, gameId]);
   const filteredLaps = useMemo(
-    () => (selectedTrack == null || selectedCar == null
-      ? []
-      : laps.filter((lap) => lapTrackKey(lap) === selectedTrack && lapCarKey(lap) === selectedCar)),
-    [laps, selectedTrack, selectedCar, gameId],
+    () => sessionId != null
+      ? laps.filter((lap) => lap.sessionId === sessionId)
+      : selectedTrack == null || selectedCar == null
+        ? []
+        : laps.filter((lap) => lapTrackKey(lap) === selectedTrack && lapCarKey(lap) === selectedCar),
+    [laps, selectedTrack, selectedCar, gameId, sessionId],
   );
   const { data: initialTrackName } = useTrackName(selectedTrack ?? undefined);
   const { data: initialCarName } = useCarName(selectedCar ?? undefined);
@@ -181,6 +184,16 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const trackName = selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "";
 
   useEffect(() => {
+    if (sessionId != null) {
+      if (selectedLapId == null) return;
+      const routePrefix = routePrefixForGameId(gameId);
+      if (routePrefix) void navigate({
+        to: `/${routePrefix}/sessions/${sessionId}/replay/${selectedLapId}` as never,
+        search: {} as never,
+        replace: true,
+      });
+      return;
+    }
     const pendingKey = pendingRouteSelectionKey.current;
     if (pendingKey != null) {
       const routeMatchesState = selectedTrack === (search.track ?? null) && selectedCar === (search.car ?? null) && selectedLapId === (search.lap ?? null);
@@ -192,7 +205,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       search: (prev: Record<string, unknown>) => ({ ...prev, track: selectedTrack ?? undefined, car: selectedCar ?? undefined, lap: selectedLapId ?? undefined }) as never,
       replace: true,
     });
-  }, [search.track, search.car, search.lap, selectedTrack, selectedCar, selectedLapId, navigate]);
+  }, [search.track, search.car, search.lap, selectedTrack, selectedCar, selectedLapId, sessionId, gameId, navigate]);
   const handleTrackChange = useCallback((value: IdentityKey | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);

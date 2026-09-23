@@ -25,11 +25,11 @@ import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
 
-export function LapAnalyse({ sessionId }: { sessionId?: number } = {}) {
-  return <LapAnalyseInner sessionId={sessionId} />;
+export function LapAnalyse({ sessionId, initialLapId }: { sessionId?: number; initialLapId?: number } = {}) {
+  return <LapAnalyseInner sessionId={sessionId} initialLapId={initialLapId} />;
 }
 
-function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
+function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; initialLapId?: number }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
@@ -78,7 +78,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
     handleCarChange,
     selectLap,
     cursorRef,
-  } = useAnalyseSelections(search, gameId);
+  } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
   const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
     ? resolveLMUCar(String(selectedLap.carId))?.class
     : undefined;
@@ -368,6 +368,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
       <AnalyseLapHeader
         gameId={gameId}
         onBack={handleBackToSessions}
+        sessionFocused={sessionId != null}
         onAnalyseSession={analyseSessionId != null ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(

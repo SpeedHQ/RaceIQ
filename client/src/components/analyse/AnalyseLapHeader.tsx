@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 interface Props {
   gameId: GameId;
   onBack?: () => void;
+  sessionFocused?: boolean;
   onAnalyseSession?: () => void;
   // Selection state
   selectedTrack: number | string | null;
@@ -67,6 +68,7 @@ interface Props {
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
   onBack,
+  sessionFocused,
   onAnalyseSession,
   selectedTrack,
   selectedCar,
@@ -132,27 +134,28 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             {m.label_sessions()}
           </Button>
         )}
-        {/* Track selector */}
-        <SearchSelect
-          value={selectedTrack != null ? String(selectedTrack) : ""}
-          onChange={(v) => onTrackChange(v ? tracks.find(([key]) => String(key) === v)?.[0] ?? null : null)}
-          options={trackOptions}
-          placeholder={m.analyse_search_tracks_placeholder()}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
-        />
-
-        {/* Car selector */}
-        <SearchSelect
-          value={selectedCar != null ? String(selectedCar) : ""}
-          onChange={(v) => onCarChange(v ? carsForTrack.find(([key]) => String(key) === v)?.[0] ?? null : null)}
-          options={carOptions}
-          placeholder={m.analyse_search_cars_placeholder()}
-          disabled={selectedTrack == null}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
-        />
-
+        {!sessionFocused && (
+          <>
+            {/* Track selector */}
+            <SearchSelect
+              value={selectedTrack != null ? String(selectedTrack) : ""}
+              onChange={(v) => onTrackChange(v ? tracks.find(([key]) => String(key) === v)?.[0] ?? null : null)}
+              options={trackOptions}
+              placeholder={m.analyse_search_tracks_placeholder()}
+              className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+              fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
+            />
+            <SearchSelect
+              value={selectedCar != null ? String(selectedCar) : ""}
+              onChange={(v) => onCarChange(v ? carsForTrack.find(([key]) => String(key) === v)?.[0] ?? null : null)}
+              options={carOptions}
+              placeholder={m.analyse_search_cars_placeholder()}
+              disabled={selectedTrack == null}
+              className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+              fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
+            />
+          </>
+        )}
         <div className="flex items-center gap-2">
           <SearchSelect
             value={selectedLapId != null ? String(selectedLapId) : ""}
@@ -198,6 +201,12 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             )}
           </div>
         )}
+        {sessionFocused && (
+          <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
+            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? (selectedLap?.trackOrdinal != null ? `Track ${selectedLap.trackOrdinal}` : "")}</span>
+            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? (selectedLap?.carOrdinal != null ? `Car ${selectedLap.carOrdinal}` : "")}</span>
+          </div>
+        )}
 
         {noteOpen && (
           <NoteModal
@@ -209,7 +218,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             onClose={() => setNoteOpen(false)}
           />
         )}
-        <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
+        <div className={`flex flex-wrap items-center gap-2 ${sessionFocused ? "order-1 w-full @3xl/workspace:ml-auto @3xl/workspace:w-auto" : "w-full @3xl/workspace:ml-auto @3xl/workspace:w-auto"}`}>
           {selectedLapId != null && (
             <Button
               variant="app-outline"

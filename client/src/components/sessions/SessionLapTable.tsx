@@ -1,5 +1,4 @@
 import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
-import { carIdentityKey, trackIdentityKey } from "@shared/racing/sessions/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -93,7 +92,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       size="app-sm"
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate({ to: `${gameRoute}/sessions/replay`, search: { track: trackIdentityKey(session) ?? undefined, car: carIdentityKey(session) ?? undefined, lap: lap.id } });
+                        navigate({ to: `${gameRoute}/sessions/${lap.sessionId}/replay/${lap.id}` as never });
                       }}
                     >
                       {m.label_analyse()}
