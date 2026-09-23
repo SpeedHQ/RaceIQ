@@ -19,7 +19,7 @@ function canonicalize(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, entry]) => entry !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => left.localeCompare(right, "en"))
       .map(([key, entry]) => [key, canonicalize(entry)]),
   );
 }

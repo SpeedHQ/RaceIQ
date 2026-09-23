@@ -166,7 +166,7 @@ export function assertIRacingSessionInfoCaptureCoverage(
       [
         "Uncatalogued iRacing SessionInfo capture leaves:",
         ...[...missing.entries()]
-          .sort(([left], [right]) => left.localeCompare(right))
+          .sort(([left], [right]) => left.localeCompare(right, "en"))
           .map(
             ([path, files]) =>
               `- ${path} (${[...files].sort().join(", ")})`,
