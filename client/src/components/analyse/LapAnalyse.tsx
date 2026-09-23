@@ -357,14 +357,18 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
     const routePrefix = routePrefixForGameId(gameId);
     if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never });
   }, [gameId, navigate]);
-  const handleAnalyseSession = useCallback(() => void navigate({ to: ".", search: {} } as never), [navigate]);
+  const analyseSessionId = sessionId ?? selectedLap?.sessionId;
+  const handleAnalyseSession = useCallback(() => {
+    const routePrefix = routePrefixForGameId(gameId);
+    if (routePrefix && analyseSessionId != null) void navigate({ to: `/${routePrefix}/sessions/${analyseSessionId}/analyse` as never });
+  }, [analyseSessionId, gameId, navigate]);
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
         gameId={gameId}
         onBack={handleBackToSessions}
-        onAnalyseSession={sessionId != null ? handleAnalyseSession : undefined}
+        onAnalyseSession={analyseSessionId != null ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),
