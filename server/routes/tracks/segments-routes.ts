@@ -263,10 +263,9 @@ export const trackSegmentRoutes = new Hono()
     async (c) => {
       const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
-      if (gameId === "lmu") return c.json({ segments: [], source: "none" });
       const ordinal = Number(trackKey);
-      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const { segments, totalDist, source } = await resolveTrackSegments(ordinal, gameId);
+      if (gameId !== "lmu" && !Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
+      const { segments, totalDist, source } = await resolveTrackSegments(gameId === "lmu" ? trackKey : ordinal, gameId);
       if (source === "none") return c.json({ segments: [] });
 
       return c.json({

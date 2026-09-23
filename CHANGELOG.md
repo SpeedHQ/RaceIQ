@@ -1,16 +1,44 @@
 ## Unreleased
 
 ### Features
+- Copy complete cursor telemetry values in formatted text and as JSON
+
+- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and import LMU `.duckdb` recordings from Sessions
+- Record Le Mans Ultimate shared-memory sessions with exact car and track identity, named and native session type shown in Sessions, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
+- Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
+- Show a lightweight Peugeot 9X8 Evo representative model in Le Mans Ultimate analysis views
+- Import ACC and AC Evo MoTeC `.ld`/`.ldx` logs with reconstructed racing lines, canonical telemetry, and setup metadata
 
 ### Fixes
+- Show neutral rather than oversteer in Le Mans Ultimate Analyse when measured front and rear tire slip angles are nearly balanced
+- Show realistic Le Mans Ultimate tire slip angles and ratios in Analyse instead of inflated straight-line readings
+- Restore session recording and live-state resets when a new LMU, Forza, or F1 session starts
+- Open LMU tracks with slash-containing identifiers and resolve live car and track names
+- Show native LMU sector durations and extracted timing boundaries
+- Preserve legacy LMU lap lookups and count distinct cars, tracks, and driven distance correctly
+- Record completed Le Mans Ultimate laps when shared-memory updates arrive at a low rate
+- Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
+- Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
+- Reject LMU telemetry recordings with no complete laps before starting import
+- Preserve final laps, consistent car identity, and correctly scaled suspension data when importing LMU telemetry databases
+- Show shared corner names and segment boundaries on compatible Le Mans Ultimate track layouts
+- Show Le Mans Ultimate racing lines with a geometry legend and interactive pan and zoom in Track Detail debug maps without center-line or grid-dot clutter
+- Align Le Mans Ultimate track-limit edges with selected lap lines in 2D and 3D session and lap analysis
+- Finish pending telemetry writes before closing RaceIQ after a simulator disconnects
+- Keep in-app installer updates disabled in Docker builds
+- Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
+- Keep lap lines closer to track limits on straights by prioritizing straight sections during map alignment
+- Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Restore ACC and AC Evo MoTeC `.ld`/`.ldx` imports for analysis and comparison
 
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Restrict LMU database imports to database-contained data without removing recorded telemetry channels
+- Package DuckDB native runtime files in local and CI Windows releases and resolve them when launched outside the install directory
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
-
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 
 ## v0.18.0 - 2026-09-18
@@ -100,40 +128,26 @@
 ## v0.15.0 - 2026-09-01
 ### Breaking
 - Store primary database as `app.db` and automatically move older `forza-telemetry.db` files; resolve dual-file directories before startup because RaceIQ refuses to overwrite either
+- Rename dashboard routes from `/dash` to `/portable` and reorganize sidebar game navigation.
 
 ### Features
 - Classify imported laps as Mine or Others, filter sessions and owned statistics by ownership, preserve cross-tab selections, and label Compare/Analyse laps with ownership
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
-- Use live Le Mans Ultimate telemetry through its built-in shared-memory interface and import LMU `.duckdb` recordings from Sessions
-- Record Le Mans Ultimate shared-memory sessions with exact car and track identity, named and native session type shown in Sessions, stable catalog-backed URLs, ordered frame capture, and replay/import support for native dumps and canonical session files
-- Browse bundled Le Mans Ultimate car and track catalogs with class filters, car imagery, circuit maps, and shared track facts
-- Show a lightweight Peugeot 9X8 Evo representative model in Le Mans Ultimate analysis views
+- Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
+
+- Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
-- Copy complete cursor telemetry values, availability states, freshness, and packet number as JSON
+- Improve ACC and Assetto Corsa Evo MoTeC `.ld`/`.ldx` imports with reconstructed racing lines, canonical telemetry, setup/ownership metadata, explicit source limitations, smoother car orientation, and better-aligned replay telemetry.
 
 ### Fixes
-- Show neutral rather than oversteer in Le Mans Ultimate Analyse when measured front and rear tire slip angles are nearly balanced
-- Show realistic Le Mans Ultimate tire slip angles and ratios in Analyse instead of inflated straight-line readings
-- Restore session recording and live-state resets when a new LMU, Forza, or F1 session starts
-- Finish pending telemetry writes before closing RaceIQ after a simulator disconnects
-- Open LMU tracks with slash-containing identifiers and resolve live car and track names
-- Show native LMU sector durations and extracted timing boundaries
-- Preserve legacy LMU lap lookups and count distinct cars, tracks, and driven distance correctly
-- Keep in-app installer updates disabled in Docker builds
-- Record completed Le Mans Ultimate laps when shared-memory updates arrive at a low rate
-- Show Le Mans Ultimate cars in a dedicated compact catalog without iRacing-specific categories or imagery
-- Import LMU telemetry databases that require their matching `.duckdb.wal` sidecar
-- Reject LMU telemetry recordings with no complete laps before starting import
-- Preserve final laps, consistent car identity, and correctly scaled suspension data when importing LMU telemetry databases
-- Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
-- Show shared corner names and segment boundaries on compatible Le Mans Ultimate track layouts
-- Show Le Mans Ultimate racing lines with a geometry legend and interactive pan and zoom in Track Detail debug maps without center-line or grid-dot clutter
-- Align Le Mans Ultimate track-limit edges with selected lap lines in 2D and 3D session and lap analysis
-- Keep lap lines closer to track limits on straights by prioritizing straight sections during map alignment
-- Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Improve lap-line fitting to track boundaries
+- Stop showing ACC tire wear and degradation as live data because ACC does not export either channel
+- Keep tuning dashboards scoped to the selected simulator and preserve unavailable track coordinates instead of drawing zero-valued positions
+- Avoid fetching community leaderboard data during startup; load it when the leaderboard is first requested.
+- Preserve every iRacing SDK tick around lap completion so saved laps begin at start/finish without telemetry gaps
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces
 - Keep live dashboards from flickering back to Waiting for telemetry, clearly label measured source telemetry frequency, and maintain the configured browser refresh cadence
@@ -151,15 +165,19 @@
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Show iRacing steering direction and signed values correctly in live views, Analyse, Compare, and saved recordings
+- Roll iRacing wireframe wheels in Analyse when per-wheel rotation telemetry is unavailable
+- Show iRacing lateral G-force on the correct side during turns
 - Use official iRacing turn labels consistently across Analyse maps, segment lists, comparisons, chats, and tuning insights
 - Draw iRacing left-turning oval laps in the correct direction on Analyse track maps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
+- Restore the moving car pointer on iRacing Analyse track maps
 - Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
 - Do not report wheel lockups or brake traction loss for iRacing laps when source telemetry cannot identify them
 - Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
 - Align game metric contracts with catalog-backed semantic bindings; show Forza source-native Grip Ask and normalized lateral slip while hiding unsupported physical metrics.
 - Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
+- Keep semantic live dashboards accurate across temperature units, unavailable tire channels, pit state, tire compounds, grip history, and traction indicators
 - Resolve car and track names on the global home page in each lap's game context
 - Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
@@ -170,6 +188,7 @@
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
+- Keep the welcome wizard responsive and show throttle and brake input lines in its preview
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
 - Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
@@ -182,6 +201,8 @@
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep Compare map markers, telemetry inputs, and deltas aligned by track position after crashes, spins, shortcuts, and off-track detours
+- Keep overlapping Compare lap markers on one shared map position instead of visually separating red and blue dots
+- Render Compare overview hover as one white dot while retaining separate lap dots in the zoomed map
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
@@ -193,12 +214,17 @@
 - Group rear setup controls with their populated mechanical-balance section
 - Close searchable dropdowns, including Analyse lap selection, after choosing an option
 - Show vehicle roll in the correct direction on the Analyse attitude indicator
+- Keep Analyse attitude indicator and roll/pitch readouts moving while replaying saved laps
 - Restore Analyse Data panel rows, section grouping, source-native tyre temperatures, copied values, F1 ERS/DRS details, and green throttle traces on both 2D and 3D views
 - Reduce unnecessary network traffic during update checks when release tags are unchanged
+- Keep live track maps from repeatedly refreshing track boundaries after boundary data loads
 
 ### Internal
-- Package DuckDB native runtime files in local and CI Windows releases and resolve them when launched outside the install directory
-- Restrict LMU database imports to database-contained data without removing recorded telemetry channels
+- Read release notes from GitHub release bodies instead of downloading release-note assets
+- Use explicit comprehensive Storybook stories for visual baselines so shared layouts cover every supported field without simulator fixture churn
+- Benchmark telemetry parser and replay performance with reproducible Mitata CPU guardrails and separate report-only storage I/O measurements
+- Stabilize benchmark regression checks with paired CPU samples, retained-heap probes, and counterbalanced base/current runs
+- Replace first-party Zustand stores with TanStack Store and add development-only unified TanStack Devtools panels
 - Speed Vite development startup with compact locale modules, no development declarations, cached unchanged compiles, and pinned Inlang compiler modules
 - Parallelize Bun unit and integration test execution with dedicated suites and isolated databases
 - Reject ordinary tests that are missing from or duplicated across unit and integration shards in local hooks and CI
@@ -210,6 +236,8 @@
 - Document DeepWiki MCP as the preferred first pass for codebase discovery
 - Catch repository-wide staged lint violations before commit and generate localization modules before root type-checking
 - Preserve complete exports when startup-job tests mock background schedulers
+- Cache prepared Compare course-distance alignment indexes per lap pair and reuse them across base and range requests to reduce repeated spatial work
+- Cover Compare cursor and map-marker alignment with focused unit and seeded browser regressions
 - Keep tune prompt formatting compatible with game-specific setup blobs
 - Require repo-wide Biome and root TypeScript checks in CI, backed by the Biome 2.5.6 schema and recommended preset syntax
 - Allow telemetry catalog validation to bootstrap when the base branch has no committed catalog

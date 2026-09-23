@@ -16,6 +16,8 @@ import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import { alignIRacingAutoSegmentsToTurnLabels, type IRacingMapLabel } from "../../games/iracing/track-map-svg";
 import { lapPath } from "../../../shared/racing/tracks/path";
+import { getLMUTrack } from "../../../shared/games/lmu/catalog";
+import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -197,9 +199,18 @@ export async function resolveTrackOutline(
  * starts and ends.
  */
 export async function resolveTrackSegments(
-  ordinal: number,
+  trackKey: number | string,
   gameId: string | undefined,
 ): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
+  if (gameId === "lmu") {
+    const track = getLMUTrack(String(trackKey));
+    const centerLine = track ? getLMUTrackBoundaries(track.id)?.centerLine : null;
+    if (!centerLine || centerLine.length < 20) return { segments: [], totalDist: 0, source: "none" };
+    const result = autoTrackSegments(centerLine);
+    return { ...result, source: "auto" };
+  }
+
+  const ordinal = Number(trackKey);
   const slug = getSharedTrackName(ordinal, gameId);
   const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
   if (metaSegments.length > 0) {
@@ -215,9 +226,5 @@ export async function resolveTrackSegments(
     gameId === "iracing" && resolved?.labels.length
       ? alignIRacingAutoSegmentsToTurnLabels(result.segments, outline, resolved.labels)
       : result.segments;
-  return {
-    segments,
-    totalDist: result.totalDist,
-    source: "auto",
-  };
+  return { segments, totalDist: result.totalDist, source: "auto" };
 }

@@ -1,5 +1,7 @@
 import type { SessionOwnership } from "@shared/racing/sessions/types";
+import type { GameId } from "@shared/games/ids";
 import { useRef, useState } from "react";
+import { MotecImportModal, type MotecImportSuccess } from "../analyse/MotecImportModal";
 import { OwnershipChoice } from "../import/OwnershipChoice";
 import { importLapsZip } from "../../lib/lap-export";
 import { Button } from "../ui/button";
@@ -39,7 +41,7 @@ function formatLabel(format: DetectedFormat): string {
   }
 }
 
-export function SessionImportModal({ onClose, onImported }: { onClose: () => void; onImported?: (result: ImportResult) => void }) {
+export function SessionImportModal({ gameId, onClose, onImported }: { gameId?: GameId | null; onClose: () => void; onImported?: (result: ImportResult) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [walFile, setWalFile] = useState<File | null>(null);
@@ -106,6 +108,19 @@ export function SessionImportModal({ onClose, onImported }: { onClose: () => voi
   }
 
   const canImport = !!file && !!detected?.supported && ["zip", "bin", "duckdb"].includes(detected.format) && !busy;
+  if (detected?.format === "motec" && file) {
+    return (
+      <MotecImportModal
+        initialGameId={gameId}
+        initialLd={file}
+        ownership={ownership}
+        onOwnershipChange={setOwnership}
+        onClose={onClose}
+        onImported={(motecResult: MotecImportSuccess) => onImported?.({ imported: motecResult.imported, gameId: motecResult.gameId })}
+      />
+    );
+  }
+
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
