@@ -245,6 +245,13 @@ ran v39 before the `car`/`driver` rename.
 - If checkout branch differs from target head, switch to target head before editing.
 - Never force-push target PR branch unless user explicitly requests it.
 
+### Pull request descriptions
+
+- Describe the original user problem and the outcome in concise, easy-to-understand Markdown bullets. Include relevant benchmark results when available; never invent results.
+- Do not list changed files or implementation-only file inventories.
+- When editing PR descriptions with `gh pr edit`, preserve Markdown formatting. Do not pass `\n` inside ordinary quoted shell arguments; shell may keep it as literal text. Use a heredoc/body file or shell quoting that creates real line breaks.
+- Verify the saved description with `gh pr view --json body` and confirm paragraphs and bullets contain actual line breaks before reporting completion.
+
 ### Dependency inspection
 
 - Do not read, search, or inspect `node_modules/` source files. Treat installed dependencies as opaque; use repository code, package manifests, lockfiles, and official upstream documentation when dependency behavior matters.
