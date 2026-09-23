@@ -128,7 +128,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
         {onBack && (
-          <Button variant="app-outline" size="app-sm" onClick={onBack}>
+          <Button variant="app-outline" size="app-md" onClick={onBack}>
             {m.label_sessions()}
           </Button>
         )}
@@ -163,14 +163,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
-          {selectedLapId != null && (
-            <>
-              <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-              </span>
-              {selectedLap?.source === "motec" && <MotecBadge />}
-            </>
-          )}
+          {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
 
         {/* Tune / setup controls.
