@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
+
 import { celsiusToFahrenheit } from "../src/lib/temperature";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
@@ -669,7 +670,6 @@ describe("telemetry capability UI", () => {
     expect(chartData?.tireTempFL).toEqual([81]);
     expect(chartData?.tireTempRR).toEqual([84]);
     expect(chartData?.tireCoreTempFL).toBeUndefined();
-
 
     const markup = renderToStaticMarkup(
       createElement(
