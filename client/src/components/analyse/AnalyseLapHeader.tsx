@@ -289,7 +289,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
+            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-md" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>
