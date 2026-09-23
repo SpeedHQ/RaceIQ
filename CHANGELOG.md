@@ -24,8 +24,14 @@
 - Preserve usable corner racing-line evidence on straight-heavy laps
 - Avoid treating display-scaled suspension movement as physical bottoming
 - Correct Forza steering centering in lap metrics and driver-style analysis
+- Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
+- Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
+- Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+
+- Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 
 - Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
 - Reuse per-frame wheel dynamics across static insight detectors

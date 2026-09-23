@@ -34,7 +34,7 @@ run("bun scripts/build/optimize-client-images.ts", "Optimizing packaged images")
 
 // 5. Compile server binary
 run(
-  `bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --windows-title=RaceIQ --windows-publisher=SpeedHQ --windows-version=${version} --windows-description="RaceIQ" server/bootstrap.ts --outfile dist/raceiq.exe`,
+  `bun build --compile --root . --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --windows-title=RaceIQ --windows-publisher=SpeedHQ --windows-version=${version} --windows-description="RaceIQ" server/bootstrap.ts server/experiments/lap-issues-worker.ts --outfile dist/raceiq.exe`,
   "Compiling server binary",
   { NODE_ENV: "production" },
 );

@@ -110,7 +110,7 @@ function AppShell() {
             collapsed={sidebarCollapsed}
             connected={connected}
             driverName={driverName}
-            forzaReceiving={isRaceOn && packetsPerSec > 0}
+            forzaReceiving={isRaceOn}
             hiddenGames={hiddenGames}
             mobile={false}
             onCollapsedChange={setSidebarCollapsed}
@@ -146,7 +146,7 @@ function AppShell() {
                 collapsed={false}
                 connected={connected}
                 driverName={driverName}
-                forzaReceiving={isRaceOn && packetsPerSec > 0}
+                forzaReceiving={isRaceOn}
                 hiddenGames={hiddenGames}
                 mobile
                 onClose={() => setMobileNavOpen(false)}

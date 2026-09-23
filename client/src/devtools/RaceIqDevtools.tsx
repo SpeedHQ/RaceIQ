@@ -26,6 +26,7 @@ export type RaceIqDevtoolsEvents = {
   "runtime-snapshot": RaceIqRuntimeSnapshot;
   "request-runtime-snapshot": void;
   "toggle-server-state-pause": void;
+  "server-state-subscription": boolean;
 };
 
 export const raceIqRuntimeEventClient = new EventClient<RaceIqDevtoolsEvents>({ pluginId: "raceiq-runtime" });
@@ -56,11 +57,21 @@ function RaceIqRuntimeBridge() {
     publish();
     const removeRequest = raceIqRuntimeEventClient.on("request-runtime-snapshot", publish);
     const removeToggle = raceIqRuntimeEventClient.on("toggle-server-state-pause", () => telemetryStore.actions.toggleDevStatePause());
+    let releaseDevState: (() => void) | undefined;
+    const removeSubscription = raceIqRuntimeEventClient.on("server-state-subscription", (event) => {
+      if (event.payload) releaseDevState ??= telemetryStore.actions.acquireDevState();
+      else {
+        releaseDevState?.();
+        releaseDevState = undefined;
+      }
+    });
     return () => {
       subscriptions.forEach((subscription) => subscription.unsubscribe());
       if (timer) clearTimeout(timer);
       removeRequest();
       removeToggle();
+      removeSubscription();
+      releaseDevState?.();
     };
   }, []);
   return null;
@@ -71,7 +82,9 @@ function RaceIqRuntimePanel() {
   useEffect(() => {
     const remove = raceIqRuntimeEventClient.on("runtime-snapshot", (event) => setRuntime(event.payload));
     raceIqRuntimeEventClient.emit("request-runtime-snapshot", undefined);
-    return remove;
+    return () => {
+      remove();
+    };
   }, []);
   if (!runtime) return <div className="p-4">Waiting...</div>;
   return (
@@ -104,7 +117,16 @@ export default function RaceIqDevtools({ router, queryClient }: { router: Router
             name: "TanStack Store",
             render: <TanStackStoreDevtoolsPanel {...tanStackStoreDescriptors} />,
           },
-          { id: "raceiq-runtime", name: "RaceIQ Runtime", render: <RaceIqRuntimePanel /> },
+          {
+            id: "raceiq-runtime",
+            name: "RaceIQ Runtime",
+            render: (_element, { devtoolsOpen }) => {
+              // The React adapter retains portals after a pane closes; use shell lifecycle.
+              raceIqRuntimeEventClient.emit("server-state-subscription", devtoolsOpen);
+              return <RaceIqRuntimePanel />;
+            },
+            destroy: () => raceIqRuntimeEventClient.emit("server-state-subscription", false),
+          },
         ]}
       />
     </>

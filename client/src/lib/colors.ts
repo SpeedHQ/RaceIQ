@@ -54,6 +54,11 @@ export function deltaColor(value: number): string {
   return DELTA_COLOR_VARS[value <= 0 ? 0 : 1];
 }
 
+export function brakeBarColor(brake: number): string {
+  const position = Math.min(1, Math.max(0, brake / 255));
+  return `color-mix(in srgb, var(--brake-warm) ${(1 - position) * 100}%, var(--brake-hot))`;
+}
+
 export function lapPaceColor(isBest: boolean, isOnTarget: boolean): string {
   if (isBest) return "var(--lap-pace-best)";
   return isOnTarget ? "var(--lap-pace-on-target)" : "var(--lap-pace-off-target)";

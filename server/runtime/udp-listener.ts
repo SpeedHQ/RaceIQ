@@ -12,6 +12,7 @@
  */
 import { resolve } from "node:path";
 import { parsePacket } from "../games/packet-dispatch";
+import { isForzaRaceOffPacket } from "../games/fm-2023/parser";
 import { wsManager } from "./websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
 import { getRunningGame } from "../games/registry";
@@ -36,6 +37,7 @@ class UdpListener {
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
+  private _forzaRaceActive = false;
   private _lastStatusAt = performance.now();
   private _statusTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -124,16 +126,18 @@ class UdpListener {
       }
 
       // Stream-wide activity: count packets handed to wsManager from any
-      // source (UDP, ACC SHM, AC Evo SHM). isRaceOn must reflect all sources,
-      // not just UDP — otherwise shared-memory games show "Waiting" forever.
+      // source (UDP, ACC SHM, AC Evo SHM). FM explicitly reports race-off but
+      // sends nothing during pit service, so its last reported state persists.
       const wsCount = wsManager.packetCount;
       const telemetryPps = Math.round(((wsCount - this._lastWsPacketCount) * 1000) / elapsedMs);
       this._lastWsPacketCount = wsCount;
-      const raceOn = this._receiving || telemetryPps > 0;
-
-      // Broadcast full server status to clients (replaces REST polling)
       const runningGame = getRunningGame();
       const session = lapDetector.session;
+      const raceOn = runningGame?.id === "fm-2023"
+        ? this._forzaRaceActive
+        : this._receiving || telemetryPps > 0;
+
+      // Broadcast full server status to clients (replaces REST polling)
 
       // Log game detection changes and finalize session if game disconnects
       if (this._lastDetectedGame?.id !== runningGame?.id) {
@@ -141,6 +145,7 @@ class UdpListener {
           console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
         } else {
           console.log("[Game] state change to null");
+          this._forzaRaceActive = false;
           // Finalize session immediately when game disconnects
           void lapDetector.finalizeCurrentSession().catch((error) => {
             console.error("[Live Telemetry] Session finalization failed:", error);
@@ -190,13 +195,20 @@ class UdpListener {
     // the exact wire format (including any packets parsePacket would skip).
     this._recorder?.writeRecord(sourceFrame);
 
-    // Returns null when game is paused/in menus (IsRaceOn == 0)
-    const packet = parsePacket(sourceFrame);
-    if (!packet) {
+    const runningGame = getRunningGame();
+    if (runningGame?.id === "fm-2023" && isForzaRaceOffPacket(sourceFrame)) {
+      // FM emits the same zeroed packet during pit service and after the race.
+      // Keep live ownership; a resumed race replaces this provisional snapshot.
+      if (this._forzaRaceActive) await lapDetector.snapshotIncompleteLap();
       return;
     }
 
+    // Returns null when another game is paused/in menus.
+    const packet = parsePacket(sourceFrame);
+    if (!packet) return;
+
     this._receiving = true;
+    if (packet.gameId === "fm-2023") this._forzaRaceActive = true;
     await processPacket(packet, sourceFrame);
   }
 
@@ -226,6 +238,7 @@ class UdpListener {
     this._receiving = false;
     this._packetsInWindow = 0;
     this._packetsPerSec = 0;
+    this._forzaRaceActive = false;
     await this.start(port, hostname ?? this._hostname);
   }
 }

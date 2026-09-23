@@ -17,6 +17,10 @@ Game adapters own parsing, detector construction, coordinate metadata, and game 
 
 Live processing order is intentional: persist the source frame when a recorder is active, normalize the packet, feed the detector, repair a recorder rotation with the same source frame, feed sector and pit trackers, then publish telemetry and development state. Raw offsets must continue to identify the first byte of the corresponding recorded frame. Detector callbacks must keep session-start, lap-complete, and lap-saved order.
 
+Recording never schedules or waits for completed-lap tuning analysis. The experiment AI Engineer requests that work on demand through its own worker. Reference-lap and wear-curve tracker updates remain ordered on ingress.
+
+Debug snapshots require a `dev-state` subscription and are sampled at most 4 Hz. Closing or pausing a debug viewer releases demand. Live projection and history remain full-rate; runtime serializes only the latest owned frame at publication or connection time.
+
 Replay keeps persisted packet order and timestamps, advances native source frames in capture order, and emits canonical values detached from mutable decoder state. Replay must not expose local capture paths or reinterpret parser, catalog, resolver, or derivation versions.
 
 ## Testing

@@ -16,7 +16,7 @@ interface SegmentListProps {
   cursorIdx: number;
 }
 
-export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
+function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
   if (segments.length === 0 || telemetry.length < 10) return null;
   const n = telemetry.length;
   const cumDist = new Array<number>(n);
