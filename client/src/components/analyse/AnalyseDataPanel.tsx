@@ -1,10 +1,13 @@
 import { getGame } from "@shared/games/registry";
+import { getFuelDisplaySemantic, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../../../shared/games/ids";
-import { Check, Copy, Info } from "lucide-react";
+import type { TelemetryVariableId } from "../../../../shared/telemetry/catalog/generated/telemetry-catalog.types";
+import { Braces, Check, Copy, Info } from "lucide-react";
+import { getSteeringLock } from "@/lib/settings-storage";
 import { useCallback, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
-import type { SemanticAnalysisFrame } from "./track-map/types";
+import { semanticNumber, semanticWheelNumbers, type SemanticAnalysisFrame } from "./track-map/types";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
 import { Button } from "../ui/button";
@@ -48,7 +51,7 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
         variant="plain"
         size="content"
         type="button"
-        aria-label="Unavailable features in Analyse"
+        aria-label={m.analyse_unavailable_features_aria()}
         onClick={() => setOpen(true)}
         className="text-app-text-dim outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
       >
@@ -57,7 +60,7 @@ function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysis
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent size="lg" layout="scrollable" overlayClassName="bg-app-bg/60">
           <DialogHeader>
-            <DialogTitle className="text-app-heading font-semibold">Unavailable in Analyse</DialogTitle>
+            <DialogTitle className="text-app-heading font-semibold">{m.analyse_unavailable_title()}</DialogTitle>
           </DialogHeader>
           <ul className="space-y-3 text-app-detail text-app-text-secondary">
             {features.map(({ feature, label, missingSemanticIds }) => (
@@ -81,7 +84,7 @@ function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; game
         variant="plain"
         size="content"
         type="button"
-        aria-label="MoTeC import info"
+        aria-label={m.analyse_motec_info_aria()}
         onClick={() => setOpen(true)}
         className="text-status-warning outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
       >
@@ -92,21 +95,89 @@ function MotecInfoButton({ frame, gameId }: { frame: SemanticAnalysisFrame; game
   );
 }
 
-export function buildAnalyseClipboardText({ frame, packetNumber }: { frame: SemanticAnalysisFrame; packetNumber: number }): string {
+export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: SemanticAnalysisFrame; packetNumber: number }): string {
   return JSON.stringify({
     packetNumber,
     values: frame.values,
     states: frame.states,
     freshness: frame.freshness,
-  });
+  }, null, 2);
+}
+
+export function buildAnalyseClipboardText({ frame, gameId, units }: { frame: SemanticAnalysisFrame; gameId: GameId; units: { speed: (value: number) => number; speedLabel: string; temp: (value: number) => number; tempLabel: string } }): string {
+  const game = getGame(gameId);
+  const display = (value: number | null, digits = 0) => (value == null ? "Unavailable" : value.toFixed(digits));
+  const value = (id: TelemetryVariableId) => semanticNumber(frame, id);
+  const fuel = value("fuel.fuel");
+  const capacity = value("fuel.fuel-capacity") ?? undefined;
+  const fuelDisplay = fuel == null ? null : getFuelDisplaySemantic(fuel, capacity, game.telemetry.fuel);
+  const accel = value("inputs.accel");
+  const brake = value("inputs.brake");
+  const steer = value("inputs.steer");
+  const lock = getSteeringLock();
+  const temperatureMetric = game.telemetry.analysis?.tireTemperature;
+  const primaryTemperatureId = temperatureMetric?.source !== "unavailable" && temperatureMetric?.binding?.kind === "value"
+    ? temperatureMetric.binding.semanticId
+    : "tire.temperature.surface.representative";
+  const temp = semanticWheelNumbers(frame, primaryTemperatureId);
+  const surfaceTemp = semanticWheelNumbers(frame, "tire.temperature.surface.representative");
+  const coreTemp = semanticWheelNumbers(frame, "tire.temperature.core");
+  const dualTemperature = primaryTemperatureId === "tire.temperature.surface.representative"
+    && surfaceTemp.some((entry) => entry != null)
+    && coreTemp.some((entry) => entry != null);
+  const wear = semanticWheelNumbers(frame, "tires.tire-wear");
+  const normalized = semanticWheelNumbers(frame, "suspension.norm-suspension-travel");
+  const millimeters = semanticWheelNumbers(frame, "suspension.suspension-travel-m").map((entry) => (entry == null ? null : entry * 1000));
+  const useMm = game.telemetry.analysis?.suspensionTravel?.source !== "unavailable" && game.telemetry.analysis?.suspensionTravel?.display === "millimeters";
+  const lines = [
+    `Speed: ${value("motion.speed") == null ? "Unavailable" : `${units.speed(value("motion.speed")!).toFixed(0)} ${units.speedLabel}`}`,
+    `RPM: ${display(value("engine.current-engine-rpm"))}`,
+    `Gear: ${display(value("inputs.gear"))}`,
+    `Throttle: ${accel == null ? "Unavailable" : `${((accel / 255) * 100).toFixed(0)}%`}`,
+    `Brake: ${brake == null ? "Unavailable" : `${((brake / 255) * 100).toFixed(0)}%`}`,
+    `Steer: ${steer == null ? "Unavailable" : `${steer > 0 ? "+" : ""}${((steer / 127) * (lock / 2)).toFixed(0)}°`}`,
+  ];
+  if (game.telemetry.boost) lines.push(`Boost: ${display(value("engine.boost"), 1)} psi`);
+  if (game.telemetry.power) lines.push(`Power: ${value("engine.power") == null ? "Unavailable" : `${(value("engine.power")! / WATTS_PER_HORSEPOWER).toFixed(0)} hp`}`);
+  if (game.telemetry.torque) lines.push(`Torque: ${display(value("engine.torque"))} Nm`);
+  lines.push(`Fuel: ${fuelDisplay == null ? "Unavailable" : `${fuelDisplay.amount.toFixed(1)}${fuelDisplay.unit}`}`);
+  lines.push("", "--- Dynamics ---", `G-Force Lat: ${display(value("motion.acceleration-x") == null ? null : -value("motion.acceleration-x")! / 9.81, 2)}g`, `G-Force Lon: ${display(value("motion.acceleration-z") == null ? null : -value("motion.acceleration-z")! / 9.81, 2)}g`);
+  const pitTemp = game.telemetry.analysis?.tireTemperature?.source === "direct" && game.telemetry.analysis?.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = game.telemetry.analysis?.tireHealth?.source === "direct" && game.telemetry.analysis.tireHealth.freshness === "pit-snapshot";
+  const displayTemp = (value: number | null) => value == null ? "Unavailable" : `${units.temp(value).toFixed(0)}${units.tempLabel}`;
+  if (dualTemperature) {
+    lines.push("", `--- Surface Tire Temps (${units.tempLabel}) ---`, `FL: ${displayTemp(surfaceTemp[0])}  FR: ${displayTemp(surfaceTemp[1])}`, `RL: ${displayTemp(surfaceTemp[2])}  RR: ${displayTemp(surfaceTemp[3])}`);
+    lines.push("", `--- Core Tire Temps (${units.tempLabel}) ---`, `FL: ${displayTemp(coreTemp[0])}  FR: ${displayTemp(coreTemp[1])}`, `RL: ${displayTemp(coreTemp[2])}  RR: ${displayTemp(coreTemp[3])}`);
+  } else {
+    lines.push("", `--- ${pitTemp ? "Last Pit Tire Temps" : "Tire Temps"} (${units.tempLabel}) ---`, `FL: ${displayTemp(temp[0])}  FR: ${displayTemp(temp[1])}`, `RL: ${displayTemp(temp[2])}  RR: ${displayTemp(temp[3])}`);
+  }
+  if (wear.some((value) => value != null)) {
+    lines.push(
+      "",
+      `--- ${pitHealth ? "Last Pit Tire Health" : "Tire Health"} ---`,
+      `FL: ${wear[0] == null ? "Unavailable" : `${((1 - wear[0]) * 100).toFixed(1)}%`}  FR: ${wear[1] == null ? "Unavailable" : `${((1 - wear[1]) * 100).toFixed(1)}%`}`,
+      `RL: ${wear[2] == null ? "Unavailable" : `${((1 - wear[2]) * 100).toFixed(1)}%`}  RR: ${wear[3] == null ? "Unavailable" : `${((1 - wear[3]) * 100).toFixed(1)}%`}`,
+    );
+  }
+  const suspensionValue = (index: number) => useMm
+    ? (millimeters[index] == null ? "Unavailable" : `${millimeters[index]!.toFixed(0)}mm`)
+    : (normalized[index] == null ? "Unavailable" : `${(normalized[index]! * 100).toFixed(0)}%`);
+  lines.push("", "--- Suspension Travel ---", `FL: ${suspensionValue(0)}  FR: ${suspensionValue(1)}`, `RL: ${suspensionValue(2)}  RR: ${suspensionValue(3)}`);
+  return lines.join("\n");
 }
 export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"text" | "json" | null>(null);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
-    navigator.clipboard.writeText(buildAnalyseClipboardText({ frame: currentFrame, packetNumber }));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    void navigator.clipboard.writeText(buildAnalyseClipboardText({ frame: currentFrame, gameId, units }));
+    setCopied("text");
+    setTimeout(() => setCopied(null), 1500);
+  }, [currentFrame, gameId, units]);
+  const handleCopyJson = useCallback(() => {
+    if (!currentFrame) return;
+    void navigator.clipboard.writeText(buildAnalyseClipboardJson({ frame: currentFrame, packetNumber }));
+    setCopied("json");
+    setTimeout(() => setCopied(null), 1500);
   }, [currentFrame, packetNumber]);
   return (
     <Tabs
@@ -132,9 +203,14 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
             {currentFrame && (currentFrame.source === "motec" ? <MotecInfoButton frame={currentFrame} gameId={gameId} /> : <UnavailableFeaturesTooltip frame={currentFrame} gameId={gameId} />)}
           </h3>
           {currentFrame && (
-            <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">
-              {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">
+                {copied === "text" ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
+              </Button>
+              <Button type="button" onClick={handleCopyJson} title={m.analyse_copy_json_tooltip()} aria-label={m.analyse_copy_json_tooltip()} className="text-app-text-muted transition-colors hover:text-app-text">
+                {copied === "json" ? <Check className="size-3.5 text-status-success" /> : <Braces className="size-3.5" />}
+              </Button>
+            </div>
           )}
         </div>
         <div className="p-3">

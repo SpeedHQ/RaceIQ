@@ -10,6 +10,7 @@ import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -104,7 +105,7 @@ export function SessionMobileList({
                     <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
-                        {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
                         {session.source === "motec" && <MotecBadge />}
                       </div>
                       <Button

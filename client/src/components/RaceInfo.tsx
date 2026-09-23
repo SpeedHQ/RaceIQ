@@ -46,7 +46,7 @@ export function RaceInfo({
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{view.timing.racePosition ?? "--"}</div>
               </div>
               <div>
-                <div className="text-app-caption text-app-text-muted uppercase tracking-wider">Lap</div>
+                <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.race_lap()}</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
                   {view.timing.lapNumber ?? "--"}
                   {totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}

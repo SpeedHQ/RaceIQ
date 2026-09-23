@@ -31,8 +31,8 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             type="button"
             variant="app-ghost"
             size="icon-xs"
-            aria-label={`Previous ${insight.label} event`}
-            title="Previous event"
+            aria-label={m.insight_previous_event({ label: insight.label })}
+            title={m.insight_previous_event({ label: insight.label })}
             onClick={() => {
               const prev = (eventIdx - 1 + insight.frameIndices.length) % insight.frameIndices.length;
               setEventIdx(prev);
@@ -48,8 +48,8 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             type="button"
             variant="app-ghost"
             size="icon-xs"
-            aria-label={`Next ${insight.label} event`}
-            title="Next event"
+            aria-label={m.insight_next_event({ label: insight.label })}
+            title={m.insight_next_event({ label: insight.label })}
             onClick={() => {
               const next = (eventIdx + 1) % insight.frameIndices.length;
               setEventIdx(next);
@@ -83,7 +83,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
               {items.length > 0 && <span className="text-app-micro bg-app-surface-alt text-app-text-secondary rounded-full px-1.5 tabular-nums">{items.length}</span>}
             </div>
             {items.length === 0 ? (
-              <div className="text-app-caption text-app-text-dim pl-5">✓ No issues detected</div>
+              <div className="text-app-caption text-app-text-dim pl-5">✓ {m.insight_no_issues()}</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {items.map((insight) => (

@@ -113,8 +113,6 @@ export interface SessionRecap {
   gameId: GameId;
   carName: string;
   trackName: string;
-  carOrdinal: number;
-  trackOrdinal: number;
   carId: number | string;
   trackId: number | string;
   createdAt: string;

@@ -4,6 +4,7 @@ import { AppInput } from "@/components/ui/AppInput";
 import { Button } from "@/components/ui/button";
 import type { ExperimentGameId } from "@/hooks/experiments";
 import { useExperiments } from "@/hooks/experiments";
+import { ExperimentGuideModal } from "../ExperimentGuideModal";
 import { ExperimentTable } from "./ExperimentTable";
 import { NewExperimentModal } from "./NewExperimentModal";
 import { NewF1ExperimentModal } from "./NewF1ExperimentModal";
@@ -11,6 +12,7 @@ import { NewF1ExperimentModal } from "./NewF1ExperimentModal";
 export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; onOpen: (id: number) => void }) {
   const { data: sessions = [], isLoading, isError } = useExperiments(gameId);
   const [creating, setCreating] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [search, setSearch] = useState("");
   const normalizedSearch = search.trim().toLocaleLowerCase();
   const filteredSessions = normalizedSearch
@@ -36,6 +38,9 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
             aria-label="Search experiments"
             className="min-w-[200px] flex-1 @3xl/workspace:w-64 @3xl/workspace:flex-none"
           />
+          <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
+            Guide
+          </Button>
           <Button variant="app-primary" size="app-md" onClick={() => setCreating(true)}>
             + New experiment
           </Button>
@@ -60,6 +65,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
             }}
           />
         ))}
+      {guideOpen && <ExperimentGuideModal onClose={() => setGuideOpen(false)} />}
       <ExperimentTable sessions={filteredSessions} onOpen={onOpen} isLoading={isLoading} isError={isError} gameId={gameId} />
     </div>
   );

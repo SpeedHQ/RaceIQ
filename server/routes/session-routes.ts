@@ -35,12 +35,14 @@ export const sessionRoutes = new Hono()
     const data = await getSessionRecapData(id, gameId);
     if (!data) return c.json({ error: "Session not found" }, 404);
     const adapter = tryGetGame(gameId);
-    const carName = gameId === "lmu" && data.session.carId
-      ? getLMUCar(data.session.carId)?.name ?? data.session.carId
-      : adapter ? adapter.getCarName(data.session.carOrdinal) : resolveCarName(data.session.carOrdinal, gameId);
-    const trackName = gameId === "lmu" && data.session.trackId
-      ? getLMUTrack(data.session.trackId)?.name ?? data.session.trackId
-      : adapter ? adapter.getTrackName(data.session.trackOrdinal) : resolveTrackName(data.session.trackOrdinal, gameId);
+    const carId = data.session.carId;
+    const trackId = data.session.trackId;
+    const carName = gameId === "lmu" && typeof carId === "string"
+      ? getLMUCar(carId)?.name ?? carId
+      : adapter ? adapter.getCarName(Number(carId)) : resolveCarName(Number(carId), gameId);
+    const trackName = gameId === "lmu" && typeof trackId === "string"
+      ? getLMUTrack(trackId)?.name ?? trackId
+      : adapter ? adapter.getTrackName(Number(trackId)) : resolveTrackName(Number(trackId), gameId);
     return c.json(computeRecap({ session: data.session, laps: data.laps, carName, trackName, trackLengthM: data.trackLengthM, allTimeBestSec: data.allTimeBestSec, allTimeBestSectors: data.allTimeBestSectors, sectorStarts: data.sectorStarts }));
   })
   .get("/api/sessions/:id/result", zValidator("param", IdParamSchema), zValidator("query", GameIdQuerySchema), async (c) => {

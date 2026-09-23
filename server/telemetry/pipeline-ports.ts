@@ -18,7 +18,7 @@ import {
   TELEMETRY_RESOLVER_VERSION,
 } from "../../shared/telemetry/resolver/versions";
 import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
-import { insertLap, setLapMetrics } from "../db/lap-mutation-queries";
+import { deleteLapOnly, insertLap, setLapMetrics } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";
 import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "../db/experiment-lap-queries";
 import { notifyDriverProfileLap } from "../driver-profile/runner";
@@ -93,6 +93,7 @@ export interface DbAdapter {
     sectors: number[] | null,
     versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number>;
+  deleteLap(lapId: number): Promise<void>;
   /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
    *  Called right after insertLap so /lap-metrics is a pure column read and
    *  never has to decode telemetry on first open. */
@@ -147,6 +148,7 @@ export interface WsAdapter {
   /** Legacy packet capture hook retained for callers/tests. */
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void;
   readonly wantsDevTelemetry?: boolean;
+  readonly wantsDevState: boolean;
   stageDevTelemetry(packet: TelemetryPacket): void;
   publishTelemetry(publication: LiveTelemetryPublication): void;
   broadcastNotification(event: Record<string, unknown>): void;
@@ -179,6 +181,9 @@ export class RealDbAdapter implements DbAdapter {
     const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity ?? scope?.versionIdentity);
     if (scope && this.options.notifyDriverProfile !== false) notifyDriverProfileLap(scope.gameId);
     return lapId;
+  }
+  async deleteLap(lapId: number): Promise<void> {
+    await deleteLapOnly(lapId);
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return setLapMetrics(lapId, fuelPerLap, tyreWear);
@@ -214,6 +219,7 @@ export class CapturingDbAdapter implements DbAdapter {
   readonly laps: CapturedLap[] = [];
   private _sessionId = 0;
   private _lapId = 0;
+  private readonly _lapIds: number[] = [];
 
   insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, versionIdentity?: TelemetryVersionIdentity, ownership?: SessionOwnership, identity?: SessionIdentity): Promise<number> {
     this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, versionIdentity, ownership, identity });
@@ -222,12 +228,22 @@ export class CapturingDbAdapter implements DbAdapter {
 
   insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null, versionIdentity?: TelemetryVersionIdentity): Promise<number> {
     this.laps.push({ sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity });
-    return Promise.resolve(++this._lapId);
+    const id = ++this._lapId;
+    this._lapIds.push(id);
+    return Promise.resolve(id);
   }
 
   readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     this.lapMetrics.push({ lapId, fuelPerLap, tyreWear });
+    return Promise.resolve();
+  }
+  deleteLap(lapId: number): Promise<void> {
+    const index = this._lapIds.indexOf(lapId);
+    if (index >= 0) {
+      this._lapIds.splice(index, 1);
+      this.laps.splice(index, 1);
+    }
     return Promise.resolve();
   }
 
@@ -269,6 +285,7 @@ export class CapturingDbAdapter implements DbAdapter {
 /** No-op WebSocket adapter. Used in tests. */
 export class NullWsAdapter implements WsAdapter {
   readonly wantsDevTelemetry = false;
+  readonly wantsDevState = false;
   broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null, _liveIssues?: TuneIssue[]): void {}
   stageDevTelemetry(_packet: TelemetryPacket): void {}
   publishTelemetry(_publication: LiveTelemetryPublication): void {}
@@ -285,6 +302,9 @@ export class NullDbAdapter implements DbAdapter {
     return Promise.resolve(1);
   }
   setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {
+    return Promise.resolve();
+  }
+  deleteLap(_lapId: number): Promise<void> {
     return Promise.resolve();
   }
   getLaps(_gameId: GameId, _limit: number): Promise<LapMeta[]> {
@@ -367,6 +387,7 @@ export class CapturingWsAdapter implements WsAdapter {
   readonly stagedDevTelemetry: TelemetryPacket[] = [];
   private readonly capturePackets: boolean;
   readonly wantsDevTelemetry = true;
+  readonly wantsDevState = true;
   constructor(capturePackets = true) { this.capturePackets = capturePackets; }
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
     if (this.capturePackets) this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });

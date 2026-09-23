@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import { useGameId } from "../stores/game";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
@@ -57,7 +58,7 @@ function formatRelative(iso: string): string {
   if (hr < 24) return `${hr}h ${m.home_hours_ago()}`;
   const day = Math.floor(hr / 24);
   if (day < 30) return `${day}d ${m.home_days_ago()}`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString(getLocale());
 }
 
 export function ChatsPage() {

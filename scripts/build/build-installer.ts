@@ -56,6 +56,8 @@ runArgs(
   [
     "build",
     "--compile",
+    "--root",
+    ".",
     "--target=bun-windows-x64",
     "--windows-icon=assets/raceiq.ico",
     "--windows-title=RaceIQ",
@@ -71,6 +73,7 @@ runArgs(
     "--define",
     'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
     "server/bootstrap.ts",
+    "server/experiments/lap-issues-worker.ts",
     "--outfile",
     "dist/raceiq.exe",
   ],

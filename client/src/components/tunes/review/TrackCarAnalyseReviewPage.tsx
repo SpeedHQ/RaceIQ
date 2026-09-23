@@ -110,7 +110,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
         sessionId={sessionId}
         sessionLabel={sessionLabel}
         onBack={backToSession}
-        onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } } as never)}
+        onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: gameId === "lmu" ? selectedSession?.trackId ?? lap.trackId : lap.trackOrdinal, car: gameId === "lmu" ? selectedSession?.carId ?? lap.carId : lap.carOrdinal, lap: lap.id } } as never)}
       />
     </div>
   );

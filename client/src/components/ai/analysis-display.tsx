@@ -5,6 +5,7 @@ import { m } from "@/paraglide/messages";
 import { MetricCard, SectionHeader, TrackCard } from "./analysis-primitives";
 import type { AnalysisData, AnalysisHighlight, AnalysisUsage, Segment } from "./analysis-types";
 import { ASSESSMENT_BG, ASSESSMENT_COLORS, findSegment, SEVERITY_COLORS } from "./analysis-utils";
+import { getLocale } from "@/paraglide/runtime";
 
 export function AnalysisDisplay({
   analysis,
@@ -148,7 +149,7 @@ export function AnalysisDisplay({
         <div className="flex items-center gap-1.5 pt-1.5 border-t border-app-border-input/30">
           {usage && (
             <span className="text-app-micro text-app-text-muted font-mono mr-auto">
-              {usage.inputTokens.toLocaleString()}↓ {usage.outputTokens.toLocaleString()}↑ ${usage.costUsd.toFixed(4)} {(usage.durationMs / 1000).toFixed(1)}s
+              {usage.inputTokens.toLocaleString(getLocale())}↓ {usage.outputTokens.toLocaleString(getLocale())}↑ ${usage.costUsd.toFixed(4)} {(usage.durationMs / 1000).toFixed(1)}s
             </span>
           )}
           {onExport && (

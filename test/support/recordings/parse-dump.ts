@@ -20,6 +20,7 @@ import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { META_FRAME_MAGIC } from "../../../server/session-capture/framing"
+import { isPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
 
 let _initialized = false;
 export function ensureInit(): void {
@@ -376,7 +377,9 @@ export async function parseDump(
       continue;
     }
     const segment = lapSegments[bestIndex];
-    if (Math.abs(segment.maxLapTime - lap.lapTime) > 2) {
+    const hasKnownTelemetryGap =
+      lap.invalidReason === "telemetry lap time mismatch" || isPitCycleLap(lap);
+    if (!hasKnownTelemetryGap && Math.abs(segment.maxLapTime - lap.lapTime) > 2) {
       lap.packets = [];
       continue;
     }

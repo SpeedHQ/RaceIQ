@@ -105,7 +105,7 @@ switch (operation) {
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
     run(["bun", "scripts/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
-    run(["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
+    run(["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive", "--fail-on-change"]);
     break;
   }
   case "release-client":

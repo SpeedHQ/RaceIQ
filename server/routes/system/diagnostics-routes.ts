@@ -37,6 +37,7 @@ export const diagnosticsRoutes = new Hono()
    */
   .post("/api/client-log", zValidator("json", ClientLogSchema), async (c) => {
     const { level, scope, message, detail } = c.req.valid("json");
+    if (scope === "console" && message.startsWith("[vite]")) return c.json({ ok: true });
     const suffix = detail ? ` ${JSON.stringify(detail).slice(0, 2000)}` : "";
     const line = `[Client/${scope}] ${message}${suffix}`;
     if (level === "warn") log.warn(line);

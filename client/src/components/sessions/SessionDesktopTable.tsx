@@ -12,6 +12,7 @@ import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir, SortKey } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export type SessionDesktopTableProps = {
   lapsBySession: Map<number, LapMeta[]>;
@@ -142,8 +143,8 @@ export function SessionDesktopTable({
                     <TD nowrap tone="primary">
                       <div className="flex items-center gap-2">
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          {new Date(session.createdAt).toLocaleDateString(getLocale())}{" "}
+                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         {session.source === "motec" && <MotecBadge />}
                         <Button

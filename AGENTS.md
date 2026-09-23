@@ -55,7 +55,7 @@ bun run build:installer
 
 # Client-specific
 cd client && bun run build   # production build (tsc + vite)
-cd client && bun run lint    # ESLint
+cd client && bun run lint    # Oxlint
 
 # Dump mode (develop without a running game — captures raw packets)
 bun run dev:dump:fm            # dump Forza Motorsport packets
@@ -233,7 +233,21 @@ ran v39 before the `car`/`driver` rename.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
-- **Changelog language is customer-facing:** use plain language that explains the user-visible problem and outcome. Prefer `Fix issue preventing <user action or result>` over implementation terms, function names, telemetry internals, or developer jargon.
+**Release-note wording**
+
+- Write for customers scanning quickly.
+- Every bullet must name an explicit product subject, affected page or surface when relevant, and user-visible outcome.
+- Prefer short capability statements: `Publish RaceIQ as a non-root Linux Docker image`.
+- Use exact user-facing surfaces: `Live dashboards` and `Analyse pages`, not vague terms such as `the app`.
+- Describe data at user-understandable granularity: `inner, middle, and outer surface temperatures plus core temperature`, not unexplained terms such as `temperature fidelity`.
+- Use generic wording when capability applies across games; name a simulator only when it changes scope or behavior.
+- Omit implementation mechanics such as `from compact metadata summaries` unless they materially change what users can do.
+- Use one capability or correction per bullet. Split unrelated outcomes.
+- Lead with outcome, use concise present tense, and avoid vague verbs (`improve`, `enhance`, `handle`).
+- Prefer `Fix <user action or result>` for corrections.
+- Omit internal names, code paths, PR numbers, and test/CI details. Do not claim broader behavior than shipped.
+- Keep `Features` focused on new capability, `Fixes` on corrected behavior, `Breaking` on migration or compatibility risk, and `Internal` on non-user-facing work.
+- Preserve `### Fixes` and `### Internal` headings in `## Unreleased`, even when empty.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Branch and PR targeting

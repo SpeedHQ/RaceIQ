@@ -443,10 +443,8 @@ export async function getSessionRecapData(
   return {
     session: {
       id: sessionRow.id,
-      carOrdinal: sessionRow.carOrdinal,
-      trackOrdinal: sessionRow.trackOrdinal,
-      carId: sessionRow.carId,
-      trackId: sessionRow.trackId,
+      carId: sessionRow.carId ?? sessionRow.carOrdinal,
+      trackId: sessionRow.trackId ?? sessionRow.trackOrdinal,
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
       ownership: sessionRow.ownership === "others" ? "others" : "mine",

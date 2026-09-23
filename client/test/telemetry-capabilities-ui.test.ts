@@ -8,9 +8,9 @@ import type { GameId } from "../../shared/games/ids";
 import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { ComboDash } from "../src/components/dashes/ComboDash";
-import { buildChartData } from "../src/components/analyse/AnalyseChartsPanel";
+import { buildChartData } from "../src/components/analyse/chart-data";
 import { AnalyseF1ErsPanel } from "../src/components/analyse/AnalyseF1ErsPanel";
-import { AnalyseDataPanel, buildAnalyseClipboardText } from "../src/components/analyse/AnalyseDataPanel";
+import { AnalyseDataPanel, buildAnalyseClipboardJson } from "../src/components/analyse/AnalyseDataPanel";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { MetricsPanel } from "../src/components/analyse/AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
@@ -576,7 +576,6 @@ describe("telemetry capability UI", () => {
     expect(tireMarkup).not.toContain("-100%");
     expect(tireMarkup).not.toContain("LOCK");
     expect(pitMarkup).toContain("Last pit health");
-    expect(pitMarkup).toContain("PIT LANE");
     expect(pitMarkup).not.toContain("9.9%");
   });
   test("keeps Analyse Data panel main row and section parity", () => {
@@ -652,7 +651,7 @@ describe("telemetry capability UI", () => {
   });
 
   test("copies complete cursor data as JSON with packet number", () => {
-    const text = buildAnalyseClipboardText({ frame: f1ParityFrame, packetNumber: 17 });
+    const text = buildAnalyseClipboardJson({ frame: f1ParityFrame, packetNumber: 17 });
     expect(JSON.parse(text)).toEqual({
       packetNumber: 17,
       values: f1ParityFrame.values,

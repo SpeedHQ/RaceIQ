@@ -163,8 +163,8 @@ export function AnalyseTrackPanel({
         {onZoomBehaviorChange && (
           <Button
             type="button"
-            aria-label="Change track zoom behavior"
-            title="Change track zoom behavior"
+            aria-label={m.analyse_change_zoom_aria()}
+            title={m.analyse_change_zoom_title()}
             onClick={onZoomBehaviorChange}
             className="pointer-events-auto px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
           >
@@ -175,7 +175,7 @@ export function AnalyseTrackPanel({
           <div className="pointer-events-auto flex flex-col gap-1">
             <Button
               type="button"
-              aria-label="Zoom in map"
+              aria-label={m.analyse_zoom_in()}
               onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
@@ -183,7 +183,7 @@ export function AnalyseTrackPanel({
             </Button>
             <Button
               type="button"
-              aria-label="Zoom out map"
+              aria-label={m.analyse_zoom_out()}
               onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >

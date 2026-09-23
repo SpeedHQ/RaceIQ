@@ -4,6 +4,7 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -11,7 +12,7 @@ function formatTimeAgo(date: Date): string {
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${m.home_minutes_ago()}`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ${m.home_hours_ago()}`;
   if (sec < 604800) return `${Math.floor(sec / 86400)}d ${m.home_days_ago()}`;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(getLocale());
 }
 
 export function RecentLapsTable({

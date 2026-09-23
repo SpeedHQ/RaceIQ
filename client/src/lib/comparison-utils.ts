@@ -3,6 +3,10 @@ import type { AlignedTrace } from "@shared/racing/comparison/types";
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";
 
+export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
+  return `${name}:${startFrac}:${endFrac}`;
+}
+
 export interface Point {
   x: number;
   z: number;

@@ -15,10 +15,8 @@ export interface RecapLapInput {
 
 export interface RecapSessionInput {
   id: number;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId?: string | null;
-  trackId?: string | null;
+  carId: number | string;
+  trackId: number | string;
   gameId: GameId;
   createdAt: string;
   ownership?: "mine" | "others";
@@ -174,10 +172,8 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     carName,
     trackName,
     createdAt: session.createdAt,
-    carOrdinal: session.carOrdinal,
-    trackOrdinal: session.trackOrdinal,
-    carId: session.carId ?? session.carOrdinal,
-    trackId: session.trackId ?? session.trackOrdinal,
+    carId: session.carId,
+    trackId: session.trackId,
     lapsValid,
     lapsTotal,
     bestLapSec,

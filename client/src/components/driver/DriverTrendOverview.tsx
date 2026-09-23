@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/driver-profile/trend";
 import type { DriverProfileState } from "../../hooks/driver-profile";
+import { getLocale } from "@/paraglide/runtime";
 
 interface DriverTrendOverviewProps {
   trend: DriverTrend;
@@ -33,7 +34,7 @@ function paceMovement(value: number | null): string {
 
 function lapLabel(lap: DriverTrendLap, position: number, total: number): string {
   const date = new Date(lap.createdAt);
-  const when = Number.isNaN(date.valueOf()) ? lap.createdAt : date.toLocaleString();
+  const when = Number.isNaN(date.valueOf()) ? lap.createdAt : date.toLocaleString(getLocale());
   const pace = lap.relativePacePct !== null && Number.isFinite(lap.relativePacePct) ? `${lap.relativePacePct.toFixed(1)}% from benchmark` : "pace unavailable";
   return `lap ${position} of ${total}, ${when}, ${lap.isValid ? "valid" : "dirty"}, ${pace}`;
 }

@@ -1,7 +1,7 @@
 import { m } from "../../paraglide/messages";
 import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
 
-const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
+const ERS_MODES = [m.f1live_ers_none(), m.f1live_ers_low(), "Medium", m.f1live_ers_high(), m.f1live_ers_overtake()];
 const enumIndex = (frame: SemanticAnalysisFrame, id: keyof SemanticAnalysisFrame["values"]): number | null => {
   const value = frame.values[id];
   if (typeof value === "number" && Number.isInteger(value)) return value;
@@ -25,7 +25,7 @@ export function AnalyseF1ErsPanel({ frame }: { frame: SemanticAnalysisFrame }) {
       <div className="text-app-compact font-mono space-y-1.5 mb-3">
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_drs()}</span>
-          <span className={`font-bold ${drs ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{drs ? "OPEN" : "OFF"}</span>
+          <span className={`font-bold ${drs ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{drs ? m.f1live_drs_open() : m.f1live_drs_off()}</span>
         </div>
         <div>
           <div className="flex justify-between mb-0.5">
@@ -46,7 +46,7 @@ export function AnalyseF1ErsPanel({ frame }: { frame: SemanticAnalysisFrame }) {
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_mode()}</span>
-          <span className="tabular-nums text-app-text">{ERS_MODES[mode] ?? "Unknown"}</span>
+            <span className="tabular-nums text-app-text">{ERS_MODES[mode] ?? m.f1live_unknown()}</span>
         </div>
       </div>
     </>

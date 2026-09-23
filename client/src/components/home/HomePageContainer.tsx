@@ -3,7 +3,7 @@ import { carIdentityKey, trackIdentityKey, type LapMeta } from "@shared/racing/s
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { buildRecapText } from "@/components/SessionRecap";
+import { buildRecapText } from "@/components/sessions/helpers";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
 import { useSettings } from "@/hooks/settings";
@@ -30,8 +30,8 @@ export function HomePageContainer() {
     return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   }, [sessions]);
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
-  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
-  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
 
   const recentLaps = useMemo(
