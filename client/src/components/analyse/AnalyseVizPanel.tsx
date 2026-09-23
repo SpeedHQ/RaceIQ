@@ -20,6 +20,7 @@ interface Props {
   boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
+  lmuCarClass?: string;
 }
 function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
   return (
@@ -31,6 +32,7 @@ function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
     previous.lapLine === next.lapLine &&
     previous.boundaries === next.boundaries &&
     previous.units === next.units &&
+    previous.lmuCarClass === next.lmuCarClass &&
     previous.gameId === next.gameId
   );
 }
@@ -47,6 +49,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   boundaries,
   units,
   gameId,
+  lmuCarClass,
 }: Props) {
   const [visualCursorIdx, setVisualCursorIdx] = useState(cursorIdx);
   useEffect(() => {
@@ -87,6 +90,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
           {visualFrame && (
             <CarWireframe
               gameId={gameId}
+              lmuCarClass={lmuCarClass}
               frame={visualFrame}
               telemetry={semanticFrames}
               cursorRef={cursorRef}

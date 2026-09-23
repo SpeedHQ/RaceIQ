@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, LMU_HYPERCAR_CAR, loadCarModelConfigs } from "../data/car-models";
+import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
@@ -35,6 +35,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   outline,
   boundaries,
   carOrdinal,
+  lmuCarClass,
   carModel: carModelProp,
   tempLabel: tempLabelProp,
   showDimensions,
@@ -43,6 +44,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   autoOrbit,
 }: {
   gameId?: GameId;
+  lmuCarClass?: string;
   frame: SemanticAnalysisFrame;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
@@ -74,9 +76,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   const carModel = useMemo(() => {
     if (carModelProp) return carModelProp;
     if (isF1) return F1_CAR;
-    // LMU currently has no per-car model identity in analysis frames.
-    // Use Peugeot 9X8 as representative hypercar surface until per-car assets exist.
-    if (isLMU) return LMU_HYPERCAR_CAR;
+    // Select the closest available body for every catalog class.
+    if (isLMU) return getLMUClassCarModel(lmuCarClass);
     // Note: getCarModel reads from module-level state populated by
     // loadCarModelConfigs(). configsLoaded is in the dep list so the
     // memo re-runs once configs finish loading — eslint can't see the
@@ -88,7 +89,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     // ACC (and any future game) without a visible car in the scene.
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carOrdinal, configsLoaded, isF1, isLMU, carModelProp]);
+  }, [carOrdinal, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const adapter = tryGetGame(gameId);

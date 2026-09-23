@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { resolveLMUCar } from "../../../../shared/games/lmu/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
@@ -77,6 +78,9 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
     selectLap,
     cursorRef,
   } = useAnalyseSelections(search, gameId);
+  const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
+    ? resolveLMUCar(String(selectedLap.carId))?.class
+    : undefined;
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
   const effectiveTrackOverlays = hasRacingLine ? trackOverlays : { ...trackOverlays, racingLine: false };
   const loading = lapLoading;
@@ -406,6 +410,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
           topSectionProps={{
             semanticFrames,
             gameId,
+            lmuCarClass,
             topHeight,
             leftColWidth,
             rightColWidth,

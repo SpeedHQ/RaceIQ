@@ -91,3 +91,17 @@ export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   modelPath: "/models/aston_martin_vantage_gt3_optimised.glb",
   hasModel: true,
 };
+
+/** Closest available LMU body for each catalog class. */
+export const LMU_CLASS_CAR_MODELS: Record<string, CarModelEnrichment & { hasModel: true }> = {
+  GT3: DEMO_CAR,
+  GTE: DEMO_CAR,
+  PACECAR: DEMO_CAR,
+  HYPERCAR: LMU_HYPERCAR_CAR,
+  LMP2: LMU_HYPERCAR_CAR,
+  LMP3: LMU_HYPERCAR_CAR,
+};
+
+export function getLMUClassCarModel(carClass?: string): CarModelEnrichment & { hasModel: true } {
+  return LMU_CLASS_CAR_MODELS[carClass?.toUpperCase() ?? ""] ?? LMU_HYPERCAR_CAR;
+}
