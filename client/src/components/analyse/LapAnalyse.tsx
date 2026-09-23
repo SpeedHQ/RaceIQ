@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { routePrefixForGameId } from "../../lib/game-routes";
 import { resolveLMUCar } from "../../../../shared/games/lmu/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -352,16 +353,18 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
   });
 
   const navigate = useNavigate();
-  const handleBackToSession = useCallback(
-    () => void navigate({ to: sessionId != null ? "." : "..", ...(sessionId != null ? { search: {} } : {}) } as never),
-    [navigate, sessionId],
-  );
+  const handleBackToSessions = useCallback(() => {
+    const routePrefix = routePrefixForGameId(gameId);
+    if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never });
+  }, [gameId, navigate]);
+  const handleAnalyseSession = useCallback(() => void navigate({ to: ".", search: {} } as never), [navigate]);
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
         gameId={gameId}
-        onBack={handleBackToSession}
+        onBack={handleBackToSessions}
+        onAnalyseSession={sessionId != null ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),

@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 interface Props {
   gameId: GameId;
   onBack?: () => void;
+  onAnalyseSession?: () => void;
   // Selection state
   selectedTrack: number | string | null;
   selectedCar: number | string | null;
@@ -66,6 +67,7 @@ interface Props {
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
   onBack,
+  onAnalyseSession,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -127,7 +129,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
         {onBack && (
           <Button variant="app-outline" size="app-sm" onClick={onBack}>
-            {m.analyse_session_button()}
+            {m.label_sessions()}
           </Button>
         )}
         {/* Track selector */}
@@ -254,6 +256,16 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
               </Button>
             }
             items={[
+              ...(onAnalyseSession
+                ? [
+                    {
+                      key: "analyse-session",
+                      label: m.sessions_analyse_session(),
+                      icon: <Sparkles className="size-3.5" />,
+                      onClick: onAnalyseSession,
+                    },
+                  ]
+                : []),
               ...(selectedLapId != null
                 ? [
                     {
