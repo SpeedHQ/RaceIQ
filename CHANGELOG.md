@@ -32,6 +32,7 @@
 - Show shared corner names and segment boundaries on compatible Le Mans Ultimate track layouts
 - Show Le Mans Ultimate racing lines with a geometry legend and interactive pan and zoom in Track Detail debug maps without center-line or grid-dot clutter
 - Align Le Mans Ultimate track-limit edges with selected lap lines in 2D and 3D session and lap analysis
+- Keep lap lines closer to track limits on straights by prioritizing straight sections during map alignment
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Show iRacing live fuel bars using tank capacity reported by simulator session data
 - Show partial throttle and brake correctly in iRacing Pit Crew bars and telemetry traces

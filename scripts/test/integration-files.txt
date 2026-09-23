@@ -213,6 +213,7 @@ test/session-capture/source-loader-stream.test.ts
 test/sync/laptimes-lazy.test.ts
 test/telemetry/live-pipeline-calibration.test.ts
 test/tracks/calibration.test.ts
+test/tracks/geometry-alignment.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/lap-analysis/lap-export-zip.test.ts
