@@ -587,6 +587,7 @@ describe("telemetry capability UI", () => {
         createElement(AnalyseDataPanel, {
           sidebarTab: "live",
           onSidebarTabChange: () => {},
+          packetNumber: 1,
           currentFrame: f1ParityFrame,
           startFuel: 0.8,
           gameId: "f1-2025",
@@ -627,6 +628,7 @@ describe("telemetry capability UI", () => {
           createElement(AnalyseDataPanel, {
             sidebarTab: "live",
             onSidebarTabChange: () => {},
+            packetNumber: 1,
             currentFrame: f1ParityFrame,
             startFuel: 0.8,
             gameId,
@@ -649,49 +651,14 @@ describe("telemetry capability UI", () => {
     }
   });
 
-  test("builds byte-for-byte main clipboard output", () => {
-    const text = buildAnalyseClipboardText({ frame: f1ParityFrame, gameId: "f1-2025", units: parityUnits });
-    expect(text).toBe(
-      [
-        "Speed: 67 mph",
-        "RPM: 12000",
-        "Gear: 7",
-        "Throttle: 80%",
-        "Brake: 20%",
-        "Steer: -113°",
-        "Power: 1000 hp",
-        "Fuel: 42.0%",
-        "",
-        "--- Dynamics ---",
-        "G-Force Lat: -0.50g",
-        "G-Force Lon: -1.00g",
-        "",
-        "--- Tire Temps (°C) ---",
-        "FL: 90°C  FR: 91°C",
-        "RL: 92°C  RR: 93°C",
-        "",
-        "--- Tire Health ---",
-        "FL: 90.0%  FR: 80.0%",
-        "RL: 70.0%  RR: 60.0%",
-        "",
-        "--- Suspension Travel ---",
-        "FL: 20mm  FR: 40mm",
-        "RL: 60mm  RR: 80mm",
-      ].join("\n"),
-    );
-  });
-  test("labels iRacing clipboard health as a pit snapshot", () => {
-    const text = buildAnalyseClipboardText({
-      frame: semanticFrame({
-        "tire.temperature.carcass.middle": [80, 81, 82, 83],
-        "tires.tire-wear": [0.1, 0.2, 0.3, 0.4],
-      }),
-      gameId: "iracing",
-      units: parityUnits,
+  test("copies complete cursor data as JSON with packet number", () => {
+    const text = buildAnalyseClipboardText({ frame: f1ParityFrame, packetNumber: 17 });
+    expect(JSON.parse(text)).toEqual({
+      packetNumber: 17,
+      values: f1ParityFrame.values,
+      states: f1ParityFrame.states,
+      freshness: f1ParityFrame.freshness,
     });
-
-    expect(text).toContain("--- Last Pit Tire Health ---");
-    expect(text).not.toContain("\n--- Tire Health ---");
   });
   test("treats ACC temperature as one core channel", () => {
     const frame = semanticFrame({
@@ -704,10 +671,6 @@ describe("telemetry capability UI", () => {
     expect(chartData?.tireTempRR).toEqual([84]);
     expect(chartData?.tireCoreTempFL).toBeUndefined();
 
-    const text = buildAnalyseClipboardText({ frame, gameId: "acc", units: parityUnits });
-    expect(text).toContain("--- Tire Temps (°C) ---\nFL: 81°C  FR: 82°C\nRL: 83°C  RR: 84°C");
-    expect(text).not.toContain("Surface Tire Temps");
-    expect(text).not.toContain("Core Tire Temps");
 
     const markup = renderToStaticMarkup(
       createElement(
@@ -726,18 +689,6 @@ describe("telemetry capability UI", () => {
     expect(markup).not.toContain(">Core<");
   });
 
-  test("renders canonical clipboard tire temperatures in selected unit", () => {
-    const text = buildAnalyseClipboardText({
-      frame: semanticFrame({
-        ...f1ParityFrame.values,
-        "tire.temperature.surface.representative": [100, 90, 80, 70],
-      }),
-      gameId: "fm-2023",
-      units: { ...parityUnits, temp: celsiusToFahrenheit, tempLabel: "°F", temperatureUnit: "F" },
-    });
-    expect(text).toContain("FL: 212°F  FR: 194°F");
-    expect(text).not.toContain("414°F");
-  });
 
   test("renders catalog-backed wheel and vehicle surface rows", () => {
     const fm = renderToStaticMarkup(

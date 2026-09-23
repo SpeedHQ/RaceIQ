@@ -14,6 +14,8 @@
 - Show a lightweight Peugeot 9X8 Evo representative model in Le Mans Ultimate analysis views
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
+- Copy complete cursor telemetry values, availability states, freshness, and packet number as JSON
+
 ### Fixes
 - Show neutral rather than oversteer in Le Mans Ultimate Analyse when measured front and rear tire slip angles are nearly balanced
 - Show realistic Le Mans Ultimate tire slip angles and ratios in Analyse instead of inflated straight-line readings

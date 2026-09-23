@@ -472,6 +472,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
           chartsPanelRef={chartsPanelRef}
           dataPanelProps={{
             sidebarTab,
+            packetNumber: cursorIdx + 1,
             onSidebarTabChange: setSidebarTab,
             currentFrame,
             startFuel: semanticNumber(semanticFrames[0], "fuel.fuel") ?? undefined,
