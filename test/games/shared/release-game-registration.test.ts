@@ -9,12 +9,10 @@ const ids = (adapters: readonly { id: string }[]) => adapters.map((adapter) => a
 const developmentEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
   RACEIQ_FEATURE_IRACING_ADAPTER: "true",
-  RACEIQ_FEATURE_LMU_ADAPTER: "true",
 };
 const productionEnv = {
   RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
   RACEIQ_FEATURE_IRACING_ADAPTER: "false",
-  RACEIQ_FEATURE_LMU_ADAPTER: "true",
 };
 
 describe("release game registration", () => {

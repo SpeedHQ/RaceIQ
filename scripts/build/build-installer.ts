@@ -70,8 +70,6 @@ runArgs(
     'process.env.RACEIQ_FEATURE_F1_EXPERIMENTS="false"',
     "--define",
     'process.env.RACEIQ_FEATURE_IRACING_ADAPTER="false"',
-    "--define",
-    'process.env.RACEIQ_FEATURE_LMU_ADAPTER="true"',
     "server/bootstrap.ts",
     "--outfile",
     "dist/raceiq.exe",

@@ -5,13 +5,12 @@ function loadReleaseEnvironment(path: string) {
   const env = { ...process.env };
   delete env.RACEIQ_FEATURE_F1_EXPERIMENTS;
   delete env.RACEIQ_FEATURE_IRACING_ADAPTER;
-  delete env.RACEIQ_FEATURE_LMU_ADAPTER;
   const result = Bun.spawnSync({
     cmd: [
       "bun",
       `--env-file=${path}`,
       "-e",
-      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER, RACEIQ_FEATURE_LMU_ADAPTER: process.env.RACEIQ_FEATURE_LMU_ADAPTER }))',
+      'process.stdout.write(JSON.stringify({ RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS, RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER }))',
     ],
     cwd: import.meta.dir,
     env,
@@ -24,19 +23,16 @@ describe("release feature flags", () => {
   const developmentEnv = {
     RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
     RACEIQ_FEATURE_IRACING_ADAPTER: "true",
-    RACEIQ_FEATURE_LMU_ADAPTER: "true",
   };
   const productionEnv = {
     RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
     RACEIQ_FEATURE_IRACING_ADAPTER: "false",
-    RACEIQ_FEATURE_LMU_ADAPTER: "true",
   };
 
   test("parses enabled development flags", () => {
     expect(releaseFeatureFlags(developmentEnv)).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
-      lmuAdapter: true,
     });
   });
 
@@ -44,7 +40,6 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(productionEnv)).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
-      lmuAdapter: true,
     });
   });
 
@@ -52,7 +47,6 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.development"))).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
-      lmuAdapter: true,
     });
   });
 
@@ -60,7 +54,6 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.production"))).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
-      lmuAdapter: false,
     });
   });
 
@@ -69,7 +62,6 @@ describe("release feature flags", () => {
     expect(developmentReleaseFeatures).toEqual({
       f1Experiments: true,
       iracingAdapter: true,
-      lmuAdapter: true,
     });
   });
 
@@ -82,7 +74,6 @@ describe("release feature flags", () => {
     ).toEqual({
       f1Experiments: false,
       iracingAdapter: true,
-      lmuAdapter: true,
     });
   });
 

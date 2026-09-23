@@ -86,7 +86,6 @@ async function main() {
   releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
-    RACEIQ_FEATURE_LMU_ADAPTER: process.env.RACEIQ_FEATURE_LMU_ADAPTER,
   });
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
@@ -108,8 +107,6 @@ async function main() {
     `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
     "--define",
     `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
-    "--define",
-    `process.env.RACEIQ_FEATURE_LMU_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_LMU_ADAPTER)}`,
   );
   if (process.env.RACEIQ_DOCKER_BUILD === "1") {
     compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_IN_APP_UPDATE="1"');
