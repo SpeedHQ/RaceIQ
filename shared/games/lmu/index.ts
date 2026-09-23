@@ -85,6 +85,7 @@ export const lmuAdapter: GameAdapter = {
             "motion.speed",
             "motion.acceleration-x",
             "motion.angular-velocity-y",
+            "tires.tire-slip-angle",
           ],
         },
       },

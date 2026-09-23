@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "sourceHash": "0dce3eda54b8b2dd51e78fad96d4f5e2d16cf373aa726fcbf79729e92ad0f6ed"
+      "sourceHash": "7bc67b6392f590f699efc13d7649f1f3733d7e92f2db72edc445688d3f23e375"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
@@ -15,11 +15,11 @@
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "9724505201195223035551a922efe5d14f73965f7c44fcb86e13d6c85f07ebaa",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
-      "server/games/lmu/normalizer.ts": "b62ef43e60ee92804d0a912861e2cbc41ce88569ae57bc402c3ee690ffe9ed62",
+      "server/games/lmu/normalizer.ts": "20c4e673a9a661e111954f68a212dfeb9acf6d8ac0019090c54ced2c01268eb9",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "909c663982e75ee90a5e7b034de1980c7ae028d44d5a057bb0f275b3262cced1"
+    "contentHash": "dd2fa53f993464ac3317fb44a718c355e2d81fe61357c6ea4799361bbb3ab111"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -994,6 +994,7 @@
         "timing.current-lap",
         "timing.current-lap-valid",
         "timing.current-race-time",
+        "timing.delta-best",
         "timing.delta-current",
         "timing.delta-last",
         "timing.delta-time-ms",
@@ -45623,6 +45624,63 @@
       "limitations": []
     },
     {
+      "id": "timing.delta-best",
+      "label": "Delta Best",
+      "description": "Delta Best source value reported by lmu in count.",
+      "parentId": "timing",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "lmu": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "lmu.deltaBest"
+          ],
+          "freshness": "continuous",
+          "description": "lmu parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
       "id": "timing.delta-current",
       "label": "Delta Current",
       "description": "preformatted from TIMING_STATE (e.g. \"-0.234\")",
@@ -56706,20 +56764,24 @@
           "nativeUnit": "rad",
           "sources": {
             "FL": [
-              "LMU.Telemetry.wheels.FL.lateralPatchVelocity"
+              "LMU.Telemetry.wheels.FL.lateralPatchVelocity",
+              "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity"
             ],
             "FR": [
-              "LMU.Telemetry.wheels.FR.lateralPatchVelocity"
+              "LMU.Telemetry.wheels.FR.lateralPatchVelocity",
+              "LMU.Telemetry.wheels.FR.longitudinalGroundVelocity"
             ],
             "RL": [
-              "LMU.Telemetry.wheels.RL.lateralPatchVelocity"
+              "LMU.Telemetry.wheels.RL.lateralPatchVelocity",
+              "LMU.Telemetry.wheels.RL.longitudinalGroundVelocity"
             ],
             "RR": [
-              "LMU.Telemetry.wheels.RR.lateralPatchVelocity"
+              "LMU.Telemetry.wheels.RR.lateralPatchVelocity",
+              "LMU.Telemetry.wheels.RR.longitudinalGroundVelocity"
             ]
           },
           "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
+          "description": "lmu maps 8 native source channels into this value.",
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/lmu/normalizer.ts"
@@ -81820,6 +81882,18 @@
         "retention": "exact"
       },
       {
+        "path": "lmu.deltaBest",
+        "label": "Delta Best",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Delta Best source value reported by lmu in count.",
+        "semanticId": "timing.delta-best",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "lmu.driverName",
         "label": "Driver Name",
         "unit": "text",
@@ -83719,7 +83793,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 770,
+    "semanticVariables": 771,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -83767,13 +83841,13 @@
         "recorded": 701
       },
       "lmu": {
-        "total": 170,
+        "total": 171,
         "packet": 126,
-        "extension": 44,
+        "extension": 45,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 170
+        "recorded": 171
       }
     }
   }

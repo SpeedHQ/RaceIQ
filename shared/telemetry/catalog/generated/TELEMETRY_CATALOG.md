@@ -7,8 +7,8 @@
 - Catalog version: `0.13.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator source SHA-256: `0dce3eda54b8b2dd51e78fad96d4f5e2d16cf373aa726fcbf79729e92ad0f6ed`
-- Content SHA-256: `909c663982e75ee90a5e7b034de1980c7ae028d44d5a057bb0f275b3262cced1`
+- Generator source SHA-256: `7bc67b6392f590f699efc13d7649f1f3733d7e92f2db72edc445688d3f23e375`
+- Content SHA-256: `dd2fa53f993464ac3317fb44a718c355e2d81fe61357c6ea4799361bbb3ab111`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
 | iracing | 951 | 701 | 115 | 17 | 324 | 495 | 0 |
-| lmu | 170 | 170 | 126 | 44 | 0 | 0 | 0 |
+| lmu | 171 | 171 | 126 | 45 | 0 | 0 | 0 |
 
 ## Semantic variables
 
@@ -616,6 +616,7 @@
 | `timing.current-lap` | Current Lap | number | time | s | scalar |  |  |  |
 | `timing.current-lap-valid` | Current lap valid | boolean | dimensionless | boolean | scalar |  |  |  |
 | `timing.current-race-time` | Current Race Time | number | time | s | scalar |  |  |  |
+| `timing.delta-best` | Delta Best | number | dimensionless | count | scalar |  |  |  |
 | `timing.delta-current` | Delta Current | string | dimensionless | text | scalar |  |  |  |
 | `timing.delta-last` | Delta Last | string | dimensionless | text | scalar |  |  |  |
 | `timing.delta-time-ms` | Delta Time Ms | number | time | ms | scalar |  |  |  |

@@ -198,10 +198,22 @@ const PACKET_SOURCE_OVERRIDES: Partial<
     TirePressureFrontRight: ["LMU.Telemetry.wheels.FR.pressureKpa"],
     TirePressureRearLeft: ["LMU.Telemetry.wheels.RL.pressureKpa"],
     TirePressureRearRight: ["LMU.Telemetry.wheels.RR.pressureKpa"],
-    TireSlipAngleFL: ["LMU.Telemetry.wheels.FL.lateralPatchVelocity"],
-    TireSlipAngleFR: ["LMU.Telemetry.wheels.FR.lateralPatchVelocity"],
-    TireSlipAngleRL: ["LMU.Telemetry.wheels.RL.lateralPatchVelocity"],
-    TireSlipAngleRR: ["LMU.Telemetry.wheels.RR.lateralPatchVelocity"],
+    TireSlipAngleFL: [
+      "LMU.Telemetry.wheels.FL.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleFR: [
+      "LMU.Telemetry.wheels.FR.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.FR.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleRL: [
+      "LMU.Telemetry.wheels.RL.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.RL.longitudinalGroundVelocity",
+    ],
+    TireSlipAngleRR: [
+      "LMU.Telemetry.wheels.RR.lateralPatchVelocity",
+      "LMU.Telemetry.wheels.RR.longitudinalGroundVelocity",
+    ],
     TireSlipRatioFL: [
       "LMU.Telemetry.wheels.FL.longitudinalPatchVelocity",
       "LMU.Telemetry.wheels.FL.longitudinalGroundVelocity",

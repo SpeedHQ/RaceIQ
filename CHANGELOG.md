@@ -15,6 +15,8 @@
 
 - Detect imported file contents before accepting ZIP/BIN session data and reject unrelated archives
 ### Fixes
+- Show neutral rather than oversteer in Le Mans Ultimate Analyse when measured front and rear tire slip angles are nearly balanced
+- Show realistic Le Mans Ultimate tire slip angles and ratios in Analyse instead of inflated straight-line readings
 - Restore session recording and live-state resets when a new LMU, Forza, or F1 session starts
 - Finish pending telemetry writes before closing RaceIQ after a simulator disconnects
 - Open LMU tracks with slash-containing identifiers and resolve live car and track names

@@ -115,8 +115,9 @@ function lmuSharedMemoryFixture(): Buffer {
     memory.writeDoubleLE(0.04 + index * 0.001, wheel + LMU_WHEEL.suspensionDeflection);
     memory.writeDoubleLE(500 + index * 10, wheel + LMU_WHEEL.brakeTemperature);
     memory.writeDoubleLE(210 + index, wheel + LMU_WHEEL.rotation);
-    memory.writeDoubleLE(71 + index, wheel + LMU_WHEEL.longitudinalPatchVelocity);
+    memory.writeDoubleLE(1 + index, wheel + LMU_WHEEL.longitudinalPatchVelocity);
     memory.writeDoubleLE(70, wheel + LMU_WHEEL.longitudinalGroundVelocity);
+    memory.writeDoubleLE(0.7, wheel + LMU_WHEEL.lateralPatchVelocity);
     memory.writeDoubleLE(180 + index, wheel + LMU_WHEEL.pressureKpa);
     memory.writeDoubleLE(363.15 + index, wheel + LMU_WHEEL.temperature);
     memory.writeDoubleLE(365.15 + index, wheel + LMU_WHEEL.temperature + 8);
@@ -269,6 +270,12 @@ describe("LMU adapter", () => {
       CarOrdinal: -1,
       TrackOrdinal: -1,
     });
+    expect(packet!.TireSlipAngleFL).toBeCloseTo(Math.atan2(0.7, 70), 12);
+    expect(packet!.TireSlipRatioFL).toBeCloseTo(1 / 70, 12);
+    expect(packet!.TireCombinedSlipFL).toBeCloseTo(
+      Math.hypot(1 / 70, 0.7 / 70),
+      12,
+    );
     expect(packet!.Speed).toBeCloseTo(70, 5);
     expect(packet!.DistanceTraveled).toBeCloseTo(32_252, 3);
     expect(packet!.lmu).toMatchObject({

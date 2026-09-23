@@ -90,6 +90,37 @@ describe("LMU live recording fixture", () => {
     expect(samples[0]!.packet.TireWearFL).toBeCloseTo(0, 7);
     expect(samples.at(-1)!.packet.TireWearFL).toBeGreaterThan(0.05);
   });
+  test("normalizes slip from patch motion against ground velocity", () => {
+    const straightAt20k = samples[4]!.packet;
+    const straightAt30k = samples[5]!.packet;
+    const cornerAt10k = samples[3]!.packet;
+    const angles20k = [
+      straightAt20k.TireSlipAngleFL,
+      straightAt20k.TireSlipAngleFR,
+      straightAt20k.TireSlipAngleRL,
+      straightAt20k.TireSlipAngleRR,
+    ];
+    const angles30k = [
+      straightAt30k.TireSlipAngleFL,
+      straightAt30k.TireSlipAngleFR,
+      straightAt30k.TireSlipAngleRL,
+      straightAt30k.TireSlipAngleRR,
+    ];
+    const ratios30k = [
+      straightAt30k.TireSlipRatioFL,
+      straightAt30k.TireSlipRatioFR,
+      straightAt30k.TireSlipRatioRL,
+      straightAt30k.TireSlipRatioRR,
+    ];
+
+    expect(straightAt20k.Speed).toBeCloseTo(61.4, 0);
+    expect(Math.abs((straightAt20k.TireSlipAngleRR! * 180) / Math.PI)).toBeLessThan(0.2);
+    expect(angles20k.every((angle) => Math.abs((angle! * 180) / Math.PI) < 5)).toBe(true);
+    expect(angles30k.every((angle) => Math.abs((angle! * 180) / Math.PI) < 5)).toBe(true);
+    expect(ratios30k.every((ratio) => Math.abs(ratio!) < 0.1)).toBe(true);
+    expect(Math.abs((cornerAt10k.TireSlipAngleFL! * 180) / Math.PI)).toBeGreaterThan(1);
+    expect((cornerAt10k.TireSlipAngleFL! * 180) / Math.PI).toBeCloseTo(-6.4, 0);
+  });
 
   test("retains game's delta-to-best channel", () => {
     for (const { packet, nativeDelta } of samples) {

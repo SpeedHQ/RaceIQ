@@ -112,11 +112,11 @@ function wheel(telemetry: Buffer, index: number): NormalizedWheel {
     offset + LMU_WHEEL.lateralPatchVelocity,
   );
   const slipRatio =
-    (longitudinalPatchVelocity - longitudinalGroundVelocity) /
+    longitudinalPatchVelocity /
     Math.max(Math.abs(longitudinalGroundVelocity), 1);
   const slipAngle = Math.atan2(
     lateralPatchVelocity,
-    Math.max(Math.abs(longitudinalPatchVelocity), 0.1),
+    Math.max(Math.abs(longitudinalGroundVelocity), 0.1),
   );
   const left = finiteDouble(
     telemetry,

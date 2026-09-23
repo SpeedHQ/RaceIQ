@@ -595,7 +595,7 @@ function buildSyntheticFrame(
       wheelOffset + LMU_WHEEL.rotation,
     );
     telemetry.writeDoubleLE(
-      wheelSpeed,
+      wheelSpeed - speedMps,
       wheelOffset + LMU_WHEEL.longitudinalPatchVelocity,
     );
     telemetry.writeDoubleLE(
