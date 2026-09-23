@@ -104,7 +104,7 @@ export function AnalyseTrackPanel({
       data-testid="analyse-track-map-panel"
       className="relative h-full min-w-0 bg-app-bg p-2"
       onWheel={(e) => {
-        if (!rotateWithCar || zoomBehavior === "disabled") return;
+        if (zoomBehavior === "disabled") return;
         e.preventDefault();
         onMapZoomChange((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
       }}
@@ -171,7 +171,7 @@ export function AnalyseTrackPanel({
             {zoomBehavior}
           </Button>
         )}
-        {rotateWithCar && zoomBehavior !== "disabled" && (
+        {zoomBehavior !== "disabled" && (
           <div className="pointer-events-auto flex flex-col gap-1">
             <Button
               type="button"
