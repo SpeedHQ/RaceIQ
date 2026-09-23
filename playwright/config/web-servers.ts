@@ -11,7 +11,7 @@ type WebServerDefinition = {
   stderr: "pipe";
 };
 
-function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean): WebServerDefinition {
+function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boolean, seedSetups = false): WebServerDefinition {
   const command = runtime.devServer ? "bun support/server/start-dev-server.ts" : "bun support/server/start-server.ts";
   const env: Record<string, string> = {
     DATA_DIR: ports.dataDir,
@@ -29,6 +29,8 @@ function serverDefinition(runtime: E2ERuntime, ports: ServerPorts, seeded: boole
     env.RACEIQ_E2E = "1";
     env.RACEIQ_FEATURE_F1_EXPERIMENTS = "true";
     env.RACEIQ_FEATURE_IRACING_ADAPTER = "true";
+    env.PW_SEED_GAMES = "fm-2023,f1-2025,acc,ac-evo,iracing";
+    if (seedSetups) env.PW_SEED_SETUP_DATA = "1";
   }
 
   return {
@@ -46,7 +48,7 @@ export function createWebServers(runtime: E2ERuntime): WebServerDefinition[] {
   const servers: WebServerDefinition[] = [];
   if (runtime.needsFreshServer) servers.push(serverDefinition(runtime, runtime.freshInstall, false));
   if (!runtime.screenshotOnly && runtime.needsTunesServer) {
-    servers.push(serverDefinition(runtime, runtime.tunes, true));
+    servers.push(serverDefinition(runtime, runtime.tunes, true, true));
   }
   if (!runtime.screenshotOnly && runtime.needsTunesUnseededServer) {
     servers.push(serverDefinition(runtime, runtime.tunesUnseeded, false));
