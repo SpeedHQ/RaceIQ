@@ -249,13 +249,14 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
               </Button>
             }
             items={[
-              ...(onAnalyseSession
+              ...(selectedLapId != null || onAnalyseSession
                 ? [
                     {
                       key: "analyse-session",
                       label: m.sessions_analyse_session(),
                       icon: <Sparkles className="size-3.5" />,
-                      onClick: onAnalyseSession,
+                      disabled: !onAnalyseSession,
+                      onClick: () => onAnalyseSession?.(),
                     },
                   ]
                 : []),
