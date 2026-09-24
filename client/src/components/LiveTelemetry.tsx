@@ -1,7 +1,6 @@
 import { getGame, tryGetGame } from "@shared/games/registry";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
-import { useQuery } from "@tanstack/react-query";
 import { useRef } from "react";
 import { m } from "@/paraglide/messages";
 import { useCarName } from "../hooks/catalog-queries";
@@ -9,7 +8,6 @@ import { useGearingIngest, viewToGearingSample } from "../hooks/useGearingIngest
 import { useUnits } from "../hooks/useUnits";
 import { getGearingTelemetryState, type GearingSample } from "../lib/gearing-telemetry";
 import { primaryTireTemperatureC, primaryTireTemperaturesC, type LiveTelemetryView } from "../lib/live-telemetry-view";
-import { client } from "../lib/rpc";
 import { controlInputPercent } from "../lib/vehicle-dynamics";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
@@ -40,33 +38,15 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const { data: resolvedCarName } = useCarName(carOrdinal);
   const carName = resolvedCarName || (carOrdinal != null ? `Car #${carOrdinal}` : "");
 
-
   const units = useUnits();
 
-  // Car spec top speed (fm-2023 only) — ends the dyno pull near top speed so
-  // rev-limiter/drag-limited samples never pollute the curve, and bounds the
-  // gear-ratio charts. Fetched here (not in GearingDashboard) because the
-  // ingestion host owns the auto-stop.
-  const { data: carTopSpeedMph } = useQuery<number | null>({
-    queryKey: ["gearing-car-top-speed", view?.simulator, view?.identity.carOrdinal],
-    queryFn: async () => {
-      if (!view || view.identity.carOrdinal == null) return null;
-      const res = await client.api.cars[":ordinal"].$get({ param: { ordinal: String(view.identity.carOrdinal) } }, { headers: { "X-Game-Id": view.simulator } });
-      if (!res.ok) return null;
-      const car = (await res.json()) as { specs?: { topSpeedMph?: number } };
-      return car?.specs?.topSpeedMph ?? null;
-    },
-    enabled: view?.simulator === "fm-2023" && (view?.identity.carOrdinal ?? -1) > 0,
-  });
-  const topSpeedRef = useRef(0);
-  topSpeedRef.current = carTopSpeedMph != null && carTopSpeedMph > 0 ? units.fromMph(carTopSpeedMph) : 0;
   // Last accepted gearing sample — held so the gearing charts' live needle
   // keeps the last resolved values while required semantics are unavailable.
   const lastValidPacketRef = useRef<GearingSample | null>(null);
 
-  // Feed the gearing accumulators on every dashboard mode so laps driven on
-  // Driver/Pit tabs still record dyno data and calibrate the gear charts.
-  useGearingIngest(view, { autoStopTopSpeed: () => topSpeedRef.current });
+  // Feed gearing telemetry on every dashboard mode so an armed pull can
+  // complete even if the driver switches tabs.
+  useGearingIngest(view);
   if (!view) {
     return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
@@ -185,12 +165,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
 
   // ── GEARING MODE ─────────────────────────────────────────────
   if (mode === "gearing") {
-    return (
-      <div className="grid gap-0 p-0">
-        {heroSection}
-        <GearingDashboard packet={packet} targetMaxSpeed={topSpeedRef.current} />
-      </div>
-    );
+    return <GearingDashboard packet={packet} hero={heroSection} />;
   }
 
   // ── DRIVER MODE ──────────────────────────────────────────────

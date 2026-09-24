@@ -1,4 +1,5 @@
 import type { GameId } from "@shared/games/ids";
+import { type EffectiveGears, updateEffectiveGearing } from "./gear-ranges";
 import { isSampleValid } from "./gearing-validation";
 
 /**
@@ -36,6 +37,13 @@ export interface GearBucket {
   nmCount: number;
 }
 
+export type PowerBandRunPhase = "idle" | "armed" | "pulling";
+
+export interface PowerBandRun {
+  id: number;
+  buckets: Record<number, Record<number, GearBucket>>;
+}
+
 const BUCKET_SIZE = 100;
 const MAX_ACCEL_HISTORY = 300;
 
@@ -57,23 +65,20 @@ export interface TrackSpeedLap {
 export const MAX_TRACK_SAMPLES = 6000;
 let buckets: Record<number, Record<number, GearBucket>> = {};
 let accelZHistory: number[] = [];
-let lastValidPacket: GearingSample | null = null;
 let sessionKey: string | null = null;
-let gearRanges: Record<number, { minRpm: number | null; maxRpm: number | null; minSpeedMps: number | null; maxSpeedMps: number | null }> = {};
-/** When false, ingestGearingTelemetry ignores incoming packets (dyno recording paused). */
-let recording = false;
-/** Master switch for the automatic start/stop triggers (launch hold, pull-back, top speed). */
-let autoRecording = true;
+/** Effective wheel ratio learned continuously from RPM and road speed. */
+let effectiveGears: EffectiveGears = {};
+let effectiveGearSessionKey: string | null = null;
+/** Manual-start pull lifecycle. Pulls arm first, record only at full throttle, then auto-stop on lift or brake. */
+let powerBandRunPhase: PowerBandRunPhase = "idle";
+let powerBandRuns: PowerBandRun[] = [];
+let nextPowerBandRunId = 1;
 /** Highest speed seen this session (m/s). Tracked continuously by
  *  the ingestion host regardless of the dyno recording pause. */
 let maxSpeed = 0;
 /** Session key of the last max-speed sample — resets the max on session change. */
 let maxSpeedKey: string | null = null;
-/** Consecutive full-throttle samples (pull detector). */
-let wotStreak = 0;
-/** Highest RPM seen during the current WOT stretch. */
-let pullMaxRpm = 0;
-let brakeHoldStreak = 0;
+const MAX_POWER_BAND_RUNS = 5;
 
 /** Current and most recently completed lap traces fed by the ingestion host
  *  (always-on, dyno recording ignored). The object identity only changes when
@@ -90,14 +95,14 @@ export const sessionKeyFor = (packet: GearingSample) => `${packet.CarOrdinal}:${
 export function resetGearingTelemetry() {
   buckets = {};
   accelZHistory = [];
-  lastValidPacket = null;
   sessionKey = null;
-  gearRanges = {};
+  effectiveGears = {};
+  effectiveGearSessionKey = null;
+  powerBandRunPhase = "idle";
+  powerBandRuns = [];
+  nextPowerBandRunId = 1;
   maxSpeed = 0;
   maxSpeedKey = null;
-  wotStreak = 0;
-  pullMaxRpm = 0;
-  brakeHoldStreak = 0;
   trackSessionKey = null;
   trackLapStartDistance = 0;
   trackLaps = { current: null, previous: null };
@@ -109,18 +114,24 @@ export function resetTrackLaps() {
   trackSessionKey = null;
   trackLapStartDistance = 0;
 }
-export function setGearingRecording(on: boolean) {
-  const wasRecording = recording;
-  recording = on;
-  // Beep on every transition (manual or auto) so the driver hears the
-  // power-band pull start and finish without looking at the screen.
-  if (wasRecording !== on) playRecordingBeep();
+/** Arm a fresh pull without clearing completed runs or unrelated lap/speed data. */
+export function startPowerBandRun() {
+  buckets = {};
+  accelZHistory = [];
+  powerBandRunPhase = "armed";
+  playRecordingBeep();
 }
 
-/** Enable/disable the automatic start/stop triggers. Persists across resets. */
-export function setAutoRecording(on: boolean) {
-  autoRecording = on;
+/** Finish the active pull and retain its immutable buckets in newest-first session history. */
+export function completePowerBandRun() {
+  if (powerBandRunPhase === "idle") return;
+  if (Object.keys(buckets).length > 0) {
+    powerBandRuns = [{ id: nextPowerBandRunId++, buckets }, ...powerBandRuns].slice(0, MAX_POWER_BAND_RUNS);
+  }
+  powerBandRunPhase = "idle";
+  playRecordingBeep();
 }
+
 let beepAudio: HTMLAudioElement | null = null;
 
 /** Plays the bundled beep. No-op where audio is unavailable. */
@@ -137,53 +148,28 @@ export function playRecordingBeep() {
   }
 }
 
-/** Throttle (0-255) that counts as a full-throttle pull. */
+/** Throttle (0-255) that marks the start and continuation of a valid full-throttle pull. */
 const WOT_THROTTLE = 240;
-/** Sustained WOT samples (~1.5 s at 10 Hz) before a lift counts as a pull. */
-const WOT_MIN_SAMPLES = 15;
-/** Pull must reach this fraction of the idle→max-RPM span to be worth keeping. */
-const PULL_MIN_RPM_RATIO = 0.6;
+/** Brake input (0-255) that ends an active pull. */
+const PULL_END_BRAKE = 32;
 
 /**
- * End-of-pull detector: true exactly once per pull when the driver lifts
- * after a sustained full-throttle stretch that climbed well above idle. Lets
- * the recording stop at the lift even when the car never reaches redline.
+ * Advance the manual-start pull lifecycle for one accepted source sample.
+ * Armed samples are ignored until full throttle. Once pulling, lift or brake
+ * completes the run before that dirty end sample reaches the accumulators.
  */
-export function isPullBack(packet: GearingSample): boolean {
-  if (packet.Accel >= WOT_THROTTLE) {
-    wotStreak++;
-    if (packet.rpm > pullMaxRpm) pullMaxRpm = packet.rpm;
-    return false;
+export function advancePowerBandRun(packet: GearingSample): "ignore" | "record" | "complete" {
+  if (powerBandRunPhase === "idle") return "ignore";
+  if (powerBandRunPhase === "armed") {
+    if (packet.Accel < WOT_THROTTLE || packet.Brake >= PULL_END_BRAKE) return "ignore";
+    powerBandRunPhase = "pulling";
+    return "record";
   }
-  const span = Math.max(1, packet.EngineMaxRpm - packet.EngineIdleRpm);
-  const completed = wotStreak >= WOT_MIN_SAMPLES && pullMaxRpm >= packet.EngineIdleRpm + span * PULL_MIN_RPM_RATIO;
-  wotStreak = 0;
-  pullMaxRpm = 0;
-  return completed;
-}
-
-/** Speed (m/s) at or below which the car counts as stopped. */
-const STOPPED_SPEED = 0.5;
-/** Brake input (0-255) that counts as holding the brake. */
-const BRAKE_HOLD = 200;
-/** ~2 s of stopped-with-brake samples at ~10 Hz ingestion. */
-const LAUNCH_HOLD_SAMPLES = 20;
-
-/**
- * Launch-hold detector: true exactly once when the car sits stopped with the
- * brake held for ~2 s — the auto-start trigger.
- */
-export function isLaunchHold(packet: GearingSample): boolean {
-  if (packet.speedMps <= STOPPED_SPEED && packet.Brake >= BRAKE_HOLD) {
-    brakeHoldStreak++;
-    if (brakeHoldStreak >= LAUNCH_HOLD_SAMPLES) {
-      brakeHoldStreak = 0; // one-shot until the next hold
-      return true;
-    }
-    return false;
+  if (packet.Accel < WOT_THROTTLE || packet.Brake >= PULL_END_BRAKE) {
+    completePowerBandRun();
+    return "complete";
   }
-  brakeHoldStreak = 0;
-  return false;
+  return "record";
 }
 
 /**
@@ -201,14 +187,25 @@ export function trackGearingMaxSpeed(packet: GearingSample) {
   if (isSampleValid(packet) && packet.speedMps > maxSpeed) maxSpeed = packet.speedMps;
 }
 
+/** Learn effective wheel ratios continuously, independent of dyno recording. */
+export function trackEffectiveGearing(packet: GearingSample) {
+  const key = sessionKeyFor(packet);
+  if (key !== effectiveGearSessionKey) {
+    effectiveGearSessionKey = key;
+    effectiveGears = {};
+  }
+  effectiveGears = updateEffectiveGearing(effectiveGears, packet);
+}
+
 export function ingestGearingTelemetry(packet: GearingSample) {
-  // Recording paused (manual toggle or top-speed auto-stop) — ignore packets
-  // entirely so a session change while paused cannot wipe frozen data.
-  if (!recording) return;
+  if (powerBandRunPhase !== "pulling") return;
 
   const key = sessionKeyFor(packet);
   if (key !== sessionKey) {
-    resetGearingTelemetry();
+    buckets = {};
+    accelZHistory = [];
+    powerBandRuns = [];
+    nextPowerBandRunId = 1;
     sessionKey = key;
   }
 
@@ -227,27 +224,6 @@ export function ingestGearingTelemetry(packet: GearingSample) {
   const bucketIdx = Math.floor(rpm / BUCKET_SIZE);
   const powerW = packet.powerW;
   const nm = packet.torqueNm;
-
-  // Track upshift-only min/max RPM and speed
-  if (lastValidPacket && gear > lastValidPacket.Gear) {
-    const prevGear = lastValidPacket.Gear;
-    const prevRpm = lastValidPacket.rpm;
-    const prevSpeed = lastValidPacket.speedMps;
-
-    // Update previous gear's max (RPM/speed when leaving it)
-    if (!gearRanges[prevGear]) {
-      gearRanges[prevGear] = { minRpm: null, maxRpm: prevRpm, minSpeedMps: null, maxSpeedMps: prevSpeed };
-    } else {
-      gearRanges[prevGear] = { ...gearRanges[prevGear], maxRpm: prevRpm, maxSpeedMps: prevSpeed };
-    }
-
-    // Update current gear's min (RPM/speed when entering it)
-    if (!gearRanges[gear]) {
-      gearRanges[gear] = { minRpm: rpm, maxRpm: null, minSpeedMps: speed, maxSpeedMps: null };
-    } else {
-      gearRanges[gear] = { ...gearRanges[gear], minRpm: rpm, minSpeedMps: speed };
-    }
-  }
 
   // Immutable update so React dependency tracking detects changes
   buckets = { ...buckets };
@@ -273,8 +249,6 @@ export function ingestGearingTelemetry(packet: GearingSample) {
     bucket.nmSum += nm;
     bucket.nmCount += 1;
   }
-
-  lastValidPacket = packet;
 }
 
 /**
@@ -321,5 +295,5 @@ export function trackTrackSpeedSample(packet: GearingSample) {
 }
 
 export function getGearingTelemetryState() {
-  return { buckets, accelZHistory, lastValidPacket, sessionKey, gearRanges, recording, autoRecording, maxSpeed, trackLaps };
+  return { buckets, accelZHistory, sessionKey, effectiveGears, powerBandRunPhase, powerBandRuns, maxSpeed, trackLaps };
 }

@@ -1,20 +1,7 @@
 import { useEffect, useRef } from "react";
-import { useUnits } from "./useUnits";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
-import {
-  getGearingTelemetryState,
-  ingestGearingTelemetry,
-  isLaunchHold,
-  isPullBack,
-  setGearingRecording,
-  trackGearingMaxSpeed,
-  trackTrackSpeedSample,
-  type GearingSample,
-} from "../lib/gearing-telemetry";
-
-/** Fraction of the car's spec top speed that ends a dyno pull (auto-stop). */
-const TOP_SPEED_STOP_RATIO = 0.98;
+import { advancePowerBandRun, ingestGearingTelemetry, trackEffectiveGearing, trackGearingMaxSpeed, trackTrackSpeedSample, type GearingSample } from "../lib/gearing-telemetry";
 
 /**
  * Adapt a semantic `LiveTelemetryView` into the canonical `GearingSample`
@@ -88,10 +75,7 @@ export interface SourceSampleClock {
  * (the server restarts sequence and observed timestamps per stream), and
  * out-of-order frames are rejected against the last accepted sequence.
  */
-export function sourceSampleDue(
-  clock: SourceSampleClock,
-  frame: { streamId: string; sequence: number; observedAtMs: number },
-): boolean {
+export function sourceSampleDue(clock: SourceSampleClock, frame: { streamId: string; sequence: number; observedAtMs: number }): boolean {
   if (frame.streamId !== clock.streamId) {
     clock.streamId = frame.streamId;
     clock.lastSequence = -1;
@@ -113,13 +97,12 @@ export function sourceSampleAccept(clock: SourceSampleClock, frame: { sequence: 
  * telemetry source clock (`observedAtMs`/`sequence`) rather than the browser's
  * `performance.now()`, so sampling is deterministic under delayed or bursty
  * delivery. Mounted on the live-telemetry host instead of inside
- * GearingDashboard, so dyno samples, the session max speed and the auto
- * start/stops keep working no matter which dashboard mode is active. Samples
- * missing required semantics are rejected before they reach the accumulators.
+ * GearingDashboard, so effective gear ratios, dyno samples, session max speed,
+ * and automatic pull completion keep working no matter which dashboard mode
+ * is active. Samples missing required semantics are rejected before they reach
+ * the accumulators.
  */
-export function useGearingIngest(view: LiveTelemetryView | null, options: { autoStopTopSpeed?: () => number } = {}) {
-  const { autoStopTopSpeed } = options;
-  const units = useUnits();
+export function useGearingIngest(view: LiveTelemetryView | null) {
   const sampleClock = useRef<SourceSampleClock>({ streamId: null, lastSequence: -1, lastObservedAtMs: 0 });
 
   useEffect(() => {
@@ -128,28 +111,12 @@ export function useGearingIngest(view: LiveTelemetryView | null, options: { auto
     const packet = viewToGearingSample(view);
     if (!packet) return; // required semantics unavailable — reject, don't fabricate zeros
     sourceSampleAccept(sampleClock.current, view);
+    trackEffectiveGearing(packet);
     trackGearingMaxSpeed(packet);
     trackTrackSpeedSample(packet);
 
-    const gearing = getGearingTelemetryState();
-
-    // Auto-start: car stopped with the brake held ~2 s → beep + record.
-    if (!gearing.recording && gearing.autoRecording && isLaunchHold(packet)) {
-      setGearingRecording(true);
-    }
-
-    // Auto-stop at the end of a full-throttle pull (throttle lift) — covers
-    // cars that can't reach the top-speed trigger.
-    if (gearing.recording && gearing.autoRecording && isPullBack(packet)) {
-      setGearingRecording(false);
-      return; // lift sample is dirty — drop it
-    }
-
-    const topSpeed = autoStopTopSpeed?.() ?? 0;
-    if (gearing.autoRecording && topSpeed > 0 && units.speed(packet.speedMps) >= topSpeed * TOP_SPEED_STOP_RATIO) {
-      setGearingRecording(false);
-      return; // sample at/above top speed is dirty — drop it
-    }
+    const runAction = advancePowerBandRun(packet);
+    if (runAction !== "record") return;
     ingestGearingTelemetry(packet);
-  }, [view, autoStopTopSpeed, units]);
+  }, [view]);
 }

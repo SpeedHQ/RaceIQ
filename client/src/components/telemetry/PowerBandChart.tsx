@@ -4,7 +4,6 @@ import type { GearingSample } from "../../lib/gearing-telemetry";
 import { findVisualCrossing, interpolateValue } from "../../lib/gearing-ratios";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { m } from "../../paraglide/messages";
-import { Button } from "../ui/button";
 
 interface Props {
   packet: GearingSample | null;
@@ -12,14 +11,6 @@ interface Props {
   torqueCurve: { rpm: number; nm: number }[];
   /** Best shift RPM from the power-drop heuristic; null = none/redline. */
   shiftPointRpm?: number | null;
-  /** Whether live dyno samples are being recorded (controls only). */
-  recording?: boolean;
-  /** Master switch for the automatic start/stop triggers. */
-  autoRecording?: boolean;
-  /** When both handlers are provided, the header renders recording controls. */
-  onToggleRecording?: () => void;
-  onToggleAutoRecording?: () => void;
-  onReset?: () => void;
 }
 
 /**
@@ -28,7 +19,7 @@ interface Props {
  * power band highlight, and a live RPM needle.
  * Hovering the chart renders a crosshair + tooltip with RPM / HP / Nm.
  */
-export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm = null, recording = false, autoRecording = true, onToggleRecording, onToggleAutoRecording, onReset }: Props) {
+export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm = null }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const drawRef = useRef(() => {});
@@ -480,28 +471,10 @@ export function PowerBandChart({ packet, powerCurve, torqueCurve, shiftPointRpm 
     <div className="h-full flex flex-col border-b border-app-border">
       <div className="shrink-0 p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.powerband_title()}</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-app-text-dim">
-            {packet && packet.powerW > 0 ? `${(packet.powerW / WATTS_PER_HORSEPOWER).toFixed(0)} hp` : ""}
-            {packet && packet.torqueNm > 0 ? ` / ${packet.torqueNm.toFixed(0)} Nm` : ""}
-          </span>
-          {onToggleRecording && onReset && (
-            <div className="flex items-center gap-2">
-              {onToggleAutoRecording && (
-                <label className="flex items-center gap-1 text-xs text-app-text-muted cursor-pointer select-none">
-                  <input type="checkbox" checked={autoRecording} onChange={onToggleAutoRecording} style={{ accentColor: "var(--app-accent)" }} />
-                  {m.powerband_auto()}
-                </label>
-              )}
-              <Button size="app-sm" variant={recording ? "app-primary" : "app-outline"} onClick={onToggleRecording}>
-                {recording ? m.powerband_record_stop() : m.powerband_record_start()}
-              </Button>
-              <Button size="app-sm" variant="app-outline" onClick={onReset}>
-                {m.powerband_reset()}
-              </Button>
-            </div>
-          )}
-        </div>
+        <span className="text-xs font-mono text-app-text-dim">
+          {packet && packet.powerW > 0 ? `${(packet.powerW / WATTS_PER_HORSEPOWER).toFixed(0)} hp` : ""}
+          {packet && packet.torqueNm > 0 ? ` / ${packet.torqueNm.toFixed(0)} Nm` : ""}
+        </span>
       </div>
       <div ref={containerRef} className="w-full" style={{ height: 280 }}>
         <canvas ref={canvasRef} className="w-full h-full rounded" style={{ cursor: "crosshair" }} />

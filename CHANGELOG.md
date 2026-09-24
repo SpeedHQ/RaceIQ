@@ -1,6 +1,8 @@
 ## Unreleased
 
 ### Features
+- Gearing dashboard records manual-start power-band pulls, stops automatically on throttle lift or braking, and keeps recent run history
+- Learn effective gear ratios automatically from live RPM and speed, showing redline speeds and post-shift RPM without a saved setup
 
 ### Fixes
 

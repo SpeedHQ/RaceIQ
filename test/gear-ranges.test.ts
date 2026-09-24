@@ -1,5 +1,5 @@
-import { describe, test, expect } from "bun:test";
-import { computeGearRanges } from "../client/src/lib/gear-ranges";
+import { describe, expect, test } from "bun:test";
+import { computeEffectiveGearing, effectiveGearReady, updateEffectiveGearing } from "../client/src/lib/gear-ranges";
 import type { GearingSample } from "../client/src/lib/gearing-telemetry";
 import { initGameAdapters } from "../shared/games/init";
 
@@ -14,12 +14,12 @@ function makePacket(overrides: Partial<GearingSample> = {}): GearingSample {
     Brake: 0,
     Gear: 1,
     raceActive: true,
-    rpm: 3000,
-    EngineMaxRpm: 8000,
-    EngineIdleRpm: 1000,
+    rpm: 3_000,
+    EngineMaxRpm: 8_000,
+    EngineIdleRpm: 1_000,
     speedMps: 20,
     AccelerationZ: 0,
-    powerW: 100000,
+    powerW: 100_000,
     torqueNm: 300,
     LapNumber: 1,
     DistanceTraveled: 0,
@@ -27,61 +27,37 @@ function makePacket(overrides: Partial<GearingSample> = {}): GearingSample {
   };
 }
 
-describe("computeGearRanges", () => {
-  test("returns empty array for empty input", () => {
-    expect(computeGearRanges([])).toEqual([]);
+describe("effective gearing inference", () => {
+  test("learns redline speed from consistent RPM and speed samples", () => {
+    const rpmPerMps = 120;
+    const packets = Array.from({ length: 25 }, (_, index) => {
+      const rpm = 2_000 + index * 200;
+      return makePacket({ Gear: 3, rpm, speedMps: rpm / rpmPerMps });
+    });
+
+    const learned = computeEffectiveGearing(packets)[3];
+    expect(learned.rpmPerMps).toBeCloseTo(rpmPerMps, 6);
+    expect(learned.sampleCount).toBe(25);
+    expect(effectiveGearReady(learned)).toBe(true);
+    expect(8_000 / learned.rpmPerMps).toBeCloseTo(66.666, 2);
   });
 
-  test("computes min/max for a single gear", () => {
-    const packets = [
-      makePacket({ Gear: 1, rpm: 3000, speedMps: 50 }),
-      makePacket({ Gear: 1, rpm: 5000, speedMps: 80 }),
-      makePacket({ Gear: 1, rpm: 4000, speedMps: 60 }),
-    ];
-    const result = computeGearRanges(packets);
-    expect(result).toEqual([{ gear: 1, minRpm: 3000, maxRpm: 5000, minSpeedMps: 50, maxSpeedMps: 80 }]);
+  test("keeps independent effective ratios for each observed gear", () => {
+    const learned = computeEffectiveGearing([makePacket({ Gear: 1, rpm: 4_000, speedMps: 20 }), makePacket({ Gear: 2, rpm: 4_000, speedMps: 40 }), makePacket({ Gear: 3, rpm: 4_000, speedMps: 50 })]);
+
+    expect(Object.keys(learned)).toEqual(["1", "2", "3"]);
+    expect(learned[1].rpmPerMps).toBe(200);
+    expect(learned[2].rpmPerMps).toBe(100);
+    expect(learned[3].rpmPerMps).toBe(80);
   });
 
-  test("computes ranges for multiple gears", () => {
-    const packets = [
-      makePacket({ Gear: 1, rpm: 7000, speedMps: 80 }),
-      makePacket({ Gear: 2, rpm: 5000, speedMps: 100 }),
-      makePacket({ Gear: 1, rpm: 2000, speedMps: 30 }),
-      makePacket({ Gear: 2, rpm: 6000, speedMps: 120 }),
-    ];
-    const result = computeGearRanges(packets);
-    expect(result).toEqual([
-      { gear: 1, minRpm: 2000, maxRpm: 7000, minSpeedMps: 30, maxSpeedMps: 80 },
-      { gear: 2, minRpm: 5000, maxRpm: 6000, minSpeedMps: 100, maxSpeedMps: 120 },
-    ]);
-  });
+  test("rejects shift-slip outliers and samples without drive load", () => {
+    let learned = computeEffectiveGearing(Array.from({ length: 6 }, (_, index) => makePacket({ rpm: 3_000 + index * 200, speedMps: (3_000 + index * 200) / 100 })));
+    learned = updateEffectiveGearing(learned, makePacket({ rpm: 7_000, speedMps: 20 }));
+    learned = updateEffectiveGearing(learned, makePacket({ rpm: 4_000, speedMps: 40, Accel: 0 }));
+    learned = updateEffectiveGearing(learned, makePacket({ rpm: 4_000, speedMps: 40, Brake: 255 }));
 
-  test("filters out neutral and reverse", () => {
-    const packets = [
-      makePacket({ Gear: 0, rpm: 3000, speedMps: 0 }),
-      makePacket({ Gear: 11, rpm: 2000, speedMps: 10 }),
-      makePacket({ Gear: 1, rpm: 4000, speedMps: 60 }),
-    ];
-    const result = computeGearRanges(packets);
-    expect(result).toEqual([{ gear: 1, minRpm: 4000, maxRpm: 4000, minSpeedMps: 60, maxSpeedMps: 60 }]);
-  });
-
-  test("filters invalid samples (raceActive false for fm-2023)", () => {
-    const packets = [
-      makePacket({ Gear: 1, rpm: 3000, speedMps: 50, raceActive: false }),
-      makePacket({ Gear: 1, rpm: 5000, speedMps: 80, raceActive: true }),
-    ];
-    const result = computeGearRanges(packets);
-    expect(result).toEqual([{ gear: 1, minRpm: 5000, maxRpm: 5000, minSpeedMps: 80, maxSpeedMps: 80 }]);
-  });
-
-  test("sorts gears numerically", () => {
-    const packets = [
-      makePacket({ Gear: 3, rpm: 4000, speedMps: 90 }),
-      makePacket({ Gear: 1, rpm: 3000, speedMps: 50 }),
-      makePacket({ Gear: 2, rpm: 3500, speedMps: 70 }),
-    ];
-    const result = computeGearRanges(packets);
-    expect(result.map((r) => r.gear)).toEqual([1, 2, 3]);
+    expect(learned[1].sampleCount).toBe(6);
+    expect(learned[1].rpmPerMps).toBeCloseTo(100, 6);
   });
 });

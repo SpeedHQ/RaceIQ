@@ -147,6 +147,7 @@ describe("local UI diff report", () => {
     expect(storybookConfig).toContain("RACEIQ_SNAPSHOT_DIR");
     expect(existsSync(join(repoRoot, "scripts/chromium-cdp.ts"))).toBeFalse();
     expect(snapshotCases).toContain('outputName: "snapshot-F1LiveDashboard.png"');
+    expect(snapshotCases).toContain('outputName: "snapshot-GearingDashboard.png"');
     expect(snapshotCases).toContain('outputName: "snapshot-theme-semantic-states.png"');
     expect(dashboardSnapshots).toContain("DASHBOARD_SNAPSHOT_CASES");
     expect(themeSnapshot).toContain("THEME_SNAPSHOT_CASE");
@@ -169,9 +170,9 @@ describe("local UI diff report", () => {
     expect(RESPONSIVE_PAGES).toHaveLength(50);
     expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(5);
     expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
-    expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(10);
+    expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(11);
     expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(17);
-    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(27);
-    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(124);
+    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(28);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(125);
   });
 });

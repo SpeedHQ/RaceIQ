@@ -1,9 +1,9 @@
 import { Info } from "lucide-react";
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useUnits } from "../../hooks/useUnits";
 import type { GearingSample } from "../../lib/gearing-telemetry";
 import { findBestShiftRpm, findVisualCrossing } from "../../lib/gearing-ratios";
-import { getGearingTelemetryState, resetGearingTelemetry, resetTrackLaps, setAutoRecording, setGearingRecording } from "../../lib/gearing-telemetry";
+import { getGearingTelemetryState, resetGearingTelemetry, resetTrackLaps, startPowerBandRun } from "../../lib/gearing-telemetry";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -21,7 +21,7 @@ import { TrackSpeedChart } from "./TrackSpeedChart";
  * the accumulated state at 5 Hz to avoid re-rendering at the full telemetry
  * frame rate.
  */
-export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSample | null; targetMaxSpeed: number }) {
+export function GearingDashboard({ packet, hero }: { packet: GearingSample | null; hero: ReactNode }) {
   const units = useUnits();
 
   // Poll the accumulated state at 5 Hz instead of subscribing to a Zustand store
@@ -34,11 +34,10 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
       if (
         next.buckets === stateRef.current.buckets &&
         next.accelZHistory === stateRef.current.accelZHistory &&
-        next.lastValidPacket === stateRef.current.lastValidPacket &&
         next.sessionKey === stateRef.current.sessionKey &&
-        next.gearRanges === stateRef.current.gearRanges &&
-        next.recording === stateRef.current.recording &&
-        next.autoRecording === stateRef.current.autoRecording &&
+        next.effectiveGears === stateRef.current.effectiveGears &&
+        next.powerBandRunPhase === stateRef.current.powerBandRunPhase &&
+        next.powerBandRuns === stateRef.current.powerBandRuns &&
         next.trackLaps === stateRef.current.trackLaps
       )
         return;
@@ -48,8 +47,13 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
     return () => clearInterval(id);
   }, []);
 
-  const buckets = state.buckets;
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+  const selectedRun = state.powerBandRuns.find((run) => run.id === selectedRunId);
+  const buckets = selectedRun?.buckets ?? state.buckets;
   const trackLaps = state.trackLaps;
+  useEffect(() => {
+    if (selectedRunId !== null && !selectedRun) setSelectedRunId(null);
+  }, [selectedRun, selectedRunId]);
 
   // Aggregate all gears into single overall power and torque curves
   const { powerCurve, torqueCurve } = useMemo(() => {
@@ -115,55 +119,90 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
     { label: m.powerband_shift(), text: m.gearing_pb_shift(), chip: { borderTop: "1px dashed var(--app-accent)", width: 12, height: 0 } },
   ];
   const powerbandControls: { label: string; text: string }[] = [
-    { label: m.powerband_auto(), text: m.gearing_pb_auto() },
-    { label: `${m.powerband_record_start()} / ${m.powerband_record_stop()}`, text: m.gearing_pb_start() },
+    { label: m.powerband_record_start(), text: m.gearing_pb_start() },
     { label: m.powerband_reset(), text: m.gearing_pb_reset() },
   ];
 
   return (
     <>
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-2 p-2 h-full overflow-auto">
-        {/* Center main chart */}
-        <div className="lg:col-span-3 min-h-[300px]">
-          <div className="flex justify-end mb-1">
-            <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("powerband")}>
-              <Info className="size-3.5" />
+      <div data-live-dashboard-layout className="grid h-full min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
+        <div className="min-w-0 overflow-y-auto border-r border-app-border">
+          {hero}
+          <div className="flex flex-wrap items-center gap-3 border-y border-app-border px-3 py-2">
+            <Button
+              size="app-lg"
+              className="h-11 px-6 text-sm font-semibold"
+              variant="app-primary"
+              disabled={state.powerBandRunPhase !== "idle"}
+              onClick={() => {
+                setSelectedRunId(null);
+                startPowerBandRun();
+              }}
+            >
+              {m.powerband_record_start()}
+            </Button>
+            {state.powerBandRunPhase !== "idle" && (
+              <span className="text-sm font-medium text-app-accent">{state.powerBandRunPhase === "armed" ? m.powerband_run_armed() : m.powerband_run_recording()}</span>
+            )}
+            {state.powerBandRuns.length > 0 && (
+              <div className="flex items-center gap-1">
+                <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.powerband_history()}</span>
+                <Button size="app-md" variant={selectedRunId === null ? "app-primary" : "app-outline"} aria-pressed={selectedRunId === null} onClick={() => setSelectedRunId(null)}>
+                  {m.powerband_current()}
+                </Button>
+                {state.powerBandRuns.map((run) => (
+                  <Button
+                    key={run.id}
+                    size="app-md"
+                    variant={selectedRunId === run.id ? "app-primary" : "app-outline"}
+                    aria-pressed={selectedRunId === run.id}
+                    onClick={() => setSelectedRunId(run.id)}
+                  >
+                    {m.powerband_run({ n: run.id })}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <Button
+              className="ml-auto"
+              size="app-md"
+              variant="app-outline"
+              onClick={() => {
+                resetGearingTelemetry();
+                setSelectedRunId(null);
+              }}
+            >
+              {m.powerband_reset()}
             </Button>
           </div>
-          <PowerBandChart
-            packet={packet}
-            powerCurve={powerCurve}
-            torqueCurve={torqueCurve}
-            shiftPointRpm={bestShiftRpm}
-            recording={state.recording}
-            autoRecording={state.autoRecording}
-            onToggleRecording={() => setGearingRecording(!state.recording)}
-            onToggleAutoRecording={() => setAutoRecording(!state.autoRecording)}
-            onReset={() => {
-              resetGearingTelemetry();
-              setGearingRecording(false);
-            }}
-          />
+          <div className="min-h-[300px] p-2">
+            <div className="mb-1 flex justify-end">
+              <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("powerband")}>
+                <Info className="size-3.5" />
+              </Button>
+            </div>
+            <PowerBandChart packet={packet} powerCurve={powerCurve} torqueCurve={torqueCurve} shiftPointRpm={bestShiftRpm} />
+          </div>
         </div>
 
-        {/* Per-lap track speed trace */}
-        <div className="lg:col-span-3">
-          <div className="flex justify-end mb-1">
-            <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("trackspeed")}>
-              <Info className="size-3.5" />
-            </Button>
+        <div className="min-w-0 overflow-y-auto p-2">
+          <div>
+            <div className="mb-1 flex justify-end">
+              <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("trackspeed")}>
+                <Info className="size-3.5" />
+              </Button>
+            </div>
+            <TrackSpeedChart laps={trackLaps} toDistance={units.distance} toSpeed={units.speed} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} onReset={resetTrackLaps} />
           </div>
-          <TrackSpeedChart laps={trackLaps} toDistance={units.distance} toSpeed={units.speed} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} onReset={resetTrackLaps} />
-        </div>
 
-        {/* User setup gear-ratio chart */}
-        <div className="lg:col-span-3">
-          <div className="flex justify-end mb-1">
-            <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("gearratio")}>
-              <Info className="size-3.5" />
-            </Button>
+          <div>
+            <div className="mb-1 flex justify-end">
+              <Button size="icon-sm" variant="ghost" aria-label={m.gearing_help_button()} onClick={() => setHelpTopic("gearratio")}>
+                <Info className="size-3.5" />
+              </Button>
+            </div>
+            <GearRatioCharts packet={packet} effectiveGears={state.effectiveGears} powerCurve={powerCurve} speedLabel={units.speedLabel} crossRpm={crossRpm} />
           </div>
-          <GearRatioCharts packet={packet} powerCurve={powerCurve} targetMaxSpeed={targetMaxSpeed} speedLabel={units.speedLabel} crossRpm={crossRpm} />
         </div>
       </div>
       <Dialog open={helpTopic !== null} onOpenChange={(open) => !open && setHelpTopic(null)}>
@@ -217,13 +256,12 @@ export function GearingDashboard({ packet, targetMaxSpeed }: { packet: GearingSa
           )}
           {helpTopic === "gearratio" && (
             <DialogHeader>
-              <DialogTitle>{m.grc_title()}</DialogTitle>
+              <DialogTitle>{m.grc_learned_title()}</DialogTitle>
               <ul className="space-y-1.5 text-sm text-app-text-muted list-disc pl-4">
-                <li>{m.gearing_gr_step_pick()}</li>
+                <li>{m.gearing_gr_step_learn()}</li>
+                <li>{m.gearing_gr_step_confidence()}</li>
                 <li>{m.gearing_gr_step_read()}</li>
-                <li>{m.gearing_gr_step_edit()}</li>
                 <li>{m.gearing_gr_step_band()}</li>
-                <li>{m.gearing_gr_step_save()}</li>
               </ul>
             </DialogHeader>
           )}

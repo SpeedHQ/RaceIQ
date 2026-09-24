@@ -55,6 +55,21 @@ for (const story of DASHBOARD_SNAPSHOT_CASES) {
       ).toBe(true);
     }
 
+    if (!comparisonCaptureOnly && story.name === "GearingDashboard") {
+      const layout = page.locator("[data-live-dashboard-layout]");
+      await expect(layout).toHaveCount(1);
+      await expect(layout).toBeVisible();
+      const columns = await layout.evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(/\s+/).filter(Boolean));
+      expect(columns).toHaveLength(2);
+
+      const powerBand = page.getByRole("heading", { name: "Power Band", exact: true });
+      const trackSpeed = page.getByRole("heading", { name: "Track Speed", exact: true });
+      const [layoutBox, powerBandBox, trackSpeedBox] = await Promise.all([layout.boundingBox(), powerBand.boundingBox(), trackSpeed.boundingBox()]);
+      if (!layoutBox || !powerBandBox || !trackSpeedBox) throw new Error("Gearing dashboard has no viewport geometry");
+      expect(powerBandBox.x).toBeLessThan(layoutBox.x + layoutBox.width / 2);
+      expect(trackSpeedBox.x).toBeGreaterThanOrEqual(layoutBox.x + layoutBox.width / 2);
+    }
+
     await expect(page).toHaveScreenshot(`${story.name}.png`, {
       fullPage: false,
       animations: "disabled",

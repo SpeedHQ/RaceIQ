@@ -32,6 +32,11 @@ export const DASHBOARD_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     outputName: "snapshot-ForzaLiveDashboard.png",
   },
   {
+    name: "GearingDashboard",
+    id: "dashboards-gearingdashboard--with-lap-trace",
+    outputName: "snapshot-GearingDashboard.png",
+  },
+  {
     name: "AccLiveDashboard",
     id: "dashboards-acclivedashboard--visual-contract",
     outputName: "snapshot-AccLiveDashboard.png",

@@ -121,6 +121,10 @@
 
 ![Forza Motorsport Live Dashboard](ForzaLiveDashboard.png)
 
+### Forza Motorsport Gearing Dashboard
+
+![Forza Motorsport Gearing Dashboard](GearingDashboard.png)
+
 ### Assetto Corsa Competizione Live Dashboard
 
 ![Assetto Corsa Competizione Live Dashboard](AccLiveDashboard.png)

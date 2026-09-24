@@ -1,17 +1,12 @@
-import type {
-  LiveTelemetryFrameMessageV1,
-  LiveTelemetrySchemaMessageV1,
-} from "@shared/telemetry/live/contracts";
+import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "@shared/telemetry/live/contracts";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { viewToGearingSample } from "../../hooks/useGearingIngest";
 import { useUnits } from "../../hooks/useUnits";
+import { computeEffectiveGearing } from "../../lib/gear-ranges";
 import { findBestShiftRpm, findVisualCrossing } from "../../lib/gearing-ratios";
-import {
-  buildLiveTelemetryView,
-  type LiveTelemetryView,
-} from "../../lib/live-telemetry-view";
+import { buildLiveTelemetryView, type LiveTelemetryView } from "../../lib/live-telemetry-view";
 import { computeGearingState, computeTrackLaps } from "../../lib/session-gearing";
 import type { GearingSample } from "../../lib/gearing-telemetry";
 import { GearRatioCharts } from "../telemetry/GearRatioCharts";
@@ -48,10 +43,11 @@ export function GearingTestViewer() {
   }, [schema, frames]);
 
   const samples = useMemo(
-    () => views
-      .map((view) => viewToGearingSample(view))
-      // Frames missing required semantics are rejected, like live ingestion.
-      .filter((sample): sample is GearingSample => sample !== null),
+    () =>
+      views
+        .map((view) => viewToGearingSample(view))
+        // Frames missing required semantics are rejected, like live ingestion.
+        .filter((sample): sample is GearingSample => sample !== null),
     [views],
   );
 
@@ -73,6 +69,7 @@ export function GearingTestViewer() {
   const gearingState = useMemo(() => {
     return computeGearingState(samples.slice(0, packetIndex + 1));
   }, [samples, packetIndex]);
+  const effectiveGears = useMemo(() => computeEffectiveGearing(samples.slice(0, packetIndex + 1)), [samples, packetIndex]);
 
   const crossRpm = useMemo(() => {
     const p = gearingState.powerCurve;
@@ -167,7 +164,7 @@ export function GearingTestViewer() {
                       <TrackSpeedChart laps={trackLaps} toDistance={units.distance} toSpeed={units.speed} distanceLabel={units.distanceLabel} speedLabel={units.speedLabel} />
                     </div>
                     <div className="lg:col-span-3">
-                      <GearRatioCharts packet={currentPacket} powerCurve={gearingState.powerCurve} targetMaxSpeed={0} speedLabel={units.speedLabel} crossRpm={crossRpm} />
+                      <GearRatioCharts packet={currentPacket} effectiveGears={effectiveGears} powerCurve={gearingState.powerCurve} speedLabel={units.speedLabel} crossRpm={crossRpm} />
                     </div>
                   </div>
                 </div>
