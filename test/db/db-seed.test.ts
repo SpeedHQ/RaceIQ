@@ -143,6 +143,12 @@ describe("db:seed", () => {
     assertSeededRawFilesExist(dataDir);
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
     expect(seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing", "lmu"]);
+    expect(withSeedDb(dataDir, (db) => db.query(
+      "SELECT s.id, COUNT(l.id) AS laps FROM sessions s LEFT JOIN laps l ON l.session_id = s.id WHERE s.game_id = 'lmu' GROUP BY s.id ORDER BY s.id",
+    ).all())).toEqual([
+      { id: expect.any(Number), laps: 3 },
+      { id: expect.any(Number), laps: 7 },
+    ]);
     expect(seededIRacingIdentity(dataDir)).toEqual([
       { kind: "car", ordinal: 42, name: "GT3 Test Car" },
       { kind: "track", ordinal: 99, name: "Road America" },
