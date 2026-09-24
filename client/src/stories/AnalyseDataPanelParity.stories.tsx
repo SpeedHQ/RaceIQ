@@ -77,3 +77,19 @@ export const LoadedMainParity: Story = {
     onJumpToFrame: () => {},
   },
 };
+
+export const LMUTireTemperatures: Story = {
+  ...LoadedMainParity,
+  args: {
+    ...LoadedMainParity.args,
+    gameId: "lmu",
+    currentFrame: {
+      ...frame,
+      values: {
+        ...frame.values,
+        "tire.temperature.carcass.representative": [88, 89, 90, 91],
+        "tire.temperature.core": undefined,
+      },
+    },
+  },
+};

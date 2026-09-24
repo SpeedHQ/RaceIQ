@@ -6,7 +6,7 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.18.0",
-      "sourceHash": "b282b34e410d3908cfb1cdc65ceaeda4b9ba0f607e080b74853fa308322b8580"
+      "sourceHash": "739f8e4930e401eb0dbec2624bd8f92b75b25a540ad2670c5830ba0dd92cf1b9"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
@@ -15,11 +15,11 @@
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
-      "server/games/lmu/normalizer.ts": "20c4e673a9a661e111954f68a212dfeb9acf6d8ac0019090c54ced2c01268eb9",
+      "server/games/lmu/normalizer.ts": "857907ba7c281de8cdd53acfbbdbaa5a72bf695b9dbc18ace4732cff62676596",
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "6df1a5f0efd4e877de7c029a60a01a6a39a645cd1592d94343dc1ac9d3884f02"
+    "contentHash": "0639551c1aee75fa6772ab780e39845b61fb93edaf3a42081cfbd61dc339051c"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -1163,6 +1163,7 @@
       "children": [
         "tire.temperature.carcass.left",
         "tire.temperature.carcass.middle",
+        "tire.temperature.carcass.representative",
         "tire.temperature.carcass.right"
       ]
     },
@@ -52706,29 +52707,9 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "LMU.Telemetry.wheels.FL.temperature.left"
-            ],
-            "FR": [
-              "LMU.Telemetry.wheels.FR.temperature.left"
-            ],
-            "RL": [
-              "LMU.Telemetry.wheels.RL.temperature.left"
-            ],
-            "RR": [
-              "LMU.Telemetry.wheels.RR.temperature.left"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
         }
       },
       "valueType": "number",
@@ -52807,20 +52788,81 @@
           "limitations": []
         },
         "lmu": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+        }
+      },
+      "valueType": "number",
+      "dimensions": [
+        "temperature"
+      ],
+      "cardinality": {
+        "kind": "fixed",
+        "count": 4
+      },
+      "ordering": [
+        "FL",
+        "FR",
+        "RL",
+        "RR"
+      ],
+      "limitations": []
+    },
+    {
+      "id": "tire.temperature.carcass.representative",
+      "label": "Average carcass temperature",
+      "description": "Source-native mean carcass temperature; separate from core temperature.",
+      "parentId": "tire.temperature.carcass",
+      "canonicalUnit": "°C",
+      "shape": "per-wheel",
+      "packetFields": [
+        "TireCarcassAverageTempFL",
+        "TireCarcassAverageTempFR",
+        "TireCarcassAverageTempRL",
+        "TireCarcassAverageTempRR"
+      ],
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
+        },
+        "lmu": {
           "kind": "direct",
           "nativeUnit": "°C",
           "sources": {
             "FL": [
-              "LMU.Telemetry.wheels.FL.temperature.middle"
+              "LMU.Telemetry.wheels.FL.tireCarcassTemperature"
             ],
             "FR": [
-              "LMU.Telemetry.wheels.FR.temperature.middle"
+              "LMU.Telemetry.wheels.FR.tireCarcassTemperature"
             ],
             "RL": [
-              "LMU.Telemetry.wheels.RL.temperature.middle"
+              "LMU.Telemetry.wheels.RL.tireCarcassTemperature"
             ],
             "RR": [
-              "LMU.Telemetry.wheels.RR.temperature.middle"
+              "LMU.Telemetry.wheels.RR.tireCarcassTemperature"
             ]
           },
           "freshness": "continuous",
@@ -52908,29 +52950,9 @@
           "limitations": []
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "LMU.Telemetry.wheels.FL.temperature.right"
-            ],
-            "FR": [
-              "LMU.Telemetry.wheels.FR.temperature.right"
-            ],
-            "RL": [
-              "LMU.Telemetry.wheels.RL.temperature.right"
-            ],
-            "RR": [
-              "LMU.Telemetry.wheels.RR.temperature.right"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
         }
       },
       "valueType": "number",
@@ -53049,29 +53071,9 @@
           "description": "iRacing TireCarcassTemp averages three carcass bands and is not equivalent to a single core temperature."
         },
         "lmu": {
-          "kind": "direct",
-          "nativeUnit": "°C",
-          "sources": {
-            "FL": [
-              "LMU.Telemetry.wheels.FL.tireCarcassTemperature"
-            ],
-            "FR": [
-              "LMU.Telemetry.wheels.FR.tireCarcassTemperature"
-            ],
-            "RL": [
-              "LMU.Telemetry.wheels.RL.tireCarcassTemperature"
-            ],
-            "RR": [
-              "LMU.Telemetry.wheels.RR.tireCarcassTemperature"
-            ]
-          },
-          "freshness": "continuous",
-          "description": "lmu maps 4 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/lmu/normalizer.ts"
-          },
-          "limitations": []
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "lmu parser fills this value with a placeholder because source does not provide it."
         }
       },
       "valueType": "number",
@@ -53130,9 +53132,29 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "LMU.Telemetry.wheels.FL.temperature.right"
+            ],
+            "FR": [
+              "LMU.Telemetry.wheels.FR.temperature.left"
+            ],
+            "RL": [
+              "LMU.Telemetry.wheels.RL.temperature.right"
+            ],
+            "RR": [
+              "LMU.Telemetry.wheels.RR.temperature.left"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "lmu maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -53191,9 +53213,29 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "LMU.Telemetry.wheels.FL.temperature.middle"
+            ],
+            "FR": [
+              "LMU.Telemetry.wheels.FR.temperature.middle"
+            ],
+            "RL": [
+              "LMU.Telemetry.wheels.RL.temperature.middle"
+            ],
+            "RR": [
+              "LMU.Telemetry.wheels.RR.temperature.middle"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "lmu maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -53252,9 +53294,29 @@
           "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
-          "kind": "unavailable",
-          "reason": "parser-placeholder",
-          "description": "lmu parser fills this value with a placeholder because source does not provide it."
+          "kind": "direct",
+          "nativeUnit": "°C",
+          "sources": {
+            "FL": [
+              "LMU.Telemetry.wheels.FL.temperature.left"
+            ],
+            "FR": [
+              "LMU.Telemetry.wheels.FR.temperature.right"
+            ],
+            "RL": [
+              "LMU.Telemetry.wheels.RL.temperature.left"
+            ],
+            "RR": [
+              "LMU.Telemetry.wheels.RR.temperature.right"
+            ]
+          },
+          "freshness": "continuous",
+          "description": "lmu maps 4 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/lmu/normalizer.ts"
+          },
+          "limitations": []
         }
       },
       "valueType": "number",
@@ -82506,193 +82568,49 @@
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TireCarcassTempFL",
-        "label": "Tire Carcass Temp FL",
+        "path": "TelemetryPacket.TireCarcassAverageTempFL",
+        "label": "Tire Carcass Average Temp FL",
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "One core value per tire when provided directly by game.",
-        "semanticId": "tire.temperature.core",
+        "description": "Source-native mean carcass temperature; separate from core temperature.",
+        "semanticId": "tire.temperature.carcass.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TireCarcassTempFR",
-        "label": "Tire Carcass Temp FR",
+        "path": "TelemetryPacket.TireCarcassAverageTempFR",
+        "label": "Tire Carcass Average Temp FR",
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "One core value per tire when provided directly by game.",
-        "semanticId": "tire.temperature.core",
+        "description": "Source-native mean carcass temperature; separate from core temperature.",
+        "semanticId": "tire.temperature.carcass.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TireCarcassTempLeftFL",
-        "label": "Tire Carcass Temp Left FL",
+        "path": "TelemetryPacket.TireCarcassAverageTempRL",
+        "label": "Tire Carcass Average Temp RL",
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
-        "semanticId": "tire.temperature.carcass.left",
+        "description": "Source-native mean carcass temperature; separate from core temperature.",
+        "semanticId": "tire.temperature.carcass.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
       },
       {
-        "path": "TelemetryPacket.TireCarcassTempLeftFR",
-        "label": "Tire Carcass Temp Left FR",
+        "path": "TelemetryPacket.TireCarcassAverageTempRR",
+        "label": "Tire Carcass Average Temp RR",
         "unit": "°C",
         "dataType": "number",
         "count": 1,
-        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
-        "semanticId": "tire.temperature.carcass.left",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempLeftRL",
-        "label": "Tire Carcass Temp Left RL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
-        "semanticId": "tire.temperature.carcass.left",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempLeftRR",
-        "label": "Tire Carcass Temp Left RR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Source-native lateral carcass bands; no averaging or relabeling.",
-        "semanticId": "tire.temperature.carcass.left",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempMiddleFL",
-        "label": "Tire Carcass Temp Middle FL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Middle FL emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.middle",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempMiddleFR",
-        "label": "Tire Carcass Temp Middle FR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Middle FR emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.middle",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempMiddleRL",
-        "label": "Tire Carcass Temp Middle RL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Middle RL emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.middle",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempMiddleRR",
-        "label": "Tire Carcass Temp Middle RR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Middle RR emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.middle",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRL",
-        "label": "Tire Carcass Temp RL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "One core value per tire when provided directly by game.",
-        "semanticId": "tire.temperature.core",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRR",
-        "label": "Tire Carcass Temp RR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "One core value per tire when provided directly by game.",
-        "semanticId": "tire.temperature.core",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRightFL",
-        "label": "Tire Carcass Temp Right FL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Right FL emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.right",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRightFR",
-        "label": "Tire Carcass Temp Right FR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Right FR emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.right",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRightRL",
-        "label": "Tire Carcass Temp Right RL",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Right RL emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.right",
-        "sourceKind": "packet",
-        "recordedByRaceIQ": true,
-        "retention": "exact"
-      },
-      {
-        "path": "TelemetryPacket.TireCarcassTempRightRR",
-        "label": "Tire Carcass Temp Right RR",
-        "unit": "°C",
-        "dataType": "number",
-        "count": 1,
-        "description": "Tire Carcass Temp Right RR emitted by lmu parser.",
-        "semanticId": "tire.temperature.carcass.right",
+        "description": "Source-native mean carcass temperature; separate from core temperature.",
+        "semanticId": "tire.temperature.carcass.representative",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -82897,6 +82815,150 @@
         "count": 1,
         "description": "Per-wheel longitudinal tire slip ratio.",
         "semanticId": "tires.tire-slip-ratio",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempInnerFL",
+        "label": "Tire Surface Temp Inner FL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Inner FL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.inner",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempInnerFR",
+        "label": "Tire Surface Temp Inner FR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Inner FR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.inner",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempInnerRL",
+        "label": "Tire Surface Temp Inner RL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Inner RL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.inner",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempInnerRR",
+        "label": "Tire Surface Temp Inner RR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Inner RR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.inner",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempMiddleFL",
+        "label": "Tire Surface Temp Middle FL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Middle FL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.middle",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempMiddleFR",
+        "label": "Tire Surface Temp Middle FR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Middle FR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.middle",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempMiddleRL",
+        "label": "Tire Surface Temp Middle RL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Middle RL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.middle",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempMiddleRR",
+        "label": "Tire Surface Temp Middle RR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Middle RR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.middle",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempOuterFL",
+        "label": "Tire Surface Temp Outer FL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Outer FL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.outer",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempOuterFR",
+        "label": "Tire Surface Temp Outer FR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Outer FR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.outer",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempOuterRL",
+        "label": "Tire Surface Temp Outer RL",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Outer RL emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.outer",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TireSurfaceTempOuterRR",
+        "label": "Tire Surface Temp Outer RR",
+        "unit": "°C",
+        "dataType": "number",
+        "count": 1,
+        "description": "Tire Surface Temp Outer RR emitted by lmu parser.",
+        "semanticId": "tire.temperature.surface.outer",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83792,8 +83854,8 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 144,
-    "semanticVariables": 771,
+    "normalizedPacketFields": 148,
+    "semanticVariables": 772,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,

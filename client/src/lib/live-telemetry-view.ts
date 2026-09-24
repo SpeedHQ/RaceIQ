@@ -52,6 +52,7 @@ export interface LiveTelemetryView {
   tires: {
     surfaceTemperatureC?: TireTemperatureProfile<TireSurfaceBand>;
     coreTemperatureC?: WheelValues<number>;
+    carcassAverageTemperatureC?: WheelValues<number>;
     carcassTemperatureC?: TireTemperatureProfile<TireCarcassBand>;
     wear?: WheelValues<number>;
     pressurePsi?: WheelValues<number>;
@@ -263,6 +264,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
         outer: "tire.temperature.surface.outer",
       }),
       coreTemperatureC: wheelCelsius("tire.temperature.core"),
+      carcassAverageTemperatureC: wheelCelsius("tire.temperature.carcass.representative"),
       carcassTemperatureC: temperatureProfileC<TireCarcassBand>({
         left: "tire.temperature.carcass.left",
         middle: "tire.temperature.carcass.middle",

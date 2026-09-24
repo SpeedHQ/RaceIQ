@@ -92,15 +92,18 @@ export function WheelInfoCard({
   const { rows, cardH } = useMemo(() => {
     const rows: Row[] = [{ kind: "health", pct: healthPct, color: healthColor }];
     const cell = ({ kind, value }: TireTemperatureReading): TemperatureCell => ({
-      label: kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.analyse_wheels_pit_temp() : m.label_surface(),
+      label: kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface(),
       value: value == null ? "—" : fmtTemp(value),
       color: value == null ? "var(--status-unavailable)" : tireTempColor(value, temperatureThresholds),
     });
+    for (const reading of temperatureReadings) {
+      if (reading.kind === "surface") rows.push({ kind: "temp", ...cell(reading) });
+    }
     if (hasProfile) {
       rows.push({ kind: "profile", cells: temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(cell) });
     }
     for (const reading of temperatureReadings) {
-      if (!hasProfile || reading.kind === "core") rows.push({ kind: "temp", ...cell(reading) });
+      if (reading.kind !== "surface" && (!hasProfile || reading.kind === "core" || reading.kind === "carcass")) rows.push({ kind: "temp", ...cell(reading) });
     }
     if (brakeText) rows.push({ kind: "brake", value: brakeText, color: brakeColor });
     if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });

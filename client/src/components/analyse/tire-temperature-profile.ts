@@ -44,12 +44,19 @@ export function tireTemperatureReadings(
   primaryKind: TireTemperatureKind,
 ): TireTemperatureReading[] {
   const profile = tireTemperatureProfile(frame, wheelIndex);
+  const carcass = semanticWheelNumbers(frame, "tire.temperature.carcass.representative")[wheelIndex];
   if (hasSurfaceTemperatureProfile(frame)) {
     const kinds: TireSurfaceBand[] = side === "left" ? ["outer", "middle", "inner"] : ["inner", "middle", "outer"];
-    return [...kinds.map((kind) => ({ kind, value: profile[kind] })), { kind: "core", value: profile.core }];
+    return [
+      ...(primaryKind === "surface" && profile.representative != null ? [{ kind: "surface" as const, value: profile.representative }] : []),
+      ...kinds.map((kind) => ({ kind, value: profile[kind] })),
+      ...(carcass != null ? [{ kind: "carcass" as const, value: carcass }] : []),
+      ...(profile.core != null ? [{ kind: "core" as const, value: profile.core }] : []),
+    ];
   }
   const primary = semanticWheelNumbers(frame, primarySemanticId)[wheelIndex] ?? null;
   const readings: TireTemperatureReading[] = [{ kind: primaryKind, value: primary }];
+  if (primaryKind === "surface" && carcass != null) readings.push({ kind: "carcass", value: carcass });
   if (primaryKind === "surface" && profile.core != null) readings.push({ kind: "core", value: profile.core });
   return readings;
 }

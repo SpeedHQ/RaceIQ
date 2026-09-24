@@ -107,6 +107,11 @@ const TIRE_IDS: Record<string, [string, string, string]> = {
     "tire.temperature",
     "Core temperature",
   ],
+  TireCarcassAverageTemp: [
+    "tire.temperature.carcass.representative",
+    "tire.temperature.carcass",
+    "Average carcass temperature",
+  ],
   TireCarcassTempLeft: [
     "tire.temperature.carcass.left",
     "tire.temperature.carcass",

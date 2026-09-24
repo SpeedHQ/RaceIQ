@@ -22,11 +22,13 @@ export function makeWheelGeometries(radius: number, width: number) {
     geometry.translate(0, 0, offset);
     return geometry;
   }) as [THREE.CylinderGeometry, THREE.CylinderGeometry, THREE.CylinderGeometry];
-  const core = new THREE.CylinderGeometry(radius * 0.84, radius * 0.84, width * 0.92, 16, 1, true);
+  const carcass = new THREE.CylinderGeometry(radius * 0.84, radius * 0.84, width * 0.92, 16, 1, true);
+  carcass.rotateX(Math.PI / 2);
+  const core = new THREE.CylinderGeometry(radius * 0.75, radius * 0.75, width * 0.84, 16, 1, true);
   core.rotateX(Math.PI / 2);
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
-  return { tire, surfaceBands, core, rim };
+  return { tire, surfaceBands, carcass, core, rim };
 }
 
 /** Convert signed int8 steering input to a bounded front-wheel angle. */

@@ -52,16 +52,18 @@ export function WheelCard({
 }) {
   // Negate for display: physics sign convention is opposite of the visual
   const clampedAngle = -Math.max(-25, Math.min(25, slipAngle));
-  const surfaceTemp = temperatureReadings.find(({ kind }) => kind === "surface" || kind === "carcass")?.value ?? temperatureReadings[0]?.value ?? null;
+  const surfaceTemp = temperatureReadings.find(({ kind }) => kind === "surface")?.value ?? temperatureReadings[0]?.value ?? null;
+  const carcassTemp = temperatureReadings.find(({ kind }) => kind === "carcass")?.value ?? null;
   const coreTemp = temperatureReadings.find(({ kind }) => kind === "core")?.value ?? null;
-  const hasCoreTemp = coreTemp != null;
+  const interiorTemp = carcassTemp ?? coreTemp;
   const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  const hasSurfaceAndProfile = hasProfile && temperatureReadings.some(({ kind }) => kind === "surface");
   const cardWidth = hasProfile ? 112 : 80;
   const stroke = surfaceTemp != null ? tireTempColor(surfaceTemp, thresholds) : "var(--status-unavailable)";
-  const fill = hasCoreTemp ? tireTempColor(coreTemp, thresholds) : stroke;
+  const fill = interiorTemp != null ? tireTempColor(interiorTemp, thresholds) : stroke;
   const slipCol = slipAngleColor(slipAngle);
   const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
-  const tempRows = hasProfile ? 3 : temperatureReadings.length;
+  const tempRows = hasProfile ? (hasSurfaceAndProfile ? 4 : 2) + temperatureReadings.filter(({ kind }) => kind === "carcass" || kind === "core").length : temperatureReadings.length;
   const healthY = 93 + tempRows * 12;
   const stateY = healthY + 12;
   const brakeY = brakeTemp != null ? stateY + 10 : null;
@@ -87,11 +89,6 @@ export function WheelCard({
   return (
     <div className="flex flex-col items-center">
       <svg role="img" aria-label={`${label} ${temperatureReadings.map(({ kind, value }) => `${kind}: ${value == null ? m.analyse_unavailable() : `${tempFn(value).toFixed(0)}°${tempUnit}`}`).join(", ")}`} viewBox={`0 0 ${cardWidth} ${svgHeight}`} width={cardWidth} height={svgHeight}>
-        {/* Label */}
-        <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-          {label}
-        </text>
-
         {/* Spin/Lock glow ring */}
         {spinColor && (
           <rect x={cx - tW / 2 - 3} y={cy - tH / 2 - 3} width={tW + 6} height={tH + 6} rx={8} fill="none" stroke={spinColor} strokeWidth={1.5} opacity={0.6}>
@@ -102,7 +99,7 @@ export function WheelCard({
         {/* Tire outline — rotates with steering for front wheels */}
         <g transform={steerAngle !== 0 ? `rotate(${Math.max(-20, Math.min(20, steerAngle))}, ${cx}, ${cy})` : undefined}>
           <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill="var(--app-bg)" fillOpacity={0.6} stroke={spinColor ?? stroke} strokeWidth={2} />
-          {hasProfile ? temperatureReadings.filter(({ kind }) => kind !== "core").map(({ kind, value }, index) => (
+          {hasProfile ? temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(({ kind, value }, index) => (
             <rect key={kind} x={cx - tW / 2 + index * (tW / 3)} y={cy - tH / 2 + 1} width={tW / 3 - 1} height={tH - 2} rx={2} fill={value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds)} fillOpacity={0.6} />
           )) : (
             <>
@@ -111,6 +108,15 @@ export function WheelCard({
               </clipPath>
               <rect x={cx - tW / 2 + 1} y={cy - tH / 2} width={tW - 2} height={tH} rx={5} fill={fill} fillOpacity={0.2} clipPath={`url(#wear-${label})`} />
             </>
+          )}
+          {carcassTemp != null && (
+            <>
+              <rect x={cx - tW / 2 + 1} y={cy - tH / 2 + 7} width={tW - 2} height={coreTemp == null ? tH - 14 : 15} fill={tireTempColor(carcassTemp, thresholds)} fillOpacity={0.8} />
+              {coreTemp != null && <rect x={cx - tW / 2 + 1} y={cy + tH / 2 - 22} width={tW - 2} height={15} fill={tireTempColor(carcassTemp, thresholds)} fillOpacity={0.8} />}
+            </>
+          )}
+          {coreTemp != null && (
+            <rect x={cx - tW / 2 + 1} y={cy - 3} width={tW - 2} height={6} fill={tireTempColor(coreTemp, thresholds)} fillOpacity={0.9} />
           )}
           {[-12, -4, 4, 12].map((dy) => (
             <line key={dy} x1={cx - 8} y1={cy + dy} x2={cx + 8} y2={cy + dy} stroke={stroke} strokeWidth={0.5} opacity={0.15} />
@@ -196,22 +202,25 @@ export function WheelCard({
           </>
         ) : "—"}
         </text>
+        {hasSurfaceAndProfile && (
+          <text x={cx} y={94} textAnchor="middle" fill={stroke} fontSize={8} fontFamily="var(--font-mono)">{m.label_surface()} {surfaceTemp == null ? "—" : `${tempFn(surfaceTemp).toFixed(0)}°${tempUnit}`}</text>
+        )}
         {hasProfile && temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(({ kind, value }, index) => {
           const x = (index + 0.5) * (cardWidth / 3);
           const color = value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds);
           return <g key={kind}>
-            <text x={x} y={93} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">
+            <text x={x} y={hasSurfaceAndProfile ? 117 : 93} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontFamily="var(--font-mono)">
               {kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : m.label_outer()}
             </text>
-            <text x={x} y={105} textAnchor="middle" fill={color} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+            <text x={x} y={hasSurfaceAndProfile ? 129 : 105} textAnchor="middle" fill={color} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
               {value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`}
             </text>
-            <line x1={x - 15} x2={x + 15} y1={110} y2={110} stroke={color} strokeWidth={1.5} />
+            <line x1={x - 15} x2={x + 15} y1={hasSurfaceAndProfile ? 134 : 110} y2={hasSurfaceAndProfile ? 134 : 110} stroke={color} strokeWidth={1.5} />
           </g>;
         })}
-        {temperatureReadings.filter(({ kind }) => !hasProfile || kind === "core").map(({ kind, value }, index) => {
-          const labelText = kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : tempCaption;
-          const y = 93 + (hasProfile ? 2 : index) * 12;
+        {temperatureReadings.filter(({ kind }) => !hasProfile || kind === "core" || kind === "carcass").map(({ kind, value }, index) => {
+          const labelText = kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : tempCaption;
+          const y = 93 + (hasProfile ? (hasSurfaceAndProfile ? 4 : 2) + index : index) * 12;
           return <text key={kind} x={cx} y={y} textAnchor="middle" fill={value == null ? "var(--status-unavailable)" : tireTempColor(value, thresholds)} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             {labelText} {value == null ? "—" : `${tempFn(value).toFixed(0)}°${tempUnit}`}
           </text>;

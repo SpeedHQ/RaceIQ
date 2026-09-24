@@ -52,12 +52,14 @@ export function Wheel({
   tireWidth?: number;
 }) {
   const wheelY = position[1];
-  const { tire, surfaceBands, core, rim } = useWheelGeometries(tireRadius, tireWidth);
+  const { tire, surfaceBands, carcass, core, rim } = useWheelGeometries(tireRadius, tireWidth);
   const spinRef = useRef<THREE.Group>(null);
   const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
-  const treadReadings = temperatureReadings.filter(({ kind }) => kind !== "core");
+  const treadReadings = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  const carcassReading = temperatureReadings.find(({ kind }) => kind === "carcass")?.value ?? null;
   const coreReading = temperatureReadings.find(({ kind }) => kind === "core")?.value ?? null;
-  const fallbackColor = temperatureReadings[0]?.value == null ? "var(--status-unavailable)" : tireTempColor(temperatureReadings[0].value, temperatureThresholds);
+  const surfaceReading = temperatureReadings.find(({ kind }) => kind === "surface");
+  const fallbackColor = surfaceReading?.value == null ? "var(--status-unavailable)" : tireTempColor(surfaceReading.value, temperatureThresholds);
 
   // Accumulate spin every frame using wall-clock delta — works at any playback speed
   // Dead-band near-zero speeds to prevent reverse-wobble when paused
@@ -72,16 +74,26 @@ export function Wheel({
       <group rotation={[0, steerAngle, 0]}>
         <group rotation={[camberAngle, 0, 0]}>
           <group ref={spinRef}>
+          {carcassReading != null && (
+            <mesh geometry={carcass} renderOrder={9}>
+              <meshBasicMaterial color={threeColor(tireTempColor(carcassReading, temperatureThresholds))} wireframe transparent opacity={0.55} depthTest={false} />
+            </mesh>
+          )}
+          {coreReading != null && (
+            <mesh geometry={core} renderOrder={8}>
+              <meshBasicMaterial color={threeColor(tireTempColor(coreReading, temperatureThresholds))} wireframe transparent opacity={0.75} depthTest={false} />
+            </mesh>
+          )}
           {hasProfile ? (
             <>
-              <mesh geometry={core} renderOrder={9}>
-                <meshBasicMaterial color={threeColor(coreReading == null ? "var(--status-unavailable)" : tireTempColor(coreReading, temperatureThresholds))} wireframe transparent opacity={0.35} depthTest={false} />
-              </mesh>
               {surfaceBands.map((geometry, index) => {
                 const reading = treadReadings[index];
-                return <mesh key={index} geometry={geometry} renderOrder={10}>
-                  <meshBasicMaterial color={threeColor(reading?.value == null ? "var(--status-unavailable)" : tireTempColor(reading.value, temperatureThresholds))} wireframe transparent depthTest={false} />
-                </mesh>;
+                const color = reading?.value == null ? THREE_COLORS.appTextDim : threeColor(tireTempColor(reading.value, temperatureThresholds));
+                return (
+                  <mesh key={index} geometry={geometry} renderOrder={10}>
+                    <meshBasicMaterial color={color} wireframe transparent depthTest={false} />
+                  </mesh>
+                );
               })}
             </>
           ) : (

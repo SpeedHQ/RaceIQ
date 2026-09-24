@@ -10,6 +10,7 @@
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
+- Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
 - Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
 - Restore full-size 3D car views and temperature-colored brake discs
 - Announce simulator-specific tire temperatures with selected units in 3D views

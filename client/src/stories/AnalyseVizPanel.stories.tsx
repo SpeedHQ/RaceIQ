@@ -169,18 +169,24 @@ function ProfileTemperaturesStory() {
   );
 }
 
-function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025" }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d"; gameId?: GameId }) {
+function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025", includeCore = false }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d"; gameId?: GameId; includeCore?: boolean }) {
   const cursorRef = useRef(0);
   const frames = useMemo(() => {
     const selected = profileVariantFrames[variant];
+    if (gameId === "lmu") {
+      const values: Record<string, unknown> = { ...selected.values, "tire.temperature.carcass.representative": includeCore ? [120, 122, 124, 126] : [88, 90, 92, 94] };
+      if (includeCore) values["tire.temperature.core"] = [60, 62, 64, 66];
+      else delete values["tire.temperature.core"];
+      return [{ ...selected, values }];
+    }
     return [gameId === "iracing" ? {
       ...selected,
       values: { ...selected.values, "tire.temperature.carcass.middle": [88, 90, 92, 94] },
     } : selected];
-  }, [variant, gameId]);
+  }, [variant, gameId, includeCore]);
   const telemetryRef = useRef(frames);
   telemetryRef.current = frames;
-  const variantLabel = variant === "bands" ? "Inner / Middle / Outer + Core" : variant === "core" ? "Core only" : "Representative surface only";
+  const variantLabel = variant === "bands" ? `Inner / Middle / Outer + ${gameId === "lmu" ? includeCore ? "Carcass + Core" : "Carcass" : "Core"}` : variant === "core" ? "Core only" : "Representative surface only";
   return (
     <div className="flex h-screen w-screen flex-col bg-app-bg">
       <div className="shrink-0 p-2 font-mono text-xs text-app-text-muted">
@@ -235,6 +241,27 @@ export const ThreeDProfileBandsIRacing: Story = {
   ...ThreeDProfileBands,
   name: "3D Profile Bands — iRacing",
   args: { gameId: "iracing" },
+};
+
+export const ThreeDProfileBandsLMU: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Surface Bands + Carcass — LMU",
+  args: { gameId: "lmu" },
+};
+
+export const TwoDProfileBandsLMU: Story = {
+  name: "2D Surface Bands + Carcass — LMU",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="lmu" />,
+};
+
+export const TwoDProfileAllTemperatures: Story = {
+  name: "2D Surface + Carcass + Core — Synthetic",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="lmu" includeCore />,
+};
+
+export const ThreeDProfileAllTemperatures: Story = {
+  name: "3D Surface + Carcass + Core — Synthetic",
+  render: () => <ProfileVariantStory variant="bands" vizMode="3d" gameId="lmu" includeCore />,
 };
 
 export const ThreeDProfileCoreOnly: Story = {

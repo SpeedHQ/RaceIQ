@@ -210,6 +210,7 @@ const ANALYSE_BASE_SEMANTIC_IDS = [
   "tire.temperature.surface.middle",
   "tire.temperature.surface.outer",
   "tire.temperature.core",
+  "tire.temperature.carcass.representative",
 ] as const satisfies readonly TelemetryVariableId[];
 
 /** Semantic channels consumed by Analyse for one game's adapter. */
