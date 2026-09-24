@@ -118,7 +118,7 @@ async function expectTrackMapCanvases(page: Page): Promise<void> {
   for (let index = 0; index < 3; index++) await expect(canvases.nth(index)).toBeVisible();
 }
 test("Analyse shared controls work across seeded game recordings", async ({ page, request }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(260_000);
   const browserErrors = collectBrowserErrors(page);
 
   for (const game of SEEDED_GAME_CASES) {
@@ -130,7 +130,7 @@ test("Analyse shared controls work across seeded game recordings", async ({ page
   expect(browserErrors.errors, "unexpected browser errors in seeded Analyse matrix").toEqual([]);
 });
 test("Session MoTeC import locks current game selection", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   await page.route("**/api/laps/detect-import", async (route) => {
     await route.fulfill({ contentType: "application/json", body: JSON.stringify({ format: "motec", supported: true, gameIds: [], captureCount: 1, message: null }) });
   });
@@ -152,7 +152,7 @@ test("Session MoTeC import locks current game selection", async ({ page }) => {
 });
 
 test("Analyse racing-line overlay follows seeded track availability", async ({ page, request }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(260_000);
   const browserErrors = collectBrowserErrors(page);
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__recording = true;

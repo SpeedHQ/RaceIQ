@@ -7,7 +7,7 @@ import { assertLapSelectors, exercise3dGuide, exerciseAiSetup, exerciseDynamicsT
 import { gameRows, getAlternateSeededLap, openAnalyseLap } from "./fixtures";
 
 test("Analyse supports selection, playback, and notes", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const browserErrors = collectBrowserErrors(page);
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__recording = true;

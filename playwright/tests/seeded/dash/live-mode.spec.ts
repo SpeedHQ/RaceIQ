@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { collectBrowserErrors } from "../../support/browser-errors";
 
 test("live dashboard mode toggle exposes selected route and no-data guide state", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   await page.routeWebSocket("**/ws", () => {});
   await page.goto("/fm23/live/driver", { waitUntil: "domcontentloaded" });

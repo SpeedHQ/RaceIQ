@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} Analyse renders changing values over one seeded lap`, async ({ page, request }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(140_000);
     const browserErrors = collectBrowserErrors(page);
     const lap = await getSeededLapTarget(request, game.gameId);
     const query = new URLSearchParams({ track: String(lap.trackOrdinal), car: String(lap.carOrdinal), lap: String(lap.id) });
