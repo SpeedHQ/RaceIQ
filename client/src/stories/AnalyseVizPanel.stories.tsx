@@ -181,7 +181,7 @@ function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025", includeCore
     }
     return [gameId === "iracing" ? {
       ...selected,
-      values: { ...selected.values, "tire.temperature.carcass.middle": [88, 90, 92, 94] },
+      values: { ...selected.values, "tire.temperature.carcass.left": [86, 88, 90, 92], "tire.temperature.carcass.middle": [88, 90, 92, 94], "tire.temperature.carcass.right": [90, 92, 94, 96] },
     } : selected];
   }, [variant, gameId, includeCore]);
   const telemetryRef = useRef(frames);
@@ -252,6 +252,10 @@ export const ThreeDProfileBandsLMU: Story = {
 export const TwoDProfileBandsLMU: Story = {
   name: "2D Surface Bands + Carcass — LMU",
   render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="lmu" />,
+};
+export const TwoDProfileCarcassBandsIRacing: Story = {
+  name: "2D Carcass Bands — iRacing",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="iracing" />,
 };
 
 export const TwoDProfileAllTemperatures: Story = {

@@ -3,7 +3,7 @@ import { resolveWheelStates } from "@shared/racing/analysis/metric-values";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
-import { tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
+import { hasSurfaceTemperatureProfile, tireTemperatureReadings } from "@/components/analyse/tire-temperature-profile";
 import { useUnits } from "@/hooks/useUnits";
 import type { LiveTelemetryView } from "@/lib/live-telemetry-view";
 import { m } from "@/paraglide/messages";
@@ -30,6 +30,9 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const primarySemanticId = temperatureBinding?.semanticId ?? "tire.temperature.surface.representative";
   const primaryKind = primarySemanticId.includes("carcass") ? "carcass" as const : primarySemanticId === "tire.temperature.core" ? "core" as const : "surface" as const;
   const angles = numericWheels(frame, "tires.tire-slip-angle");
+  const carcassLeft = numericWheels(frame, "tire.temperature.carcass.left");
+  const carcassMiddle = numericWheels(frame, "tire.temperature.carcass.middle");
+  const carcassRight = numericWheels(frame, "tire.temperature.carcass.right");
   const suspension = numericWheels(frame, "suspension.norm-suspension-travel");
   const suspensionM = numericWheels(frame, "suspension.suspension-travel-m");
   const brakes = numericWheels(frame, "brakes.brake-temp");
@@ -38,7 +41,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
   const steering = numeric(frame, "inputs.steer");
   const healthAvailable = wear.some((value) => value != null);
   const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
-  const showSlipAngle = angles.some((value) => value != null);
   const showWheelState = states.some((state) => state != null);
   const steerAngle = steering == null ? 0 : (steering / 127) * 20;
   const wheel = (index: number, outerSide: "left" | "right") => {
@@ -48,6 +50,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
       <WheelCard
         label={WHEELS[index]}
         temperatureReadings={tireTemperatureReadings(frame, index, outerSide, primarySemanticId, primaryKind)}
+        carcassBands={[carcassLeft[index], carcassMiddle[index], carcassRight[index]]}
         wear={wear[index] ?? 0}
         slipAngle={(angles[index] ?? 0) * (180 / Math.PI)}
         outerSide={outerSide}
@@ -59,7 +62,6 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
         onRumble={false}
         puddleDepth={0}
         brakeTemp={brakes[index] ?? undefined}
-        showSlipAngle={showSlipAngle}
         showWheelState={showWheelState}
         tempCaption={analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp()}
         healthCaption={analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? m.analyse_wheels_pit_health() : m.analyse_wheels_health()}
@@ -81,7 +83,7 @@ function SemanticTireDiagram({ frame, gameId }: { frame: SemanticAnalysisFrame; 
     );
   };
   return (
-    <div className="relative flex w-full max-w-xs flex-col gap-3 mx-auto">
+    <div className={`relative flex w-full ${hasSurfaceTemperatureProfile(frame) ? "max-w-88" : "max-w-xs"} flex-col gap-3 mx-auto`}>
       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
         <WeightShiftRadar frame={frame} />
       </div>
