@@ -12,7 +12,7 @@ export const FIXTURES: Record<GameId, string[]> = {
   lmu: ["test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz"],
 };
 
-export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; games: GameId[] };
+export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; games: GameId[]; fixtures?: string[] };
 
 export function parseOptions(argv = process.argv): SeedOptions {
   const clean = argv.includes("--clean");
@@ -22,5 +22,9 @@ export function parseOptions(argv = process.argv): SeedOptions {
     ?? (argv.includes("--games") ? argv[argv.indexOf("--games") + 1] : undefined);
   const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
   if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc,ac-evo,iracing,lmu");
-  return { clean, reset, force, games };
+  const fixturesArg = argv.find((arg) => arg.startsWith("--fixtures="))?.slice("--fixtures=".length);
+  if (fixturesArg !== undefined && (games.length !== 1 || !fixturesArg)) {
+    throw new Error("--fixtures requires one --games value and comma-separated recording paths");
+  }
+  return { clean, reset, force, games, fixtures: fixturesArg?.split(",") };
 }

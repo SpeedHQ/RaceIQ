@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createReadStream } from "node:fs";
-import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "../../server/games/lmu/layout";
 import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
 import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
+import { combineRecordingParts, type CombinedRecording } from "../../scripts/lib/combine-recording-parts";
 const FIXTURE_PARTS = [
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
@@ -21,15 +21,8 @@ type Sample = {
   nativeDelta: number;
 };
 
-async function readSamples(): Promise<Sample[]> {
-  const compressed = Readable.from(
-    (async function* () {
-      for (const part of FIXTURE_PARTS) {
-        yield* createReadStream(part);
-      }
-    })(),
-  );
-  const stream = compressed.pipe(createGunzip());
+async function readSamples(combinedPath: string): Promise<Sample[]> {
+  const stream = createReadStream(combinedPath).pipe(createGunzip());
 
   const iterator = stream[Symbol.asyncIterator]();
   let buffered = Buffer.alloc(0);
@@ -74,13 +67,18 @@ async function readSamples(): Promise<Sample[]> {
 }
 
 let samples: Sample[];
+let combinedFixture: CombinedRecording | null = null;
 
 beforeAll(async () => {
-  samples = await readSamples();
+  combinedFixture = await combineRecordingParts(FIXTURE_PARTS);
+  samples = await readSamples(combinedFixture.path);
 }, 600_000);
 
 
-afterAll(() => stopMaintenanceTasks());
+afterAll(async () => {
+  combinedFixture?.cleanup();
+  await stopMaintenanceTasks();
+});
 
 describe("LMU live recording fixture", () => {
   test("preserves practice session identity", () => {
