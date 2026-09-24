@@ -5,8 +5,8 @@ import type { GameStats } from "./types";
 export function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
   if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
   if (gameId === "f1-2025") return <img src="/f1-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
-  if (gameId === "acc") return <img src="/acc-logo.png" alt="" className={`object-contain ${className}`} />;
-  const label = gameId === "iracing" ? "iR" : gameId === "lmu" ? "LMU" : "ACE";
+  if (gameId === "lmu") return <img src="/lmu-logo.svg" alt="" className={`object-contain ${className}`} />;
+  const label = gameId === "iracing" ? "iR" : "ACE";
   return <span className="game-brand-accent text-xs font-black">{label}</span>;
 }
 
