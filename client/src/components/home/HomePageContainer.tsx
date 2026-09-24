@@ -1,5 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
-import { carIdentityKey, trackIdentityKey, type LapMeta, type SessionMeta } from "@shared/racing/sessions/types";
+import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
@@ -142,8 +142,7 @@ export function HomePageContainer() {
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/sessions/replay` as never,
-      search: { track: trackIdentityKey(latestRecap), car: carIdentityKey(latestRecap), lap: latestRecap.bestLapId } as never,
+      to: `${getGameRoute(latestRecap.gameId)}/sessions/${latestRecap.sessionId}/replay/${latestRecap.bestLapId}` as never,
     });
   };
 

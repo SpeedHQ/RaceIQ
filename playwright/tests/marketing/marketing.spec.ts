@@ -7,7 +7,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/sessions/replay", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
@@ -33,7 +33,7 @@ for (const page of PAGES) {
       ? await getSeededLapTarget(p.request, "f1-2025")
       : null;
     const path = target
-      ? `/f125/sessions/replay?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}&viz=3d`
+      ? `/f125/sessions/${target.sessionId}/replay/${target.id}?viz=3d`
       : page.path;
     await p.goto(path, { waitUntil: "domcontentloaded" });
     // Dynamic route selected above avoids coupling screenshot coverage to auto-increment IDs.

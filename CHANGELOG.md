@@ -1,5 +1,8 @@
 ## Unreleased
 
+### Breaking
+- Open lap replays through session-scoped links; old track/car/lap query links no longer work
+
 ### Features
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
@@ -10,7 +13,10 @@
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
+- Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
+- Show wheel rotation speed as a positive magnitude in Analyse, including existing LMU replays
 - Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
+- Group replay tire temperatures into mirrored surface bands and separate carcass/core rows, with brake temperature beside each wheel
 - Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
 - Restore full-size 3D car views and temperature-colored brake discs
 - Announce simulator-specific tire temperatures with selected units in 3D views
