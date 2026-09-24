@@ -67,6 +67,16 @@ const sessions: SessionMeta[] = [
     sessionType: "Practice",
     gameId: GAME_ID,
   },
+  {
+    id: 9000,
+    carOrdinal: 201,
+    trackOrdinal: TRACK_ORDINAL,
+    createdAt: "2026-07-26T18:30:00.000Z",
+    lapCount: 0,
+    bestLapTime: 0,
+    sessionType: "Practice",
+    gameId: GAME_ID,
+  },
 ];
 
 const recap: SessionRecap = {
@@ -251,5 +261,5 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The actual per-game home surface with deterministic profile, activity, stats, laps, and session fixtures. */
+/** Per-game home surface with deterministic profile, activity, stats, sessions, and recap fixtures. */
 export const PerGame: Story = {};
