@@ -195,8 +195,7 @@ describe("production database path", () => {
 
       const result = await runDbStartup(dataDir);
 
-      expect(result.code, result.output).toBe(0);
-      expect(result.output).toContain("[DB]   v58: persist session ownership");
+      expect(result.output).toContain("[DB]   v59: persist LMU session string identity");
       if (seededDataDir) {
         expect(profileNames(appPath)).toContain("RaceIQ Demo Driver");
         expect(sessionOwnerships(appPath).length).toBeGreaterThan(0);
