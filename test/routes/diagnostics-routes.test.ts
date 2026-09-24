@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { unzipSync, strFromU8 } from "fflate";
 import { diagnosticsRoutes } from "../../server/routes/system/diagnostics-routes";
+import { logLlmEvent } from "../../server/ai/diagnostic-logging";
 
 describe("diagnostics export", () => {
   test("includes accepted client event and chat context in logs", async () => {
@@ -26,5 +27,24 @@ describe("diagnostics export", () => {
       clientScope: "route-test",
       clientDetail: { useful: true },
     });
+  });
+
+  test("reports latest AI failure in diagnostics JSON", async () => {
+    const marker = `ai-diagnostic-${crypto.randomUUID()}`;
+    logLlmEvent("llm-error", {
+      provider: "test",
+      model: "test-model",
+      operation: "lap-analysis",
+      threadId: "lap-42",
+      error: new Error(marker),
+    });
+
+    const response = await diagnosticsRoutes.request("/api/diagnostics");
+    expect(response.status).toBe(200);
+    const archive = unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const diagnostics = JSON.parse(strFromU8(archive["diagnostics.json"])) as {
+      chat: { error: string | null };
+    };
+    expect(diagnostics.chat.error).toBe(marker);
   });
 });

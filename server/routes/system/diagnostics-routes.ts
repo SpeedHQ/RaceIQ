@@ -29,6 +29,26 @@ const ClientLogSchema = z.object({
   detail: z.unknown().optional(),
 });
 
+function latestAiError(logs: string): string | null {
+  let latest: string | null = null;
+  for (const line of logs.split("\n")) {
+    const separator = line.indexOf("\t");
+    if (separator === -1) continue;
+    try {
+      const record = JSON.parse(line.slice(separator + 1)) as Record<string, unknown>;
+      if (record.event !== "llm-error") continue;
+      const error = record.error;
+      if (typeof error === "string") latest = error;
+      else if (error && typeof error === "object" && "message" in error) {
+        latest = String(error.message);
+      }
+    } catch {
+      // Ignore non-structured retained log lines.
+    }
+  }
+  return latest;
+}
+
 export const diagnosticsRoutes = new Hono()
   /**
    * POST /api/client-log — sink for browser-side errors.
@@ -80,8 +100,8 @@ export const diagnosticsRoutes = new Hono()
       return { threadId: id, messages: messages.length, updatedAt };
     });
     const chatMessageCount = chatSnapshot.messageCount;
-    const chatError = chatSnapshot.error;
-    if (chatError) log.error({ event: "ai-chat-export-error", error: chatError }, "ai-chat-export-error");
+    const chatCollectionError = chatSnapshot.error;
+    if (chatCollectionError) log.error({ event: "ai-chat-export-error", error: chatCollectionError }, "ai-chat-export-error");
     const chatLines = ["=== RaceIQ AI conversation context ==="];
     const exportTime = new Date().toISOString();
     for (const snapshot of chatSnapshot.threads) {
@@ -109,6 +129,7 @@ export const diagnosticsRoutes = new Hono()
       }
     }
     const recentLogs = readRecentLogText();
+    const chatError = latestAiError(recentLogs) ?? chatCollectionError;
     logs = `${recentLogs}${recentLogs.endsWith("\n") ? "" : "\n"}${chatLines.join("\n")}\n`;
     // Database size and stats
     let dbSizeMB: number | null = null;
@@ -301,6 +322,7 @@ export const diagnosticsRoutes = new Hono()
       chat: {
         messageCount: chatMessageCount,
         error: chatError,
+        collectionError: chatCollectionError,
         threads: chatThreads,
       },
       generatedAt: new Date().toISOString(),

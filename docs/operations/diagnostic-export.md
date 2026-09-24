@@ -47,7 +47,7 @@ for longer threads.
 - UDP port/activity/rate/drop count, WebSocket client count, server heap use,
   database size/counts, detected game, and current session identifiers;
 - effective telemetry and AI provider/model settings;
-- chat thread IDs, update values, message counts, and collection errors;
+- chat thread IDs, update values, message counts, latest retained AI error, and separate chat-context collection error;
 - archive generation time.
 
 Unsupported or failed hardware probes currently appear as `null` or `Unknown`.
@@ -85,9 +85,11 @@ representative Windows system.
 ## AI provider errors
 
 Structured diagnostics cover Gemini, OpenAI, OpenAI-compatible, Claude CLI,
-and agent-stream request paths. Provider transport failures, malformed JSON,
-empty responses, and non-success HTTP responses are written as error-severity
-`llm-error` events and appear in `logs.txt` when the configured log level includes errors.
+agent-stream, and lap-analysis request paths. Provider transport failures,
+malformed JSON, empty responses, non-success HTTP responses, and lap-analysis
+generation or output-validation failures are written as error-severity
+`llm-error` events and appear in `logs.txt` when the configured log level
+includes errors.
 
 Current limitations:
 
@@ -166,7 +168,7 @@ confirmed:
 - a 26-hour-old rotated log is excluded;
 - forwarded browser errors appear in `logs.txt`;
 - Gemini and OpenAI transport failures appear in `logs.txt` at the default log level;
-- those AI failures are absent when the minimum level is `warn` because they are emitted at INFO;
+- those AI failures remain present when the minimum level is `warn` because failure events use `ERROR` severity;
 - 60 persisted messages produce 50 exported chat-message records;
 - the ZIP contains valid `diagnostics.json` and `logs.txt` entries.
 
@@ -186,6 +188,7 @@ bun test test/routes/diagnostics-routes.test.ts test/runtime/diagnostic-log-stor
 | Pino logger and console capture | `server/runtime/logger.ts` |
 | LLM event normalization | `server/ai/diagnostic-logging.ts` |
 | Provider request diagnostics | `server/ai/providers.ts` |
+| Lap-analysis generation lifecycle | `server/ai/generate-lap-analysis.ts` |
 | Agent stream diagnostics | `server/ai/agent-stream.ts` |
 | Chat context collection | `server/ai/chat-agent.ts` |
 | Client queue and forwarding | `client/src/lib/report-error.ts` |

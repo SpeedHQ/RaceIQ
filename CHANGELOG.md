@@ -14,6 +14,7 @@
 - Include AI connection failures, malformed responses, and empty responses in diagnostic exports
 - Show diagnostic log timestamps and severity labels in readable standard formats
 - Retain AI failures when diagnostics use warning-or-higher log levels
+- Show provider-specific details when lap analysis fails instead of only “Bad Request”
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
