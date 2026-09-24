@@ -6,9 +6,11 @@
 - Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
+- Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
 
+- Label sector-time columns S1, S2, S3 in Analyse session lap-selection dialog and allow sorting by sector.
 - Improve logging and diagnostic exports
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
