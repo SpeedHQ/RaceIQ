@@ -4,12 +4,17 @@ import type { ReleaseFeatureFlags } from "@shared/platform/runtime/release-featu
 import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
-  track?: number;
-  car?: number;
+  session?: number;
+  track?: number | string;
+  car?: number | string;
   lap?: number;
+  laps?: string;
+  primary?: number;
   cursor?: number;
   viz?: string;
   ai?: number;
+  view?: string;
+  tab?: TuneReviewTrackTab;
 };
 export type CompareSearch = {
   track?: number;
@@ -31,22 +36,23 @@ export type TuneSearch = {
 };
 
 export type TuneReviewView = "overview" | "track" | `s${number}`;
-export type TuneReviewTrackTab = "consistency" | "tires" | "balance" | "suspension";
+export type TuneReviewTrackTab = "consistency" | "braking" | "throttle" | "dynamics" | "fuel" | "suspension";
 export type TuneReviewSearch = {
   laps?: string;
   lap?: number;
   view?: TuneReviewView;
+  tab?: TuneReviewTrackTab;
   trackTab?: TuneReviewTrackTab;
   versionId?: number;
 };
 
 export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
-export type LiveDashboard = "forza" | "f1" | "acc";
+export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
-  raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
+  raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
 };
 
@@ -66,6 +72,8 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
       return "acc";
     case "iracing":
       return "forza";
+    case "lmu":
+      return "lmu";
     default:
       throw new Error(`Unsupported live dashboard game: ${gameId}`);
   }
@@ -82,14 +90,46 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+export function parseOptionalIdentityKey(value: unknown): number | string | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string" || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && value.trim() !== "" ? parsed : value;
+}
+
+/** Parse the canonical comparison lap list without silently accepting malformed IDs. */
+export function parseAnalyseLapIds(value: string | undefined): number[] | null | undefined {
+  if (value == null) return undefined;
+  const parts = value.split(",");
+  if (parts.length === 0 || parts.some((part) => part.trim() === "")) return null;
+  const ids = parts.map((part) => Number(part));
+  if (ids.some((id) => !Number.isInteger(id) || id <= 0) || new Set(ids).size !== ids.length) return null;
+  return ids;
+}
+
 export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseSearch {
+  const requestedTab = search.tab ?? search.trackTab;
+  const tab =
+    requestedTab === "consistency" ||
+    requestedTab === "braking" ||
+    requestedTab === "throttle" ||
+    requestedTab === "dynamics" ||
+    requestedTab === "fuel" ||
+    requestedTab === "suspension"
+      ? requestedTab
+      : undefined;
   return {
-    track: parseOptionalNumber(search.track),
-    car: parseOptionalNumber(search.car),
+    session: parseOptionalNumber(search.session),
+    track: parseOptionalIdentityKey(search.track),
+    car: parseOptionalIdentityKey(search.car),
     lap: parseOptionalNumber(search.lap),
+    laps: typeof search.laps === "string" ? search.laps : undefined,
+    primary: parseOptionalNumber(search.primary),
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
     ai: parseOptionalNumber(search.ai),
+    view: typeof search.view === "string" ? search.view : undefined,
+    tab,
   };
 }
 
@@ -120,12 +160,22 @@ export function validateTuneSearch(search: Record<string, unknown>): TuneSearch 
 }
 export function validateTuneReviewSearch(search: Record<string, unknown>): TuneReviewSearch {
   const view = search.view === "overview" || search.view === "track" || (typeof search.view === "string" && /^s[1-9]\d*$/.test(search.view)) ? search.view : undefined;
-  const trackTab = search.trackTab === "consistency" || search.trackTab === "tires" || search.trackTab === "balance" || search.trackTab === "suspension" ? search.trackTab : undefined;
+  const requestedTab = search.tab ?? search.trackTab;
+  const tab =
+    requestedTab === "consistency" ||
+    requestedTab === "braking" ||
+    requestedTab === "throttle" ||
+    requestedTab === "dynamics" ||
+    requestedTab === "fuel" ||
+    requestedTab === "suspension"
+      ? requestedTab
+      : undefined;
   return {
     laps: typeof search.laps === "string" ? search.laps : undefined,
     lap: parseOptionalNumber(search.lap),
     view: view as TuneReviewView | undefined,
-    trackTab,
+    tab,
+    trackTab: tab,
     versionId: parseOptionalNumber(search.versionId),
   };
 }

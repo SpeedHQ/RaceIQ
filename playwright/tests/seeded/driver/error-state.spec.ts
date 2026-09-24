@@ -14,7 +14,7 @@ test("Driver profile presents deterministic API error state", async ({ page }) =
   }
   const expectedResourceError = "console.error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)";
   expect(
-    browserErrors.errors.filter((error) => error !== expectedResourceError && !/^http 500: .*\/api\/drivers\/profile\?/.test(error)),
+    browserErrors.errors.filter((error) => error !== expectedResourceError && !/^http 500: .*\/api\/drivers\/profile(?:\?.*)?$/.test(error)),
     "unexpected browser errors in Driver error state",
   ).toEqual([]);
 });

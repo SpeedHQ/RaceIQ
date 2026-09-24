@@ -142,7 +142,7 @@ describe("db:seed", () => {
     expect(initial.laps).toBeGreaterThanOrEqual(16);
     assertSeededRawFilesExist(dataDir);
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
-    expect(seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing"]);
+    expect(seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing", "lmu"]);
     expect(seededIRacingIdentity(dataDir)).toEqual([
       { kind: "car", ordinal: 42, name: "GT3 Test Car" },
       { kind: "track", ordinal: 99, name: "Road America" },

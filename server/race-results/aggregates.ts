@@ -12,12 +12,19 @@ export interface ResultAggregateScope {
   gameId: GameId;
   carOrdinal?: number;
   trackOrdinal?: number;
+  carId?: string;
+  trackId?: string;
 }
 
 export async function getRaceResultAggregate(scope: ResultAggregateScope): Promise<RaceResultAggregate> {
   const filters = [eq(sessions.gameId, scope.gameId)];
-  if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
-  if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
+  if (scope.gameId === "lmu") {
+    if (scope.carId != null) filters.push(eq(sessions.carId, scope.carId));
+    if (scope.trackId != null) filters.push(eq(sessions.trackId, scope.trackId));
+  } else {
+    if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
+    if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
+  }
   const [row] = await db
     .select({
       sessions: sql<number>`count(${sessionResults.id})`,

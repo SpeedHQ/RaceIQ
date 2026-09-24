@@ -8,7 +8,14 @@ import { formatLapTime } from "./format";
 import { client } from "./rpc";
 
 /** Build a CSV string from lap telemetry and hand it to the browser as a download. */
-export function buildExportCsv(telemetry: ReadonlyArray<Record<string, unknown>>, carName: string, trackName: string, selectedLap: LapMeta | undefined, selectedLapId: number | null, driverName?: string): string {
+export function buildExportCsv(
+  telemetry: ReadonlyArray<Record<string, unknown>>,
+  carName: string,
+  trackName: string,
+  selectedLap: LapMeta | undefined,
+  selectedLapId: number | null,
+  driverName?: string,
+): string {
   const first = telemetry[0] ?? {};
   const carOrdinal = selectedLap?.carOrdinal ?? first.CarOrdinal ?? "?";
   const trackOrdinal = selectedLap?.trackOrdinal ?? first.TrackOrdinal ?? "?";

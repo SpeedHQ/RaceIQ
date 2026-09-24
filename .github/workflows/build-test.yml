@@ -22,9 +22,7 @@ jobs:
   build:
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
-    runs-on:
-      - mars-windows-x64-10vcpu-15g
-      - mars-macos-arm64-2vcpu-10g
+    runs-on: mars-windows-x64-10vcpu-15g
     steps:
       - uses: actions/checkout@v7
         with:
@@ -74,6 +72,12 @@ jobs:
 
       - name: Type-check server, shared, scripts, and tests
         run: bun run typecheck
+      - name: Verify seeded database upgrade
+        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        env:
+          UPGRADE_DATA_DIR: ${{ runner.temp }}/raceiq-upgrade-data
+        run: bun scripts/ci/check-db-upgrade.ts
+
 
       - name: Check generated telemetry catalog
         run: bun scripts/ci/check-telemetry-catalog.ts
@@ -87,10 +91,11 @@ jobs:
       - name: Run integration tests
         run: bun run test:integration
 
+
   changelog:
     timeout-minutes: 30
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
         with:

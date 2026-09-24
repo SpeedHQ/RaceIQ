@@ -1,9 +1,9 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type LapMeta } from "@shared/racing/sessions/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { buildRecapText } from "@/components/SessionRecap";
+import { buildRecapText } from "@/components/sessions/helpers";
 import { useLaps } from "@/hooks/laps";
 import { useSessionRecap, useSessions } from "@/hooks/session-queries";
 import { useSettings } from "@/hooks/settings";
@@ -30,8 +30,8 @@ export function HomePageContainer() {
     return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   }, [sessions]);
   const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
-  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
-  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackId, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
 
   const recentLaps = useMemo(
@@ -44,7 +44,7 @@ export function HomePageContainer() {
   );
 
   const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing", "lmu"] as const).map((g) => ({
       queryKey: ["stats", g],
       queryFn: async () => {
         const res = await client.api.stats.$get({ query: { gameId: g } });
@@ -65,7 +65,7 @@ export function HomePageContainer() {
       const d = gameQueries[i].data;
       return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4) };
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4), lmu: pick(5) };
   }, [gameQueries]);
 
   const [periodTab, setPeriodTab] = useState<PeriodKey>("allTime");
@@ -127,7 +127,7 @@ export function HomePageContainer() {
     queries: nameTargets.cars.map((target) => ({
       queryKey: [...queryKeys.carName(target.ordinal), target.gameId],
       queryFn: async () => {
-        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        const response = await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
         return response.ok ? response.text() : "";
       },
     })),
@@ -136,7 +136,7 @@ export function HomePageContainer() {
     queries: nameTargets.tracks.map((target) => ({
       queryKey: [...queryKeys.trackName(target.ordinal), target.gameId],
       queryFn: async () => {
-        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(target.ordinal) }, query: { gameId: target.gameId } });
+        const response = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(target.ordinal)) }, query: { gameId: target.gameId } });
         return response.ok ? response.text() : "";
       },
     })),
@@ -153,8 +153,8 @@ export function HomePageContainer() {
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(latestRecap.gameId)}/analyse` as never,
-      search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
+      to: `${getGameRoute(latestRecap.gameId)}/sessions/replay` as never,
+      search: { track: trackIdentityKey(latestRecap), car: carIdentityKey(latestRecap), lap: latestRecap.bestLapId } as never,
     });
   };
 
@@ -181,8 +181,8 @@ export function HomePageContainer() {
       onAnalyseLap={(lap) => {
         if (!lap.gameId) return;
         void navigate({
-          to: `${getGameRoute(lap.gameId)}/analyse` as never,
-          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
+          to: `${getGameRoute(lap.gameId)}/sessions/replay` as never,
+          search: { track: trackIdentityKey(lap), car: carIdentityKey(lap), lap: lap.id } as never,
         });
       }}
       periodTab={periodTab}

@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import type { VersionInfo } from "@/stores/telemetry";
 import { telemetryStore, useTelemetryStore } from "@/stores/telemetry";
 import { ProcessingMaintenance } from "../ProcessingMaintenance";
+import { getLocale } from "@/paraglide/runtime";
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
@@ -73,7 +74,7 @@ export function UpdatesSection() {
         )}
         {versionInfo?.lastChecked && (
           <p>
-            {m.updates_last_checked()} {new Date(versionInfo.lastChecked).toLocaleString()}
+            {m.updates_last_checked()} {new Date(versionInfo.lastChecked).toLocaleString(getLocale())}
           </p>
         )}
       </div>
@@ -125,7 +126,7 @@ export function UpdatesSection() {
                 <h3 className="text-sm font-medium text-app-text">v{r.version}</h3>
                 {r.date && (
                   <span className="text-xs text-app-text-muted">
-                    {m.updates_released()} {new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    {m.updates_released()} {new Date(r.date).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}
                   </span>
                 )}
               </div>
@@ -144,7 +145,7 @@ export function UpdatesSection() {
             </h3>
             {versionInfo.currentReleaseDate && (
               <span className="text-xs text-app-text-muted">
-                {m.updates_released()} {new Date(versionInfo.currentReleaseDate).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                {m.updates_released()} {new Date(versionInfo.currentReleaseDate).toLocaleDateString(getLocale(), { year: "numeric", month: "short", day: "numeric" })}
               </span>
             )}
           </div>

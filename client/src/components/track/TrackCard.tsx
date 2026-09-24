@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
 import { Button } from "../ui/button";
+import { InlineTrackMap } from "./InlineTrackMap";
 
 export const TRACK_CARD_SHELL_CLASS = "w-full border border-app-border rounded-lg overflow-hidden bg-app-surface/50";
 const trackCardVisibilityCallbacks = new WeakMap<Element, () => void>();
@@ -39,19 +40,7 @@ function observeTrackCardVisibility(element: Element, onVisible: () => void): ((
   };
 }
 
-export function TrackCardVisual({
-  track,
-  map,
-  setupCount,
-  guideCount,
-  gameLabel,
-}: {
-  track: TrackInfo;
-  map?: ReactNode;
-  setupCount?: number;
-  guideCount?: number;
-  gameLabel?: string;
-}) {
+export function TrackCardVisual({ track, map, setupCount, guideCount, gameLabel }: { track: TrackInfo; map?: ReactNode; setupCount?: number; guideCount?: number; gameLabel?: string }) {
   const place = [track.location, countryName(track.country)].filter(Boolean).join(", ");
   const metadata = [track.variant, place, track.lengthKm > 0 ? `${track.lengthKm} km` : ""].filter(Boolean).join(" · ");
   return (
@@ -63,26 +52,24 @@ export function TrackCardVisual({
             {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
           </span>
         </div>
-        <div className="text-app-label text-app-text-muted">
-          {metadata}
-        </div>
+        <div className="text-app-label text-app-text-muted">{metadata}</div>
       </div>
       <div className="bg-app-bg relative" style={{ height: 150 }}>
         {map ?? <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>}
-        {gameLabel && (
-          <span className="absolute top-1.5 left-1.5 text-app-caption px-1.5 py-0.5 rounded bg-app-surface/90 border border-app-border text-app-text-muted">
-            {gameLabel}
-          </span>
-        )}
+        {gameLabel && <span className="absolute top-1.5 left-1.5 text-app-caption px-1.5 py-0.5 rounded bg-app-surface/90 border border-app-border text-app-text-muted">{gameLabel}</span>}
         {(setupCount !== undefined || guideCount !== undefined) && (
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
             {setupCount !== undefined && (
-              <span className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${setupCount > 0 ? "bg-status-success/15 border-status-success/50 text-status-success" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"}`}>
+              <span
+                className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${setupCount > 0 ? "bg-status-success/15 border-status-success/50 text-status-success" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"}`}
+              >
                 {setupCount} {setupCount === 1 ? m.trackcard_setup_count() : m.trackcard_setup_counts()}
               </span>
             )}
             {guideCount !== undefined && (
-              <span className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${guideCount > 0 ? "bg-status-warning/15 border-status-warning/50 text-status-warning" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"}`}>
+              <span
+                className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${guideCount > 0 ? "bg-status-warning/15 border-status-warning/50 text-status-warning" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"}`}
+              >
                 {guideCount} {guideCount === 1 ? m.trackcard_guide_count() : m.trackcard_guide_counts()}
               </span>
             )}
@@ -121,7 +108,7 @@ export function TrackCard({
   useEffect(() => {
     if (!track.hasOutline || !outlineVisible) return;
     client.api["track-outline"][":ordinal"]
-      .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
@@ -141,8 +128,10 @@ export function TrackCard({
     drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX);
   }, [outline, flipX]);
 
-  const map = outline ? <canvas ref={canvasRef} className="w-full h-full" /> : track.mapUrl ? (
-    <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
+  const map = outline ? (
+    <canvas ref={canvasRef} className="w-full h-full" />
+  ) : track.mapUrl ? (
+    gameId === "lmu" ? <InlineTrackMap src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full p-3" /> : <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
   ) : undefined;
 
   return (

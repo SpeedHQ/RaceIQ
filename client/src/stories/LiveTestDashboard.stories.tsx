@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
 import { DEFAULT_DISPLAY_SETTINGS, telemetryStore } from "../stores/telemetry";
 import { fakeAccPacket, fakeSectors, fakeSessionLaps, makeSemanticFixture } from "./fakeData";
-import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
+import { fakeSectorTimes, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 import type { LiveTelemetryView } from "../lib/live-telemetry-view";
 
 const queryClient = new QueryClient({
@@ -51,7 +51,6 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
       sectors: fakeSectors,
       sessionLaps: fakeSessionLaps,
       isRaceOn: true,
-      lapIssuesFeed: [{ lapId: 10, lapNumber: 4, issues: fakeTuneIssues }],
     });
   }, []);
 

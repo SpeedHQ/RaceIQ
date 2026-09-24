@@ -22,8 +22,8 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Semant
 
   // Compute world-space wheel position
   const wheelWorld = (p: SemanticAnalysisFrame, off: { fwd: number; rgt: number }) => {
-    const s = Math.sin((semanticNumber(p, "motion.yaw") ?? 0));
-    const c = Math.cos((semanticNumber(p, "motion.yaw") ?? 0));
+    const s = Math.sin(semanticNumber(p, "motion.yaw") ?? 0);
+    const c = Math.cos(semanticNumber(p, "motion.yaw") ?? 0);
     return {
       x: (semanticNumber(p, "motion.position-x") ?? 0) + off.fwd * s + off.rgt * c,
       z: (semanticNumber(p, "motion.position-z") ?? 0) + off.fwd * c - off.rgt * s,
@@ -37,9 +37,9 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Semant
     return { leftCurb: [], rightCurb: [], puddlePoints: [] };
   }, [telemetry]);
 
-  const cx = (semanticNumber(packet, "motion.position-x") ?? 0);
-  const cz = (semanticNumber(packet, "motion.position-z") ?? 0);
-  const yaw = (semanticNumber(packet, "motion.yaw") ?? 0);
+  const cx = semanticNumber(packet, "motion.position-x") ?? 0;
+  const cz = semanticNumber(packet, "motion.position-z") ?? 0;
+  const yaw = semanticNumber(packet, "motion.yaw") ?? 0;
   const GROUND_Y = -carModel.tireRadius;
 
   // Filter and transform world-space points to car-local scene coordinates

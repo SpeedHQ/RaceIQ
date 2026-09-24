@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { client } from "@/lib/rpc";
 import { useGameId } from "@/stores/game";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
+import { InlineTrackMap } from "../InlineTrackMap";
 import { CalibrationComparisonSection } from "./CalibrationComparisonSection";
 import type { CalibrationComparison } from "./calibration-comparison";
 import { CurbDebugSection } from "./CurbDebugSection";
@@ -14,6 +15,7 @@ import { TrackDebugCanvas } from "./TrackDebugCanvas";
 export function TrackDebugPanel({
   trackOrdinal,
   outline,
+  mapUrl,
   flipX = false,
   displaySectors,
   sectorBounds,
@@ -26,6 +28,7 @@ export function TrackDebugPanel({
 }: {
   trackOrdinal: number;
   outline: Point[] | null;
+  mapUrl?: string | null;
   flipX?: boolean;
   displaySectors?: TrackSectors | null;
   sectorBounds?: { s1End: number; s2End: number } | null;
@@ -48,15 +51,15 @@ export function TrackDebugPanel({
     setLoading(true);
     Promise.all([
       client.api["track-boundaries"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
         .catch(() => null),
       client.api["track-curbs"][":ordinal"]
-        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
         .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
         .catch(() => null),
       client.api["track-calibration"][":ordinal"].comparison
-        .$get({ param: { ordinal: String(trackOrdinal) } })
+        .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) } })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ]).then(([b, c, comparison]) => {
@@ -73,22 +76,28 @@ export function TrackDebugPanel({
 
   return (
     <div className="grid h-auto grid-cols-1 gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:grid-cols-[1fr_280px]">
-      <TrackDebugCanvas
-        outline={outline}
-        boundaries={boundaries}
-        curbs={curbs}
-        flipX={flipX}
-        displaySectors={displaySectors}
-        sectorBounds={sectorBounds}
-        editingSegments={editingSegments}
-        editingSectors={editingSectors}
-        trackLengthKm={trackLengthKm}
-        trackCreatedAt={trackCreatedAt}
-        corners={corners}
-        straights={straights}
-        calibrationComparison={calibrationComparison}
-        showCalibrationHistory={showCalibrationHistory}
-      />
+      {mapUrl?.startsWith("/api/lmu-assets/") ? (
+        <div className="min-h-0 rounded-lg border border-app-border bg-app-bg">
+          <InlineTrackMap src={mapUrl} alt="LMU extracted track geometry" layers="debug" className="h-full w-full p-3" />
+        </div>
+      ) : (
+        <TrackDebugCanvas
+          outline={outline}
+          boundaries={boundaries}
+          curbs={curbs}
+          flipX={flipX}
+          displaySectors={displaySectors}
+          sectorBounds={sectorBounds}
+          editingSegments={editingSegments}
+          editingSectors={editingSectors}
+          trackLengthKm={trackLengthKm}
+          trackCreatedAt={trackCreatedAt}
+          corners={corners}
+          straights={straights}
+          calibrationComparison={calibrationComparison}
+          showCalibrationHistory={showCalibrationHistory}
+        />
+      )}
 
       {/* Info sidebar */}
       <div className="flex flex-col gap-3 overflow-auto">
@@ -132,11 +141,7 @@ export function TrackDebugPanel({
           </div>
         </div>
 
-        <CalibrationComparisonSection
-          comparison={calibrationComparison}
-          showHistory={showCalibrationHistory}
-          onShowHistoryChange={setShowCalibrationHistory}
-        />
+        <CalibrationComparisonSection comparison={calibrationComparison} showHistory={showCalibrationHistory} onShowHistoryChange={setShowCalibrationHistory} />
         <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>

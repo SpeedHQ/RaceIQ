@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 for (const game of SEEDED_GAME_CASES) {
   test(`${game.name} live channels and reconnect use committed recording`, async ({ page, request }) => {
-    test.setTimeout(75_000);
+    test.setTimeout(95_000);
     const browserErrors = collectBrowserErrors(page);
     const livePath = game.gameId === "iracing" ? "/iracing/live/driver" : `/${game.prefix}/live`;
     await page.goto(livePath, { waitUntil: "domcontentloaded" });

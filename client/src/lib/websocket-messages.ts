@@ -1,6 +1,6 @@
 import { isDevTelemetryPacketMessageV1, isDevTelemetrySubscriptionMessageV1, isLiveTelemetryFrameMessageV1, isLiveTelemetrySchemaMessageV1 } from "../../../shared/telemetry/live/contracts";
-import { devTelemetryStore, } from "../stores/dev-telemetry";
-import { telemetryStore, } from "../stores/telemetry";
+import { devTelemetryStore } from "../stores/dev-telemetry";
+import { telemetryStore } from "../stores/telemetry";
 
 export function handleWebSocketMessage(data: unknown): boolean {
   if (isLiveTelemetrySchemaMessageV1(data)) {
@@ -13,7 +13,7 @@ export function handleWebSocketMessage(data: unknown): boolean {
     return true;
   }
   if (isDevTelemetrySubscriptionMessageV1(data)) {
-    devTelemetryStore.actions.setSubscription(data.subscribed, data.error ?? null);
+    if (data.channel === "dev-telemetry") devTelemetryStore.actions.setSubscription(data.subscribed, data.error ?? null);
     return false;
   }
   if (isDevTelemetryPacketMessageV1(data)) {

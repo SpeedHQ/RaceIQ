@@ -75,10 +75,32 @@ export function installClientErrorReporting(): void {
     error: rawConsoleError,
   };
   for (const level of ["debug", "info", "warn", "error"] as const) {
-    console[level] = (...args: unknown[]) => { rawMethods[level]?.(...args); reportClientError("console", formatArgs(args), undefined, level); };
+    console[level] = (...args: unknown[]) => {
+      rawMethods[level]?.(...args);
+      if (!isViteRuntimeMessage(args)) reportClientError("console", formatArgs(args), undefined, level);
+    };
   }
 }
-function formatArgs(args: unknown[]): string { return args.map((a) => { if (typeof a === "string") return a; if (a instanceof Error) return a.stack ?? a.message; try { return JSON.stringify(a); } catch { return String(a); } }).join(" "); }
+
+function isViteRuntimeMessage(args: unknown[]): boolean {
+  return typeof args[0] === "string" && args[0].startsWith("[vite]");
+}
+
+function formatArgs(args: unknown[]): string {
+  return args
+    .map((a) => {
+      if (typeof a === "string") return a;
+      if (a instanceof Error) return a.stack ?? a.message;
+      try {
+        return JSON.stringify(a);
+      } catch {
+        return String(a);
+      }
+    })
+    .join(" ");
+}
+
+/** Store a detached, byte-bounded JSON snapshot rather than retaining app data. */
 function serializeDetail(detail: unknown): string | undefined {
   if (detail === undefined) return undefined;
   const normalized = detail instanceof Error ? { name: detail.name, message: detail.message, stack: detail.stack } : detail;

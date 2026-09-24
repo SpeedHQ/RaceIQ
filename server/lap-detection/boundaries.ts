@@ -13,6 +13,8 @@ export interface SessionSnapshot {
   carOrdinal: number;
   trackOrdinal: number;
   sessionUID?: string;
+  carId?: string;
+  trackId?: string;
 }
 
 // ── Session boundary detection ────────────────────────────────────────────────
@@ -59,10 +61,14 @@ export function detectSessionBoundary(
     packet.DistanceTraveled < 500
   ) return "distance-reset";
 
-  if (packet.CarOrdinal !== session.carOrdinal) return "car-changed";
-
-  if (packet.TrackOrdinal && packet.TrackOrdinal !== session.trackOrdinal)
-    return "track-changed";
+  if (packet.gameId === "lmu" && packet.lmu) {
+    if (packet.lmu.carId !== session.carId) return "car-changed";
+    if (packet.lmu.trackId !== session.trackId) return "track-changed";
+  } else {
+    if (packet.CarOrdinal !== session.carOrdinal) return "car-changed";
+    if (packet.TrackOrdinal && packet.TrackOrdinal !== session.trackOrdinal)
+      return "track-changed";
+  }
 
   if (
     !session.sessionUID &&

@@ -2,13 +2,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
-import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
+import { getLocale } from "@/paraglide/runtime";
+import { buildRecapText } from "./sessions/helpers";
 
 export type TrackOutlineData =
   | {
@@ -163,23 +165,6 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
   );
 }
 
-export function buildRecapText(recap: SessionRecapDto): string {
-  const lines: string[] = [`RaceIQ — ${recap.trackName} · ${recap.carName}`];
-  const best = recap.bestLapSec,
-    pb = recap.personalBest;
-  const bestPart = best != null ? `${m.recap_text_best()} ${formatLapTime(best)}` : null;
-  const pbPart =
-    pb?.isNew !== true ? null : pb.previousBestSec != null && best != null ? `${m.recap_new_pb()}, ${formatDelta(pb.previousBestSec - best)}` : `${m.recap_new_pb()}, ${m.recap_new_pb_first_ever()}`;
-  const lapsLine = [`${recap.lapsValid} ${m.recap_text_laps()}`, bestPart ? (pbPart ? `${bestPart} (${pbPart})` : bestPart) : null].filter(Boolean).join(" · ");
-  if (lapsLine) lines.push(lapsLine);
-  if (recap.theoretical != null) lines.push(`${m.recap_text_theoretical()} ${formatLapTime(recap.theoretical.sumSec)} (${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()})`);
-  const tailParts: string[] = [];
-  if (recap.consistency != null) tailParts.push(`${m.recap_text_consistency()} ${recap.consistency.rating}★`);
-  if (recap.distanceM != null) tailParts.push(formatDistance(recap.distanceM));
-  tailParts.push(`${formatDuration(recap.timeOnTrackSec)} ${m.recap_text_on_track()}`);
-  if (tailParts.length > 0) lines.push(tailParts.join(" · "));
-  return lines.join("\n");
-}
 
 export interface SessionRecapViewProps {
   recap: SessionRecapDto;
@@ -203,7 +188,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, finishP
           <div className="break-words text-base font-bold text-app-text/90">
             {recap.carName} · {recap.trackName}
           </div>
-          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString()}</div>
+          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString(getLocale())}</div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {canAnalyse && (
@@ -265,8 +250,8 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
-  const { data: outlineData } = useTrackOutline(recap?.trackOrdinal, recap?.gameId ?? gameId);
-  const { data: bounds } = useTrackSectorBoundaries(recap?.trackOrdinal, recap?.gameId ?? gameId);
+  const { data: outlineData } = useTrackOutline(recap?.trackId, recap?.gameId ?? gameId);
+  const { data: bounds } = useTrackSectorBoundaries(recap?.trackId, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
   if (isLoading)
     return (
@@ -289,8 +274,8 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const analyse = () => {
     if (recap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(recap.gameId)}/analyse` as never,
-      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId } as never,
+      to: `${getGameRoute(recap.gameId)}/sessions/replay`,
+      search: { track: trackIdentityKey(recap) ?? undefined, car: carIdentityKey(recap) ?? undefined, lap: recap.bestLapId ?? undefined },
     });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;

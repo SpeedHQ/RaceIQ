@@ -5,7 +5,7 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 
-export function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
+function buildComparisonLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
     label: `${m.compare_lap_label({}, { locale })} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " (inv)" : ""}`,

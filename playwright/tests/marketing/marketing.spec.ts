@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { getSeededLapTarget } from "../support/seeded/laps";
 import { writeFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -6,7 +7,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions/replay", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
@@ -15,27 +16,12 @@ const PAGES = [
   { name: "setups", path: "/f125/tracks/19/setups" },
   { name: "setups-ranges", path: "/f125/tracks/19/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
-  { name: "experiments-review-overview", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=overview" },
-  { name: "experiments-review-track", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track" },
-  { name: "experiments-review-track-tires", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=tires" },
-  { name: "experiments-review-track-balance", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=balance" },
-  { name: "experiments-review-track-suspension", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=track&trackTab=suspension" },
-  { name: "experiments-review-sector-1", path: "/f125/experiments/1/review?laps=4,5,6,7,8&view=s1" },
 ];
 
-async function waitForMetricData(page: Page, label: string): Promise<void> {
-  const panel = page.getByText(label, { exact: true }).locator("..").locator("..");
-  await expect.poll(async () => panel.textContent(), { message: `${label} remained empty`, timeout: 30_000 }).not.toContain("0–1");
-}
-test.afterEach(async ({ request }, testInfo) => {
-  if (!testInfo.title.startsWith("screenshot: experiments-review")) return;
-  const response = await request.post("/api/experiments/1/undo");
-  if (!response.ok()) throw new Error(`Failed to clean experiment review laps: ${response.status()}`);
-});
 
 for (const page of PAGES) {
   test(`screenshot: ${page.name}`, async ({ page: p }) => {
-    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(120_000);
+    if (page.name === "lap-analytics" || page.name.startsWith("experiments-review")) test.setTimeout(140_000);
     await p.addInitScript(() => localStorage.setItem("forza-onboarding-complete", "true"));
     if (page.name.startsWith("experiments-review-")) {
       const response = await p.request.post("/api/experiments/1/import-laps", {
@@ -43,7 +29,14 @@ for (const page of PAGES) {
       });
       if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
     }
-    await p.goto(page.path, { waitUntil: "domcontentloaded" });
+    const target = page.name === "lap-analytics"
+      ? await getSeededLapTarget(p.request, "f1-2025")
+      : null;
+    const path = target
+      ? `/f125/sessions/replay?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}&viz=3d`
+      : page.path;
+    await p.goto(path, { waitUntil: "domcontentloaded" });
+    // Dynamic route selected above avoids coupling screenshot coverage to auto-increment IDs.
     if ("readyText" in page && page.readyText) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
       await ready.waitFor({ state: "visible", timeout: 30_000 });
@@ -57,7 +50,7 @@ for (const page of PAGES) {
       await expect.poll(() => p.locator('svg[aria-label="Lap track map coloured by sector"]').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(3);
     }
     if (page.name === "experiments-review-sector-1") {
-      for (const label of ["Surface temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
+      for (const label of ["Core temp", "Brake temp", "Pressure", "Wear"]) await waitForMetricData(p, label);
     }
     await p.waitForTimeout(1500);
     if ("hover" in page && page.hover) {

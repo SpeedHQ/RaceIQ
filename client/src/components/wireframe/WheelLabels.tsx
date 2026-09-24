@@ -10,10 +10,11 @@ const REF_DIST = 4;
 const MIN_FACTOR = 1;
 const MAX_FACTOR = 2.5;
 
-const CARD_W = 200;
+const CARD_W = 240;
 const ROW_H = 42;
 const PAD_Y = 10;
-const BASE_SCALE = 0.62;
+const CANVAS_SCALE = 2;
+const BASE_SCALE = 0.72;
 
 function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -41,33 +42,11 @@ function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: num
   ctx.fill();
 }
 
-function drawBrakeIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string) {
-  const r = 14;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-  ctx.stroke();
-  for (let a = 0; a < 6; a++) {
-    const angle = (a / 6) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(angle) * 6, cy + Math.sin(angle) * 6);
-    ctx.lineTo(cx + Math.cos(angle) * 12, cy + Math.sin(angle) * 12);
-    ctx.stroke();
-  }
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r + 3, -0.6, 0.6);
-  ctx.stroke();
-}
 
 type Row =
   | { kind: "health"; pct: string; color: string }
-  | { kind: "temp"; text: string; color: string }
-  | { kind: "brake"; text: string; color: string }
+  | { kind: "temp"; label: string; value: string; color: string }
+  | { kind: "brake"; value: string; color: string }
   | { kind: "pressure"; text: string; color: string }
   | { kind: "wear"; text: string };
 
@@ -108,10 +87,10 @@ export function WheelInfoCard({
   const { rows, cardH } = useMemo(() => {
     const rows: Row[] = [
       { kind: "health", pct: healthPct, color: healthColor },
-      { kind: "temp", text: `${temperatureLabel} ${displayTemp}`, color: tempColor },
+      { kind: "temp", label: temperatureLabel, value: displayTemp, color: tempColor },
     ];
-    if (displayCoreTemp) rows.push({ kind: "temp", text: `Core ${displayCoreTemp}`, color: tempColor });
-    if (brakeText) rows.push({ kind: "brake", text: `Brake ${brakeText}`, color: brakeColor });
+    if (displayCoreTemp) rows.push({ kind: "temp", label: "Core", value: displayCoreTemp, color: tempColor });
+    if (brakeText) rows.push({ kind: "brake", value: brakeText, color: brakeColor });
     if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
     if (wearText) rows.push({ kind: "wear", text: wearText });
     return { rows, cardH: PAD_Y * 2 + rows.length * ROW_H };
@@ -119,8 +98,8 @@ export function WheelInfoCard({
 
   const { canvas, ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = CARD_W;
-    canvas.height = PAD_Y * 2 + 2 * ROW_H;
+    canvas.width = CARD_W * CANVAS_SCALE;
+    canvas.height = (PAD_Y * 2 + 2 * ROW_H) * CANVAS_SCALE;
     const ctx = getSemanticCanvasContext(canvas);
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({
@@ -134,8 +113,9 @@ export function WheelInfoCard({
 
   useLayoutEffect(() => {
     if (!ctx) return;
-    if (canvas.width !== CARD_W) canvas.width = CARD_W;
-    if (canvas.height !== cardH) canvas.height = cardH;
+    if (canvas.width !== CARD_W * CANVAS_SCALE) canvas.width = CARD_W * CANVAS_SCALE;
+    if (canvas.height !== cardH * CANVAS_SCALE) canvas.height = cardH * CANVAS_SCALE;
+    ctx.setTransform(CANVAS_SCALE, 0, 0, CANVAS_SCALE, 0, 0);
     ctx.clearRect(0, 0, CARD_W, cardH);
 
     // Background card — subtle, high-contrast, rounded
@@ -166,18 +146,17 @@ export function WheelInfoCard({
       } else if (row.kind === "temp") {
         ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
         ctx.fillStyle = row.color;
-        ctx.fillText(row.text, CARD_W / 2, y);
+        ctx.textAlign = "left";
+        ctx.fillText(row.label, 12, y);
+        ctx.textAlign = "right";
+        ctx.fillText(row.value, CARD_W - 12, y);
       } else if (row.kind === "brake") {
         ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
-        const metrics = ctx.measureText(row.text);
-        const iconW = 36;
-        const groupW = iconW + 8 + metrics.width;
-        const left = CARD_W / 2 - groupW / 2;
-        drawBrakeIcon(ctx, left + iconW / 2, y, row.color);
         ctx.fillStyle = row.color;
         ctx.textAlign = "left";
-        ctx.fillText(row.text, left + iconW + 8, y);
-        ctx.textAlign = "center";
+        ctx.fillText("Brake", 12, y);
+        ctx.textAlign = "right";
+        ctx.fillText(row.value, CARD_W - 12, y);
       } else if (row.kind === "pressure") {
         ctx.font = "var(--font-weight-bold) var(--text-app-visualization-value) var(--font-mono)";
         ctx.fillStyle = row.color;

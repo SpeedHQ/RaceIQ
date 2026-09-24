@@ -92,10 +92,25 @@ function IRacingSetupGuide() {
   return (
     <div className="mt-3 w-[420px] max-w-[calc(100vw-2rem)] rounded-lg border border-app-border bg-app-surface p-4 text-sm text-app-text-muted">
       <ol className="list-decimal space-y-2 pl-5">
-        <li>Start the iRacing simulator on this Windows PC.</li>
-        <li>Enter the car and begin driving in a test, practice, qualifying, or race session.</li>
-        <li>RaceIQ connects directly to iRacing's native shared-memory SDK; no UDP setup or separate SDK wrapper is required.</li>
+        <li>{m.nodata_iracing_step_start()}</li>
+        <li>{m.nodata_iracing_step_enter()}</li>
+        <li>{m.nodata_iracing_step_sdk()}</li>
       </ol>
+    </div>
+  );
+}
+
+function LMUSetupGuide() {
+  return (
+    <div className="mt-3 w-[420px] max-w-[calc(100vw-2rem)] rounded-lg border border-app-border bg-app-surface p-4 text-sm text-app-text-muted">
+      <ol className="list-decimal space-y-2 pl-5">
+        <li>Start Le Mans Ultimate on this Windows PC.</li>
+        <li>Turn on Gameplay &gt; Enable Plugins, then enter a driving session.</li>
+        <li>RaceIQ connects to LMU&apos;s built-in shared-memory telemetry automatically.</li>
+      </ol>
+      <p className="mt-3 text-xs">
+        Saved LMU telemetry databases can also be uploaded from Sessions.
+      </p>
     </div>
   );
 }
@@ -106,7 +121,7 @@ export function NoDataView() {
   const { displaySettings } = useSettings();
   const port = String((displaySettings as any).udpPort ?? "5300");
 
-  const guideLabel = gameId === "iracing" ? "How to connect iRacing" : gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
+  const guideLabel = gameId === "iracing" ? m.nodata_iracing_guide_toggle() : gameId === "lmu" ? "How to connect Le Mans Ultimate" : gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
@@ -133,7 +148,7 @@ export function NoDataView() {
           {guideLabel}
         </Button>
 
-        {expanded && (gameId === "iracing" ? <IRacingSetupGuide /> : gameId === "f1-2025" ? <F1SetupGuide port={port} /> : gameId === "acc" ? <AccSetupGuide /> : <ForzaSetupGuide port={port} />)}
+        {expanded && (gameId === "iracing" ? <IRacingSetupGuide /> : gameId === "lmu" ? <LMUSetupGuide /> : gameId === "f1-2025" ? <F1SetupGuide port={port} /> : gameId === "acc" ? <AccSetupGuide /> : <ForzaSetupGuide port={port} />)}
       </div>
     </div>
   );

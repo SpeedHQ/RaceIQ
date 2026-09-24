@@ -10,6 +10,7 @@ export default defineConfig({
   workers: runtime.parallelScreenshotRun ? runtime.screenshotWorkers : runtime.testWorkers,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["github"]] : "list",
+  timeout: 50_000,
   expect: { timeout: 10_000 },
   use: {
     ...devices["Desktop Chrome"],

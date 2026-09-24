@@ -39,6 +39,7 @@ export const diagnosticsRoutes = new Hono()
    */
   .post("/api/client-log", zValidator("json", ClientLogSchema), async (c) => {
     const { level, scope, message, detail, occurredAtMs } = c.req.valid("json");
+    if (scope === "console" && message.startsWith("[vite]")) return c.json({ ok: true });
     const suffix = detail ? ` ${JSON.stringify(detail).slice(0, 2000)}` : "";
     const record = { clientOccurredAt: new Date(occurredAtMs).toISOString(), clientScope: scope, clientDetail: detail };
     const line = `[Client/${scope}] ${message}${suffix}`;
@@ -262,7 +263,13 @@ export const diagnosticsRoutes = new Hono()
           ? { id: runningGame.id, name: runningGame.shortName }
           : null,
         currentSession: session
-          ? { id: session.sessionId, car: session.carOrdinal, track: session.trackOrdinal }
+          ? {
+              id: session.sessionId,
+              car: session.carOrdinal,
+              track: session.trackOrdinal,
+              carId: session.carId ?? session.carOrdinal,
+              trackId: session.trackId ?? session.trackOrdinal,
+            }
           : null,
       },
       settings: {

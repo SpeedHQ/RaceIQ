@@ -1250,5 +1250,18 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
+  // v59: Persist one LMU string identity pair alongside legacy ordinals.
+  {
+    version: 59,
+    name: "persist LMU session string identity",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN car_id TEXT`,
+      `ALTER TABLE sessions ADD COLUMN track_id TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_game_car_id
+       ON sessions(game_id, car_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_game_track_id
+       ON sessions(game_id, track_id)`,
+    ],
+  },
 ];
 

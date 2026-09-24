@@ -1,6 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { memo, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { getLocale } from "@/paraglide/runtime";
+import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2 } from "lucide-react";
 import type { LapMeta, SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { formatLapTime } from "../../lib/format";
@@ -9,10 +10,10 @@ import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
 
-export function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
+function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
     value: String(lap.id),
-    label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)} — ${lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale })}${!lap.isValid ? " ✕" : ""}`,
+    label: m.analyse_lap_option({ lap: lap.lapNumber, time: formatLapTime(lap.lapTime), ownership: lap.ownership === "others" ? m.import_ownership_others({}, { locale }) : m.import_ownership_mine({}, { locale }), invalid: !lap.isValid ? " ✕" : "" }),
   };
 }
 import { DropdownMenu } from "../ui/DropdownMenu";
@@ -24,15 +25,18 @@ import { OwnershipChoice } from "../import/OwnershipChoice";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 interface Props {
   gameId: GameId;
+  onBack?: () => void;
+  sessionFocused?: boolean;
+  onAnalyseSession?: () => void;
   // Selection state
-  selectedTrack: number | null;
-  selectedCar: number | null;
+  selectedTrack: number | string | null;
+  selectedCar: number | string | null;
   selectedLapId: number | null;
   selectedLap: LapMeta | undefined;
-  trackNames: Record<number, string>;
-  carNames: Record<number, string>;
-  tracks: [number, number][];
-  carsForTrack: [number, number][];
+  trackNames: Record<string, string>;
+  carNames: Record<string, string>;
+  tracks: [number | string, number][];
+  carsForTrack: [number | string, number][];
   filteredLaps: LapMeta[];
   // Tune state
   hasTelemetry: boolean;
@@ -43,8 +47,8 @@ interface Props {
   loading: boolean;
   aiPanelOpen: boolean;
   // Callbacks
-  onTrackChange: (v: number | null) => void;
-  onCarChange: (v: number | null) => void;
+  onTrackChange: (v: number | string | null) => void;
+  onCarChange: (v: number | string | null) => void;
   onLapChange: (v: number | null) => void;
   onTuneChange: (tuneId: number | null) => void;
   onViewTune: (tuneId: number) => void;
@@ -63,6 +67,9 @@ interface Props {
 
 export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   gameId,
+  onBack,
+  sessionFocused,
+  onAnalyseSession,
   selectedTrack,
   selectedCar,
   selectedLapId,
@@ -114,7 +121,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
     return filteredLaps.map((lap) => {
       const sessionLaps = sessions.get(lap.sessionId) ?? [lap];
       const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-      const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
+      const sessionLabel = m.analyse_session_group({ date: sessionDate.toLocaleDateString(getLocale()), time: sessionDate.toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }), count: sessionLaps.length });
       return { ...buildAnalyseLapOption(lap), group: sessionLabel };
     });
   }, [filteredLaps]);
@@ -122,27 +129,33 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
-        {/* Track selector */}
-        <SearchSelect
-          value={selectedTrack != null ? String(selectedTrack) : ""}
-          onChange={(v) => onTrackChange(v ? Number(v) : null)}
-          options={trackOptions}
-          placeholder={m.analyse_search_tracks_placeholder()}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
-        />
-
-        {/* Car selector */}
-        <SearchSelect
-          value={selectedCar != null ? String(selectedCar) : ""}
-          onChange={(v) => onCarChange(v ? Number(v) : null)}
-          options={carOptions}
-          placeholder={m.analyse_search_cars_placeholder()}
-          disabled={selectedTrack == null}
-          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
-          fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
-        />
-
+        {onBack && (
+          <Button variant="app-outline" size="app-md" onClick={onBack}>
+            {m.label_sessions()}
+          </Button>
+        )}
+        {!sessionFocused && (
+          <>
+            {/* Track selector */}
+            <SearchSelect
+              value={selectedTrack != null ? String(selectedTrack) : ""}
+              onChange={(v) => onTrackChange(v ? tracks.find(([key]) => String(key) === v)?.[0] ?? null : null)}
+              options={trackOptions}
+              placeholder={m.analyse_search_tracks_placeholder()}
+              className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+              fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
+            />
+            <SearchSelect
+              value={selectedCar != null ? String(selectedCar) : ""}
+              onChange={(v) => onCarChange(v ? carsForTrack.find(([key]) => String(key) === v)?.[0] ?? null : null)}
+              options={carOptions}
+              placeholder={m.analyse_search_cars_placeholder()}
+              disabled={selectedTrack == null}
+              className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
+              fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
+            />
+          </>
+        )}
         <div className="flex items-center gap-2">
           <SearchSelect
             value={selectedLapId != null ? String(selectedLapId) : ""}
@@ -153,14 +166,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
-          {selectedLapId != null && (
-            <>
-              <span className="shrink-0 rounded border border-app-border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-app-text-muted">
-                {selectedLap?.ownership === "others" ? m.import_ownership_others() : m.import_ownership_mine()}
-              </span>
-              {selectedLap?.source === "motec" && <MotecBadge />}
-            </>
-          )}
+          {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
 
         {/* Tune / setup controls.
@@ -195,6 +201,12 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             )}
           </div>
         )}
+        {sessionFocused && (
+          <div className="order-2 flex min-w-0 basis-full flex-wrap items-center gap-x-3 text-sm text-app-text-muted">
+            <span className="truncate">Track: {trackNames[selectedTrack ?? ""] ?? selectedLap?.trackId ?? (selectedLap?.trackOrdinal != null ? `Track ${selectedLap.trackOrdinal}` : "")}</span>
+            <span className="truncate">Car: {carNames[selectedCar ?? ""] ?? selectedLap?.carId ?? (selectedLap?.carOrdinal != null ? `Car ${selectedLap.carOrdinal}` : "")}</span>
+          </div>
+        )}
 
         {noteOpen && (
           <NoteModal
@@ -206,7 +218,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             onClose={() => setNoteOpen(false)}
           />
         )}
-        <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
+        <div className={`flex flex-wrap items-center gap-2 ${sessionFocused ? "order-1 w-full @3xl/workspace:ml-auto @3xl/workspace:w-auto" : "w-full @3xl/workspace:ml-auto @3xl/workspace:w-auto"}`}>
           {selectedLapId != null && (
             <Button
               variant="app-outline"
@@ -217,12 +229,6 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             >
               <NotebookPen className="size-3.5" />
               {selectedLap?.notes ? m.analyse_notes_button() : m.analyse_add_notes_button()}
-            </Button>
-          )}
-          {selectedLapId != null && (
-            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
-              <Trash2 className="size-3.5" />
-              {m.common_delete()}
             </Button>
           )}
           {hasTelemetry && (
@@ -247,11 +253,33 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
           <DropdownMenu
             trigger={
               <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
+                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.label_actions()}
                 <ChevronDown className="size-3.5" />
               </Button>
             }
             items={[
+              ...(selectedLapId != null || onAnalyseSession
+                ? [
+                    {
+                      key: "analyse-session",
+                      label: m.sessions_analyse_session(),
+                      icon: <Sparkles className="size-3.5" />,
+                      disabled: !onAnalyseSession,
+                      onClick: () => onAnalyseSession?.(),
+                    },
+                  ]
+                : []),
+              ...(selectedLapId != null
+                ? [
+                    {
+                      key: "delete-lap",
+                      label: m.common_delete(),
+                      icon: <Trash2 className="size-3.5" />,
+                      onClick: onDeleteLap,
+                      className: "text-status-danger hover:text-status-danger/80",
+                    },
+                  ]
+                : []),
               ...(hasTelemetry
                 ? [
                     {
@@ -273,27 +301,10 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
                     },
                   ]
                 : []),
-              {
-                key: "import-session",
-                label: "Import session (.bin or .ibt)",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => importInputRef.current?.click(),
-                disabled: importingBin,
-              },
-              {
-                key: "import-motec",
-                label: "Import MoTeC log",
-                icon: <Upload className="size-3.5" />,
-                onClick: () => {
-                  if (motecTarget) setMotecOpen(true);
-                },
-                disabled: !motecTarget,
-                title: motecTarget ? undefined : "MoTeC import is not supported for this game yet.",
-              },
             ]}
           />
           {hasTelemetry && (
-            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
+            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-md" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>
@@ -305,7 +316,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
         <Dialog open onOpenChange={(open) => !open && setPendingImport(null)}>
           <DialogContent size="sm">
             <DialogHeader>
-              <DialogTitle>Choose lap ownership</DialogTitle>
+              <DialogTitle>{m.analyse_choose_ownership()}</DialogTitle>
             </DialogHeader>
             <OwnershipChoice value={ownership} onChange={onOwnershipChange} disabled={importingBin} />
             <DialogFooter>

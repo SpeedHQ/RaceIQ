@@ -1,19 +1,19 @@
 import type { GameId } from "@shared/games/ids";
-import { memo, type RefObject, useEffect, useState } from "react";
+import { memo, type RefObject, useEffect, useMemo, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import type { SemanticAnalysisFrame } from "./AnalyseSegmentList";
-import type { Point, TrackMapBoundaries } from "./track-map/types";
+import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
+import { alignTrackBoundariesToPositions } from "./track-map/path";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
   vizMode: "2d" | "3d";
   currentFrame: SemanticAnalysisFrame | null;
-  displayTelemetry: SemanticAnalysisFrame[];
+  semanticFrames: SemanticAnalysisFrame[];
   cursorRef: RefObject<number>;
   displayTelemetryRef: RefObject<SemanticAnalysisFrame[]>;
   cursorIdx: number;
@@ -21,17 +21,19 @@ interface Props {
   boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
+  lmuCarClass?: string;
 }
 function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
   return (
     previous.vizMode === next.vizMode &&
     previous.onVizModeChange === next.onVizModeChange &&
-    previous.displayTelemetry === next.displayTelemetry &&
+    previous.semanticFrames === next.semanticFrames &&
     previous.cursorRef === next.cursorRef &&
     previous.displayTelemetryRef === next.displayTelemetryRef &&
     previous.lapLine === next.lapLine &&
     previous.boundaries === next.boundaries &&
     previous.units === next.units &&
+    previous.lmuCarClass === next.lmuCarClass &&
     previous.gameId === next.gameId
   );
 }
@@ -40,7 +42,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   vizMode,
   onVizModeChange,
   currentFrame,
-  displayTelemetry,
+  semanticFrames,
   cursorRef,
   displayTelemetryRef,
   cursorIdx,
@@ -48,6 +50,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   boundaries,
   units,
   gameId,
+  lmuCarClass,
 }: Props) {
   const [visualCursorIdx, setVisualCursorIdx] = useState(cursorIdx);
   useEffect(() => {
@@ -60,7 +63,11 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
     animationFrame = requestAnimationFrame(syncCursor);
     return () => cancelAnimationFrame(animationFrame);
   }, [cursorRef]);
-  const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? displayTelemetry[visualCursorIdx] ?? currentFrame;
+  const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? semanticFrames[visualCursorIdx] ?? currentFrame;
+  const sceneBoundaries = useMemo(
+    () => gameId === "lmu" && lapLine ? alignTrackBoundariesToPositions(boundaries, lapLine) : boundaries,
+    [boundaries, gameId, lapLine],
+  );
 
   return (
     <Tabs
@@ -68,7 +75,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
       onValueChange={(value) => {
         if (value === "2d" || value === "3d") onVizModeChange(value);
       }}
-      className="flex h-[30rem] w-full shrink-0 flex-col items-center justify-start overflow-y-auto border-b border-app-border @5xl/workspace:h-full @5xl/workspace:w-(--analyse-right-width) @5xl/workspace:border-r @5xl/workspace:border-b-0"
+      className="flex h-[30rem] w-full shrink-0 flex-col items-center justify-start overflow-hidden border-b border-app-border @5xl/workspace:h-full @5xl/workspace:w-(--analyse-right-width) @5xl/workspace:border-r @5xl/workspace:border-b-0"
     >
       <TabsList variant="underline" className="w-full shrink-0">
         <TabsTrigger value="2d" className="flex-1">
@@ -79,22 +86,23 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
+      <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
         <Vitals2D frame={visualFrame ?? undefined} gameId={gameId} />
       </TabsContent>
 
-      <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 p-2">
+      <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
         <div className="relative min-h-0 w-full flex-1">
           {visualFrame && (
             <CarWireframe
               gameId={gameId}
+              lmuCarClass={lmuCarClass}
               frame={visualFrame}
-              telemetry={displayTelemetry}
+              telemetry={semanticFrames}
               cursorRef={cursorRef}
               telemetryRef={displayTelemetryRef}
               cursorIdx={visualCursorIdx}
               outline={lapLine}
-              boundaries={boundaries}
+              boundaries={sceneBoundaries}
               tempLabel={units.tempLabel}
             />
           )}

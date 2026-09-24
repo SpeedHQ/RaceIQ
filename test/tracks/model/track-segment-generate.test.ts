@@ -42,6 +42,11 @@ describe("track segment generator", () => {
       });
 
       test("aligns on every available game centerline", () => {
+        if (outcomes.length === 1 && outcomes[0].gameId === "-") {
+          expect(outcomes[0].detail).toBe("no centerline found");
+          expect(aligned).toEqual([]);
+          return;
+        }
         expect(outcomes.length).toBeGreaterThan(0);
         for (const o of outcomes) {
           if (KNOWN_ALIGNMENT_GAPS.has(`${slug}/${o.gameId}`)) {

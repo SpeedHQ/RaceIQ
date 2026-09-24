@@ -3,15 +3,7 @@ interface PointerPosition {
   y: number;
 }
 
-export function PointerLoadingIndicator({
-  loading,
-  position,
-  label,
-}: {
-  loading: boolean;
-  position: PointerPosition | null;
-  label: string;
-}) {
+export function PointerLoadingIndicator({ loading, position, label }: { loading: boolean; position: PointerPosition | null; label: string }) {
   if (!loading || !position) return null;
   return (
     <div

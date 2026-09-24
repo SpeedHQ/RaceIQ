@@ -4,12 +4,13 @@ import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
+import { getLocale } from "@/paraglide/runtime";
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -18,7 +19,7 @@ export type SessionMobileListProps = {
   carNames: Record<number, string>;
   isLoading: boolean;
   sessionsError: boolean;
-  isF1: boolean;
+  showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
   expandedSessions: Set<number>;
@@ -35,6 +36,7 @@ export type SessionMobileListProps = {
   exporting: boolean;
   runExport: (selection: { sessionIds?: number[] }) => void;
   setRecapSessionId: (id: number) => void;
+  analyseSession: (session: SessionMeta) => void;
 };
 
 export function SessionMobileList({
@@ -44,7 +46,7 @@ export function SessionMobileList({
   carNames,
   isLoading,
   sessionsError,
-  isF1,
+  showSessionType,
   gameId,
   emptyMessage,
   expandedSessions,
@@ -61,6 +63,7 @@ export function SessionMobileList({
   exporting,
   runExport,
   setRecapSessionId,
+  analyseSession,
 }: SessionMobileListProps) {
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
@@ -99,11 +102,11 @@ export function SessionMobileList({
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
+                    <div className="text-sm font-semibold text-app-text truncate">{sessionTrackName(session, { trackNames, carNames })}</div>
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-app-compact text-app-text/90">
-                        {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      {session.source === "motec" && <MotecBadge />}
+                        {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
+                        {session.source === "motec" && <MotecBadge />}
                       </div>
                       <Button
                         variant="app-outline"
@@ -114,6 +117,17 @@ export function SessionMobileList({
                         }}
                       >
                         Recap
+                      </Button>
+                      <Button
+                        variant="app-primary"
+                        size="app-sm"
+                        disabled={false}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          analyseSession(session);
+                        }}
+                      >
+                        {m.sessions_analyse_session()}
                       </Button>
                       <Button
                         variant="app-outline"
@@ -130,8 +144,8 @@ export function SessionMobileList({
                     </div>
                   </div>
                   <div className="text-xs text-app-text/90 truncate mt-0.5">
-                    {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
-                    {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    {sessionCarName(session, { trackNames, carNames })}
+                    {showSessionType && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                   </div>
                   <div className="mt-2">
                     <SessionResultMeta session={session} />

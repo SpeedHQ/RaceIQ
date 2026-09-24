@@ -3,7 +3,7 @@ import { drawStaticTrack } from "../src/components/analyse/track-map/static-draw
 import { needsTrackFlip } from "../../shared/racing/tracks/coords";
 import { initGameAdapters } from "../../shared/games/init";
 import type { Point, TrackMapBoundaries, TrackTransform } from "../src/components/analyse/track-map/types";
-import { resolveTrackPositions } from "../src/components/analyse/track-map/path";
+import { alignTrackBoundariesToPositions, resolveTrackPositions } from "../src/components/analyse/track-map/path";
 
 initGameAdapters();
 test("returns no transform when replay has no drawable track points", () => {
@@ -42,7 +42,11 @@ test("projects telemetry without world coordinates onto the track outline", () =
     states: {},
     freshness: {},
   });
-  const outline = [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }];
+  const outline = [
+    { x: 0, z: 0 },
+    { x: 100, z: 0 },
+    { x: 100, z: 100 },
+  ];
 
   expect(resolveTrackPositions([frame(0), frame(0.25), frame(0.75), frame(1)], outline)).toEqual([
     { x: 0, z: 0 },
@@ -59,10 +63,18 @@ test("prefers recorded world coordinates over lap-fraction projection", () => {
     freshness: {},
   });
 
-  expect(resolveTrackPositions(
-    [frame(20, 30, 0), frame(40, 50, 1)],
-    [{ x: 0, z: 0 }, { x: 100, z: 0 }],
-  )).toEqual([{ x: 20, z: 30 }, { x: 40, z: 50 }]);
+  expect(
+    resolveTrackPositions(
+      [frame(20, 30, 0), frame(40, 50, 1)],
+      [
+        { x: 0, z: 0 },
+        { x: 100, z: 0 },
+      ],
+    ),
+  ).toEqual([
+    { x: 20, z: 30 },
+    { x: 40, z: 50 },
+  ]);
 });
 
 test("draws throttle input traces in the throttle channel color", () => {
@@ -239,7 +251,12 @@ test("keeps telemetry traces open while closing reference outlines", () => {
   const previousWindow = globalThis.window;
   Object.defineProperty(globalThis, "window", { configurable: true, value: { devicePixelRatio: 1 } });
   try {
-    const resolvedPositions = [{ x: 1, z: 1 }, { x: 2, z: 2 }, { x: 3, z: 3 }, { x: 4, z: 4 }];
+    const resolvedPositions = [
+      { x: 1, z: 1 },
+      { x: 2, z: 2 },
+      { x: 3, z: 3 },
+      { x: 4, z: 4 },
+    ];
     const trace = createDrawingHarness();
     drawStaticTrack({
       canvas: trace.canvas,
@@ -280,7 +297,6 @@ test("keeps telemetry traces open while closing reference outlines", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow });
   }
 });
-
 
 test("draws input, segment, and racing-line overlays together", () => {
   const previousWindow = globalThis.window;
@@ -464,3 +480,39 @@ for (const gameId of ["acc", "ac-evo"] as const) {
     }
   });
 }
+
+test("aligns LMU boundary geometry to selected lap coordinates", () => {
+  const centerLine = Array.from({ length: 80 }, (_, index) => {
+    const angle = (index / 80) * Math.PI * 2;
+    const radius = 100 + 20 * Math.sin(angle * 3) + 7 * Math.cos(angle * 5);
+    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius * 0.7 };
+  });
+  const boundaries: TrackMapBoundaries = {
+    leftEdge: centerLine.map((point) => ({ x: point.x - 4, z: point.z })),
+    rightEdge: centerLine.map((point) => ({ x: point.x + 4, z: point.z })),
+    centerLine,
+    pitLane: null,
+    coordSystem: "lmu",
+  };
+  const rotation = 0.61;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const positions = centerLine.map((point) => {
+    const reflectedX = -point.x;
+    return {
+      x: 1.2 * (cos * reflectedX - sin * point.z) + 300,
+      z: 1.2 * (sin * reflectedX + cos * point.z) - 140,
+    };
+  });
+
+  const aligned = alignTrackBoundariesToPositions(boundaries, positions);
+
+  expect(aligned).not.toBeNull();
+  expect(
+    Math.max(
+      ...aligned!.centerLine.map((point, index) =>
+        Math.hypot(point.x - positions[index].x, point.z - positions[index].z),
+      ),
+    ),
+  ).toBeLessThan(0.001);
+});

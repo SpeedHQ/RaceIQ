@@ -15,6 +15,10 @@ feature flows before broad code searches. Use DeepWiki for orientation, then
 verify implementation details against the current checkout because its content
 may be stale or unavailable. Fall back to repository search when needed.
 
+## Completion Verification
+
+Always run `bun run typecheck` before handing work back to user as complete.
+
 ## Commands
 
 ```bash
@@ -51,7 +55,7 @@ bun run build:installer
 
 # Client-specific
 cd client && bun run build   # production build (tsc + vite)
-cd client && bun run lint    # ESLint
+cd client && bun run lint    # Oxlint
 
 # Dump mode (develop without a running game — captures raw packets)
 bun run dev:dump:fm            # dump Forza Motorsport packets
@@ -225,12 +229,42 @@ ran v39 before the `car`/`driver` rename.
 - Database file: `<DATA_DIR>/app.db` (SQLite)
 - Settings persisted to: `data/settings.json`
 - UI components use shadcn (in `client/src/components/ui/`) with Tailwind CSS v4
-- **Theme contract:** client UI must use semantic `text-app-*`, `tracking-app-*`, `bg-*`, `border-*`, and `shadow-*` tokens; do not add arbitrary typography utilities or raw/palette colors. Run `bun test test/theme-contract.test.ts --timeout 60000` after styling changes.
+- **Translations:** all user-facing client copy must use Paraglide messages from `client/messages/`; add or update every supported locale before using new text.
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
-- **Changelog language is customer-facing:** use plain language that explains the user-visible problem and outcome. Prefer `Fix issue preventing <user action or result>` over implementation terms, function names, telemetry internals, or developer jargon.
+**Release-note wording**
+
+- Write for customers scanning quickly.
+- Every bullet must name an explicit product subject, affected page or surface when relevant, and user-visible outcome.
+- Prefer short capability statements: `Publish RaceIQ as a non-root Linux Docker image`.
+- Use exact user-facing surfaces: `Live dashboards` and `Analyse pages`, not vague terms such as `the app`.
+- Describe data at user-understandable granularity: `inner, middle, and outer surface temperatures plus core temperature`, not unexplained terms such as `temperature fidelity`.
+- Use generic wording when capability applies across games; name a simulator only when it changes scope or behavior.
+- Omit implementation mechanics such as `from compact metadata summaries` unless they materially change what users can do.
+- Use one capability or correction per bullet. Split unrelated outcomes.
+- Lead with outcome, use concise present tense, and avoid vague verbs (`improve`, `enhance`, `handle`).
+- Prefer `Fix <user action or result>` for corrections.
+- Omit internal names, code paths, PR numbers, and test/CI details. Do not claim broader behavior than shipped.
+- Keep `Features` focused on new capability, `Fixes` on corrected behavior, `Breaking` on migration or compatibility risk, and `Internal` on non-user-facing work.
+- Preserve `### Fixes` and `### Internal` headings in `## Unreleased`, even when empty.
 - ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
+
+### Branch and PR targeting
+
+- If user names an existing PR, work only on that PR's head branch.
+- Before committing or pushing, inspect current branch and target PR head.
+- Do not create a new branch or PR when target PR exists.
+- Push changes to target PR head branch; update its description in place.
+- If checkout branch differs from target head, switch to target head before editing.
+- Never force-push target PR branch unless user explicitly requests it.
+
+### Pull request descriptions
+
+- Describe the original user problem and the outcome in concise, easy-to-understand Markdown bullets. Include relevant benchmark results when available; never invent results.
+- Do not list changed files or implementation-only file inventories.
+- When editing PR descriptions with `gh pr edit`, preserve Markdown formatting. Do not pass `\n` inside ordinary quoted shell arguments; shell may keep it as literal text. Use a heredoc/body file or shell quoting that creates real line breaks.
+- Verify the saved description with `gh pr view --json body` and confirm paragraphs and bullets contain actual line breaks before reporting completion.
 
 ### Dependency inspection
 
@@ -407,6 +441,7 @@ initServerGameAdapters();
 
 ### CI/CD
 **Mars runner labels:** In GitHub Actions, a `runs-on` list of Mars labels is an OR selector. Use both the Windows and macOS labels when a job must be eligible for either platform; do not create a per-OS matrix unless the job must run once on each platform.
+- **Cross-platform CI:** CI scripts and workflow commands must run on Windows and macOS. Prefer Bun/TypeScript and platform-neutral APIs over shell-specific syntax; when shell code is unavoidable, declare and test its shell explicitly.
 
 - **PR/main**: GitHub Actions runs `bun test` and client build (`.github/workflows/build-test.yml`)
 - **Release tags**: Windows x64 binary compilation via `.github/workflows/release.yml` — Bun compiles server to `raceiq.exe`, bundles with Vite client output into `raceiq-windows-x64.zip`

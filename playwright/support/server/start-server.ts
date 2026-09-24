@@ -31,8 +31,8 @@ if (!existsSync(binary)) {
 }
 resetTestDatabase(dir);
 mkdirSync(dir, { recursive: true });
-writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
-if (process.env.RACEIQ_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
+writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort, onboardingComplete: process.env.RACEIQ_E2E === "1" }));
+if (process.env.PW_SEED_SETUP_DATA === "1") seedE2ESetupData(repoDir, dir);
 seedScreenshotData(repoDir, dir);
 
 // cwd = dist/ so the binary resolves its native libsql addon from

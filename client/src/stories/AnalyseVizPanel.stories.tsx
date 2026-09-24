@@ -55,14 +55,23 @@ const segments = [
   { type: "corner", name: "Turn 1", startFrac: 0.08, endFrac: 0.16 },
   { type: "straight", name: "Back straight", startFrac: 0.42, endFrac: 0.58 },
 ];
-const mapLabels = [{ x: 300, z: 20, text: "T1" }, { x: -40, z: 180, text: "T2" }];
+const mapLabels = [
+  { x: 300, z: 20, text: "T1" },
+  { x: -40, z: 180, text: "T2" },
+];
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
 
 const meta: Meta<typeof AnalyseVizPanel> = {
   title: "Screens/AnalyseVizPanel",
   component: AnalyseVizPanel,
   parameters: { layout: "fullscreen", viewport: { defaultViewport: "1080p" } },
-  decorators: [(Story) => <QueryClientProvider client={queryClient}><Story /></QueryClientProvider>],
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={queryClient}>
+        <Story />
+      </QueryClientProvider>
+    ),
+  ],
 };
 
 export default meta;
@@ -78,7 +87,7 @@ function ThreeDPanelStory() {
         vizMode="3d"
         onVizModeChange={() => {}}
         currentFrame={frame}
-        displayTelemetry={telemetry}
+        semanticFrames={telemetry}
         cursorRef={cursorRef}
         displayTelemetryRef={telemetryRef}
         cursorIdx={0}
@@ -99,9 +108,8 @@ export const ThreeDViewMenuOpen: Story = {
   render: () => <ThreeDPanelStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: /view/i }));
-    const body = within(document.body);
-    await expect(await body.findByRole("menu")).toBeVisible();
+    await userEvent.click(canvas.getByRole("tab", { name: "3D" }));
+    await expect(canvas.getByRole("tabpanel", { name: "3D" })).toBeVisible();
   },
 };
 

@@ -1,4 +1,7 @@
-import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
+import { getLMUCar, getLMUTrack } from "@shared/games/lmu/catalog";
+import type { LapMeta, RacingIdentityFields, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
+import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
 import type { LapSortKey, SessionNames, SessionsTab, SortDir, SortKey } from "./types";
 
 export const PAGE_SIZE = 25;
@@ -16,6 +19,24 @@ export function formatSessionType(type?: string): string {
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function sessionTrackName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
+  if (session.gameId === "lmu") {
+    if (typeof session.trackId === "string") return getLMUTrack(session.trackId)?.name ?? session.trackId;
+    const ordinal = session.trackId ?? session.trackOrdinal ?? -1;
+    return names.trackNames[ordinal] ?? `Track ${ordinal}`;
+  }
+  return names.trackNames[session.trackOrdinal ?? -1] ?? `Track ${session.trackOrdinal ?? -1}`;
+}
+
+export function sessionCarName(session: RacingIdentityFields & { gameId?: string }, names: SessionNames): string {
+  if (session.gameId === "lmu") {
+    if (typeof session.carId === "string") return getLMUCar(session.carId)?.name ?? session.carId;
+    const ordinal = session.carId ?? session.carOrdinal ?? -1;
+    return names.carNames[ordinal] ?? `Car ${ordinal}`;
+  }
+  return names.carNames[session.carOrdinal ?? -1] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal ?? -1}`);
+}
+
 export function groupLapsBySession(laps: LapMeta[]): Map<number, LapMeta[]> {
   const grouped = new Map<number, LapMeta[]>();
   for (const lap of laps) {
@@ -31,30 +52,12 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
     let valueA: string | number;
     let valueB: string | number;
     switch (sortKey) {
-      case "date":
-        valueA = new Date(a.createdAt).getTime();
-        valueB = new Date(b.createdAt).getTime();
-        break;
-      case "track":
-        valueA = names.trackNames[a.trackOrdinal] ?? `Track ${a.trackOrdinal}`;
-        valueB = names.trackNames[b.trackOrdinal] ?? `Track ${b.trackOrdinal}`;
-        break;
-      case "car":
-        valueA = names.carNames[a.carOrdinal] ?? `Car ${a.carOrdinal}`;
-        valueB = names.carNames[b.carOrdinal] ?? `Car ${b.carOrdinal}`;
-        break;
-      case "laps":
-        valueA = a.lapCount ?? 0;
-        valueB = b.lapCount ?? 0;
-        break;
-      case "best":
-        valueA = a.bestLapTime ?? Infinity;
-        valueB = b.bestLapTime ?? Infinity;
-        break;
-      case "type":
-        valueA = a.sessionType ?? "";
-        valueB = b.sessionType ?? "";
-        break;
+      case "date": valueA = new Date(a.createdAt).getTime(); valueB = new Date(b.createdAt).getTime(); break;
+      case "track": valueA = sessionTrackName(a, names); valueB = sessionTrackName(b, names); break;
+      case "car": valueA = sessionCarName(a, names); valueB = sessionCarName(b, names); break;
+      case "laps": valueA = a.lapCount ?? 0; valueB = b.lapCount ?? 0; break;
+      case "best": valueA = a.bestLapTime ?? Infinity; valueB = b.bestLapTime ?? Infinity; break;
+      case "type": valueA = a.sessionType ?? ""; valueB = b.sessionType ?? ""; break;
       case "result": {
         const positionA = a.finishingPosition;
         const positionB = b.finishingPosition;
@@ -64,8 +67,7 @@ export function sortSessions(sessions: SessionMeta[], sortKey: SortKey, sortDir:
         valueB = positionB;
         break;
       }
-      default:
-        return 0;
+      default: return 0;
     }
     if (typeof valueA === "string") {
       const comparison = valueA.localeCompare(valueB as string);
@@ -81,18 +83,15 @@ export function filterSessions(sessions: SessionMeta[], search: string, tab: Ses
   return sessions.filter((session) => {
     if ((session.ownership ?? "mine") !== tab) return false;
     if (!tokens.length) return true;
-    const track = (names.trackNames[session.trackOrdinal] ?? "").toLowerCase();
-    const car = (names.carNames[session.carOrdinal] ?? "").toLowerCase();
+    const track = sessionTrackName(session, names).toLowerCase();
+    const car = sessionCarName(session, names).toLowerCase();
     const notes = (session.notes ?? "").toLowerCase();
     return tokens.every((token) => fuzzyToken(token, track) || fuzzyToken(token, car) || fuzzyToken(token, notes));
   });
 }
 
 export function paginateSessions(sessions: SessionMeta[], page: number, pageSize = PAGE_SIZE): { items: SessionMeta[]; totalPages: number } {
-  return {
-    items: sessions.slice(page * pageSize, (page + 1) * pageSize),
-    totalPages: Math.max(1, Math.ceil(sessions.length / pageSize)),
-  };
+  return { items: sessions.slice(page * pageSize, (page + 1) * pageSize), totalPages: Math.max(1, Math.ceil(sessions.length / pageSize)) };
 }
 
 export function sortLaps(laps: LapMeta[], sortKey: LapSortKey, sortDir: SortDir): LapMeta[] {
@@ -101,15 +100,41 @@ export function sortLaps(laps: LapMeta[], sortKey: LapSortKey, sortDir: SortDir)
     return sortDir === "asc" ? comparison : -comparison;
   });
 }
-export function selectionIncludesMotec(
-  selection: { lapIds?: readonly number[]; sessionIds?: readonly number[] },
-  sessions: readonly SessionMeta[],
-  laps: readonly LapMeta[],
-): boolean {
+export function selectionIncludesMotec(selection: { lapIds?: readonly number[]; sessionIds?: readonly number[] }, sessions: readonly SessionMeta[], laps: readonly LapMeta[]): boolean {
   const sessionIds = new Set(selection.sessionIds ?? []);
   const lapIds = new Set(selection.lapIds ?? []);
-  for (const lap of laps) {
-    if (lapIds.has(lap.id)) sessionIds.add(lap.sessionId);
-  }
+  for (const lap of laps) if (lapIds.has(lap.id)) sessionIds.add(lap.sessionId);
   return sessions.some((session) => sessionIds.has(session.id) && session.source === "motec");
+}
+
+function formatRecapDelta(seconds: number): string {
+  return `${seconds >= 0 ? "-" : "+"}${Math.abs(seconds).toFixed(3)}`;
+}
+
+function formatRecapDistance(meters: number): string {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function formatRecapDuration(seconds: number): string {
+  const totalMinutes = Math.round(seconds / 60);
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  return `${hours}h ${totalMinutes % 60}m`;
+}
+
+export function buildRecapText(recap: SessionRecap): string {
+  const lines: string[] = [`RaceIQ — ${recap.trackName} · ${recap.carName}`];
+  const best = recap.bestLapSec;
+  const personalBest = recap.personalBest;
+  const bestPart = best != null ? `${m.recap_text_best()} ${formatLapTime(best)}` : null;
+  const personalBestPart = personalBest?.isNew !== true ? null : personalBest.previousBestSec != null && best != null ? `${m.recap_new_pb()}, ${formatRecapDelta(personalBest.previousBestSec - best)}` : `${m.recap_new_pb()}, ${m.recap_new_pb_first_ever()}`;
+  const lapsLine = [`${recap.lapsValid} ${m.recap_text_laps()}`, bestPart ? (personalBestPart ? `${bestPart} (${personalBestPart})` : bestPart) : null].filter(Boolean).join(" · ");
+  if (lapsLine) lines.push(lapsLine);
+  if (recap.theoretical != null) lines.push(`${m.recap_text_theoretical()} ${formatLapTime(recap.theoretical.sumSec)} (${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()})`);
+  const tailParts: string[] = [];
+  if (recap.consistency != null) tailParts.push(`${m.recap_text_consistency()} ${recap.consistency.rating}★`);
+  if (recap.distanceM != null) tailParts.push(formatRecapDistance(recap.distanceM));
+  tailParts.push(`${formatRecapDuration(recap.timeOnTrackSec)} ${m.recap_text_on_track()}`);
+  if (tailParts.length > 0) lines.push(tailParts.join(" · "));
+  return lines.join("\n");
 }

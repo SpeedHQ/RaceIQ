@@ -2,12 +2,28 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { compositeTrack, drawCarOverlay } from "./track-map/overlay-drawing";
-import { pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
+import { alignTrackBoundariesToPositions, pathForwardOffsets, resolveTrackPositions } from "./track-map/path";
 import { drawStaticTrack } from "./track-map/static-drawing";
 import type { TrackMapHandle, TrackMapProps, TrackTransform } from "./track-map/types";
 
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(function AnalyseTrackMap(props, ref) {
-  const { gameId, telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine = false, showTrace = true, rotateWithCar, zoom = 1 } = props;
+  const {
+    gameId,
+    telemetry,
+    cursorIdx,
+    outline,
+    mapLabels,
+    boundaries,
+    sectors,
+    segments,
+    highlights,
+    showInputs,
+    showRaceLine = false,
+    showTrace = true,
+    rotateWithCar,
+    zoom = 1,
+    zoomBehavior = "default",
+  } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -15,6 +31,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
   const transformRef = useRef<TrackTransform | null>(null);
   const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const resolvedPositions = useMemo(() => resolveTrackPositions(telemetry, outline), [telemetry, outline]);
+  const displayBoundaries = useMemo(
+    () => gameId === "lmu" ? alignTrackBoundariesToPositions(boundaries, resolvedPositions) : boundaries,
+    [boundaries, gameId, resolvedPositions],
+  );
   const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
 
   const drawStatic = useCallback(() => {
@@ -28,7 +48,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       resolvedPositions,
       outline,
       mapLabels,
-      boundaries,
+      boundaries: displayBoundaries,
       sectors,
       segments,
       highlights,
@@ -37,6 +57,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       showTrace,
       rotateWithCar,
       zoom,
+      zoomBehavior,
     });
     transformRef.current = result.transform;
     bufferCanvasRef.current = result.bufferCanvas;
@@ -44,7 +65,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, TrackMapProps>(functio
       const ctx = getSemanticCanvasContext(carCanvasRef.current);
       ctx?.clearRect(0, 0, carCanvasRef.current.width, carCanvasRef.current.height);
     }
-  }, [gameId, telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom]);
+  }, [gameId, telemetry, resolvedPositions, outline, mapLabels, displayBoundaries, sectors, segments, highlights, showInputs, showRaceLine, showTrace, rotateWithCar, zoom, zoomBehavior]);
 
   const renderOverlayOptions = useCallback(
     () => ({

@@ -5,6 +5,7 @@ import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, 
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { transformCalibrationPath, type CalibrationComparison } from "./calibration-comparison";
+import { getLocale } from "@/paraglide/runtime";
 
 type TrackDebugCanvasProps = {
   outline: Point[] | null;
@@ -115,9 +116,7 @@ export function TrackDebugCanvas({
       minZ = Infinity,
       maxZ = -Infinity;
     const currentCalibrationPath = calibrationComparison?.current ? transformCalibrationPath(outline, calibrationComparison.current) : null;
-    const historicalCalibrationPaths = showCalibrationHistory
-      ? calibrationComparison?.history.map((entry) => transformCalibrationPath(outline, entry.transform)) ?? []
-      : [];
+    const historicalCalibrationPaths = showCalibrationHistory ? (calibrationComparison?.history.map((entry) => transformCalibrationPath(outline, entry.transform)) ?? []) : [];
     const allPts: Point[][] = [outline];
     if (boundaries) {
       allPts.push(boundaries.leftEdge, boundaries.rightEdge);
@@ -490,7 +489,7 @@ export function TrackDebugCanvas({
           {trackCreatedAt && (
             <>
               <span className="text-app-text-dim/40">·</span>
-              <span>{new Date(trackCreatedAt).toLocaleDateString()}</span>
+              <span>{new Date(trackCreatedAt).toLocaleDateString(getLocale())}</span>
             </>
           )}
         </div>

@@ -108,7 +108,7 @@ export function useTrackSegmentEditor(options: SegmentEditorOptions) {
   const saveSegments = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await client.api.tracks[":trackOrdinal"].segments.$put({ param: { trackOrdinal: String(trackOrdinal) }, query: { gameId }, json: { segments: editSegments } } as never);
+      const res = await client.api.tracks[":trackOrdinal"].segments.$put({ param: { trackOrdinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId }, json: { segments: editSegments } } as never);
       if (res.ok) {
         setSectors({ segments: editSegments, totalDist: sectors?.totalDist ?? 0 });
         setEditing(false);
@@ -127,7 +127,7 @@ export function useTrackSegmentEditor(options: SegmentEditorOptions) {
     setSavingSectors(true);
     try {
       const res = await client.api["track-sector-boundaries"][":ordinal"].$put({
-        param: { ordinal: String(trackOrdinal) },
+        param: { ordinal: encodeURIComponent(String(trackOrdinal)) },
         query: { gameId },
         json: { s1End: editS1 / 100, s2End: editS2 / 100 },
       } as never);

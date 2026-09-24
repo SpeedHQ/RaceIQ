@@ -4,11 +4,11 @@ import { useCallback, useMemo, useState } from "react";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { trackRoutePath } from "@/lib/track-routes";
+import { tuneMatchesTrack } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 import { useTracks } from "../hooks/catalog-queries";
 import { useCatalogTunes, useUserTunes } from "../hooks/tunes";
 import { useGameId } from "../stores/game";
-import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
@@ -73,7 +73,10 @@ export function TrackViewer() {
   const handleSelectTrack = useCallback(
     (t: TrackInfo) => {
       if (!gameId) return;
-      navigate({ to: trackRoutePath(gameId, t.ordinal) });
+      const trackKey =
+        gameId === "lmu" ? t.id : t.ordinal;
+      if (trackKey == null) return;
+      navigate({ to: trackRoutePath(gameId, trackKey) });
     },
     [navigate, gameId],
   );

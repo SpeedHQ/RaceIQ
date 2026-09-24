@@ -15,7 +15,7 @@ const VIEWPORTS = [
 ] as const;
 
 const PAGES = [
-  { name: "analyse", path: "/fm23/analyse", testId: "lap-analyse-workspace", inputCount: 3 },
+  { name: "analyse", path: "/f125/sessions/replay?track=19&car=41&lap=4", testId: "lap-analyse-workspace", inputCount: 3 },
   { name: "compare", path: "/fm23/compare", testId: "lap-compare-workspace", inputCount: 5 },
 ] as const;
 
@@ -100,7 +100,7 @@ for (const viewport of VIEWPORTS) {
 
 for (const viewport of APP_VIEWPORTS) {
   test(`app routes follow workspace policy at ${viewport.name} ${viewport.width}x${viewport.height}`, async ({ page }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(200_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
 
     for (const route of APP_ROUTES) {

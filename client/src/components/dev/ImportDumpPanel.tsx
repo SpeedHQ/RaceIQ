@@ -12,8 +12,8 @@ interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
 }
 
 interface ImportResult {
@@ -39,18 +39,18 @@ export function ImportDumpPanel() {
   const navigate = useNavigate();
 
   const openInAnalyse = (lap: ImportedLap) => {
-    if (!result) return;
-    // Route is /{routePrefix}/analyse with ?track&car&lap search params
+    if (!result || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)) return;
     navigate({
-      to: `/${result.routePrefix}/analyse`,
+      to: `/${result.routePrefix}/sessions/replay`,
       search: {
-        track: lap.trackOrdinal || undefined,
-        car: lap.carOrdinal || undefined,
+        track: lap.trackId,
+        car: lap.carId,
         lap: lap.lapId,
       },
     });
   };
 
+  const hasIdentity = (value: number | string) => typeof value === "string" ? value.length > 0 : value > 0;
   const handleSelect = (f: File | null) => {
     setFile(f);
     setResult(null);
@@ -185,8 +185,14 @@ export function ImportDumpPanel() {
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
                       {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
-                    <Button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
-                      {m.dev_open_analyse()}
+                    <Button
+                      type="button"
+                      disabled={!hasIdentity(lap.trackId) || !hasIdentity(lap.carId)}
+                      title={!hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      onClick={() => openInAnalyse(lap)}
+                      className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity"
+                    >
+                      {!hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Identity unavailable" : m.dev_open_analyse()}
                     </Button>
                   </div>
                 ))}
