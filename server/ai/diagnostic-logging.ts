@@ -23,7 +23,8 @@ export function normalizeDiagnostic(value: unknown, seen = new WeakSet<object>()
 export function logLlmEvent(kind: "llm-request" | "llm-response" | "llm-error", event: LlmDiagnosticEvent): void {
   const normalized = normalizeDiagnostic(event) as Record<string, unknown>;
   if (typeof normalized.request === "string") normalized.request = normalized.request.replace(/([?&]key=)[^&\s]+/gi, "$1<REDACTED>");
-  log.info({ event: kind, ...normalized }, kind);
+  if (kind === "llm-error") log.error({ event: kind, ...normalized }, kind);
+  else log.info({ event: kind, ...normalized }, kind);
 }
 
 export async function withLlmDiagnostics<T>(context: LlmDiagnosticContext & { request: unknown }, run: () => Promise<T>): Promise<T> {

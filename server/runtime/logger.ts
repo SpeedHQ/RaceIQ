@@ -15,31 +15,71 @@ function formatArg(value: unknown): string {
   try { return JSON.stringify(value); } catch { return String(value); }
 }
 
+const PINO_LEVEL_NAMES: Record<number, string> = {
+  10: "trace",
+  20: "debug",
+  30: "info",
+  40: "warn",
+  50: "error",
+  60: "fatal",
+};
+
+function singleLine(value: unknown): string {
+  return String(value ?? "").replaceAll("\r", "\\r").replaceAll("\n", "\\n");
+}
+
+export function formatDiagnosticRecord(record: Record<string, unknown>): string {
+  const { time, level, service, msg, ...context } = record;
+  const parsedTime = typeof time === "number" ? new Date(time) : new Date(typeof time === "string" ? time : Date.now());
+  const timestamp = Number.isNaN(parsedTime.getTime()) ? new Date().toISOString() : parsedTime.toISOString();
+  const severity = (typeof level === "number" ? PINO_LEVEL_NAMES[level] : String(level ?? "info")).toUpperCase();
+  const source = singleLine(service || "raceiq");
+  const message = singleLine(msg);
+  const details = Object.keys(context).length > 0 ? `\t${JSON.stringify(context)}` : "";
+  return `${timestamp} ${severity.padEnd(5)} [${source}] ${message}${details}\n`;
+}
+
+export function formatDiagnosticLogLine(line: string): string {
+  const newline = line.endsWith("\n") ? "\n" : "";
+  const raw = newline ? line.slice(0, -1) : line;
+  try {
+    const record = JSON.parse(raw) as unknown;
+    if (record === null || typeof record !== "object" || Array.isArray(record)) return line;
+    const formatted = formatDiagnosticRecord(record as Record<string, unknown>);
+    return newline ? formatted : formatted.slice(0, -1);
+  } catch {
+    return line;
+  }
+}
+
 const VALID_LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug", "trace", "silent"]);
 const requestedLogLevel = process.env.RACEIQ_LOG_LEVEL ?? "info";
 const logLevel = VALID_LOG_LEVELS.has(requestedLogLevel) ? requestedLogLevel : "info";
 const diagnosticStream = {
   write(line: string): void {
-    diagnosticLogStore.write(line);
+    diagnosticLogStore.write(formatDiagnosticLogLine(line));
   },
 };
-const fileStream = process.env.NODE_ENV === "test"
-  ? diagnosticStream
-  : pino.transport({
-      target: "pino-roll",
-      options: {
-        file: `${logDir}/raceiq.log`,
-        size: "2m",
-        limit: { count: 64, removeOtherLogFiles: false },
-        mkdir: true,
-      },
-    });
+const stdoutStream = {
+  write(line: string): void {
+    process.stdout.write(formatDiagnosticLogLine(line));
+  },
+};
 
 export const logger = pino(
-  { level: logLevel, base: { service: "raceiq" } },
+  {
+    level: logLevel,
+    base: { service: "raceiq" },
+    timestamp: pino.stdTimeFunctions.isoTime,
+    formatters: {
+      level(label) {
+        return { level: label };
+      },
+    },
+  },
   pino.multistream([
-    { level: "trace", stream: fileStream },
-    { level: "trace", stream: process.stdout },
+    { level: "trace", stream: diagnosticStream },
+    { level: "trace", stream: stdoutStream },
   ]),
 );
 export const log = logger;
@@ -48,7 +88,7 @@ if (requestedLogLevel !== logLevel) {
 }
 
 export function readRecentLogText(): string {
-  return diagnosticLogStore.readRetainedText();
+  return diagnosticLogStore.readRetainedText().split("\n").map((line) => formatDiagnosticLogLine(line)).join("\n");
 }
 
 export function errorLogger(): MiddlewareHandler {
@@ -62,6 +102,7 @@ function writeConsole(level: "debug" | "info" | "warn" | "error", args: unknown[
 }
 
 export function captureConsole(): void {
+  console.info = (...args: unknown[]) => writeConsole("info", args);
   console.debug = (...args: unknown[]) => writeConsole("debug", args);
   console.log = (...args: unknown[]) => writeConsole("info", args);
   console.warn = (...args: unknown[]) => writeConsole("warn", args);

@@ -9,6 +9,11 @@
 
 ### Fixes
 
+- Prevent diagnostic logging from blocking startup in packaged releases
+- Retain at least 24 hours of diagnostic logs across restarts, including during heavy logging
+- Include AI connection failures, malformed responses, and empty responses in diagnostic exports
+- Show diagnostic log timestamps and severity labels in readable standard formats
+- Retain AI failures when diagnostics use warning-or-higher log levels
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.

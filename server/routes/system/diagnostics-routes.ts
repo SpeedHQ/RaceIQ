@@ -15,7 +15,7 @@ import { getCurrentDetectedGame } from "../../games/packet-dispatch";
 import { loadSettings } from "../../runtime/config/settings";
 import { client as dbClient, DB_PATH } from "../../db";
 import { collectDiagnosticChatContext } from "../../ai/chat-agent";
-import { log, readRecentLogText } from "../../runtime/logger";
+import { formatDiagnosticRecord, log, readRecentLogText } from "../../runtime/logger";
 import { normalizeDiagnostic } from "../../ai/diagnostic-logging";
 import pkg from "../../../package.json";
 
@@ -40,9 +40,8 @@ export const diagnosticsRoutes = new Hono()
   .post("/api/client-log", zValidator("json", ClientLogSchema), async (c) => {
     const { level, scope, message, detail, occurredAtMs } = c.req.valid("json");
     if (scope === "console" && message.startsWith("[vite]")) return c.json({ ok: true });
-    const suffix = detail ? ` ${JSON.stringify(detail).slice(0, 2000)}` : "";
     const record = { clientOccurredAt: new Date(occurredAtMs).toISOString(), clientScope: scope, clientDetail: detail };
-    const line = `[Client/${scope}] ${message}${suffix}`;
+    const line = `[Client/${scope}] ${message}`;
     log[level](record, line);
     return c.json({ ok: true });
   })
@@ -84,19 +83,33 @@ export const diagnosticsRoutes = new Hono()
     const chatError = chatSnapshot.error;
     if (chatError) log.error({ event: "ai-chat-export-error", error: chatError }, "ai-chat-export-error");
     const chatLines = ["=== RaceIQ AI conversation context ==="];
+    const exportTime = new Date().toISOString();
     for (const snapshot of chatSnapshot.threads) {
-      chatLines.push(JSON.stringify(normalizeDiagnostic({
-        event: "ai-chat-thread",
-        thread: snapshot.thread,
-        systemPrompt: snapshot.systemPrompt,
-        systemPromptUnavailable: snapshot.systemPromptUnavailable,
-        messageCount: snapshot.messages.length,
-      })));
+      chatLines.push(formatDiagnosticRecord({
+        ...normalizeDiagnostic({
+          event: "ai-chat-thread",
+          thread: snapshot.thread,
+          systemPrompt: snapshot.systemPrompt,
+          systemPromptUnavailable: snapshot.systemPromptUnavailable,
+          messageCount: snapshot.messages.length,
+        }) as Record<string, unknown>,
+        level: "info",
+        time: exportTime,
+        service: "raceiq/export",
+        msg: "AI chat thread",
+      }).trimEnd());
       for (const message of snapshot.messages) {
-        chatLines.push(JSON.stringify(normalizeDiagnostic({ event: "ai-chat-message", message })));
+        chatLines.push(formatDiagnosticRecord({
+          ...normalizeDiagnostic({ event: "ai-chat-message", message }) as Record<string, unknown>,
+          level: "info",
+          time: exportTime,
+          service: "raceiq/export",
+          msg: "AI chat message",
+        }).trimEnd());
       }
     }
-    logs = `${readRecentLogText()}${readRecentLogText().endsWith("\n") ? "" : "\n"}${chatLines.join("\n")}\n`;
+    const recentLogs = readRecentLogText();
+    logs = `${recentLogs}${recentLogs.endsWith("\n") ? "" : "\n"}${chatLines.join("\n")}\n`;
     // Database size and stats
     let dbSizeMB: number | null = null;
     let sessionCount: number | null = null;
