@@ -86,6 +86,10 @@ export function SessionLapSelectionDialog({ open, onOpenChange, laps, selectedLa
             <div className="max-h-[55vh] overflow-auto overscroll-contain rounded border border-app-border">
               <div className="sticky top-0 z-10 grid min-w-max gap-x-2 border-b border-app-border bg-app-bg px-3 py-1 text-xs tracking-wider text-app-text-dim" style={{ gridTemplateColumns }}>
                 <div /><div className="text-center">Primary</div><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapTime")}>Time {sortMode === "lapTime" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-left hover:text-app-text" onClick={() => chooseSort("status")}>Status {sortMode === "status" ? (sortDescending ? "↓" : "↑") : ""}</button><button type="button" className="text-right hover:text-app-text" onClick={() => chooseSort("lapNumber")}>Lap {sortMode === "lapNumber" ? (sortDescending ? "↓" : "↑") : ""}</button>
+                {Array.from({ length: sectorCount }, (_, index) => {
+                  const sectorSort: SortMode = `sector:${index}`;
+                  return <button key={index} type="button" className="text-right hover:text-app-text" onClick={() => chooseSort(sectorSort)}>S{index + 1} {sortMode === sectorSort ? (sortDescending ? "↓" : "↑") : ""}</button>;
+                })}
               </div>
               <div className="divide-y divide-app-border/30">
                 {visibleLaps.map((lap) => {
