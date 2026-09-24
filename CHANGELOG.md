@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Improve logging and diagnostic exports
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
