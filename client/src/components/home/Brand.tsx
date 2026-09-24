@@ -15,7 +15,15 @@ export function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: strin
       />
     );
   }
-  if (gameId === "lmu") return <img src="/lmu-logo.svg" alt="" className={`object-contain ${className}`} />;
+  if (gameId === "lmu") {
+    return (
+      <span
+        aria-hidden="true"
+        className={`game-brand-accent bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain] ${className}`}
+        style={{ maskImage: "url(/lmu-logo.svg)", WebkitMaskImage: "url(/lmu-logo.svg)" }}
+      />
+    );
+  }
   const label = gameId === "iracing" ? "iR" : "ACE";
   return <span className="game-brand-accent text-xs font-black">{label}</span>;
 }

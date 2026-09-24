@@ -3,7 +3,7 @@
 ### Features
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
-- Show the official Le Mans Ultimate logo in the sidebar and home card
+- Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
 
