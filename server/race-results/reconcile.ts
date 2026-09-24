@@ -10,7 +10,7 @@ import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
 import type { PitEvent } from "./types";
 import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
-import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
+import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
 export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
@@ -28,8 +28,8 @@ function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPa
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
   try {
-    const capture = await loadRawCaptureIdentity(rawFile);
-    return capture ? { objectId: rawCaptureObjectId(sessionId), contentHash: capture.contentHash } : null;
+    const contentHash = await hashRawCapture(rawFile);
+    return contentHash ? { objectId: rawCaptureObjectId(sessionId), contentHash } : null;
   } catch {
     return null;
   }

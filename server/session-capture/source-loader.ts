@@ -7,6 +7,7 @@ import { parseLd } from "../motec/ld";
 import { parseLdxBeacons } from "../motec/ldx";
 import { resolveMotecTarget } from "../motec/targets";
 import { countSourceFrameScanned } from "./test-instrumentation";
+import { SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, type SessionCaptureRecord } from "./framing";
 
 export interface SessionCaptureFrameRecord { readonly offset: number; readonly length: number; readonly frameIndex: number; }
 export interface SessionCaptureFrameIndex {
@@ -53,14 +54,13 @@ export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null)
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
 function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carOrdinal}\0${source.trackOrdinal}`; }
-
 /**
- * Iterate capture frames without materializing the compressed or decompressed
+ * Iterate capture records without materializing the compressed or decompressed
  * session. Report offsets in the decompressed stream, matching lap metadata.
  */
-export async function* iterateSessionCaptureFrames(
+export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-): AsyncGenerator<{ offset: number; frame: Buffer }> {
+): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
@@ -106,6 +106,13 @@ export async function* iterateSessionCaptureFrames(
           const metaLength = pending.readUInt32LE(4);
           assertCaptureRecordLength(metaLength);
           if (pending.length < 8 + metaLength) break;
+          if (metaLength === 8) {
+            const magic = pending.readUInt32LE(8);
+            const version = pending.readUInt32LE(12);
+            if (magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) yield { kind: "segment-boundary", offset };
+            else if (magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset };
+            else if (magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context-end", offset };
+          }
           pending = pending.subarray(8 + metaLength);
           offset += 8 + metaLength;
           continue;
@@ -116,7 +123,7 @@ export async function* iterateSessionCaptureFrames(
         const frame = pending.subarray(4, 4 + frameLength);
         pending = pending.subarray(4 + frameLength);
         offset += 4 + frameLength;
-        yield { offset: frameOffset, frame };
+        yield { kind: "frame", offset: frameOffset, frame };
       }
     }
   } finally {
@@ -125,6 +132,14 @@ export async function* iterateSessionCaptureFrames(
     } finally {
       reader.releaseLock();
     }
+  }
+}
+
+export async function* iterateSessionCaptureFrames(
+  source: SessionCaptureSource,
+): AsyncGenerator<{ offset: number; frame: Buffer }> {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
+    if (record.kind === "frame") yield record;
   }
 }
 export async function loadSessionSource(source: SessionCaptureSource): Promise<LoadedSessionSource> {

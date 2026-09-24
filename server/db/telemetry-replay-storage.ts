@@ -9,8 +9,7 @@ import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { iterateSessionCaptureRecords } from "../session-capture/framing";
-import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
+import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
 import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 
@@ -331,21 +330,22 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
     carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
   if (!session?.rawFile) return [];
-  const loaded = await loadSessionSource({
+  const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
-  });
-  if (loaded.kind === "packets") {
+  };
+  if (session.rawFile.endsWith(".motec.zip")) {
+    const loaded = await loadSessionSource(source);
+    if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
     const packets = loaded.packets.map(freshReplayPacket);
     for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
     return packets;
   }
   const serverGame = getServerGame(gameId);
   let state = serverGame.createParserState?.() ?? null;
-  const buf = loaded.buffer;
   const packets: TelemetryPacket[] = [];
   let inContext = false;
-  for (const record of iterateSessionCaptureRecords(buf)) {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
       inContext = false;
