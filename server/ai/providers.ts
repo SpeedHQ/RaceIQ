@@ -3,6 +3,7 @@
  */
 
 import { extractJson } from "./extract-json";
+import { logLlmEvent, withLlmDiagnostics } from "./diagnostic-logging";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 export interface AiResult {
@@ -69,8 +70,7 @@ export async function getGeminiModels(apiKey: string): Promise<{ id: string; nam
   return result.models;
 }
 
-/** Run analysis via Claude CLI (pipe mode). */
-export async function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
+export async function runClaudeCliRaw(prompt: string, model?: string): Promise<AiResult> {
   const m = model || "haiku";
   const proc = Bun.spawn(
     ["claude", "-p", "-", "--model", m, "--output-format", "json"],
@@ -116,6 +116,9 @@ export async function runClaudeCli(prompt: string, model?: string): Promise<AiRe
       model: Object.keys(envelope.modelUsage ?? {})[0] ?? "claude-haiku",
     },
   };
+}
+export function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
+  return withLlmDiagnostics({ provider: "claude-cli", model: model || "haiku", operation: "cli.generate", request: { prompt } }, () => runClaudeCliRaw(prompt, model));
 }
 
 // JSON schema for structured output — used by Gemini and OpenAI
@@ -256,64 +259,72 @@ export type GeminiRequestOptions = {
 
 export async function runGeminiRequest(options: GeminiRequestOptions): Promise<AiResult> {
   const model = options.model || "gemini-flash-latest";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${options.apiKey}`;
-  const generationConfig: Record<string, unknown> = {
-    temperature: options.temperature ?? 0.3,
-  };
-  if (options.maxOutputTokens != null) generationConfig.maxOutputTokens = options.maxOutputTokens;
-  Object.assign(generationConfig, buildGoogleThinkingProviderOptions(model, options.thinkingBudget ?? null));
-  if (options.schema) {
-    generationConfig.responseMimeType = "application/json";
-    generationConfig.responseSchema = options.schema;
-  }
+  const diagnostic = { provider: "gemini", model, operation: "generateContent", request: { prompt: options.prompt, schema: options.schema, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens, thinkingBudget: options.thinkingBudget } };
+  logLlmEvent("llm-request", diagnostic);
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${options.apiKey}`;
+    const generationConfig: Record<string, unknown> = {
+      temperature: options.temperature ?? 0.3,
+    };
+    if (options.maxOutputTokens != null) generationConfig.maxOutputTokens = options.maxOutputTokens;
+    Object.assign(generationConfig, buildGoogleThinkingProviderOptions(model, options.thinkingBudget ?? null));
+    if (options.schema) {
+      generationConfig.responseMimeType = "application/json";
+      generationConfig.responseSchema = options.schema;
+    }
 
-  const start = performance.now();
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: options.prompt }] }],
-      generationConfig,
-    }),
-  });
-  const durationMs = Math.round(performance.now() - start);
+    const start = performance.now();
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: options.prompt }] }],
+        generationConfig,
+      }),
+    });
+    const durationMs = Math.round(performance.now() - start);
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    console.error("[AI] Gemini API error:", res.status, errBody);
-    throw new AiProviderError(
-      res.status === 401 || res.status === 403
-        ? "Invalid Gemini API key. Check your key in Settings."
-        : `Gemini API error: ${res.status}`,
-      {
-        code: "upstream",
-        provider: "gemini",
-        modelId: model,
-        statusCode: res.status,
-        isRetryable: res.status >= 500,
-        responseBody: errBody,
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("[AI] Gemini API error:", res.status, errBody);
+      throw new AiProviderError(
+        res.status === 401 || res.status === 403
+          ? "Invalid Gemini API key. Check your key in Settings."
+          : `Gemini API error: ${res.status}`,
+        {
+          code: "upstream",
+          provider: "gemini",
+          modelId: model,
+          statusCode: res.status,
+          isRetryable: res.status >= 500,
+          responseBody: errBody,
+        },
+      );
+    }
+
+    const data = await res.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!text.trim()) throw new Error("Gemini returned empty response");
+    logLlmEvent("llm-response", { ...diagnostic, response: data });
+    const analysis = options.schema ? extractJson(text) : text.trim();
+    const usage = data.usageMetadata ?? {};
+    return {
+      analysis,
+      usage: {
+        inputTokens: usage.promptTokenCount ?? 0,
+        outputTokens: usage.candidatesTokenCount ?? 0,
+        costUsd: 0,
+        durationMs,
+        model,
       },
-    );
+    };
+  } catch (error) {
+    logLlmEvent("llm-error", { ...diagnostic, error });
+    throw error;
   }
-
-  const data = await res.json() as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  if (!text.trim()) throw new Error("Gemini returned empty response");
-  const analysis = options.schema ? extractJson(text) : text.trim();
-  const usage = data.usageMetadata ?? {};
-  return {
-    analysis,
-    usage: {
-      inputTokens: usage.promptTokenCount ?? 0,
-      outputTokens: usage.candidatesTokenCount ?? 0,
-      costUsd: 0,
-      durationMs,
-      model,
-    },
-  };
 }
 
 /** Run structured analysis via Gemini API. */
@@ -342,65 +353,73 @@ export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promis
   const model = options.model || "gpt-4o-mini";
   const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
-  const body: Record<string, unknown> = {
-    model,
-    messages: [{ role: "user", content: options.prompt }],
-    temperature: options.temperature ?? 0.3,
-  };
-  if (endpoint !== "https://api.openai.com/v1") body.reasoning_effort = "none";
-  if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
-  if (options.schema) {
-    body.response_format = {
-      type: "json_schema",
-      json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
-    };
-  }
-
-  const start = performance.now();
-  const res = await fetch(`${endpoint}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
-  const durationMs = Math.round(performance.now() - start);
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
-    throw new AiProviderError(
-      res.status === 401
-        ? "Invalid API key. Check your key in Settings."
-        : `OpenAI API error: ${res.status}`,
-      {
-        code: "upstream",
-        provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible",
-        modelId: model,
-        statusCode: res.status,
-        isRetryable: res.status >= 500,
-        responseBody: errBody,
-      },
-    );
-  }
-
-  const data = await res.json() as {
-    choices?: Array<{ message?: { content?: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-  };
-  const text = data.choices?.[0]?.message?.content ?? "";
-  if (!text.trim()) throw new Error("OpenAI returned empty response");
-  const analysis = options.schema ? extractJson(text) : text.trim();
-  const usage = data.usage ?? {};
-  return {
-    analysis,
-    usage: {
-      inputTokens: usage.prompt_tokens ?? 0,
-      outputTokens: usage.completion_tokens ?? 0,
-      costUsd: 0,
-      durationMs,
+  const diagnostic = { provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible", model, operation: "chat.completions", request: { prompt: options.prompt, schema: options.schema, schemaName: options.schemaName, temperature: options.temperature, maxOutputTokens: options.maxOutputTokens } };
+  logLlmEvent("llm-request", diagnostic);
+  try {
+    if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+    const body: Record<string, unknown> = {
       model,
-    },
-  };
+      messages: [{ role: "user", content: options.prompt }],
+      temperature: options.temperature ?? 0.3,
+    };
+    if (endpoint !== "https://api.openai.com/v1") body.reasoning_effort = "none";
+    if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
+    if (options.schema) {
+      body.response_format = {
+        type: "json_schema",
+        json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
+      };
+    }
+
+    const start = performance.now();
+    const res = await fetch(`${endpoint}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+    const durationMs = Math.round(performance.now() - start);
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
+      throw new AiProviderError(
+        res.status === 401
+          ? "Invalid API key. Check your key in Settings."
+          : `OpenAI API error: ${res.status}`,
+        {
+          code: "upstream",
+          provider: endpoint === "https://api.openai.com/v1" ? "openai" : "openai-compatible",
+          modelId: model,
+          statusCode: res.status,
+          isRetryable: res.status >= 500,
+          responseBody: errBody,
+        },
+      );
+    }
+
+    const data = await res.json() as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
+    const text = data.choices?.[0]?.message?.content ?? "";
+    if (!text.trim()) throw new Error("OpenAI returned empty response");
+    const analysis = options.schema ? extractJson(text) : text.trim();
+    const usage = data.usage ?? {};
+    logLlmEvent("llm-response", { ...diagnostic, response: data });
+    return {
+      analysis,
+      usage: {
+        inputTokens: usage.prompt_tokens ?? 0,
+        outputTokens: usage.completion_tokens ?? 0,
+        costUsd: 0,
+        durationMs,
+        model,
+      },
+    };
+  } catch (error) {
+    logLlmEvent("llm-error", { ...diagnostic, error });
+    throw error;
+  }
 }
 
 /** Run structured analysis via OpenAI API. */

@@ -217,3 +217,5 @@ test/tracks/geometry-alignment.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/lap-analysis/lap-export-zip.test.ts
+test/ai/chat/chat-diagnostic-export.test.ts
+test/routes/diagnostics-routes.test.ts
