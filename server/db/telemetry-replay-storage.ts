@@ -320,16 +320,15 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
 }
 
 /**
- * Re-parse every frame from a completed session capture. Result reconciliation
- * needs the session tail because authoritative finish packets may arrive after
- * the final persisted lap range.
+ * Stream every parsed packet from a completed session, including the session
+ * tail where authoritative finish packets may arrive after the final lap.
  */
-export async function getSessionTelemetry(sessionId: number, gameId: GameId): Promise<TelemetryPacket[]> {
+export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
     carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
-  if (!session?.rawFile) return [];
+  if (!session?.rawFile) return;
   const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
@@ -337,13 +336,16 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
   if (session.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);
     if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
-    const packets = loaded.packets.map(freshReplayPacket);
-    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
-    return packets;
+    const serverGame = getServerGame(gameId);
+    for (const original of loaded.packets) {
+      const packet = freshReplayPacket(original);
+      normalizeReplayPacket(packet, serverGame);
+      yield packet;
+    }
+    return;
   }
   const serverGame = getServerGame(gameId);
   let state = serverGame.createParserState?.() ?? null;
-  const packets: TelemetryPacket[] = [];
   let inContext = false;
   for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "segment-boundary") {
@@ -360,16 +362,16 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
       continue;
     }
     if (record.kind !== "frame") continue;
+    let packet: TelemetryPacket | null;
     try {
-      const packet = serverGame.tryParse(record.frame, state);
-      if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
-      if (!inContext) packets.push(packet);
+      packet = serverGame.tryParse(record.frame, state);
+      if (packet) normalizeReplayPacket(packet, serverGame);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
+      continue;
     }
+    if (packet && !inContext) yield packet;
   }
-  return packets;
 }
 function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
   try {

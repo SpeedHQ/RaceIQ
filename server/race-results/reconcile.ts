@@ -1,29 +1,19 @@
 import { createHash } from "node:crypto";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { getLapsByIds } from "../db/lap-read-queries";
+import { getLapById } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
 import { getSessionResult, getStaleRaceResultSessionIds, upsertSessionResult } from "../db/session-result-queries";
-import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
+import { getSessionRawFile, iterateSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
-import { extractRaceSource } from "./source";
+import { RaceSourceAccumulator } from "./source";
 import type { PitEvent } from "./types";
-import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
+import type { RaceResultRawInputIdentity } from "../../shared/racing/results/types";
 import { hashRawCapture, rawCaptureObjectId } from "../session-capture/identity";
 import { getAllServerGames } from "../games/registry";
 
 export const RACE_RESULT_PROCESSOR_ID = "race-result-v2";
-
-function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
-  if (packets.length === 0) return null;
-  const hash = createHash("sha256");
-  for (const packet of packets) {
-    hash.update(JSON.stringify(packet));
-    hash.update("\n");
-  }
-  return { sessionId: String(sessionId), firstSequence: 0, lastSequence: packets.length - 1, contentHash: `sha256:${hash.digest("hex")}` };
-}
 
 async function rawInputIdentity(sessionId: number, rawFile: string | null | undefined): Promise<RaceResultRawInputIdentity | null> {
   if (!rawFile) return null;
@@ -77,26 +67,37 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   if (!session) return { sessionId, status: "skipped", eventCount: 0, reasons: ["session-not-found"] };
 
   const readReasons: string[] = [];
-  let packets: TelemetryPacket[] = [];
+  let accumulator = new RaceSourceAccumulator(gameId);
+  let canonicalHash = createHash("sha256");
+  let packetCount = 0;
+  const addPacket = (packet: TelemetryPacket): void => {
+    accumulator.add(packet);
+    canonicalHash.update(JSON.stringify(packet));
+    canonicalHash.update("\n");
+    packetCount++;
+  };
   try {
-    packets = await getSessionTelemetry(sessionId, gameId);
+    for await (const packet of iterateSessionTelemetry(sessionId, gameId)) addPacket(packet);
   } catch {
     readReasons.push("session-raw-parse-error");
+    accumulator = new RaceSourceAccumulator(gameId);
+    canonicalHash = createHash("sha256");
+    packetCount = 0;
   }
-  if (packets.length === 0) {
+  if (packetCount === 0) {
     const lapRefs = await getLapsForSession(sessionId);
-    const laps = await getLapsByIds(lapRefs.map((lap) => lap.id));
-    for (const lap of laps) {
-      if (lap.parseError) readReasons.push(`lap-${lap.id}-parse-error`);
-      packets.push(...lap.telemetry);
-    }
-    if (laps.length !== lapRefs.length) {
-      const loadedIds = new Set(laps.map((lap) => lap.id));
-      for (const lap of lapRefs) if (!loadedIds.has(lap.id)) readReasons.push(`lap-${lap.id}-missing`);
+    for (const { id } of lapRefs) {
+      const lap = await getLapById(id);
+      if (!lap) {
+        readReasons.push(`lap-${id}-missing`);
+        continue;
+      }
+      if (lap.parseError) readReasons.push(`lap-${id}-parse-error`);
+      for (const packet of lap.telemetry) addPacket(packet);
     }
   }
 
-  const source = extractRaceSource(gameId, packets);
+  const source = accumulator.finish();
   if (session.sessionType) {
     if (!source.sessionType) {
       source.sessionType = session.sessionType;
@@ -111,7 +112,10 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   derived.provenance = {
     ...derived.provenance,
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
-    canonicalInput: canonicalInputIdentity(sessionId, packets),
+    canonicalInput: packetCount === 0 ? null : {
+      sessionId: String(sessionId), firstSequence: 0, lastSequence: packetCount - 1,
+      contentHash: `sha256:${canonicalHash.digest("hex")}`,
+    },
   };
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
