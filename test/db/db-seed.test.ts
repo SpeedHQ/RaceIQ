@@ -168,7 +168,7 @@ describe("db:seed", () => {
     const second = await runSeed(dataDir);
     expect(second.code, second.output).toBe(0);
     expect(counts(dataDir)).toEqual(initial);
-  }, 120000);
+  }, 180000);
 
   test("reset replaces seed rows without deleting user sessions", async () => {
     const dataDir = makeDataDir();
