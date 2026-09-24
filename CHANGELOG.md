@@ -15,6 +15,7 @@
 
 ### Internal
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+- Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 

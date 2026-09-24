@@ -1,12 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline";
 import { LMU_TELEMETRY, LMU_WHEEL, LMU_WHEEL_SIZE } from "../../server/games/lmu/layout";
 import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
 import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-const FIXTURE = "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz";
+const FIXTURE_PARTS = [
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+  "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+];
 const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;
 const SAMPLE_INDICES = [0, 500, 5_000, 10_000, 20_000, 30_000, 40_000];
@@ -18,7 +22,15 @@ type Sample = {
 };
 
 async function readSamples(): Promise<Sample[]> {
-  const stream = createReadStream(FIXTURE).pipe(createGunzip());
+  const compressed = Readable.from(
+    (async function* () {
+      for (const part of FIXTURE_PARTS) {
+        yield* createReadStream(part);
+      }
+    })(),
+  );
+  const stream = compressed.pipe(createGunzip());
+
   const iterator = stream[Symbol.asyncIterator]();
   let buffered = Buffer.alloc(0);
   const readExact = async (size: number): Promise<Buffer> => {
