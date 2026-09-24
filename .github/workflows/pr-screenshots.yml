@@ -172,8 +172,6 @@ jobs:
           merge-multiple: false
 
       - name: Collect responsive diffs
-        id: collect
-        continue-on-error: true
         run: bun scripts/ci/workflow-ops.ts collect-screenshots
 
       - name: Upload preview artifact
@@ -184,6 +182,3 @@ jobs:
           path: pr-preview/
           retention-days: 14
 
-      - name: Enforce responsive visual baseline
-        if: steps.collect.outcome == 'failure'
-        run: bun -e "throw new Error('Responsive visual baseline comparison failed. Review pr-screenshot-preview before/after/diff images.')"
