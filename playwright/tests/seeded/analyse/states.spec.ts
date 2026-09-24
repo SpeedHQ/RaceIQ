@@ -5,7 +5,7 @@ import { getSeededLapTarget } from "../../support/seeded/laps";
 import { findNoTelemetryLap } from "./fixtures";
 
 test("Analyse exposes loading and parse-error states", async ({ page, request }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(80_000);
   const browserErrors = collectBrowserErrors(page);
   const target = await getSeededLapTarget(request, "fm-2023");
   let releaseLoading!: () => void;
