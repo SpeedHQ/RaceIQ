@@ -1,0 +1,85 @@
+{
+  "slug": "portimao",
+  "track": "portimao",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
+  "name": "Algarve International Circuit",
+  "source": "FIA WEC, 'Two weeks until Portimão! The track explained' (2023); Driver61 Portimao circuit guide",
+  "corners": [
+    {
+      "number": 1,
+      "name": "Primeira",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "Torre Vip",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "right"
+    }
+  ]
+}

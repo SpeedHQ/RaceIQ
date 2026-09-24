@@ -32,6 +32,7 @@ describe("game route helpers", () => {
     expect(gameIdForRoutePrefix("acc")).toBe("acc");
     expect(gameIdForRoutePrefix("ac-evo")).toBe("ac-evo");
     expect(gameIdForRoutePrefix("iracing")).toBe("iracing");
+    expect(gameIdForRoutePrefix("lmu")).toBe("lmu");
     expect(routePrefixForGameId("f1-2025")).toBe("f125");
     expect(routePrefixForGameId("unknown")).toBeUndefined();
     expect(gameIdForRoutePrefix("unknown")).toBeUndefined();

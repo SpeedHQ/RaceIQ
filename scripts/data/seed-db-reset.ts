@@ -16,6 +16,7 @@ export async function cleanDatabase(): Promise<void> {
   await client.execute("PRAGMA foreign_keys = OFF");
   try {
     for (const table of tables) await client.execute(`DELETE FROM "${table.replaceAll('"', '""')}"`);
+    await db.delete(sessions).run();
   } finally {
     await client.execute("PRAGMA foreign_keys = ON");
   }

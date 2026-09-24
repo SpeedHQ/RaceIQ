@@ -122,6 +122,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     f1TypesSource,
     kunosTypesSource,
     iracingTypesSource,
+    lmuTypesSource,
   ] = await Promise.all(
     TELEMETRY_TYPE_SOURCE_FILES.map(async (path) =>
       (await readFile(resolve(ROOT, path), "utf8")).replace(/\r\n?/g, "\n"),
@@ -131,11 +132,12 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   const f1TypesTree = ast(f1TypesSource);
   const kunosTypesTree = ast(kunosTypesSource);
   const iracingTypesTree = ast(iracingTypesSource);
+  const lmuTypesTree = ast(lmuTypesSource);
   const packetFields = interfaceFields(
     typesSource,
     typesTree,
     "TelemetryPacket",
-  ).filter((field) => !["gameId", "f1", "acc", "iracing"].includes(field.name));
+  ).filter((field) => !["gameId", "f1", "acc", "iracing", "lmu"].includes(field.name));
   const packetFieldNames = packetFields.map((field) => field.name);
   const packetSets = wheelFieldSets(packetFieldNames);
 
@@ -155,6 +157,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     acc: [],
     "ac-evo": [],
     iracing: [],
+    lmu: [],
   };
   for (const set of packetSets) {
     const semantic = normalizedSemantic(set);
@@ -260,6 +263,14 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ),
     "iracing",
   ));
+  const lmuFields = extensionFieldSets(extensionFields(
+    interfaceLeafFields(
+      lmuTypesSource,
+      lmuTypesTree,
+      "LMUExtendedData",
+    ),
+    "lmu",
+  ));
 
   for (const field of f1Fields) {
     addExtensionVariable(variables, groups, inventories, "f1-2025", field);
@@ -273,6 +284,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
   for (const field of iracingFields) {
     addExtensionVariable(variables, groups, inventories, "iracing", field);
+  }
+  for (const field of lmuFields) {
+    addExtensionVariable(variables, groups, inventories, "lmu", field);
   }
   for (const gameId of ["acc", "ac-evo"] as const) {
     for (const section of getSchemaForGame(gameId)) {

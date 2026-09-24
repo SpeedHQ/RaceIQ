@@ -658,6 +658,7 @@
   "analyse_tab_insights": "Insights",
   "analyse_metrics_at_cursor": "Metrics at Cursor",
   "analyse_copy_values_tooltip": "Copy values at cursor",
+  "analyse_copy_json_tooltip": "Copy telemetry JSON",
   "analyse_section_dynamics": "Dynamics",
   "acccars_all_classes": "All",
   "acccars_car_count_label": "cars",

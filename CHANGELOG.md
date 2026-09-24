@@ -1,15 +1,24 @@
 ## Unreleased
 
 ### Features
+- Add Le Mans Ultimate support
+- Add a representative hybrid car model to Le Mans Ultimate 3D scenes
+- Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
+- Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
+- Focus Lap Analyse on the selected session by hiding car and track selectors across games
 
 ### Fixes
 
+- Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
+- Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+- Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
+- Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 

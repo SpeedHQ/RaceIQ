@@ -99,7 +99,7 @@ describe("collect-screenshot-diffs", () => {
     { timeout: 10_000 },
   );
 
-  test("fails CLI gating after writing review artifacts for material changes", async () => {
+  test("collects material changes successfully unless CLI gating is explicitly requested", async () => {
     const root = makeTempDir();
     const base = join(root, "base");
     const current = join(root, "current");
@@ -107,7 +107,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(base, "mobile", "changed.png"), { r: 255, g: 0, b: 0 });
     await writePng(join(current, "mobile", "changed.png"), { r: 0, g: 255, b: 0 });
 
-    const result = Bun.spawnSync([
+    const args = [
       process.execPath,
       resolve(import.meta.dir, "../../scripts/ui/collect-screenshot-diffs.ts"),
       "--base",
@@ -118,9 +118,13 @@ describe("collect-screenshot-diffs", () => {
       out,
       "--prefix",
       "responsive",
-      "--fail-on-change",
-    ]);
+    ];
+    const collected = Bun.spawnSync(args);
+    expect(collected.exitCode).toBe(0);
+    expect(collected.stdout.toString()).toContain("Collected 1 screenshot diff.");
+    expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);
 
+    const result = Bun.spawnSync([...args, "--fail-on-change"]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain("Responsive visual baseline differs in 1 screenshot.");
     expect(existsSync(join(out, "changed--responsive--mobile--changed-diff.png"))).toBe(true);

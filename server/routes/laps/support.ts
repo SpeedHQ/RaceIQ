@@ -26,9 +26,14 @@ export const ReviewLapsQuerySchema = z.object({
   sessionId: z.coerce.number().int().positive().optional(),
   trackOrdinal: z.coerce.number().int().positive().optional(),
   carOrdinal: z.coerce.number().int().positive().optional(),
+  trackId: z.string().min(1).optional(),
+  carId: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(20).default(5),
-}).refine((value) => value.sessionId != null || (value.trackOrdinal != null && value.carOrdinal != null), {
-  message: "sessionId or trackOrdinal and carOrdinal required",
+}).refine((value) =>
+  value.sessionId != null
+  || (value.trackOrdinal != null && value.carOrdinal != null)
+  || (value.trackId != null && value.carId != null), {
+  message: "sessionId, trackOrdinal and carOrdinal, or trackId and carId required",
 });
 export const ReviewLineSpreadQuerySchema = z.object({
   gameId: GameIdSchema,

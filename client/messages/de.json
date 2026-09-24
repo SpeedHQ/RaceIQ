@@ -657,6 +657,7 @@
   "analyse_tab_insights": "Erkenntnisse",
   "analyse_metrics_at_cursor": "Werte am Cursor",
   "analyse_copy_values_tooltip": "Werte am Cursor kopieren",
+  "analyse_copy_json_tooltip": "Telemetriedaten als JSON kopieren",
   "analyse_section_dynamics": "Dynamik",
   "acccars_all_classes": "Alle",
   "acccars_car_count_label": "Fahrzeuge",

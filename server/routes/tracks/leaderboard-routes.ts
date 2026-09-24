@@ -1,30 +1,29 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { getLaps, getLapSummariesByTrack } from "../../db/lap-read-queries";
+import { getLapSummariesByTrack } from "../../db/lap-read-queries";
 import { fmCarSpecsCatalog } from "../../../shared/racing/cars/fm";
 import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
 import type { GameId } from "../../../shared/games/ids";
-import { TrackOrdinalParamSchema } from "./support";
+import { getLMUCar } from "../../../shared/games/lmu/catalog";
+import { decodeTrackKey, TrackKeyParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()
 
   // GET /api/tracks/:trackOrdinal/leaderboard — fastest laps grouped by PI class
   .get("/api/tracks/:trackOrdinal/leaderboard",
-    zValidator("param", TrackOrdinalParamSchema),
+    zValidator("param", TrackKeyParamSchema),
     async (c) => {
-      const { trackOrdinal } = c.req.valid("param");
-
+      const rawTrackKey = decodeTrackKey(c.req.valid("param").trackOrdinal);
       const gameId = c.req.query("gameId") as GameId | undefined;
       if (!gameId) {
         return c.json({ error: "gameId query parameter is required" }, 400);
       }
-      // Hard-filter by gameId even though getLaps() already scopes its query:
-      // belt-and-braces so cross-game ordinal collisions (Forza track 2 ≠ AC
-      // Evo track 2) can never leak into the wrong tracks page.
-      const trackLaps = (await getLaps(gameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0 && l.gameId === gameId
-      );
+      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
+      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
+        return c.json({ error: "trackOrdinal must be an integer" }, 400);
+      }
+      const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
 
       // Derive class letter from PI value
       const piClass = (pi: number): string => {
@@ -42,11 +41,14 @@ export const trackLeaderboardRoutes = new Hono()
       const entries = trackLaps.map((lap) => {
         const pi = lap.pi ?? 0;
         return {
-          lapId: lap.id,
+          lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal ?? 0,
-          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal ?? 0) : undefined) ?? resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
+          carOrdinal: lap.carOrdinal,
+          carId: lap.carId ?? lap.carOrdinal,
+          carName: lap.gameId === "lmu"
+            ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
+            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -75,11 +77,15 @@ export const trackLeaderboardRoutes = new Hono()
 
   // GET /api/tracks/:trackOrdinal/all-laps — all laps for a track (ungrouped, for detail view)
   .get("/api/tracks/:trackOrdinal/all-laps",
-    zValidator("param", TrackOrdinalParamSchema),
+    zValidator("param", TrackKeyParamSchema),
     async (c) => {
-      const { trackOrdinal } = c.req.valid("param");
+      const rawTrackKey = decodeTrackKey(c.req.valid("param").trackOrdinal);
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = await getLapSummariesByTrack(trackOrdinal, gameId);
+      const trackKey = gameId === "lmu" ? rawTrackKey : Number(rawTrackKey);
+      if (gameId !== "lmu" && !Number.isInteger(trackKey)) {
+        return c.json({ error: "trackOrdinal must be an integer" }, 400);
+      }
+      const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
 
       const piClass = (pi: number): string => {
         if (pi >= 999) return "X";
@@ -100,7 +106,10 @@ export const trackLeaderboardRoutes = new Hono()
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
           carOrdinal: lap.carOrdinal,
-          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) : undefined) ?? resolveCarName(lap.carOrdinal, lap.gameId),
+          carId: lap.carId ?? lap.carOrdinal,
+          carName: lap.gameId === "lmu"
+            ? getLMUCar(lap.carId ?? "")?.name ?? lap.carId ?? "Unknown car"
+            : (tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) ?? resolveCarName(lap.carOrdinal, lap.gameId)),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,

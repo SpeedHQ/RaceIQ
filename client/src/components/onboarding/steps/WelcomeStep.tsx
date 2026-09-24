@@ -51,7 +51,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   useQuery({
     queryKey: ["track-outline", trackOrdinal],
     queryFn: async () => {
-      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: "fm-2023" } });
+      const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       const d = (await res.json()) as Record<string, unknown>;
       if (d?.points && Array.isArray(d.points)) return d.points as { x: number; z: number }[];
@@ -64,7 +64,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   const { data: boundaries } = useQuery({
     queryKey: ["track-boundaries", trackOrdinal],
     queryFn: async () => {
-      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: "fm-2023" } });
+      const res = await client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: "fm-2023" } });
       if (!res.ok) return null;
       return res.json();
     },

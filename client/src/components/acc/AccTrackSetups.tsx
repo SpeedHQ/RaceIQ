@@ -78,7 +78,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
 
   const { data: setups = [] } = useQuery<AccSetup[]>({
     queryKey: ["acc-setups-by-track", trackOrdinal],
-    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: String(trackOrdinal) } }).then((r) => r.json() as any),
+    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: encodeURIComponent(String(trackOrdinal)) } }).then((r) => r.json() as any),
   });
 
   const { data: cars = [] } = useQuery<AccCar[]>({

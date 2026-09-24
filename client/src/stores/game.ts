@@ -1,38 +1,81 @@
-import { createStore, useSelector, type StoreActionMap } from "@tanstack/react-store";
+import { create } from "zustand";
 import type { GameId } from "../../../shared/games/ids";
 import { telemetryStore } from "./telemetry";
-const GAME_ROUTES: Record<string, string> = { "fm-2023": "/fm23", "f1-2025": "/f125", acc: "/acc", "ac-evo": "/ac-evo", iracing: "/iracing" };
+/** Map gameId → route path segment. Derived from each adapter's routePrefix. */
+const GAME_ROUTES: Record<string, string> = {
+  "fm-2023": "/fm23",
+  "f1-2025": "/f125",
+  acc: "/acc",
+  "ac-evo": "/ac-evo",
+  iracing: "/iracing",
+  lmu: "/lmu",
+};
+
 export interface GameState {
   gameId: GameId | null;
-}
-export interface GameActions extends StoreActionMap {
   setGameId: (id: GameId | null) => void;
 }
-const initialGameState: GameState = { gameId: null };
-export const gameStore = createStore(initialGameState, (store): GameActions => ({
+
+export const useGameStore = create<GameState>((set, get) => ({
+  gameId: null,
   setGameId: (gameId) => {
-    const prev = store.get().gameId;
-    store.setState((state) => ({ ...state, gameId }));
-    if (prev && gameId && prev !== gameId) telemetryStore.actions.setSessionLaps([]);
+    const prev = get().gameId;
+    set({ gameId });
+    // Clear stale session laps when switching between games
+    if (prev && gameId && prev !== gameId) {
+      telemetryStore.actions.setSessionLaps([]);
+    }
   },
 }));
-export function useGameStore<T>(selector: (state: GameState) => T): T {
-  return useSelector(gameStore, selector, { compare: Object.is });
-}
+type GameStoreApi = {
+  get: () => GameState;
+  setState: (state: GameState | Partial<GameState>) => void;
+  subscribe: (listener: (state: GameState) => void) => () => void;
+  actions: { setGameId: (gameId: GameId | null) => void };
+};
+
+const gameStoreApi = useGameStore as unknown as {
+  getState: () => GameState;
+  setState: (state: GameState | Partial<GameState>) => void;
+  subscribe: (listener: (state: GameState) => void) => () => void;
+};
+
+export const gameStore: GameStoreApi = {
+  get: () => gameStoreApi.getState(),
+  setState: (state) => gameStoreApi.setState(state),
+  subscribe: (listener) => gameStoreApi.subscribe(listener),
+  actions: {
+    setGameId: (gameId) => gameStoreApi.getState().setGameId(gameId),
+  },
+};
+
 export function useGameId(): GameId | null {
   return useGameStore((s) => s.gameId);
 }
+
+/** Strict variant — throws when called outside a game route. Use in
+ *  components that only render inside a GameProvider layout.
+ *
+ *  The route-layout effect that calls `setGameId` runs *after* children
+ *  mount, so on first render the store is null. Fall back to the URL path
+ *  for that render; the store will hydrate the normal way on the next tick. */
 export function useRequiredGameId(): GameId {
   const stored = useGameStore((s) => s.gameId);
   if (stored) return stored;
   const path = typeof window !== "undefined" ? window.location.pathname : "";
-  for (const [id, prefix] of Object.entries(GAME_ROUTES)) if (path === prefix || path.startsWith(`${prefix}/`)) return id as GameId;
+  for (const [id, prefix] of Object.entries(GAME_ROUTES)) {
+    if (path === prefix || path.startsWith(`${prefix}/`)) return id as GameId;
+  }
   throw new Error(`useRequiredGameId: no gameId in store and URL (${path}) does not match any game route`);
 }
+
+/** Get the route path for the current game (e.g. "/fm23", "/f125", "/acc") */
 export function useGameRoute(): string {
   const gameId = useGameId();
   return gameId ? (GAME_ROUTES[gameId] ?? `/${gameId}`) : "/fm23";
 }
+
+/** Get the route path for any gameId */
 export function getGameRoute(gameId: string): string {
   return GAME_ROUTES[gameId] ?? `/${gameId}`;
 }

@@ -4,11 +4,13 @@ import { initGameAdapters } from "../../shared/games/init";
 import { serverReleaseFeatures } from "./config/release-features";
 import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
+import { injectDiscoveredLMUIdentity } from "../../shared/games/lmu";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "../db/discovered-cars";
 import { backfillAllRaceResults } from "../race-results/reconcile";
+import { backfillLMUSessionIdentity } from "../games/lmu/session-identity-backfill";
 import { listDiscoveredTracks } from "../db/discovered-tracks";
 import { deleteEmptySessions } from "../db/session-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
@@ -77,6 +79,11 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     listDiscoveredTracks("iracing"),
   ]);
   injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
+  const [lmuCars, lmuTracks] = await Promise.all([
+    listDiscoveredCars("lmu"),
+    listDiscoveredTracks("lmu"),
+  ]);
+  injectDiscoveredLMUIdentity(lmuCars, lmuTracks);
 
   const firstRun = isFirstRun();
   const settings = loadSettings();
@@ -113,6 +120,13 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   void backfillAllRaceResults().catch((error) => {
     console.error("[RaceResults] Startup backfill failed:", error);
   });
+  void backfillLMUSessionIdentity()
+    .then((counts) => {
+      console.log("[LMU] Session identity backfill complete:", counts);
+    })
+    .catch((error) => {
+      console.error("[LMU] Session identity backfill failed:", error);
+    });
 
 
   if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {

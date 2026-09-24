@@ -247,7 +247,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
         Array.from(byTrack, async ([ordinal, trackLaps]) => {
           let name = `${m.compare_track_fallback()} ${ordinal}`;
           try {
-            name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
+            name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ordinal)) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
           } catch {}
           return { trackOrdinal: ordinal, trackName: name, laps: trackLaps };
         }),
@@ -259,7 +259,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }
       await Promise.all(
         Array.from(carOrds).map(async (ord) => {
           try {
-            names.set(ord, await client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : "")));
+            names.set(ord, await client.api["car-name"][":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ord)) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : "")));
           } catch {}
         }),
       );

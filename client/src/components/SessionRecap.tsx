@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
-import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack } from "../lib/canvas/draw-track";
@@ -250,8 +250,8 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
-  const { data: outlineData } = useTrackOutline(recap?.trackOrdinal, recap?.gameId ?? gameId);
-  const { data: bounds } = useTrackSectorBoundaries(recap?.trackOrdinal, recap?.gameId ?? gameId);
+  const { data: outlineData } = useTrackOutline(recap?.trackId, recap?.gameId ?? gameId);
+  const { data: bounds } = useTrackSectorBoundaries(recap?.trackId, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
   if (isLoading)
     return (
@@ -272,10 +272,10 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
     });
   };
   const analyse = () => {
-    if (recap.bestLapId == null || recap.trackOrdinal == null || recap.carOrdinal == null) return;
+    if (recap.bestLapId == null) return;
     void navigate({
       to: `${getGameRoute(recap.gameId)}/sessions/replay`,
-      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId },
+      search: { track: trackIdentityKey(recap) ?? undefined, car: carIdentityKey(recap) ?? undefined, lap: recap.bestLapId ?? undefined },
     });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;

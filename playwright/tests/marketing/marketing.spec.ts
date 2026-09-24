@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { getSeededLapTarget } from "../support/seeded/laps";
 import { writeFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -6,7 +7,7 @@ const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screensho
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/sessions/replay?track=19&car=41&lap=4&viz=3d", readyText: "Metrics at Cursor" },
+  { name: "lap-analytics", path: "/f125/sessions/replay", readyText: "Metrics at Cursor" },
   { name: "compare", path: "/f125/compare?track=19&carA=41&lapA=4&carB=41&lapB=5&cursor=7", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "track-detail-guide", path: "/f125/tracks/19", readyText: "Expert guide" },
@@ -28,7 +29,14 @@ for (const page of PAGES) {
       });
       if (![201, 409].includes(response.status())) throw new Error(`Failed to seed experiment review laps: ${response.status()}`);
     }
-    await p.goto(page.path, { waitUntil: "domcontentloaded" });
+    const target = page.name === "lap-analytics"
+      ? await getSeededLapTarget(p.request, "f1-2025")
+      : null;
+    const path = target
+      ? `/f125/sessions/replay?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}&viz=3d`
+      : page.path;
+    await p.goto(path, { waitUntil: "domcontentloaded" });
+    // Dynamic route selected above avoids coupling screenshot coverage to auto-increment IDs.
     if ("readyText" in page && page.readyText) {
       const ready = p.getByText(page.readyText, { exact: true }).first();
       await ready.waitFor({ state: "visible", timeout: 30_000 });

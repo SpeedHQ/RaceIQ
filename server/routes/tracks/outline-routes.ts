@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
-import { getLaps, getLapById } from "../../db/lap-read-queries";
+import { getLaps, getLapById, getLapSummariesByTrack } from "../../db/lap-read-queries";
 import {
   deleteRecordedOutline,
   getStartYaw,
@@ -16,7 +16,10 @@ import {
 } from "../../lap-detection/detector";
 import type { GameId } from "../../../shared/games/ids";
 import { computeLapSectors } from "../../lap-analysis/sectors";
+import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
 import {
+  decodeTrackKey,
+  OrdinalKeyParamSchema,
   requireGameId,
   resolveTrackOutline,
   TrackOrdinalParamSchema,
@@ -141,14 +144,22 @@ export const trackLapSectorRoutes = new Hono()
 
   // GET /api/tracks/:ordinal/lap-sectors — compute sector times for all laps on a track.
   .get("/api/tracks/:ordinal/lap-sectors",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
-
+      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId") as GameId | undefined;
+      if (gameId === "lmu") {
+        const trackLaps = await getLapSummariesByTrack(trackKey, gameId);
+        return c.json(Object.fromEntries(
+          trackLaps
+            .filter((lap) => lap.sectorTimes?.length)
+            .map((lap) => [lap.lapId, lap.sectorTimes]),
+        ));
+      }
+      const ordinal = Number(trackKey);
+      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
       const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
-      if (trackLaps.length === 0) return c.json({});
 
       const result: Record<number, number[]> = {};
 
@@ -174,16 +185,21 @@ export const trackOutlineRoutes = new Hono()
 
   // GET /api/track-outline/:ordinal — track outline coordinates.
   .get("/api/track-outline/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
+      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
+      if (gameId === "lmu") {
+        const boundaries = getLMUTrackBoundaries(trackKey);
+        if (!boundaries?.centerLine?.length) return c.json({ error: "No outline available" }, 404);
+        return c.json({ points: boundaries.centerLine, flipX: false, source: "extracted" });
+      }
+      const ordinal = Number(trackKey);
+      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
       const startYaw = gameId ? getStartYaw(ordinal, gameId) : null;
       const altitude = getTrackAltitudeByOrdinal(ordinal);
-
       const flipX = gameId === "acc" || gameId === "ac-evo";
-
       if (gameId) {
         const resolved = await resolveTrackOutline(ordinal, gameId);
         if (resolved) {

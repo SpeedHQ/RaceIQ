@@ -23,7 +23,7 @@ interface AnalyseWorkspaceModalsProps {
   onCancelIbt: () => void;
   importResult: AnalyseImportResult | null;
   gameId: string;
-  selectLap: (trackOrdinal: number, carOrdinal: number, lapId: number) => void;
+  selectLap: (trackKey: number | string, carKey: number | string, lapId: number) => void;
   onCloseImport: () => void;
 }
 
@@ -78,9 +78,9 @@ export function AnalyseWorkspaceModals({
                 lastLap
                   ? () => {
                       if (sameGame) {
-                        selectLap(lastLap.trackOrdinal, lastLap.carOrdinal, lastLap.lapId);
+                        selectLap(lastLap.trackId, lastLap.carId, lastLap.lapId);
                       } else {
-                        navigate({ to: `/${importResult.routePrefix}/sessions/replay`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
+                        navigate({ to: `/${importResult.routePrefix}/sessions/replay`, search: { track: lastLap.trackId, car: lastLap.carId, lap: lastLap.lapId } });
                       }
                       onCloseImport();
                     }

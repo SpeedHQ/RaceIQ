@@ -92,7 +92,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                       size="app-sm"
                       onClick={(event) => {
                         event.stopPropagation();
-                        navigate({ to: `${gameRoute}/sessions/replay`, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } });
+                        navigate({ to: `${gameRoute}/sessions/${lap.sessionId}/replay/${lap.id}` as never });
                       }}
                     >
                       {m.label_analyse()}

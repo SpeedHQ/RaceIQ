@@ -90,7 +90,14 @@ export default defineConfig(({ command }) => {
       // Keep React and renderer on one module instance in Bun workspaces. Without
       // dedupe, Vite can resolve peer dependencies through different .bun paths,
       // leaving React hooks bound to a dispatcher the renderer does not set.
-      dedupe: ["react", "react-dom"],
+      dedupe: [
+        "react",
+        "react-dom",
+        "@assistant-ui/core",
+        "@assistant-ui/store",
+        "@assistant-ui/tap",
+        "assistant-stream",
+      ],
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
         "@shared": path.resolve(import.meta.dirname, "../shared"),

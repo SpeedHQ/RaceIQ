@@ -27,7 +27,7 @@ export function CurbDebugSection({
     setExtracting(true);
     setResult(null);
     try {
-      const res = await client.api["track-curbs"][":ordinal"].extract.$post({ param: { ordinal: String(trackOrdinal) } });
+      const res = await client.api["track-curbs"][":ordinal"].extract.$post({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) } });
       if (res.ok) {
         const data = await res.json();
         setResult(data);
@@ -35,11 +35,11 @@ export function CurbDebugSection({
         // Refresh curb data and boundaries
         const [newCurbs, newBoundaries] = await Promise.all([
           client.api["track-curbs"][":ordinal"]
-            .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+            .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
             .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
             .catch(() => null),
           client.api["track-boundaries"][":ordinal"]
-            .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+            .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gid ?? undefined } })
             .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
             .catch(() => null),
         ]);

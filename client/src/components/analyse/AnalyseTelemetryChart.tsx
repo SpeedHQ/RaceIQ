@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef } from "react";
 import { syncCanvasSize } from "../../lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 
+const TELEMETRY_GAP_SECONDS = 0.1;
+const TELEMETRY_GAP_TOLERANCE_SECONDS = 0.001;
+
+export function hasTelemetryGap(previousTime: number, currentTime: number): boolean {
+  return currentTime - previousTime > TELEMETRY_GAP_SECONDS + TELEMETRY_GAP_TOLERANCE_SECONDS;
+}
+
 export interface ChartSeries {
   data: number[];
   color: string;
@@ -111,7 +118,7 @@ export function TelemetryChart({
     if (times && timeFracs) {
       ctx.fillStyle = "color-mix(in srgb, var(--status-danger) 8%, transparent)";
       for (let i = 1; i < times.length; i++) {
-        if (times[i] - times[i - 1] > 0.1) {
+        if (hasTelemetryGap(times[i - 1], times[i])) {
           const x1 = leftPad + timeFracs[i - 1] * chartW;
           const x2 = leftPad + timeFracs[i] * chartW;
           ctx.fillRect(x1, topPad, x2 - x1, chartH);
@@ -127,7 +134,7 @@ export function TelemetryChart({
       let drawing = false;
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
-        if (i > 0 && times && times[i] - times[i - 1] > 0.1) {
+        if (i > 0 && times && hasTelemetryGap(times[i - 1], times[i])) {
           drawing = false;
         }
         const xFrac = timeFracs ? timeFracs[i] : i / (n - 1);

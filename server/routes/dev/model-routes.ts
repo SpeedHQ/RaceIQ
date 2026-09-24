@@ -14,6 +14,10 @@ const MODELS = {
     sourcePath: resolve("assets/models/source/f1_2025_mclaren_mcl39.glb"),
     optimizedPath: resolve("client/public/models/f1_2025_mclaren_mcl39_optimised.glb"),
   },
+  peugeot: {
+    sourcePath: resolve("assets/models/source/peugeot_9x8_evo_2024.glb"),
+    optimizedPath: resolve("client/public/models/peugeot_9x8_evo_2024_optimised.glb"),
+  },
 } as const;
 
 type ModelId = keyof typeof MODELS;

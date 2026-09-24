@@ -24,18 +24,26 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-export function useReviewLaps(trackOrdinal: number | null, carOrdinal: number | null, limit = 5) {
+export function useReviewLaps(trackKey: number | string | null, carKey: number | string | null, limit = 5) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["review-laps", gameId ?? null, trackOrdinal, carOrdinal, limit],
+    queryKey: ["review-laps", gameId ?? null, trackKey, carKey, limit],
     queryFn: async () => {
-      if (!gameId || trackOrdinal == null || carOrdinal == null) return [];
+      if (!gameId || trackKey == null || carKey == null) return [];
+      const lmu = gameId === "lmu";
       const res = await client.api.laps.review.$get({
-        query: { gameId, trackOrdinal: String(trackOrdinal), carOrdinal: String(carOrdinal), limit: String(limit) },
+        query: {
+          gameId,
+          trackOrdinal: !lmu && typeof trackKey === "number" ? String(trackKey) : undefined,
+          carOrdinal: !lmu && typeof carKey === "number" ? String(carKey) : undefined,
+          trackId: lmu ? String(trackKey) : undefined,
+          carId: lmu ? String(carKey) : undefined,
+          limit: String(limit),
+        },
       });
       return rpcJson<LapMeta[]>(res);
     },
-    enabled: !!gameId && trackOrdinal != null && carOrdinal != null,
+    enabled: !!gameId && trackKey != null && carKey != null,
   });
 }
 

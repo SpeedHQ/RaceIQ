@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
+import { carIdentityKey, trackIdentityKey, type LapMeta } from "../../../shared/racing/sessions/types";
 import { useDeleteLap } from "../hooks/laps";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
@@ -95,8 +95,8 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   <div className="flex items-center gap-1 w-16 justify-end">
                     <Button
                       disabled={l.trackOrdinal == null || l.carOrdinal == null}
-                      title={l.trackOrdinal == null || l.carOrdinal == null ? "Analyse unavailable: track/car identity unresolved" : undefined}
-                      onClick={() => void navigate({ to: `${gameRoute}/sessions/replay` as never, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as never })}
+                      title={l.gameId === "lmu" ? undefined : l.trackOrdinal == null || l.carOrdinal == null ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      onClick={() => void navigate({ to: `${gameRoute}/sessions/replay` as never, search: { track: trackIdentityKey(l), car: carIdentityKey(l), lap: l.id } as never })}
                       variant="app-primary"
                       size="app-sm"
                       className="!px-1.5 !py-0.5"

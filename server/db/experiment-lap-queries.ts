@@ -90,38 +90,42 @@ export async function getLapExperimentScope(
   return { experimentId: row?.experimentId ?? null, tuneId: row?.tuneId ?? null };
 }
 
+const experimentLapSelection = {
+  id: laps.id,
+  sessionId: laps.sessionId,
+  lapNumber: laps.lapNumber,
+  lapTime: laps.lapTime,
+  isValid: laps.isValid,
+  invalidReason: laps.invalidReason,
+  notes: laps.notes,
+  pi: laps.pi,
+  carSetup: laps.carSetup,
+  createdAt: laps.createdAt,
+  carOrdinal: sessions.carOrdinal,
+  trackOrdinal: sessions.trackOrdinal,
+  carId: sessions.carId,
+  trackId: sessions.trackId,
+  tuneId: laps.tuneId,
+  tuneName: tunes.name,
+  gameId: sessions.gameId,
+  ownership: sessions.ownership,
+  sectorTimes: laps.sectorTimes,
+  source: sessions.source,
+  experimentId: laps.experimentId,
+  experimentVersionId: laps.experimentVersionId,
+  experimentExcluded: laps.experimentExcluded,
+  experimentExcludedSource: laps.experimentExcludedSource,
+  fuelPerLap: laps.fuelPerLap,
+  tyreWear: laps.tyreWear,
+};
+
 /**
  * Insert a completed lap with compressed telemetry.
  */
 
 export async function getLapsForExperiment(experimentId: number): Promise<LapMeta[]> {
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      sectorTimes: laps.sectorTimes,
-      ownership: sessions.ownership,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-    })
+    .select(experimentLapSelection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -141,35 +145,7 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
 
 export async function getLapMetaForExperimentVersion(experimentVersionId: number): Promise<LapMeta[]> {
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      ownership: sessions.ownership,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-      // Frame count only — never the frames. Lets the arm-comparison loader size
-      // its decode budget from metadata (server/experiments/comparison/stream.ts).
-      rawFrameCount: laps.rawFrameCount,
-    })
+    .select({ ...experimentLapSelection, rawFrameCount: laps.rawFrameCount })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
@@ -200,32 +176,7 @@ export async function getImportableLapsForExperiment(
   if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
 
   const rows = await db
-    .select({
-      id: laps.id,
-      sessionId: laps.sessionId,
-      lapNumber: laps.lapNumber,
-      lapTime: laps.lapTime,
-      isValid: laps.isValid,
-      invalidReason: laps.invalidReason,
-      notes: laps.notes,
-      pi: laps.pi,
-      carSetup: laps.carSetup,
-      createdAt: laps.createdAt,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
-      tuneId: laps.tuneId,
-      tuneName: tunes.name,
-      gameId: sessions.gameId,
-      ownership: sessions.ownership,
-      sectorTimes: laps.sectorTimes,
-      source: sessions.source,
-      experimentId: laps.experimentId,
-      experimentVersionId: laps.experimentVersionId,
-      experimentExcluded: laps.experimentExcluded,
-      experimentExcludedSource: laps.experimentExcludedSource,
-      fuelPerLap: laps.fuelPerLap,
-      tyreWear: laps.tyreWear,
-    })
+    .select(experimentLapSelection)
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
