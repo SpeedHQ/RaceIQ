@@ -14,8 +14,6 @@
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
-- Restrict LMU database imports to database-contained data without removing recorded telemetry channels
-- Package DuckDB native runtime files in local and CI Windows releases and resolve them when launched outside the install directory
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
