@@ -8,6 +8,7 @@ import { useReviewLaps, useSessionLaps } from "@/hooks/laps";
 import { useSessions } from "@/hooks/session-queries";
 import { Button } from "@/components/ui/button";
 import { useTrackName } from "@/hooks/track-queries";
+import { getGameRoute } from "@/stores/game";
 import { SessionReviewDashboard } from "./SessionReviewDashboard";
 
 export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, sessionId }: { gameId: GameId; trackOrdinal?: number; carOrdinal?: number; sessionId?: number }) {
@@ -110,7 +111,7 @@ export function TrackCarAnalyseReviewPage({ gameId, trackOrdinal, carOrdinal, se
         sessionId={sessionId}
         sessionLabel={sessionLabel}
         onBack={backToSession}
-        onDrillIntoLap={(lap) => void navigate({ to: ".", search: { session: undefined, track: gameId === "lmu" ? selectedSession?.trackId ?? lap.trackId : lap.trackOrdinal, car: gameId === "lmu" ? selectedSession?.carId ?? lap.carId : lap.carOrdinal, lap: lap.id } } as never)}
+        onDrillIntoLap={(lap) => void navigate({ to: `${getGameRoute(gameId)}/sessions/${lap.sessionId}/replay/${lap.id}` as never })}
       />
     </div>
   );

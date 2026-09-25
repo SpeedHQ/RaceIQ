@@ -6,9 +6,11 @@ import { getSessionResult } from "../../server/db/session-result-queries";
 import { initServerGameAdapters } from "../../server/games/init";
 import { reconcileSessionResult } from "../../server/race-results/reconcile";
 import {
+  hashRawCapture,
   loadRawCaptureIdentity,
   rawCaptureObjectId,
 } from "../../server/session-capture/identity";
+import { setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
 
 initServerGameAdapters();
 
@@ -31,6 +33,8 @@ test("raw capture identity is stable across storage compression", async () => {
     expect(raw?.bytes).toEqual(payload);
     expect(gzip?.bytes).toEqual(payload);
     expect(gzip?.contentHash).toBe(raw?.contentHash);
+    expect(await hashRawCapture(rawPath)).toBe(raw?.contentHash);
+    expect(await hashRawCapture(gzipPath)).toBe(raw?.contentHash);
     expect(rawCaptureObjectId(42)).toBe("session:42:raw-capture");
   } finally {
     for (const path of [rawPath, gzipPath]) {
@@ -51,6 +55,16 @@ test("race-result raw provenance is stable when capture storage is gzipped", asy
     Bun.write(gzipPath, gzipSync(capture, { level: 9 })),
   ]);
 
+  let fullReads = 0;
+  setCaptureFileFactoryForTest((path) => {
+    const file = Bun.file(path);
+    return {
+      size: file.size, lastModified: file.lastModified,
+      slice: (start, end) => file.slice(start, end),
+      stream: () => file.stream(),
+      arrayBuffer: () => { fullReads++; throw new Error("reconciliation loaded entire capture"); },
+    };
+  });
   const sessionId = await insertSession(1, 1, "f1-2025", "race");
   try {
     await updateSessionRawFile(sessionId, rawPath, "test");
@@ -66,8 +80,10 @@ test("race-result raw provenance is stable when capture storage is gzipped", asy
     );
     expect(rawResult?.provenance.rawInput?.contentHash).toMatch(/^sha256:/);
     expect(gzipResult?.provenance.rawInput).toEqual(rawResult?.provenance.rawInput);
+    expect(fullReads).toBe(0);
   } finally {
     await deleteSession(sessionId);
+    setCaptureFileFactoryForTest(null);
     for (const path of [rawPath, gzipPath]) {
       try {
         unlinkSync(path);

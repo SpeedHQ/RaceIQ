@@ -33,6 +33,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
     setLaps,
@@ -76,7 +77,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     trackName,
     handleTrackChange,
     handleCarChange,
-    selectLap,
     cursorRef,
   } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
   const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
@@ -311,9 +311,12 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     onSuccess: () => {
       setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
+      if (sessionId != null) {
+        const routePrefix = routePrefixForGameId(gameId);
+        if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never, replace: true });
+      }
     },
   });
-
   const handleDeleteLap = useCallback(() => {
     if (!selectedLapId) return;
     const lap = filteredLaps.find((candidate) => candidate.id === selectedLapId);
@@ -348,11 +351,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   }, [f1Setup]);
   const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
-    gameId,
-    selectLap,
   });
 
-  const navigate = useNavigate();
   const handleBackToSessions = useCallback(() => {
     const routePrefix = routePrefixForGameId(gameId);
     if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never });
@@ -520,7 +520,6 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         onCancelIbt={handleCancelIbt}
         importResult={importResult}
         gameId={gameId}
-        selectLap={selectLap}
         onCloseImport={() => setImportResult(null)}
       />
     </div>

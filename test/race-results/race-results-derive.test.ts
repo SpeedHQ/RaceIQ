@@ -20,7 +20,6 @@ const provenance: RaceResultProvenance = {
 
 const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObservation => ({
   gameId: "f1-2025",
-  packets: [],
   provenance,
   evidence: {
     fieldStatus: {

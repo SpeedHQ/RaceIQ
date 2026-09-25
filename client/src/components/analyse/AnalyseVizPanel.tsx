@@ -4,7 +4,7 @@ import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
-import { Vitals2D } from "../telemetry/Vitals2D";
+import { TireDiagram } from "../telemetry/TireDiagram";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
 import { alignTrackBoundariesToPositions } from "./track-map/path";
@@ -87,7 +87,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
-        <Vitals2D frame={visualFrame ?? undefined} gameId={gameId} />
+        {visualFrame && gameId && <TireDiagram frame={visualFrame} gameId={gameId} />}
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">

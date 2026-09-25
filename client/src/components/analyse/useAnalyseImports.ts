@@ -27,10 +27,8 @@ export interface IbtPreviewState {
 
 export function useAnalyseImports(args: {
   queryClient: QueryClient;
-  gameId: string;
-  selectLap: (trackKey: number | string, carKey: number | string, lapId: number) => void;
 }) {
-  const { queryClient, gameId, selectLap } = args;
+  const { queryClient } = args;
   const [exportingBin, setExportingBin] = useState(false);
   const [importingBin, setImportingBin] = useState(false);
   const [ownership, setOwnership] = useState<SessionOwnership>("mine");
@@ -42,10 +40,8 @@ export function useAnalyseImports(args: {
       void queryClient.invalidateQueries({ queryKey: ["sessions"] });
       void queryClient.invalidateQueries({ queryKey: ["tracks"] });
       setImportResult(result);
-      const last = result.laps.at(-1);
-      if (last && result.gameId === gameId) selectLap(last.trackId, last.carId, last.lapId);
     },
-    [gameId, queryClient, selectLap],
+    [queryClient],
   );
   const handleExportBin = useCallback(async (selectedLapId: number | null) => {
     if (selectedLapId == null) return;

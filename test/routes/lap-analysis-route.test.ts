@@ -20,6 +20,11 @@ test("semantic replay requests F1 Analyse dependencies", () => {
   expect(ids).toEqual(analyseSemanticIds(getGame("f1-2025")));
   expect(ids).toContain("timing.current-lap");
   expect(ids).toContain("timing.lap-fraction");
+  expect(ids).toContain("tire.temperature.surface.representative");
+  expect(ids).toContain("tire.temperature.surface.inner");
+  expect(ids).toContain("tire.temperature.surface.middle");
+  expect(ids).toContain("tire.temperature.surface.outer");
+  expect(ids).toContain("tire.temperature.core");
   expect(ids).not.toContain("tires.wheel-in-puddle-depth");
 });
 

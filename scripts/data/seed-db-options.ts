@@ -9,7 +9,11 @@ export const FIXTURES: Record<GameId, string[]> = {
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
   iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
-  lmu: ["test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz"],
+  lmu: [
+    "test/artifacts/sessions/lmu-spa-iron-lynx-gte.bin.gz",
+    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
+    "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
+  ],
 };
 
 export type SeedOptions = { clean: boolean; reset: boolean; force: boolean; games: GameId[]; fixtures?: string[] };

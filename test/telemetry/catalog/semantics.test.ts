@@ -30,6 +30,7 @@ describe("semantic telemetry catalog", () => {
     ).toEqual([
       "Left carcass temperature",
       "Middle carcass temperature",
+      "Average carcass temperature",
       "Right carcass temperature",
     ]);
     expect(

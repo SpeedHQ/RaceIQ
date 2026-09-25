@@ -18,7 +18,7 @@ import { parseRawLapFrames, parseRawLapFramesFromBuffer, parseSessionLapsBatched
 import { parseAcEvoLapIndex } from "../../../server/games/kunos/lap-index";
 import { createAcEvoParserCache, parseAcEvoBuffers } from "../../../server/games/ac-evo/parser";
 import { unpackTriplet } from "../../../server/games/kunos/pack-triplet";
-import { loadSessionCapture } from "../../../server/session-capture/source-loader";
+import { loadSessionCapture, setCaptureFileFactoryForTest, clearRawFileCacheForTest } from "../../../server/session-capture/source-loader";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -117,3 +117,32 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
     }
   }, { timeout: 90_000 });
 });
+
+test("batch decode streams capture without materializing full file", async () => {
+  const laps = (await detectLaps()).slice(0, 2);
+  const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+  const originalNow = Date.now;
+  Date.now = () => 1_000_000_000;
+  clearRawFileCacheForTest();
+  setCaptureFileFactoryForTest((path) => {
+    const file = Bun.file(path);
+    return {
+      size: file.size,
+      lastModified: file.lastModified,
+      slice: (start, end) => file.slice(start, end),
+      stream: () => file.stream(),
+      arrayBuffer: async () => { throw new Error("batch decode materialized entire capture"); },
+    };
+  });
+  try {
+    const metas = laps.map((lap, index) => ({ id: index + 1, ...lap }));
+    const batch = await parseSessionLapsBatchedForTest(source, metas);
+    for (const meta of metas) {
+      expect(batch.get(meta.id)).toEqual(await parseRawLapFrames(source, meta.rawByteOffset, meta.rawFrameCount));
+    }
+  } finally {
+    Date.now = originalNow;
+    setCaptureFileFactoryForTest(null);
+    clearRawFileCacheForTest();
+  }
+}, { timeout: 90_000 });

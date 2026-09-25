@@ -9,10 +9,9 @@ import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import type { LapSetAlignmentIndex } from "../../shared/racing/laps/alignment/build";
 import type { ComparisonAlignmentIndex } from "../lap-analysis/comparison";
-import { iterateSessionCaptureRecords } from "../session-capture/framing";
-import { loadSessionSource, iterateSessionCaptureFrames, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource, type SessionCaptureFrameRecord } from "../session-capture/source-loader";
+import { loadSessionSource, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, indexCaptureFrames, clearRawFileCacheForTest as clearSourceCaptureCache, type SessionCaptureSource } from "../session-capture/source-loader";
 import { legacyMotecOffsetToPacketIndex } from "../motec/source-archive";
-import { countFullPacketMaterialized, countParserStatePrime } from "../session-capture/test-instrumentation";
+import { countFullPacketMaterialized, countParserStatePrime, countSourceFrameScanned } from "../session-capture/test-instrumentation";
 
 // Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
 // plus optional game-specific extensions (f1/acc/setup). Sniffing the first
@@ -321,31 +320,34 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
 }
 
 /**
- * Re-parse every frame from a completed session capture. Result reconciliation
- * needs the session tail because authoritative finish packets may arrive after
- * the final persisted lap range.
+ * Stream every parsed packet from a completed session, including the session
+ * tail where authoritative finish packets may arrive after the final lap.
  */
-export async function getSessionTelemetry(sessionId: number, gameId: GameId): Promise<TelemetryPacket[]> {
+export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
     carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
-  if (!session?.rawFile) return [];
-  const loaded = await loadSessionSource({
+  if (!session?.rawFile) return;
+  const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
     carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
-  });
-  if (loaded.kind === "packets") {
-    const packets = loaded.packets.map(freshReplayPacket);
-    for (const packet of packets) normalizeReplayPacket(packet, getServerGame(gameId));
-    return packets;
+  };
+  if (session.rawFile.endsWith(".motec.zip")) {
+    const loaded = await loadSessionSource(source);
+    if (loaded.kind !== "packets") throw new Error("Expected canonical packet source");
+    const serverGame = getServerGame(gameId);
+    for (const original of loaded.packets) {
+      const packet = freshReplayPacket(original);
+      normalizeReplayPacket(packet, serverGame);
+      yield packet;
+    }
+    return;
   }
   const serverGame = getServerGame(gameId);
   let state = serverGame.createParserState?.() ?? null;
-  const buf = loaded.buffer;
-  const packets: TelemetryPacket[] = [];
   let inContext = false;
-  for (const record of iterateSessionCaptureRecords(buf)) {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
     if (record.kind === "segment-boundary") {
       state = serverGame.createParserState?.() ?? null;
       inContext = false;
@@ -360,16 +362,16 @@ export async function getSessionTelemetry(sessionId: number, gameId: GameId): Pr
       continue;
     }
     if (record.kind !== "frame") continue;
+    let packet: TelemetryPacket | null;
     try {
-      const packet = serverGame.tryParse(record.frame, state);
-      if (!packet) continue;
-      normalizeReplayPacket(packet, serverGame);
-      if (!inContext) packets.push(packet);
+      packet = serverGame.tryParse(record.frame, state);
+      if (packet) normalizeReplayPacket(packet, serverGame);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
+      continue;
     }
+    if (packet && !inContext) yield packet;
   }
-  return packets;
 }
 function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
   try {
@@ -647,26 +649,26 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
     }
     return out;
   }
-  const loaded = await loadSessionSource(source);
-  if (loaded.kind !== "capture") throw new Error("Expected BIN capture source");
   let state = serverGame.createParserState?.() ?? null;
-  const metas = lapMetas
-    .map((meta) => ({ meta, record: loaded.frameIndex.byOffset.get(meta.rawByteOffset) }))
-    .filter((item): item is { meta: (typeof lapMetas)[number]; record: SessionCaptureFrameRecord } => item.record !== undefined)
-    .sort((a, b) => a.record.frameIndex - b.record.frameIndex);
+  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
   const active: Array<{ meta: (typeof lapMetas)[number]; packets: TelemetryPacket[]; end: number }> = [];
   let nextMeta = 0;
-  for (const record of loaded.frameIndex.records) {
-    while (nextMeta < metas.length && metas[nextMeta]!.record.frameIndex === record.frameIndex) {
-      const item = metas[nextMeta++]!;
-      active.push({ meta: item.meta, packets: [], end: record.frameIndex + item.meta.rawFrameCount });
+  let frameIndex = 0;
+  for await (const { offset, frame } of iterateSessionCaptureFrames(source)) {
+    countSourceFrameScanned();
+    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset < offset) nextMeta++;
+    while (nextMeta < metas.length && metas[nextMeta]!.rawByteOffset === offset) {
+      const meta = metas[nextMeta++]!;
+      active.push({ meta, packets: [], end: frameIndex + meta.rawFrameCount });
     }
     if (nextMeta === metas.length && active.length === 0) break;
-    const needsFull = active.some((lap) => record.frameIndex <= lap.end);
-    if (!needsFull && state == null) continue;
+    const needsFull = active.some((lap) => frameIndex <= lap.end);
+    if (!needsFull && state == null) {
+      frameIndex++;
+      continue;
+    }
     let packet: TelemetryPacket | null = null;
     try {
-      const frame = loaded.buffer.subarray(record.offset + 4, record.offset + 4 + record.length);
       if (source.gameId === "iracing" && isIRacingSessionFrame(frame)) {
         state = serverGame.createParserState?.() ?? null;
       }
@@ -680,19 +682,20 @@ export async function parseSessionLapsBatched(source: SessionCaptureSource, lapM
       }
     } catch { /* malformed frame */ }
     for (const lap of active) {
-      if (record.frameIndex < lap.end) {
+      if (frameIndex < lap.end) {
         if (packet) lap.packets.push(packet);
-      } else if (record.frameIndex === lap.end) {
+      } else if (frameIndex === lap.end) {
         appendDelayedFinishPacket(lap.packets, packet, serverGame);
       }
     }
     for (let index = active.length - 1; index >= 0; index--) {
       const lap = active[index]!;
-      if (record.frameIndex >= lap.end) {
+      if (frameIndex >= lap.end) {
         if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
         active.splice(index, 1);
       }
     }
+    frameIndex++;
   }
   for (const lap of active) if (lap.packets.length > 0) out.set(lap.meta.id, lap.packets);
   return out;

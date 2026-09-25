@@ -1,6 +1,10 @@
 ## Unreleased
 
+### Breaking
+- Open lap replays through session-scoped links; old track/car/lap query links no longer work
+
 ### Features
+- Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
 - Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
@@ -9,6 +13,14 @@
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
+- Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
+- Show wheel rotation speed as a positive magnitude in Analyse, including existing LMU replays
+- Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
+- Group replay tire temperatures into mirrored surface bands and separate carcass/core rows, with brake temperature beside each wheel
+- Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
+- Restore full-size 3D car views and temperature-colored brake discs
+- Announce simulator-specific tire temperatures with selected units in 3D views
+- Load large recorded sessions for lap review without exhausting memory
 
 - Label sector-time columns S1, S2, S3 in Analyse session lap-selection dialog and allow sorting by sector.
 - Improve logging and diagnostic exports
@@ -19,7 +31,11 @@
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
+- Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+- Fail PR screenshot-render jobs on Storybook test errors after uploading visual artifacts; seed LMU home stats and wait for note-modal interaction readiness in snapshots.
+- Align seeded Analyse and landing browser tests with session-scoped review/replay routes, session empty/error states, lap-only selection, and simulator-specific tire labels; exercise responsive Analyse against seeded replay data.
 - Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
 - Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
 

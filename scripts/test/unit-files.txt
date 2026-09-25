@@ -39,3 +39,4 @@ test/laps/archive-detection.test.ts
 test/lap-analysis/report.test.ts
 test/runtime/diagnostic-log-store.test.ts
 test/ai/diagnostic-logging.test.ts
+test/ai/tools/generate-lap-analysis.test.ts

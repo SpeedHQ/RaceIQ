@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LapAnalyse } from "../../../../../components/analyse/LapAnalyse";
-import { gameIdForRoutePrefix } from "../../../../../lib/game-routes";
+import { gameIdForRoutePrefix, validateAnalyseSearch } from "../../../../../lib/game-routes";
 
 function GameSessionReplayRoute() {
   const { gameid, sessionId, lapId } = Route.useParams();
@@ -11,4 +11,8 @@ function GameSessionReplayRoute() {
 
 export const Route = createFileRoute("/$gameid/sessions/$sessionId/replay/$lapId")({
   component: GameSessionReplayRoute,
+  validateSearch: (search) => {
+    const { cursor, viz, ai, view } = validateAnalyseSearch(search);
+    return { cursor, viz, ai, view };
+  },
 });

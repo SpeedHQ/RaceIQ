@@ -58,7 +58,7 @@ try {
     parallelSuite ? `[test]\nroot = "${suiteRootToml}"\ntimeout = 40000\n` : `[test]\nroot = "${suiteRootToml}"\npreload = ["${preload}"]\ntimeout = 40000\nmaxConcurrency = 1\n`,
   );
   const manifestFiles = files.map((file) => resolve(root, file));
-  const args = parallelSuite ? ["test", "--config", configPath, "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--max-concurrency=1", ...manifestFiles];
+  const args = parallelSuite ? ["test", "--config", configPath, "--timeout=20000", "--parallel", workers, ...manifestFiles] : ["test", "--config", configPath, "--timeout=20000", "--max-concurrency=1", ...manifestFiles];
   const env = { ...process.env };
   if (suite === "unit") env.RACEIQ_UNIT_TESTS = "1";
   if (env.DATA_DIR === undefined) env.DATA_DIR = parallelSuite ? suiteRoot : resolve(root, ".data-test");

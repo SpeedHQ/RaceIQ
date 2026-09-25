@@ -50,7 +50,7 @@ jobs:
     timeout-minutes: 30
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on:
-      - mars-windows-x64-10vcpu-15g
+      - mars-windows-x64-10vcpu-25g
       - mars-macos-arm64-2vcpu-10g
     steps:
       - uses: actions/checkout@v7

@@ -220,6 +220,7 @@ function createQueryClient() {
     ["acc", 52, 5_086],
     ["ac-evo", 31, 3_042],
     ["iracing", 18, 1_764],
+    ["lmu", 0, 0],
   ] as const)
     queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
   queryClient.setQueryData(["car-name", 201, GAME_ID], "2023 Cadillac V-Series.R");

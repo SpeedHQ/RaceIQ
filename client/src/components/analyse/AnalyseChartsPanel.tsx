@@ -127,10 +127,10 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL ? "Surface" : "Tire Temp"} FL ${units.tempLabel}` },
-              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR ? "Surface" : "Tire Temp"} FR ${units.tempLabel}` },
-              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL ? "Surface" : "Tire Temp"} RL ${units.tempLabel}` },
-              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR ? "Surface" : "Tire Temp"} RR ${units.tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `${chartData.tireCoreTempFL || chartData.tireCarcassTempFL ? "Surface" : "Tire Temp"} FL ${units.tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `${chartData.tireCoreTempFR || chartData.tireCarcassTempFR ? "Surface" : "Tire Temp"} FR ${units.tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `${chartData.tireCoreTempRL || chartData.tireCarcassTempRL ? "Surface" : "Tire Temp"} RL ${units.tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `${chartData.tireCoreTempRR || chartData.tireCarcassTempRR ? "Surface" : "Tire Temp"} RR ${units.tempLabel}` },
             ]}
             {...common}
             height={80}
@@ -138,10 +138,22 @@ export const AnalyseChartsPanel = memo(
           {chartData.tireCoreTempFL && chartData.tireCoreTempFR && chartData.tireCoreTempRL && chartData.tireCoreTempRR && (
             <TelemetryChart
               series={[
-                { data: chartData.tireCoreTempFL, color: WHEEL_COLOR_VARS[0], label: `Core FL ${units.tempLabel}` },
-                { data: chartData.tireCoreTempFR, color: WHEEL_COLOR_VARS[1], label: `Core FR ${units.tempLabel}` },
-                { data: chartData.tireCoreTempRL, color: WHEEL_COLOR_VARS[2], label: `Core RL ${units.tempLabel}` },
-                { data: chartData.tireCoreTempRR, color: WHEEL_COLOR_VARS[3], label: `Core RR ${units.tempLabel}` },
+                { data: chartData.tireCoreTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_core()} FL ${units.tempLabel}` },
+                { data: chartData.tireCoreTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.label_core()} FR ${units.tempLabel}` },
+                { data: chartData.tireCoreTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.label_core()} RL ${units.tempLabel}` },
+                { data: chartData.tireCoreTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.label_core()} RR ${units.tempLabel}` },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
+          {chartData.tireCarcassTempFL && chartData.tireCarcassTempFR && chartData.tireCarcassTempRL && chartData.tireCarcassTempRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.tireCarcassTempFL, color: WHEEL_COLOR_VARS[0], label: `${m.label_carcass()} FL ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempFR, color: WHEEL_COLOR_VARS[1], label: `${m.label_carcass()} FR ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempRL, color: WHEEL_COLOR_VARS[2], label: `${m.label_carcass()} RL ${units.tempLabel}` },
+                { data: chartData.tireCarcassTempRR, color: WHEEL_COLOR_VARS[3], label: `${m.label_carcass()} RR ${units.tempLabel}` },
               ]}
               {...common}
               height={80}

@@ -12,6 +12,8 @@ import { resolveLMUInvalidReason } from "../../../server/games/lmu/lap-policy";
 import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
 import { lmuServerAdapter } from "../../../server/games/lmu";
 import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports";
+import { TELEMETRY_CATALOG } from "../../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../../shared/telemetry/resolver/compile";
 import { transferRoutes } from "../../../server/routes/laps/transfer-routes";
 import {
   previewLMUDuckDB,
@@ -270,6 +272,26 @@ describe("LMU adapter", () => {
       CarOrdinal: -1,
       TrackOrdinal: -1,
     });
+    expect(packet).toMatchObject({
+      TireTempFL: 92,
+      TireSurfaceTempInnerFL: 94,
+      TireSurfaceTempMiddleFL: 92,
+      TireSurfaceTempOuterFL: 90,
+      TireSurfaceTempInnerFR: 91,
+      TireSurfaceTempMiddleFR: 93,
+      TireSurfaceTempOuterFR: 95,
+      TireCarcassAverageTempFL: 87,
+    });
+    expect(packet!.TireCarcassTempLeftFL).toBeUndefined();
+    expect(packet!.TireCarcassTempFL).toBeUndefined();
+    const semanticIds = ["tire.temperature.surface.inner", "tire.temperature.surface.middle", "tire.temperature.surface.outer", "tire.temperature.carcass.representative", "tire.temperature.core"];
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, { simulator: "lmu", requested: semanticIds.map((semanticId) => ({ semanticId })) });
+    const semanticFrame = resolver.createFrameView(packet!, { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n });
+    expect(semanticFrame.resolveValue<readonly number[]>(resolver.slot(semanticIds[0]!))).toMatchObject({ value: [94, 91, 96, 93], state: "ok" });
+    expect(semanticFrame.resolveValue<readonly number[]>(resolver.slot(semanticIds[1]!))).toMatchObject({ value: [92, 93, 94, 95], state: "ok" });
+    expect(semanticFrame.resolveValue<readonly number[]>(resolver.slot(semanticIds[2]!))).toMatchObject({ value: [90, 95, 92, 97], state: "ok" });
+    expect(semanticFrame.resolveValue<readonly number[]>(resolver.slot(semanticIds[3]!))).toMatchObject({ value: [87, 88, 89, 90], state: "ok" });
+    expect(semanticFrame.resolveValue(resolver.slot(semanticIds[4]!)).state).toBe("missing");
     expect(packet!.TireSlipAngleFL).toBeCloseTo(Math.atan2(0.7, 70), 12);
     expect(packet!.TireSlipRatioFL).toBeCloseTo(1 / 70, 12);
     expect(packet!.TireCombinedSlipFL).toBeCloseTo(

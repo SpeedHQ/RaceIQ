@@ -7,6 +7,10 @@ import { decodeLMUSourceFrame } from "../../server/games/lmu/source-frame";
 import { normalizeLMUSourceFrame } from "../../server/games/lmu/normalizer";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { combineRecordingParts, type CombinedRecording } from "../../scripts/lib/combine-recording-parts";
+import { lmuAdapter } from "../../shared/games/lmu";
+import { analyseSemanticIds } from "../../shared/games/metric-contracts";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 const FIXTURE_PARTS = [
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part1",
   "test/artifacts/laps/lmu-2026-09-22T21-18-23-218Z.bin.gz.part2",
@@ -130,6 +134,31 @@ describe("LMU live recording fixture", () => {
     expect(ratios30k.every((ratio) => Math.abs(ratio!) < 0.1)).toBe(true);
     expect(Math.abs((cornerAt10k.TireSlipAngleFL! * 180) / Math.PI)).toBeGreaterThan(1);
     expect((cornerAt10k.TireSlipAngleFL! * 180) / Math.PI).toBeCloseTo(-6.4, 0);
+  });
+
+  test("exposes recorded tire layers to Analyse without inventing core", () => {
+    const ids = analyseSemanticIds(lmuAdapter);
+    const layers = [
+      "tire.temperature.surface.inner",
+      "tire.temperature.surface.middle",
+      "tire.temperature.surface.outer",
+      "tire.temperature.carcass.representative",
+    ] as const;
+    for (const id of layers) expect(ids).toContain(id);
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [...layers, "tire.temperature.core"].map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(samples[3]!.packet, {
+      timestamp: { domain: "session", milliseconds: 1_000 },
+      updateSequence: 1n,
+    });
+    for (const id of layers) {
+      const resolved = frame.resolveValue<readonly number[]>(resolver.slot(id));
+      expect(resolved.state).toBe("ok");
+      expect(resolved.value?.every((temperature) => Number.isFinite(temperature) && temperature > -100 && temperature < 300)).toBe(true);
+    }
+    expect(frame.resolveValue(resolver.slot("tire.temperature.core")).state).toBe("missing");
   });
 
   test("retains game's delta-to-best channel", () => {
