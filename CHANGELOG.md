@@ -34,6 +34,8 @@
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+- Fail PR screenshot-render jobs on Storybook test errors after uploading visual artifacts; seed LMU home stats and wait for note-modal interaction readiness in snapshots.
+- Align seeded Analyse and landing browser tests with session-scoped review/replay routes, session empty/error states, lap-only selection, and simulator-specific tire labels; exercise responsive Analyse against seeded replay data.
 - Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
 - Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
 

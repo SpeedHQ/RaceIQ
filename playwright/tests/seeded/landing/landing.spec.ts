@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { collectBrowserErrors } from "../../support/browser-errors";
 
-test("global landing cards, period filters, and recent laps navigate", async ({ page }) => {
+test("global landing cards, period filters, and recent sessions navigate", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "RaceIQ" })).toBeVisible();
@@ -22,6 +22,9 @@ test("global landing cards, period filters, and recent laps navigate", async ({ 
   const recentRows = page.locator("tbody tr");
   await expect(recentRows.first()).toBeVisible();
   await recentRows.first().click();
+  await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/\d+\/analyse(?:\?|$)/);
+  await expect(page.getByRole("button", { name: /^Laps: \d+ · Primary: Lap \d+$/ })).toBeVisible();
+  await page.getByRole("button", { name: /^Analyse lap \d+$/ }).click();
   await expect(page).toHaveURL(/\/(fm23|f125|acc|ac-evo|iracing)\/sessions\/\d+\/replay\/\d+(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({
     timeout: 20_000,
@@ -52,7 +55,7 @@ for (const game of SEEDED_GAME_CASES) {
     await expect(page.locator(`[data-game-brand="${game.gameId}"]`).first()).toBeVisible();
     if (!latestSession) {
       await expect(page.getByRole("button", { name: "Analyse best lap" })).toHaveCount(0);
-      await expect(page.getByText(/No laps recorded yet/)).toBeVisible();
+      await expect(page.getByText(/No sessions recorded yet/)).toBeVisible();
       expect(browserErrors.errors, `unexpected browser errors on ${game.prefix} empty landing`).toEqual([]);
       return;
     }
@@ -79,7 +82,7 @@ for (const game of SEEDED_GAME_CASES) {
   });
 }
 
-test("landing presents empty state when game has no recorded laps", async ({ page }) => {
+test("landing presents empty state when game has no recorded sessions", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
   // Controlled empty responses exercise presentation-only state; normal flows above use seeded DB/API.
   await page.route("**/api/laps**", async (route) => {
@@ -100,13 +103,13 @@ test("landing presents empty state when game has no recorded laps", async ({ pag
   });
 
   await page.goto("/iracing", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText(/No laps recorded yet/)).toBeVisible();
+  await expect(page.getByText(/No sessions recorded yet/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyse best lap" })).toHaveCount(0);
   expect(browserErrors.errors, "unexpected browser errors in landing empty state").toEqual([]);
 });
 
-test("landing recovers after laps API error", async ({ page }) => {
-  await page.route("**/api/laps**", async (route) => {
+test("landing recovers after sessions API error", async ({ page }) => {
+  await page.route("**/api/sessions**", async (route) => {
     const gameId = new URL(route.request().url()).searchParams.get("gameId");
     if (gameId === "fm-2023") {
       await route.fulfill({ status: 503, contentType: "text/plain", body: "seeded error" });
@@ -117,7 +120,7 @@ test("landing recovers after laps API error", async ({ page }) => {
 
   await page.goto("/fm23", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert")).toContainText("Error");
-  await page.unroute("**/api/laps**");
+  await page.unroute("**/api/sessions**");
 
   const browserErrors = collectBrowserErrors(page);
   await page.reload({ waitUntil: "domcontentloaded" });
