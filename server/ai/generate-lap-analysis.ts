@@ -14,11 +14,12 @@ import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema, parseAnalystOutput } from "./schemas";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
-import { toClientAiError } from "./provider-error";
+import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import { getOpenAiCompatibleModelsDetailed } from "./providers";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
+import { logLlmEvent } from "./diagnostic-logging";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -221,12 +222,20 @@ export async function generateLapAnalysis(
   try {
     ai = await (deps.resolveAi ?? resolveAi)("analysis", settings);
   } catch (err) {
+    const error = formatClientAiErrorMessage(toClientAiError(err));
+    logLlmEvent("llm-error", {
+      provider: settings.aiProvider || "unconfigured",
+      model: settings.aiModel || "unconfigured",
+      operation: "lap-analysis.resolve",
+      request: { lapId },
+      error: err,
+    });
     return {
       analysis: null,
       cached: false,
       cornerFracs,
       hasTune,
-      error: toClientAiError(err).message,
+      error,
     };
   }
 
@@ -244,6 +253,13 @@ export async function generateLapAnalysis(
       maxOutputTokens: 8192,
       temperature: 0,
     };
+    const diagnostic = {
+      provider: ai.provider,
+      model,
+      operation: "lap-analysis",
+      request: { lapId, ...input },
+    };
+    logLlmEvent("llm-request", diagnostic);
     const generationOptions: Record<string, unknown> = {
       maxSteps: 5,
       modelSettings: { maxOutputTokens: 8192, temperature: 0 },
@@ -284,6 +300,11 @@ export async function generateLapAnalysis(
           // Context discovery is diagnostic only.
         }
       }
+      logLlmEvent("llm-error", {
+        ...diagnostic,
+        response: result,
+        error: new Error(error),
+      });
       return {
         analysis: null,
         cached: false,
@@ -307,14 +328,22 @@ export async function generateLapAnalysis(
       model,
     };
     await writeAnalysis(lapId, text, usage);
+    logLlmEvent("llm-response", { ...diagnostic, response: result });
     return { analysis: text, cached: false, usage, cornerFracs, hasTune };
   } catch (err) {
+    logLlmEvent("llm-error", {
+      provider: ai.provider,
+      model,
+      operation: "lap-analysis",
+      request: { lapId, prompt },
+      error: err,
+    });
     return {
       analysis: null,
       cached: false,
       cornerFracs,
       hasTune,
-      error: toClientAiError(err).message,
+      error: formatClientAiErrorMessage(toClientAiError(err)),
     };
   }
 }

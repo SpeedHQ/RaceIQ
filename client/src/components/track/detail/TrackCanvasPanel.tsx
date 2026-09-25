@@ -2,6 +2,7 @@ import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "reac
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 import type { Point, TrackInfo, TrackSectors } from "../types";
+import { InlineTrackMap } from "../InlineTrackMap";
 
 type Pan = { x: number; z: number };
 type DragState = { startX: number; startY: number; startPanX: number; startPanZ: number };
@@ -47,7 +48,7 @@ export function TrackCanvasPanel(props: TrackCanvasPanelProps) {
           }}
         />
       ) : track.mapUrl ? (
-        <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-5" />
+        track.mapUrl.startsWith("/api/lmu-assets/") ? <InlineTrackMap src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="h-full w-full p-5" /> : <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-5" />
       ) : (
         <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
       )}

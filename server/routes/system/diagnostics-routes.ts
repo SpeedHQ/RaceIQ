@@ -14,18 +14,40 @@ import { getRunningGame } from "../../games/registry";
 import { getCurrentDetectedGame } from "../../games/packet-dispatch";
 import { loadSettings } from "../../runtime/config/settings";
 import { client as dbClient, DB_PATH } from "../../db";
-import { getChatMemory, CHAT_RESOURCE_ID } from "../../ai/chat-agent";
-import { log, readRecentLogText } from "../../runtime/logger";
+import { collectDiagnosticChatContext } from "../../ai/chat-agent";
+import { formatDiagnosticRecord, log, readRecentLogText } from "../../runtime/logger";
+import { normalizeDiagnostic } from "../../ai/diagnostic-logging";
 import pkg from "../../../package.json";
 
 const DB_DIR = dirname(DB_PATH);
 
 const ClientLogSchema = z.object({
-  level: z.enum(["warn", "error"]).default("error"),
+  level: z.enum(["debug", "info", "warn", "error"]).default("error"),
   scope: z.string().max(64),
   message: z.string().max(4000),
+  occurredAtMs: z.number().int().min(0).max(8_640_000_000_000_000),
   detail: z.unknown().optional(),
 });
+
+function latestAiError(logs: string): string | null {
+  let latest: string | null = null;
+  for (const line of logs.split("\n")) {
+    const separator = line.indexOf("\t");
+    if (separator === -1) continue;
+    try {
+      const record = JSON.parse(line.slice(separator + 1)) as Record<string, unknown>;
+      if (record.event !== "llm-error") continue;
+      const error = record.error;
+      if (typeof error === "string") latest = error;
+      else if (error && typeof error === "object" && "message" in error) {
+        latest = String(error.message);
+      }
+    } catch {
+      // Ignore non-structured retained log lines.
+    }
+  }
+  return latest;
+}
 
 export const diagnosticsRoutes = new Hono()
   /**
@@ -36,17 +58,15 @@ export const diagnosticsRoutes = new Hono()
    * The client posts here so user-reported chat failures are in `logs.txt`.
    */
   .post("/api/client-log", zValidator("json", ClientLogSchema), async (c) => {
-    const { level, scope, message, detail } = c.req.valid("json");
-    const suffix = detail ? ` ${JSON.stringify(detail).slice(0, 2000)}` : "";
-    const line = `[Client/${scope}] ${message}${suffix}`;
-    if (level === "warn") log.warn(line);
-    else log.error(line);
+    const { level, scope, message, detail, occurredAtMs } = c.req.valid("json");
+    if (scope === "console" && message.startsWith("[vite]")) return c.json({ ok: true });
+    const record = { clientOccurredAt: new Date(occurredAtMs).toISOString(), clientScope: scope, clientDetail: detail };
+    const line = `[Client/${scope}] ${message}`;
+    log[level](record, line);
     return c.json({ ok: true });
   })
-
-  // GET /api/diagnostics — download a zip with diagnostics.json + logs.txt
   .get("/api/diagnostics", async (c) => {
-    const logs = readRecentLogText();
+    let logs = "";
 
     const session = lapDetector.session;
     // Detect game from actual UDP packets being parsed, then fall back to process list
@@ -73,43 +93,44 @@ export const diagnosticsRoutes = new Hono()
     // Server process memory usage
     const memUsage = process.memoryUsage();
     const serverMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-
-    // Chat metadata from Mastra memory (newest threads first). Message *text*
-    // is deliberately excluded — a diagnostics zip gets attached to bug reports
-    // and shared around, and the conversation itself is the user's, not ours.
-    // Counts + thread ids answer "was chat used, how much, on which laps",
-    // which is what support actually needs; failures are in `logs.txt`.
-    const chatThreads: Array<{ threadId: string; messages: number; updatedAt: string }> = [];
-    let chatMessageCount = 0;
-    let chatError: string | null = null;
-    try {
-      const memory = getChatMemory();
-      const { threads } = await memory.listThreads({
-        filter: { resourceId: CHAT_RESOURCE_ID },
-        perPage: false,
-      });
-      const toIso = (v: unknown) =>
-        v instanceof Date ? v.toISOString() : v ? String(v) : "";
-      const recent = [...threads]
-        .sort((a, b) => toIso(b.updatedAt).localeCompare(toIso(a.updatedAt)))
-        .slice(0, 5);
-      for (const thread of recent) {
-        const result = await memory.recall({ threadId: thread.id });
-        const count = (result.messages ?? []).filter(
-          (m) => m.role === "user" || m.role === "assistant",
-        ).length;
-        chatMessageCount += count;
-        chatThreads.push({
-          threadId: thread.id,
-          messages: count,
-          updatedAt: toIso(thread.updatedAt),
-        });
+    const chatSnapshot = await collectDiagnosticChatContext();
+    const chatThreads = chatSnapshot.threads.map(({ thread, messages }) => {
+      const id = thread && typeof thread === "object" && "id" in thread ? String(thread.id) : "unknown";
+      const updatedAt = thread && typeof thread === "object" && "updatedAt" in thread ? String(thread.updatedAt ?? "") : "";
+      return { threadId: id, messages: messages.length, updatedAt };
+    });
+    const chatMessageCount = chatSnapshot.messageCount;
+    const chatCollectionError = chatSnapshot.error;
+    if (chatCollectionError) log.error({ event: "ai-chat-export-error", error: chatCollectionError }, "ai-chat-export-error");
+    const chatLines = ["=== RaceIQ AI conversation context ==="];
+    const exportTime = new Date().toISOString();
+    for (const snapshot of chatSnapshot.threads) {
+      chatLines.push(formatDiagnosticRecord({
+        ...normalizeDiagnostic({
+          event: "ai-chat-thread",
+          thread: snapshot.thread,
+          systemPrompt: snapshot.systemPrompt,
+          systemPromptUnavailable: snapshot.systemPromptUnavailable,
+          messageCount: snapshot.messages.length,
+        }) as Record<string, unknown>,
+        level: "info",
+        time: exportTime,
+        service: "raceiq/export",
+        msg: "AI chat thread",
+      }).trimEnd());
+      for (const message of snapshot.messages) {
+        chatLines.push(formatDiagnosticRecord({
+          ...normalizeDiagnostic({ event: "ai-chat-message", message }) as Record<string, unknown>,
+          level: "info",
+          time: exportTime,
+          service: "raceiq/export",
+          msg: "AI chat message",
+        }).trimEnd());
       }
-    } catch (err: any) {
-      chatError = err?.message ?? String(err);
-      console.error("[Diagnostics] Failed to read chat memory:", chatError);
     }
-
+    const recentLogs = readRecentLogText();
+    const chatError = latestAiError(recentLogs) ?? chatCollectionError;
+    logs = `${recentLogs}${recentLogs.endsWith("\n") ? "" : "\n"}${chatLines.join("\n")}\n`;
     // Database size and stats
     let dbSizeMB: number | null = null;
     let sessionCount: number | null = null;
@@ -276,7 +297,13 @@ export const diagnosticsRoutes = new Hono()
           ? { id: runningGame.id, name: runningGame.shortName }
           : null,
         currentSession: session
-          ? { id: session.sessionId, car: session.carOrdinal, track: session.trackOrdinal }
+          ? {
+              id: session.sessionId,
+              car: session.carOrdinal,
+              track: session.trackOrdinal,
+              carId: session.carId ?? session.carOrdinal,
+              trackId: session.trackId ?? session.trackOrdinal,
+            }
           : null,
       },
       settings: {
@@ -295,6 +322,7 @@ export const diagnosticsRoutes = new Hono()
       chat: {
         messageCount: chatMessageCount,
         error: chatError,
+        collectionError: chatCollectionError,
         threads: chatThreads,
       },
       generatedAt: new Date().toISOString(),

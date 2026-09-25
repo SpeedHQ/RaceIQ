@@ -85,30 +85,39 @@ export const discoveredTracks = sqliteTable(
 	],
 );
 
-export const sessions = sqliteTable("sessions", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	carOrdinal: integer("car_ordinal").notNull(),
-	trackOrdinal: integer("track_ordinal").notNull(),
-	gameId: text("game_id").notNull(),
-	sessionType: text("session_type"),
-	notes: text("notes"),
-	rawFile: text("raw_file"),
-	lapDetectorVersion: text("lap_detector_version"),
-	// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
-	// Null for rows inserted before that migration.
-	catalogVersion: text("catalog_version"),
-	catalogHash: text("catalog_hash"),
-	catalogSchemaVersion: text("catalog_schema_version"),
-	parserVersion: text("parser_version"),
-	resolverVersion: text("resolver_version"),
-	derivationVersion: text("derivation_version"),
-	// How this session's telemetry was obtained (migration v43). NULL = recorded
-	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
-	// racing line is dead-reckoned rather than logged — see server/motec/.
-	source: text("source"),
-	ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
-	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+export const sessions = sqliteTable(
+	"sessions",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		carOrdinal: integer("car_ordinal").notNull(),
+		trackOrdinal: integer("track_ordinal").notNull(),
+		gameId: text("game_id").notNull(),
+		carId: text("car_id"),
+		trackId: text("track_id"),
+		sessionType: text("session_type"),
+		notes: text("notes"),
+		rawFile: text("raw_file"),
+		lapDetectorVersion: text("lap_detector_version"),
+		// Runtime telemetry identity snapshot attached at first persisted capture (migration v54).
+		// Null for rows inserted before that migration.
+		catalogVersion: text("catalog_version"),
+		catalogHash: text("catalog_hash"),
+		catalogSchemaVersion: text("catalog_schema_version"),
+		parserVersion: text("parser_version"),
+		resolverVersion: text("resolver_version"),
+		derivationVersion: text("derivation_version"),
+		// How this session's telemetry was obtained (migration v43). NULL = recorded
+		// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
+		// racing line is dead-reckoned rather than logged — see server/motec/.
+		source: text("source"),
+		ownership: text("ownership").$type<SessionOwnership>().notNull().default("mine"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		index("idx_sessions_game_car_id").on(table.gameId, table.carId),
+		index("idx_sessions_game_track_id").on(table.gameId, table.trackId),
+	],
+);
 export const sessionResults = sqliteTable(
 	"session_results",
 	{

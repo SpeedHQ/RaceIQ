@@ -68,14 +68,30 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
   const tSampled = sampleAtFracs(tgt, fracs);
 
   function procrustes(s: Point[], t2: Point[]) {
-    const cs = { x: s.reduce((a, p) => a + p.x, 0) / n, z: s.reduce((a, p) => a + p.z, 0) / n };
-    const ct = { x: t2.reduce((a, p) => a + p.x, 0) / n, z: t2.reduce((a, p) => a + p.z, 0) / n };
+    // Give long, locally straight sections greater influence than corners.
+    // Samples are already spaced by distance, so this also preserves length weighting.
+    const weights = s.map((point, i) => {
+      const previous = s[(i + n - 1) % n];
+      const next = s[(i + 1) % n];
+      const ax = point.x - previous.x, az = point.z - previous.z;
+      const bx = next.x - point.x, bz = next.z - point.z;
+      const lengths = Math.hypot(ax, az) * Math.hypot(bx, bz);
+      return lengths > 0 && (ax * bx + az * bz) / lengths > 0.998 ? 5 : 1;
+    });
+    const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+    let csx = 0, csz = 0, ctx = 0, ctz = 0;
+    for (let i = 0; i < n; i++) {
+      csx += weights[i] * s[i].x; csz += weights[i] * s[i].z;
+      ctx += weights[i] * t2[i].x; ctz += weights[i] * t2[i].z;
+    }
+    const cs = { x: csx / totalWeight, z: csz / totalWeight };
+    const ct = { x: ctx / totalWeight, z: ctz / totalWeight };
     let num = 0, den = 0, sn2 = 0, tn2 = 0;
     for (let i = 0; i < n; i++) {
       const sx = s[i].x - cs.x, sz = s[i].z - cs.z;
       const tx = t2[i].x - ct.x, tz = t2[i].z - ct.z;
-      num += sx * tz - sz * tx; den += sx * tx + sz * tz;
-      sn2 += sx * sx + sz * sz; tn2 += tx * tx + tz * tz;
+      num += weights[i] * (sx * tz - sz * tx); den += weights[i] * (sx * tx + sz * tz);
+      sn2 += weights[i] * (sx * sx + sz * sz); tn2 += weights[i] * (tx * tx + tz * tz);
     }
     const rot = Math.atan2(num, den);
     const sc = sn2 > 0 ? Math.sqrt(tn2 / sn2) : 1;
@@ -85,7 +101,7 @@ export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; c
     for (let i = 0; i < n; i++) {
       const ax = sc * (co * s[i].x - si * s[i].z) + result.tx;
       const az = sc * (si * s[i].x + co * s[i].z) + result.tz;
-      err += (ax - t2[i].x) ** 2 + (az - t2[i].z) ** 2;
+      err += weights[i] * ((ax - t2[i].x) ** 2 + (az - t2[i].z) ** 2);
     }
     return { ...result, err };
   }

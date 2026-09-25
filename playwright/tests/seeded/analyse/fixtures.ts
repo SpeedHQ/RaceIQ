@@ -15,8 +15,8 @@ export async function getAlternateSeededLap(request: APIRequestContext, initialL
   return alternate;
 }
 
-export async function openAnalyseLap(page: Page, target: Pick<SeededLapTarget, "trackOrdinal" | "carOrdinal" | "id">, prefix = "fm23"): Promise<void> {
-  await page.goto(`/${prefix}/sessions/replay?track=${target.trackOrdinal}&car=${target.carOrdinal}&lap=${target.id}`, { waitUntil: "domcontentloaded" });
+export async function openAnalyseLap(page: Page, target: Pick<SeededLapTarget, "sessionId" | "id">, prefix = "fm23"): Promise<void> {
+  await page.goto(`/${prefix}/sessions/${target.sessionId}/replay/${target.id}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible({ timeout: 30_000 });
 }
 

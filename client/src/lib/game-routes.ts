@@ -5,8 +5,8 @@ import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
   session?: number;
-  track?: number;
-  car?: number;
+  track?: number | string;
+  car?: number | string;
   lap?: number;
   laps?: string;
   primary?: number;
@@ -48,11 +48,11 @@ export type TuneReviewSearch = {
 
 export type GameRouteFeature = "driver" | "experiments" | "raw" | "setups";
 
-export type LiveDashboard = "forza" | "f1" | "acc";
+export type LiveDashboard = "forza" | "f1" | "acc" | "lmu";
 const ROUTE_FEATURES: Record<GameRouteFeature, readonly string[]> = {
   driver: ["fm23", "f125", "acc", "ac-evo"],
   experiments: ["f125", "acc", "ac-evo"],
-  raw: ["fm23", "f125", "acc", "ac-evo", "iracing"],
+  raw: ["fm23", "f125", "acc", "ac-evo", "iracing", "lmu"],
   setups: ["fm23", "f125", "acc", "ac-evo"],
 };
 
@@ -72,6 +72,8 @@ export function liveDashboardForGame(gameId: GameId): LiveDashboard {
       return "acc";
     case "iracing":
       return "forza";
+    case "lmu":
+      return "lmu";
     default:
       throw new Error(`Unsupported live dashboard game: ${gameId}`);
   }
@@ -86,6 +88,13 @@ export function parseOptionalNumber(value: unknown): number | undefined {
   if (typeof value !== "string" || value.trim() === "") return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function parseOptionalIdentityKey(value: unknown): number | string | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string" || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && value.trim() !== "" ? parsed : value;
 }
 
 /** Parse the canonical comparison lap list without silently accepting malformed IDs. */
@@ -111,8 +120,8 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
       : undefined;
   return {
     session: parseOptionalNumber(search.session),
-    track: parseOptionalNumber(search.track),
-    car: parseOptionalNumber(search.car),
+    track: parseOptionalIdentityKey(search.track),
+    car: parseOptionalIdentityKey(search.car),
     lap: parseOptionalNumber(search.lap),
     laps: typeof search.laps === "string" ? search.laps : undefined,
     primary: parseOptionalNumber(search.primary),

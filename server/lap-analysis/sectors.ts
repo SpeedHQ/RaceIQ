@@ -138,9 +138,25 @@ export async function computeLapSectors(
     if (!timeline) return null;
     return timeline.times;
   }
+  const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
+
+  // LMU sector 2 is cumulative (includes sector 1). Prefer native scoring
+  // splits over track-fraction reconstruction when available.
+  if (gameId === "lmu") {
+    const native = packets.findLast(
+      (packet) =>
+        (packet.lmu?.lastSector1 ?? 0) > 0 &&
+        (packet.lmu?.lastSector2 ?? 0) > 0,
+    );
+    if (native?.lmu) {
+      const s1 = native.lmu.lastSector1;
+      const s2 = native.lmu.lastSector2 - s1;
+      const s3 = lapTime - native.lmu.lastSector2;
+      if (Number.isFinite(lapTime) && s2 > 0 && s3 > 0) return [s1, s2, s3];
+    }
+  }
 
   // Sector boundaries: this game's curated pair, else bundled, else thirds.
-  const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
 
   // F1: sector times must come from the game's own packets (SessionHistory or
   // LapData). We never fall back to distance-fraction for F1 — the game is

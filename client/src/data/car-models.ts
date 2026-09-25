@@ -51,6 +51,22 @@ export const F1_CAR: CarModelEnrichment & { hasModel: true } = {
   hasModel: true,
 };
 
+/** Peugeot 9X8 Evo — representative LMU hypercar model. */
+export const LMU_HYPERCAR_CAR: CarModelEnrichment & { hasModel: true } = {
+  ...DEFAULT_CAR,
+  modelPath: "/models/peugeot_9x8_evo_2024_optimised.glb",
+  halfWheelbase: 1.52, // ~3040mm wheelbase
+  halfFrontTrack: 0.85, // ~1700mm front track
+  halfRearTrack: 0.85, // ~1700mm rear track
+  bodyLength: 5.0, // ~5000mm overall length
+  tireRadius: 0.36, // ~720mm overall diameter
+  frontTireRadius: 0.36,
+  rearTireRadius: 0.36,
+  frontTireWidth: 0.31,
+  rearTireWidth: 0.31,
+  hasModel: true,
+};
+
 let configs: Record<string, CarModelEnrichment> = {};
 let loaded = false;
 
@@ -75,3 +91,17 @@ export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   modelPath: "/models/aston_martin_vantage_gt3_optimised.glb",
   hasModel: true,
 };
+
+/** Closest available LMU body for each catalog class. */
+export const LMU_CLASS_CAR_MODELS: Record<string, CarModelEnrichment & { hasModel: true }> = {
+  GT3: DEMO_CAR,
+  GTE: DEMO_CAR,
+  PACECAR: DEMO_CAR,
+  HYPERCAR: LMU_HYPERCAR_CAR,
+  LMP2: LMU_HYPERCAR_CAR,
+  LMP3: LMU_HYPERCAR_CAR,
+};
+
+export function getLMUClassCarModel(carClass?: string): CarModelEnrichment & { hasModel: true } {
+  return LMU_CLASS_CAR_MODELS[carClass?.toUpperCase() ?? ""] ?? LMU_HYPERCAR_CAR;
+}

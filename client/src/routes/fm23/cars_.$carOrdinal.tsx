@@ -30,7 +30,7 @@ function CarModelPage() {
 
   const { data: carInfo } = useQuery({
     queryKey: ["car", ordinal],
-    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: String(ordinal) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
+    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: encodeURIComponent(String(ordinal)) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
   });
 
   const staticFrame = useMemo(() => makeStaticFrame(ordinal), [ordinal]);

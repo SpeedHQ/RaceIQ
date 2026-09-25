@@ -43,8 +43,8 @@ export const resourceRoutes = new Hono()
     return c.json(lapList);
   })
   .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
-    const { gameId, sessionId, trackOrdinal, carOrdinal, limit } = c.req.valid("query");
-    return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId));
+    const { gameId, sessionId, trackOrdinal, carOrdinal, trackId, carId, limit } = c.req.valid("query");
+    return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId, trackId, carId));
   })
   .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
     const { gameId, sessionId, lapIds } = c.req.valid("query");

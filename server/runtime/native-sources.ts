@@ -2,14 +2,17 @@ import { AccSharedMemoryReader } from "../games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "../games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "../games/iracing/source";
 import { registerLiveIRacingIdentity } from "../games/iracing/identity";
+import { LMUTelemetrySource } from "../games/lmu/source";
 import { isGameRunning } from "../games/registry";
 import {
   getAccReader,
   getAcEvoReader,
   getIracingSource,
+  getLmuSource,
   setAccReader,
   setAcEvoReader,
   setIracingSource,
+  setLmuSource,
 } from "./live-readers";
 import { superviseSource } from "./source-supervisor";
 import { IS_WINDOWS } from "./platform/shell";
@@ -27,13 +30,17 @@ export function startNativeSourceSupervisor(
     return { stop: async () => {} };
   }
 
-  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
   const pendingStops = new Set<Promise<void>>();
   const trackStop = (stop: Promise<void> | null): void => {
     if (!stop) return;
     pendingStops.add(stop);
-    void stop.finally(() => pendingStops.delete(stop));
+    void stop.then(
+      () => pendingStops.delete(stop),
+      () => pendingStops.delete(stop),
+    );
   };
+
+  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing, lmu) — 2s poll");
   const pollTimer = setInterval(() => {
     trackStop(superviseSource(
       isGameRunning("acc"),
@@ -59,20 +66,34 @@ export function startNativeSourceSupervisor(
       getIracingSource,
       setIracingSource,
     ));
+    trackStop(superviseSource(
+      isGameRunning("lmu") || recordingGameId === "lmu",
+      recordingGameId === "lmu" && !isGameRunning("lmu") ? "LMU recording" : "LMU",
+      () => new LMUTelemetrySource({
+        recordingEnabled: recordingGameId === "lmu",
+      }),
+      getLmuSource,
+      setLmuSource,
+    ));
   }, SOURCE_POLL_MS);
 
   return {
     async stop(): Promise<void> {
       clearInterval(pollTimer);
-      const readers = [getAccReader(), getAcEvoReader(), getIracingSource()];
+      const readers = [
+        getAccReader(),
+        getAcEvoReader(),
+        getIracingSource(),
+        getLmuSource(),
+      ];
       setAccReader(null);
       setAcEvoReader(null);
       setIracingSource(null);
-      const stopTasks: Promise<void>[] = [];
+      setLmuSource(null);
       for (const reader of readers) {
-        if (reader) stopTasks.push(reader.stop());
+        if (reader) trackStop(reader.stop());
       }
-      await Promise.allSettled([...stopTasks, ...pendingStops]);
+      await Promise.allSettled(pendingStops);
     },
   };
 }

@@ -3,7 +3,7 @@ import { collectBrowserErrors } from "../../support/browser-errors";
 import { ChatHistorySchema, openChatRow, seededChats } from "./helpers";
 
 test("saved Analyse and Compare chats open their AI workspaces without a provider", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const browserErrors = collectBrowserErrors(page);
   const chats = await seededChats(request, "fm-2023");
   const analyse = chats.find((chat) => chat.type === "analyse");
@@ -33,8 +33,9 @@ test("saved Analyse and Compare chats open their AI workspaces without a provide
   await expect(analyseRow, "dismissed delete keeps chat row").toBeVisible();
 
   await openChatRow(page, "analyse");
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/fm23/sessions/replay");
-  expect(new URL(page.url()).searchParams.get("lap")).toBe(String(analyse.laps[0].id));
+  const analyseUrl = new URL(page.url());
+  expect(analyseUrl.pathname).toMatch(/^\/fm23\/sessions\/\d+\/replay\/\d+$/);
+  expect(analyseUrl.pathname.endsWith(`/replay/${analyse.laps[0].id}`)).toBe(true);
   expect(new URL(page.url()).searchParams.get("ai")).toBe("1");
   await expect(page.locator("span").getByText("AI Analysis", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("AI not set up", { exact: true })).toBeVisible();

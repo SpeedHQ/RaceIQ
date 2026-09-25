@@ -2,12 +2,14 @@ import type { GameId } from "../games/ids";
 import type { F1ExtendedData } from "./f1-2025";
 import type { KunosExtendedData } from "./kunos";
 import type { IRacingExtendedData } from "./iracing";
+import type { LMUExtendedData } from "./lmu";
 
 export interface TelemetryPacket {
   gameId: GameId;
   f1?: F1ExtendedData;
   acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
+  lmu?: LMUExtendedData;
 
   // Game session UID (used for reliable session boundary detection)
   sessionUID?: string;
@@ -93,6 +95,11 @@ export interface TelemetryPacket {
   TireCarcassTempFR?: number;
   TireCarcassTempRL?: number;
   TireCarcassTempRR?: number;
+  // Source-native mean carcass temperature; separate from core temperature.
+  TireCarcassAverageTempFL?: number;
+  TireCarcassAverageTempFR?: number;
+  TireCarcassAverageTempRL?: number;
+  TireCarcassAverageTempRR?: number;
   // Source-native lateral carcass bands; no averaging or relabeling.
   TireCarcassTempLeftFL?: number;
   TireCarcassTempLeftFR?: number;

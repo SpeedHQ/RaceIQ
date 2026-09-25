@@ -14,6 +14,7 @@ import {
   getDiscoveredCarName,
   listDiscoveredCars,
 } from "../db/discovered-cars";
+import { getLMUCar, lmuCarCatalog } from "../../shared/games/lmu/catalog";
 import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
@@ -85,6 +86,30 @@ export const carRoutes = new Hono()
         400,
       );
     }
+    if (gameIdResult.data === "lmu") {
+      const cars = lmuCarCatalog.map((car) => ({
+        id: car.id,
+        ordinal: null,
+        name: car.name,
+        class: car.class,
+        series: car.series,
+        manufacturer: car.manufacturer,
+        path: car.thumbnail ?? "",
+        category: car.class,
+        imageUrl: car.thumbnail ? `/api/lmu-assets/cars/${encodeURIComponent(car.id)}` : "",
+      }));
+      const discovered = (await listDiscoveredCars("lmu")).map(
+        ({ ordinal, name }) => ({
+          id: null,
+          ordinal,
+          name,
+          path: "",
+          category: "discovered",
+          imageUrl: "",
+        }),
+      );
+      return c.json([...cars, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
+    }
 
     if (gameIdResult.data === "iracing") {
       const catalogCars = getAllIRacingCars();
@@ -118,6 +143,16 @@ export const carRoutes = new Hono()
     return c.json(cars);
   })
 
+  .get("/api/lmu-assets/cars/:id", (c) => {
+    const car = getLMUCar(c.req.param("id"));
+    if (!car?.thumbnail) return c.json({ error: "LMU car asset not found" }, 404);
+    const file = resolve(GAMES_DIR, "lmu", car.thumbnail);
+    if (!existsSync(file)) return c.json({ error: "LMU car asset not found" }, 404);
+    return new Response(readFileSync(file), {
+      headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=31536000, immutable" },
+    });
+  })
+
   // GET /api/cars/:ordinal — single car details
   .get("/api/cars/:ordinal", zValidator("param", OrdinalParamSchema), async (c) => {
     const gameIdResult = GameIdSchema.safeParse(
@@ -131,6 +166,12 @@ export const carRoutes = new Hono()
     }
 
     const { ordinal } = c.req.valid("param");
+    if (gameIdResult.data === "lmu") {
+      const name = await getDiscoveredCarName("lmu", ordinal);
+      return name
+        ? c.json({ ordinal, name })
+        : c.json({ error: "Car not found" }, 404);
+    }
     if (gameIdResult.data === "iracing") {
       const name =
         getAllIRacingCars().find((car) => car.ordinal === ordinal)?.name ??
@@ -154,9 +195,14 @@ export const carRoutes = new Hono()
   })
 
   // GET /api/car-name/:ordinal — plain text car name
-  .get("/api/car-name/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", GameIdQuerySchema), (c) => {
-    const { ordinal } = c.req.valid("param");
+  .get("/api/car-name/:ordinal", zValidator("param", z.object({ ordinal: z.string().min(1) })), zValidator("query", GameIdQuerySchema), (c) => {
+    const raw = c.req.valid("param").ordinal;
+    let carKey = raw;
+    try { carKey = decodeURIComponent(raw); } catch { /* preserve exact raw value */ }
     const gameId = c.req.query("gameId");
+    if (gameId === "lmu") return c.text(getLMUCar(carKey)?.name ?? carKey);
+    const ordinal = Number(carKey);
+    if (!Number.isInteger(ordinal)) return c.text("Unknown car", 400);
     const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
     if (serverAdapter) return c.text(serverAdapter.getCarName(ordinal));
     return c.text(resolveCarName(ordinal, gameId));

@@ -28,7 +28,7 @@ export function useAllCars() {
     queryFn: async () => {
       const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
-      return response.json();
+      return (await response.json()) as unknown as TuneFormCar[];
     },
     staleTime: Infinity,
   });

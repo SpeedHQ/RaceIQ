@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import react from "@vitejs/plugin-react";
-import { createLogger, defineConfig } from "vite";
+import { createLogger, defineConfig, type Plugin } from "vite";
 
 const configuredServerTarget = process.env.PROXY_TARGET;
 const serverTarget = configuredServerTarget ?? `http://localhost:${process.env.SERVER_PORT ?? "3117"}`;
@@ -16,6 +16,26 @@ const devWebSocketTarget = {
   hostname: configuredServerTarget ? serverUrl.hostname : "",
   port: serverUrl.port,
 };
+
+const paraglideOutdir = path.resolve(import.meta.dirname, "src/paraglide");
+
+function paraglideFullReloadPlugin(): Plugin {
+  let reloadTimer: NodeJS.Timeout | undefined;
+  return {
+    name: "raceiq-paraglide-full-reload",
+    apply: "serve",
+    handleHotUpdate({ file, server }) {
+      const relativePath = path.relative(paraglideOutdir, file);
+      if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) return;
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        reloadTimer = undefined;
+        server.ws.send({ type: "full-reload", path: "*" });
+      }, 50);
+      return [];
+    },
+  };
+}
 
 // Deduplicate proxy error logs — show once, then suppress repeats
 const logger = createLogger();
@@ -45,6 +65,7 @@ export default defineConfig(({ command }) => {
     envDir: path.resolve(import.meta.dirname, ".."),
     envPrefix: ["VITE_", "RACEIQ_"],
     plugins: [
+      paraglideFullReloadPlugin(),
       devtools(),
       react(),
       tailwindcss(),
@@ -69,7 +90,14 @@ export default defineConfig(({ command }) => {
       // Keep React and renderer on one module instance in Bun workspaces. Without
       // dedupe, Vite can resolve peer dependencies through different .bun paths,
       // leaving React hooks bound to a dispatcher the renderer does not set.
-      dedupe: ["react", "react-dom"],
+      dedupe: [
+        "react",
+        "react-dom",
+        "@assistant-ui/core",
+        "@assistant-ui/store",
+        "@assistant-ui/tap",
+        "assistant-stream",
+      ],
       alias: {
         "@": path.resolve(import.meta.dirname, "src"),
         "@shared": path.resolve(import.meta.dirname, "../shared"),

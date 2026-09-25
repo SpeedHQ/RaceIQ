@@ -24,8 +24,63 @@ const PIT_CYCLE_REASON_LOOKUP: Readonly<Record<PitCycleReason, true>> = {
   "pit lap": true,
 };
 
+export interface ForzaPitTransitionEvidence {
+  detected: boolean;
+  raceOffObserved: boolean;
+  timingGap: boolean;
+  fuelIncreased: boolean;
+  tireWearRefreshed: boolean;
+}
+
+const FORZA_SERVICE_DELTA = 0.005;
+const FORZA_TIMING_GAP_SECONDS = 2;
+
+/**
+ * FM has no pit-state field. A race-off gap across a lap boundary is primary
+ * evidence; missed lap time identifies the same transition in captures that
+ * omit race-off frames. Fuel gain and tire-wear reset remain optional
+ * corroboration and can recover the classification when either timing marker
+ * is unavailable.
+ */
+export function forzaPitTransitionEvidence(
+  before: TelemetryPacket,
+  after: TelemetryPacket,
+  raceOffObserved = false,
+): ForzaPitTransitionEvidence {
+  const isForza = before.gameId === "fm-2023" && after.gameId === "fm-2023";
+  const lapAdvanced = after.LapNumber > before.LapNumber;
+  const timingGap =
+    Number.isFinite(after.CurrentLap) &&
+    Number.isFinite(after.LastLap) &&
+    Number.isFinite(before.CurrentLap) &&
+    after.CurrentLap >= FORZA_TIMING_GAP_SECONDS &&
+    after.LastLap - before.CurrentLap >= FORZA_TIMING_GAP_SECONDS;
+  const fuelIncreased =
+    Number.isFinite(before.Fuel) &&
+    Number.isFinite(after.Fuel) &&
+    before.Fuel >= 0 &&
+    after.Fuel - before.Fuel >= FORZA_SERVICE_DELTA;
+  const beforeWear = [before.TireWearFL, before.TireWearFR, before.TireWearRL, before.TireWearRR];
+  const afterWear = [after.TireWearFL, after.TireWearFR, after.TireWearRL, after.TireWearRR];
+  const wearAvailable = [...beforeWear, ...afterWear].every((value) => Number.isFinite(value) && value >= 0);
+  const tireWearRefreshed =
+    wearAvailable &&
+    beforeWear.reduce((sum, value) => sum + value, 0) / beforeWear.length -
+      afterWear.reduce((sum, value) => sum + value, 0) / afterWear.length >=
+      FORZA_SERVICE_DELTA;
+
+  return {
+    detected: isForza && lapAdvanced && (raceOffObserved || timingGap || fuelIncreased || tireWearRefreshed),
+    raceOffObserved,
+    timingGap,
+    fuelIncreased,
+    tireWearRefreshed,
+  };
+}
+
 function pitState(packet: TelemetryPacket): boolean | undefined {
   if (packet.gameId === "iracing") return packet.iracing?.onPitRoad;
+  if (packet.gameId === "lmu") return packet.lmu?.inPits;
   if (packet.gameId === "f1-2025") {
     const active = packet.f1?.pitLaneTimerActive;
     return active === undefined ? undefined : active === 1;

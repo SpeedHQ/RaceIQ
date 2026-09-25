@@ -172,12 +172,13 @@ jobs:
           merge-multiple: false
 
       - name: Collect responsive diffs
-        id: collect
         run: bun scripts/ci/workflow-ops.ts collect-screenshots
 
       - name: Upload preview artifact
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+

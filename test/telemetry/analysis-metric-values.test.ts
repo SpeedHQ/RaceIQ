@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { resolveBalance, resolveGripDemand, resolveWheelMetric, resolveWheelStates } from "../../shared/racing/analysis/metric-values";
+import { lmuAdapter } from "../../shared/games/lmu";
+import { resolveAnalysisTelemetry } from "../../shared/racing/analysis/telemetry-capabilities";
 
 const frame = (values: Record<string, unknown>, states: Record<string, string> = {}) => ({ values, states });
 
@@ -50,6 +52,17 @@ describe("analysis metric value resolvers", () => {
     expect(understeer?.state).toBe("understeer");
     expect(oversteer?.state).toBe("oversteer");
     expect(understeer?.slipAvailable).toBe(false);
+  });
+  test("LMU uses measured slip angles instead of yaw alone for balance", () => {
+    const metric = resolveAnalysisTelemetry(lmuAdapter).balance;
+    const balance = resolveBalance(frame({
+      "motion.speed": 26.306163360979284,
+      "motion.acceleration-x": 12.933746337890625,
+      "motion.angular-velocity-y": -0.6624804139137268,
+      "tires.tire-slip-angle": [-0.10003551308178779, -0.09726704146651437, -0.10494855205185476, -0.10478092787441247],
+    }), metric);
+    expect(balance?.slipAvailable).toBe(true);
+    expect(balance?.state).toBe("neutral");
   });
   test("returns unavailable when a required balance signal is missing", () => {
     const metric = { source: "derived", confidence: "high", binding: { kind: "derived", derivation: "physical-balance-v1", requires: ["motion.speed", "motion.acceleration-x", "motion.angular-velocity-y", "tires.tire-slip-angle"] } } as const;

@@ -186,8 +186,8 @@ export function SessionsPage() {
     },
     [queryClient],
   );
-  const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 9 : 8;
+  const showSessionType = gameId === "f1-2025" || gameId === "lmu";
+  const colCount = showSessionType ? 9 : 8;
   const emptyMessage = tab === "others" ? m.sessions_none_others() : m.sessions_none();
 
   return (
@@ -232,7 +232,7 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        isF1={isF1}
+        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
         expandedSessions={expandedSessions}
@@ -257,7 +257,7 @@ export function SessionsPage() {
         carNames={carNames}
         isLoading={isLoading}
         sessionsError={sessionsError}
-        isF1={isF1}
+        showSessionType={showSessionType}
         gameId={gameId}
         emptyMessage={emptyMessage}
         colCount={colCount}

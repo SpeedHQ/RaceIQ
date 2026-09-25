@@ -6,7 +6,7 @@ import { THREE_COLORS } from "../../lib/wireframe-utils";
 import { classifyMesh } from "./classify-mesh";
 
 export function canonicalModelYawAlignment(modelPath: string): number {
-  return modelPath === "/models/f1_2025_mclaren_mcl39_optimised.glb" ? Math.PI / 2 : 0;
+  return modelPath === "/models/f1_2025_mclaren_mcl39_optimised.glb" || modelPath === "/models/peugeot_9x8_evo_2024_optimised.glb" ? Math.PI / 2 : 0;
 }
 
 export function CarBody({

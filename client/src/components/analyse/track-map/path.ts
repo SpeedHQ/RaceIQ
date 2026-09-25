@@ -1,4 +1,5 @@
-import { semanticNumber, type Point, type SemanticAnalysisFrame } from "./types";
+import { applyAlignment, computeAlignment } from "@shared/racing/tracks/geometry/points";
+import { semanticNumber, type Point, type SemanticAnalysisFrame, type TrackMapBoundaries } from "./types";
 
 const worldPosition = (frame: SemanticAnalysisFrame): Point => ({
   x: semanticNumber(frame, "motion.position-x") ?? 0,
@@ -36,6 +37,31 @@ export function resolveTrackPositions(telemetry: SemanticAnalysisFrame[], outlin
       z: outline[start].z + (outline[low].z - outline[start].z) * amount,
     };
   });
+}
+
+export function alignTrackBoundariesToPositions(
+  boundaries: TrackMapBoundaries | null,
+  positions: Point[],
+): TrackMapBoundaries | null {
+  if (!boundaries || boundaries.centerLine.length < 20) return boundaries;
+  const target = positions.filter((point) => Number.isFinite(point.x) && Number.isFinite(point.z));
+  if (
+    target.length < 20
+    || !target.some((point) => point.x !== target[0].x || point.z !== target[0].z)
+  ) {
+    return boundaries;
+  }
+  const alignment = computeAlignment(boundaries.centerLine, target);
+  if (!alignment) return boundaries;
+  const align = (points: Point[]) => points.map((point) => applyAlignment(point, alignment));
+  return {
+    ...boundaries,
+    leftEdge: align(boundaries.leftEdge),
+    rightEdge: align(boundaries.rightEdge),
+    centerLine: align(boundaries.centerLine),
+    raceLine: boundaries.raceLine ? align(boundaries.raceLine) : boundaries.raceLine,
+    pitLane: boundaries.pitLane ? align(boundaries.pitLane) : null,
+  };
 }
 export function projectPointOntoPath(point: Point, path: readonly Point[]): Point | null {
   if (path.length < 2) return null;

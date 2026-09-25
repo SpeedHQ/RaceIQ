@@ -1,6 +1,16 @@
 ## Unreleased
 
+### Breaking
+- Open lap replays through session-scoped links; old track/car/lap query links no longer work
+
 ### Features
+- Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
+- Add Le Mans Ultimate support
+- Add a representative hybrid car model to Le Mans Ultimate 3D scenes
+- Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
+- Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
+- Focus Lap Analyse on the selected session by hiding car and track selectors across games
+- Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 - Lap analysis detects sustained oversteer slides
 - Lap analysis detects persistent left-right tire-pressure imbalance
@@ -13,6 +23,22 @@
 - Lap analysis highlights low throttle after a stable corner exit without claiming unproven time loss
 
 ### Fixes
+- Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
+- Show wheel rotation speed as a positive magnitude in Analyse, including existing LMU replays
+- Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
+- Group replay tire temperatures into mirrored surface bands and separate carcass/core rows, with brake temperature beside each wheel
+- Keep Analyse 3D playback responsive on long laps while preserving tire-temperature profiles and input overlays
+- Restore full-size 3D car views and temperature-colored brake discs
+- Announce simulator-specific tire temperatures with selected units in 3D views
+- Load large recorded sessions for lap review without exhausting memory
+
+- Label sector-time columns S1, S2, S3 in Analyse session lap-selection dialog and allow sorting by sector.
+- Improve logging and diagnostic exports
+- Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
+- Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
+- Run completed-lap tuning analysis only when the AI Engineer requests it in an experiment, rather than during recording.
+- Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
+- Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 - Forza lap analysis no longer treats normalized lateral-slip telemetry as physical slip angles
 - Lap analysis avoids wheelspin and traction-loss findings when a simulator does not provide wheel-rotation telemetry
@@ -25,7 +51,17 @@
 - Avoid treating display-scaled suspension movement as physical bottoming
 - Correct Forza steering centering in lap metrics and driver-style analysis
 
+
 ### Internal
+- Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
+- Restore synthetic 3D tire-profile showcases for every simulator in Storybook
+- Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
+- Fail PR screenshot-render jobs on Storybook test errors after uploading visual artifacts; seed LMU home stats and wait for note-modal interaction readiness in snapshots.
+- Align seeded Analyse and landing browser tests with session-scoped review/replay routes, session empty/error states, lap-only selection, and simulator-specific tire labels; exercise responsive Analyse against seeded replay data.
+- Split large LMU test recordings into gzip parts under GitHub's per-file size limit.
+- Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
+
+- Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
 
 - Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
 - Reuse per-frame wheel dynamics across static insight detectors
@@ -65,9 +101,9 @@
 
 - Compare base and pull-request UI renders on the same runner, publish visual changes as warnings, and clear stale UI-change comments and labels when no differences remain
 - Run seeded database upgrade verification in PR and release CI when migrations change.
-
 - Cover session review, Analyse, Compare, and navigation flows with seeded browser and Storybook tests
 - Add UI-level agent testing.
+- Increase Playwright E2E test timeouts by 20 seconds for more reliable CI runs.
 
 ## v0.17.0 - 2026-09-16
 

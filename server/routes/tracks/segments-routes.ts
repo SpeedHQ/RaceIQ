@@ -18,11 +18,14 @@ import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
 import { cornerNumbers } from "../../../shared/racing/tracks/facts";
+import { getLMUTrack } from "../../../shared/games/lmu/catalog";
 import { splitSegments } from "../../../shared/racing/tracks/curation/join";
 import { cornerKey } from "../../../shared/racing/tracks/keys";
 import {
   computeOutlineLength,
+  decodeTrackKey,
   getSharedTrackName,
+  OrdinalKeyParamSchema,
   requireGameId,
   resolveTrackSegments,
   TrackOrdinalParamSchema,
@@ -130,14 +133,22 @@ export const trackSectorBoundaryRoutes = new Hono()
 
   // GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
   .get("/api/track-sector-boundaries/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
+      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
+      if (gameId === "lmu") {
+        const track = getLMUTrack(trackKey);
+        return c.json({
+          s1End: track?.sectorFractions?.[0] ?? 1 / 3,
+          s2End: track?.sectorFractions?.[1] ?? 2 / 3,
+          trackLength: (track?.lengthKm ?? 0) * 1_000,
+        });
+      }
+      const ordinal = Number(trackKey);
+      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
       const sharedName = getSharedTrackName(ordinal, gameId);
-
-      // Sector fractions are this game's geometry; fall back to bundled defaults.
       const sectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
         ?? getTrackSectorsByOrdinal(ordinal);
 
@@ -247,13 +258,14 @@ export const trackSegmentRoutes = new Hono()
 
   // GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
   .get("/api/track-sectors/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
+      const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const gameId = c.req.query("gameId");
-
-      const { segments, totalDist, source } = await resolveTrackSegments(ordinal, gameId);
+      const ordinal = Number(trackKey);
+      if (gameId !== "lmu" && !Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
+      const { segments, totalDist, source } = await resolveTrackSegments(gameId === "lmu" ? trackKey : ordinal, gameId);
       if (source === "none") return c.json({ segments: [] });
 
       return c.json({

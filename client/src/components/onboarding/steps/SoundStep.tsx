@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { playBlip, preloadSound } from "@/components/SectorTimes";
+import { playBlip, preloadSound } from "@/lib/sound";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { getSoundEnabled, getSoundType, getSoundVolume, SOUND_PRESETS, setSoundEnabled, setSoundType, setSoundVolume } from "@/lib/settings-storage";

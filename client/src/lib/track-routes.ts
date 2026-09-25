@@ -16,7 +16,11 @@ export function tracksIndexPath(gameId: GameId): string {
   return `/${tryGetGame(gameId)?.routePrefix ?? gameId}/tracks`;
 }
 
-export function trackRoutePath(gameId: GameId, ordinal: number, tab: string = TRACK_INDEX_TAB): string {
-  const base = `${tracksIndexPath(gameId)}/${ordinal}`;
+export function trackRoutePath(
+  gameId: GameId,
+  trackKey: number | string,
+  tab: string = TRACK_INDEX_TAB,
+): string {
+  const base = `${tracksIndexPath(gameId)}/${encodeURIComponent(String(trackKey))}`;
   return tab === TRACK_INDEX_TAB ? base : `${base}/${tab}`;
 }

@@ -1,6 +1,6 @@
 import { getSteeringLock } from "@/lib/settings-storage";
 import { semanticNumber, type SemanticAnalysisFrame } from "./track-map/types";
-import { brakeBarColor } from "./AnalyseMetricsPanel";
+import { brakeBarColor } from "@/lib/colors";
 
 interface Props {
   frame: SemanticAnalysisFrame;

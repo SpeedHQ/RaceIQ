@@ -164,10 +164,32 @@ describe("migration regressions", () => {
     client.close();
   });
 
-  test("v59 marks existing static lap analysis stale without dropping cached data", async () => {
+  test("v59 preserves legacy session ordinals with null string identity", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 58);
+    await client.execute(
+      "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 12345, 67890, 'lmu')"
+    );
+
+    await runMigrations(client);
+
+    const rows = await client.execute(
+      `SELECT car_ordinal, track_ordinal, car_id, track_id
+       FROM sessions WHERE id = 1`,
+    );
+    expect(rows.rows[0]).toMatchObject({
+      car_ordinal: 12345,
+      track_ordinal: 67890,
+      car_id: null,
+      track_id: null
+    });
+    client.close();
+  });
+  test("v60 marks existing static lap analysis stale without dropping cached data", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 59);
     await client.execute(
       "INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')",
     );
@@ -189,6 +211,7 @@ describe("migration regressions", () => {
     });
     client.close();
   });
+
 
 
 });

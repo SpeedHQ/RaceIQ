@@ -1,6 +1,7 @@
 import { createClient, type Client } from "@libsql/client/sqlite3";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { migrations } from "../../../server/db/migrations";
-
 export async function bootstrap(client: Client): Promise<void> {
   await client.execute("PRAGMA foreign_keys = ON");
   await client.execute(`
@@ -59,6 +60,9 @@ export async function getAppliedVersions(client: Client): Promise<number[]> {
   return rows.rows.map((r) => Number(r.version));
 }
 
+let clientSequence = 0;
+
 export function newClient(): Client {
-  return createClient({ url: ":memory:" });
+  clientSequence += 1;
+  return createClient({ url: `file:${join(tmpdir(), `raceiq-migrations-${process.pid}-${clientSequence}.db`)}` });
 }

@@ -68,7 +68,7 @@ export function TrackInfoPanel({
     queryKey: ["track-guide", track.ordinal, gameId ?? null],
     queryFn: () =>
       client.api["track-guide"][":ordinal"]
-        .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .$get({ param: { ordinal: encodeURIComponent(String(track.ordinal)) }, query: { gameId: gameId ?? undefined } } as never)
         .then((r) => r.json() as unknown as ResolvedTrackGuide | null),
     enabled: !!gameId,
     staleTime: 5 * 60 * 1000,
@@ -111,6 +111,20 @@ export function TrackInfoPanel({
           <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
           <Stat label={m.trackinfo_laps_recorded()} value={String(lapCount)} />
         </div>
+        {sectorBounds && (
+          <div className="grid grid-cols-3 gap-2">
+            {([1, 2, 3] as const).map((n) => {
+              const from = n === 1 ? 0 : n === 2 ? sectorBounds.s1End : sectorBounds.s2End;
+              const to = n === 1 ? sectorBounds.s1End : n === 2 ? sectorBounds.s2End : 1;
+              return (
+                <div key={n} className="rounded border border-app-border bg-app-surface/50 px-2 py-1.5">
+                  <div className="text-app-label text-app-text-muted">S{n}</div>
+                  <div className="text-app-label tabular-nums text-app-text">{(from * 100).toFixed(1)}% – {(to * 100).toFixed(1)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }

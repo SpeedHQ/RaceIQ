@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { strFromU8, unzipSync } from "fflate";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 import {
@@ -6,6 +7,7 @@ import {
   type GenerateLapAnalysisDeps,
 } from "../../../server/ai/generate-lap-analysis";
 import { AnalystOutputSchema } from "../../../server/ai/schemas";
+import { diagnosticsRoutes } from "../../../server/routes/system/diagnostics-routes";
 
 const validAnalysis = JSON.stringify({
   verdict: "Clean lap",
@@ -253,6 +255,52 @@ describe("generateLapAnalysis", () => {
     expect(result.error).toBe("provider unavailable");
     expect(deps.saves).toHaveLength(0);
     expect((await deps.getAnalysis!(7))?.analysis).toBe(validAnalysis);
+  });
+
+  test("returns upstream provider detail instead of generic bad request", async () => {
+    const providerError = Object.assign(new Error("Bad Request"), {
+      statusCode: 400,
+      responseBody: JSON.stringify({
+        error: {
+          code: 400,
+          message: "request exceeds available context size",
+          status: "INVALID_ARGUMENT",
+        },
+      }),
+    });
+
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      makeDeps({ generateError: providerError }),
+    );
+
+    expect(result.error).toBe(
+      "Bad Request: request exceeds available context size",
+    );
+  });
+
+  test("exports lap analysis generation failures in diagnostic logs", async () => {
+    const marker = `lap-analysis-diagnostic-${crypto.randomUUID()}`;
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true },
+      makeDeps({ generateError: new Error(marker) }),
+    );
+    expect(result.error).toBe(marker);
+
+    const response = await diagnosticsRoutes.request("/api/diagnostics");
+    expect(response.status).toBe(200);
+    const archive = unzipSync(new Uint8Array(await response.arrayBuffer()));
+    const logs = strFromU8(archive["logs.txt"]);
+    const line = logs.split("\n").find(
+      (candidate) =>
+        candidate.includes(marker) &&
+        candidate.includes('"event":"llm-error"') &&
+        candidate.includes('"operation":"lap-analysis"'),
+    );
+    expect(line).toBeDefined();
+    expect(line).toMatch(/ ERROR \[raceiq\] llm-error\t/);
   });
 });
 

@@ -52,6 +52,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 ## Operations
 
 - [Session storage](operations/session-storage.md) — compression, cleanup, and orphan handling.
+- [Diagnostic export](operations/diagnostic-export.md) — archive contents, retention, error coverage, hardware limitations, privacy, and verification.
 
 ## Research
 

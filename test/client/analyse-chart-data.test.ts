@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { buildChartData } from "../../client/src/components/analyse/AnalyseChartsPanel";
+import { buildChartData } from "../../client/src/components/analyse/chart-data";
 import type { SemanticAnalysisFrame } from "../../client/src/components/analyse/track-map/types";
 
 function frame(currentLap: number, values: Record<string, unknown> = {}): SemanticAnalysisFrame {

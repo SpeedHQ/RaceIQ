@@ -6,12 +6,13 @@ import { getTrackNameByOrdinal, hasBundledBoundaryByOrdinal, loadBoundaryByName 
 import type { Point, TrackBoundary } from "./types";
 
 export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): TrackBoundary | null {
+  if (gameId === "lmu") return null;
   // Try extracted boundaries first (game-specific)
   const extracted = loadExtractedBoundary(ordinal, gameId);
   if (extracted) return extracted;
 
   // Shared boundaries are in real-world coordinates — only usable for Forza
-  // which has calibration transforms. F1/ACC use their own coordinate spaces.
+  // which has calibration transforms.
   if (gameId !== "fm-2023") return null;
 
   if (!hasBundledBoundaryByOrdinal(ordinal)) return null;
@@ -19,6 +20,7 @@ export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): Tr
   if (!name) return null;
   return loadBoundaryByName(name);
 }
+
 
 
 /** Load extracted boundary data, aligned to telemetry coordinate space if possible. */

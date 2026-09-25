@@ -1,111 +1,95 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
-import type * as THREE from "three";
 import { semanticNumber, type SemanticAnalysisFrame } from "../analyse/track-map/types";
-import { pedalInputColor, threeColor } from "../../lib/wireframe-utils";
+import { buildTrackIndex, filterByDistanceIndexed, pedalInputColor, threeColor, type TrackIndex } from "../../lib/wireframe-utils";
+
+export type InputRun = {
+  id: number;
+  pts: [number, number, number][];
+  values: number[];
+};
+
+export function buildInputOverlayRuns(
+  telemetry: SemanticAnalysisFrame[],
+  index: TrackIndex,
+  packet: SemanticAnalysisFrame,
+): { throttleRuns: InputRun[]; brakeRuns: InputRun[] } {
+  const cx = semanticNumber(packet, "motion.position-x") ?? 0;
+  const cz = semanticNumber(packet, "motion.position-z") ?? 0;
+  const yaw = semanticNumber(packet, "motion.yaw") ?? 0;
+  const segments = filterByDistanceIndexed(index, cx, cz, yaw, -0.44, 60, 20, 30);
+  const EPS = 0.02;
+  const OFFSET = 0.1;
+  const throttleRuns: InputRun[] = [];
+  const brakeRuns: InputRun[] = [];
+
+  for (const segment of segments) {
+    const sourcePoints = segment.points.map((point, offset) => {
+      const sourceIndex = segment.sourceStartIndex + offset;
+      const frame = telemetry[sourceIndex];
+      return { sourceIndex, point, throttle: semanticNumber(frame, "inputs.accel") ?? 0, brake: (semanticNumber(frame, "inputs.brake") ?? 0) / 255 };
+    });
+    const throttlePts: [number, number, number][] = [];
+    const throttleValues: number[] = [];
+    const brakePts: [number, number, number][] = [];
+    const brakeValues: number[] = [];
+    let throttleStart = -1;
+    let brakeStart = -1;
+    const flush = (bucket: InputRun[], id: number, pts: [number, number, number][], values: number[]) => {
+      if (pts.length >= 5) bucket.push({ id, pts: pts.slice(), values: values.slice() });
+      pts.length = 0;
+      values.length = 0;
+    };
+
+    for (let i = 0; i < sourcePoints.length; i++) {
+      const { sourceIndex, point, throttle, brake } = sourcePoints[i];
+      const prev = sourcePoints[Math.max(0, i - 1)].point;
+      const next = sourcePoints[Math.min(sourcePoints.length - 1, i + 1)].point;
+      const tFwd = next[0] - prev[0];
+      const tLat = next[2] - prev[2];
+      const length = Math.sqrt(tFwd * tFwd + tLat * tLat) || 1;
+      const nFwd = -tLat / length;
+      const nLat = tFwd / length;
+      if (throttle > EPS) {
+        if (throttlePts.length === 0) throttleStart = sourceIndex;
+        throttlePts.push([point[0] + nFwd * OFFSET, point[1], point[2] + nLat * OFFSET]);
+        throttleValues.push(throttle);
+      } else if (throttlePts.length > 0) {
+        flush(throttleRuns, throttleStart, throttlePts, throttleValues);
+      }
+      if (brake > EPS) {
+        if (brakePts.length === 0) brakeStart = sourceIndex;
+        brakePts.push([point[0] - nFwd * OFFSET, point[1], point[2] - nLat * OFFSET]);
+        brakeValues.push(brake);
+      } else if (brakePts.length > 0) {
+        flush(brakeRuns, brakeStart, brakePts, brakeValues);
+      }
+    }
+    if (throttlePts.length > 0) flush(throttleRuns, throttleStart, throttlePts, throttleValues);
+    if (brakePts.length > 0) flush(brakeRuns, brakeStart, brakePts, brakeValues);
+  }
+  return { throttleRuns, brakeRuns };
+}
 
 export function InputOverlay({ telemetry, packet }: { telemetry: SemanticAnalysisFrame[]; packet: SemanticAnalysisFrame }) {
+  const points = useMemo(() => telemetry.map((frame) => ({
+    x: semanticNumber(frame, "motion.position-x") ?? 0,
+    z: semanticNumber(frame, "motion.position-z") ?? 0,
+  })), [telemetry]);
+  const index = useMemo(() => buildTrackIndex(points), [points]);
+  const runs = useMemo(
+    () => buildInputOverlayRuns(telemetry, index, packet),
+    [telemetry, index, semanticNumber(packet, "motion.position-x"), semanticNumber(packet, "motion.position-z"), semanticNumber(packet, "motion.yaw")],
+  );
   const data = useMemo(() => {
     const throttleColor = threeColor("var(--ch-throttle)");
     const brakeColor = threeColor("var(--ch-brake)");
     const inactiveColor = threeColor("var(--app-bg)");
-    const cx = semanticNumber(packet, "motion.position-x") ?? 0;
-    const cz = semanticNumber(packet, "motion.position-z") ?? 0;
-    const yaw = semanticNumber(packet, "motion.yaw") ?? 0;
-    const s = Math.sin(yaw);
-    const c = Math.cos(yaw);
-    const Y = -0.44; // match TrackOutline race-line Y
-    const OFFSET = 0.1; // lateral offset from center in meters
-    const AHEAD = 60;
-    const BEHIND = 20;
-    const maxDist2 = AHEAD * AHEAD;
-
-    // Collect contiguous in-range runs. Splitting on out-of-range points
-    // prevents a single polyline from bridging two disjoint clusters
-    // (e.g. start/finish loopback) with a straight line across the scene.
-    type LocalPt = { sourceIndex: number; fwd: number; lat: number; throttle: number; brake: number };
-    const runs: LocalPt[][] = [];
-    let current: LocalPt[] = [];
-    for (let sourceIndex = 0; sourceIndex < telemetry.length; sourceIndex++) {
-      const p = telemetry[sourceIndex];
-      const dx = (semanticNumber(p, "motion.position-x") ?? 0) - cx;
-      const dz = (semanticNumber(p, "motion.position-z") ?? 0) - cz;
-      let inRange = dx * dx + dz * dz <= maxDist2;
-      let localFwd = 0,
-        localLat = 0;
-      if (inRange) {
-        localFwd = dx * s + dz * c;
-        localLat = dx * c - dz * s;
-        if (localFwd < -BEHIND || localFwd > AHEAD || Math.abs(localLat) > 30) inRange = false;
-      }
-      if (inRange) {
-        current.push({ sourceIndex, fwd: localFwd, lat: localLat, throttle: semanticNumber(p, "inputs.accel") ?? 0, brake: (semanticNumber(p, "inputs.brake") ?? 0) / 255 });
-      } else if (current.length > 0) {
-        runs.push(current);
-        current = [];
-      }
-    }
-    if (current.length > 0) runs.push(current);
-
-    // Compute perpendicular normals and build per-run offset lines.
-    type InputRun = { id: number; pts: [number, number, number][]; cols: THREE.Color[] };
-    const throttleRuns: InputRun[] = [];
-    const brakeRuns: InputRun[] = [];
-
-    const EPS = 0.02; // ignore pedal noise / off-pedal
-    for (const pts of runs) {
-      if (pts.length < 2) continue;
-      // Pre-compute offset positions per side
-      const tPos: [number, number, number][] = [];
-      const bPos: [number, number, number][] = [];
-      for (let i = 0; i < pts.length; i++) {
-        const prev = pts[Math.max(0, i - 1)];
-        const next = pts[Math.min(pts.length - 1, i + 1)];
-        const tFwd = next.fwd - prev.fwd;
-        const tLat = next.lat - prev.lat;
-        const len = Math.sqrt(tFwd * tFwd + tLat * tLat) || 1;
-        const nFwd = -tLat / len;
-        const nLat = tFwd / len;
-        const p = pts[i];
-        tPos.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
-        bPos.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
-      }
-      // Split into sub-runs covering only frames where the pedal is on,
-      // so off-pedal stretches stay invisible instead of drawing a black line.
-      const flush = (bucket: InputRun[], id: number, ptsBuf: [number, number, number][], colsBuf: THREE.Color[]) => {
-        if (ptsBuf.length >= 5) bucket.push({ id, pts: ptsBuf.slice(), cols: colsBuf.slice() });
-        ptsBuf.length = 0;
-        colsBuf.length = 0;
-      };
-      const tBufP: [number, number, number][] = [];
-      const tBufC: THREE.Color[] = [];
-      const bBufP: [number, number, number][] = [];
-      const bBufC: THREE.Color[] = [];
-      let tStartIndex = -1;
-      let bStartIndex = -1;
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i];
-        if (p.throttle > EPS) {
-          if (tBufP.length === 0) tStartIndex = p.sourceIndex;
-          tBufP.push(tPos[i]);
-          tBufC.push(pedalInputColor(inactiveColor, throttleColor, p.throttle));
-        } else if (tBufP.length > 0) {
-          flush(throttleRuns, tStartIndex, tBufP, tBufC);
-        }
-        if (p.brake > EPS) {
-          if (bBufP.length === 0) bStartIndex = p.sourceIndex;
-          bBufP.push(bPos[i]);
-          bBufC.push(inactiveColor.clone().lerp(brakeColor, p.brake));
-        } else if (bBufP.length > 0) {
-          flush(brakeRuns, bStartIndex, bBufP, bBufC);
-        }
-      }
-      if (tBufP.length > 0) flush(throttleRuns, tStartIndex, tBufP, tBufC);
-      if (bBufP.length > 0) flush(brakeRuns, bStartIndex, bBufP, bBufC);
-    }
-
-    return { throttleRuns, brakeRuns };
-  }, [telemetry, semanticNumber(packet, "motion.position-x"), semanticNumber(packet, "motion.position-z"), semanticNumber(packet, "motion.yaw")]);
+    return {
+      throttleRuns: runs.throttleRuns.map((run) => ({ ...run, cols: run.values.map((value) => pedalInputColor(inactiveColor, throttleColor, value)) })),
+      brakeRuns: runs.brakeRuns.map((run) => ({ ...run, cols: run.values.map((value) => pedalInputColor(inactiveColor, brakeColor, value * 255)) })),
+    };
+  }, [runs]);
 
   return (
     <>

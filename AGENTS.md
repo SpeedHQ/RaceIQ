@@ -55,7 +55,7 @@ bun run build:installer
 
 # Client-specific
 cd client && bun run build   # production build (tsc + vite)
-cd client && bun run lint    # ESLint
+cd client && bun run lint    # Oxlint
 
 # Dump mode (develop without a running game — captures raw packets)
 bun run dev:dump:fm            # dump Forza Motorsport packets
@@ -258,6 +258,13 @@ ran v39 before the `car`/`driver` rename.
 - Push changes to target PR head branch; update its description in place.
 - If checkout branch differs from target head, switch to target head before editing.
 - Never force-push target PR branch unless user explicitly requests it.
+
+### Pull request descriptions
+
+- Describe the original user problem and the outcome in concise, easy-to-understand Markdown bullets. Include relevant benchmark results when available; never invent results.
+- Do not list changed files or implementation-only file inventories.
+- When editing PR descriptions with `gh pr edit`, preserve Markdown formatting. Do not pass `\n` inside ordinary quoted shell arguments; shell may keep it as literal text. Use a heredoc/body file or shell quoting that creates real line breaks.
+- Verify the saved description with `gh pr view --json body` and confirm paragraphs and bullets contain actual line breaks before reporting completion.
 
 ### Dependency inspection
 

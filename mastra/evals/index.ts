@@ -134,7 +134,10 @@ export async function scoreOutput(
   output: unknown,
   groundTruth: unknown,
 ): Promise<ScoreResult> {
-  const result = await scorer.run({ output, groundTruth });
+  const result = await scorer.run({ output, groundTruth }) as unknown as {
+    score?: unknown;
+    reason?: unknown;
+  };
   return {
     id: scorer.id,
     score: typeof result.score === "number" ? result.score : 0,

@@ -25,7 +25,7 @@ graph LR
 
 ## Current game adapters
 
-Five adapters are registered by `shared/games/init.ts` and `server/games/init.ts`:
+Six adapters are registered by `shared/games/init.ts` and `server/games/init.ts`:
 
 | Game | Internal ID | Ingestion | Route prefix |
 |---|---|---|---|
@@ -34,6 +34,7 @@ Five adapters are registered by `shared/games/init.ts` and `server/games/init.ts
 | Assetto Corsa Competizione | `acc` | Windows shared-memory reader | `/acc` |
 | Assetto Corsa Evo | `ac-evo` | Windows shared-memory reader | `/ac-evo` |
 | iRacing | `iracing` | Windows SDK/shared-memory source | `/iracing` |
+| Le Mans Ultimate | `lmu` | Windows `LMU_Data` shared-memory source | `/lmu` |
 
 Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, coordinate conventions, and car/track resolution. Each server `ServerGameAdapter` adds the ingestion source, parsing state, lap detector, and analysis context.
 
@@ -64,3 +65,4 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 - [Race results](race-results.md)
 - [Setup Engineer](setup-engineer.md)
 - [Telemetry recording](telemetry-recording.md)
+- [LMU recording decision](lmu-recording.md)

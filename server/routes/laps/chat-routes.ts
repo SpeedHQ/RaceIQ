@@ -20,6 +20,7 @@ import {
   chatThreadId,
   generationThreadId,
   getChatMemory,
+  ensureSystemPrompt,
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
@@ -106,6 +107,7 @@ export const chatRoutes = new Hono()
           : "gemini-flash-latest");
 
     const threadId = await resolveActiveThread(chatThreadId(id));
+    await ensureSystemPrompt(threadId, systemPrompt);
     const turnStartedAt = Date.now();
     try {
       const requestContext = new RequestContext();
@@ -127,6 +129,13 @@ export const chatRoutes = new Hono()
         memory: getChatMemory(),
         threadId,
         turnStartedAt,
+        diagnostic: {
+          provider: chatProvider,
+          model: chatModelLabel,
+          operation: "chat.stream",
+          threadId,
+          request: { systemPrompt, messages },
+        },
       });
     } catch (err: any) {
       console.error("[Chat] Stream failed:", err.message);

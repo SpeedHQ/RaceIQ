@@ -29,7 +29,6 @@ interface Props {
 
 export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pit = useTelemetryStore((s) => s.pit);
-  const gameId = view?.simulator ?? null;
   const carOrdinal = view?.identity.carOrdinal;
   const { data: resolvedCarName } = useCarName(carOrdinal);
   const carName = resolvedCarName || (carOrdinal != null ? `Car #${carOrdinal}` : "");
@@ -54,38 +53,20 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
   const temperatureAvailable = primaryTireTemperaturesC(view.tires) !== undefined;
   const healthAvailable = view.tires.wear !== undefined;
-  const tireFreshnessNote =
-    pitTemperature && pitHealth
-      ? `${m.analyse_wheels_pit_temp()} · ${m.analyse_wheels_pit_health()}`
-      : pitTemperature
-        ? m.analyse_wheels_pit_temp()
-        : pitHealth
-          ? m.analyse_wheels_pit_health()
-          : undefined;
+  const tireFreshnessNote = pitTemperature && pitHealth ? `${m.analyse_wheels_pit_temp()} · ${m.analyse_wheels_pit_health()}` : pitTemperature ? m.analyse_wheels_pit_temp() : pitHealth ? m.analyse_wheels_pit_health() : undefined;
   const wheelData = (corner: "fl" | "fr" | "rl" | "rr") => {
+    const surface = view.tires.surfaceTemperatureC?.[corner];
     const carcass = view.tires.carcassTemperatureC?.[corner];
-    const hasCarcassBands =
-      carcass !== undefined &&
-      carcass.left !== undefined &&
-      carcass.middle !== undefined &&
-      carcass.right !== undefined &&
-      Number.isFinite(carcass.left) &&
-      Number.isFinite(carcass.middle) &&
-      Number.isFinite(carcass.right);
     const isLeft = corner.endsWith("l");
-
+    const hasSurfaceBands = surface?.inner !== undefined && surface.middle !== undefined && surface.outer !== undefined && Number.isFinite(surface.inner) && Number.isFinite(surface.middle) && Number.isFinite(surface.outer);
+    const hasCarcassBands = carcass?.left !== undefined && carcass.middle !== undefined && carcass.right !== undefined && Number.isFinite(carcass.left) && Number.isFinite(carcass.middle) && Number.isFinite(carcass.right);
     return {
       tempC: primaryTireTemperatureC(view.tires, corner) ?? 0,
       wear: view.tires.wear?.[corner] ?? 0,
-      ...(hasCarcassBands
-        ? {
-            temperatureBandsC: {
-              inner: isLeft ? carcass.right : carcass.left,
-              middle: carcass.middle,
-              outer: isLeft ? carcass.left : carcass.right,
-            },
-          }
-        : {}),
+      ...(view.tires.coreTemperatureC?.[corner] != null ? { coreTempC: view.tires.coreTemperatureC[corner] } : {}),
+      ...(view.tires.carcassAverageTemperatureC?.[corner] != null ? { carcassTempC: view.tires.carcassAverageTemperatureC[corner] } : {}),
+      ...(hasSurfaceBands ? { temperatureBandsC: { inner: surface.inner, middle: surface.middle, outer: surface.outer } } : {}),
+      ...(hasCarcassBands ? { carcassBandsC: { inner: isLeft ? carcass.right : carcass.left, middle: carcass.middle, outer: isLeft ? carcass.left : carcass.right } } : {}),
     };
   };
   const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
@@ -145,7 +126,7 @@ export function LiveTelemetry({ view, mode = "driver" }: Props) {
             fr={wheelData("fr")}
             rl={wheelData("rl")}
             rr={wheelData("rr")}
-            healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
+            healthThresholds={(tryGetGame(view.simulator)?.tireHealthThresholds) ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
             freshnessNote={tireFreshnessNote}
             temperatureAvailable={temperatureAvailable}

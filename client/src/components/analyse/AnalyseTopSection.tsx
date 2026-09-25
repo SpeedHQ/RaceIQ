@@ -9,6 +9,7 @@ import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
+  lmuCarClass?: string;
   gameId?: GameId;
   // Layout
   topHeight: number;
@@ -53,6 +54,7 @@ interface AnalyseTopSectionProps {
 }
 
 export function AnalyseTopSection({
+  lmuCarClass,
   gameId,
   topHeight,
   leftColWidth,
@@ -225,6 +227,7 @@ export function AnalyseTopSection({
         cursorIdx={cursorIdx}
         lapLine={lapLine}
         boundaries={boundaries}
+        lmuCarClass={lmuCarClass}
         gameId={gameId}
         units={units}
       />

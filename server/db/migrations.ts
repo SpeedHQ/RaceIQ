@@ -1250,14 +1250,27 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        WHERE ownership IS NULL OR ownership NOT IN ('mine', 'others')`,
     ],
   },
-  // v59: Version deterministic static lap analysis independently from segment
+  // v59: Persist one LMU string identity pair alongside legacy ordinals.
+  {
+    version: 59,
+    name: "persist LMU session string identity",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN car_id TEXT`,
+      `ALTER TABLE sessions ADD COLUMN track_id TEXT`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_game_car_id
+       ON sessions(game_id, car_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_sessions_game_track_id
+       ON sessions(game_id, track_id)`,
+    ],
+  },
+  // v60: Version deterministic static lap analysis independently from segment
   // metrics. Existing rows start stale (0) and remain readable by older builds;
   // current code recomputes them lazily or through the explicit backfill route.
   {
-    version: 59,
+    version: 60,
     name: "version static lap analysis",
     sql: [
-      `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`
     ],
   },
 ];

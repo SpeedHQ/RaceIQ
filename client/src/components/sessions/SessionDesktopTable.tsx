@@ -6,7 +6,7 @@ import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { formatSessionType } from "./helpers";
+import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import { MotecBadge } from "./MotecBadge";
 import { SessionLapTable } from "./SessionLapTable";
@@ -20,7 +20,7 @@ export type SessionDesktopTableProps = {
   carNames: Record<number, string>;
   isLoading: boolean;
   sessionsError: boolean;
-  isF1: boolean;
+  showSessionType: boolean;
   gameId: GameId | null;
   emptyMessage: string;
   colCount: number;
@@ -52,7 +52,7 @@ export function SessionDesktopTable({
   carNames,
   isLoading,
   sessionsError,
-  isF1,
+  showSessionType,
   gameId,
   emptyMessage,
   colCount,
@@ -107,7 +107,7 @@ export function SessionDesktopTable({
               ["track", m.label_track()],
               ["car", m.label_car()],
               ["result", "Result"],
-              ...(isF1 ? [["type", m.label_type()] as const] : []),
+              ...(showSessionType ? [["type", m.label_type()] as const] : []),
             ] as const
           ).map(([field, label]) => (
             <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
@@ -188,12 +188,12 @@ export function SessionDesktopTable({
                     <TD numeric tone="primary">
                       {bestTime ? formatLapTime(bestTime) : "—"}
                     </TD>
-                    <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    <TD tone="primary">{sessionTrackName(session, { trackNames, carNames })}</TD>
+                    <TD tone="primary">{sessionCarName(session, { trackNames, carNames })}</TD>
                     <TD tone="primary">
                       <SessionResultMeta session={session} />
                     </TD>
-                    {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
+                    {showSessionType && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                     <TD>
                       <NoteCell value={session.notes ?? undefined} onSave={(notes) => saveSessionNotes(session.id, notes)} />
                     </TD>
