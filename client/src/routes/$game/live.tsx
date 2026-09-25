@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
+import { LMULiveDashboard } from "../../components/lmu/LMULiveDashboard";
 import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
 import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";
 import { RadioDock } from "../../components/live-engineer/RadioDock";
@@ -20,6 +21,7 @@ function LiveDashboardRoute() {
       case "forza": return <ForzaLiveDashboard mode="driver" />;
       case "f1": return <F1LiveDashboard />;
       case "acc": return <AccLiveDashboard gameId={gameId} />;
+      case "lmu": return <LMULiveDashboard />;
     }
   })();
   return <div className="relative h-full"><RadioDock />{dashboard}</div>;

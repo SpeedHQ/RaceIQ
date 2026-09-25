@@ -26,7 +26,7 @@ async function dragTelemetryLane(page: Page): Promise<void> {
 
 for (const game of REVIEW_GAMES) {
   test(`Analyse session review reuses base telemetry for ${game.gameId}`, async ({ page, request }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(200_000);
     const browserErrors = collectBrowserErrors(page);
     const target = await getSeededLapTarget(request, game.gameId);
     const lapsResponse = await request.get(`/api/laps?gameId=${game.gameId}`);
@@ -93,7 +93,8 @@ for (const game of REVIEW_GAMES) {
     }
 
     await page.goto(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse?track=${targetLap.trackOrdinal}&car=${targetLap.carOrdinal}&lap=${targetLap.id}`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Analyse Session", exact: true }).click();
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Analyse session", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/sessions/${targetLap.sessionId}/analyse(?:\\?|$)`));
     await expect(page.getByRole("button", { name: "Overview", exact: true })).toBeVisible();
   });

@@ -80,7 +80,7 @@ export interface LiveTelemetryView {
   sessionId: number | null;
   sequence: number;
   observedAtMs: number;
-  identity: { carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number; playerCarIndex?: number; playerCarClass?: number | string };
+  identity: { carId?: number | string; trackId?: number | string; carOrdinal?: number; trackOrdinal?: number; carClass?: number; performanceIndex?: number; drivetrainType?: number; playerCarIndex?: number; playerCarClass?: number | string };
   opponentSource?: OpponentSourceStatusV1 | null;
   motion: {
     speedMps?: number;
@@ -104,6 +104,7 @@ export interface LiveTelemetryView {
   tires: {
     surfaceTemperatureC?: TireTemperatureProfile<TireSurfaceBand>;
     coreTemperatureC?: WheelValues<number>;
+    carcassAverageTemperatureC?: WheelValues<number>;
     carcassTemperatureC?: TireTemperatureProfile<TireCarcassBand>;
     wear?: WheelValues<number>;
     pressurePsi?: WheelValues<number>;
@@ -267,6 +268,8 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
     sequence: frame.sequence,
     observedAtMs: frame.observedAt.milliseconds,
     identity: {
+      carId: schema.simulator === "lmu" ? numberOrString("identity.car-id") : number("identity.car-ordinal"),
+      trackId: schema.simulator === "lmu" ? numberOrString("identity.track-id") : number("identity.track-ordinal"),
       carOrdinal: number("identity.car-ordinal"),
       trackOrdinal: number("identity.track-ordinal"),
       carClass: number("identity.car-class"),
@@ -318,6 +321,7 @@ export function buildLiveTelemetryView(schema: LiveTelemetrySchemaMessageV1, fra
         outer: "tire.temperature.surface.outer",
       }),
       coreTemperatureC: wheelCelsius("tire.temperature.core"),
+      carcassAverageTemperatureC: wheelCelsius("tire.temperature.carcass.representative"),
       carcassTemperatureC: temperatureProfileC<TireCarcassBand>({
         left: "tire.temperature.carcass.left",
         middle: "tire.temperature.carcass.middle",

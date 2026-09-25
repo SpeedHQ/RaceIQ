@@ -8,7 +8,7 @@ import { getServerGame } from "../games/registry";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
 import { SESSION_SEGMENT_BOUNDARY, SESSION_SEGMENT_CONTEXT, SESSION_SEGMENT_CONTEXT_END, encodeFrameLength, type SessionImportFrame } from "./framing";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
+import { NullWsAdapter, RealDbAdapter, type DbAdapter, type SessionIdentity, type SessionRecorderAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 import { countIndexSampleMaterialized, countSourceFrameScanned } from "./test-instrumentation";
@@ -21,8 +21,8 @@ export interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
 }
 
 export interface ImportSessionResult {
@@ -45,7 +45,7 @@ export class ImportCaptureAdapter implements DbAdapter {
   private _lapWriteFailure: unknown;
   private readonly _sessionMeta = new Map<
     number,
-    { carOrdinal: number; trackOrdinal: number; gameId: GameId }
+    { carOrdinal: number; trackOrdinal: number; gameId: GameId; identity?: SessionIdentity }
   >();
   private _continueSession = false;
   private readonly _sessionSource?: string;
@@ -70,6 +70,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     sessionType?: string,
     versionIdentity?: TelemetryVersionIdentity,
     ownership?: SessionOwnership,
+    identity?: SessionIdentity,
   ): Promise<number> {
     if (this._continueSession) {
       this._continueSession = false;
@@ -82,9 +83,9 @@ export class ImportCaptureAdapter implements DbAdapter {
         throw new Error("Import segment game does not match its source session");
       }
       if (meta && (meta.carOrdinal !== carOrdinal || meta.trackOrdinal !== trackOrdinal)) {
-        await this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+        await this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
       }
-      this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal, gameId });
+      this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal, gameId, identity });
       return sessionId;
     }
     const id = await this._inner.insertSession(
@@ -94,9 +95,10 @@ export class ImportCaptureAdapter implements DbAdapter {
       sessionType,
       versionIdentity,
       ownership,
+      identity,
     );
     this.sessionIds.add(id);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId });
+    this._sessionMeta.set(id, { carOrdinal, trackOrdinal, gameId, identity });
     if (this._sessionSource) await updateSessionSource(id, this._sessionSource);
     return id;
 
@@ -132,8 +134,8 @@ export class ImportCaptureAdapter implements DbAdapter {
         lapNumber,
         lapTime,
         isValid,
-        carOrdinal: meta?.carOrdinal ?? 0,
-        trackOrdinal: meta?.trackOrdinal ?? 0,
+        carId: meta?.identity?.carId ?? meta?.carOrdinal ?? 0,
+        trackId: meta?.identity?.trackId ?? meta?.trackOrdinal ?? 0,
       });
       return id;
     });
@@ -166,10 +168,10 @@ export class ImportCaptureAdapter implements DbAdapter {
     this.rawFiles.add(rawFile);
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number, identity?: SessionIdentity): Promise<void> {
     const existing = this._sessionMeta.get(sessionId);
-    if (existing) this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
-    return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+    if (existing) this._sessionMeta.set(sessionId, { ...existing, carOrdinal, trackOrdinal, identity });
+    return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal, identity);
   }
   getLapsForExclusionScope(experimentId: number, tuneId: number) {
     return this._inner.getLapsForExclusionScope(experimentId, tuneId);

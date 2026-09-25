@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { GameIdSchema } from "../../shared/games/ids";
 import { z } from "zod";
-import { getLapById } from "../db/lap-read-queries";
+import { getLapMetaById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
+import { getLMUCar, getLMUTrack } from "../../shared/games/lmu/catalog";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
@@ -22,6 +23,7 @@ const ChatsQuerySchema = z.object({
 
 interface LapSummary {
   id: number;
+  sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
@@ -29,6 +31,8 @@ interface LapSummary {
   trackName: string;
   trackOrdinal: number | null;
   carOrdinal: number | null;
+  carId: number | string;
+  trackId: number | string;
   gameId: string;
 }
 
@@ -53,17 +57,20 @@ interface ChatRow {
 }
 
 async function loadLapSummary(id: number): Promise<LapSummary | null> {
-  const lap = await getLapById(id);
+  const lap = await getLapMetaById(id);
   if (!lap) return null;
   return {
     id,
+    sessionId: lap.sessionId,
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
+    carName: typeof lap.carId === "string" ? getLMUCar(lap.carId)?.name ?? lap.carId : resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
+    trackName: typeof lap.trackId === "string" ? getLMUTrack(lap.trackId)?.name ?? lap.trackId : resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
     trackOrdinal: lap.trackOrdinal ?? null,
     carOrdinal: lap.carOrdinal ?? null,
+    carId: lap.carId ?? lap.carOrdinal ?? -1,
+    trackId: lap.trackId ?? lap.trackOrdinal ?? -1,
     gameId: lap.gameId ?? "",
   };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { GameId } from "../../shared/games/ids";
 import type { LiveTelemetryFrameMessageV1, LiveTelemetrySchemaMessageV1 } from "../../shared/telemetry/live/contracts";
+import { liveSemanticIds } from "../../shared/telemetry/live/semantics";
 import { buildLiveTelemetryView, indexTelemetrySchema, normalizeAccCompetitors, readIndexedValue } from "../src/lib/live-telemetry-view";
 
 function schema(semanticIds: string[], simulator: GameId = "acc", units: Readonly<Record<string, string | null>> = {}): LiveTelemetrySchemaMessageV1 {
@@ -44,6 +45,47 @@ function frame(
 }
 
 describe("live telemetry view", () => {
+  it("projects LMU catalog and native identities without using sentinel ordinals", () => {
+    const definition = schema([...liveSemanticIds("lmu")], "lmu");
+    for (const [carId, trackId] of [
+      ["ferrari_499p_2023", "spa_2023/spawec"],
+      ["Custom / Car %2F #7", "Unlisted / Layout %2F"],
+    ]) {
+      const values: Record<string, unknown> = {
+        "identity.car-id": carId,
+        "identity.track-id": trackId,
+        "identity.car-ordinal": -1,
+        "identity.track-ordinal": -1,
+        "motion.speed": 42,
+      };
+      const view = buildLiveTelemetryView(definition, frame(
+        definition.definitions.map(({ semanticId }) => values[semanticId] ?? null),
+        { schemaId: definition.schemaId },
+      ))!;
+      expect(view.identity.carId).toBe(carId);
+      expect(view.identity.trackId).toBe(trackId);
+      expect(view.motion.speedMps).toBe(42);
+    }
+  });
+
+  it("withholds unavailable LMU identity rather than falling back to -1", () => {
+    const definition = schema(["identity.car-id", "identity.track-id", "identity.car-ordinal", "identity.track-ordinal"], "lmu");
+    const view = buildLiveTelemetryView(definition, frame(
+      ["ferrari_499p_2023", "spa_2023/spawec", -1, -1],
+      { schemaId: definition.schemaId, states: { 0: "missing" }, freshness: { 1: "stale" } },
+    ))!;
+    expect(view.identity.carId).toBeUndefined();
+    expect(view.identity.trackId).toBeUndefined();
+    expect(view.statusBySemanticId["identity.car-id"]).toEqual({ resolution: "missing", freshness: "fresh" });
+    expect(view.statusBySemanticId["identity.track-id"]).toEqual({ resolution: "ok", freshness: "stale" });
+  });
+
+  it("preserves numeric identities and existing ordinal consumers for other games", () => {
+    const definition = schema(["identity.car-ordinal", "identity.track-ordinal", "identity.car-class"]);
+    const view = buildLiveTelemetryView(definition, frame([42, 7, 3]))!;
+    expect(view.identity).toMatchObject({ carId: 42, trackId: 7, carOrdinal: 42, trackOrdinal: 7, carClass: 3 });
+  });
+
   it("indexes semantic values and rejects schema mismatch", () => {
     const definition = schema(["motion.speed"]);
     const indexed = indexTelemetrySchema(definition);

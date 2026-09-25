@@ -616,7 +616,7 @@ describe("importMotec end to end", () => {
     });
 
     expect(result.carTrack.trackOrdinal).toBe(monza.id);
-    for (const lap of result.laps) expect(lap.trackOrdinal).toBe(monza.id);
+    for (const lap of result.laps) expect(lap.trackId).toBe(monza.id);
   }, 30_000);
 
   test("an optional setup is stamped on every imported lap", async () => {

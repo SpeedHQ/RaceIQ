@@ -606,7 +606,7 @@ export function DevLiveEngineerReplay() {
               </Tabs>
             </Card>
               <div className="rounded border border-app-border bg-app-surface/50">
-                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={playback.frame} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
+                {playback.frame && <AnalyseDataPanel dataOnly sidebarTab="live" onSidebarTabChange={() => {}} currentFrame={playback.frame} packetNumber={playback.frame.sourceSequence} startFuel={undefined} gameId={gameId as GameId} units={units} wearRate={null} lapInsights={[]} onJumpToFrame={seekTo} />}
               {gameId === "f1-2025" && <div className="w-full max-w-lg"><F1CarDamageSection damage={replayDamage} /></div>}
               {playback.frame && gameId !== "acc" && <OpponentDataPanel frame={playback.frame} gameId={gameId} />}
               </div>

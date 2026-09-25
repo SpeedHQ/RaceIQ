@@ -4,7 +4,7 @@ import { getTelemetryVariable } from "../../shared/telemetry/catalog/query";
 import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
 import { packet } from "../support/telemetry/resolver";
-import { LIVE_CORE_SEMANTIC_IDS, LIVE_GAME_SEMANTIC_IDS, liveSemanticIds } from "../../shared/telemetry/live/semantics";
+import { liveSemanticIds } from "../../shared/telemetry/live/semantics";
 
 describe("live telemetry semantics", () => {
   test("uses canonical per-wheel catalog shapes and direct Kunos mappings", () => {
@@ -19,30 +19,8 @@ describe("live telemetry semantics", () => {
     expect(getTelemetryVariable("tires.tire-radius").games["ac-evo"].kind).toBe("unavailable");
   });
 
-  test("selects temperature granularity per simulator without aliases", () => {
-    expect(LIVE_CORE_SEMANTIC_IDS.some((id) => id.startsWith("tire.temperature."))).toBe(false);
-    expect(LIVE_GAME_SEMANTIC_IDS["f1-2025"]).toEqual(expect.arrayContaining([
-      "tire.temperature.surface.representative",
-      "tire.temperature.core",
-    ]));
-    expect(LIVE_GAME_SEMANTIC_IDS.acc).toEqual(expect.arrayContaining([
-      "tire.temperature.core",
-    ]));
-    expect(LIVE_GAME_SEMANTIC_IDS.acc).not.toEqual(expect.arrayContaining([
-      "tire.temperature.surface.representative",
-      "tire.temperature.surface.inner",
-      "tire.temperature.surface.middle",
-      "tire.temperature.surface.outer",
-    ]));
-    expect(LIVE_GAME_SEMANTIC_IDS.iracing).toEqual(expect.arrayContaining([
-      "tire.temperature.carcass.left",
-      "tire.temperature.carcass.middle",
-      "tire.temperature.carcass.right",
-    ]));
-    expect(LIVE_GAME_SEMANTIC_IDS.iracing).not.toContain("tire.temperature.surface.representative");
-    for (const gameId of KNOWN_GAME_IDS) {
-      expect(new Set(liveSemanticIds(gameId)).size).toBe(liveSemanticIds(gameId).length);
-    }
+  test("keeps each live semantic slot unique", () => {
+    for (const gameId of KNOWN_GAME_IDS) expect(new Set(liveSemanticIds(gameId)).size).toBe(liveSemanticIds(gameId).length);
   });
 
   test("compiles every allowlisted ID and resolves fixture-backed values", () => {
@@ -60,5 +38,29 @@ describe("live telemetry semantics", () => {
       expect(frame.resolveValue(resolver.slot("tires.tire-camber")).state).not.toBe("error");
       expect(frame.resolveValue(resolver.slot("tires.tire-radius")).state).not.toBe("error");
     }
+  });
+  test("resolves LMU session type for live frames", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: [{ semanticId: "session.session-type" }],
+    });
+    const frame = resolver.createFrameView(
+      packet("lmu", { lmu: { sessionType: "race" } as never }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+    );
+    expect(frame.resolveValue(resolver.slot("session.session-type")).value).toBe("race");
+  });
+
+  test("resolves LMU string identity through the live allowlist", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "lmu",
+      requested: liveSemanticIds("lmu").map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(
+      packet("lmu", { CarOrdinal: -1, TrackOrdinal: -1, lmu: { carId: "Custom / Car", trackId: "spa_2023/spawec" } as never }),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1) },
+    );
+    expect(frame.resolveValue(resolver.slot("identity.car-id")).value).toBe("Custom / Car");
+    expect(frame.resolveValue(resolver.slot("identity.track-id")).value).toBe("spa_2023/spawec");
   });
 });

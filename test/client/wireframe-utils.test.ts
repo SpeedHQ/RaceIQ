@@ -1,7 +1,19 @@
 import { SLIP_ANGLE_PEAK_RAD } from "../../shared/racing/analysis/laps/physics/vehicle";
 import { describe, test, expect } from "bun:test";
-import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, type FilteredTrackSegment, resolveTrailLateralUtilization, visualWheelRotationSpeed } from "../../client/src/lib/wireframe-utils";
+import { buildTrackIndex, filterByDistance, filterByDistanceIndexed, makeWheelGeometries, resolveTrailLateralUtilization, visualWheelRotationSpeed, type FilteredTrackSegment } from "../../client/src/lib/wireframe-utils";
 import { tireStateFromUtilization } from "../../client/src/lib/vehicle-dynamics";
+
+test("wheel geometries expose ordered tread bands and smaller core", () => {
+  const { surfaceBands, core } = makeWheelGeometries(0.34, 0.3);
+  surfaceBands.forEach((geometry) => geometry.computeBoundingBox());
+  core.computeBoundingBox();
+  expect(surfaceBands).toHaveLength(3);
+  const bandCenters = surfaceBands.map((geometry) => ((geometry.boundingBox?.min.z ?? 0) + (geometry.boundingBox?.max.z ?? 0)) / 2);
+  expect(bandCenters[0]).toBeCloseTo(-0.1);
+  expect(bandCenters[1]).toBeCloseTo(0);
+  expect(bandCenters[2]).toBeCloseTo(0.1);
+  expect(core.boundingBox?.max.x).toBeLessThan(surfaceBands[0].boundingBox?.max.x ?? Infinity);
+});
 
 // Deep-equal helper — bun:test's toEqual already does structural compare,
 // but segment arrays are nested so we just sanity-check lengths and

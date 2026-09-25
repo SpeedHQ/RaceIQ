@@ -3,8 +3,8 @@ import { gzipSync } from "node:zlib";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { advanceSessionFrames, encodeFrameLength, encodeMetaFrame, iterateSessionCaptureRecords, sessionFrameAt } from "../../server/session-capture/framing";
-import { indexCaptureFrames, iterateSessionCaptureFrames } from "../../server/session-capture/source-loader";
+import { advanceSessionFrames, encodeFrameLength, encodeMetaFrame, encodeSegmentBoundaryFrame, encodeSegmentContextFrame, encodeSegmentContextEndFrame, iterateSessionCaptureRecords, sessionFrameAt } from "../../server/session-capture/framing";
+import { indexCaptureFrames, iterateSessionCaptureFrames, iterateSessionCaptureRecordsFromSource, setCaptureFileFactoryForTest } from "../../server/session-capture/source-loader";
 import { encodeAccBroadcastCaptureRecord } from "../../server/games/acc/broadcast-capture";
 
 const directories: string[] = [];
@@ -46,6 +46,42 @@ for (const compressed of [false, true]) {
       { offset: 12, frame: [1, 2, 3] },
       { offset: 19, frame: [4, 5] },
     ]);
+  });
+}
+
+for (const compressed of [false, true]) {
+  test(`streams ${compressed ? "gzip" : "plain"} segment records without whole-file reads`, async () => {
+    const directory = mkdtempSync(join(tmpdir(), "raceiq-source-stream-"));
+    directories.push(directory);
+    const frame = Buffer.alloc(128 * 1024, 7);
+    const capture = Buffer.concat([
+      encodeMetaFrame(2), encodeFrameLength(frame.length), frame,
+      encodeSegmentBoundaryFrame(), encodeSegmentContextFrame(),
+      encodeFrameLength(2), Buffer.from([8, 9]), encodeSegmentContextEndFrame(),
+    ]);
+    const rawFile = join(directory, compressed ? "segments.bin.gz" : "segments.bin");
+    writeFileSync(rawFile, compressed ? gzipSync(capture) : capture);
+    setCaptureFileFactoryForTest((path) => {
+      const file = Bun.file(path);
+      return {
+        size: file.size, lastModified: file.lastModified,
+        slice: (start, end) => file.slice(start, end),
+        stream: () => file.stream(),
+        arrayBuffer: () => { throw new Error("whole-capture read"); },
+      };
+    });
+    try {
+      const actual = [];
+      for await (const record of iterateSessionCaptureRecordsFromSource({
+        rawFile, source: null, gameId: "f1-2025", carOrdinal: 0, trackOrdinal: 0,
+      })) actual.push(record);
+      expect(actual.map(({ kind, offset }) => ({ kind, offset }))).toEqual(
+        [...iterateSessionCaptureRecords(capture)].map(({ kind, offset }) => ({ kind, offset })),
+      );
+      expect(actual.filter((record) => record.kind === "frame").map((record) => record.frame)).toEqual([frame, Buffer.from([8, 9])]);
+    } finally {
+      setCaptureFileFactoryForTest(null);
+    }
   });
 }
 

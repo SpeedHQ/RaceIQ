@@ -1,12 +1,13 @@
 import type { GameId } from "@shared/games/ids";
-import { memo, type RefObject, useEffect, useState } from "react";
+import { memo, type RefObject, useEffect, useMemo, useState } from "react";
 import type { useUnits } from "../../hooks/useUnits";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
-import { Vitals2D } from "../telemetry/Vitals2D";
+import { TireDiagram } from "../telemetry/TireDiagram";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import type { Point, SemanticAnalysisFrame, TrackMapBoundaries } from "./track-map/types";
+import { alignTrackBoundariesToPositions } from "./track-map/path";
 
 interface Props {
   onVizModeChange: (mode: "2d" | "3d") => void;
@@ -20,6 +21,7 @@ interface Props {
   boundaries: TrackMapBoundaries | null;
   units: ReturnType<typeof useUnits>;
   gameId?: GameId;
+  lmuCarClass?: string;
 }
 function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
   return (
@@ -31,6 +33,7 @@ function areAnalyseVizPropsEqual(previous: Props, next: Props): boolean {
     previous.lapLine === next.lapLine &&
     previous.boundaries === next.boundaries &&
     previous.units === next.units &&
+    previous.lmuCarClass === next.lmuCarClass &&
     previous.gameId === next.gameId
   );
 }
@@ -47,6 +50,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
   boundaries,
   units,
   gameId,
+  lmuCarClass,
 }: Props) {
   const [visualCursorIdx, setVisualCursorIdx] = useState(cursorIdx);
   useEffect(() => {
@@ -60,6 +64,10 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
     return () => cancelAnimationFrame(animationFrame);
   }, [cursorRef]);
   const visualFrame = displayTelemetryRef.current[visualCursorIdx] ?? semanticFrames[visualCursorIdx] ?? currentFrame;
+  const sceneBoundaries = useMemo(
+    () => gameId === "lmu" && lapLine ? alignTrackBoundariesToPositions(boundaries, lapLine) : boundaries,
+    [boundaries, gameId, lapLine],
+  );
 
   return (
     <Tabs
@@ -79,7 +87,7 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
       </TabsList>
 
       <TabsContent value="2d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
-        <Vitals2D frame={visualFrame ?? undefined} gameId={gameId} />
+        {visualFrame && gameId && <TireDiagram frame={visualFrame} gameId={gameId} />}
       </TabsContent>
 
       <TabsContent value="3d" className="flex min-h-0 w-full flex-1 flex-col items-center gap-2 overflow-y-auto p-2">
@@ -87,13 +95,14 @@ export const AnalyseVizPanel = memo(function AnalyseVizPanel({
           {visualFrame && (
             <CarWireframe
               gameId={gameId}
+              lmuCarClass={lmuCarClass}
               frame={visualFrame}
               telemetry={semanticFrames}
               cursorRef={cursorRef}
               telemetryRef={displayTelemetryRef}
               cursorIdx={visualCursorIdx}
               outline={lapLine}
-              boundaries={boundaries}
+              boundaries={sceneBoundaries}
               tempLabel={units.tempLabel}
             />
           )}

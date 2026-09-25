@@ -48,6 +48,7 @@ Session rotation can occur while a detector handles a packet. `Pipeline` compare
 | ACC | `ACCP` packed physics, graphics, and static pages |
 | AC Evo | `ACEP` packed physics, graphics, and static pages |
 | iRacing | `IRIQ` versioned session or value-delta source frame |
+| Le Mans Ultimate | `RQLMUSF` versioned player telemetry and scoring source frame |
 
 Shared-memory packed triplets use:
 
@@ -59,6 +60,8 @@ Shared-memory packed triplets use:
 ```
 
 The framing keeps `SessionRecorder` game-agnostic. Each server adapter's `tryParse()` recognizes and decodes its own raw records.
+
+LMU live capture and committed replay fixtures use native shared-memory source frames. DuckDB remains a separate manual historical-import path. See [LMU recording decision](lmu-recording.md).
 
 ## Replay, import, and reprocessing
 

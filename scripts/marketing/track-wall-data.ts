@@ -15,6 +15,7 @@ const GAME_META: Record<GameId, { label: string; tag: string }> = {
   acc: { label: "Assetto Corsa Competizione", tag: "ACC" },
   "ac-evo": { label: "Assetto Corsa EVO", tag: "AC EVO" },
   iracing: { label: "iRacing", tag: "iRacing" },
+  lmu: { label: "Le Mans Ultimate", tag: "LMU" },
 };
 
 type MapKind = "inline-svg" | "remote-svg" | "none";
@@ -112,7 +113,9 @@ function gameTracks(gameId: GameId): MarketingTrackRecord[] {
         ? Array.from(getAccTracks(), ([ordinal, info]) => record(gameId, ordinal, { ...info, location: "", country: "", lengthKm: 0 }))
         : gameId === "ac-evo"
           ? Array.from(getAcEvoTracks(), ([ordinal, info]) => record(gameId, ordinal, { ...info, location: "", country: "", lengthKm: 0 }))
-          : getAllIRacingTracks().map((info) => record(gameId, info.ordinal, info));
+          : gameId === "iracing"
+            ? getAllIRacingTracks().map((info) => record(gameId, info.ordinal, info))
+            : [];
   return tracks.sort((a, b) => a.name.localeCompare(b.name) || a.variant.localeCompare(b.variant) || a.ordinal - b.ordinal);
 }
 

@@ -19,7 +19,7 @@ function canonicalize(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, entry]) => entry !== undefined)
-      .sort(([left], [right]) => left.localeCompare(right))
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
       .map(([key, entry]) => [key, canonicalize(entry)]),
   );
 }
@@ -39,6 +39,22 @@ export const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
   "race.driver-change-lap-status": ["0", "1", "2", "3"],
   "race.penalty-code": Array.from({ length: 22 }, (_, code) => String(code)),
   "weather.rain-intensity-code": ["0", "1", "2", "3", "4", "5"],
+  "session.session-type-ordinal": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+  ],
   "setup.tires.compound": ["0", "1"],
   "tires.tire-compound": [
     "7",

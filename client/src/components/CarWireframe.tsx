@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
-import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
+import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
@@ -25,6 +25,7 @@ import { ToggleButton } from "./wireframe/ToggleButton";
 
 useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
 useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
+useGLTF.preload("/models/peugeot_9x8_evo_2024_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
@@ -34,6 +35,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   outline,
   boundaries,
   carOrdinal,
+  lmuCarClass,
   carModel: carModelProp,
   tempLabel: tempLabelProp,
   showDimensions,
@@ -42,6 +44,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   autoOrbit,
 }: {
   gameId?: GameId;
+  lmuCarClass?: string;
   frame: SemanticAnalysisFrame;
   telemetry: SemanticAnalysisFrame[];
   cursorIdx: number;
@@ -68,10 +71,13 @@ export const CarWireframe = React.memo(function CarWireframe({
     throw new Error("CarWireframe: gameId missing — pass as prop or mount inside a GameProvider");
   }
   const isF1 = gameId === "f1-2025";
+  const isLMU = gameId === "lmu";
 
   const carModel = useMemo(() => {
     if (carModelProp) return carModelProp;
     if (isF1) return F1_CAR;
+    // Select the closest available body for every catalog class.
+    if (isLMU) return getLMUClassCarModel(lmuCarClass);
     // Note: getCarModel reads from module-level state populated by
     // loadCarModelConfigs(). configsLoaded is in the dep list so the
     // memo re-runs once configs finish loading — eslint can't see the
@@ -83,7 +89,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     // ACC (and any future game) without a visible car in the scene.
     return DEMO_CAR;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carOrdinal, configsLoaded, isF1, carModelProp]);
+  }, [carOrdinal, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
   const adapter = tryGetGame(gameId);
@@ -150,6 +156,10 @@ export const CarWireframe = React.memo(function CarWireframe({
 
   return (
     <div className="w-full h-full relative flex-1">
+      <div className="w-full h-full" role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => {
+        const value = (frame.values[temperatureSemanticId] as number[] | undefined)?.[index];
+        return `${wheel} ${value != null && Number.isFinite(value) ? fmtTemp(value) : m.analyse_unavailable()}`;
+      }).join(", ")}`}>
       <Canvas
         key="raceiq-car-renderer-v2"
         camera={{ position: [4, 2.5, 4], fov: 50 }}
@@ -250,14 +260,16 @@ export const CarWireframe = React.memo(function CarWireframe({
           hideModelWheels={!minimal}
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
+          temperatureThresholds={units.thresholds}
           tireColors={[
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[0] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[1] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[2] ?? 0, units.thresholds),
-            tireTempColor((frame.values[temperatureSemanticId] as number[] | undefined)?.[3] ?? 0, units.thresholds),
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[0]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[0], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[1]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[1], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[2]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[2], units.thresholds) : "var(--status-unavailable)",
+            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[3]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[3], units.thresholds) : "var(--status-unavailable)",
           ]}
         />
       </Canvas>
+      </div>
       <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}
@@ -323,7 +335,7 @@ export const CarWireframe = React.memo(function CarWireframe({
                   setSaveStatus("saving");
                   try {
                     const res = await client.api["car-model-configs"][":ordinal"].$put({
-                      param: { ordinal: String(carOrdinal) },
+                      param: { ordinal: encodeURIComponent(String(carOrdinal)) },
                       json: { glbOffsetX: modelOffsetX },
                     });
                     if (res.ok) {

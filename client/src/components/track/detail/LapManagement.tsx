@@ -394,10 +394,11 @@ export function LapManagement(props: LapManagementProps) {
                                 <Button
                                   variant="app-outline"
                                   size="app-sm"
+                                  disabled={!gameId || lap.sessionId == null}
                                   className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
                                   onClick={() => {
-                                    if (!gameId) return;
-                                    navTo({ to: `${getGameRoute(gameId)}/sessions/replay`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                    if (!gameId || lap.sessionId == null) return;
+                                    navTo({ to: `${getGameRoute(gameId)}/sessions/${lap.sessionId}/replay/${lap.lapId}` } as never);
                                   }}
                                 >
                                   {m.trackdetail_analyse()}

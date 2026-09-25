@@ -36,6 +36,42 @@ export function getChatMemory() {
   return memory;
 }
 
+export type DiagnosticChatSnapshot = {
+  threads: Array<{ thread: unknown; messages: unknown[]; systemPrompt: string | null; systemPromptUnavailable: boolean }>;
+  error: string | null;
+  messageCount: number;
+};
+
+export async function collectDiagnosticChatContext(mem = memory): Promise<DiagnosticChatSnapshot> {
+  const output: DiagnosticChatSnapshot = { threads: [], error: null, messageCount: 0 };
+  try {
+    const listed = await (mem as unknown as { listThreads(args: unknown): Promise<{ threads: Array<{ id: string; metadata?: unknown }> }> }).listThreads({
+      filter: { resourceId: CHAT_RESOURCE_ID }, perPage: false,
+    });
+    const threads = [...listed.threads].sort((a, b) => {
+      const left = parseThreadGeneration(a.id);
+      const right = parseThreadGeneration(b.id);
+      if (left.base !== right.base) return left.base.localeCompare(right.base);
+      return left.gen - right.gen || a.id.localeCompare(b.id);
+    });
+    for (const thread of threads) {
+      try {
+        const recalled = await mem.recall({ threadId: thread.id });
+        const messages = recalled.messages ?? [];
+        const metadata = thread.metadata && typeof thread.metadata === "object" ? thread.metadata as Record<string, unknown> : {};
+        const prompt = typeof metadata.raceiqSystemPrompt === "string" ? metadata.raceiqSystemPrompt : null;
+        output.threads.push({ thread, messages, systemPrompt: prompt, systemPromptUnavailable: prompt === null });
+        output.messageCount += messages.length;
+      } catch (error) {
+        output.threads.push({ thread, messages: [{ type: "ai-chat-thread-error", error: String(error) }], systemPrompt: null, systemPromptUnavailable: true });
+      }
+    }
+  } catch (error) {
+    output.error = String(error);
+  }
+  return output;
+}
+
 /**
  * Map app settings (aiProvider + aiModel) to a Mastra model ID string.
  * Mastra uses the format "provider/model-name".

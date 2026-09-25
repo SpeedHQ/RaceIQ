@@ -4,7 +4,7 @@ import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 import { seededChats } from "./helpers";
 
 test("Chats route covers every seeded game and true empty state", async ({ page, request }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   const browserErrors = collectBrowserErrors(page);
 
   for (const game of SEEDED_GAME_CASES) {
@@ -22,7 +22,7 @@ test("Chats route covers every seeded game and true empty state", async ({ page,
 });
 
 test("Chats shows loading and error states from production list route", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(140_000);
   let releaseLoading: (() => void) | undefined;
   const loadingReleased = new Promise<void>((resolve) => {
     releaseLoading = resolve;

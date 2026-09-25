@@ -16,6 +16,8 @@ import {
   hasRecordedOutline as sharedHasRecordedOutline,
 } from "../../../shared/racing/tracks/recording/outlines";
 import { loadSharedBoundary } from "../../../shared/racing/tracks/geometry/shared";
+import { getLMUTrackBoundaries } from "../../../shared/games/lmu/track-boundaries";
+import { decodeTrackKey, OrdinalKeyParamSchema } from "./support";
 import {
   calibrateFromPositions,
   clearCurbRefinement,
@@ -140,37 +142,52 @@ export const trackGeometryRoutes = new Hono()
 
   // GET /api/track-boundaries/:ordinal — track boundary edges (left/right + pit lane)
   .get("/api/track-boundaries/:ordinal",
-    zValidator("param", OrdinalParamSchema),
+    zValidator("param", OrdinalKeyParamSchema),
     zValidator("query", GameIdQuerySchema),
     async (c) => {
-      const { ordinal } = c.req.valid("param");
-      const gameId = c.req.query("gameId");
-      const sharedName = getSharedTrackName(ordinal, gameId);
-
-      // Try extracted boundaries first (game-specific coordinates)
+      const { ordinal: rawTrackKey } = c.req.valid("param");
       const { gameId: validGameId } = c.req.valid("query");
-
       if (!validGameId) return c.json({ error: "gameId query parameter is required" }, 400);
-
+      if (validGameId === "lmu") {
+        const boundaries = getLMUTrackBoundaries(decodeTrackKey(rawTrackKey));
+        return c.json(boundaries ? {
+          ...boundaries,
+          raceLine: null,
+          coordSystem: "lmu",
+        } : null);
+      }
+      const ordinal = Number(rawTrackKey);
+      if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
+      const sharedName = getSharedTrackName(ordinal, validGameId);
       const extractedBoundaries = getTrackBoundariesByOrdinal(ordinal, validGameId);
       if (extractedBoundaries) {
-        const minLen = Math.min(extractedBoundaries.leftEdge.length, extractedBoundaries.rightEdge.length);
-        const centerLine: { x: number; z: number }[] = [];
-        for (let i = 0; i < minLen; i++) {
-          centerLine.push({
-            x: (extractedBoundaries.leftEdge[i].x + extractedBoundaries.rightEdge[i].x) / 2,
-            z: (extractedBoundaries.leftEdge[i].z + extractedBoundaries.rightEdge[i].z) / 2,
-          });
+        let leftEdge = extractedBoundaries.leftEdge;
+        let rightEdge = extractedBoundaries.rightEdge;
+        let centerLine = extractedBoundaries.centerLine;
+        let pitLane = extractedBoundaries.pitLane;
+        if (!centerLine?.length) {
+          const minLen = Math.min(leftEdge.length, rightEdge.length);
+          centerLine = [];
+          for (let i = 0; i < minLen; i++) {
+            centerLine.push({
+              x: (leftEdge[i].x + rightEdge[i].x) / 2,
+              z: (leftEdge[i].z + rightEdge[i].z) / 2,
+            });
+          }
         }
+
+        // LMU returns above using canonical string identity. Numeric games may
+        // align extracted boundaries through their existing ordinal pipeline.
+
         return c.json({
-          leftEdge: extractedBoundaries.leftEdge,
-          rightEdge: extractedBoundaries.rightEdge,
+          leftEdge,
+          rightEdge,
           centerLine,
           // Game reference racing line, if the game shipped one (ACC/AC Evo only).
           // A driving line, not track geometry — the analyse map may draw it as an
           // overlay on top of leftEdge/rightEdge. Null for every other game.
           raceLine: getTrackRacelineByOrdinal(ordinal, validGameId),
-          pitLane: extractedBoundaries.pitLane,
+          pitLane,
           coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });
       }

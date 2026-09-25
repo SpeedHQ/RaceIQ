@@ -1,4 +1,4 @@
-import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords } from "./framing";
+import { gunzipBuffer, META_FRAME_MAGIC, SEGMENT_BOUNDARY_MAGIC, SEGMENT_BOUNDARY_VERSION, SEGMENT_CONTEXT_MAGIC, SEGMENT_CONTEXT_VERSION, SEGMENT_CONTEXT_END_MAGIC, iterateSessionFrameRecords, type SessionCaptureRecord } from "./framing";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
@@ -54,14 +54,13 @@ export function setCaptureFileFactoryForTest(factory: CaptureFileFactory | null)
   captureFileFactory = factory ?? ((path) => Bun.file(path));
 }
 function key(source: SessionCaptureSource): string { return `${source.rawFile}\0${source.source ?? ""}\0${source.gameId}\0${source.carOrdinal}\0${source.trackOrdinal}`; }
-
 /**
- * Iterate capture frames without materializing the compressed or decompressed
+ * Iterate capture records without materializing the compressed or decompressed
  * session. Report offsets in the decompressed stream, matching lap metadata.
  */
-export async function* iterateSessionCaptureFrames(
+export async function* iterateSessionCaptureRecordsFromSource(
   source: SessionCaptureSource,
-): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer }> {
+): AsyncGenerator<SessionCaptureRecord> {
   if (source.rawFile.endsWith(".motec.zip")) {
     throw new Error("Motec source archives expose canonical packets, not BIN frames");
   }
@@ -98,7 +97,10 @@ export async function* iterateSessionCaptureFrames(
           if (pending.length < 8 + metaLength) break;
           const magic = metaLength >= 4 ? pending.readUInt32LE(8) : null;
           const version = metaLength >= 8 ? pending.readUInt32LE(12) : null;
-          if ((offset === 0 && metaLength === 4) ||
+          if (metaLength === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) yield { kind: "segment-boundary", offset };
+          else if (metaLength === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset };
+          else if (metaLength === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context-end", offset };
+          else if ((offset === 0 && metaLength === 4) ||
             (metaLength === 8 && ((magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) ||
               ((magic === SEGMENT_CONTEXT_MAGIC || magic === SEGMENT_CONTEXT_END_MAGIC) && version === SEGMENT_CONTEXT_VERSION)))) {
             prefixOffset = undefined;
@@ -115,7 +117,7 @@ export async function* iterateSessionCaptureFrames(
         const frame = pending.subarray(4, 4 + frameLength);
         pending = pending.subarray(4 + frameLength);
         offset += 4 + frameLength;
-        yield { offset: frameOffset, prefixOffset: prefixOffset ?? frameOffset, frame };
+        yield { kind: "frame", offset: frameOffset, frame, prefixOffset: prefixOffset ?? frameOffset };
         prefixOffset = undefined;
       }
     }
@@ -125,6 +127,14 @@ export async function* iterateSessionCaptureFrames(
     } finally {
       reader.releaseLock();
     }
+  }
+}
+
+export async function* iterateSessionCaptureFrames(
+  source: SessionCaptureSource,
+): AsyncGenerator<{ offset: number; prefixOffset: number; frame: Buffer }> {
+  for await (const record of iterateSessionCaptureRecordsFromSource(source)) {
+    if (record.kind === "frame") yield record;
   }
 }
 export async function loadSessionSource(source: SessionCaptureSource): Promise<LoadedSessionSource> {

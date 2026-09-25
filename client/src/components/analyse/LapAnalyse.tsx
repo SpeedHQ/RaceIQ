@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { routePrefixForGameId } from "../../lib/game-routes";
+import { resolveLMUCar } from "../../../../shared/games/lmu/catalog";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
@@ -23,14 +25,15 @@ import { buildExportCsv } from "../../lib/lap-export";
 
 // ── Main Component ───────────────────────────────────────────────────
 
-export function LapAnalyse({ sessionId }: { sessionId?: number } = {}) {
-  return <LapAnalyseInner sessionId={sessionId} />;
+export function LapAnalyse({ sessionId, initialLapId }: { sessionId?: number; initialLapId?: number } = {}) {
+  return <LapAnalyseInner sessionId={sessionId} initialLapId={initialLapId} />;
 }
 
-function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
+function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; initialLapId?: number }) {
   const search = useSearch({ strict: false }) as AnalyseSearch;
   const units = useUnits();
   const gameId = useRequiredGameId();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
     setLaps,
@@ -74,9 +77,11 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
     trackName,
     handleTrackChange,
     handleCarChange,
-    selectLap,
     cursorRef,
-  } = useAnalyseSelections(search, gameId);
+  } = useAnalyseSelections(initialLapId == null ? search : { ...search, lap: initialLapId }, gameId, sessionId);
+  const lmuCarClass = gameId === "lmu" && selectedLap?.carId != null
+    ? resolveLMUCar(String(selectedLap.carId))?.class
+    : undefined;
   const hasRacingLine = Array.isArray(boundaries?.raceLine) && boundaries.raceLine.length > 1;
   const effectiveTrackOverlays = hasRacingLine ? trackOverlays : { ...trackOverlays, racingLine: false };
   const loading = lapLoading;
@@ -266,7 +271,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", selectedLap?.carOrdinal],
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
-    enabled: !!selectedLap?.carOrdinal,
+    enabled: gameId !== "lmu" && !!selectedLap?.carOrdinal,
   });
   const { data: persistedF1Setup } = useQuery<{ setup: F1CarSetup | null }>({
     queryKey: ["lap-setup", gameId, selectedLapId],
@@ -306,9 +311,12 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
     onSuccess: () => {
       setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
+      if (sessionId != null) {
+        const routePrefix = routePrefixForGameId(gameId);
+        if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never, replace: true });
+      }
     },
   });
-
   const handleDeleteLap = useCallback(() => {
     if (!selectedLapId) return;
     const lap = filteredLaps.find((candidate) => candidate.id === selectedLapId);
@@ -343,21 +351,25 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
   }, [f1Setup]);
   const { exportingBin, importingBin, ownership, setOwnership, importResult, ibtPreview, handleExportBin, handleImportBin, handleCancelIbt, handleCommitIbt, setImportResult } = useAnalyseImports({
     queryClient,
-    gameId,
-    selectLap,
   });
 
-  const navigate = useNavigate();
-  const handleBackToSession = useCallback(
-    () => void navigate({ to: sessionId != null ? "." : "..", ...(sessionId != null ? { search: {} } : {}) } as never),
-    [navigate, sessionId],
-  );
+  const handleBackToSessions = useCallback(() => {
+    const routePrefix = routePrefixForGameId(gameId);
+    if (routePrefix) void navigate({ to: `/${routePrefix}/sessions` as never });
+  }, [gameId, navigate]);
+  const analyseSessionId = sessionId ?? selectedLap?.sessionId;
+  const handleAnalyseSession = useCallback(() => {
+    const routePrefix = routePrefixForGameId(gameId);
+    if (routePrefix && analyseSessionId != null) void navigate({ to: `/${routePrefix}/sessions/${analyseSessionId}/analyse` as never });
+  }, [analyseSessionId, gameId, navigate]);
   return (
     <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
         gameId={gameId}
-        onBack={handleBackToSession}
+        onBack={handleBackToSessions}
+        sessionFocused={sessionId != null}
+        onAnalyseSession={analyseSessionId != null ? handleAnalyseSession : undefined}
         onExport={() =>
           buildExportCsv(
             semanticFrames.map((frame) => frame.values),
@@ -406,6 +418,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
           topSectionProps={{
             semanticFrames,
             gameId,
+            lmuCarClass,
             topHeight,
             leftColWidth,
             rightColWidth,
@@ -467,6 +480,7 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
           chartsPanelRef={chartsPanelRef}
           dataPanelProps={{
             sidebarTab,
+            packetNumber: cursorIdx + 1,
             onSidebarTabChange: setSidebarTab,
             currentFrame,
             startFuel: semanticNumber(semanticFrames[0], "fuel.fuel") ?? undefined,
@@ -506,7 +520,6 @@ function LapAnalyseInner({ sessionId }: { sessionId?: number }) {
         onCancelIbt={handleCancelIbt}
         importResult={importResult}
         gameId={gameId}
-        selectLap={selectLap}
         onCloseImport={() => setImportResult(null)}
       />
     </div>

@@ -12,8 +12,8 @@ interface ImportedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: number | string;
+  trackId: number | string;
 }
 
 interface ImportResult {
@@ -39,18 +39,13 @@ export function ImportDumpPanel() {
   const navigate = useNavigate();
 
   const openInAnalyse = (lap: ImportedLap) => {
-    if (!result || lap.trackOrdinal <= 0 || lap.carOrdinal <= 0) return;
-    // Route is /{routePrefix}/sessions/replay with ?track&car&lap search params
+    if (!result || lap.sessionId == null || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)) return;
     navigate({
-      to: `/${result.routePrefix}/sessions/replay`,
-      search: {
-        track: lap.trackOrdinal || undefined,
-        car: lap.carOrdinal || undefined,
-        lap: lap.lapId,
-      },
+      to: `/${result.routePrefix}/sessions/${lap.sessionId}/replay/${lap.lapId}`,
     });
   };
 
+  const hasIdentity = (value: number | string) => typeof value === "string" ? value.length > 0 : value > 0;
   const handleSelect = (f: File | null) => {
     setFile(f);
     setResult(null);
@@ -187,12 +182,12 @@ export function ImportDumpPanel() {
                     </div>
                     <Button
                       type="button"
-                      disabled={lap.trackOrdinal <= 0 || lap.carOrdinal <= 0}
-                      title={lap.trackOrdinal <= 0 || lap.carOrdinal <= 0 ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      disabled={!lap.sessionId || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)}
+                      title={!lap.sessionId ? "Analyse unavailable: session missing" : !hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Analyse unavailable: track/car identity unresolved" : undefined}
                       onClick={() => openInAnalyse(lap)}
                       className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity"
                     >
-                      {lap.trackOrdinal <= 0 || lap.carOrdinal <= 0 ? "Identity unavailable" : m.dev_open_analyse()}
+                      {!lap.sessionId ? "Session unavailable" : !hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Identity unavailable" : m.dev_open_analyse()}
                     </Button>
                   </div>
                 ))}

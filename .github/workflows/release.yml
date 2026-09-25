@@ -96,7 +96,7 @@ jobs:
       - name: Patch PE version info (ProductName)
         run: bun scripts/ci/workflow-ops.ts patch-pe
 
-      - name: Copy libsql native addon
+      - name: Copy native addons
         run: bun scripts/ci/workflow-ops.ts copy-addon
 
 

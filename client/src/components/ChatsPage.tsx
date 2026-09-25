@@ -1,22 +1,20 @@
-import { getGameRoute } from "../stores/game";
+import { getGameRoute, useGameId } from "../stores/game";
 import { useNavigate } from "@tanstack/react-router";
 import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import { useGameId } from "../stores/game";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 
 interface LapSummary {
   id: number;
+  sessionId: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
   carName: string;
   trackName: string;
-  trackOrdinal: number | null;
-  carOrdinal: number | null;
   gameId: string;
 }
 interface TuneSummary {
@@ -36,7 +34,6 @@ interface ChatRow {
   createdAt: string;
   updatedAt: string;
 }
-
 function formatLapTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds - m * 60;
@@ -57,7 +54,6 @@ function formatRelative(iso: string): string {
   if (day < 30) return `${day}d ${m.home_days_ago()}`;
   return new Date(iso).toLocaleDateString(getLocale());
 }
-
 export function ChatsPage() {
   const gameId = useGameId();
   const navigate = useNavigate();
@@ -104,10 +100,10 @@ export function ChatsPage() {
       if (!routePrefix) return;
       if (row.type === "analyse" && row.laps[0]) {
         const lap = row.laps[0];
-        if (lap.trackOrdinal == null || lap.carOrdinal == null) return;
+        if (lap.sessionId == null) return;
         navigate({
-          to: `${routePrefix}/sessions/replay` as never,
-          search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id, ai: 1 } as never,
+          to: `${routePrefix}/sessions/${lap.sessionId}/replay/${lap.id}` as never,
+          search: { ai: 1 } as never,
         });
       } else if (row.type === "compare" && row.laps.length === 2) {
         const [a, b] = row.laps;
@@ -130,7 +126,6 @@ export function ChatsPage() {
     },
     [navigate],
   );
-
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
       <div className="flex items-center gap-2 shrink-0">
@@ -138,10 +133,8 @@ export function ChatsPage() {
         <h1 className="text-app-title font-semibold text-app-text">{m.chats_title()}</h1>
         <span className="text-app-label text-app-text-muted">({rows.length})</span>
       </div>
-
       {loading && <div className="text-app-text-muted text-app-subtext">{m.common_loading()}</div>}
       {error && <div className="text-status-danger text-app-subtext">{error}</div>}
-
       {!loading && !error && rows.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-dim">
           <Sparkles className="size-6 text-app-text-dim" />
@@ -149,7 +142,6 @@ export function ChatsPage() {
           <p className="text-app-subtext text-app-text-muted">{m.chats_empty_desc()}</p>
         </div>
       )}
-
       {!loading && rows.length > 0 && (
         <div className="flex-1 min-h-0 overflow-auto">
           <Table fit>
@@ -159,72 +151,40 @@ export function ChatsPage() {
               <TH nowrap>{m.chats_col_cars()}</TH>
               <TH nowrap>{m.chats_col_laps()}</TH>
               <TH nowrap>{m.chats_col_updated()}</TH>
-              <TH align="end" nowrap>
-                {m.label_actions()}
-              </TH>
+              <TH align="end" nowrap>{m.label_actions()}</TH>
             </THead>
             <TBody>
               {rows.map((row) => (
                 <TRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
                   <TD>
-                    <span
-                      className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        row.type === "compare"
-                          ? "bg-status-info/15 text-status-info border border-status-info/30"
-                          : row.type === "tune"
-                            ? "bg-status-success/15 text-status-success border border-status-success/30"
-                            : "bg-status-warning/15 text-status-warning border border-status-warning/30"
-                      }`}
-                    >
+                    <span className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${row.type === "compare" ? "bg-status-info/15 text-status-info border border-status-info/30" : row.type === "tune" ? "bg-status-success/15 text-status-success border border-status-success/30" : "bg-status-warning/15 text-status-warning border border-status-warning/30"}`}>
                       {row.type === "tune" ? "setup" : row.type}
                     </span>
                   </TD>
-                  <TD tone="primary" nowrap truncate="wide">
-                    {row.trackName || "—"}
-                  </TD>
+                  <TD tone="primary" nowrap truncate="wide">{row.trackName || "—"}</TD>
                   <TD>
-                    {row.type === "tune" && row.tune ? (
-                      <span className="block truncate max-w-[180px]">{row.tune.carName || "—"}</span>
-                    ) : (
-                      row.laps.map((l, lapIndex) => (
-                        <div key={`${row.threadId}:${l.id}`} className="flex items-center gap-1.5">
-                          {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${lapIndex === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
-                          <span className="truncate max-w-[180px]">{l.carName}</span>
-                        </div>
-                      ))
-                    )}
+                    {row.type === "tune" && row.tune ? <span className="block truncate max-w-[180px]">{row.tune.carName || "—"}</span> : row.laps.map((l, lapIndex) => (
+                      <div key={`${row.threadId}:${l.id}`} className="flex items-center gap-1.5">
+                        {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${lapIndex === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
+                        <span className="truncate max-w-[180px]">{l.carName}</span>
+                      </div>
+                    ))}
                   </TD>
                   <TD numeric>
-                    {row.type === "tune" && row.tune ? (
-                      <span className="block truncate max-w-[220px]">
-                        #{row.tune.seq} — {row.tune.name}
-                      </span>
-                    ) : (
-                      row.laps.map((l) => (
-                        <div key={`${row.threadId}:${l.id}-lap-${l.lapNumber}`}>
-                          {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
-                          {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
-                        </div>
-                      ))
-                    )}
+                    {row.type === "tune" && row.tune ? <span className="block truncate max-w-[220px]">#{row.tune.seq} — {row.tune.name}</span> : row.laps.map((l) => (
+                      <div key={`${row.threadId}:${l.id}-lap-${l.lapNumber}`}>
+                        {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
+                        {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
+                      </div>
+                    ))}
                   </TD>
-                  <TD tone="muted" nowrap>
-                    {formatRelative(row.updatedAt)}
-                  </TD>
+                  <TD tone="muted" nowrap>{formatRelative(row.updatedAt)}</TD>
                   <TD align="end">
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        onClick={() => handleOpen(row)}
-                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
-                        title={m.chats_open()}
-                      >
+                      <Button onClick={() => handleOpen(row)} className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text" title={m.chats_open()}>
                         <ExternalLink className="size-3" /> {m.chats_open()}
                       </Button>
-                      <Button
-                        onClick={() => handleDelete(row.threadId)}
-                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
-                        title={m.chats_delete_title()}
-                      >
+                      <Button onClick={() => void handleDelete(row.threadId)} className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger" title={m.chats_delete_title()}>
                         <Trash2 className="size-3" />
                       </Button>
                     </div>

@@ -65,6 +65,7 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
   const sourcePaths = sources(mapping);
   const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
   const canonicalUnit = variable.canonicalUnit.trim().toLowerCase();
+  const reading = {} as SourceReading;
   if (variable.id === "tire.temperature.surface.representative" && nativeUnit === "°f" && canonicalUnit === "°c") {
     const reader = readerFor(variable, mapping);
     if (!reader) return undefined;
@@ -81,7 +82,17 @@ export function trustedNativeExecutor(variable: TelemetryVariableDefinition, map
       return sourceReading;
     };
   }
-  const reading = {} as SourceReading;
+  if (variable.id === "session.session-type" && nativeUnit === "text") {
+    return (frame, context) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value === "string" && value.length > 0) {
+          return setReading(reading, context, mapping, source, value);
+        }
+      }
+      return undefined;
+    };
+  }
   if (variable.id === "fuel.fuel-percent" && nativeUnit === "fraction") {
     return (frame, context) => {
       for (const source of sourcePaths) {

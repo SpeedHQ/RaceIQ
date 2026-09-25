@@ -114,7 +114,6 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
     viewport: { width: 900, height: 700 },
     clickLabel: "Open note",
     readyRole: "dialog",
-    waitForVisualReady: false,
   },
   {
     name: "ReusablePanelSectionHeader",

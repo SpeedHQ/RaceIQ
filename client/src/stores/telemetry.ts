@@ -107,6 +107,8 @@ export interface ServerStatus {
     id: number;
     carOrdinal: number;
     trackOrdinal: number;
+    carId: number | string;
+    trackId: number | string;
   } | null;
 }
 

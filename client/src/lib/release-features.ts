@@ -35,5 +35,5 @@ export async function loadClientReleaseFeatures(fetcher: typeof fetch = fetch): 
   } catch (error) {
     console.error("Failed to bootstrap runtime feature flags:", error);
   }
-  return clientReleaseFeatures;
+  return resolvedClientReleaseFeatures;
 }

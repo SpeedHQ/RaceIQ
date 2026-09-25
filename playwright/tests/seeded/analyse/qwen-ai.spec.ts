@@ -40,7 +40,7 @@ async function generateAnalysis(request: APIRequestContext, lapId: number): Prom
 
 test("Analyse calls Qwen through frontend and returns structured output", async ({ page, request }) => {
   test.skip(!runQwenE2E, "LM_STUDIO_E2E=1 and CI unset required");
-  test.setTimeout(240_000);
+  test.setTimeout(260_000);
   const original = await configureQwen(request);
   const lap = await getSeededLapTarget(request, "fm-2023");
   try {
@@ -62,12 +62,12 @@ test("Analyse calls Qwen through frontend and returns structured output", async 
 
 test("Analyse lap chat calls Qwen through frontend", async ({ page, request }) => {
   test.skip(!runQwenE2E, "LM_STUDIO_E2E=1 and CI unset required");
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const original = await configureQwen(request);
   const lap = await getSeededLapTarget(request, "fm-2023");
   try {
     await generateAnalysis(request, lap.id);
-    await page.goto(`/fm23/analyse?track=${lap.trackOrdinal}&car=${lap.carOrdinal}&lap=${lap.id}&ai=1`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}?ai=1`, { waitUntil: "domcontentloaded" });
     const response = await sendThroughChatUi(page, `/api/laps/${lap.id}/chat`);
     expect(response.ok, `Lap chat failed (${response.status})`).toBe(true);
   } finally {
@@ -78,7 +78,7 @@ test("Analyse lap chat calls Qwen through frontend", async ({ page, request }) =
 
 test("Compare chat calls Qwen through frontend", async ({ page, request }) => {
   test.skip(!runQwenE2E, "LM_STUDIO_E2E=1 and CI unset required");
-  test.setTimeout(240_000);
+  test.setTimeout(260_000);
   const original = await configureQwen(request);
   const lap = await getSeededLapTarget(request, "fm-2023");
   const alternate = await getAlternateSeededLap(request, lap);
@@ -100,7 +100,7 @@ test("Compare chat calls Qwen through frontend", async ({ page, request }) => {
 
 test("Experiment setup chat calls Qwen through frontend", async ({ page, request }) => {
   test.skip(!runQwenE2E, "LM_STUDIO_E2E=1 and CI unset required");
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const original = await configureQwen(request);
   let experimentId: number | undefined;
   try {

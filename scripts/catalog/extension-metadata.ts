@@ -196,6 +196,15 @@ const EXTENSION_ALIASES: Record<string, string> = {
   "iracing.competitors[].trackLocation": "race.competitor.track-location",
   "iracing.competitors[].lastLapTime": "timing.competitor.last-lap-time",
   "iracing.competitors[].bestLapTime": "timing.competitor.best-lap-time",
+  "lmu.sessionType": "session.session-type",
+  "lmu.sessionTypeOrdinal": "session.session-type-ordinal",
+  "lmu.trackLengthM": "timing.track-length",
+  "lmu.lapDistanceM": "timing.distance-traveled",
+  "lmu.lapDistancePct": "timing.lap-fraction",
+  "lmu.currentSectorIndex": "timing.sector.current-index",
+  "lmu.inPits": "race.on-pit-road",
+  "lmu.tcLevel": "electronics.traction-control-level",
+  "lmu.absLevel": "electronics.abs-level",
 };
 
 const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> = {
@@ -463,6 +472,47 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "iracing.sectorStarts": {
     unit: "fraction",
     description: "Variable-length sector start fractions parsed from SessionInfo SplitTimeInfo.",
+    freshness: "session-update",
+  },
+  "lmu.trackLengthM": {
+    unit: "m",
+    description: "LMU track length retained from scoring telemetry.",
+    freshness: "session-update",
+  },
+  "lmu.lapDistanceM": {
+    unit: "m",
+    description: "LMU player distance around current lap.",
+  },
+  "lmu.lapDistancePct": {
+    unit: "fraction",
+    description: "LMU player lap distance normalized to 0-1.",
+  },
+  "lmu.currentSectorIndex": {
+    unit: "count",
+    description: "LMU current zero-based sector index.",
+  },
+  "lmu.inPits": {
+    unit: "boolean",
+    description: "LMU player vehicle is between pit entrance and pit exit.",
+  },
+  "lmu.tcLevel": {
+    unit: "count",
+    description: "LMU traction-control setting level.",
+  },
+  "lmu.absLevel": {
+    unit: "count",
+    description: "LMU anti-lock brake setting level.",
+  },
+  "lmu.sessionType": {
+    unit: "text",
+    description: "LMU session type normalized from ScoringInfo.session.",
+    kind: "normalized",
+    normalization: "map LMU session ordinal to stable session label",
+    freshness: "session-update",
+  },
+  "lmu.sessionTypeOrdinal": {
+    unit: "enum",
+    description: "Native LMU ScoringInfo.session ordinal.",
     freshness: "session-update",
   },
 };

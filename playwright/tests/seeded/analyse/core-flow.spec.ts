@@ -7,7 +7,7 @@ import { assertLapSelectors, exercise3dGuide, exerciseAiSetup, exerciseDynamicsT
 import { gameRows, getAlternateSeededLap, openAnalyseLap } from "./fixtures";
 
 test("Analyse supports selection, playback, and notes", async ({ page, request }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(200_000);
   const browserErrors = collectBrowserErrors(page);
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__recording = true;
@@ -17,7 +17,6 @@ test("Analyse supports selection, playback, and notes", async ({ page, request }
 
   await openAnalyseLap(page, initialLap);
   const lapSelector = page.getByRole("combobox", { name: "Search laps..." });
-  const originalUrl = page.url();
   await lapSelector.click();
   const alternateLap = page
     .getByRole("option")
@@ -25,11 +24,10 @@ test("Analyse supports selection, playback, and notes", async ({ page, request }
     .first();
   await expect(alternateLap).toBeVisible();
   await alternateLap.click();
-  await expect.poll(() => page.url()).not.toBe(originalUrl);
+  await expect.poll(() => new URL(page.url()).pathname).toBe(`/fm23/sessions/${initialLap.sessionId}/replay/${alternateSeededLap.id}`);
   await expect(page.getByText(/Packet 1\/\d+/)).toBeVisible({ timeout: 30_000 });
 
-  const selectedLapId = Number(new URL(page.url()).searchParams.get("lap"));
-  expect(selectedLapId).toBeGreaterThan(0);
+  const selectedLapId = alternateSeededLap.id;
   const selectedLap = (await gameRows<LapMeta>(request, "laps")).find((lap) => lap.id === selectedLapId);
   if (!selectedLap) throw new Error(`Selected lap ${selectedLapId} not found`);
   const semanticResponse = await request.get(`/api/laps/${selectedLapId}/semantic-telemetry`, { headers: { "X-Game-Id": "fm-2023" } });

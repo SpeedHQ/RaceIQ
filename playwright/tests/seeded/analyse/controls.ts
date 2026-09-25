@@ -3,15 +3,16 @@ import { setAnalyseFrame } from "../../support/seeded/analyse";
 
 type SemanticFrame = { values: Record<string, unknown> };
 export async function assertLapSelectors(page: Page, expectedLapNumber?: number): Promise<void> {
-  for (const placeholder of ["Search tracks...", "Search cars..."]) {
-    const selector = page.getByRole("combobox", { name: placeholder });
-    await selector.click();
-    await expect(page.getByRole("option", { selected: true }).first()).toBeVisible();
-    await selector.press("Escape");
-  }
+  // Session replay fixes track and car; only laps in that session can change.
+  await expect(page.getByRole("combobox", { name: "Search tracks..." })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Search cars..." })).toHaveCount(0);
+  const lapSelector = page.getByRole("combobox", { name: "Search laps..." });
   if (expectedLapNumber != null) {
-    await expect(page.getByRole("combobox", { name: "Search laps..." })).toHaveValue(new RegExp(`^Lap ${expectedLapNumber}\\b`));
+    await expect(lapSelector).toHaveValue(new RegExp(`^Lap ${expectedLapNumber}\\b`));
   }
+  await lapSelector.click();
+  await expect(page.getByRole("option", { selected: true }).first()).toBeVisible();
+  await lapSelector.press("Escape");
 }
 
 export async function assertTuneSelector(page: Page): Promise<void> {
@@ -140,10 +141,8 @@ export async function exercise3dGuide(page: Page, assertClosed = true): Promise<
   await page.getByRole("tab", { name: "2D", exact: true }).click();
   const activeVizPanel = page.getByRole("tabpanel", { name: "2D" });
   await expect(activeVizPanel).toBeVisible();
-  await expect(activeVizPanel.getByText(/\d+\s+(mph|km\/h)/i).first()).toBeVisible();
-  await expect(activeVizPanel.locator("svg")).toHaveCount(4);
-  await expect(activeVizPanel.locator("canvas")).toHaveCount(2);
-  await expect(activeVizPanel.getByText("FL", { exact: true })).toBeVisible();
+  await expect(activeVizPanel.getByRole("img", { name: /^FL (?:surface|core|carcass):/ })).toBeVisible();
+  await expect(activeVizPanel.getByRole("img", { name: /^RR (?:surface|core|carcass):/ })).toBeVisible();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
   const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });

@@ -13,7 +13,7 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
-import type { ILapDetector, LapDetectorOptions } from "./types";
+import type { ILapDetector, LapDetectorOptions, LapDetectorPolicy } from "./types";
 import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/recording/curbs";
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
@@ -26,10 +26,19 @@ import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "../lap-analysis/sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./boundaries";
 import { logger } from "../runtime/logger";
+import type { SessionIdentity } from "../telemetry/pipeline-ports";
 
 function traceCapture(game: string, event: string, fields: Record<string, unknown>): void {
   logger.trace({ component: "capture", event, game, ...fields }, "Lap capture trace");
 }
+const DEFAULT_LAP_POLICY: LapDetectorPolicy = {
+  resolveLapTime(_packets, newLapFirstPacket) {
+    return newLapFirstPacket.LastLap > 0 ? newLapFirstPacket.LastLap : 0;
+  },
+  classifyPitCycle(packets) {
+    return classifyPitCycleLap(packets);
+  },
+};
 
 function mergePitCycleReason(
   current: PitCycleReason | null,
@@ -48,6 +57,8 @@ export interface SessionState {
   carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
+  carId?: string;
+  trackId?: string;
   bestLapTime: number; // best valid lap time in current session (0 = none yet)
 }
 
@@ -90,9 +101,9 @@ export interface LapCompleteEvent {
 
 export class LapDetector implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_ID;
+  private readonly db: LapDetectorOptions["db"];
   private readonly bypassPacketRateFilter: boolean;
-  private db: LapDetectorOptions["db"];
-
+  private readonly lapPolicy: LapDetectorPolicy;
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
@@ -100,6 +111,7 @@ export class LapDetector implements ILapDetector {
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
     this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
+    this.lapPolicy = opts.policy ?? DEFAULT_LAP_POLICY;
     this.onSessionStart = opts.callbacks?.onSessionStart;
     this.onLapComplete_ = opts.callbacks?.onLapComplete;
     this.onLapSaved = opts.callbacks?.onLapSaved;
@@ -112,6 +124,7 @@ export class LapDetector implements ILapDetector {
   private invalidReason: string | null = null;
   private _loggedFeedOnce: boolean = false; // debug flag to log feed start once
   private lastLastLap: number = 0; // track LastLap changes for final-lap detection
+  private completedLapCount = 0;
   private lastTimestampMS: number = 0; // in-game timestamp for rewind detection
   private lastPacketTime: number = 0; // wall clock for silence timeout detection
   private recentPacketCount: number = 0; // packets in the last second
@@ -379,7 +392,13 @@ export class LapDetector implements ILapDetector {
   private async startNewSession(packet: TelemetryPacket): Promise<void> {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
-    const sessionType = packet.f1?.sessionType;
+    const sessionType = packet.f1?.sessionType ?? packet.lmu?.sessionType;
+    const identity: SessionIdentity | undefined = packet.lmu
+      ? {
+          carId: packet.lmu.carId,
+          trackId: packet.lmu.trackId,
+        }
+      : undefined;
     let sessionId: number;
     try {
       sessionId = await this.db.insertSession(
@@ -387,6 +406,9 @@ export class LapDetector implements ILapDetector {
         trackOrd,
         gameId,
         sessionType,
+        undefined,
+        undefined,
+        identity,
       );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
@@ -399,12 +421,14 @@ export class LapDetector implements ILapDetector {
       carPI: packet.CarPerformanceIndex,
       gameId,
       sessionUID: packet.sessionUID,
+      ...identity,
       bestLapTime: 0,
     };
     this.currentLapNumber = -1;
     this.lapBuffer = [];
     this.lapIsValid = true;
     this.invalidReason = null;
+    this.completedLapCount = 0;
     this.lastTimestampMS = 0;
     this._distanceAtLapStart = packet.DistanceTraveled;
     // Reset raw-file bookkeeping so lap 1 of this session doesn't inherit
@@ -463,8 +487,10 @@ export class LapDetector implements ILapDetector {
       if (this._tireWearHistory.length > 50) this._tireWearHistory.shift();
     }
 
-    // Use LastLap from the first packet of the new lap as authoritative lap time
-    const lapTime = newLapFirstPacket.LastLap;
+    const lapTime = this.lapPolicy.resolveLapTime(
+      this.lapBuffer,
+      newLapFirstPacket,
+    );
     traceCapture(this.currentSession.gameId, "lap-boundary-start", {
       sessionId: this.currentSession.sessionId,
       lapNumber: this.currentLapNumber,
@@ -513,11 +539,20 @@ export class LapDetector implements ILapDetector {
       // lap-level exclusions only after the complete lap window is available.
       const pitReason = mergePitCycleReason(
         this.currentPitCycleReason,
-        classifyPitCycleLap(this.lapBuffer),
+        this.lapPolicy.classifyPitCycle(this.lapBuffer, this.completedLapCount),
       );
+      const policyReason = this.lapPolicy.invalidReason?.(this.lapBuffer) ?? null;
       const quality = assessLapRecording(this.lapBuffer, lapTime);
-      const valid = this.lapIsValid && pitReason === null && quality.valid;
-      const invalidReason = this.invalidReason ?? pitReason ?? (!quality.valid ? quality.reason : null);
+      const valid =
+        this.lapIsValid &&
+        policyReason === null &&
+        pitReason === null &&
+        quality.valid;
+      const invalidReason =
+        this.invalidReason ??
+        policyReason ??
+        pitReason ??
+        (!quality.valid ? quality.reason : null);
       traceCapture(this.currentSession.gameId, "lap-boundary-stage", {
         sessionId: this.currentSession.sessionId,
         lapNumber: this.currentLapNumber,
@@ -624,6 +659,7 @@ export class LapDetector implements ILapDetector {
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
+      this.completedLapCount++;
     }
 
 

@@ -53,7 +53,7 @@ describe("release feature flags", () => {
     expect(isLiveEngineerSubsystemEnabled(flags, "f1-2025", "live-spotter")).toBe(false);
   });
 
-  test("parses disabled production flags", () => {
+  test("parses production rollout flags", () => {
     expect(releaseFeatureFlags(productionEnv)).toEqual({
       f1Experiments: false,
       iracingAdapter: false,
@@ -67,7 +67,7 @@ describe("release feature flags", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.production"))).toMatchObject({ liveSpotterEngineer: false, liveSpotterEngineerGameIds: ["acc"] });
   });
 
-  test("loads disabled flags from the committed production environment", () => {
+  test("loads production rollout flags from committed environment", () => {
     expect(releaseFeatureFlags(loadReleaseEnvironment("../../.env.production"))).toEqual({
       f1Experiments: false,
       iracingAdapter: false,

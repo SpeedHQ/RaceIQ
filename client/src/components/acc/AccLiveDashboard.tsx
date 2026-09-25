@@ -73,7 +73,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
 
       {/* Right column: Race (with sectors) + Charts + Recorded Laps */}
       <div data-live-dashboard-race className="overflow-auto flex flex-col">
-        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} sessionType={typeof view.session.type === "string" ? view.session.type : undefined} showTrackMap={false} showSectors={true} />
         <AccOpponentStandings competitors={view.competitors} playerCarIndex={view.identity.playerCarIndex} opponentSource={view.opponentSource} />
 
         <div className="shrink-0 h-[240px]">

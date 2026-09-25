@@ -3,6 +3,7 @@ import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
 import { type SemanticAnalysisFrame, semanticNumber } from "./track-map/types";
+import { hasTelemetryGap } from "./AnalyseTelemetryChart";
 import { m } from "../../paraglide/messages";
 
 const currentLap = (frame: SemanticAnalysisFrame): number => semanticNumber(frame, "timing.current-lap") ?? 0;
@@ -75,7 +76,7 @@ const TimelineGapHighlights = memo(function TimelineGapHighlights({ timelineData
   return timelineData.times.map((time, index) => {
     if (index === 0) return null;
     const delta = time - timelineData.times[index - 1];
-    if (delta <= 0.1) return null;
+    if (!hasTelemetryGap(timelineData.times[index - 1], time)) return null;
     const left = timelineData.timeFracs[index - 1] * 100;
     const right = timelineData.timeFracs[index] * 100;
     return (

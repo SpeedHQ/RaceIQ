@@ -55,7 +55,7 @@ export function CompareTrackMap({ outline, traces, segments, hoveredDistanceRef,
     }
     if (!gameId) return;
     client.api["track-boundaries"][":ordinal"]
-      .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
+      .$get({ param: { ordinal: encodeURIComponent(String(trackOrdinal)) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as BoundaryData)
       .then((data) => setBoundaries(data))
       .catch(() => setBoundaries(null));

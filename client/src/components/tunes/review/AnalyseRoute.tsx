@@ -33,8 +33,8 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   const hasSession = search.session != null || (nested && !hasTrack && !hasCar && !hasLap);
   const selectedSessionId = search.session ?? sessionId;
   const comparisonLapIds = parseAnalyseLapIds(search.laps);
-  const validTrack = !hasTrack || (Number.isInteger(search.track!) && search.track! > 0);
-  const validCar = !hasCar || (Number.isInteger(search.car!) && search.car! > 0);
+  const validTrack = !hasTrack || (gameId === "lmu" ? typeof search.track === "string" && search.track.length > 0 : typeof search.track === "number" && Number.isInteger(search.track) && search.track > 0);
+  const validCar = !hasCar || (gameId === "lmu" ? typeof search.car === "string" && search.car.length > 0 : typeof search.car === "number" && Number.isInteger(search.car) && search.car > 0);
   const validLap = !hasLap || (Number.isInteger(search.lap!) && search.lap! > 0);
 
   if (!validTrack || !validCar || !validLap) return <InvalidAnalyseSelection nested={nested} message="Track, car, and lap must be positive numeric selections." />;
@@ -55,5 +55,6 @@ export function AnalyseRoute({ gameId, sessionId }: { gameId: GameId; sessionId?
   if (!hasTrack && !hasCar) return <InvalidAnalyseSelection nested={nested} message="Session selection required for Analyse." />;
   if ((hasLap || hasComparison) && (!hasTrack || !hasCar)) return <InvalidAnalyseSelection nested={nested} message="A lap selection must include its track and car." />;
   if (hasLap) return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
-  return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track!} carOrdinal={search.car!} />;
+  if (gameId === "lmu") return <LapAnalyse sessionId={nested ? sessionId : undefined} />;
+  return <TrackCarAnalyseReviewPage gameId={gameId} trackOrdinal={search.track as number} carOrdinal={search.car as number} />;
 }

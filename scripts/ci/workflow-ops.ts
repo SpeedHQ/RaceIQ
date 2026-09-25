@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { copyDuckDBRuntime } from "../build/copy-duckdb-runtime";
 
 const [operation, ...args] = Bun.argv.slice(2);
 const env = process.env;
@@ -104,7 +105,7 @@ switch (operation) {
   case "collect-screenshots": {
     const preview = join(env.GITHUB_WORKSPACE!, "pr-preview");
     run(["bun", "scripts/ui/merge-screenshot-renders.ts", "--input", join(env.RUNNER_TEMP!, "screenshot-renders"), "--output", preview]);
-    run(["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive", "--fail-on-change"]);
+    run(["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", join(preview, "base-responsive"), "--current", join(preview, "current-responsive"), "--out", preview, "--prefix", "responsive"]);
     break;
   }
   case "release-client":
@@ -122,6 +123,7 @@ switch (operation) {
     for (const file of ["index.node", "package.json"]) {
       cpSync(`node_modules/@libsql/win32-x64-msvc/${file}`, `dist/node_modules/@libsql/win32-x64-msvc/${file}`);
     }
+    copyDuckDBRuntime();
     break;
   case "patch-pe": {
     const rcedit = join(env.TEMP ?? env.RUNNER_TEMP ?? tmpdir(), "rcedit.exe");

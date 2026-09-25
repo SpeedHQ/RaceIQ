@@ -94,7 +94,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
         {/* Right column: Race (with sectors) + Lap Chart + Recorded Laps */}
         <div data-live-dashboard-race className="min-w-0 overflow-y-auto overflow-x-hidden flex flex-col">
-          <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+          <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} sessionType={typeof view.session.type === "string" ? view.session.type : undefined} showTrackMap={false} showSectors={true} />
           <div className="shrink-0 h-[240px]">
             <LapTimeChart sessionLaps={sessionLaps} />
           </div>
@@ -117,7 +117,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
       {/* Right column: Race HUD + laps */}
       <div data-live-dashboard-race className="min-w-0 overflow-auto flex flex-col">
-        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+        <RaceInfo view={view} sectors={sectors} trackName={trackName} carName={carName} sessionType={typeof view.session.type === "string" ? view.session.type : undefined} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
         </div>
