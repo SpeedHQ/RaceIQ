@@ -50,6 +50,8 @@
 - Preserve usable corner racing-line evidence on straight-heavy laps
 - Avoid treating display-scaled suspension movement as physical bottoming
 - Correct Forza steering centering in lap metrics and driver-style analysis
+- Compute missing lap insights for explicitly requested driver profiles while keeping background refresh cache-only
+- Serialize per-lap insight reruns and metric cache writes so overlapping computations cannot overwrite rerun results
 
 
 ### Internal

@@ -1,5 +1,5 @@
 import { summariseLapStyle, type LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
-import { getCachedLapInsightsBatch } from "../lap-analysis/metrics-store";
+import { getCachedLapInsightsBatch, getOrComputeLapInsightsBatch } from "../lap-analysis/metrics-store";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../shared/games/ids";
 import type { LapMeta } from "../../shared/racing/sessions/types";
@@ -11,7 +11,7 @@ import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "./trend";
 const MIN_TELEMETRY_FRAMES = 30;
 
 /** Load and reduce all driver laps for one selected game to a global fingerprint. */
-export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
+export async function loadDriverProfile(opts: { gameId: GameId; computeMissingInsights?: boolean }): Promise<DriverFingerprint> {
   const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
   const pool = await getLapMetaForProfileScope(opts.gameId);
   const trend = buildDriverTrend(pool);
@@ -22,6 +22,15 @@ export async function loadDriverProfile(opts: { gameId: GameId }): Promise<Drive
   const selected = pool.slice(0, DRIVER_TREND_WINDOW_LAPS);
   const loaded = await getLapsByIds(selected.map((lap) => lap.id));
   const insightsByLapId = await getCachedLapInsightsBatch(selected.map((lap) => lap.id));
+  if (opts.computeMissingInsights) {
+    const missing = loaded
+      .filter((lap) => !lap.parseError && lap.telemetry.length >= MIN_TELEMETRY_FRAMES && !insightsByLapId.has(lap.id))
+      .map((lap) => lap.id);
+    if (missing.length > 0) {
+      const computed = await getOrComputeLapInsightsBatch(missing);
+      for (const [id, insights] of computed) insightsByLapId.set(id, insights);
+    }
+  }
   const metaById = new Map(selected.map((lap) => [lap.id, lap]));
   const laps: LapMeta[] = [];
   const perLapInsights: LapInsight[][] = [];

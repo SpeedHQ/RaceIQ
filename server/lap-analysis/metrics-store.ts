@@ -117,8 +117,19 @@ function computeForLap(lap: NonNullable<Awaited<ReturnType<typeof getLapById>>>,
   );
 }
 
-const metricsInFlight = new Map<number, Promise<LapMetrics | null>>();
-const insightsInFlight = new Map<number, Promise<LapInsight[] | null>>();
+/** Serialize reads and writes for each lap; an explicit rerun must not lose to an older computation. */
+const lapWork = new Map<number, Promise<void>>();
+
+function withLapWork<T>(lapId: number, work: () => Promise<T>): Promise<T> {
+  const previous = lapWork.get(lapId);
+  const result = previous ? previous.then(work, work) : work();
+  const settled = result.then(() => {}, () => {});
+  lapWork.set(lapId, settled);
+  void settled.then(() => {
+    if (lapWork.get(lapId) === settled) lapWork.delete(lapId);
+  });
+  return result;
+}
 
 async function computeMissingMetrics(lapId: number, existing?: MetricsRow): Promise<LapMetrics | null> {
   const lap = await getLapById(lapId);
@@ -128,32 +139,20 @@ async function computeMissingMetrics(lapId: number, existing?: MetricsRow): Prom
   return metrics;
 }
 
-export async function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null> {
-  const pendingInsights = insightsInFlight.get(lapId);
-  if (pendingInsights) await pendingInsights;
-  const pending = metricsInFlight.get(lapId);
-  if (pending) return pending;
-  const work = (async () => {
+export function getOrComputeLapMetrics(lapId: number): Promise<LapMetrics | null> {
+  return withLapWork(lapId, async () => {
     const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
     const hit = existing ? rowToMetrics(existing) : null;
     return hit ?? computeMissingMetrics(lapId, existing);
-  })().finally(() => metricsInFlight.delete(lapId));
-  metricsInFlight.set(lapId, work);
-  return work;
+  });
 }
 
-export async function getOrComputeLapInsights(lapId: number): Promise<LapInsight[] | null> {
-  const pendingMetrics = metricsInFlight.get(lapId);
-  if (pendingMetrics) return (await pendingMetrics)?.insights ?? null;
-  const pending = insightsInFlight.get(lapId);
-  if (pending) return pending;
-  const work = (async () => {
+export function getOrComputeLapInsights(lapId: number): Promise<LapInsight[] | null> {
+  return withLapWork(lapId, async () => {
     const existing = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
     const hit = existing ? rowInsights(existing) : null;
     return hit ?? (await rerunLapInsights(lapId, existing))?.insights ?? null;
-  })().finally(() => insightsInFlight.delete(lapId));
-  insightsInFlight.set(lapId, work);
-  return work;
+  });
 }
 
 async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<LapMetrics | null> {
@@ -172,8 +171,8 @@ async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<L
   return metrics;
 }
 
-export async function recomputeLapInsights(lapId: number): Promise<LapInsight[] | null> {
-  return (await rerunLapInsights(lapId))?.insights ?? null;
+export function recomputeLapInsights(lapId: number): Promise<LapInsight[] | null> {
+  return withLapWork(lapId, async () => (await rerunLapInsights(lapId))?.insights ?? null);
 }
 
 export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map<number, LapMetrics>> {
@@ -181,8 +180,8 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   if (lapIds.length === 0) return output;
 
   const ids = [...new Set(lapIds)];
+  await Promise.all(ids.map((id) => lapWork.get(id)));
   const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
-  const rowsById = new Map(rows.map((row) => [row.lapId, row]));
   for (const row of rows) {
     const hit = rowToMetrics(row);
     if (hit) output.set(hit.lapId, hit);
@@ -194,9 +193,14 @@ export async function getOrComputeLapMetricsBatch(lapIds: number[]): Promise<Map
   const loaded = await getLapsByIds(missing);
   for (const lap of loaded) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
-    const existing = rowsById.get(lap.id);
-    const metrics = computeForLap(lap, existing ? rowInsights(existing) ?? undefined : undefined);
-    await persist(metrics);
+    const metrics = await withLapWork(lap.id, async () => {
+      const current = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
+      const hit = current ? rowToMetrics(current) : null;
+      if (hit) return hit;
+      const computed = computeForLap(lap, current ? rowInsights(current) ?? undefined : undefined);
+      await persist(computed);
+      return computed;
+    });
     output.set(lap.id, metrics);
   }
   return output;
@@ -220,8 +224,8 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
   if (lapIds.length === 0) return output;
 
   const ids = [...new Set(lapIds)];
+  await Promise.all(ids.map((id) => lapWork.get(id)));
   const rows = await db.select().from(lapMetrics).where(inArray(lapMetrics.lapId, ids)).all();
-  const rowsById = new Map(rows.map((row) => [row.lapId, row]));
   for (const row of rows) {
     const hit = rowInsights(row);
     if (hit) output.set(row.lapId, hit);
@@ -231,9 +235,15 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
   const loaded = await getLapsByIds(missing);
   for (const lap of loaded) {
     if (lap.telemetry.length === 0 || !lap.gameId) continue;
-    const insights = analyzeLapWithTrack(lap.telemetry, lap.gameId as GameId, lap.trackOrdinal);
-    if (rowsById.has(lap.id)) await persistInsights(lap.id, insights);
-    else await persist(computeForLap(lap, insights));
+    const insights = await withLapWork(lap.id, async () => {
+      const current = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
+      const hit = current ? rowInsights(current) : null;
+      if (hit) return hit;
+      const computed = analyzeLapWithTrack(lap.telemetry, lap.gameId as GameId, lap.trackOrdinal);
+      if (current) await persistInsights(lap.id, computed);
+      else await persist(computeForLap(lap, computed));
+      return computed;
+    });
     output.set(lap.id, insights);
   }
   return output;

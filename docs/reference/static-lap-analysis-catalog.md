@@ -7,7 +7,7 @@ Static lap analysis is deterministic, post-lap telemetry analysis. It emits `Lap
 - Recording does not run static detectors.
 - Opening a lap in Analyse computes missing or stale insights and persists them in `lap_metrics`.
 - Lap AI/chat, comparison, and semantic replay reuse persisted current-version insights.
-- Driver-profile refresh reads cached insights only; it never computes missing insights during recording.
+- Background driver-profile refresh reads cached insights only; explicit profile requests compute missing or stale insights.
 - Explicit backfill and rerun operations may compute insights without opening Analyse.
 - A lap needs at least one sixth of a second of usable recorded intervals.
 - F1 emits several merged snapshots per simulation tick. Analysis keeps the last consecutive same-timestamp snapshot within a session, then maps findings back to original source-frame indices.
@@ -120,7 +120,7 @@ When output changes, update detectors and focused behavioral tests, bump `STATIC
 POST /api/lap-insights/backfill
 Content-Type: application/json
 
-{"limit":100,"afterLapId":0,"force":false}
+{"limit":100,"force":false}
 ```
 
 Use returned `nextAfterLapId` for pagination. `force: false` processes missing/stale rows; `force: true` reruns selected rows.
