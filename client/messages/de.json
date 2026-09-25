@@ -1629,5 +1629,15 @@
   "analyse_ibt_rows": "{count} rows at {rate} Hz",
   "analyse_ibt_driving": "{count} on-track rows · max {speed} mph",
   "analyse_ibt_import": "Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.",
-  "analyse_choose_ownership": "Lap-Zuordnung wählen"
+  "analyse_choose_ownership": "Lap-Zuordnung wählen",
+  "label_radio": "Funk",
+  "settings_radio_desc": "Steuere Spotter- und Renningenieur-Audio.",
+  "settings_radio_spotter": "Spotter",
+  "settings_radio_spotter_desc": "Warnt, wenn ein Fahrzeug neben dir ist.",
+  "settings_radio_race_engineer": "Renningenieur",
+  "settings_radio_race_engineer_desc": "Meldet die Gegner-Pace nach abgeschlossenen Runden.",
+  "settings_radio_text_callouts": "Textmeldungen",
+  "settings_radio_text_callouts_desc": "Zeigt Gegner-Pace-Meldungen auf dem Bildschirm.",
+  "settings_radio_volume": "Funklautstärke",
+  "settings_radio_save_failed": "Funk-Einstellungen konnten nicht gespeichert werden."
 }

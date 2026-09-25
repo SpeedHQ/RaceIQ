@@ -37,6 +37,23 @@ describe("settings with unit system", () => {
     const settings = loadSettings();
     expect(settings.unit).toBe("metric");
   });
+  test("loadSettings strips obsolete opponent pace keys", () => {
+    if (!existsSync(SETTINGS_DIR)) mkdirSync(SETTINGS_DIR, { recursive: true });
+    writeFileSync(SETTINGS_PATH, JSON.stringify({
+      udpPort: 5300,
+      opponentPaceWithinPercent: 0.3,
+      opponentPaceOffPercent: 1,
+      opponentPaceOutlierPercent: 5,
+      opponentPaceCooldownMs: 60_000,
+      opponentPaceRecentLapCount: 3,
+      opponentPaceMaxQueue: 3,
+      unit: "imperial",
+    }));
+    const loaded = loadSettings() as Record<string, unknown>;
+    expect(loaded.udpPort).toBe(5300);
+    expect(loaded.unit).toBe("imperial");
+    for (const key of ["opponentPaceWithinPercent", "opponentPaceOffPercent", "opponentPaceOutlierPercent", "opponentPaceCooldownMs", "opponentPaceRecentLapCount", "opponentPaceMaxQueue"]) expect(loaded[key]).toBeUndefined();
+  });
 
   test("loadSettings migrates legacy speedUnit to unit", () => {
     if (!existsSync(SETTINGS_DIR)) mkdirSync(SETTINGS_DIR, { recursive: true });

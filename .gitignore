@@ -1,4 +1,7 @@
 node_modules/
+.venv/
+.venv-qwen/
+**/__pycache__/
 dist/
 /data/*
 !/data/diagnostics/

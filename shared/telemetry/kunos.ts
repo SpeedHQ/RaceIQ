@@ -1,3 +1,5 @@
+import type { OpponentSourceStatusV1 } from "./live/contracts";
+
 export interface KunosExtendedData {
   // Tire detail
   tireCompound: string;
@@ -80,6 +82,18 @@ export interface KunosExtendedData {
    * null = unavailable in source recording or not meaningful in pit state.
    */
   isValidLap: boolean | null;
+  /** ACC native countdown converted from milliseconds to seconds. */
+  sessionTimeRemainingSeconds?: number;
+  /** ACC shared-memory session type; does not require Broadcasting Protocol. */
+  sessionType?: string;
+  /** ACC penalty enum; never interpret as a cumulative penalty count. */
+  penaltyCode?: number;
+  /** ACC coolant temperature in degrees Celsius. */
+  waterTempC?: number;
+  /** ACC current rain enum (0..5), absent in truncated recordings. */
+  rainIntensityCode?: number;
+  gapAheadMs?: number;
+  gapBehindMs?: number;
 
   // Fuel
   fuelPerLap: number;
@@ -105,8 +119,31 @@ export interface KunosExtendedData {
    * AC Evo sessions surfaces these without a re-record.
    */
   acEvo?: AcEvoExtendedData;
+  /** Runtime-only ACC Broadcasting Protocol competitor snapshot fields. */
+  broadcastSource?: OpponentSourceStatusV1;
+  broadcastSessionIndex?: number;
+  broadcastSessionType?: string;
+  broadcastPhase?: number;
+  broadcastPlayerCarIndex?: number;
+  broadcastPlayerCarClassId?: string;
+  broadcastCarIndex?: readonly number[];
+  broadcastDriverId?: readonly string[];
+  broadcastDriverName?: readonly string[];
+  broadcastCarClassId?: readonly string[];
+  broadcastCarClassName?: readonly string[];
+  broadcastLapsComplete?: readonly number[];
+  broadcastPosition?: readonly number[];
+  broadcastPitStatus?: readonly string[];
+  broadcastTrackLocation?: readonly string[];
+  broadcastPositionX?: readonly number[];
+  broadcastPositionY?: readonly number[];
+  broadcastPositionZ?: readonly number[];
+  broadcastSpeed?: readonly number[];
+  broadcastYaw?: readonly number[];
+  broadcastLastLapTime?: readonly number[];
+  broadcastLastLapValid?: readonly boolean[];
+  broadcastConnected?: readonly boolean[];
 }
-
 export interface AcEvoExtendedData {
   // Frame identity / staleness — packet IDs increment each shm write.
   physicsPacketId: number;

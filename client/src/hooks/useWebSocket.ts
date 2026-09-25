@@ -2,9 +2,13 @@ import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import { handleWebSocketMessage } from "../lib/websocket-messages";
-import type { VersionInfo } from "../stores/telemetry";
+import { isLiveEngineerCalloutMessageV3, isLiveEngineerVoiceLineMessageV3 } from "../../../shared/racing/live/engineer-contracts";
+import type { ServerStatus, VersionInfo } from "../stores/telemetry";
 import { telemetryStore } from "../stores/telemetry";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import { devTelemetryStore } from "../stores/dev-telemetry";
+import { useLiveEngineerStore } from "../stores/live-engineer";
 import { queryKeys } from "./query-keys";
 import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
@@ -12,6 +16,19 @@ declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
 const VERSION_REQUEST_TIMEOUT_MS = 10_000;
 const RACE_RESULT_REPROCESS_ERROR = "One or more race results could not be reconciled.";
+export function flushLiveEngineerOutbound(socket: Pick<WebSocket, "readyState" | "send">): void {
+  while (socket.readyState === WebSocket.OPEN) {
+    const message = useLiveEngineerStore.getState().outbound[0];
+    if (!message) return;
+    try {
+      socket.send(JSON.stringify(message));
+    } catch {
+      return;
+    }
+    if (socket.readyState !== WebSocket.OPEN) return;
+    useLiveEngineerStore.getState().takeOutbound();
+  }
+}
 
 function fetchVersionInfo(signal: AbortSignal) {
   return client.api.version
@@ -62,12 +79,6 @@ export function useWebSocket() {
     function connect() {
       abortVersionRequest();
       // Close any existing connection before opening a new one
-      if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect loop
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-
       const devTarget = import.meta.env.DEV ? __RACEIQ_DEV_WS_TARGET__ : undefined;
       const ws = new WebSocket(buildWebSocketUrl(window.location, devTarget));
       wsRef.current = ws;
@@ -77,6 +88,7 @@ export function useWebSocket() {
       ws.onopen = () => {
         telemetryStore.actions.setConnected(true);
         startVersionRequest();
+        flushLiveEngineerOutbound(ws);
         if (devTelemetryStore.get().subscriptionWanted) {
           ws.send(JSON.stringify({ type: "subscribe", channel: "dev-telemetry" }));
         }
@@ -88,28 +100,24 @@ export function useWebSocket() {
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === "status") {
-            const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
-            telemetryStore.actions.setServerStatus(status);
-          } else if (data.type === "update-available") {
-            telemetryStore.actions.setUpdateAvailable(data.version as string);
-            startVersionRequest();
-          } else if (data.type === "update-progress") {
-            telemetryStore.actions.setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
-          } else if (data.type === "onboarding_complete") {
-            queryClient.invalidateQueries({ queryKey: ["settings"] });
-          } else if (data.type === "session-laps") {
-            telemetryStore.actions.setSessionLaps(data.laps);
-          } else if (data.type === "dev-state") {
-            telemetryStore.actions.setDevState(data);
-          } else if (data.type === "lap-saved") {
-            queryClient.invalidateQueries({ queryKey: ["laps"] });
-          } else if (data.type === "stale-lap-detection") {
+          const data = JSON.parse(event.data) as Record<string, unknown>;
+          const liveStore = useLiveEngineerStore.getState();
+          if (isLiveEngineerCalloutMessageV3(data)) liveStore.receiveCallout(data);
+          else if (isLiveEngineerVoiceLineMessageV3(data)) liveStore.receiveVoiceLine(data);
+          else if (data.type === "status") telemetryStore.actions.setServerStatus(data as unknown as ServerStatus);
+          else if (data.type === "update-available") { telemetryStore.actions.setUpdateAvailable(data.version as string); startVersionRequest(); }
+          else if (data.type === "update-progress") telemetryStore.actions.setUpdateProgress({ stage: data.stage as "complete" | "downloading" | "installing" | "reconnecting", percent: Number(data.percent ?? 0) });
+          else if (data.type === "onboarding_complete") queryClient.invalidateQueries({ queryKey: ["settings"] });
+          else if (data.type === "session-laps") telemetryStore.actions.setSessionLaps(data.laps as LapMeta[]);
+          else if (data.type === "dev-state") telemetryStore.actions.setDevState(data);
+          else if (data.type === "lap-saved") queryClient.invalidateQueries({ queryKey: ["laps"] });
+          else if (data.type === "stale-lap-detection") {
             telemetryStore.actions.setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
-          } else if (data.type === "stale-race-results") {
+          }
+          else if (data.type === "stale-race-results") {
             telemetryStore.actions.setStaleRaceResults({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
-          } else if (data.type === "race-result-reconciled") {
+          }
+          else if (data.type === "race-result-reconciled") {
             const done = data.done as number;
             const total = data.total as number;
             const failedNow = data.status === "error";
@@ -133,6 +141,12 @@ export function useWebSocket() {
             const sid = data.sessionId as number;
             queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
             queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
+          } else if (data.type === "lap-issues") {
+            telemetryStore.actions.addLapIssues({
+              lapId: data.lapId as number,
+              lapNumber: data.lapNumber as number,
+              issues: data.issues as TuneIssue[],
+            });
           } else {
             if (handleWebSocketMessage(data)) packetCountRef.current++;
           }
@@ -171,6 +185,12 @@ export function useWebSocket() {
         ws.send(JSON.stringify({ type: state.subscriptionWanted ? "subscribe" : "unsubscribe", channel: "dev-telemetry" }));
       }
     });
+    const unsubscribeLiveEngineer = useLiveEngineerStore.subscribe((state, previous) => {
+      if (state.outbound === previous.outbound) return;
+      const ws = wsRef.current;
+      if (ws) flushLiveEngineerOutbound(ws);
+    });
+
     const telemetry = telemetryStore.get();
     let previousDevStateWanted = telemetry.devStateConsumers > 0 && !telemetry.devStatePaused;
     const unsubscribeDevState = telemetryStore.subscribe((state) => {
@@ -192,6 +212,7 @@ export function useWebSocket() {
 
     return () => {
       unsubscribeDev.unsubscribe();
+      unsubscribeLiveEngineer();
       unsubscribeDevState.unsubscribe();
       clearInterval(interval);
       clearTimeout(reconnectTimeoutRef.current);

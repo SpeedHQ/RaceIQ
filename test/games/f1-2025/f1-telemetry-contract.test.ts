@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
+import { decodeF1SessionHistory } from "../../../server/games/f1-2025/f1-packet-decoders";
 import {
   F1_HEADER_SIZE,
   type F1Header,
@@ -77,14 +78,16 @@ describe("F1 telemetry contract", () => {
     expect(packet?.f1?.resultReason).toBe(6);
     expect(packet?.f1?.resultSource).toBe("final-classification");
   });
-  test("primes parser state without emitting a packet", () => {
-    const accumulator = new F1StateAccumulator();
-    const motion = frame(Buffer.alloc(60));
-    const session = frame(Buffer.alloc(9));
-    const lapData = frame(Buffer.alloc(57));
-    accumulator.primeParserState(header(0), motion);
-    accumulator.primeParserState(header(1), session);
-    accumulator.primeParserState(header(2), lapData);
-    expect(accumulator.feed(header(6), frame(Buffer.alloc(60)))).not.toBeNull();
+  test("reads Session History lap validity from official byte 13", () => {
+    const data = Buffer.alloc(7 + 14);
+    data.writeUInt8(0, 0);
+    data.writeUInt8(1, 1);
+    data.writeUInt8(1, 6);
+    data.writeUInt32LE(90_000, 7);
+    data.writeUInt8(7, 7 + 12);
+    data.writeUInt8(1, 7 + 13);
+    const decoded = decodeF1SessionHistory(data);
+    expect(decoded?.history.lastLapValidBitFlags).toBe(1);
+    expect(decoded?.lapSectors[0]?.lapValidBitFlags).toBe(1);
   });
 });

@@ -24,4 +24,14 @@ describe("detailed telemetry storage", () => {
     expect(restored.TireSurfaceTempInnerFL).toBeUndefined();
     expect(restored.BrakeTempFrontLeft).toBeUndefined();
   });
+  test("optionally preserves opponent grid metadata for engineer replay", () => {
+    const grid = [{ position: 1, driverId: 7, driverName: "Driver 7", completedLapNumber: 3 }];
+    const packet = { gameId: "f1-2025", f1: { grid } } as unknown as TelemetryPacket;
+
+    const omitted = decompressTelemetry(compressTelemetry([packet], { storeOpponentGrid: false }))[0];
+    expect(omitted.f1?.grid).toBeUndefined();
+
+    const stored = decompressTelemetry(compressTelemetry([packet], { storeOpponentGrid: true }))[0];
+    expect(JSON.stringify(stored.f1?.grid)).toBe(JSON.stringify(grid));
+  });
 });

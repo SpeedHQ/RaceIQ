@@ -4,6 +4,8 @@ import { processPacket } from "../../telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
+import { accBroadcastState, attachAccBroadcastSnapshot } from "./broadcast-state";
+import { accBroadcastCapture } from "./broadcast-capture";
 import { AC_STATUS, GRAPHICS, STATIC } from "./structs";
 import { readWString } from "./utils";
 
@@ -62,8 +64,21 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: "acc",
       });
       if (packet) {
+        const frameReceivedAtMs = Date.now();
+        packet.TimestampMS = frameReceivedAtMs;
+        const playerCarIndex = triplet.graphics.length >= GRAPHICS.playerCarID.offset + 4
+          ? triplet.graphics.readInt32LE(GRAPHICS.playerCarID.offset)
+          : -1;
+        accBroadcastState.setPlayerCarIndex(playerCarIndex);
+        attachAccBroadcastSnapshot(packet, playerCarIndex, accBroadcastState.snapshot());
+        const cursor = accBroadcastCapture.prepare(frameReceivedAtMs);
         const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, sourceFrame);
+        await processPacket(packet, {
+          frame: sourceFrame,
+          capturePrefixRecords: () => [accBroadcastCapture.encode(cursor)],
+          captureSessionContextRecords: () => accBroadcastCapture.encodeSessionContext(cursor),
+          acknowledgeRecorded: () => accBroadcastCapture.acknowledge(cursor, playerCarIndex),
+        });
       }
     } catch (err) {
       console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);

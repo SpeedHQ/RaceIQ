@@ -4,6 +4,7 @@ import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
 import { LMULiveDashboard } from "../../components/lmu/LMULiveDashboard";
 import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
 import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";
+import { RadioDock } from "../../components/live-engineer/RadioDock";
 import { gameIdForRoutePrefix, liveDashboardForGame } from "../../lib/game-routes";
 import { gameStore } from "../../stores/game";
 
@@ -12,32 +13,21 @@ function LiveDashboardRoute() {
   const gameId = gameIdForRoutePrefix(routePrefix);
   const setGameId = gameStore.actions.setGameId;
 
-  if (!gameId) {
-    throw new Error(`Unknown live game route prefix: ${routePrefix}`);
-  }
+  if (!gameId) throw new Error(`Unknown live game route prefix: ${routePrefix}`);
+  useEffect(() => { setGameId(gameId); return () => setGameId(null); }, [gameId, setGameId]);
 
-  useEffect(() => {
-    setGameId(gameId);
-    return () => setGameId(null);
-  }, [gameId, setGameId]);
-
-  switch (liveDashboardForGame(gameId)) {
-    case "forza":
-      return <ForzaLiveDashboard mode="driver" />;
-    case "f1":
-      return <F1LiveDashboard />;
-    case "acc":
-      return <AccLiveDashboard gameId={gameId} />;
-    case "lmu":
-      return <LMULiveDashboard />;
-  }
+  const dashboard = (() => {
+    switch (liveDashboardForGame(gameId)) {
+      case "forza": return <ForzaLiveDashboard mode="driver" />;
+      case "f1": return <F1LiveDashboard />;
+      case "acc": return <AccLiveDashboard gameId={gameId} />;
+      case "lmu": return <LMULiveDashboard />;
+    }
+  })();
+  return <div className="relative h-full"><RadioDock />{dashboard}</div>;
 }
 
 export const Route = createFileRoute("/$game/live")({
-  beforeLoad: ({ params }) => {
-    if (!gameIdForRoutePrefix(params.game)) {
-      throw new Error(`Unknown live game route prefix: ${params.game}`);
-    }
-  },
+  beforeLoad: ({ params }) => { if (!gameIdForRoutePrefix(params.game)) throw new Error(`Unknown live game route prefix: ${params.game}`); },
   component: LiveDashboardRoute,
 });

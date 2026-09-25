@@ -81,11 +81,12 @@ function copyLibsqlAddon() {
   console.log(`→ Copied libsql native addon (@libsql/${target})`);
 }
 
-
 async function main() {
   releaseFeatureFlags({
     RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
     RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER,
+    RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS: process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS,
   });
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
@@ -109,7 +110,12 @@ async function main() {
     `process.env.RACEIQ_FEATURE_F1_EXPERIMENTS=${JSON.stringify(process.env.RACEIQ_FEATURE_F1_EXPERIMENTS)}`,
     "--define",
     `process.env.RACEIQ_FEATURE_IRACING_ADAPTER=${JSON.stringify(process.env.RACEIQ_FEATURE_IRACING_ADAPTER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER=${JSON.stringify(process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER)}`,
+    "--define",
+    `process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS=${JSON.stringify(process.env.RACEIQ_FEATURE_LIVE_SPOTTER_ENGINEER_GAME_IDS)}`,
   );
+
   if (process.env.RACEIQ_DOCKER_BUILD === "1") {
     compileArgs.push("--define", 'process.env.RACEIQ_DISABLE_IN_APP_UPDATE="1"');
   }

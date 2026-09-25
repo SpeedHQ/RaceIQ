@@ -60,7 +60,6 @@ describe("game route helpers", () => {
       ai: 1,
       view: undefined,
       tab: "braking",
-      
     });
   });
 

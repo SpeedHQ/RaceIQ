@@ -55,4 +55,3 @@ export function getFuelDisplaySemantic(
 ): FuelDisplay {
   return getFuelDisplay({ Fuel: fuel, FuelCapacity: capacity }, spec);
 }
-

@@ -1,0 +1,13 @@
+{
+  "segmentId": "race-engineer.drs-closed",
+  "spokenText": "DRS is closed.",
+  "seed": 3032201624,
+  "path": "chunks/race-engineer.drs-closed.flac",
+  "sha256": "b73a88d5ae246a7fc8976a55817227d7e013fa3e6b0de3740125d69f7f4b2f64",
+  "frames": 36480,
+  "sampleRate": 24000,
+  "durationMs": 1520,
+  "sourceTranscript": "DRS is closed.",
+  "sourceHash": "c969ac564d204568a72667381cc3c832b34b0878e2637a582bf385f478189fe2",
+  "role": "fixed"
+}

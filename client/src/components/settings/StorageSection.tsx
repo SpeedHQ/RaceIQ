@@ -237,6 +237,29 @@ function CacheSection() {
     </div>
   );
 }
+function OpponentGridSetting() {
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  return <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3">
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <h3 className="text-sm font-semibold text-app-text">Store opponent grid</h3>
+        <p className="mt-1 text-xs text-app-text-dim">Preserve opponent grid snapshots in compressed recordings for Engineer Replay. Increases recording size.</p>
+      </div>
+      <Button
+        type="button"
+        variant={displaySettings.storeOpponentGrid ? "selected-toggle" : "app-outline"}
+        size="app-sm"
+        role="switch"
+        aria-checked={displaySettings.storeOpponentGrid}
+        onClick={() => saveSettings.mutate({ storeOpponentGrid: !displaySettings.storeOpponentGrid })}
+      >
+        {displaySettings.storeOpponentGrid ? "Enabled" : "Disabled"}
+      </Button>
+    </div>
+  </div>;
+}
+
 
 export function StorageSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
@@ -262,6 +285,7 @@ export function StorageSection() {
 
   return (
     <section className="space-y-6">
+      <OpponentGridSetting />
       <CacheSection />
       <div>
         <h3 className="text-sm font-semibold text-app-text mb-1 flex items-center gap-2">

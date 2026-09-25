@@ -112,7 +112,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
       }
       if (record.kind !== "frame") continue;
       const packet = serverGame.tryParse(record.frame, parserState);
-      if (packet && !inContext) await detector.feed(packet, record.offset);
+      if (packet && !inContext) {
+        const startingSession = !detector.session;
+        await detector.feed(packet, record.prefixOffset);
+        if (startingSession) detector.setCurrentLapByteOffset?.(record.prefixOffset);
+      }
     }
   }
 

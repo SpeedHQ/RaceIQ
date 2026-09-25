@@ -35,6 +35,7 @@ interface Props {
   wearRate: WearRate | null;
   lapInsights: LapInsight[];
   onJumpToFrame: (idx: number) => void;
+  dataOnly?: boolean;
 }
 function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
   const [open, setOpen] = useState(false);
@@ -100,8 +101,7 @@ export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: Sema
     freshness: frame.freshness,
   }, null, 2);
 }
-
-export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
+export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame, dataOnly = false }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
@@ -121,10 +121,10 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
         <TabsTrigger value="live" className="flex-1">
           {m.analyse_tab_data()}
         </TabsTrigger>
-        <TabsTrigger value="insights" className="flex-1">
+        {dataOnly ? null : <TabsTrigger value="insights" className="flex-1">
           {m.analyse_tab_insights()}
           {lapInsights.length > 0 && <span className="ml-1 rounded-full bg-app-border-input px-1.5 text-app-micro text-app-text">{lapInsights.length}</span>}
-        </TabsTrigger>
+        </TabsTrigger>}
       </TabsList>
       <TabsContent value="live" className="flex flex-col">
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
@@ -155,9 +155,9 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
           )}
         </div>
       </TabsContent>
-      <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">
+      {dataOnly ? null : <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">
         <InsightPanel insights={lapInsights} onJumpToFrame={onJumpToFrame} />
-      </TabsContent>
+      </TabsContent>}
     </Tabs>
   );
 }

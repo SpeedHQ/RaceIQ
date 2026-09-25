@@ -98,6 +98,8 @@ function AppShell() {
         <ResponsiveWorkspace className="overflow-hidden">
           <Outlet key={uiLocale} />
         </ResponsiveWorkspace>
+        <StaleLapReprocessing />
+        <RaceResultStatus compact />
       </div>
     );
   }

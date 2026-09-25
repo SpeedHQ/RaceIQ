@@ -164,4 +164,94 @@ describe("compiled telemetry resolver native sources", () => {
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.competitor.gap-to-leader"))).toEqual([0, 1.5]);
     expect(frame.readValue<readonly number[]>(resolver.slot("timing.sector.competitor-last.s1"))).toEqual([31.2, 32.4]);
   });
+  test("resolves canonical F1 weather, sector, and aero damage facts", () => {
+    const requested = [
+      "weather.weather-type",
+      "timing.sector.current-index",
+      "damage.front-left-wing-damage",
+      "damage.front-right-wing-damage",
+      "damage.rear-wing-damage",
+      "damage.floor-damage",
+      "damage.diffuser-damage",
+      "damage.sidepod-damage",
+    ] as const;
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "f1-2025",
+      requested: requested.map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView(
+      packet("f1-2025", {
+        f1: {
+          weatherType: "3",
+          currentSector: 2,
+          frontLeftWingDamage: 11,
+          frontRightWingDamage: 12,
+          rearWingDamage: 13,
+          floorDamage: 14,
+          diffuserDamage: 15,
+          sidepodDamage: 16,
+        },
+      } as never),
+      { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: 1n },
+    );
+
+    expect(frame.resolveValue(resolver.slot("weather.weather-type"))).toMatchObject({ state: "ok", value: "3" });
+    expect(frame.resolveValue(resolver.slot("timing.sector.current-index"))).toMatchObject({ state: "ok", value: 2 });
+    expect(requested.slice(2).map((semanticId) => frame.readValue(resolver.slot(semanticId)))).toEqual([11, 12, 13, 14, 15, 16]);
+  });
+  test("resolves canonical ACC and iRacing Live Engineer extensions", () => {
+    const accResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "acc",
+      requested: [
+        { semanticId: "identity.player-car-index" },
+        { semanticId: "identity.player-car-class-id" },
+        { semanticId: "session.session-type" },
+        { semanticId: "race.competitor.connected" },
+      ],
+    });
+    const accFrame = accResolver.createFrameView(packet("acc", { acc: { broadcastPlayerCarIndex: 4, broadcastPlayerCarClassId: "gt3", broadcastSessionType: "race", broadcastConnected: [true, false] } } as never), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
+    expect(accFrame.readValue<unknown>(accResolver.slot("identity.player-car-index"))).toBe(4);
+    expect(accFrame.readValue<unknown>(accResolver.slot("identity.player-car-class-id"))).toBe("gt3");
+    expect(accFrame.readValue<unknown>(accResolver.slot("session.session-type"))).toBe("race");
+    expect(accFrame.readValue<unknown>(accResolver.slot("race.competitor.connected"))).toEqual([true, false]);
+
+    const iracingResolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [
+        { semanticId: "identity.player-car-class-id" },
+        { semanticId: "session.session-type" },
+        { semanticId: "race.competitor.pit-status" },
+        { semanticId: "race.competitor.track-location" },
+      ],
+    });
+    const iracingFrame = iracingResolver.createFrameView(packet("iracing", { iracing: { playerCarClassId: "1", sessionType: "practice", competitorPitStatus: ["out"], competitorTrackLocationName: ["track"] } } as never), { timestamp: { domain: "session", milliseconds: 1_000 }, updateSequence: BigInt(1_000) });
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("identity.player-car-class-id"))).toBe("1");
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("session.session-type"))).toBe("practice");
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.pit-status"))).toEqual(["out"]);
+    expect(iracingFrame.readValue<unknown>(iracingResolver.slot("race.competitor.track-location"))).toEqual(["track"]);
+  });
+  test("iRacing canonical opponent mappings never fall back to unjoined native arrays", () => {
+    const requested = [
+      "race.competitor.car-index", "race.competitor.driver-id", "race.competitor.driver-name",
+      "race.competitor.car-class-id", "race.competitor.car-class-name",
+      "race.competitor.laps-complete", "race.competitor.pit-status", "race.competitor.track-location",
+      "timing.competitor.last-lap-time",
+    ];
+    const resolver = compileTelemetryResolver<{ packet: TelemetryPacket; nativeValues: Record<string, unknown> }>(TELEMETRY_CATALOG, {
+      simulator: "iracing", requested: requested.map((semanticId) => ({ semanticId })),
+    });
+    const frame = resolver.createFrameView({
+      packet: packet("iracing"),
+      nativeValues: {
+        CarIdxLapCompleted: [1, 0, 0, 0, 0, 0, 0, 4],
+        CarIdxLastLapTime: [90, 0, 0, 0, 0, 0, 0, 88],
+        CarIdxOnPitRoad: [false, false], CarIdxTrackSurface: [3, 3], CarIdxClass: [1, 1],
+        SessionInfo: { DriverInfo: { Drivers: [
+          { CarIdx: 0, UserID: 11, UserName: "Player", CarClassID: 1, CarClassShortName: "GT3" },
+          { CarIdx: 7, UserID: 22, UserName: "Opponent", CarClassID: 1, CarClassShortName: "GT3" },
+        ] } },
+      },
+    }, { timestamp: { domain: "session", milliseconds: 1000 }, updateSequence: 1n });
+    for (const semanticId of requested) expect(frame.resolveValue(resolver.slot(semanticId)).state).toBe("missing");
+  });
 });

@@ -4,6 +4,9 @@
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
 
 ### Features
+- F1 race engineer shows car damage, announces final lap, and reports sustained aero damage.
+- Add source-backed race engineer announcements for ACC and AC Evo, plus position changes for Forza Motorsport. Replay distinguishes unsupported systems from telemetry missing in older recordings.
+- Inspect replayed engineer audio in a moving 10-second DAW timeline with individual, duration-scaled clip waveforms and inserted pauses.
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
@@ -13,6 +16,12 @@
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
+- Keep ACC laps readable and exportable when recordings include opponent data, and hide stale opponent standings until the source recovers.
+- Restore source-backed iRacing opponent pace announcements for sparse grids.
+- Recognize F1 25 race sessions correctly when evaluating opponent pace.
+- Keep ACC tyre-temperature warnings suppressed during warm-up, pit visits, and earlier sectors.
+- Keep Engineer Replay focused on the actual player, preserve source-loss history, and stop queued audio after mute, seek, or session changes.
+- Chain completed-lap time and pace announcements with a natural pause and without repeating "Your lap was."
 - Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
 - Show wheel rotation speed as a positive magnitude in Analyse, including existing LMU replays
 - Show LMU's inner, middle, and outer surface temperatures in Analyse; keep its carcass reading separate from core and surface temperatures in live and replay views
@@ -31,6 +40,7 @@
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
 ### Internal
+- Show ordered v3 lap-time chunks, individual audio previews, source sentences, and join timings in the developer speech comparison.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook
 - Enforce responsive visual baselines in pull-request screenshot CI and publish before/after/diff previews for review
@@ -40,6 +50,7 @@
 - Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+- Replay multiple synthetic race-engineer scenarios across complete multi-lap sessions, including fuel escalation and pit-entry sequences.
 
 ## v0.18.0 - 2026-09-18
 
@@ -138,6 +149,7 @@
 - Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
 - Configure driver-profile AI output tokens with provider-advertised limits
 - Use simulator-independent semantic telemetry for live dashboards while keeping native packet inspection in the development panel and recording bytes unchanged
+- Add opt-in Race Engineer opponent-pace and Spotter announcements; opponent pace is available from source-backed F1 25 and iRacing telemetry, while ACC, AC Evo, and Forza remain unavailable where feeds do not expose required competitor facts.
 - Toggle ACC and AC Evo reference racing lines alongside other Analyse overlays in both 2D and 3D views
 
 - Load high-fidelity Compare zoom ranges faster by reusing prepared course-distance alignment data instead of recomputing full-lap spatial alignment

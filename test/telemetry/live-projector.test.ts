@@ -31,6 +31,21 @@ describe("LiveTelemetryProjector", () => {
     const result = projector.project({ packet: packet("acc"), sessionId: 1, receivedAtMs: 1000 });
     expect(result.frame?.values.every((value) => value === null || typeof value !== "bigint")).toBe(true);
   });
+  test("empty engineer semantic selection keeps semantic frame ids and values empty", () => {
+    const projector = new LiveTelemetryProjector({ engineerSemanticIds: [] });
+    const result = projector.project({ packet: packet("acc"), sessionId: 1, receivedAtMs: 1000 });
+    expect(result.semanticFrame.ids).toEqual([]);
+    expect(result.semanticFrame.values).toEqual([]);
+    expect(result.frame?.values.length).toBeGreaterThan(0);
+  });
+  test("F1 engineer projection includes semantic data", () => {
+    const projector = new LiveTelemetryProjector();
+    const result = projector.project({ packet: packet("f1-2025"), sessionId: 1, receivedAtMs: 1000 });
+    expect(result.semanticFrame.ids.length).toBeGreaterThan(0);
+    expect(result.semanticFrame.values.length).toBe(result.semanticFrame.ids.length);
+    expect(result.frame?.values.length).toBeGreaterThan(0);
+  });
+
 
   test("steady frame payload stays compact", () => {
     const projector = new LiveTelemetryProjector();

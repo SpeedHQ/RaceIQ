@@ -32,6 +32,7 @@ import {
 import { F1_PACKET_IDS } from "../../server/games/f1-2025/f1-wire";
 import type { GameId } from "../../shared/games/ids";
 
+import { encodeAccBroadcastCaptureRecord } from "../../server/games/acc/broadcast-capture";
 initGameAdapters();
 initServerGameAdapters();
 
@@ -301,6 +302,30 @@ describe("buildLapsZip", () => {
           decodeIRacingSourceFrame(frame, decoder)?.values.SessionTick,
       ),
     ).toEqual([1, 2, 3]);
+  });
+
+  test("ACC lap windows retain Broadcast prefixes and preceding parser evidence", async () => {
+    const prefix = encodeAccBroadcastCaptureRecord({ frameReceivedAtMs: 1_000, events: [] });
+    const ordinary = makeCapture(5);
+    const capture = Buffer.concat([
+      ordinary.subarray(0, META),
+      ...Array.from({ length: 5 }, (_, index) => Buffer.concat([prefix, ordinary.subarray(frameAt(index), frameAt(index + 1))])),
+    ]);
+    const path = `${process.env.DATA_DIR ?? "."}/zip-acc-metadata-${Date.now()}.bin`;
+    await Bun.write(path, capture);
+    tmpFiles.push(path);
+    const sid = await insertSession(path, "acc");
+    const selectedOffset = META + 2 * (prefix.length + FRAME);
+    const lapId = await insertLap(sid, 2, selectedOffset, 1);
+    const { bytes, manifest } = await buildLapsZip([lapId]);
+    const records = [...iterateSessionCaptureRecords(readEntry(bytes, manifest.entries[0]!.file))];
+    const contextEnd = records.findIndex((record) => record.kind === "segment-context-end");
+    expect(records.slice(0, contextEnd).flatMap((record) => record.kind === "frame" ? [record.frame[0]] : [])).toEqual([0, 1]);
+    expect(records.slice(contextEnd + 1).flatMap((record) => record.kind === "frame" ? [record.frame[0]] : [])).toEqual([2, 3]);
+    expect(records.filter((record) => record.kind === "acc-broadcast")).toHaveLength(4);
+    for (const record of records) {
+      if (record.kind === "frame") expect(record.prefixOffset).toBe(record.offset - prefix.length);
+    }
   });
 
   test("unknown lap ids are rejected", async () => {

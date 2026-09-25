@@ -1,5 +1,6 @@
 import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
 import { promisify } from "node:util";
+import { ACC_BROADCAST_CAPTURE_MAGIC, ACC_BROADCAST_CAPTURE_VERSION, decodeAccBroadcastCaptureRecord } from "../games/acc/broadcast-capture";
 import { MAX_DECOMPRESSED_CAPTURE_BYTES } from "../archive/bounded-unzip";
 
 export const META_FRAME_MAGIC = 0xffffffff;
@@ -14,10 +15,13 @@ export const SESSION_SEGMENT_BOUNDARY = Symbol("session-segment-boundary");
 export const SESSION_SEGMENT_CONTEXT = Symbol("session-segment-context");
 export const SESSION_SEGMENT_CONTEXT_END = Symbol("session-segment-context-end");
 export type SessionCaptureRecord =
-  | { kind: "frame"; offset: number; frame: Buffer }
+  | { kind: "frame"; offset: number; prefixOffset: number; frame: Buffer }
   | { kind: "segment-boundary"; offset: number }
   | { kind: "segment-context"; offset: number }
-  | { kind: "segment-context-end"; offset: number };
+  | { kind: "segment-context-end"; offset: number }
+  | { kind: "metadata"; offset: number; bytes: Buffer }
+  | { kind: "acc-broadcast"; offset: number; batch: import("../games/acc/broadcast-capture").AccBroadcastCaptureBatch }
+  | { kind: "acc-broadcast-malformed"; offset: number; reason: string };
 
 const gunzipAsync = promisify(gunzip);
 const gzipAsync = promisify(gzip);
@@ -62,12 +66,13 @@ export function readFrameStreamStart(bytes: Uint8Array): number {
   return view.readUInt32LE(0) === META_FRAME_MAGIC ? 8 + view.readUInt32LE(4) : 0;
 }
 function readRecorderFrameStreamStart(bytes: Buffer): number {
-  return bytes.length >= 4 && bytes.readUInt32LE(0) === META_FRAME_MAGIC ? META_FRAME_BYTES : 0;
+  return bytes.length >= META_FRAME_BYTES && bytes.readUInt32LE(0) === META_FRAME_MAGIC && bytes.readUInt32LE(4) === META_FRAME_PAYLOAD_BYTES ? META_FRAME_BYTES : 0;
 }
-interface SessionFrameRecord { offset: number; frame: Buffer; }
+interface SessionFrameRecord { offset: number; prefixOffset: number; frame: Buffer; }
 interface SessionFrameIterationOptions { skipMetaFrames?: boolean; allowEmptyFrames?: boolean; }
 
 export function* iterateSessionCaptureRecords(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes)): Generator<SessionCaptureRecord> {
+  let prefixOffset: number | undefined;
   while (offset + 4 <= bytes.length) {
     const recordOffset = offset;
     const length = bytes.readUInt32LE(offset);
@@ -75,24 +80,47 @@ export function* iterateSessionCaptureRecords(bytes: Buffer, offset = readRecord
       if (offset + 8 > bytes.length) break;
       const payloadBytes = bytes.readUInt32LE(offset + 4);
       if (offset + 8 + payloadBytes > bytes.length) break;
-      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_BOUNDARY_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_BOUNDARY_VERSION) yield { kind: "segment-boundary", offset: recordOffset };
-      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_CONTEXT_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context", offset: recordOffset };
-      if (payloadBytes === 8 && bytes.readUInt32LE(offset + 8) === SEGMENT_CONTEXT_END_MAGIC && bytes.readUInt32LE(offset + 12) === SEGMENT_CONTEXT_VERSION) yield { kind: "segment-context-end", offset: recordOffset };
+      const payload = bytes.subarray(offset + 8, offset + 8 + payloadBytes);
+      const magic = payloadBytes >= 4 ? payload.readUInt32LE(0) : null;
+      const version = payloadBytes >= 8 ? payload.readUInt32LE(4) : null;
+      if (magic === ACC_BROADCAST_CAPTURE_MAGIC && (version === ACC_BROADCAST_CAPTURE_VERSION || version === null)) {
+        prefixOffset ??= recordOffset;
+        try {
+          yield { kind: "acc-broadcast", offset: recordOffset, batch: decodeAccBroadcastCaptureRecord(payload) };
+        } catch (error) {
+          yield { kind: "acc-broadcast-malformed", offset: recordOffset, reason: error instanceof Error ? error.message : "invalid ACCB record" };
+        }
+      } else if (payloadBytes === 8 && magic === SEGMENT_BOUNDARY_MAGIC && version === SEGMENT_BOUNDARY_VERSION) {
+        prefixOffset = undefined;
+        yield { kind: "segment-boundary", offset: recordOffset };
+      } else if (payloadBytes === 8 && magic === SEGMENT_CONTEXT_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+        prefixOffset = undefined;
+        yield { kind: "segment-context", offset: recordOffset };
+      } else if (payloadBytes === 8 && magic === SEGMENT_CONTEXT_END_MAGIC && version === SEGMENT_CONTEXT_VERSION) {
+        prefixOffset = undefined;
+        yield { kind: "segment-context-end", offset: recordOffset };
+      } else {
+        prefixOffset ??= recordOffset;
+        yield { kind: "metadata", offset: recordOffset, bytes: bytes.subarray(offset, offset + 8 + payloadBytes) };
+      }
       offset += 8 + payloadBytes;
       continue;
     }
     offset += 4;
     if (length === 0 || offset + length > bytes.length) break;
-    yield { kind: "frame", offset: recordOffset, frame: bytes.subarray(offset, offset + length) };
+    yield { kind: "frame", offset: recordOffset, prefixOffset: prefixOffset ?? recordOffset, frame: bytes.subarray(offset, offset + length) };
+    prefixOffset = undefined;
     offset += length;
   }
 }
-export function* iterateSessionImportFrames(bytes: Buffer): Generator<Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END> {
+export type SessionImportFrame = Buffer | typeof SESSION_SEGMENT_BOUNDARY | typeof SESSION_SEGMENT_CONTEXT | typeof SESSION_SEGMENT_CONTEXT_END | { kind: "metadata"; bytes: Buffer };
+export function* iterateSessionImportFrames(bytes: Buffer): Generator<SessionImportFrame> {
   for (const record of iterateSessionCaptureRecords(bytes)) {
     if (record.kind === "segment-boundary") yield SESSION_SEGMENT_BOUNDARY;
     else if (record.kind === "segment-context") yield SESSION_SEGMENT_CONTEXT;
     else if (record.kind === "segment-context-end") yield SESSION_SEGMENT_CONTEXT_END;
-    else yield record.frame;
+    else if (record.kind === "frame") yield record.frame;
+    else yield { kind: "metadata", bytes: bytes.subarray(record.offset, record.offset + 8 + bytes.readUInt32LE(record.offset + 4)) };
   }
 }
 export function* iterateSessionFrameRecords(bytes: Buffer, offset = readRecorderFrameStreamStart(bytes), _options?: SessionFrameIterationOptions): Generator<SessionFrameRecord> {
@@ -102,14 +130,17 @@ export function* iterateSessionFrames(bytes: Buffer, offset = readRecorderFrameS
   for (const record of iterateSessionCaptureRecords(bytes, offset)) if (record.kind === "frame") yield record.frame;
 }
 export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
-  if (offset < 0 || offset + 4 > bytes.length) return null;
-  const length = bytes.readUInt32LE(offset);
-  if (length <= 0 || offset + 4 + length > bytes.length) return null;
-  return bytes.subarray(offset + 4, offset + 4 + length);
+  if (offset < 0) return null;
+  for (const record of iterateSessionFrameRecords(bytes, offset)) return record.frame;
+  return null;
 }
 export function advanceSessionFrames(bytes: Buffer, offset: number, count: number): number {
   let at = offset;
-  for (let i = 0; i < count; i++) { const frame = sessionFrameAt(bytes, at); if (!frame) break; at += 4 + frame.length; }
+  if (count <= 0 || offset < 0) return at;
+  for (const record of iterateSessionFrameRecords(bytes, offset)) {
+    at = record.offset + 4 + record.frame.length;
+    if (--count === 0) break;
+  }
   return at;
 }
 export function isGzip(bytes: Uint8Array): boolean { return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b; }
