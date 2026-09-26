@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@shared/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
-import { eventDurations, groupEvents } from "@shared/racing/analysis/laps/insights/types";
-import { detectSuspensionOverload } from "@shared/racing/analysis/laps/insights/suspension";
+import { eventDurations, groupEvents, INSIGHT_ORDER, insightsAt } from "@shared/racing/analysis/laps/insights/types";
+import { detectBufferedInsights } from "@shared/racing/analysis/laps/insights/buffered-detectors";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import { parseForzaPacket } from "../../server/games/fm-2023/parser";
 import { computeStatsRange, steerScaleFor } from "../../server/lap-analysis/metrics";
@@ -29,9 +29,9 @@ describe("sustained event evidence", () => {
     const packets = [0, 50, 100].map((TimestampMS, index) => ({
       TimestampMS, Speed: 30, NormSuspensionTravelFL: index === 2 ? 1 : 0.5,
     }) as TelemetryPacket);
-    expect(detectSuspensionOverload(packets)).toEqual([]);
+    expect(insightsAt(detectBufferedInsights(packets, eventDurations(packets), true), INSIGHT_ORDER.overload)).toEqual([]);
     packets.push({ TimestampMS: 150, Speed: 30, NormSuspensionTravelFL: 0.5 } as TelemetryPacket);
-    expect(detectSuspensionOverload(packets).map((insight) => insight.id)).toEqual(["susp-overload-FL"]);
+    expect(insightsAt(detectBufferedInsights(packets, eventDurations(packets), true), INSIGHT_ORDER.overload).map((insight) => insight.id)).toEqual(["susp-overload-FL"]);
   });
 
   test("clock gaps, duplicates and resets split evidence", () => {

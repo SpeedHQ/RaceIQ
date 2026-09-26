@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
 import { initGameAdapters } from "@shared/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { processLap } from "@shared/racing/analysis/laps/insights/process";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 import {
   F1_HEADER_SIZE,
@@ -91,7 +92,7 @@ describe("F1 telemetry contract", () => {
           if (packet) packets.push(packet);
         }
       }
-      const insights = analyzeLap(packets, "f1-2025");
+      const insights = analyzeLap(processLap(packets, "f1-2025").packets, "f1-2025");
       expect(insights.some((insight) => insight.id === "driving-unused-drs")).toBe(!drsActive);
       expect(insights.some((insight) => insight.id === "mech-ers-depletion")).toBe(true);
     }

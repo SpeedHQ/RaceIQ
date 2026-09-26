@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { computeLapMetrics } from "../../server/lap-analysis/metrics";
 import { initGameAdapters } from "@shared/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreF1FrameIndices } from "@shared/racing/analysis/laps/insights/process";
 import { detectErsDepletion, detectUnusedDrs } from "@shared/racing/analysis/laps/insights/electronics";
 import type { F1ExtendedData } from "@shared/telemetry/f1-2025";
 import type { TelemetryPacket } from "@shared/telemetry/types";
@@ -117,7 +119,11 @@ describe("F1 DRS opportunity observation", () => {
       const merged = clean.flatMap((packet) => [{ ...packet, Accel: 0 }, { ...packet }, packet]);
       const id = kind === "drs" ? "driving-unused-drs" : "mech-ers-depletion";
       const expected = analyzeLap(clean, "f1-2025").find((insight) => insight.id === id)!;
-      const actual = analyzeLap(merged, "f1-2025").find((insight) => insight.id === id);
+      const prepared = processLap(merged, "f1-2025");
+      const actualInsights = analyzeLap(prepared.packets, "f1-2025");
+      restoreF1FrameIndices(actualInsights, prepared.sourceIndices);
+      const actual = actualInsights.find((insight) => insight.id === id);
+      expect(computeLapMetrics(1, merged, "f1-2025", null, []).insights).toEqual(actualInsights);
       expect(actual?.severity).toBe("info");
       expect(actual?.frameIndices.map((i) => merged[i].TimestampMS))
         .toEqual(expected.frameIndices.map((i) => clean[i].TimestampMS));

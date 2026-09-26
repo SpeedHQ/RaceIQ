@@ -43,6 +43,19 @@ function repeated(count: number, overrides: Partial<TelemetryPacket>): Telemetry
 }
 
 describe("static tire temperature layers", () => {
+  test("preserves output order across suspension, tire, and mechanical families", () => {
+    const telemetry = repeated(40, {
+      TireTempFL: 250,
+      NormSuspensionTravelFL: 0.98,
+      Power: 149_140,
+      CurrentEngineRpm: 6_000,
+      Gear: 4,
+    });
+    for (let i = 0; i < telemetry.length; i++) telemetry[i].Fuel = 10 - i / 100;
+    const expected = ["susp-overload-FL", "tire-overheat-FL", "mech-fuel", "mech-peak-power"];
+    expect(analyzeLap(telemetry, "fm-2023").filter((insight) => expected.includes(insight.id)).map((insight) => insight.id)).toEqual(expected);
+  });
+
   test("detects separate core overheating without mislabeling the surface", () => {
     const insights = analyzeLap(
       repeated(20, {

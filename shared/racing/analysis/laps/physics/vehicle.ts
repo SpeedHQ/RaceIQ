@@ -424,21 +424,20 @@ export function allWheelStates(pkt: TelemetryPacket): AllWheelStates {
  * controls, motion and persistence gate calibration, then radii stay frozen.
  * Without a trustworthy coast or static radius, deliberately abstain.
  */
-export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): AllWheelStates[] {
-  const dt = eventDurations(telemetry);
-  const result: AllWheelStates[] = new Array(telemetry.length);
+export function createWheelCalibration(): {
+  observe(packet: TelemetryPacket, previousPacket: TelemetryPacket | undefined, secondsToNext: number, previousSeconds: number, index: number): AllWheelStates;
+} {
   let learned: number[] | undefined;
   let candidate: number[] | undefined;
   let cleanSeconds = 0;
   let previousClean = false;
-
-  for (let i = 0; i < telemetry.length; i++) {
-    const p = telemetry[i];
+  return {
+    observe(p, previousPacket, secondsToNext, previousSeconds, i) {
     const rotations = [
       Math.abs(p.WheelRotationSpeedFL), Math.abs(p.WheelRotationSpeedFR),
       Math.abs(p.WheelRotationSpeedRL), Math.abs(p.WheelRotationSpeedRR),
     ];
-    const continuous = i > 0 && dt[i - 1] > 0;
+    const continuous = i > 0 && previousSeconds > 0;
     const validMotion = Number.isFinite(p.Speed) && p.Speed >= 1.5 &&
       Number.isFinite(p.Steer) && rotations.every(Number.isFinite) &&
       (p.gameId !== "f1-2025" || !!p.f1?.motionEx);
@@ -460,7 +459,7 @@ export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): Al
       p.HandBrake === 0 && Math.abs(p.Steer) <= 5 &&
       Math.abs(p.AccelerationX) <= 0.1 * G && Math.abs(p.AngularVelocityY) <= 0.05 &&
       minRotation > 5 && maxRotation / minRotation <= 1.05 &&
-      (!continuous || Math.abs(p.Speed - telemetry[i - 1].Speed) / dt[i - 1] <= 2);
+      (!continuous || Math.abs(p.Speed - previousPacket!.Speed) / previousSeconds <= 2);
 
     if (!learned && clean) {
       const radii = rotations.map((rotation) => p.Speed / rotation);
@@ -476,7 +475,7 @@ export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): Al
         candidate = radii;
         cleanSeconds = 0;
       } else {
-        cleanSeconds += dt[i - 1];
+        cleanSeconds += previousSeconds;
         if (cleanSeconds >= 0.5) learned = candidate;
       }
     } else if (!clean) {
@@ -494,7 +493,7 @@ export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): Al
         : learned?.[wheel];
       // Reject discontinuous samples even with static radii. A first packet can
       // be classified when its following interval establishes valid timing.
-      if (!validMotion || dropout || (!continuous && !(i === 0 && dt[i] > 0)) ||
+      if (!validMotion || dropout || (!continuous && !(i === 0 && secondsToNext > 0)) ||
           radius === undefined) {
         states[wheel] = { state: "idle", slipRatio: 0 };
       } else {
@@ -504,7 +503,17 @@ export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): Al
         );
       }
     }
-    result[i] = { fl: states[0], fr: states[1], rl: states[2], rr: states[3] };
+    return { fl: states[0], fr: states[1], rl: states[2], rr: states[3] };
+    },
+  };
+}
+
+export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): AllWheelStates[] {
+  const dt = eventDurations(telemetry);
+  const calibration = createWheelCalibration();
+  const result: AllWheelStates[] = new Array(telemetry.length);
+  for (let i = 0; i < telemetry.length; i++) {
+    result[i] = calibration.observe(telemetry[i], telemetry[i - 1], dt[i], dt[i - 1] ?? 0, i);
   }
   return result;
 }

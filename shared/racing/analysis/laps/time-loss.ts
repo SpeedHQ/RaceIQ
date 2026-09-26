@@ -68,25 +68,25 @@ export interface AccelReference {
   bins: (number | undefined)[];
 }
 
-export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], wheelStates?: readonly AllWheelStates[]): AccelReference {
-  const states = wheelStates ?? calibratedWheelStates(telemetry);
+export function createAccelReferenceCollector(): {
+  observe(packet: TelemetryPacket, nextPacket: TelemetryPacket | undefined, seconds: number, states: AllWheelStates): void;
+  finish(): AccelReference;
+} {
   const samples: { acceleration: number; seconds: number }[][] = [];
-  for (let i = 0; i < telemetry.length - 1; i++) {
-    const p = telemetry[i];
+  return {
+    observe(p, nextPacket, seconds, ws) {
     // Clean reference frame: full throttle, no brake, no wheel slip, moving.
-    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5 || !(dt[i] > 0)) continue;
-    const ws = states[i];
-    if (!ws || ws.fl.state !== "grip" || ws.fr.state !== "grip" || ws.rl.state !== "grip" || ws.rr.state !== "grip") continue;
+    if (p.Accel <= 230 || p.Brake >= 5 || p.Speed < 5 || !(seconds > 0) || !nextPacket) return;
+    if (!ws || ws.fl.state !== "grip" || ws.fr.state !== "grip" || ws.rl.state !== "grip" || ws.rr.state !== "grip") return;
 
-    const a = (telemetry[i + 1].Speed - p.Speed) / dt[i];
+    const a = (nextPacket.Speed - p.Speed) / seconds;
     // Discard physically implausible steps (packet reordering, respawns).
-    if (!Number.isFinite(a) || Math.abs(a) > 30) continue;
+    if (!Number.isFinite(a) || Math.abs(a) > 30) return;
 
     const bin = Math.floor(p.Speed / REFERENCE_BIN_M_S);
-    samples[bin] ??= [];
-    samples[bin].push({ acceleration: a, seconds: dt[i] });
-  }
-
+    (samples[bin] ??= []).push({ acceleration: a, seconds });
+    },
+    finish() {
   const bins: (number | undefined)[] = [];
   for (let b = 0; b < samples.length; b++) {
     const s = samples[b];
@@ -104,6 +104,15 @@ export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], 
     }
   }
   return { bins };
+    },
+  };
+}
+
+export function buildAccelReference(telemetry: TelemetryPacket[], dt: number[], wheelStates?: readonly AllWheelStates[]): AccelReference {
+  const states = wheelStates ?? calibratedWheelStates(telemetry);
+  const collector = createAccelReferenceCollector();
+  for (let i = 0; i < telemetry.length - 1; i++) collector.observe(telemetry[i], telemetry[i + 1], dt[i], states[i]);
+  return collector.finish();
 }
 
 /** Reference acceleration at a given speed, or undefined if that bin is unsupported. */

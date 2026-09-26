@@ -1,6 +1,6 @@
 # Static Lap Analysis Catalog
 
-Static lap analysis is deterministic, post-lap telemetry analysis. It emits `LapInsight` records; it does not call an AI model. Current persisted contract: `STATIC_LAP_ANALYSIS_VERSION = 3`. Segment metrics use `LAP_METRICS_ALGO_VERSION = 4`, including corrected signed Forza steering.
+Static lap analysis is deterministic, post-lap telemetry analysis. It emits `LapInsight` records; it does not call an AI model. Current persisted contract: `STATIC_LAP_ANALYSIS_VERSION = 4`. Segment metrics use `LAP_METRICS_ALGO_VERSION = 4`, including corrected signed Forza steering.
 
 ## Runtime contract
 
@@ -10,7 +10,8 @@ Static lap analysis is deterministic, post-lap telemetry analysis. It emits `Lap
 - Background driver-profile refresh reads cached insights only; explicit profile requests compute missing or stale insights.
 - Explicit backfill and rerun operations may compute insights without opening Analyse.
 - A lap needs at least one sixth of a second of usable recorded intervals.
-- F1 emits several merged snapshots per simulation tick. Analysis keeps the last consecutive same-timestamp snapshot within a session, then maps findings back to original source-frame indices.
+- Metric computation and persistence call `processLap()` before `analyzeLap()`. For F1, processing keeps the last consecutive same-timestamp snapshot within a session; callers restore findings to original source-frame indices after analysis. Track segments and racing-line context resolve from the lap's `trackId`; missing or unknown IDs do not fall back to telemetry ordinals.
+- `analyzeLap()` advances each supplied frame once through `runInsightScan()`; it does not prepare packets or remap indices. Registered incremental detector families implement the same `observe(index, seconds, previousSeconds, wheelState)` and `finish(ref)` contract; each emits ordered insights, merged by stable `INSIGHT_ORDER` slots. Suspension, tire, electronic, driving, and mechanical detectors share calibrated wheel states, usable interval durations, and a clean-grip acceleration reference. Bounded indexed lookahead and event-window loss calculation finalize from retained evidence; detector IDs, output order, and persisted versions stay unchanged.
 
 Each `LapInsight` contains:
 

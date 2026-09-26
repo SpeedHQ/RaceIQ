@@ -3,7 +3,9 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
-import { analyzeLapWithTrack, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
@@ -310,10 +312,17 @@ export function computeLapMetrics(
   lapId: number,
   packets: TelemetryPacket[],
   gameId: GameId,
-  trackOrdinal: number | null | undefined,
+  trackId: number | string | null | undefined,
   segments: NamedSegment[],
-  insights: LapInsight[] = analyzeLapWithTrack(packets, gameId, trackOrdinal ?? undefined),
+  insights?: LapInsight[],
 ): LapMetrics {
+  if (!insights) {
+    const processed = processLap(packets, gameId);
+    insights = analyzeLap(processed.packets, gameId, {
+      racingLine: resolveRacingLineReference(gameId, trackId),
+    });
+    restoreF1FrameIndices(insights, processed.sourceIndices);
+  }
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,

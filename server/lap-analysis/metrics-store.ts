@@ -5,8 +5,9 @@ import type { LapInsight } from "../../shared/racing/analysis/laps/insights/type
 import { db } from "../db";
 import { lapMetrics, laps } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
-import { resolveTrack } from "../tracks/info";
-import { analyzeLapWithTrack, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { resolveLapSegments, resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import {
   computeLapMetrics,
   deriveFuelPerLap,
@@ -106,12 +107,12 @@ async function persistInsights(lapId: number, insights: LapInsight[]): Promise<v
 }
 
 function computeForLap(lap: NonNullable<Awaited<ReturnType<typeof getLapById>>>, cachedInsights?: LapInsight[]): LapMetrics {
-  const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
+  const segments = resolveLapSegments(lap.gameId as GameId, lap.trackId);
   return computeLapMetrics(
     lap.id,
     lap.telemetry,
     lap.gameId as GameId,
-    lap.trackOrdinal,
+    lap.trackId,
     segments,
     cachedInsights,
   );
@@ -159,7 +160,12 @@ async function rerunLapInsights(lapId: number, existing?: MetricsRow): Promise<L
   const row = existing ?? await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lapId)).get();
   const lap = await getLapById(lapId);
   if (!lap || lap.telemetry.length === 0 || !lap.gameId) return null;
-  const insights = analyzeLapWithTrack(lap.telemetry, lap.gameId as GameId, lap.trackOrdinal);
+  const gameId = lap.gameId as GameId;
+  const processed = processLap(lap.telemetry, gameId);
+  const insights = analyzeLap(processed.packets, gameId, {
+    racingLine: resolveRacingLineReference(gameId, lap.trackId),
+  });
+  restoreF1FrameIndices(insights, processed.sourceIndices);
   if (row) {
     await persistInsights(lapId, insights);
     const refreshed = { ...row, insightVersion: STATIC_LAP_ANALYSIS_VERSION, insights: JSON.stringify(insights), computedAt: new Date().toISOString() };
@@ -239,7 +245,12 @@ export async function getOrComputeLapInsightsBatch(lapIds: number[]): Promise<Ma
       const current = await db.select().from(lapMetrics).where(eq(lapMetrics.lapId, lap.id)).get();
       const hit = current ? rowInsights(current) : null;
       if (hit) return hit;
-      const computed = analyzeLapWithTrack(lap.telemetry, lap.gameId as GameId, lap.trackOrdinal);
+      const gameId = lap.gameId as GameId;
+      const processed = processLap(lap.telemetry, gameId);
+      const computed = analyzeLap(processed.packets, gameId, {
+        racingLine: resolveRacingLineReference(gameId, lap.trackId),
+      });
+      restoreF1FrameIndices(computed, processed.sourceIndices);
       if (current) await persistInsights(lap.id, computed);
       else await persist(computeForLap(lap, computed));
       return computed;
