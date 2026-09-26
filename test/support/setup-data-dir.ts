@@ -1,15 +1,14 @@
 /**
  * Test preload — wired via bunfig.toml `[test].preload`, so it runs for EVERY
- * `bun test` invocation, including bare `bun test path/to/one.test.ts` that
- * bypasses the package.json `test` script.
+ * `bun test` invocation, including bare single-file runs.
  *
- * Why this exists: several suites do unconditional wipes (e.g.
- * `db.delete(experiments)` in test/experiments.test.ts). Without
- * DATA_DIR set, server/runtime/config/data-dir.ts falls back to USER_DATA_DIR — the real
- * user DB — and those wipes destroy live tuning sessions.
+ * Each process owns an isolated temporary database unless the suite runner
+ * explicitly supplies RACEIQ_TEST_DATA_DIR. Never use an inherited DATA_DIR:
+ * test maintenance may delete captures missing from the test database.
  */
 import { afterAll } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 async function setupDataDir() {
@@ -22,11 +21,13 @@ for (const line of releaseEnvironment.split(/\r?\n/)) {
   process.env[name] = line.slice(separator + 1);
 }
 
-const TEST_DATA_DIR = resolve(import.meta.dir, "../..", ".data-test");
+// Each Bun process gets its own database. The suite runner passes its isolated
+// directory explicitly; standalone `bun test` runs allocate one here.
+const ownsTestDataDir = !process.env.RACEIQ_TEST_DATA_DIR;
+const TEST_DATA_DIR = ownsTestDataDir
+  ? mkdtempSync(resolve(tmpdir(), "raceiq-test-"))
+  : resolve(process.env.RACEIQ_TEST_DATA_DIR!);
 process.env.RACEIQ_TEST_MODE = "1";
-
-// Never inherit DATA_DIR from a running development shell. Test maintenance
-// jobs treat captures missing from test.db as orphans and may delete live files.
 process.env.DATA_DIR = TEST_DATA_DIR;
 
 mkdirSync(process.env.DATA_DIR, { recursive: true });
@@ -41,11 +42,9 @@ for (const suffix of ["", "-wal", "-shm"]) {
     if ((error as NodeJS.ErrnoException).code !== "EBUSY") throw error;
   }
 }
-if (resolve(process.env.DATA_DIR) === TEST_DATA_DIR) {
-  // Start each default test run from valid settings, even after an interrupted
-  // test left behind an intentionally invalid fixture value.
-  writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
-}
+// Start each run from valid settings, even after an interrupted test left
+// behind an intentionally invalid fixture value in an explicit test directory.
+writeFileSync(resolve(process.env.DATA_DIR, "settings.json"), "{}\n");
 
 /**
  * Run DB setup (PRAGMAs, migrations, backfills) exactly once, before any suite
@@ -85,6 +84,7 @@ afterAll(async () => {
   } catch {
     // db never loaded — nothing to close
   }
+  if (ownsTestDataDir) rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 }
 

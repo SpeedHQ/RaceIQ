@@ -45,7 +45,7 @@ test.describe("Setup Engineer experiments", () => {
     await page.goto(`/acc/experiments/${session.id}`);
     await expect(page.getByText("v1", { exact: true })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Setup", exact: true }),
+      page.getByRole("button", { name: "Setup", exact: true }).and(page.locator('[aria-pressed="true"]')),
     ).toBeVisible();
     await expect(page.getByText("HEAD", { exact: true })).toBeVisible();
     await expect(page.getByText(/No setup versions yet/)).toHaveCount(0);
@@ -159,7 +159,7 @@ test.describe("Setup Engineer experiments", () => {
         get: () => finalChunkSent,
       });
 
-      window.fetch = async (input, init) => {
+      window.fetch = Object.assign(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
         const request = new Request(input, init);
         if (request.method !== "POST" || !new URL(request.url).pathname.match(/^\/api\/experiments\/\d+\/chat$/)) {
           return originalFetch(input, init);
@@ -204,7 +204,7 @@ test.describe("Setup Engineer experiments", () => {
             "x-vercel-ai-ui-message-stream": "v1",
           },
         });
-      };
+      }, { preconnect: window.fetch.preconnect });
     });
 
     await page.goto("/");

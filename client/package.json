@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "bun test ./test",
+    "test": "bun run i18n:compile && bun test ./test",
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure message-modules --strategy localStorage baseLocale --emit-ts-declarations",
     "build": "vite build && tsc -b",
     "lint": "oxlint .",

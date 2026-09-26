@@ -91,6 +91,7 @@ export function ComparisonSelectors({
         <div className="flex items-center gap-2">
           <SearchSelect
             id="compare-lap-a"
+            ariaLabel={m.compare_lap_a()}
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
             options={carALaps.map((lap) => buildComparisonLapOption(lap))}
@@ -129,6 +130,7 @@ export function ComparisonSelectors({
         <div className="flex items-center gap-2">
           <SearchSelect
             id="compare-lap-b"
+            ariaLabel={m.compare_lap_b()}
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
             disabled={!carBOrd}

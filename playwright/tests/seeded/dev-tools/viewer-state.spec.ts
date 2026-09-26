@@ -48,12 +48,13 @@ test("developer state pause and resume controls update state view", async ({ pag
 
   const stateTab = page.getByRole("button", { name: "State", exact: true });
   await stateTab.click();
-  const pauseButton = page.getByRole("button", { name: "Pause", exact: true });
-  await expect(pauseButton).toBeVisible();
-  await pauseButton.click();
-  await expect(page.getByRole("button", { name: "Resume", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+  const pauseSwitch = page.getByRole("switch", { name: "Pause", exact: true });
+  await expect(pauseSwitch).toHaveAttribute("aria-checked", "false");
+  await pauseSwitch.click();
+  const resumeSwitch = page.getByRole("switch", { name: "Resume", exact: true });
+  await expect(resumeSwitch).toHaveAttribute("aria-checked", "true");
+  await resumeSwitch.click();
+  await expect(pauseSwitch).toHaveAttribute("aria-checked", "false");
 
   expect(browserErrors.errors, "unexpected browser errors in dev state controls").toEqual([]);
 });

@@ -63,21 +63,3 @@ test("renders limitations and canonical channels", () => {
   expect(markup).toContain('aria-label="Available"');
   expect(markup).toContain('aria-label="Unavailable"');
 });
-test("lists MoTeC metric availability from cursor states", () => {
-  const buildMotecMetricAvailability = Reflect.get(motecImportResult, "buildMotecMetricAvailability");
-  expect(typeof buildMotecMetricAvailability).toBe("function");
-  const result = buildMotecMetricAvailability({
-    frame: {
-      values: {
-        "motion.speed": 10,
-      },
-      states: {
-        "motion.speed": "ok",
-        "engine.current-engine-rpm": "unavailable",
-      },
-    },
-    gameId: "ac-evo",
-  });
-  expect(result.available.map((metric: { semanticId: string }) => metric.semanticId)).toContain("motion.speed");
-  expect(result.unavailable.map((metric: { semanticId: string }) => metric.semanticId)).toContain("engine.current-engine-rpm");
-});

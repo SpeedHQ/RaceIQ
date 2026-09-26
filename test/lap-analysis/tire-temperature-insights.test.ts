@@ -115,7 +115,7 @@ describe("static tire temperature layers", () => {
       TireSurfaceTempOuterFR: 90,
     };
     expect(detectTireSurfaceProfile(repeated(120, profile), "celsius")).toEqual([]);
-    const insights = analyzeLap(repeated(1125, profile), "ac-evo").filter((insight) => insight.id.startsWith("tire-surface-"));
+    const insights = analyzeLap(repeated(1125, profile), "lmu").filter((insight) => insight.id.startsWith("tire-surface-"));
     expect(insights.map((insight) => [insight.id, insight.severity])).toEqual([
       ["tire-surface-edge-imbalance-FL", "info"],
       ["tire-surface-pressure-shape-FR", "info"],

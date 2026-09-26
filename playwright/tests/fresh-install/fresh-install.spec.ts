@@ -73,7 +73,7 @@ test.describe
 
       // Step 5: Sound
       await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
-      await page.getByRole("button", { name: "Off" }).click();
+      await page.getByRole("switch", { name: "Sector blip" }).click();
       await page.getByRole("button", { name: "Next" }).click();
 
       // Step 6: Startup (Launch on Login)
@@ -136,7 +136,7 @@ test.describe
         await expect(navigation.getByRole("link", { name })).toBeVisible();
       }
       await expect(navigation.getByRole("link", { name: "Experiments" })).toHaveCount(0);
-      await expect(navigation.getByRole("button", { name: /Settings \(TestDriver\)/ })).toBeVisible();
+      await expect(navigation.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
       await expect(navigation.getByRole("status")).toBeVisible();
 
       await expect(navigation).toHaveAttribute("data-collapsed", "false");
@@ -188,7 +188,7 @@ test.describe
       const { errors } = collectBrowserErrors(page, [/THREE\.GLTFLoader: Couldn't load texture/]);
       await page.goto("/", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
-      await page.getByRole("button", { name: /TestDriver/ }).click();
+      await page.getByRole("navigation", { name: "Navigation" }).getByRole("button", { name: "Settings" }).click();
       await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
       await assertImagesLoaded(page);
       expect(errors, `unexpected browser errors:\n${errors.join("\n")}`).toEqual([]);

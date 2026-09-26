@@ -22,7 +22,11 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
-- Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
+- Label brake temperatures clearly in tire diagrams.
+- Keep Analyse map overlay menu clickable on narrow screens by separating it from zoom controls.
+- Mark AC Evo tire surface-profile checks unavailable when only representative surface temperature is recorded.
+- Detect LMU tire tread temperature gradients from its available inner, middle, and outer surface channels.
+- Ship ACC map-spline SVGs in compiled builds for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.
 - Restore traction-state colors on 3D tire trails after the WebGPU scene-renderer migration.
@@ -87,6 +91,8 @@
 
 
 ### Internal
+- Make standalone client tests compile translations before running; repair AI evaluation command and browser test typechecks for release validation.
+- Isolate each local Bun test process in its own database so concurrent release suites cannot wipe one another's state.
 - Run `bun dev` concurrently in Git worktrees with branch-specific Portless URLs, independent backend ports, and worktree UDP ports without restarting shared proxy.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook

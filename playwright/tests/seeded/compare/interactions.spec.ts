@@ -98,12 +98,12 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(workspace.getByText("Zoomed", { exact: true })).toBeVisible();
       await assertSynchronizedCursors(page);
 
-      const followMode = page.getByRole("button", { name: "Fixed View", exact: true });
-      await expect(followMode).toBeVisible();
+      const followMode = page.getByRole("switch", { name: /Fixed View|Follow View/ });
+      await expect(followMode).toHaveAttribute("aria-checked", "false");
       await followMode.click();
-      await expect(page.getByRole("button", { name: "Follow View", exact: true })).toBeVisible();
-      await page.getByRole("button", { name: "Follow View", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Fixed View", exact: true })).toBeVisible();
+      await expect(followMode).toHaveAttribute("aria-checked", "true");
+      await followMode.click();
+      await expect(followMode).toHaveAttribute("aria-checked", "false");
 
       const resizeHandle = page.getByRole("separator", { name: "Resize track map" });
       await expect(resizeHandle).toBeVisible();

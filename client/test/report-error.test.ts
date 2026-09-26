@@ -11,7 +11,6 @@ mock.module("../src/lib/rpc", () => ({
   },
 }));
 
-globalThis.window = { setTimeout } as unknown as Window & typeof globalThis;
 const { reportClientError } = await import("../src/lib/report-error");
 
 describe("client reporting", () => {

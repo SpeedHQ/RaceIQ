@@ -40,12 +40,12 @@ test("F1 experiment creates, switches focus, imports laps, uses history, and arc
     await expect(page.getByRole("heading", { name: new RegExp(experimentName) })).toBeVisible();
     await expect(page.getByRole("button", { name: "Driver", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-    await page.getByRole("button", { name: "Car", exact: true }).click();
+    await page.getByRole("button", { name: "Setup", exact: true }).and(page.locator("[aria-pressed]")).click();
     await page.getByPlaceholder("Why the switch? (optional)").fill("Seeded focus transition");
     const focusResponse = page.waitForResponse((response) => response.request().method() === "PATCH" && /\/api\/experiments\/\d+\/focus$/.test(new URL(response.url()).pathname));
     await page.getByRole("button", { name: "Switch", exact: true }).click();
     expect((await focusResponse).ok()).toBe(true);
-    await expect(page.getByRole("button", { name: "Car", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Setup", exact: true }).and(page.locator("[aria-pressed]"))).toHaveAttribute("aria-pressed", "true");
 
     await page.getByRole("button", { name: "Add laps from history" }).click();
     const importDialog = page.getByRole("dialog");
@@ -73,10 +73,10 @@ test("F1 experiment creates, switches focus, imports laps, uses history, and arc
     const focusHistory = page.getByRole("dialog");
     await expect(focusHistory.getByText("Nothing left to undo.", { exact: true })).toBeVisible();
     await expect(focusHistory.getByText("Driver", { exact: true })).toBeVisible();
-    await expect(focusHistory.getByText("Car", { exact: true })).toBeVisible();
+    await expect(focusHistory.getByText("Setup", { exact: true })).toBeVisible();
     await expect(focusHistory.getByText(/Seeded focus transition/)).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "Car", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Setup", exact: true }).and(page.locator('[aria-pressed="true"]'))).toBeVisible();
 
     await page.getByRole("button", { name: "Dashboard", exact: true }).click();
     await expect(page.getByText("Current stint", { exact: true })).toBeVisible();

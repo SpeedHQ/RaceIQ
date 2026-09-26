@@ -78,9 +78,12 @@ test("settings sections expose accessible controls and state changes", async ({ 
 
     await page.getByRole("button", { name: "Sound" }).click();
     await expect(page.getByRole("heading", { name: "Sound" })).toBeVisible();
-    await page.getByRole("button", { name: "Off", exact: true }).click();
+    const sectorBlip = page.getByRole("switch", { name: "Sector blip" });
+    await sectorBlip.click();
+    await expect(sectorBlip).toHaveAttribute("aria-checked", "false");
     await expect.poll(() => page.evaluate(() => localStorage.getItem("forza-sound-enabled"))).toBe("false");
-    await page.getByRole("button", { name: "On", exact: true }).click();
+    await sectorBlip.click();
+    await expect(sectorBlip).toHaveAttribute("aria-checked", "true");
     await expect.poll(() => page.evaluate(() => localStorage.getItem("forza-sound-enabled"))).toBe("true");
     await page.getByRole("button", { name: "Beep Short", exact: true }).click();
     await page.getByRole("button", { name: "Play", exact: true }).click();
