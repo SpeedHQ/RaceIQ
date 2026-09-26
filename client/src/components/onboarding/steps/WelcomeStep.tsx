@@ -1,5 +1,7 @@
 import { LOCALES } from "@shared/platform/i18n/locales";
 import type { SemanticAnalysisFrame } from "@/components/analyse/track-map/types";
+import type { SceneRuntime, SceneSource } from "@/components/wireframe/SceneRuntime";
+import { flushSync } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CarWireframe } from "@/components/CarWireframe";
@@ -22,15 +24,39 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
   const isDisposedRef = useRef(false);
   const lastTimeRef = useRef(0);
   const telemetryLengthRef = useRef(telemetry.length);
+  const framesRef = useRef(telemetry);
+  framesRef.current = telemetry;
+  const cursorRef = useRef(cursorIdx);
+  const [seekGeneration, setSeekGeneration] = useState(0);
+  const seekGenerationRef = useRef(0);
+  const [playing, setPlaying] = useState(false);
+  const runtimeRef = useRef<SceneRuntime | null>(null);
+  const recording = typeof window !== "undefined" && Boolean((window as unknown as Record<string, unknown>).__recording);
+  const initialCursorIdx = useRef(cursorIdx).current;
+  const handleRuntime = useCallback((runtime: SceneRuntime | null) => {
+    runtimeRef.current = runtime;
+    const w = window as unknown as Record<string, unknown>;
+    w.__captureSceneBitmap = recording && runtime ? () => runtime.captureBitmap() : undefined;
+  }, [recording]);
+  const source = useMemo<SceneSource>(() => ({
+    framesRef, cursorRef, playing, playbackSpeed: 1, seekGeneration, recording,
+  }), [playing, seekGeneration, recording]);
+  const seek = useCallback(() => {
+    const generation = ++seekGenerationRef.current;
+    setSeekGeneration(generation);
+    return generation;
+  }, []);
   telemetryLengthRef.current = telemetry.length;
   const trackOrdinal = telemetry[0]?.values["identity.track-ordinal"];
   const pauseAnimation = useCallback(() => {
     if (!isRunningRef.current) return;
+    setPlaying(false);
     isRunningRef.current = false;
     cancelAnimationFrame(rafIdRef.current);
   }, []);
   const resumeAnimation = useCallback(() => {
     if (isDisposedRef.current || isRunningRef.current) return;
+    setPlaying(true);
     isRunningRef.current = true;
     lastTimeRef.current = 0;
     const frameDuration = 1000 / 60;
@@ -41,12 +67,14 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
       lastTimeRef.current = time;
       setCursorIdx((prev) => {
         const totalPackets = telemetryLengthRef.current;
-        const next = prev + 1;
-        return next >= totalPackets ? 0 : next;
+        const next = prev + 1 >= totalPackets ? 0 : prev + 1;
+        cursorRef.current = next;
+        if (next === 0) seek();
+        return next;
       });
     };
     rafIdRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [seek]);
 
   useQuery({
     queryKey: ["track-outline", trackOrdinal],
@@ -76,7 +104,14 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
     isDisposedRef.current = false;
     const expose = window as unknown as Record<string, unknown>;
     expose.__setFrame = (n: number) => {
-      if (!isDisposedRef.current) setCursorIdx(n);
+      const idx = Math.max(0, Math.min(telemetryLengthRef.current - 1, n));
+      cursorRef.current = idx;
+      const generation = seek();
+      flushSync(() => {
+        setSeekGeneration(generation);
+        setCursorIdx(idx);
+      });
+      return runtimeRef.current ? runtimeRef.current.requestFrame(generation) : Promise.resolve();
     };
     expose.__pauseAnimation = () => pauseAnimation();
     expose.__resumeAnimation = () => resumeAnimation();
@@ -89,7 +124,7 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
       expose.__totalFrames = undefined;
       pauseAnimation();
     };
-  }, [pauseAnimation, resumeAnimation]);
+  }, [pauseAnimation, resumeAnimation, seek]);
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__totalFrames = telemetry.length;
   }, [telemetry.length]);
@@ -117,9 +152,11 @@ function WelcomeViewport({ telemetry }: { telemetry: SemanticAnalysisFrame[] }) 
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
-        frame={packet}
+        frame={telemetry[0]}
+        source={source}
         telemetry={telemetry}
-        cursorIdx={cursorIdx}
+        cursorIdx={initialCursorIdx}
+        onRuntime={handleRuntime}
         outline={lapLine}
         boundaries={boundaries ?? undefined}
         carOrdinal={typeof carOrdinal === "number" ? carOrdinal : undefined}

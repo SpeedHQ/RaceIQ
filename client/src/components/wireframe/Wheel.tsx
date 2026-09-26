@@ -1,148 +1,113 @@
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
-import * as THREE from "three";
+import * as THREE from "three/webgpu";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
 import { brakeTempColor, tireTempColor } from "../../lib/vehicle-dynamics";
 import { makeWheelGeometries, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
-import { WheelInfoCard } from "./WheelLabels";
 
-const useWheelGeometries = (radius = 0.34, width = 0.3) => useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
+export type WheelGeometries = {
+  tire: THREE.BufferGeometry;
+  surfaceBands: THREE.BufferGeometry[];
+  carcass: THREE.BufferGeometry;
+  core: THREE.BufferGeometry;
+  rim: THREE.BufferGeometry;
+};
+export type WheelResource = {
+  root: THREE.Group;
+  pivot: THREE.Group;
+  spin: THREE.Group;
+  geometries: WheelGeometries;
+  meshes: THREE.Mesh[];
+  materials: THREE.MeshBasicMaterial[];
+  curb: THREE.Mesh;
+  puddle: THREE.Mesh;
+};
+export type WheelResourceConfig = {
+  position: [number, number, number]; steerAngle: number; camberAngle?: number; rimColor: string;
+  temperatureReadings: TireTemperatureReading[]; temperatureThresholds: { cold: number; warm: number; hot: number };
+  brakeTemp: number; side: "left" | "right"; isRear: boolean; onCurb: boolean; puddleDepth: number;
+  tireRadius?: number; tireWidth?: number;
+};
 
-export function Wheel({
-  position,
-  steerAngle,
-  camberAngle = 0,
-  rimColor,
-  rotationSpeed,
-  temperatureReadings,
-  fmtTemp,
-  temperatureThresholds,
-  displayBrakeTemp,
-  brakeTemp,
-  pressurePsi,
-  pressureOptimal,
-  wearRate,
-  wear,
-  side,
-  isRear,
-  onCurb,
-  puddleDepth,
-  tireRadius = 0.34,
-  tireWidth = 0.3,
-}: {
-  position: [number, number, number];
-  steerAngle: number;
-  camberAngle?: number;
-  rimColor: string;
-  rotationSpeed: number;
-  temperatureReadings: TireTemperatureReading[];
-  fmtTemp: (value: number) => string;
-  temperatureThresholds: { cold: number; warm: number; hot: number };
-  displayBrakeTemp?: string | null;
-  brakeTemp: number;
-  pressurePsi: number;
-  pressureOptimal?: { min: number; max: number };
-  wearRate: number;
-  wear: number;
-  side: "left" | "right";
-  isRear: boolean;
-  onCurb: boolean;
-  puddleDepth: number;
-  tireRadius?: number;
-  tireWidth?: number;
-}) {
-  const wheelY = position[1];
-  const { tire, surfaceBands, carcass, core, rim } = useWheelGeometries(tireRadius, tireWidth);
-  const spinRef = useRef<THREE.Group>(null);
-  const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
-  const treadReadings = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
-  const carcassReading = temperatureReadings.find(({ kind }) => kind === "carcass")?.value ?? null;
-  const coreReading = temperatureReadings.find(({ kind }) => kind === "core")?.value ?? null;
-  const surfaceReading = temperatureReadings.find(({ kind }) => kind === "surface");
-  const fallbackColor = surfaceReading?.value == null ? "var(--status-unavailable)" : tireTempColor(surfaceReading.value, temperatureThresholds);
+/** Allocates retained wheel meshes. Call disposeWheelResource when wheel size changes or scene is disposed. */
+export function createWheelResource(tireRadius = 0.34, tireWidth = 0.3): WheelResource {
+  const geometries = makeWheelGeometries(tireRadius, tireWidth);
+  const root = new THREE.Group();
+  const pivot = new THREE.Group();
+  const camber = new THREE.Group();
+  const spin = new THREE.Group();
+  root.add(pivot); pivot.add(camber); camber.add(spin);
+  const meshes: THREE.Mesh[] = [];
+  const materials: THREE.MeshBasicMaterial[] = [];
+  const mesh = (geometry: THREE.BufferGeometry, options: THREE.MeshBasicMaterialParameters, order = 10) => {
+    const material = new THREE.MeshBasicMaterial(options);
+    const object = new THREE.Mesh(geometry, material); object.renderOrder = order; spin.add(object);
+    meshes.push(object); materials.push(material); return object;
+  };
+  mesh(geometries.tire, { color: THREE_COLORS.appTextDim, wireframe: true, transparent: true, depthTest: false });
+  mesh(geometries.rim, { color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthTest: false });
+  for (const geometry of geometries.surfaceBands) mesh(geometry, { color: THREE_COLORS.appTextDim, wireframe: true, transparent: true, depthTest: false });
+  mesh(geometries.carcass, { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.55, depthTest: false }, 9);
+  mesh(geometries.core, { color: 0xffffff, wireframe: true, transparent: true, opacity: 0.75, depthTest: false }, 8);
+  const brakeGeometry = new THREE.CylinderGeometry(tireRadius * 0.5, tireRadius * 0.5, 0.02, 24);
+  const brake = mesh(brakeGeometry, { color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthTest: false });
+  brake.rotation.x = Math.PI / 2; brake.position.z = (tireWidth * 0.6) * (root.position.x < 0 ? -1 : 1);
+  const curbGeometry = new THREE.RingGeometry(tireRadius + 0.02, tireRadius + 0.1, 16);
+  const curbMaterial = new THREE.MeshBasicMaterial({ color: THREE_COLORS.surfaceContact, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+  const curb = new THREE.Mesh(curbGeometry, curbMaterial); curb.rotation.x = Math.PI / 2; curb.position.y = -tireRadius; root.add(curb);
+  const puddleGeometry = new THREE.CircleGeometry(tireRadius + 0.04, 16);
+  const puddleMaterial = new THREE.MeshBasicMaterial({ color: THREE_COLORS.surfaceWet, transparent: true, side: THREE.DoubleSide });
+  const puddle = new THREE.Mesh(puddleGeometry, puddleMaterial); puddle.rotation.x = Math.PI / 2; puddle.position.y = -tireRadius; root.add(puddle);
+  meshes.push(curb, puddle);
+  materials.push(curbMaterial, puddleMaterial);
+  return { root, pivot, spin, geometries, meshes, materials, curb, puddle };
+}
 
-  // Accumulate spin every frame using wall-clock delta — works at any playback speed
-  // Dead-band near-zero speeds to prevent reverse-wobble when paused
-  useFrame((_, delta) => {
-    if (!spinRef.current) return;
-    if (Math.abs(rotationSpeed) < 0.5) return;
-    spinRef.current.rotation.z -= rotationSpeed * delta;
-  });
-
-  return (
-    <group position={[position[0], wheelY, position[2]]}>
-      <group rotation={[0, steerAngle, 0]}>
-        <group rotation={[camberAngle, 0, 0]}>
-          <group ref={spinRef}>
-          {carcassReading != null && (
-            <mesh geometry={carcass} renderOrder={9}>
-              <meshBasicMaterial color={threeColor(tireTempColor(carcassReading, temperatureThresholds))} wireframe transparent opacity={0.55} depthTest={false} />
-            </mesh>
-          )}
-          {coreReading != null && (
-            <mesh geometry={core} renderOrder={8}>
-              <meshBasicMaterial color={threeColor(tireTempColor(coreReading, temperatureThresholds))} wireframe transparent opacity={0.75} depthTest={false} />
-            </mesh>
-          )}
-          {hasProfile ? (
-            <>
-              {surfaceBands.map((geometry, index) => {
-                const reading = treadReadings[index];
-                const color = reading?.value == null ? THREE_COLORS.appTextDim : threeColor(tireTempColor(reading.value, temperatureThresholds));
-                return (
-                  <mesh key={index} geometry={geometry} renderOrder={10}>
-                    <meshBasicMaterial color={color} wireframe transparent depthTest={false} />
-                  </mesh>
-                );
-              })}
-            </>
-          ) : (
-            <mesh geometry={tire} renderOrder={10}>
-              <meshBasicMaterial color={threeColor(fallbackColor)} wireframe depthTest={false} transparent />
-            </mesh>
-          )}
-          <mesh geometry={rim} renderOrder={10}>
-            <meshBasicMaterial color={threeColor(rimColor)} transparent opacity={0.85} side={THREE.DoubleSide} depthTest={false} />
-          </mesh>
-          </group>
-        </group>
-        {/* Brake disc — vertical, inboard of wheel (between wheel and spring) */}
-        {brakeTemp > 0 && (
-          <mesh position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]} rotation={[Math.PI / 2, 0, 0]} renderOrder={10}>
-            <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
-            <meshBasicMaterial color={threeColor(brakeTempColor(brakeTemp, isRear))} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
-          </mesh>
-        )}
-      </group>
-      {temperatureReadings.length > 0 && (
-        <WheelInfoCard
-          temperatureReadings={temperatureReadings}
-          fmtTemp={fmtTemp}
-          temperatureThresholds={temperatureThresholds}
-          wear={wear}
-          wearRate={wearRate}
-          displayBrakeTemp={displayBrakeTemp}
-          brakeTemp={brakeTemp}
-          pressurePsi={pressurePsi}
-          pressureOptimal={pressureOptimal}
-          side={side}
-          isRear={isRear}
-        />
-      )}
-      {/* Theme-owned curb indicator ring under the tire */}
-      {onCurb && (
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -tireRadius, 0]}>
-          <ringGeometry args={[tireRadius + 0.02, tireRadius + 0.1, 16]} />
-          <meshBasicMaterial color={THREE_COLORS.surfaceContact} transparent opacity={0.7} side={THREE.DoubleSide} />
-        </mesh>
-      )}
-      {/* Theme-owned puddle indicator disc scaled by depth */}
-      {puddleDepth > 0 && (
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -tireRadius, 0]}>
-          <circleGeometry args={[tireRadius + 0.04 + puddleDepth * 0.15, 16]} />
-          <meshBasicMaterial color={THREE_COLORS.surfaceWet} transparent opacity={0.3 + puddleDepth * 0.4} side={THREE.DoubleSide} />
-        </mesh>
-      )}
-    </group>
-  );
+/** Updates transforms/materials without replacing meshes or GPU buffers. */
+export function updateWheelResource(resource: WheelResource, config: WheelResourceConfig): void {
+  const radius = config.tireRadius ?? 0.34;
+  resource.root.position.set(...config.position);
+  resource.pivot.rotation.y = config.steerAngle;
+  resource.pivot.rotation.x = config.camberAngle ?? 0;
+  resource.curb.visible = config.onCurb;
+  resource.puddle.visible = config.puddleDepth > 0;
+  resource.puddle.scale.setScalar(config.puddleDepth > 0 ? (radius + 0.04 + config.puddleDepth * 0.15) / (radius + 0.04) : 1);
+  let surface: number | null = null, carcass: number | null = null, core: number | null = null, profileCount = 0, profileMask = 0;
+  for (const reading of config.temperatureReadings) {
+    if (reading.kind === "surface") surface = reading.value;
+    else if (reading.kind === "carcass") carcass = reading.value;
+    else if (reading.kind === "core") core = reading.value;
+    else if (reading.kind === "inner") { profileCount++; profileMask |= 1; }
+    else if (reading.kind === "middle") { profileCount++; profileMask |= 2; }
+    else if (reading.kind === "outer") { profileCount++; profileMask |= 4; }
+  }
+  const fallback = surface == null ? threeColor("var(--status-unavailable)") : threeColor(tireTempColor(surface, config.temperatureThresholds));
+  resource.meshes[0].visible = profileCount === 0;
+  (resource.meshes[0].material as THREE.MeshBasicMaterial).color.copy(fallback);
+  for (const reading of config.temperatureReadings) {
+    let bandIndex = -1;
+    if (reading.kind === "inner") bandIndex = 0;
+    else if (reading.kind === "middle") bandIndex = 1;
+    else if (reading.kind === "outer") bandIndex = 2;
+    if (bandIndex < 0) continue;
+    const band = resource.meshes[2 + bandIndex];
+    band.visible = true;
+    (band.material as THREE.MeshBasicMaterial).color.copy(reading.value == null ? THREE_COLORS.appTextDim : threeColor(tireTempColor(reading.value, config.temperatureThresholds)));
+  }
+  for (let i = 0; i < resource.geometries.surfaceBands.length; i++) resource.meshes[2 + i].visible = (profileMask & (1 << i)) !== 0;
+  const carcassMesh = resource.meshes[2 + resource.geometries.surfaceBands.length];
+  const coreMesh = resource.meshes[3 + resource.geometries.surfaceBands.length];
+  carcassMesh.visible = carcass != null; coreMesh.visible = core != null;
+  if (carcass != null) (carcassMesh.material as THREE.MeshBasicMaterial).color.copy(threeColor(tireTempColor(carcass, config.temperatureThresholds)));
+  if (core != null) (coreMesh.material as THREE.MeshBasicMaterial).color.copy(threeColor(tireTempColor(core, config.temperatureThresholds)));
+  (resource.meshes[1].material as THREE.MeshBasicMaterial).color.copy(threeColor(config.rimColor));
+  const brake = resource.meshes[4 + resource.geometries.surfaceBands.length];
+  brake.visible = config.brakeTemp > 0; brake.position.z = config.side === "left" ? (config.tireWidth ?? 0.3) * 0.6 : -(config.tireWidth ?? 0.3) * 0.6;
+  if (config.brakeTemp > 0) (brake.material as THREE.MeshBasicMaterial).color.copy(threeColor(brakeTempColor(config.brakeTemp, config.isRear)));
+}
+export function setWheelSpin(resource: WheelResource, rotationSpeed: number, elapsed: number, playbackSpeed: number, playing: boolean): void {
+  if (playing && elapsed > 0 && elapsed < 0.25 && Math.abs(rotationSpeed) >= 0.5) resource.spin.rotation.z -= rotationSpeed * elapsed * playbackSpeed;
+}
+export function disposeWheelResource(resource: WheelResource): void {
+  resource.root.removeFromParent();
+  for (const material of resource.materials) material.dispose();
+  for (const geometry of new Set([...resource.geometries.surfaceBands, resource.geometries.tire, resource.geometries.carcass, resource.geometries.core, resource.geometries.rim, ...resource.meshes.map((mesh) => mesh.geometry)])) geometry.dispose();
 }

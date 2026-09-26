@@ -18,7 +18,9 @@ import { AnalyseLapHeader } from "./AnalyseLapHeader";
 import { AnalyseWorkspaceModals } from "./AnalyseWorkspaceModals";
 import { AnalyseWorkspacePanels } from "./AnalyseWorkspacePanels";
 import { AnalyseWorkspaceStatus } from "./AnalyseWorkspaceStatus";
+import { flushSync } from "react-dom";
 import { semanticNumber, type Point, type TrackMapHandle, type TrackOverlayKey, type TrackZoomBehavior } from "./track-map/types";
+import type { SceneRuntime, SceneSource } from "../wireframe/SceneRuntime";
 import { useAnalyseImports } from "./useAnalyseImports";
 import { useAnalyseSelections } from "./useAnalyseSelections";
 import { buildExportCsv } from "../../lib/lap-export";
@@ -115,10 +117,33 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const displayTelemetryRef = useRef(semanticFrames);
+  const seekRef = useRef(0);
+  const [seekGeneration, setSeekGeneration] = useState(0);
+  const seekGenerationRef = useRef(0);
+  const runtimeRef = useRef<SceneRuntime | null>(null);
+  const recording = typeof window !== "undefined" && Boolean((window as unknown as Record<string, unknown>).__recording);
+  const handleRuntime = useCallback((runtime: SceneRuntime | null) => {
+    runtimeRef.current = runtime;
+    const w = window as unknown as Record<string, unknown>;
+    w.__captureSceneBitmap = recording && runtime ? () => runtime.captureBitmap() : undefined;
+  }, [recording]);
+  const sceneSource = useMemo<SceneSource>(() => ({
+    framesRef: displayTelemetryRef,
+    cursorRef,
+    playing,
+    playbackSpeed,
+    seekGeneration,
+    recording,
+  }), [playing, playbackSpeed, seekGeneration, recording]);
+  const publishSeek = useCallback(() => {
+    const generation = ++seekGenerationRef.current;
+    setSeekGeneration(generation);
+    return generation;
+  }, []);
   useEffect(() => {
     displayTelemetryRef.current = semanticFrames;
-  }, [semanticFrames]);
-  const seekRef = useRef(0);
+    publishSeek();
+  }, [semanticFrames, publishSeek]);
   const trackMapRef = useRef<TrackMapHandle>(null);
   const lastStateUpdateRef = useRef(0);
   const cursorStateRafRef = useRef<number | null>(null);
@@ -146,7 +171,15 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     setCursorIdx(idx);
     cursorRef.current = idx;
     appliedInitialCursor.current = true;
-  }, [initialCursor, semanticFrames.length]);
+    publishSeek();
+  }, [initialCursor, semanticFrames.length, publishSeek]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") publishSeek();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [publishSeek]);
 
   // Keep speedRef in sync and signal the animation to re-anchor timing
   const speedChangeRef = useRef(0);
@@ -172,12 +205,17 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     const w = window as unknown as Record<string, unknown>;
     w.__setFrame = (n: number) => {
       const idx = Math.max(0, Math.min(semanticFrames.length - 1, n));
-      setCursorIdx(idx);
       cursorRef.current = idx;
       trackMapRef.current?.updateCursor(idx);
       chartsPanelRef.current?.updateCursor(idx);
+      return new Promise<void>((resolve, reject) => {
+        const generation = publishSeek();
+        flushSync(() => setCursorIdx(idx));
+        const runtime = runtimeRef.current;
+        if (runtime && vizMode === "3d") runtime.requestFrame(generation).then(resolve, reject);
+        else resolve();
+      });
     };
-    w.__pauseAnimation = () => setPlaying(false);
     w.__totalFrames = semanticFrames.length;
     w.__frameTimes = semanticFrames.map((p) => semanticNumber(p, "timing.current-lap") ?? 0);
     return () => {
@@ -186,7 +224,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
       w.__totalFrames = undefined;
       w.__frameTimes = undefined;
     };
-  }, [semanticFrames.length]);
+  }, [semanticFrames.length, publishSeek, vizMode]);
 
   // Playback animation + keyboard controls
   const { updateOverlays } = useLapPlayback({
@@ -224,7 +262,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
       // Keep imperative overlays on input event; defer heavy React consumers to
       // one render per frame so chart dragging cannot queue stale renders.
       cursorRef.current = idx;
-      seekRef.current++;
+      publishSeek();
       updateOverlays(idx);
       pendingCursorStateRef.current = idx;
       if (cursorStateRafRef.current == null) {
@@ -235,7 +273,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
         });
       }
     },
-    [updateOverlays],
+    [updateOverlays, publishSeek],
   );
 
   const handleScrubStart = useCallback(() => {
@@ -427,6 +465,8 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             cursorIdx,
             outline,
             mapLabels,
+            sceneSource,
+            onRuntime: handleRuntime,
             boundaries,
             sectors,
             segments,
