@@ -12,6 +12,7 @@
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
 - Fetch available OpenAI models using configured API key
 - Storage settings and Sessions let drivers manually remove old or selected telemetry while preserving session and lap metadata and protecting favourites
+- Let drivers opt into automatic raw-capture cleanup by age in Storage settings; defaults off and preserves session and lap metadata.
 - Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
 - Filter Sessions by favourite status.
 
@@ -35,6 +36,7 @@
 - Keep Analyse timelines clear and responsive when telemetry timestamps sit on floating-point gap boundaries
 - Enable mouse-wheel zoom whenever a Track Detail map appears after track data loads or tab navigation
 - Keep telemetry cleanup effective when session compression runs at the same time.
+- Serialize cleanup with session reprocessing and favorite changes so cleaned paths cannot be restored and newly favorited captures remain protected.
 - Restore saved fuel consumption in experiment lap metrics.
 - Preserve lap favourites and their cleanup protection when session reprocessing replaces laps.
 - Open the session import dialog correctly from the Sessions toolbar.

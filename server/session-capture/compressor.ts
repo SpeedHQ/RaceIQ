@@ -16,6 +16,8 @@ import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { cleanupOrphanSessionFiles, listSessionCaptureFiles, withSessionCaptureMaintenanceLock } from "./cleanup";
 import { cleanupExpiredStagedMotec } from "../motec/import-staging";
+import { loadSettings } from "../runtime/config/settings";
+import { executeSessionCleanup, SessionCleanupBusyError } from "./session-cleanup";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
@@ -129,6 +131,17 @@ async function runMaintenance(): Promise<void> {
 
 export async function runSessionCaptureMaintenanceNow(): Promise<void> {
   await runCompression();
+  const settings = loadSettings();
+  if (settings.sessionCleanupEnabled && !isSessionActive()) {
+    try {
+      const result = await executeSessionCleanup({ mode: "older-than", olderThanDays: settings.sessionCleanupAgeDays });
+      if (result.failed.length > 0) {
+        console.warn(`[Cleanup] Failed to remove ${result.failed.length} capture group(s)`);
+      }
+    } catch (error) {
+      if (!(error instanceof SessionCleanupBusyError)) console.error("[Cleanup] Automatic capture cleanup failed:", error);
+    }
+  }
   const [orphanCount, stagedMotecCount] = await Promise.all([cleanupOrphanSessionFiles(isSessionActive), cleanupExpiredStagedMotec()]);
   console.debug(orphanCount > 0 ? `[Cleanup] Removed ${orphanCount} orphan session file(s)` : "[Cleanup] No orphan session files found");
   if (stagedMotecCount > 0) {

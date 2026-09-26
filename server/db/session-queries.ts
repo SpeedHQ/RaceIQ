@@ -3,6 +3,7 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, sessionResults, pitEvents } from "./schema";
+import { withSessionCaptureMaintenanceLock } from "../session-capture/cleanup";
 import type { SessionMeta, SessionOwnership } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
@@ -57,13 +58,17 @@ export async function updateSessionCarTrack(
 }
 
 export async function setSessionFavorite(id: number, favorite: boolean): Promise<boolean> {
-  const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
-  return result.rowsAffected > 0;
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(sessions).set({ isFavorite: favorite }).where(eq(sessions.id, id)).run();
+    return result.rowsAffected > 0;
+  });
 }
 
 export async function setLapFavorite(id: number, favorite: boolean): Promise<boolean> {
-  const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
-  return result.rowsAffected > 0;
+  return withSessionCaptureMaintenanceLock(async () => {
+    const result = await db.update(laps).set({ isFavorite: favorite }).where(eq(laps.id, id)).run();
+    return result.rowsAffected > 0;
+  });
 }
 export async function updateSessionSource(sessionId: number, source: string): Promise<void> {
   await db.update(sessions).set({ source }).where(eq(sessions.id, sessionId)).run();

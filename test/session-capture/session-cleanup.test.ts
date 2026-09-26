@@ -6,6 +6,8 @@ import { eq, inArray } from "drizzle-orm";
 import { db, client } from "../../server/db";
 import { laps, sessions } from "../../server/db/schema";
 import { executeSessionCleanup, previewSessionCleanup } from "../../server/session-capture/session-cleanup";
+import { reprocessSession, SessionRawFileMissingError } from "../../server/session-capture/reprocess";
+import { setSessionFavorite, setLapFavorite } from "../../server/db/session-queries";
 import { runUserCompressionNow } from "../../server/session-capture/compressor";
 import { withSessionCaptureMaintenanceLock } from "../../server/session-capture/cleanup";
 import { resolveDataDir } from "../../server/runtime/config/data-dir";
@@ -217,6 +219,49 @@ describe("session cleanup edge cases", () => {
     expect(readFileSync(path)).toEqual(payload);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
   });
+  for (const favorite of ["session", "lap"] as const) {
+    test(`serializes ${favorite} favorite write before cleanup planning`, async () => {
+      const path = capturePath(`favorite-race-${favorite}.bin`);
+      writeFileSync(path, Buffer.from("favorite race"));
+      const sessionId = await createSession({ rawFile: path });
+      const lapId = await createLap(sessionId);
+
+      const gate = Promise.withResolvers<void>();
+      const held = withSessionCaptureMaintenanceLock(() => gate.promise);
+      const updateFavorite = favorite === "session" ? setSessionFavorite(sessionId, true) : setLapFavorite(lapId, true);
+      const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+      gate.resolve();
+
+      await held;
+      expect(await updateFavorite).toBe(true);
+      const result = await cleanup;
+
+      expect(result.candidateSessionIds).toEqual([]);
+      expect(result.protectedSessionIds).toContain(sessionId);
+      expect(existsSync(path)).toBe(true);
+      expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBe(path);
+    });
+  }
+
+  test("serializes reprocessing after cleanup without restoring deleted raw_file", async () => {
+    const path = capturePath("reprocess-race.bin");
+    writeFileSync(path, Buffer.from("reprocess race"));
+    const sessionId = await createSession({ rawFile: path });
+
+    const gate = Promise.withResolvers<void>();
+    const held = withSessionCaptureMaintenanceLock(() => gate.promise);
+    const cleanup = executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
+    const reprocess = reprocessSession(sessionId);
+    gate.resolve();
+
+    await held;
+    const result = await cleanup;
+    expect(result.cleanedSessionIds).toEqual([sessionId]);
+    await expect(reprocess).rejects.toBeInstanceOf(SessionRawFileMissingError);
+    expect(existsSync(path)).toBe(false);
+    expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
+  });
+
 
   test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
     const path = capturePath("overlap.bin");

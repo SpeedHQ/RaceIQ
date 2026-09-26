@@ -1,10 +1,11 @@
-import type { SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
+import type { CleanupAgeDays, SessionCleanupRequest, SessionCleanupResult } from "@shared/racing/sessions/cleanup";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, HardDrive, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SessionCleanupDialog } from "@/components/SessionCleanupDialog";
 import { queryKeys } from "@/hooks/query-keys";
@@ -247,6 +248,9 @@ function StorageFilesSection() {
   });
   const queryClient = useQueryClient();
   const [cleanupRequest, setCleanupRequest] = useState<SessionCleanupRequest | null>(null);
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const [cleanupSettingsError, setCleanupSettingsError] = useState("");
 
   const compress = useMutation({
     mutationFn: async () => {
@@ -289,6 +293,43 @@ function StorageFilesSection() {
             {m.storage_load_failed()}
           </p>
         )}
+        <div className="mb-5 space-y-3 rounded-lg border border-app-border bg-app-surface-alt/50 p-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="automatic-session-cleanup"
+              checked={displaySettings.sessionCleanupEnabled}
+              disabled={saveSettings.isPending}
+              onCheckedChange={(checked) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupEnabled: checked }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+            />
+            <Label htmlFor="automatic-session-cleanup">{m.storage_auto_cleanup_label()}</Label>
+          </div>
+          <p className="text-xs text-app-text-dim">{m.storage_auto_cleanup_desc()}</p>
+          <div className="flex items-center gap-3">
+            <Label htmlFor="automatic-session-cleanup-age">{m.storage_auto_cleanup_age()}</Label>
+            <select
+              id="automatic-session-cleanup-age"
+              value={displaySettings.sessionCleanupAgeDays}
+              disabled={saveSettings.isPending}
+              onChange={(event) => {
+                setCleanupSettingsError("");
+                saveSettings.mutate({ sessionCleanupAgeDays: Number(event.target.value) as CleanupAgeDays }, {
+                  onError: () => setCleanupSettingsError(m.storage_save_failed()),
+                });
+              }}
+              className="h-8 rounded-md border border-app-border-input bg-app-surface px-2 text-sm text-app-text"
+            >
+              {([30, 90, 180, 365] as const).map((days) => (
+                <option key={days} value={days}>{m.sessions_cleanup_age_option({ days })}</option>
+              ))}
+            </select>
+          </div>
+          {cleanupSettingsError && <p role="alert" className="text-xs text-status-danger">{cleanupSettingsError}</p>}
+        </div>
         {data && data.total > 0 && (
           <div className="mb-5">
             <DonutChart binCount={data.binCount} gzCount={data.gzCount} />

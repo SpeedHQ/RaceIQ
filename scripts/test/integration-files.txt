@@ -125,6 +125,7 @@ test/runtime/stale-session-jobs.test.ts
 test/runtime/tray.test.ts
 test/runtime/update-check.test.ts
 test/runtime/websocket-manager.test.ts
+test/session-capture/automatic-cleanup.test.ts
 test/session-capture/parse-bin-vs-gz.test.ts
 test/session-capture/parse-dump.test.ts
 test/session-capture/raw-binary-storage.test.ts
