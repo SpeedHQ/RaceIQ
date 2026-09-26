@@ -21,14 +21,14 @@ import { combineRecordingParts } from "../lib/combine-recording-parts";
 
 async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
   const source = createReadStream(path);
-  const stream = path.toLowerCase().endsWith(".gz") ? source.pipe(createGunzip()) : source;
+  const stream = path.toLowerCase().endsWith(".gz") ? source.pipe(createGunzip({ chunkSize: 512 * 1024 })) : source;
   let pending = Buffer.alloc(0);
   let headerRead = false;
   let count = 0;
   let declaredCount = 0;
   let offset = 0;
   for await (const chunk of stream) {
-    pending = pending.length ? Buffer.concat([pending, chunk]) : Buffer.from(chunk);
+    pending = pending.length ? Buffer.concat([pending, chunk]) : chunk;
     if (!headerRead) {
       if (pending.length < 16) continue;
       if (!pending.subarray(0, 8).equals(LMU_DUMP_MAGIC) ||
@@ -47,7 +47,7 @@ async function* streamLMUSeedFrames(path: string): AsyncGenerator<Buffer> {
       }
       if (offset + 5 + size > pending.length) break;
       offset += 5;
-      const frame = Buffer.from(pending.subarray(offset, offset + size));
+      const frame = pending.subarray(offset, offset + size);
       offset += size;
       count++;
       yield frame;
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
         const existingSessionIds = new Set(
           (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
         );
-        const result = game === "lmu" && combined
+        const result = game === "lmu"
           ? await importSessionFrames(streamLMUSeedFrames(fixturePath), game, { notifyDriverProfile: false })
           : await importSessionBin(readFileSync(fixturePath), game, { notifyDriverProfile: false });
         const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())

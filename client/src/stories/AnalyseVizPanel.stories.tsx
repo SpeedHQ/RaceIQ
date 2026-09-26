@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRef } from "react";
+import { KNOWN_GAME_IDS, type GameId } from "../../../shared/games/ids";
+import { useMemo, useRef, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
@@ -36,6 +37,39 @@ const frame: SemanticAnalysisFrame = {
   states: {},
   freshness: {},
 };
+const profileFrame = (offset: number): SemanticAnalysisFrame => ({
+  ...frame,
+  values: {
+    ...frame.values,
+    "tire.temperature.surface.inner": [78 + offset, 80 + offset, 82 + offset, 84 + offset],
+    "tire.temperature.surface.middle": [92 + offset, 94 + offset, 96 + offset, 98 + offset],
+    "tire.temperature.surface.outer": [108 + offset, 110 + offset, 112 + offset, 114 + offset],
+    "tire.temperature.core": [88 + offset, 90 + offset, 92 + offset, 94 + offset],
+  },
+});
+const profileFrameOne = profileFrame(0);
+const profileFrameTwo: SemanticAnalysisFrame = {
+  ...profileFrame(8),
+  values: { ...profileFrame(8).values, "tire.temperature.surface.inner": [86, null, 90, 92] },
+};
+const profileVariantFrame = (variant: "bands" | "core" | "representative"): SemanticAnalysisFrame => {
+  const values = { ...profileFrameOne.values };
+  if (variant !== "bands") {
+    delete values["tire.temperature.surface.inner"];
+    delete values["tire.temperature.surface.middle"];
+    delete values["tire.temperature.surface.outer"];
+  }
+  if (variant === "representative") delete values["tire.temperature.core"];
+  if (variant === "core") delete values["tire.temperature.surface.representative"];
+  return { ...profileFrameOne, values };
+};
+
+const profileVariantFrames = {
+  bands: profileVariantFrame("bands"),
+  core: profileVariantFrame("core"),
+  representative: profileVariantFrame("representative"),
+} as const;
+
 
 const telemetry = [frame];
 const trackOutline = Array.from({ length: 96 }, (_, index) => {
@@ -99,6 +133,160 @@ function ThreeDPanelStory() {
     </div>
   );
 }
+
+function ProfileTemperaturesStory() {
+  const cursorRef = useRef(0);
+  const [cursorIdx, setCursorIdx] = useState(0);
+  const [profileEnabled, setProfileEnabled] = useState(true);
+  const [vizMode, setVizMode] = useState<"2d" | "3d">("2d");
+  cursorRef.current = cursorIdx;
+  const selectedFrame = cursorIdx === 0 ? profileFrameOne : profileFrameTwo;
+  const frames = [profileFrameOne, profileFrameTwo];
+  const displayTelemetryRef = useRef(frames);
+  displayTelemetryRef.current = profileEnabled ? frames : [frame, frame];
+  return (
+    <div className="flex h-screen w-screen flex-col bg-app-bg">
+      <div className="flex shrink-0 flex-wrap gap-4 p-2 text-app-text">
+        <button type="button" onClick={() => setCursorIdx((index) => index === 0 ? 1 : 0)}>Next frame</button>
+        <button type="button" onClick={() => setProfileEnabled((enabled) => !enabled)}>Toggle profile data</button>
+        <button type="button" onClick={() => setVizMode(vizMode === "2d" ? "3d" : "2d")}>Switch {vizMode === "2d" ? "3D" : "2D"}</button>
+
+      </div>
+      <AnalyseVizPanel
+        vizMode={vizMode}
+        onVizModeChange={setVizMode}
+        currentFrame={profileEnabled ? selectedFrame : frame}
+        semanticFrames={profileEnabled ? frames : [frame, frame]}
+        displayTelemetryRef={displayTelemetryRef}
+        cursorRef={cursorRef}
+        cursorIdx={cursorRef.current}
+        lapLine={null}
+        boundaries={null}
+        units={{ tempLabel: "°C", temp: (value: number) => value, thresholds: { cold: 75, warm: 115, hot: 150 } } as never}
+        gameId="f1-2025"
+      />
+    </div>
+  );
+}
+
+function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025", includeCore = false }: { variant: keyof typeof profileVariantFrames; vizMode: "2d" | "3d"; gameId?: GameId; includeCore?: boolean }) {
+  const cursorRef = useRef(0);
+  const frames = useMemo(() => {
+    const selected = profileVariantFrames[variant];
+    if (gameId === "lmu") {
+      const values: Record<string, unknown> = { ...selected.values, "tire.temperature.carcass.representative": includeCore ? [120, 122, 124, 126] : [88, 90, 92, 94] };
+      if (includeCore) values["tire.temperature.core"] = [60, 62, 64, 66];
+      else delete values["tire.temperature.core"];
+      return [{ ...selected, values }];
+    }
+    return [gameId === "iracing" ? {
+      ...selected,
+      values: { ...selected.values, "tire.temperature.carcass.left": [86, 88, 90, 92], "tire.temperature.carcass.middle": [88, 90, 92, 94], "tire.temperature.carcass.right": [90, 92, 94, 96] },
+    } : selected];
+  }, [variant, gameId, includeCore]);
+  const telemetryRef = useRef(frames);
+  telemetryRef.current = frames;
+  const variantLabel = variant === "bands" ? `Inner / Middle / Outer + ${gameId === "lmu" ? includeCore ? "Carcass + Core" : "Carcass" : "Core"}` : variant === "core" ? "Core only" : "Representative surface only";
+  return (
+    <div className="flex h-screen w-screen flex-col bg-app-bg">
+      <div className="shrink-0 p-2 font-mono text-xs text-app-text-muted">
+        {gameId} · Synthetic profile: {variantLabel} · Rendering fixture, not simulator channel availability
+      </div>
+      <AnalyseVizPanel
+        vizMode={vizMode}
+        onVizModeChange={() => {}}
+        currentFrame={frames[0]}
+        semanticFrames={frames}
+        cursorRef={cursorRef}
+        displayTelemetryRef={telemetryRef}
+        cursorIdx={0}
+        lapLine={null}
+        boundaries={null}
+        units={{ tempLabel: "°C", temp: (value: number) => value, thresholds: { cold: 75, warm: 115, hot: 150 } } as never}
+        gameId={gameId}
+      />
+    </div>
+  );
+}
+
+export const ProfileTemperatures: Story = {
+  render: () => <ProfileTemperaturesStory />,
+};
+export const ThreeDProfileBands: Story = {
+  name: "3D Profile Bands — F1 2025",
+  args: { gameId: "f1-2025" },
+  argTypes: { gameId: { control: "select", options: KNOWN_GAME_IDS } },
+  render: ({ gameId }) => <ProfileVariantStory variant="bands" vizMode="3d" gameId={gameId} />,
+};
+
+export const ThreeDProfileBandsForza: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — Forza Motorsport",
+  args: { gameId: "fm-2023" },
+};
+
+export const ThreeDProfileBandsACC: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — ACC",
+  args: { gameId: "acc" },
+};
+
+export const ThreeDProfileBandsACEvo: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — AC Evo",
+  args: { gameId: "ac-evo" },
+};
+
+export const ThreeDProfileBandsIRacing: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Profile Bands — iRacing",
+  args: { gameId: "iracing" },
+};
+
+export const ThreeDProfileBandsLMU: Story = {
+  ...ThreeDProfileBands,
+  name: "3D Surface Bands + Carcass — LMU",
+  args: { gameId: "lmu" },
+};
+
+export const TwoDProfileBandsLMU: Story = {
+  name: "2D Surface Bands + Carcass — LMU",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="lmu" />,
+};
+export const TwoDProfileCarcassBandsIRacing: Story = {
+  name: "2D Carcass Bands — iRacing",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="iracing" />,
+};
+
+export const TwoDProfileAllTemperatures: Story = {
+  name: "2D Surface + Carcass + Core — Synthetic",
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" gameId="lmu" includeCore />,
+};
+
+export const ThreeDProfileAllTemperatures: Story = {
+  name: "3D Surface + Carcass + Core — Synthetic",
+  render: () => <ProfileVariantStory variant="bands" vizMode="3d" gameId="lmu" includeCore />,
+};
+
+export const ThreeDProfileCoreOnly: Story = {
+  render: () => <ProfileVariantStory variant="core" vizMode="3d" gameId="acc" />,
+};
+
+export const ThreeDProfileRepresentative: Story = {
+  render: () => <ProfileVariantStory variant="representative" vizMode="3d" />,
+};
+
+export const TwoDProfileBands: Story = {
+  render: () => <ProfileVariantStory variant="bands" vizMode="2d" />,
+};
+
+export const TwoDProfileCoreOnly: Story = {
+  render: () => <ProfileVariantStory variant="core" vizMode="2d" gameId="acc" />,
+};
+
+export const TwoDProfileRepresentative: Story = {
+  render: () => <ProfileVariantStory variant="representative" vizMode="2d" />,
+};
 
 export const ThreeD: Story = {
   render: () => <ThreeDPanelStory />,

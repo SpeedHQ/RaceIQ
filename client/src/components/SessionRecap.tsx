@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
-import { carIdentityKey, trackIdentityKey, type SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
+import type { SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
 import { useSessionRecap } from "../hooks/session-queries";
 import { useTrackOutline, useTrackSectorBoundaries } from "../hooks/track-queries";
 import { drawTrack } from "../lib/canvas/draw-track";
@@ -274,8 +274,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const analyse = () => {
     if (recap.bestLapId == null) return;
     void navigate({
-      to: `${getGameRoute(recap.gameId)}/sessions/replay`,
-      search: { track: trackIdentityKey(recap) ?? undefined, car: carIdentityKey(recap) ?? undefined, lap: recap.bestLapId ?? undefined },
+      to: `${getGameRoute(recap.gameId)}/sessions/${recap.sessionId}/replay/${recap.bestLapId}` as never,
     });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;

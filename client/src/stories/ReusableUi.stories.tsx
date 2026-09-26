@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { Table, TBody, TD, TH, THead, TRow, SortableTH } from "../components/ui/AppTable";
 import { AppInput } from "../components/ui/AppInput";
 import { Avatar, AvatarBadge, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarImage } from "../components/ui/avatar";
@@ -626,25 +626,25 @@ export const NoteModalOpen: Story = {
     const canvas = within(canvasElement);
     const body = within(document.body);
     const textbox = await body.findByRole("textbox");
-    await expect(textbox).toHaveFocus();
+    await waitFor(() => expect(textbox).toHaveFocus());
     await userEvent.type(textbox, "Pit lane note");
     await userEvent.click(body.getByRole("button", { name: "Save" }));
     await expect(canvas.getByText("Saved note: Pit lane note")).toBeVisible();
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("button", { name: "Open note" }));
-    await expect(await body.findByRole("textbox")).toHaveFocus();
+    await waitFor(() => expect(body.getByRole("textbox")).toHaveFocus());
     await userEvent.click(body.getByRole("button", { name: "Cancel" }));
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("button", { name: "Open note" }));
-    await expect(await body.findByRole("textbox")).toHaveFocus();
+    await waitFor(() => expect(body.getByRole("textbox")).toHaveFocus());
     await userEvent.keyboard("{Escape}");
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
 
     // Leave the visual story in its named open state after behavior checks.
     await userEvent.click(canvas.getByRole("button", { name: "Open note" }));
-    await expect(await body.findByRole("textbox")).toHaveFocus();
+    await waitFor(() => expect(body.getByRole("textbox")).toHaveFocus());
     const readyMarker = canvasElement.querySelector<HTMLElement>("[data-visual-ready]");
     await expect(readyMarker).not.toBeNull();
     readyMarker?.setAttribute("data-visual-ready", "ready");

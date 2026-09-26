@@ -133,6 +133,7 @@ afterEach(() => {
 });
 
 describe("db:seed", () => {
+  // Full-fidelity LMU fixture expands to 14 GiB; shared CI disks can take minutes.
   test("seeds all supported demo surfaces and is idempotent", async () => {
     const dataDir = makeDataDir();
     const first = await runSeed(dataDir);
@@ -143,6 +144,18 @@ describe("db:seed", () => {
     assertSeededRawFilesExist(dataDir);
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
     expect(seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing", "lmu"]);
+    expect(withSeedDb(dataDir, (db) => db.query(
+      "SELECT s.id, COUNT(l.id) AS laps FROM sessions s LEFT JOIN laps l ON l.session_id = s.id WHERE s.game_id = 'lmu' GROUP BY s.id ORDER BY s.id",
+    ).all())).toEqual([
+      { id: expect.any(Number), laps: 3 },
+      { id: expect.any(Number), laps: 7 },
+    ]);
+    expect(withSeedDb(dataDir, (db) => db.query(
+      "SELECT r.session_type AS sessionType, json_extract(r.provenance, '$.canonicalInput.lastSequence') AS lastSequence, json_extract(r.provenance, '$.rawInput.contentHash') AS rawHash FROM session_results r JOIN sessions s ON s.id = r.session_id WHERE s.game_id = 'lmu' ORDER BY s.id",
+    ).all())).toEqual([
+      { sessionType: "race", lastSequence: 4308, rawHash: expect.stringMatching(/^sha256:/) },
+      { sessionType: "practice", lastSequence: 47399, rawHash: expect.stringMatching(/^sha256:/) },
+    ]);
     expect(seededIRacingIdentity(dataDir)).toEqual([
       { kind: "car", ordinal: 42, name: "GT3 Test Car" },
       { kind: "track", ordinal: 99, name: "Road America" },
@@ -162,7 +175,7 @@ describe("db:seed", () => {
     const second = await runSeed(dataDir);
     expect(second.code, second.output).toBe(0);
     expect(counts(dataDir)).toEqual(initial);
-  }, 120000);
+  }, 480000);
 
   test("reset replaces seed rows without deleting user sessions", async () => {
     const dataDir = makeDataDir();

@@ -129,6 +129,13 @@ async function main() {
   compileArgs.push("server/bootstrap.ts", "server/experiments/lap-issues-worker.ts", "--outfile", join(distDir, "raceiq"));
 
   await run(compileArgs, { env: { NODE_ENV: "production" } });
+  // Bun's compiled Mach-O can retain an invalid linker signature after bundling.
+  // macOS kills it before startup unless the final executable is signed again.
+  if (process.platform === "darwin") {
+    const binary = join(distDir, "raceiq");
+    await run(["codesign", "--force", "--sign", "-", binary]);
+    await run(["codesign", "--verify", binary]);
+  }
 
   copyLibsqlAddon();
   await run(["bun", "scripts/build/copy-duckdb-runtime.ts"]);

@@ -7,8 +7,8 @@
 - Catalog version: `0.18.0`
 - Schema version: `v7`
 - Generator: `RaceIQ telemetry-catalog generator@0.18.0`
-- Generator source SHA-256: `7bc67b6392f590f699efc13d7649f1f3733d7e92f2db72edc445688d3f23e375`
-- Content SHA-256: `dd1628963cbe4bad20f969e4f32974b8ffb62bb2be0417599a0fa4ade659563e`
+- Generator source SHA-256: `739f8e4930e401eb0dbec2624bd8f92b75b25a540ad2670c5830ba0dd92cf1b9`
+- Content SHA-256: `0639551c1aee75fa6772ab780e39845b61fb93edaf3a42081cfbd61dc339051c`
 
 ## Coverage
 
@@ -700,6 +700,7 @@
 | `timing.track-length` | Track length | number | length | m | scalar |  |  |  |
 | `tire.temperature.carcass.left` | Left carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.carcass.middle` | Middle carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
+| `tire.temperature.carcass.representative` | Average carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.carcass.right` | Right carcass temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.core` | Core temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |
 | `tire.temperature.surface.inner` | Inner surface temperature | number | temperature | °C | fixed:4 | FL, FR, RL, RR |  |  |

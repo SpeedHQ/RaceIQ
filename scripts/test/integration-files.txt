@@ -23,7 +23,6 @@ test/ai/providers/lm-studio-context.test.ts
 test/ai/providers/provider-error.test.ts
 test/ai/tools/compare-analysis-tool.test.ts
 test/ai/tools/compare-engineer-tools.test.ts
-test/ai/tools/generate-lap-analysis.test.ts
 test/ai/tools/lap-analysis-generation-tool.test.ts
 test/ai/tools/lap-analysis-tool.test.ts
 test/analysis/data-panel-parity.test.ts
@@ -217,3 +216,5 @@ test/tracks/geometry-alignment.test.ts
 test/telemetry/telemetry-model.test.ts
 test/telemetry/telemetry-storage.test.ts
 test/lap-analysis/lap-export-zip.test.ts
+test/ai/chat/chat-diagnostic-export.test.ts
+test/routes/diagnostics-routes.test.ts

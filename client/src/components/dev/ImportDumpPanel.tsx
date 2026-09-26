@@ -39,14 +39,9 @@ export function ImportDumpPanel() {
   const navigate = useNavigate();
 
   const openInAnalyse = (lap: ImportedLap) => {
-    if (!result || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)) return;
+    if (!result || lap.sessionId == null || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)) return;
     navigate({
-      to: `/${result.routePrefix}/sessions/replay`,
-      search: {
-        track: lap.trackId,
-        car: lap.carId,
-        lap: lap.lapId,
-      },
+      to: `/${result.routePrefix}/sessions/${lap.sessionId}/replay/${lap.lapId}`,
     });
   };
 
@@ -187,12 +182,12 @@ export function ImportDumpPanel() {
                     </div>
                     <Button
                       type="button"
-                      disabled={!hasIdentity(lap.trackId) || !hasIdentity(lap.carId)}
-                      title={!hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Analyse unavailable: track/car identity unresolved" : undefined}
+                      disabled={!lap.sessionId || !hasIdentity(lap.trackId) || !hasIdentity(lap.carId)}
+                      title={!lap.sessionId ? "Analyse unavailable: session missing" : !hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Analyse unavailable: track/car identity unresolved" : undefined}
                       onClick={() => openInAnalyse(lap)}
                       className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity"
                     >
-                      {!hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Identity unavailable" : m.dev_open_analyse()}
+                      {!lap.sessionId ? "Session unavailable" : !hasIdentity(lap.trackId) || !hasIdentity(lap.carId) ? "Identity unavailable" : m.dev_open_analyse()}
                     </Button>
                   </div>
                 ))}

@@ -47,7 +47,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const [selectedTrack, setSelectedTrack] = useState<IdentityKey | null>(search.track ?? null);
   const [selectedCar, setSelectedCar] = useState<IdentityKey | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
-  const routeSelectionKey = `${gameId}:${search.track ?? ""}:${search.car ?? ""}:${search.lap ?? ""}`;
+  const routeSelectionKey = `${gameId}:${sessionId ?? ""}:${search.track ?? ""}:${search.car ?? ""}:${search.lap ?? ""}`;
   const pendingRouteSelectionKey = useRef<string | null>(null);
   useEffect(() => {
     pendingRouteSelectionKey.current = routeSelectionKey;
@@ -56,8 +56,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     setSelectedLapId(search.lap ?? null);
   }, [routeSelectionKey]);
   const { data: allLaps = emptyLaps } = useLapsQuery();
-  const selectedLap = allLaps.find((lap) => lap.id === selectedLapId);
-  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(search.view === "track" ? null : selectedLapId);
+  const selectedLap = allLaps.find((lap) => lap.id === selectedLapId && (sessionId == null || lap.sessionId === sessionId) && (lap.gameId == null || lap.gameId === gameId));
+  const { data: semanticReplay, isLoading: semanticLoading, error: semanticError } = useLapSemanticTelemetry(search.view === "track" ? null : sessionId != null && !selectedLap ? null : selectedLapId);
   const semanticFrames = useMemo<AnalyseSemanticFrame[]>(
     () =>
       semanticReplay?.envelopes.map((envelope: SemanticReplayFrame) => ({
@@ -185,11 +185,11 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
 
   useEffect(() => {
     if (sessionId != null) {
-      if (selectedLapId == null) return;
+      if (selectedLapId == null || selectedLapId === search.lap) return;
       const routePrefix = routePrefixForGameId(gameId);
       if (routePrefix) void navigate({
         to: `/${routePrefix}/sessions/${sessionId}/replay/${selectedLapId}` as never,
-        search: {} as never,
+        search: { cursor: search.cursor, viz: search.viz, ai: search.ai, view: search.view } as never,
         replace: true,
       });
       return;
@@ -205,7 +205,7 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
       search: (prev: Record<string, unknown>) => ({ ...prev, track: selectedTrack ?? undefined, car: selectedCar ?? undefined, lap: selectedLapId ?? undefined }) as never,
       replace: true,
     });
-  }, [search.track, search.car, search.lap, selectedTrack, selectedCar, selectedLapId, sessionId, gameId, navigate]);
+  }, [search.track, search.car, search.lap, search.cursor, search.viz, search.ai, search.view, selectedTrack, selectedCar, selectedLapId, sessionId, gameId, navigate]);
   const handleTrackChange = useCallback((value: IdentityKey | null) => {
     setSelectedTrack(value);
     setSelectedCar(null);
@@ -214,11 +214,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   const handleCarChange = useCallback((value: IdentityKey | null) => {
     setSelectedCar(value);
     setSelectedLapId(null);
-  }, []);
-  const selectLap = useCallback((trackKey: IdentityKey, carKey: IdentityKey, lapId: number) => {
-    setSelectedTrack(trackKey);
-    setSelectedCar(carKey);
-    setSelectedLapId(lapId);
   }, []);
 
   const cursorRef = useRef(0);
@@ -267,7 +262,6 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
     trackName,
     handleTrackChange,
     handleCarChange,
-    selectLap,
     cursorRef,
   };
 }

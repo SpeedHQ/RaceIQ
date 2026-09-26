@@ -64,7 +64,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         const replayGame = screenshotCase.kind === "analyse-actions" ? "fm-2023" : screenshotCase.kind === "analyse-data-panel-loaded" ? "f1-2025" : null;
         const replayPrefix = screenshotCase.kind === "analyse-actions" ? "fm23" : "f125";
         const target = replayGame ? await getSeededLapTarget(request, replayGame) : null;
-        const path = target ? `/${replayPrefix}/sessions/replay?${new URLSearchParams({ track: String(target.trackOrdinal), car: String(target.carOrdinal), lap: String(target.id) })}` : screenshotCase.path;
+        const path = target ? `/${replayPrefix}/sessions/${target.sessionId}/replay/${target.id}` : screenshotCase.path;
         await p.goto(path, { waitUntil: "networkidle" });
         await dismissTransientNotification(p);
         if (screenshotCase.kind === "analyse-data-panel-loaded") await expect(p.getByRole("heading", { name: "Metrics at Cursor" })).toBeVisible();

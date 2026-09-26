@@ -57,7 +57,7 @@ Check out the [screenshots](assets/screenshots/) to see it in action.
 | Game | Priority | Public Tunes | Public Guides | Tune Creator |
 |------|----------|--------------|---------------|--------------|
 | Assetto Corsa Evo | High | No | No | No |
-| iRacing | High | No | No | No |
+| iRacing | High - Blocked | No | No | No |
 | Le Mans Ultimate | High | No | No | No |
 | F1 2025 | Medium | Yes | Yes | No |
 | Assetto Corsa Competizione | Medium | Yes | Yes | No |

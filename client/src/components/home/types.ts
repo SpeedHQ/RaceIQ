@@ -27,7 +27,7 @@ export interface HomePageViewProps {
   gameDisplayName: string | null;
   displaySettings: { driverName?: string | null; hiddenGames?: string[] };
   allLaps: LapMeta[];
-  recentLaps: LapMeta[];
+  recentSessions: SessionMeta[];
   carNames: Record<string, string>;
   trackNames: Record<string, string>;
   gameStats: GameStats;
@@ -40,9 +40,7 @@ export interface HomePageViewProps {
   latestRecapBounds?: TrackSectorBounds;
   recapCopied: boolean;
   onCopyRecap: () => void;
-  onAnalyseLap: (lap: LapMeta) => void;
-  lapsLoading?: boolean;
-  lapsError?: boolean;
+  onAnalyseSession: (session: SessionMeta) => void;
   sessionsLoading?: boolean;
   sessionsError?: boolean;
   onAnalyseRecap: () => void;

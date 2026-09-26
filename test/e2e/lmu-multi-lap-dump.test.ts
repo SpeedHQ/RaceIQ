@@ -26,7 +26,10 @@ describe("LMU multi-lap dump", () => {
       { lapNumber: 5, lapTime: 95.47928710937504, isValid: true, invalidReason: null },
       { lapNumber: 6, lapTime: 85.16931640624989, isValid: true, invalidReason: null },
       { lapNumber: 7, lapTime: 85.161865234375, isValid: false, invalidReason: "inlap" },
+      { lapNumber: 8, lapTime: 14.863720703125182, isValid: false, invalidReason: "incomplete" },
     ]);
+
+    expect(recording.laps[4].sectors).toBeNull();
 
     const bestLap = Math.min(
       ...recording.rawPackets
@@ -35,7 +38,7 @@ describe("LMU multi-lap dump", () => {
     );
     expect(bestLap).toBeCloseTo(85.162, 3);
 
-    for (const lap of recording.laps) {
+    for (const lap of recording.laps.slice(0, 4)) {
       expect(lap.sectors).toHaveLength(3);
       expect(lap.sectors!.reduce((sum, sector) => sum + sector, 0)).toBeCloseTo(
         lap.lapTime,
@@ -44,3 +47,4 @@ describe("LMU multi-lap dump", () => {
     }
   });
 });
+

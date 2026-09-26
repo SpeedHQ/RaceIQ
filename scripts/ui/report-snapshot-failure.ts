@@ -14,3 +14,4 @@ if (diffNames.length > 0) {
 
 console.error("::warning::Storybook snapshot render failed; visual review artifact may be incomplete.");
 console.error("::warning::Inspect PR render step for underlying test or server failure.");
+process.exitCode = 1;

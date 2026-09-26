@@ -95,6 +95,11 @@ export interface TelemetryPacket {
   TireCarcassTempFR?: number;
   TireCarcassTempRL?: number;
   TireCarcassTempRR?: number;
+  // Source-native mean carcass temperature; separate from core temperature.
+  TireCarcassAverageTempFL?: number;
+  TireCarcassAverageTempFR?: number;
+  TireCarcassAverageTempRL?: number;
+  TireCarcassAverageTempRR?: number;
   // Source-native lateral carcass bands; no averaging or relabeling.
   TireCarcassTempLeftFL?: number;
   TireCarcassTempLeftFR?: number;

@@ -67,7 +67,7 @@ test("Analyse lap chat calls Qwen through frontend", async ({ page, request }) =
   const lap = await getSeededLapTarget(request, "fm-2023");
   try {
     await generateAnalysis(request, lap.id);
-    await page.goto(`/fm23/analyse?track=${lap.trackOrdinal}&car=${lap.carOrdinal}&lap=${lap.id}&ai=1`, { waitUntil: "domcontentloaded" });
+    await page.goto(`/fm23/sessions/${lap.sessionId}/replay/${lap.id}?ai=1`, { waitUntil: "domcontentloaded" });
     const response = await sendThroughChatUi(page, `/api/laps/${lap.id}/chat`);
     expect(response.ok, `Lap chat failed (${response.status})`).toBe(true);
   } finally {
