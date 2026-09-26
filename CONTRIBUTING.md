@@ -12,12 +12,7 @@ cd client && bun install && cd ..
 bun run dev
 ```
 
-Default services:
-
-- HTTP and WebSocket: `3117`
-- UDP telemetry: `5301`
-- Vite development client: `5173`
-- Data directory: `./data`
+`bun run dev` serves main checkout at `http://raceiq.localhost:1355`; linked worktrees get branch-prefixed Portless URLs. Run each worktree concurrently with its own backend and UDP port (printed on startup). Development data stays in each worktree's `./data`.
 
 See [development guide](docs/contributing/development.md) for environment variables, disposable database seeding, and schema changes.
 

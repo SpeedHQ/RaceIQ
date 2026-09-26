@@ -138,7 +138,8 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     getNativeSources: () => nativeSources,
   });
 
-  const udpPort = options.udpPort ?? settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
+  const udpPort = options.udpPort
+    ?? (Number(process.env.RACEIQ_DEV_UDP_PORT) || settings.udpPort || Number(process.env.UDP_PORT) || 5301);
   void udpListener.start(udpPort);
 
   startSyncAndStaleSessionJobs();
