@@ -67,8 +67,8 @@ export interface ManifestEntry {
   gameId: GameId;
   /** Session id in the *source* database (informational — import always creates a new session). */
   sessionId: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   carName: string;
   trackName: string;
   createdAt: string;
@@ -110,7 +110,7 @@ async function readCapture(row: RawLapRow): Promise<Buffer | null> {
     if (!row.rawFile) return null;
     return await loadSessionCapture({
       rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-      carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
+      carId: row.carId ?? "", trackId: row.trackId ?? "",
     });
   } catch {
     return null;
@@ -271,6 +271,7 @@ export async function buildLapsZip(
   const entries: ManifestEntry[] = [];
   for (const [sessionId, rows] of sessions) {
     const firstSelected = rows[0]!;
+    const gameId = firstSelected.gameId as GameId;
     const isMotec = rows.some((row) => row.source === "motec" || row.rawFile?.endsWith(".motec.zip"));
     if (isMotec) {
       const first = allRows.find((row) => row.sessionId === sessionId) ?? firstSelected;
@@ -284,17 +285,19 @@ export async function buildLapsZip(
       if (sourceBytes.byteLength === 0) {
         throw new Error("MoTeC source archive is missing on disk");
       }
-      const gameId = first.gameId as GameId;
-      const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
-      const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
-      const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.motec.zip`;
+      const trackId = first.trackId ?? "";
+      const carId = first.carId ?? "";
+      const nativeStringGame = gameId === "acc" || gameId === "ac-evo";
+      const trackName = nativeStringGame ? trackId : resolveTrackName(Number(trackId) || -1, gameId);
+      const carName = nativeStringGame ? carId : resolveCarName(Number(carId) || -1, gameId);
+      const fileName = `${gameId}-${slugify(trackName) || `track${trackId}`}-session${sessionId}.motec.zip`;
       files[fileName] = sourceBytes;
       const sourceLaps = allRows
         .filter((row) => row.sessionId === sessionId)
         .sort((a, b) => a.lapNumber - b.lapNumber);
       entries.push({
         file: fileName, gameId, sessionId,
-        carOrdinal: first.carOrdinal ?? 0, trackOrdinal: first.trackOrdinal ?? 0,
+        carId, trackId,
         carName, trackName, createdAt: first.createdAt,
         laps: sourceLaps.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
       });
@@ -334,15 +337,17 @@ export async function buildLapsZip(
       ]));
     }
     if (segments.length === 0) continue;
-    const gameId = first.gameId as GameId;
     const slice = Buffer.concat([encodeMetaFrame(), ...segments]);
-    const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
-    const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
-    const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
+    const trackId = first.trackId ?? "";
+    const carId = first.carId ?? "";
+    const nativeStringGame = gameId === "acc" || gameId === "ac-evo";
+    const trackName = nativeStringGame ? trackId : resolveTrackName(Number(trackId) || -1, gameId);
+    const carName = nativeStringGame ? carId : resolveCarName(Number(carId) || -1, gameId);
+    const fileName = `${gameId}-${slugify(trackName) || `track${trackId}`}-session${sessionId}.bin.gz`;
     files[fileName] = gzipBufferSync(slice);
     entries.push({
       file: fileName, gameId, sessionId,
-      carOrdinal: first.carOrdinal ?? 0, trackOrdinal: first.trackOrdinal ?? 0,
+      carId, trackId,
       carName, trackName, createdAt: first.createdAt,
       laps: usable.map((r) => ({ lapNumber: r.lapNumber, lapTime: r.lapTime, isValid: r.isValid })),
     });
@@ -417,8 +422,8 @@ export async function importLapsZip(zipData: Uint8Array, options: { ownership?: 
         const extracted = extractMotecArchive(bytes);
         const result = await importMotec(extracted.ldBytes, extracted.ldxBytes, {
           gameId: entry.gameId,
-          carOrdinal: entry.carOrdinal,
-          trackOrdinal: entry.trackOrdinal,
+          carId: entry.carId,
+          trackId: entry.trackId,
           ownership: options.ownership,
         });
         laps.push(...result.laps);

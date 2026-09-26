@@ -19,7 +19,7 @@ interface LiveLapCardsProps {
  * (newest first), each showing just the lap number and final time.
  */
 export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, maxLaps = 20 }: LiveLapCardsProps) {
-  const filtered = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
+  const filtered = trackOrdinal != null ? laps.filter((lap) => lap.trackId === String(trackOrdinal)) : laps;
   const sorted = [...filtered].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
   const best = sorted.length ? Math.min(...sorted.map((l) => l.lapTime)) : 0;
   const running = sectors ? (sectors.estimatedLap > 0 ? sectors.estimatedLap : sectors.currentSectorTime) : 0;

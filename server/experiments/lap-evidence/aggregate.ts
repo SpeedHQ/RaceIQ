@@ -308,7 +308,7 @@ async function representativeLapFallback(
     };
   }
 
-  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
+  const corners = await resolveLapCorners(lap.trackId, lap.gameId, lap.telemetry);
   return {
     ok: true,
     lapIds: [lap.id],
@@ -380,7 +380,7 @@ export async function loadCleanLapAggregate(
   const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;
 
   const corners = await resolveLapCorners(
-    fastestLoaded.meta.trackOrdinal,
+    fastestLoaded.meta.trackId,
     fastestLoaded.meta.gameId,
     fastestLoaded.telemetry,
   );

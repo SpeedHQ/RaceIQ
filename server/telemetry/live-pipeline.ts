@@ -174,8 +174,12 @@ export class LiveTelemetryPipeline {
           }
         }
 
-        resetLiveCalibration(session.trackOrdinal);
-        this._calibrationBoundary = getTrackBoundariesByOrdinal(session.trackOrdinal, session.gameId);
+        if (session.trackOrdinal >= 0) {
+          resetLiveCalibration(session.trackOrdinal);
+          this._calibrationBoundary = getTrackBoundariesByOrdinal(session.trackOrdinal, session.gameId);
+        } else {
+          this._calibrationBoundary = null;
+        }
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
@@ -183,8 +187,10 @@ export class LiveTelemetryPipeline {
         this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
         this.pitTracker.setTireWearAvailable(resolveAnalysisTelemetry(adapter).tireWearRate.source !== "unavailable");
         if (!this._skipHistorySeeding) {
-          await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId, adapter.runtime.pit);
-          await this._seedSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+          if (session.trackOrdinal >= 0 && session.carOrdinal >= 0) {
+            await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId, adapter.runtime.pit);
+          }
+          await this._seedSessionLaps(session.sessionId, session.gameId);
         } else {
           this._sessionLaps = [];
         }
@@ -216,8 +222,8 @@ export class LiveTelemetryPipeline {
             isValid: event.isValid,
             createdAt: new Date().toISOString(),
             gameId: session.gameId,
-            carOrdinal: session.carOrdinal,
-            trackOrdinal: session.trackOrdinal,
+            carId: session.carId,
+            trackId: session.trackId,
             sectorTimes: event.sectors ?? undefined,
           });
           if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
@@ -279,10 +285,10 @@ export class LiveTelemetryPipeline {
     });
   }
   /** Seed in-memory session laps from DB (called once on session start). */
-  private async _seedSessionLaps(sessionId: number, trackOrdinal: number, carOrdinal: number, gameId: GameId): Promise<void> {
+  private async _seedSessionLaps(sessionId: number, gameId: GameId): Promise<void> {
     try {
       const allLaps = await this.db.getLaps(gameId, CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
-      const sessionLaps = allLaps.filter((l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal).sort((a, b) => a.id - b.id);
+      const sessionLaps = allLaps.filter((l) => l.sessionId === sessionId).sort((a, b) => a.id - b.id);
       if (sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
         sessionLaps.splice(0, sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
       }
@@ -369,7 +375,7 @@ export class LiveTelemetryPipeline {
     // Collect calibration positions for adapters that require track-outline alignment.
     if (this._totalProcessed % 6 === 0 && adapter.runtime.requiresTrackCalibration) {
       const session = detector.session;
-      if (session?.trackOrdinal) {
+      if (session && session.trackOrdinal >= 0) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
           const trackLength = this.sectorTracker.getTrackLength();

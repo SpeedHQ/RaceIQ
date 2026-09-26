@@ -10,7 +10,6 @@ Database and lap-file maintenance commands. Run from repository root; `DATA_DIR`
 | `bun run scripts/data/seed-db.ts --clean` | Optional `--games` | Deletes all database rows and referenced captured-session files, preserves schema migrations, then recreates seed data; destructive |
 | `bun run scripts/data/seed-db.ts --reset` | Optional `--games`, `--force` | Deletes rows/files marked by seed marker, then recreates seed data; `--reset` is destructive |
 | `bun run scripts/data/seed-db.ts --force` | Optional `--games` | Allows seeding database containing non-seed rows; use disposable `DATA_DIR` instead when possible |
-| `bun run scripts/data/backfill-unknown-cars.ts` | AC Evo sessions with raw captures in `DATA_DIR` | Re-reads captures and updates unresolved car ordinals; skips unresolved/corrupt captures |
 | `bun run scripts/data/export-laps.ts` | Optional `--ids 1,2,3`, `-o <zip>` | Writes lap archive ZIP; default `laps-export.zip` in current directory |
 | `bun run scripts/data/import-laps.ts <zip>` | ZIP produced by export command | Replays archive sessions and reports imported/skipped laps |
 | `bun run scripts/data/extract-demo-lap.ts` | Lap `1337` in selected `DATA_DIR` | Writes `client/public/demo-lap.csv` |

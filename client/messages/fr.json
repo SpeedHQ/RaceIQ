@@ -2127,7 +2127,7 @@
   "analyse_motec_archive_extraction_failed": "Échec de l’extraction de l’archive.",
   "analyse_car_label": "Voiture",
   "analyse_track_label": "Circuit",
-  "analyse_import_catalog_explanation": "Les noms de circuits et de véhicules de MoTeC sont du texte libre défini par la personne qui a configuré l’exportateur. À vous de choisir la voiture et le circuit : associer un journal au mauvais circuit lui attribue des secteurs et des noms de virages dépourvus de sens.",
+  "analyse_import_catalog_explanation": "Saisissez les identifiants natifs exacts de la voiture et du circuit. Pour AC Evo, le circuit doit être une paire JSON contenant le nom exact du circuit et sa configuration. Le lieu indiqué par MoTeC ne permet pas à lui seul de déterminer la configuration.",
   "dataguide_desc_speed": "Vitesse actuelle du véhicule dans l’unité sélectionnée.",
   "dataguide_desc_rpm": "Régime moteur en tours par minute.",
   "dataguide_desc_gear": "Rapport actuel (0 = marche arrière, 1–n = marche avant).",

@@ -1,10 +1,6 @@
 import { readKunosFrames } from "../kunos/frame-reader";
-import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
-import { readWString } from "./utils";
 import { processPacket } from "../../telemetry/live-pipeline";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 
 /**
  * Replay a recorded ACC telemetry file.
@@ -25,16 +21,7 @@ export async function replayRecording(
   const loop = options.loop ?? false;
 
   const frames = readKunosFrames(filePath);
-  if (frames.length === 0) throw new Error(`Recording file has no frames: ${filePath}`);
-
-  // Resolve car/track ordinals from first frame's static data
-  const firstStatic = frames[0].staticData;
-  const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
-  const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
-  const carOrdinal = getAccCarByModel(carModel)?.id ?? 0;
-  const trackOrdinal = getAccTrackByName(trackName)?.id ?? 0;
-  const overrides = { carOrdinal, trackOrdinal };
-  console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
+  // Identity comes from embedded STATIC fields; legacy packed headers are ignored.
 
   let cancelled = false;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -47,7 +34,7 @@ export async function replayRecording(
       for (const frame of frames) {
         if (cancelled) return;
 
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, overrides);
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
         if (!packet) continue;
 
         if (firstTimestamp === null) {

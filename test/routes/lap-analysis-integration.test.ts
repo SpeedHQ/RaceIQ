@@ -20,15 +20,15 @@ describe("F1 Analyse semantic telemetry integration", () => {
       rawFile: recording,
       source: null,
       gameId: "f1-2025",
-      carOrdinal: 41,
-      trackOrdinal: 19,
+      carId: "41",
+      trackId: "19",
     })) {
       firstFrameOffset = record.offset;
       break;
     }
     if (firstFrameOffset == null) throw new Error("Recording contains no frames");
 
-    const sessionId = await insertSession(41, 19, "f1-2025");
+    const sessionId = await insertSession("41", "19", "f1-2025");
     const lapId = await insertLap(sessionId, 1, 1, true, firstFrameOffset, 1_000);
     await updateSessionRawFile(sessionId, recording, "test-detector");
 

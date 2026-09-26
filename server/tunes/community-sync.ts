@@ -45,7 +45,9 @@ const ManifestSchema = z.object({
 const CdnTuneSchema = z.object({
   id: z.string().min(1),
   gameId: z.string().min(1),
-  carOrdinal: z.number().int(),
+  carId: z.union([z.string().min(1), z.number().int()]).optional(),
+  carOrdinal: z.number().int().optional(),
+  trackId: z.union([z.string().min(1), z.number().int()]).nullable().optional(),
   trackOrdinal: z.number().int().nullable().optional(),
   name: z.string().min(1),
   author: z.string().min(1),
@@ -123,11 +125,16 @@ function toCommunityTuneRows(
       continue;
     }
     const t = parsed.data;
+    const carId = t.carId ?? t.carOrdinal;
+    if (carId == null) {
+      skipped++;
+      continue;
+    }
     rows.push({
       id: t.id,
       gameId: t.gameId,
-      carOrdinal: t.carOrdinal,
-      trackOrdinal: t.trackOrdinal ?? null,
+      carId: String(carId),
+      trackId: t.trackId == null && t.trackOrdinal == null ? null : String(t.trackId ?? t.trackOrdinal),
       name: t.name,
       author: t.author,
       category: t.category,

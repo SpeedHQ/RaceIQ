@@ -30,8 +30,8 @@ function cdnTune(id: string, name: string) {
   return {
     id,
     gameId: "fm-2023",
-    carOrdinal: 2860,
-    trackOrdinal: null,
+    carId: "2860",
+    trackId: null,
     name,
     author: "someone",
     category: "circuit",
@@ -77,8 +77,8 @@ describe("replaceCommunityTunes", () => {
       {
         id: "community-1",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "A",
         author: "x",
         category: "circuit",
@@ -93,8 +93,8 @@ describe("replaceCommunityTunes", () => {
       {
         id: "community-2",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "B",
         author: "x",
         category: "circuit",
@@ -160,8 +160,8 @@ describe("syncCommunityTunes", () => {
       {
         id: "community-existing",
         gameId: "fm-2023",
-        carOrdinal: 2860,
-        trackOrdinal: null,
+        carId: "2860",
+        trackId: null,
         name: "Existing",
         author: "x",
         category: "circuit",

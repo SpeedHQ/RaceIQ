@@ -2,10 +2,6 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
-import { readWString } from "../../games/acc/utils";
-import { STATIC } from "../../games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
 import { type GameId, KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 
@@ -119,25 +115,9 @@ export function readAccRecordingFrames(binPath: string): KunosRecordingFrame[] {
 export function parseAccRecordingPoints(frames: KunosRecordingFrame[]): Point2D[] {
   const packets: Point2D[] = [];
 
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
 
   for (const frame of frames) {
-    if (carOrdinal === 0 || trackOrdinal === 0) {
-      const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-      const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) {
-        carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-      }
-      if (tn) {
-        trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-      }
-    }
-
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
-    });
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
 
     if (packet) {
       packets.push({ x: packet.PositionX, y: packet.PositionZ });
@@ -157,26 +137,8 @@ export function parseUdpRecordingPoints(gameId: GameId, binPath: string): Point2
 export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[]): Point3D[] {
   const packets: Point3D[] = [];
 
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
-
   for (const frame of frames) {
-    if (carOrdinal === 0 || trackOrdinal === 0) {
-      const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-      const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) {
-        carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-      }
-      if (tn) {
-        trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-      }
-    }
-
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
-    });
-
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
     if (packet) {
       packets.push({ x: packet.PositionX, y: packet.PositionZ, speed: packet.Speed });
     }
@@ -200,25 +162,9 @@ export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResu
   const lapRanges = new Map<number, { start: number; end: number; lapTime: number; maxCurrentLap: number }>();
   let packetIndex = 0;
   let currentLap = -1;
-  let carOrdinal = 0;
-  let trackOrdinal = 0;
 
   for (const frame of frames) {
-    if (carOrdinal === 0 || trackOrdinal === 0) {
-      const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-      const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-      if (cm) {
-        carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-      }
-      if (tn) {
-        trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-      }
-    }
-
-    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-      carOrdinal,
-      trackOrdinal,
-    });
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
 
     if (packet && packet.LapNumber !== undefined) {
       if (packet.LapNumber !== currentLap) {

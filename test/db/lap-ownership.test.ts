@@ -14,8 +14,8 @@ afterEach(async () => {
 });
 
 test("owned stats and profile pool exclude others while general reads preserve ownership", async () => {
-  const mine = await insertSession(1, 2, testGameId, "race", undefined, "mine");
-  const others = await insertSession(1, 2, testGameId, "race", undefined, "others");
+  const mine = await insertSession("1", "2", testGameId, "race", undefined, "mine");
+  const others = await insertSession("1", "2", testGameId, "race", undefined, "others");
   sessionIds.push(mine, others);
   await insertLap(mine, 1, 90_000, true, null, 0);
   await insertLap(others, 1, 80_000, true, null, 0);
@@ -34,7 +34,7 @@ test("owned stats and profile pool exclude others while general reads preserve o
 });
 
 test("legacy null ownership normalizes to mine at read boundary", async () => {
-  const id = await insertSession(3, 4, testGameId);
+  const id = await insertSession("3", "4", testGameId);
   sessionIds.push(id);
   await db.update(sessions).set({ ownership: sql`'legacy'` }).where(eq(sessions.id, id)).run();
   await insertLap(id, 1, 100_000, true, null, 0);

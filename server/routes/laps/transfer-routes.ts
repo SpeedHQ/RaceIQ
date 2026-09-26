@@ -19,6 +19,7 @@ import {
 import { importMotec, resolveMotecTarget } from "../../motec/import";
 import { getMotecTargets, initMotecTargets } from "../../motec/targets";
 import { loadStagedMotec, removeStagedMotec, stageMotecArchive } from "../../motec/import-staging";
+import { decodeAcEvoTrackId } from "../../../shared/racing/tracks/ac-evo-identity";
 import { ExportZipQuerySchema, IbtCommitSchema, IbtImportTokenSchema, OwnershipSchema } from "./support";
 
 function temporaryDuckDBPath(): string {
@@ -364,17 +365,20 @@ export const transferRoutes = new Hono()
       const parsed = Number(raw);
       return Number.isFinite(parsed) ? parsed : undefined;
     };
-    const carOrdinal = num("carOrdinal");
-    const trackOrdinal = num("trackOrdinal");
-    if (carOrdinal === undefined || trackOrdinal === undefined) {
-      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
-    }
     const gameIdRaw = form?.get("gameId");
     let target: ReturnType<typeof resolveMotecTarget>;
     try {
       target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : "");
     } catch (err: unknown) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    }
+    const carId = form?.get("carId");
+    const trackId = form?.get("trackId");
+    if (typeof carId !== "string" || !carId || typeof trackId !== "string" || !trackId) {
+      return c.json({ error: "carId and trackId are required" }, 400);
+    }
+    if (target.gameId === "ac-evo" && !decodeAcEvoTrackId(trackId)?.[0]) {
+      return c.json({ error: "AC Evo trackId must encode [track, configuration]" }, 400);
     }
     const tuneId = num("tuneId");
     if (tuneId !== undefined && !(await getDbTune(tuneId))) {
@@ -383,8 +387,8 @@ export const transferRoutes = new Hono()
     try {
       const result = await importMotec(ldBytes, ldxBytes, {
         gameId: target.gameId,
-        carOrdinal,
-        trackOrdinal,
+        carId,
+        trackId,
         tuneId,
         ownership: ownership.data,
       });

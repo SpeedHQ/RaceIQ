@@ -69,7 +69,7 @@ export const trackCornerRoutes = new Hono()
       }
 
       // (b) Stored DB corners, in meters — convert to fractions.
-      const dbCorners = await getCorners(trackOrdinal, cornersGameId);
+      const dbCorners = await getCorners(String(trackOrdinal), cornersGameId);
       if (dbCorners.length > 0) {
         const sharedName = getSharedTrackName(trackOrdinal, cornersGameId);
         const outline = getTrackOutlineByOrdinal(trackOrdinal, cornersGameId, sharedName);
@@ -124,7 +124,7 @@ export const trackCornerRoutes = new Hono()
         }
       }
 
-      await saveCorners(trackOrdinal, body, requireGameId(c), false);
+      await saveCorners(String(trackOrdinal), body, requireGameId(c), false);
       return c.json({ success: true, count: body.length });
     }
   );

@@ -3,10 +3,6 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Hono } from "hono";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
-import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { getGame } from "../../../shared/games/registry";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { parseAccBuffers } from "../../games/acc/parser";
@@ -92,30 +88,17 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
       } catch (e) {
         return c.json({ error: "Failed to read ACC frames", details: String(e) }, 400);
       }
-      let carOrdinal = 0;
-      let trackOrdinal = 0;
       for (const frame of frames) {
-        if (carOrdinal === 0 || trackOrdinal === 0) {
-          const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-          const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-          if (cm) {
-            carModel = cm;
-            carOrdinal = getAccCarByModel(cm)?.id ?? 0;
-          }
-          if (tn) {
-            trackName = tn;
-            trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
-          }
-        }
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {
-          carOrdinal,
-          trackOrdinal,
-        });
+        const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+        const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+        if (cm) carModel = cm;
+        if (tn) trackName = tn;
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData);
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACC_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? 0,
+          -1,
+          -1,
           frame.physics,
           frame.graphics,
           frame.staticData
@@ -136,24 +119,20 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           const cm = readCString(frame.graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
           if (cm) {
             carModel = cm;
-            const car = getAcEvoCarByDisplayName(cm);
-            if (car) cache.carOrdinal = car.id;
           }
         }
         if (!trackName && frame.staticData.length >= STATIC_EVO.track.offset + STATIC_EVO.track.size) {
           const tn = readCString(frame.staticData, STATIC_EVO.track.offset, STATIC_EVO.track.size);
           if (tn) {
             trackName = tn;
-            const track = getAcEvoTrackByName(tn);
-            if (track) cache.trackOrdinal = track.id;
           }
         }
         const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
         if (!packet) continue;
         const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
-          packet.CarOrdinal,
-          packet.TrackOrdinal ?? -1,
+          -1,
+          -1,
           frame.physics,
           frame.graphics,
           frame.staticData

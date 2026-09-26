@@ -4,7 +4,7 @@ import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { LapIndexPacket } from "../../lap-detection/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
-import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoTrackName, getAcEvoSharedTrackName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { parseAcEvoLapIndex } from "../kunos/lap-index";
@@ -77,9 +77,6 @@ export const acEvoServerAdapter: ServerGameAdapter = {
     return getAcEvoSharedTrackName(ordinal);
   },
 
-  getTrackOrdinalByName(name: string): number | undefined {
-    return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name)?.id;
-  },
 
   canHandle(buf: Buffer): boolean {
     return buf.length > 4 && buf.readUInt32LE(0) === ACEVO_PACKED_MAGIC;

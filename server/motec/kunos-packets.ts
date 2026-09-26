@@ -18,7 +18,6 @@ export interface KunosMotecPacketProfile {
   brakePadWear: number;
   currentSectorIndex: number;
   trackGripStatus: string;
-  includeUnknownCarModel: boolean;
 }
 
 const finite = (value: number): number => Number.isFinite(value) ? value : 0;
@@ -209,10 +208,8 @@ export function convertPreparedKunosMotecPackets(
       SuspensionTravelMFR: suspension[1],
       SuspensionTravelMRL: suspension[2],
       SuspensionTravelMRR: suspension[3],
-      CarOrdinal: carTrack.carOrdinal,
-      ...(profile.includeUnknownCarModel && carTrack.carOrdinal < 0
-        ? { carModelName: carTrack.carModel }
-        : {}),
+      CarId: carTrack.carId,
+      CarOrdinal: -1,
       CarClass: 0,
       CarPerformanceIndex: 0,
       DrivetrainType: profile.drivetrainType,
@@ -223,7 +220,8 @@ export function convertPreparedKunosMotecPackets(
       Speed: speed,
       Power: 0,
       Torque: 0,
-      TrackOrdinal: carTrack.trackOrdinal,
+      TrackId: carTrack.trackId,
+      TrackOrdinal: -1,
       BrakeTempFrontLeft: brakeTemperatures[0],
       BrakeTempFrontRight: brakeTemperatures[1],
       BrakeTempRearLeft: brakeTemperatures[2],

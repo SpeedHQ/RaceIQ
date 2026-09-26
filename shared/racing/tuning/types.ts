@@ -77,9 +77,9 @@ export interface Tune {
   id: number;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: TuneCategory;
-  trackOrdinal?: number;
+  trackId?: string;
   description: string;
   strengths: string[];
   weaknesses: string[];
@@ -94,8 +94,8 @@ export interface Tune {
 }
 
 export interface TuneAssignment {
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
   tuneId: number;
   tuneName?: string;
 }

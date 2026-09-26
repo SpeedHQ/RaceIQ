@@ -56,6 +56,8 @@ export function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => vo
       const s = await create.mutateAsync({
         gameId: "f1-2025",
         name: effectiveName,
+        carId: carOrdinal == null ? null : String(carOrdinal),
+        trackId: trackOrdinal == null ? null : String(trackOrdinal),
         carName: car.trim() || null,
         trackName: track.trim() || null,
         baseSetupPath: null,

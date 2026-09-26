@@ -18,8 +18,8 @@ async function parseBenchmarkFrames(): Promise<void> {
     rawFile: FIXTURE,
     source: null,
     gameId: "ac-evo",
-    carOrdinal: 0,
-    trackOrdinal: 0,
+    carId: "",
+    trackId: "",
   }, RAW_BYTE_OFFSET, FRAME_COUNT);
   const expectedPacketCount = FRAME_COUNT + 1;
   if (packets.length !== expectedPacketCount) {

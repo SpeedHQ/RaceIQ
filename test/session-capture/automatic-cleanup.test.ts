@@ -20,7 +20,7 @@ async function capture(daysOld: number): Promise<{ id: number; path: string }> {
   const path = join(directory, "capture.bin.gz");
   writeFileSync(path, "capture");
   const row = await db.insert(sessions).values({
-    gameId: "fm-2023", carOrdinal: 1, trackOrdinal: 1, rawFile: path,
+    gameId: "fm-2023", carId: "1", trackId: "1", rawFile: path,
     createdAt: new Date(Date.now() - daysOld * 86_400_000).toISOString(),
   }).returning({ id: sessions.id }).get();
   ids.push(row.id);

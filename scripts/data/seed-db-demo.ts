@@ -10,29 +10,31 @@ export function markOnboardingComplete(): void {
 }
 
 export async function insertDemoRows(profileId: number, importedLapIds: number[]): Promise<void> {
-  const importedLaps = await db.select({ id: laps.id, gameId: sessions.gameId, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
+  const importedLaps = await db.select({ id: laps.id, gameId: sessions.gameId, carId: sessions.carId, trackId: sessions.trackId })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(inArray(laps.id, importedLapIds)).all();
   await db.update(laps).set({ profileId }).where(inArray(laps.id, importedLapIds)).run();
 
   const fmLaps = importedLaps.filter((lap) => lap.gameId === "fm-2023");
-  const fm = fmLaps.find((lap) => lap.carOrdinal === 3631) ?? fmLaps[0];
+  const fm = fmLaps.find((lap) => lap.carId === "3631") ?? fmLaps[0];
   if (fm) {
-    const secondCar = 3632;
+    const carId = fm.carId ?? "3631";
+    const trackId = fm.trackId ?? "silverstone";
+    const secondCar = "3632";
     const tuneA = await db.insert(tunes).values({
-      gameId: "fm-2023", name: "Demo Sprint Baseline", author: "RaceIQ Demo", carOrdinal: fm.carOrdinal,
-      category: "road", trackOrdinal: fm.trackOrdinal, description: `Seeded demo tune (${SEED_MARKER})`,
+      gameId: "fm-2023", name: "Demo Sprint Baseline", author: "RaceIQ Demo", carId,
+      category: "road", trackId, description: `Seeded demo tune (${SEED_MARKER})`,
       strengths: JSON.stringify(["Stable braking"]), weaknesses: JSON.stringify(["Corner exit traction"]),
       bestTracks: JSON.stringify(["Silverstone"]), strategies: JSON.stringify(["Brake earlier for consistency"]),
       settings: JSON.stringify({ frontArb: 32, rearArb: 28 }), unitSystem: "metric", source: SEED_MARKER,
     }).returning({ id: tunes.id }).get();
     const tuneB = await db.insert(tunes).values({
-      gameId: "fm-2023", name: "Demo Qualifying Variant", author: "RaceIQ Demo", carOrdinal: secondCar,
-      category: "road", trackOrdinal: fm.trackOrdinal, description: `Second-car tune (${SEED_MARKER})`,
+      gameId: "fm-2023", name: "Demo Qualifying Variant", author: "RaceIQ Demo", carId: secondCar,
+      category: "road", trackId, description: `Second-car tune (${SEED_MARKER})`,
       strengths: JSON.stringify(["Rotation"]), weaknesses: JSON.stringify(["Tyre wear"]), bestTracks: "[]", strategies: "[]",
       settings: JSON.stringify({ frontArb: 28, rearArb: 34 }), unitSystem: "metric", source: SEED_MARKER,
     }).returning({ id: tunes.id }).get();
-    await db.insert(tuneAssignments).values({ gameId: "fm-2023", carOrdinal: fm.carOrdinal, trackOrdinal: fm.trackOrdinal, tuneId: tuneA.id }).run();
-    await db.insert(tuneAssignments).values({ gameId: "fm-2023", carOrdinal: secondCar, trackOrdinal: fm.trackOrdinal, tuneId: tuneB.id }).run();
+    await db.insert(tuneAssignments).values({ gameId: "fm-2023", carId, trackId, tuneId: tuneA.id }).run();
+    await db.insert(tuneAssignments).values({ gameId: "fm-2023", carId: secondCar, trackId, tuneId: tuneB.id }).run();
     await db.update(laps).set({ tuneId: tuneA.id }).where(inArray(laps.id, fmLaps.map((lap) => lap.id))).run();
     await saveChatMessages(chatThreadId(fm.id), [
       {
@@ -45,9 +47,11 @@ export async function insertDemoRows(profileId: number, importedLapIds: number[]
   const f1Laps = importedLaps.filter((lap) => lap.gameId === "f1-2025");
   const f1 = f1Laps[0];
   if (f1) {
+    const carId = f1.carId ?? "unknown-car";
+    const trackId = f1.trackId ?? "unknown-track";
     const experiment = await db.insert(experiments).values({
-      seq: 1, gameId: "f1-2025", name: "Demo setup experiment", carOrdinal: f1.carOrdinal,
-      trackOrdinal: f1.trackOrdinal, focus: "car", notes: SEED_MARKER,
+      seq: 1, gameId: "f1-2025", name: "Demo setup experiment", carId,
+      trackId, focus: "car", notes: SEED_MARKER,
     }).returning({ id: experiments.id }).get();
     const base = await db.insert(experimentVersions).values({
       experimentId: experiment.id, version: 1, label: "Base setup", kind: "setup", setupPath: "seed/demo-base.json",

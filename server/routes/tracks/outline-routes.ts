@@ -70,7 +70,7 @@ export const trackRecomputeOutlineRoutes = new Hono()
       // Multi-lap mode — average best laps
       const outlineGameId = c.req.query("gameId") as GameId | undefined;
       const allLaps = (await getLaps(outlineGameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+        (l) => l.trackId === String(trackOrdinal) && l.lapTime > 0
       );
       if (allLaps.length === 0) {
         return c.json({ error: "No laps found for this track" }, 404);
@@ -159,7 +159,7 @@ export const trackLapSectorRoutes = new Hono()
       }
       const ordinal = Number(trackKey);
       if (!Number.isInteger(ordinal)) return c.json({ error: "ordinal must be an integer" }, 400);
-      const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(gameId)).filter((l) => l.trackId === String(ordinal) && l.lapTime > 0);
 
       const result: Record<number, number[]> = {};
 

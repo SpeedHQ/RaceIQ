@@ -114,7 +114,7 @@ describe("reprocessSession", () => {
   async function insertTestSession(rawFile: string | null, lapDetectorVersion?: string): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId: "fm-2023", rawFile, lapDetectorVersion: lapDetectorVersion ?? null })
+      .values({ carId: "1", trackId: "1", gameId: "fm-2023", rawFile, lapDetectorVersion: lapDetectorVersion ?? null })
       .returning({ id: sessions.id })
       .get();
     return row!.id;
@@ -346,7 +346,7 @@ describe("countStaleSessions", () => {
   ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 1, trackOrdinal: 1, gameId, rawFile, lapDetectorVersion })
+      .values({ carId: "1", trackId: "1", gameId, rawFile, lapDetectorVersion })
       .returning({ id: sessions.id })
       .get();
     const id = row!.id;

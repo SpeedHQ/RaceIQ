@@ -28,6 +28,7 @@
  * tell it went wrong.
  */
 
+import { decodeAcEvoTrackId } from "../../shared/racing/tracks/ac-evo-identity";
 import type { GameId } from "../../shared/games/ids";
 import { getGame } from "@shared/games/registry";
 import type { LdLog } from "./ld";
@@ -42,12 +43,6 @@ import {
   resolveAccMotecCarTrack,
 } from "../games/acc/motec";
 import { convertAcEvoMotecToPackets } from "../games/ac-evo/motec";
-import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/racing/cars/ac-evo";
-import {
-  getAcEvoTrackByName,
-  getAcEvoTrackBySetupFolder,
-  getAcEvoTracks,
-} from "../../shared/racing/tracks/catalogs/ac-evo";
 
 type MotecConverter = (
   log: LdLog,
@@ -87,19 +82,17 @@ function resolveAcEvoMotecCarTrack(
   log: LdLog,
   override?: MotecCarTrackOverride,
 ): MotecCarTrack {
-  const car =
-    override?.carOrdinal !== undefined && override.carOrdinal >= 0
-      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
-      : getAcEvoCarByModel(log.vehicleId);
-  const track =
-    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
-      ? getAcEvoTracks().get(override.trackOrdinal)
-      : getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue);
+  const trackId = override?.trackId;
+  if (!trackId) throw new Error("AC Evo MoTeC import requires exact [track, configuration] trackId");
+  const pair = decodeAcEvoTrackId(trackId);
+  if (!pair?.[0] || pair.length !== 2) {
+    throw new Error("AC Evo MoTeC import requires exact [track, configuration] trackId");
+  }
   return {
-    carOrdinal: car?.id ?? -1,
-    trackOrdinal: track?.id ?? -1,
-    carModel: car?.name ?? log.vehicleId,
-    trackName: track?.commonTrackName ?? log.venue,
+    carId: override?.carId ?? log.vehicleId,
+    trackId,
+    carModel: log.vehicleId,
+    trackName: pair.join(" — "),
   };
 }
 

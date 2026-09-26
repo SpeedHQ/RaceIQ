@@ -39,7 +39,7 @@ export async function loadRepresentativeLap(
 export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
   const lap = await loadRepresentativeLap(experimentId);
   if (!lap) return null;
-  const corners = await resolveLapCorners(lap.trackOrdinal, lap.gameId, lap.telemetry);
+  const corners = await resolveLapCorners(lap.trackId, lap.gameId, lap.telemetry);
   return telemetryToSymptoms(lap.telemetry, corners);
 }
 

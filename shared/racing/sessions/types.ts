@@ -17,11 +17,9 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   createdAt: string;
   pi?: number;
   gameId?: GameId;
-  // Joined from session
-  carOrdinal?: number;
-  trackOrdinal?: number;
-  carId?: number | string | null;
-  trackId?: number | string | null;
+  // Joined from session; numeric-native games expose decimal strings.
+  carId?: string | null;
+  trackId?: string | null;
   // How the session's telemetry was obtained (migration v43, joined from
   // sessions.source). null/undefined = recorded live from the game. 'motec' =
   // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
@@ -70,10 +68,8 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
 
 export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
-  carOrdinal: number;
-  trackOrdinal: number;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   createdAt: string;
   lapCount?: number;
   bestLapTime?: number;
@@ -102,18 +98,16 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
 }
 
 export interface RacingIdentityFields {
-  carOrdinal?: number | null;
-  trackOrdinal?: number | null;
-  carId?: number | string | null;
-  trackId?: number | string | null;
+  carId?: string | null;
+  trackId?: string | null;
 }
 
-export function carIdentityKey(identity: RacingIdentityFields): number | string | null {
-  return identity.carId ?? identity.carOrdinal ?? null;
+export function carIdentityKey(identity: RacingIdentityFields): string | null {
+  return identity.carId ?? null;
 }
 
-export function trackIdentityKey(identity: RacingIdentityFields): number | string | null {
-  return identity.trackId ?? identity.trackOrdinal ?? null;
+export function trackIdentityKey(identity: RacingIdentityFields): string | null {
+  return identity.trackId ?? null;
 }
 
 export interface SessionRecap {

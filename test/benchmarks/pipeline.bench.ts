@@ -10,8 +10,6 @@ import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
 import { readKunosFrames } from "../../server/games/kunos/frame-reader";
-import { getAccCarByModel } from "../../shared/racing/cars/acc";
-import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { runMitataBenchmarks } from "./mitata-harness";
 import { createBoundedPipelineRunner } from "./pipeline-bench-support";
@@ -64,11 +62,7 @@ const accFrames = readKunosFrames(ACC_DUMP, N_FRAMES);
 if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
-const accOpts = {
-  carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
-  trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
-};
-const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter((p): p is NonNullable<typeof p> => p !== null);
+const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData)).filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
 // --- Load and extract AC Evo data (same recorder format as ACC) ---
@@ -148,7 +142,7 @@ group("acc", () => {
   bench("parse", () => {
     const f = accFrames[i];
     i = (i + 1) % accFrames.length;
-    do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts));
+    do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData));
   });
   const runPipeline = makePipelineRunner(accPipeline);
   let pi = 0;

@@ -49,8 +49,8 @@ describe("compare chat initialization prompt", () => {
 
   test("resolves track and car names with lap game identity", () => {
     const context = buildCompareChatContext(
-      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carOrdinal: 59, trackOrdinal: 2, gameId: "ac-evo" },
-      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carOrdinal: 59, trackOrdinal: 2, gameId: "ac-evo" },
+      { id: 13, lapNumber: 1, lapTime: 97.932, isValid: true, carId: "Porsche 992 GT3 R Rennsport", trackId: '["brands_hatch","gp"]', gameId: "ac-evo" },
+      { id: 14, lapNumber: 2, lapTime: 98.706, isValid: false, carId: "Porsche 992 GT3 R Rennsport", trackId: '["brands_hatch","gp"]', gameId: "ac-evo" },
       { timeDelta: [0, 0.004], distances: [0, 2178], cornerDeltas: [] } as any,
     );
 

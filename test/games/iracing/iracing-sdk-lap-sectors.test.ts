@@ -245,8 +245,8 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[0].rawFrameCount).toBe(65);
     expect(db.laps[0].sectors).toHaveLength(2);
     expect(db.sessions[0]).toMatchObject({
-      carOrdinal: 42,
-      trackOrdinal: 99,
+      carId: "42",
+      trackId: "99",
     });
     expect(db.sessions[0]).not.toHaveProperty("carName");
     expect(db.sessions[0]).not.toHaveProperty("trackName");

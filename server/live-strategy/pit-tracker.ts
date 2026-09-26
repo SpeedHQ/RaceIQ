@@ -86,13 +86,15 @@ export class PitTracker {
    * The active adapter decides which historical signals are comparable.
    */
   async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId, policy: ServerGameRuntimePolicy["pit"]): Promise<void> {
+    const numericNativeGame = gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing";
+    if (!numericNativeGame || !Number.isInteger(trackOrdinal) || trackOrdinal < 0 || !Number.isInteger(carOrdinal) || carOrdinal < 0) return;
     const seedFuel = policy.seedFuelFromHistory;
     const seedTires = this.tireWearAvailable && policy.seedTireWearFromHistory;
     try {
       const allLaps = await getLaps(gameId, 200);
       const matching = allLaps
-        .filter((l: LapMeta) => l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal && l.pi === pi && l.isValid && l.lapTime > 10)
-        .sort((a: LapMeta, b: LapMeta) => b.id - a.id) // newest first
+        .filter((l: LapMeta) => l.trackId === String(trackOrdinal) && l.carId === String(carOrdinal) && l.pi === pi && l.isValid && l.lapTime > 10)
+        .sort((a: LapMeta, b: LapMeta) => b.id - a.id)
         .slice(0, 5);
 
       const fuelRates: number[] = [];

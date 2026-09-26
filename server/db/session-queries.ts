@@ -11,23 +11,20 @@ import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
-import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
-import type { SessionIdentity } from "../telemetry/pipeline-ports";
 import { getLMUTrack } from "../../shared/games/lmu/catalog";
 
 export async function insertSession(
-  carOrdinal: number,
-  trackOrdinal: number,
+  carId: string,
+  trackId: string,
   gameId: GameId,
   sessionType?: string,
   versionIdentity?: TelemetryVersionIdentity,
   ownership?: SessionOwnership,
-  identity?: SessionIdentity,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType, ownership, ...versionIdentity, ...identity })
+    .values({ carId, trackId, gameId, sessionType, ownership, ...versionIdentity })
     .returning({ id: sessions.id })
     .get();
   return result.id;
@@ -46,13 +43,12 @@ export async function updateSession(
 
 export async function updateSessionCarTrack(
   sessionId: number,
-  carOrdinal: number,
-  trackOrdinal: number,
-  identity?: SessionIdentity,
+  carId: string,
+  trackId: string,
 ): Promise<void> {
   await db
     .update(sessions)
-    .set({ carOrdinal, trackOrdinal, ...identity })
+    .set({ carId, trackId })
     .where(eq(sessions.id, sessionId))
     .run();
 }
@@ -230,8 +226,6 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   const query = db
     .select({
       id: sessions.id,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
       carId: sessions.carId,
       trackId: sessions.trackId,
       createdAt: sessions.createdAt,
@@ -256,7 +250,6 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
-  // Get lap counts and best lap per session
   const result: SessionMeta[] = [];
   for (const session of rows) {
     const lapRows = await db
@@ -264,17 +257,8 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
-
     const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
-    const normalizedSession = {
-      ...session,
-      carId: session.carId ?? session.carOrdinal,
-      trackId: session.trackId ?? session.trackOrdinal,
-      sessionType: session.sessionType ?? undefined,
-      telemetryAvailable: Boolean(session.telemetryAvailable),
-      isFavorite: Boolean(session.isFavorite),
-    };
     const resultRow = await db
       .select({
         id: sessionResults.id,
@@ -289,14 +273,13 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .where(eq(sessionResults.sessionId, session.id))
       .get();
     const pitDurationRow = resultRow
-      ? await db
-        .select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
-        .from(pitEvents)
-        .where(eq(pitEvents.resultId, resultRow.id))
-        .get()
+      ? await db.select({ duration: sql<number | null>`sum(${pitEvents.durationSeconds})` })
+        .from(pitEvents).where(eq(pitEvents.resultId, resultRow.id)).get()
       : null;
     result.push({
-      ...normalizedSession,
+      ...session,
+      carId: session.carId ?? "",
+      trackId: session.trackId ?? "",
       lapCount: lapRows.length,
       bestLapTime,
       resultClassification: resultRow?.classification ?? null,
@@ -306,6 +289,9 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       isFastestLap: resultRow?.isFastestLap ?? null,
       pitCount: resultRow?.pitCount ?? null,
       pitDurationSeconds: pitDurationRow?.duration ?? null,
+      telemetryAvailable: Boolean(session.telemetryAvailable),
+      isFavorite: Boolean(session.isFavorite),
+      sessionType: session.sessionType ?? undefined,
       notes: session.notes ?? undefined,
       source: session.source ?? undefined,
       gameId: session.gameId as GameId,
@@ -344,8 +330,6 @@ export async function getSessionRecapData(
   const sessionRow = await db
     .select({
       id: sessions.id,
-      carOrdinal: sessions.carOrdinal,
-      trackOrdinal: sessions.trackOrdinal,
       carId: sessions.carId,
       trackId: sessions.trackId,
       gameId: sessions.gameId,
@@ -374,7 +358,7 @@ export async function getSessionRecapData(
 
   const trackLengthM = gameId === "lmu" && sessionRow.trackId
     ? (getLMUTrack(sessionRow.trackId)?.lengthKm ?? 0) * 1_000 || null
-    : getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
+    : null;
   const sessionSectorCount =
     lapRows.find(
       (lap) =>
@@ -399,19 +383,10 @@ export async function getSessionRecapData(
       }
     }
   }
-  const identityFilters = gameId === "lmu"
-    ? [
-        sessionRow.trackId !== null
-          ? eq(sessions.trackId, sessionRow.trackId)
-          : and(isNull(sessions.trackId), eq(sessions.trackOrdinal, sessionRow.trackOrdinal)),
-        sessionRow.carId !== null
-          ? eq(sessions.carId, sessionRow.carId)
-          : and(isNull(sessions.carId), eq(sessions.carOrdinal, sessionRow.carOrdinal)),
-      ]
-    : [
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
-      ];
+  const identityFilters = [
+    sessionRow.trackId === null ? isNull(sessions.trackId) : eq(sessions.trackId, sessionRow.trackId),
+    sessionRow.carId === null ? isNull(sessions.carId) : eq(sessions.carId, sessionRow.carId),
+  ];
 
   const bestOtherRow = await db
     .select({ lapTime: laps.lapTime })
@@ -462,8 +437,8 @@ export async function getSessionRecapData(
   return {
     session: {
       id: sessionRow.id,
-      carId: sessionRow.carId ?? sessionRow.carOrdinal,
-      trackId: sessionRow.trackId ?? sessionRow.trackOrdinal,
+      carId: sessionRow.carId ?? "",
+      trackId: sessionRow.trackId ?? "",
       gameId: sessionRow.gameId as GameId,
       createdAt: sessionRow.createdAt,
       ownership: sessionRow.ownership === "others" ? "others" : "mine",

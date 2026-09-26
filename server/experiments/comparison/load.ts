@@ -84,9 +84,9 @@ async function resolveCornersFor(
   referenceTelemetry: TelemetryPacket[],
 ): Promise<Corner[]> {
   const session = await getExperiment(sessionId);
-  const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
+  const trackId = session?.trackId ?? metas.find((m) => m.trackId != null)?.trackId ?? null;
   const gameId = session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null;
-  return resolveLapCorners(trackOrdinal, gameId, referenceTelemetry);
+  return resolveLapCorners(trackId, gameId, referenceTelemetry);
 }
 
 /**

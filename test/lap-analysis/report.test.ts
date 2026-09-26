@@ -69,3 +69,15 @@ describe("lap report tire wear", () => {
     );
   });
 });
+
+describe("lap report native identity", () => {
+  test("exports native ACC keys rather than unavailable catalog ordinals", () => {
+    const output = generateExport(
+      { ...lap, carId: "mclaren_720s_gt3_evo", trackId: "brands_hatch" },
+      [{ ...basePacket, CarOrdinal: -1, TrackOrdinal: -1 }],
+    );
+    expect(output).toContain("Car: mclaren_720s_gt3_evo |");
+    expect(output).toContain("Track: brands_hatch |");
+    expect(output).not.toContain("Car: #-1");
+  });
+});

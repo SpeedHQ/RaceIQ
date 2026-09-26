@@ -50,6 +50,8 @@ test("direct AC Evo lap index coordinates match full parser", () => {
     if (full && index && full.PositionX !== 0 && full.PositionZ !== 0) {
       expect(index.PositionX).toBe(full.PositionX);
       expect(index.PositionZ).toBe(full.PositionZ);
+      expect(index.CarId).toBe(full.CarId);
+      expect(index.TrackId).toBe(full.TrackId);
       return;
     }
   }
@@ -98,7 +100,7 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
       const sample = laps.slice(0, 6);
       const metas = sample.map((l, i) => ({ id: i + 1, rawByteOffset: l.rawByteOffset, rawFrameCount: l.rawFrameCount }));
 
-      const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+      const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carId: "", trackId: "" };
       const canonical = await loadSessionCapture(source);
       const batch = await parseSessionLapsBatchedForTest(source, metas);
 
@@ -120,7 +122,7 @@ describe("parseSessionLapsBatched — parity with per-lap parseRawLapFrames", ()
 
 test("batch decode streams capture without materializing full file", async () => {
   const laps = (await detectLaps()).slice(0, 2);
-  const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carOrdinal: 0, trackOrdinal: 0 };
+  const source = { rawFile: FIXTURE, source: null, gameId: "ac-evo" as const, carId: "", trackId: "" };
   const originalNow = Date.now;
   Date.now = () => 1_000_000_000;
   clearSessionCaptureCache();

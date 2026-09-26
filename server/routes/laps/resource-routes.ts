@@ -48,8 +48,8 @@ export const resourceRoutes = new Hono()
     return c.json(lapList);
   })
   .get("/api/laps/review", zValidator("query", ReviewLapsQuerySchema), async (c) => {
-    const { gameId, sessionId, trackOrdinal, carOrdinal, trackId, carId, limit } = c.req.valid("query");
-    return c.json(await getReviewLaps(gameId, trackOrdinal ?? null, carOrdinal ?? null, limit, sessionId, trackId, carId));
+    const { gameId, sessionId, trackId, carId, limit } = c.req.valid("query");
+    return c.json(await getReviewLaps(gameId, trackId ?? null, carId ?? null, limit, sessionId));
   })
   .get("/api/laps/review-line-spread", zValidator("query", ReviewLineSpreadQuerySchema), async (c) => {
     const { gameId, sessionId, lapIds } = c.req.valid("query");
@@ -61,7 +61,7 @@ export const resourceRoutes = new Hono()
     const usable = ordered.filter((lap) => lap.telemetry.length >= 30);
     if (usable.length === 0) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: 0 });
     const first = usable[0]!;
-    const corners = await resolveLapCorners(first.trackOrdinal, gameId, first.telemetry);
+    const corners = await resolveLapCorners(first.trackId, gameId, first.telemetry);
     const trace = computeLineSpreadTrace(usable.map((lap) => lap.telemetry), usable.map((lap) => lap.id), corners);
     if (!trace) return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: usable.length });
     const { lapLines: _lapLines, ...compactTrace } = trace;
@@ -141,7 +141,7 @@ export const resourceRoutes = new Hono()
     for (const id of request.ids) if (!byId.has(id)) return c.json({ error: `Lap ${id} not found` }, 404);
     for (const id of request.ids) if (byId.get(id)!.telemetry.length === 0) return c.json({ error: `Lap ${id} has no telemetry data` }, 400);
     const first = byId.get(request.ids[0]!)!;
-    if (laps.some((lap) => lap.gameId !== first.gameId || lap.trackOrdinal !== first.trackOrdinal)) return c.json({ error: "Laps must belong to the same game and track" }, 400);
+    if (laps.some((lap) => lap.gameId !== first.gameId || lap.trackId !== first.trackId)) return c.json({ error: "Laps must belong to the same game and track" }, 400);
     const inputs: AlignmentLapInput[] = request.ids.map((id) => {
       const lap = byId.get(id)!;
       return {
@@ -190,7 +190,9 @@ export const resourceRoutes = new Hono()
       lapDist: number;
     } | null = null;
     const packets = lap.telemetry;
-    if (packets.length >= 10 && lap.trackOrdinal != null) {
+    const numericTrackId = (gameId === "fm-2023" || gameId === "f1-2025" || gameId === "iracing")
+      && /^\d+$/.test(lap.trackId ?? "") ? Number(lap.trackId) : null;
+    if (packets.length >= 10) {
       const game = getGame(gameId);
       const firstDist = packets[0].DistanceTraveled;
       const lastDist = packets[packets.length - 1].DistanceTraveled;
@@ -210,7 +212,7 @@ export const resourceRoutes = new Hono()
           };
         }
       } else {
-        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
+        const sectors = resolveTrack(gameId, numericTrackId).sectors;
         if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
           // Determine the best time source: CurrentLap if it progresses, else TimestampMS
           const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
@@ -275,7 +277,7 @@ export const resourceRoutes = new Hono()
     try {
       const loaded = await loadSessionSource({
         rawFile: row.rawFile, source: row.source ?? null, gameId: row.gameId as GameId,
-        carOrdinal: row.carOrdinal, trackOrdinal: row.trackOrdinal,
+        carId: row.carId ?? "", trackId: row.trackId ?? "",
       });
       if (loaded.kind === "packets") {
         return c.json({ error: "MoTeC sessions use canonical packets and have no BIN capture" }, 409);
@@ -286,8 +288,12 @@ export const resourceRoutes = new Hono()
     }
     bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
 
-    const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
-    const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
+    const numericTrackId = (row.gameId === "fm-2023" || row.gameId === "f1-2025" || row.gameId === "iracing")
+      && /^\d+$/.test(row.trackId ?? "") ? Number(row.trackId) : null;
+    const trackName = row.gameId === "acc" || row.gameId === "ac-evo"
+      ? row.trackId ?? ""
+      : tryGetGame(row.gameId)?.getTrackName?.(numericTrackId ?? -1);
+    const slug = (trackName || `track${row.trackId ?? ""}`)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
@@ -347,9 +353,11 @@ export const resourceRoutes = new Hono()
     // Recompute sector times
     const packets = lap.telemetry;
     let sectors: number[] | null = null;
-    if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
+    const numericTrackId = (lap.gameId === "fm-2023" || lap.gameId === "f1-2025" || lap.gameId === "iracing")
+      && /^\d+$/.test(lap.trackId ?? "") ? Number(lap.trackId) : null;
+    if (packets.length >= 50 && lap.gameId && numericTrackId != null) {
       sectors = await computeLapSectors(
-        lap.trackOrdinal,
+        numericTrackId,
         lap.gameId as GameId,
         packets,
         lap.lapTime,

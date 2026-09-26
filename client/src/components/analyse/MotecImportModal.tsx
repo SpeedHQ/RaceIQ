@@ -1,3 +1,4 @@
+import { decodeAcEvoTrackId } from "../../../../shared/racing/tracks/ac-evo-identity";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { analyseSemanticIds } from "../../../../shared/games/metric-contracts";
 import { getGame } from "../../../../shared/games/registry";
@@ -6,20 +7,20 @@ import type { SemanticAnalysisFrame } from "./track-map/types";
 import type { SessionOwnership } from "../../../../shared/racing/sessions/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { OwnershipChoice } from "../import/OwnershipChoice";
-import { useMotecTargets, useCarsFromEndpoint, useTracksForGame } from "../../hooks/catalog-queries";
+import { useMotecTargets } from "../../hooks/catalog-queries";
 import type { MotecTargetInfo } from "../../hooks/catalog-queries";
 import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { SearchSelect } from "../ui/SearchSelect";
 import { formatMotecLapTime, hasCompleteMotecSource } from "./motec-import-utils";
 import { m } from "../../paraglide/messages";
+import { SearchSelect } from "../ui/SearchSelect";
 export interface MotecImportedLap {
   lapId: number;
   lapNumber: number;
   lapTime: number;
-  carOrdinal: number;
-  trackOrdinal: number;
+  carId: string;
+  trackId: string;
 }
 
 export interface MotecCapability {
@@ -211,8 +212,8 @@ export function MotecImportModal({
   const [archiveToken, setArchiveToken] = useState(stagedToken ?? "");
   const [archiveNames, setArchiveNames] = useState({ ld: initialLdName ?? "", ldx: initialLdxName ?? "" });
   const [archiveStatus, setArchiveStatus] = useState<"idle" | "extracting" | "ready" | "error">(stagedToken ? "ready" : "idle");
-  const [carOrdinal, setCarOrdinal] = useState("");
-  const [trackOrdinal, setTrackOrdinal] = useState("");
+  const [carId, setCarId] = useState("");
+  const [trackId, setTrackId] = useState("");
   const [tuneId, setTuneId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -223,8 +224,6 @@ export function MotecImportModal({
   const stagedTokenRef = useRef(archiveToken);
   const archiveRequestRef = useRef(0);
   const initialArchiveStartedRef = useRef(false);
-  const { data: cars = [] } = useCarsFromEndpoint(target?.carsEndpoint ?? null);
-  const { data: tracks = [] } = useTracksForGame(target?.gameId ?? null);
   const { data: tunes = [] } = useUserTunes(target?.gameId);
   const ldRef = useRef<HTMLInputElement>(null);
   const ldxRef = useRef<HTMLInputElement>(null);
@@ -305,30 +304,23 @@ export function MotecImportModal({
 
   const chooseGame = (value: string) => {
     setSelectedGameId(value as GameId);
-    setCarOrdinal("");
-    setTrackOrdinal("");
+    setCarId("");
+    setTrackId("");
     setTuneId("");
   };
 
-  const carOptions = useMemo(() => cars.map((c) => ({ value: String(c.ordinal), label: c.name, group: c.class })), [cars]);
-  const trackOptions = useMemo(
-    () => tracks.toSorted((a, b) => a.name.localeCompare(b.name)).map((t) => ({ value: String(t.ordinal), label: t.variant ? `${t.name} (${t.variant})` : t.name })),
-    [tracks],
+  const tuneOptions = useMemo(
+    () => (tunes as { id: number; name: string }[]).map((t) => ({ value: String(t.id), label: t.name })),
+    [tunes],
   );
-  // Only setups for the chosen car can apply to these laps; before a car is
-  // picked there is nothing sensible to offer, so the list stays empty.
-  const tuneOptions = useMemo(() => {
-    if (!carOrdinal) return [];
-    return (tunes as { id: number; name: string; carOrdinal?: number | null }[])
-      .filter((t) => t.carOrdinal == null || String(t.carOrdinal) === carOrdinal)
-      .map((t) => ({ value: String(t.id), label: t.name }));
-  }, [tunes, carOrdinal]);
 
   const isArchive = ld?.name.toLowerCase().endsWith(".zip") ?? false;
-  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carOrdinal && !!trackOrdinal && !busy;
+  const evoTrackPair = target?.gameId === "ac-evo" ? decodeAcEvoTrackId(trackId) : null;
+  const evoTrackValid = target?.gameId !== "ac-evo" || (!!evoTrackPair && evoTrackPair.every((part) => part.trim().length > 0));
+  const canSubmit = !!target && hasCompleteMotecSource(ld, ldx, archiveToken) && (!isArchive || archiveStatus === "ready") && !!carId.trim() && !!trackId.trim() && evoTrackValid && !busy;
 
   async function submit() {
-    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carOrdinal || !trackOrdinal) return;
+    if (!target || !hasCompleteMotecSource(ld, ldx, archiveToken) || (isArchive && archiveStatus !== "ready") || !carId.trim() || !trackId.trim() || !evoTrackValid) return;
     setBusy(true);
     setError(null);
     try {
@@ -340,8 +332,8 @@ export function MotecImportModal({
         if (ldx) body.append("ldx", ldx);
       }
       body.append("gameId", target.gameId);
-      body.append("carOrdinal", carOrdinal);
-      body.append("trackOrdinal", trackOrdinal);
+      body.append("carId", carId.trim());
+      body.append("trackId", trackId.trim());
       if (tuneId) body.append("tuneId", tuneId);
       body.append("ownership", ownership);
       // Multipart upload — no RPC binding for form bodies, same as
@@ -425,18 +417,21 @@ export function MotecImportModal({
 
             {/* Car / track / setup */}
             <div className="space-y-2">
-              <div className="block text-app-text-dim">
+              <label className="block text-app-text-dim">
                 {m.analyse_car_label()}
-                <SearchSelect value={carOrdinal} onChange={setCarOrdinal} options={carOptions} placeholder={m.analyse_search_cars()} className="mt-1" />
-              </div>
-              <div className="block text-app-text-dim">
+                <input value={carId} onChange={(event) => setCarId(event.target.value)} className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2 text-app-text" />
+              </label>
+              <label className="block text-app-text-dim">
                 {m.analyse_track_label()}
-                <SearchSelect value={trackOrdinal} onChange={setTrackOrdinal} options={trackOptions} placeholder={m.analyse_search_tracks()} className="mt-1" />
-              </div>
+                <input value={trackId} onChange={(event) => setTrackId(event.target.value)} className="mt-1 w-full rounded border border-app-border bg-app-bg px-3 py-2 text-app-text" />
+              </label>
               <div className="block text-app-text-dim">
                 {m.analyse_setup_optional()}
-                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={carOrdinal ? m.analyse_search_setups() : m.analyse_pick_car()} disabled={!carOrdinal} className="mt-1" />
+                <SearchSelect value={tuneId} onChange={setTuneId} options={tuneOptions} placeholder={m.analyse_search_setups()} className="mt-1" />
               </div>
+              {target?.gameId === "ac-evo" && !evoTrackValid && (
+                <p className="text-status-danger">Enter a valid AC Evo track key as JSON pair: [&quot;exact track&quot;, &quot;exact configuration&quot;]. Catalog variants are not identity.</p>
+              )}
               <p className="text-app-text-muted">
                 {m.analyse_import_catalog_explanation()}
               </p>

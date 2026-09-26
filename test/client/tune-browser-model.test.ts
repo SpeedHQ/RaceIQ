@@ -9,7 +9,7 @@ describe("buildRows", () => {
       { id: "community-1", name: "R8 — henr", author: "henr", category: "circuit", carOrdinal: 3951, description: "Got 3:48 le mans", settings: S, source: "community", sourceName: "Community" },
     ] as any[];
     const user = [
-      { id: 7, name: "My R8", author: "You", category: "circuit", carOrdinal: 3951, trackOrdinal: null, description: "", settings: S },
+      { id: 7, name: "My R8", author: "You", category: "circuit", carId: "3951", trackId: null, description: "", settings: S },
     ];
     const rows = buildRows(catalog, user);
     const c = rows.find(r => r.id === "community-1")!;

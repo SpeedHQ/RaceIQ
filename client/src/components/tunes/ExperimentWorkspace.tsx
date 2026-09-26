@@ -7,7 +7,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PanelSectionHeader } from "@/components/ui/panel-section-header";
-import { useAccCarName, useResolveNames } from "@/hooks/catalog-queries";
+import { useAccCarName } from "@/hooks/catalog-queries";
 import type { ExperimentGameId, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import { useExperiment, useExperimentLapMetrics, useExperimentVersions, useAddBase } from "@/hooks/experiments";
 import { useLaps } from "@/hooks/laps";
@@ -42,6 +42,7 @@ import { ExperimentGuideModal } from "./ExperimentGuideModal";
  */
 export function ExperimentWorkspace({ gameId, experimentId, manageActivation = true }: { gameId: ExperimentGameId; experimentId: number; manageActivation?: boolean }) {
   const navigate = useNavigate();
+  const accCarName = useAccCarName();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -52,7 +53,6 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
   const { data: lapMetrics = [] } = useExperimentLapMetrics(experimentId);
-  const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const livePit = useTelemetryStore((s) => s.pit);
@@ -101,9 +101,6 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
     });
   }, [addBase, loadingVersions, session, tests.length]);
 
-  // Header car/track labels: setup-file-seeded sessions carry names directly;
-  // ordinal-seeded ones resolve names from the ordinals.
-  const { data: names } = useResolveNames(session?.trackOrdinal != null ? [session.trackOrdinal] : [], session?.carOrdinal != null ? [session.carOrdinal] : []);
 
   // The session's lap pool: persisted laps explicitly linked to this tuning
   // session (experimentId stamped server-side, spanning any number of race
@@ -224,9 +221,9 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
     );
   }
 
-  const rawCarLabel = session.carName ?? (session.carOrdinal != null ? names?.carNames[String(session.carOrdinal)] : undefined) ?? null;
+  const rawCarLabel = session.carName ?? session.carId ?? null;
   const carLabel = gameId === "acc" ? accCarName(rawCarLabel) : rawCarLabel;
-  const rawTrackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
+  const rawTrackLabel = session.trackName ?? session.trackId ?? null;
   // Session trackName can be a raw folder slug (e.g. "brands_hatch") — turn
   // slug-looking values into a friendly title-cased label.
   const trackLabel = rawTrackLabel && /^[a-z0-9_-]+$/.test(rawTrackLabel) ? rawTrackLabel.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase()) : rawTrackLabel;
@@ -359,7 +356,7 @@ export function ExperimentWorkspace({ gameId, experimentId, manageActivation = t
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 p-2">
-                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
+                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackId != null && /^\d+$/.test(session.trackId) ? Number(session.trackId) : null} />
                 </div>
               </div>
             )}

@@ -8,9 +8,9 @@ export interface CatalogTune {
   id: string;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
-  trackOrdinal?: number;
+  trackId?: string;
   description: string;
   strengths: string[];
   weaknesses: string[];
@@ -27,7 +27,7 @@ interface ParsedTune {
   gameId: string;
   name: string;
   author: string;
-  carOrdinal: number;
+  carId: string;
   category: string;
   description: string;
   settings: Record<string, unknown> | null;
@@ -38,7 +38,7 @@ interface ParsedTune {
   unitSystem: string;
   source: string;
   catalogId: string | null;
-  trackOrdinal: number | null;
+  trackId: string | null;
   createdAt: string;
   lapId: number | null;
 }
@@ -103,8 +103,8 @@ export function validateSettingsForGame(gameId: GameId, settings: any): boolean 
 export function communityRowToCatalog(row: {
   id: string;
   gameId: string;
-  carOrdinal: number;
-  trackOrdinal: number | null;
+  carId: string;
+  trackId: string | null;
   name: string;
   author: string;
   category: string;
@@ -116,9 +116,9 @@ export function communityRowToCatalog(row: {
     id: row.id,
     name: row.name,
     author: row.author,
-    carOrdinal: row.carOrdinal,
+    carId: row.carId,
     category: row.category,
-    trackOrdinal: row.trackOrdinal ?? undefined,
+    trackId: row.trackId ?? undefined,
     description: row.description,
     strengths: [],
     weaknesses: [],
@@ -129,7 +129,7 @@ export function communityRowToCatalog(row: {
   };
 }
 
-export const CarOrdinalQuerySchema = z.object({
+export const CarIdQuerySchema = z.object({
   gameId: GameIdSchema.optional(),
-  carOrdinal: z.coerce.number().int().optional(),
+  carId: z.string().optional(),
 });

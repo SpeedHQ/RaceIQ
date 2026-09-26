@@ -74,9 +74,9 @@ export const comparisonRoutes = new Hono()
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
-    const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const trackSegments = await resolveLapSegments(trackOrdinal, lapA.gameId);
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry, {
+    const trackId = lapA.trackId;
+    const trackSegments = await resolveLapSegments(trackId, lapA.gameId);
+    const corners = await resolveLapCorners(trackId, lapA.gameId, lapA.telemetry, {
       segments: trackSegments,
     });
 
@@ -106,16 +106,16 @@ export const comparisonRoutes = new Hono()
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
         isValid: lapA.isValid,
-        carOrdinal: lapA.carOrdinal ?? undefined,
-        trackOrdinal: lapA.trackOrdinal ?? undefined,
+        carId: lapA.carId ?? null,
+        trackId: lapA.trackId ?? null,
         gameId: lapA.gameId as GameId | undefined,
       },
       {
         lapNumber: lapB.lapNumber,
         lapTime: lapB.lapTime,
         isValid: lapB.isValid,
-        carOrdinal: lapB.carOrdinal ?? undefined,
-        trackOrdinal: lapB.trackOrdinal ?? undefined,
+        carId: lapB.carId ?? null,
+        trackId: lapB.trackId ?? null,
         gameId: lapB.gameId as GameId | undefined,
       },
       comparison,
@@ -257,8 +257,7 @@ export const comparisonRoutes = new Hono()
       return c.json({ error: "Both laps must be analysed before chatting. Run analysis on each lap first." }, 400);
     }
 
-    const trackOrdinal = lapA.trackOrdinal ?? 0;
-    const corners = await resolveLapCorners(trackOrdinal, lapA.gameId, lapA.telemetry);
+    const corners = await resolveLapCorners(lapA.trackId, lapA.gameId, lapA.telemetry);
 
     const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
@@ -271,8 +270,8 @@ export const comparisonRoutes = new Hono()
         lapNumber: lapA.lapNumber,
         lapTime: lapA.lapTime,
         isValid: lapA.isValid,
-        carOrdinal: lapA.carOrdinal ?? undefined,
-        trackOrdinal: lapA.trackOrdinal ?? undefined,
+        carId: lapA.carId ?? null,
+        trackId: lapA.trackId ?? null,
         gameId: lapA.gameId as GameId | undefined,
       },
       {
@@ -280,8 +279,8 @@ export const comparisonRoutes = new Hono()
         lapNumber: lapB.lapNumber,
         lapTime: lapB.lapTime,
         isValid: lapB.isValid,
-        carOrdinal: lapB.carOrdinal ?? undefined,
-        trackOrdinal: lapB.trackOrdinal ?? undefined,
+        carId: lapB.carId ?? null,
+        trackId: lapB.trackId ?? null,
         gameId: lapB.gameId as GameId | undefined,
       },
       comparison,

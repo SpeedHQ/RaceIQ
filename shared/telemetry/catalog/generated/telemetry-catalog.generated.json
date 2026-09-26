@@ -6,12 +6,12 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.18.0",
-      "sourceHash": "739f8e4930e401eb0dbec2624bd8f92b75b25a540ad2670c5830ba0dd92cf1b9"
+      "sourceHash": "ba3b6a9d0b66fa1afb6dc94d82101404bbb28bf05c74be3815a1b3eaf7449419"
     },
     "sourceHashes": {
       "scripts/catalog/derived-projections.ts": "b81b4ebdaeb86a88a289d245946b3e9f32cf104970d11532ac517fb219e0eff7",
-      "server/games/ac-evo/parser.ts": "8551e41ada71099d236dad03483f7937e4fb2a8fe402cf6e3b3fbd4ae921291d",
-      "server/games/acc/parser.ts": "2f9aeab3d9e05cf214ba03ddd118416533028b9b7245a695a029a371b9391e09",
+      "server/games/ac-evo/parser.ts": "9a5c4d961dc7918fc10cb8fa153aa5a6523c8687926480e555ebeca78ea6577d",
+      "server/games/acc/parser.ts": "0909e01b459c851ddb1c3875391c9f21381b6dddcf1a00e2b09508c759f128fd",
       "server/games/f1-2025/f1-state.ts": "a9e464d9f96e115874402b16d57d660e509ecc30cc4070f1395b72d27ec26b9c",
       "server/games/fm-2023/parser.ts": "8ac6812fc6622f9c1cd4587268583997325fa1ce207d9a8f8c7930fdb6bc1c56",
       "server/games/iracing/normalizer.ts": "7a9f061a649426812b3689b5848a045a7b51208334db4b2167b3c188a9864775",
@@ -19,7 +19,7 @@
       "shared/games/iracing/session-info/catalog.ts": "4d39b51587bf71a519991ff91a7781efd01190cd633c8e8ef3f4234fa6affb98",
       "shared/racing/setups/schema.ts": "c53d10d0584a16ef76425c61b6389e71e53136456411eadebdec2ad53b5a5415"
     },
-    "contentHash": "0639551c1aee75fa6772ab780e39845b61fb93edaf3a42081cfbd61dc339051c"
+    "contentHash": "2fc9bcae76419faefd6e38f3bd67882d3ec11d460f4252b666bb61015bfd5627"
   },
   "generatedFrom": [
     "scripts/catalog/ast-discovery.ts",
@@ -15364,35 +15364,57 @@
     {
       "id": "identity.car-id",
       "label": "Car Id",
-      "description": "Car Id source value reported by lmu in text.",
+      "description": "Native Kunos identity; numeric-native games continue using ordinals in packets.",
       "parentId": "identity",
       "canonicalUnit": "text",
       "shape": "scalar",
+      "packetFields": [
+        "CarId"
+      ],
       "games": {
         "fm-2023": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
         },
         "f1-2025": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "ACC.Static.carModel",
+            "ACC.Static.carModel.size"
+          ],
+          "freshness": "continuous",
+          "description": "acc maps 2 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "AC-Evo.Graphics.car_model"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo maps 1 native source channel into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
           "kind": "direct",
@@ -15701,56 +15723,14 @@
           }
         },
         "acc": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "ACC.Static.carModel"
-          ],
-          "freshness": "continuous",
-          "normalization": "overrides?.carOrdinal ?? 0",
-          "description": "acc maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "acc:identity.car-ordinal:normalized",
-            "version": "0.18.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACC.Static.carModel"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "2ce3fd564a901eb013b1081676211b773688de5c7a97f96b8c3aad6811893151"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
         },
         "ac-evo": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "AC-Evo.Graphics.car_model"
-          ],
-          "freshness": "continuous",
-          "normalization": "cache.carOrdinal",
-          "description": "ac-evo maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/ac-evo/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "ac-evo:identity.car-ordinal:normalized",
-            "version": "0.18.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "AC-Evo.Graphics.car_model"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "714f1a814b2299f2b6bb407c543a4b634e1b6ed4e5f205c9253acef8466318f0"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
         },
         "iracing": {
           "kind": "normalized",
@@ -16674,35 +16654,58 @@
     {
       "id": "identity.track-id",
       "label": "Track Id",
-      "description": "Track Id source value reported by lmu in text.",
+      "description": "AC Evo encodes the exact game-emitted track/configuration pair.",
       "parentId": "identity",
       "canonicalUnit": "text",
       "shape": "scalar",
+      "packetFields": [
+        "TrackId"
+      ],
       "games": {
         "fm-2023": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "fm-2023 parser fills this value with a placeholder because source does not provide it."
         },
         "f1-2025": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "f1-2025 parser fills this value with a placeholder because source does not provide it."
         },
         "acc": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "ACC.Static.track",
+            "ACC.Static.track.size"
+          ],
+          "freshness": "continuous",
+          "description": "acc maps 2 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/acc/parser.ts"
+          },
+          "limitations": []
         },
         "ac-evo": {
-          "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "kind": "direct",
+          "nativeUnit": "text",
+          "sources": [
+            "AC-Evo.Static.track",
+            "AC-Evo.Static.track_configuration"
+          ],
+          "freshness": "continuous",
+          "description": "ac-evo maps 2 native source channels into this value.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/ac-evo/parser.ts"
+          },
+          "limitations": []
         },
         "iracing": {
           "kind": "unavailable",
-          "reason": "source-not-provided",
-          "description": "This parser does not expose an equivalent source value."
+          "reason": "parser-placeholder",
+          "description": "iracing parser fills this value with a placeholder because source does not provide it."
         },
         "lmu": {
           "kind": "direct",
@@ -16918,58 +16921,14 @@
           }
         },
         "acc": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "ACC.Static.track"
-          ],
-          "freshness": "continuous",
-          "normalization": "overrides?.trackOrdinal ?? 0",
-          "description": "acc maps 1 native source channel into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/acc/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "acc:identity.track-ordinal:normalized",
-            "version": "0.18.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "ACC.Static.track"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "2c8cfa4d2355c2df64f77cf4c067b42c1256905cbb7aa399720bf18f5ba3acfc"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "acc parser fills this value with a placeholder because source does not provide it."
         },
         "ac-evo": {
-          "kind": "normalized",
-          "nativeUnit": "id",
-          "sources": [
-            "AC-Evo.Static.track",
-            "AC-Evo.Static.track_configuration"
-          ],
-          "freshness": "continuous",
-          "normalization": "cache.trackOrdinal",
-          "description": "ac-evo maps 2 native source channels into this value.",
-          "provenance": {
-            "origin": "parser",
-            "artifact": "server/games/ac-evo/parser.ts"
-          },
-          "limitations": [],
-          "execution": {
-            "kind": "conversion",
-            "id": "ac-evo:identity.track-ordinal:normalized",
-            "version": "0.18.0",
-            "deterministic": true,
-            "declaredInputs": [
-              "AC-Evo.Static.track",
-              "AC-Evo.Static.track_configuration"
-            ],
-            "missingDataPolicy": "require-all",
-            "codeHash": "d6c8052b2a5a9fdfdd5b2c588b9b069707842d9f51dda223d9a07b4202324f5e"
-          }
+          "kind": "unavailable",
+          "reason": "parser-placeholder",
+          "description": "ac-evo parser fills this value with a placeholder because source does not provide it."
         },
         "iracing": {
           "kind": "normalized",
@@ -65619,6 +65578,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.CarId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Native Kunos identity; numeric-native games continue using ordinals in packets.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.CarOrdinal",
         "label": "Car Ordinal",
         "unit": "id",
@@ -66682,6 +66653,18 @@
         "count": 1,
         "description": "Current engine or driveline torque.",
         "semanticId": "engine.torque",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TrackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "AC Evo encodes the exact game-emitted track/configuration pair.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -68057,6 +68040,18 @@
         "retention": "exact"
       },
       {
+        "path": "TelemetryPacket.CarId",
+        "label": "Car Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "Native Kunos identity; numeric-native games continue using ordinals in packets.",
+        "semanticId": "identity.car-id",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "TelemetryPacket.CarOrdinal",
         "label": "Car Ordinal",
         "unit": "id",
@@ -69120,6 +69115,18 @@
         "count": 1,
         "description": "Current engine or driveline torque.",
         "semanticId": "engine.torque",
+        "sourceKind": "packet",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "TelemetryPacket.TrackId",
+        "label": "Track Id",
+        "unit": "text",
+        "dataType": "string",
+        "count": 1,
+        "description": "AC Evo encodes the exact game-emitted track/configuration pair.",
+        "semanticId": "identity.track-id",
         "sourceKind": "packet",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -83854,7 +83861,7 @@
     ]
   },
   "coverage": {
-    "normalizedPacketFields": 148,
+    "normalizedPacketFields": 150,
     "semanticVariables": 772,
     "sourceCounts": {
       "fm-2023": {
@@ -83876,22 +83883,22 @@
         "recorded": 288
       },
       "acc": {
-        "total": 200,
-        "packet": 124,
+        "total": 202,
+        "packet": 126,
         "extension": 43,
         "sdk": 0,
         "yaml": 0,
         "setup": 33,
-        "recorded": 167
+        "recorded": 169
       },
       "ac-evo": {
-        "total": 255,
-        "packet": 124,
+        "total": 257,
+        "packet": 126,
         "extension": 95,
         "sdk": 0,
         "yaml": 0,
         "setup": 36,
-        "recorded": 219
+        "recorded": 221
       },
       "iracing": {
         "total": 951,

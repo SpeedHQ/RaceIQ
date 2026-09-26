@@ -12,7 +12,7 @@ const MIN_TELEMETRY_FRAMES = 30;
 
 /** Load and reduce all driver laps for one selected game to a global fingerprint. */
 export async function loadDriverProfile(opts: { gameId: GameId; computeMissingInsights?: boolean }): Promise<DriverFingerprint> {
-  const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
+  const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carId: null, trackId: null };
   const pool = await getLapMetaForProfileScope(opts.gameId);
   const trend = buildDriverTrend(pool);
   if (pool.length === 0) {

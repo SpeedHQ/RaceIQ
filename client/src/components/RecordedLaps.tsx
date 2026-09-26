@@ -15,17 +15,17 @@ function formatLapTime(seconds: number): string {
 
 interface RecordedLapsProps {
   laps: LapMeta[];
-  trackOrdinal?: number;
+  trackId?: string | null;
   maxLaps?: number;
 }
 
-export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
-  const navigate = useNavigate({ from: "/" });
+export function RecordedLaps({ laps, trackId, maxLaps = 15 }: RecordedLapsProps) {
+  const navigate = useNavigate();
   const gameRoute = useGameRoute();
   const deleteLap = useDeleteLap();
 
-  // Filter by track if provided, otherwise use all
-  const filteredLaps = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
+  // Filter by exact persisted identity when provided.
+  const filteredLaps = trackId != null ? laps.filter((lap) => lap.trackId === trackId) : laps;
 
   const sorted = [...filteredLaps].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
   const sectorCount = storedLapsSectorCount(filteredLaps);

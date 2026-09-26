@@ -8,8 +8,6 @@ import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";
 import { parseRawLapFramesFromBuffer } from "../../../server/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "../../../server/telemetry/live-pipeline"
-import { getAccTrackName } from "../../../shared/racing/tracks/catalogs/acc"
-import { getAccCarName } from "../../../shared/racing/cars/acc"
 import { ACC_PACKED_MAGIC, packTriplet, unpackTriplet } from "../../../server/games/kunos/pack-triplet";
 
 initGameAdapters();
@@ -270,15 +268,12 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     const packet = serverGame.tryParse(frame, null);
 
     expect(packet).not.toBeNull();
-    // This fixture predates static-data resolution and has carOrdinal=0/
-    // trackOrdinal=0 baked into its packed header on every frame (the old
-    // "unresolved" sentinel collides with Monza/car#0's real ids — see
-    // triplet-pipeline.ts). Its embedded static struct is genuinely
-    // "brands_hatch"/"mclaren_720s_gt3_evo" though, so tryParse must
-    // re-derive from the static struct rather than trust the header,
-    // otherwise every re-import of an old recording mislabels the session.
-    expect(getAccTrackName(packet!.TrackOrdinal)).toBe("Brands Hatch - GP");
-    expect(getAccCarName(packet!.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+    // Old recordings carry stale numeric packed-header slots. Native strings
+    // embedded in STATIC remain authoritative on replay.
+    expect(packet!.TrackId).toBe("brands_hatch");
+    expect(packet!.CarId).toBe("mclaren_720s_gt3_evo");
+    expect(packet!.TrackOrdinal).toBe(-1);
+    expect(packet!.CarOrdinal).toBe(-1);
 
     const rawHeader = unpackTriplet(frame);
     expect(rawHeader?.trackOrdinal).toBe(0);

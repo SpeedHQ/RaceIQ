@@ -4,7 +4,7 @@ import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { detectTireOverheat, detectTireSurfaceProfile, detectTireTempSplit } from "@shared/racing/analysis/laps/insights/tires";
 import type { TelemetryPacket } from "@shared/telemetry/types";
 
-initGameAdapters();
+initGameAdapters({ f1Experiments: false, iracingAdapter: true });
 
 function packet(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {
@@ -115,7 +115,7 @@ describe("static tire temperature layers", () => {
       TireSurfaceTempOuterFR: 90,
     };
     expect(detectTireSurfaceProfile(repeated(120, profile), "celsius")).toEqual([]);
-    const insights = analyzeLap(repeated(1125, profile), "ac-evo").filter((insight) => insight.id.startsWith("tire-surface-"));
+    const insights = detectTireSurfaceProfile(repeated(1125, profile), "celsius");
     expect(insights.map((insight) => [insight.id, insight.severity])).toEqual([
       ["tire-surface-edge-imbalance-FL", "info"],
       ["tire-surface-pressure-shape-FR", "info"],

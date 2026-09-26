@@ -185,7 +185,7 @@ describe("db:seed", () => {
     const seededCounts = counts(dataDir);
 
     withSeedDb(dataDir, (db) => {
-      db.query("INSERT INTO sessions (car_ordinal, track_ordinal, game_id, notes) VALUES (?, ?, ?, ?)").run(999, 999, "fm-2023", "real user session");
+      db.query("INSERT INTO sessions (car_id, track_id, game_id, notes) VALUES (?, ?, ?, ?)").run("999", "999", "fm-2023", "real user session");
     });
     const reset = await runSeed(dataDir, "--reset", games);
     expect(reset.code, reset.output).toBe(0);
@@ -202,7 +202,7 @@ describe("db:seed", () => {
     const seeded = await runSeed(dataDir, "--games=acc");
     expect(seeded.code, seeded.output).toBe(0);
     withSeedDb(dataDir, (db) => {
-      db.query("INSERT INTO sessions (car_ordinal, track_ordinal, game_id, notes) VALUES (?, ?, ?, ?)").run(999, 999, "acc", "real user session");
+      db.query("INSERT INTO sessions (car_id, track_id, game_id, notes) VALUES (?, ?, ?, ?)").run("999", "999", "acc", "real user session");
     });
 
     const clean = await runSeed(dataDir, "--clean", "--games=acc");

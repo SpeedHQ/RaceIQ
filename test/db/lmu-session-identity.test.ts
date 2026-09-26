@@ -51,29 +51,21 @@ function canonicalCapture(): Buffer {
 test("LMU sessions write string identity while other games remain ordinal-only", async () => {
   const adapter = new RealDbAdapter({ notifyDriverProfile: false });
   const lmuId = await adapter.insertSession(
-    -1,
-    -1,
+    "ferrari_499p_2023",
+    "lemans_2023/lemanswec",
     "lmu",
     "race",
-    undefined,
-    undefined,
-    {
-      carId: "ferrari_499p_2023",
-      trackId: "lemans_2023/lemanswec",
-    },
   );
-  const forzaId = await adapter.insertSession(42, 99, "fm-2023");
+  const forzaId = await adapter.insertSession("42", "99", "fm-2023");
   sessionIds.push(lmuId, forzaId);
 
   const rows = await db.select().from(sessions).where(eq(sessions.id, lmuId)).get();
   expect(rows).toMatchObject({
-    carOrdinal: -1,
-    trackOrdinal: -1,
     carId: "ferrari_499p_2023",
     trackId: "lemans_2023/lemanswec",
   });
   const forza = await db.select().from(sessions).where(eq(sessions.id, forzaId)).get();
-  expect(forza).toMatchObject({ carOrdinal: 42, trackOrdinal: 99, carId: null, trackId: null });
+  expect(forza).toMatchObject({ carId: "42", trackId: "99" });
 });
 
 test("LMU identity backfill is idempotent and isolates missing or malformed captures", async () => {
@@ -86,24 +78,30 @@ test("LMU identity backfill is idempotent and isolates missing or malformed capt
   await Bun.write(capturePath, capture);
   await Bun.write(malformedPath, Buffer.from("not a telemetry capture"));
 
-  const validId = await insertSession(123456, 654321, "lmu");
-  const malformedId = await insertSession(223456, 754321, "lmu");
-  const missingId = await insertSession(323456, 854321, "lmu");
-  sessionIds.push(validId, malformedId, missingId);
+  const validId = await insertSession("123456", "654321", "lmu");
+  const malformedId = await insertSession("223456", "754321", "lmu");
+  const missingId = await insertSession("323456", "854321", "lmu");
+  const nativeId = await insertSession("423456", "954321", "lmu");
+  sessionIds.push(validId, malformedId, missingId, nativeId);
   await db.update(sessions).set({ rawFile: capturePath }).where(eq(sessions.id, validId)).run();
   await db.update(sessions).set({ rawFile: malformedPath }).where(eq(sessions.id, malformedId)).run();
   await db.update(sessions).set({ rawFile: missingPath }).where(eq(sessions.id, missingId)).run();
+  await db.update(sessions).set({
+    rawFile: capturePath,
+    carId: "native_car_key",
+    trackId: "native_track_key",
+  }).where(eq(sessions.id, nativeId)).run();
   const lapId = await insertLap(validId, 1, 90, true, 12, 1);
 
   const first = await backfillLMUSessionIdentity();
   const afterFirst = await db.select().from(sessions).where(eq(sessions.id, validId)).get();
   expect(afterFirst).toMatchObject({
-    carOrdinal: 123456,
-    trackOrdinal: 654321,
     rawFile: capturePath,
     carId: "ferrari_499p_2023",
     trackId: "lemans_2023/lemanswec",
   });
+  const nativeAfter = await db.select().from(sessions).where(eq(sessions.id, nativeId)).get();
+  expect(nativeAfter).toMatchObject({ carId: "native_car_key", trackId: "native_track_key" });
   expect(first.malformedFile).toBeGreaterThanOrEqual(1);
   expect(first.missingFile).toBeGreaterThanOrEqual(1);
   expect(readFileSync(capturePath).equals(capture)).toBe(true);

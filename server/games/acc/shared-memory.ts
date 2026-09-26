@@ -41,11 +41,6 @@ export class AccSharedMemoryReader {
   private _pipeline: TripletPipeline;
   private _running = false;
   private _connected = false;
-  // -1 = not yet resolved from static data. 0 is a real ACC ordinal (Monza /
-  // first car in the list), so it can't double as the "unknown" sentinel —
-  // see processors.ts ParsingProcessor.
-  private _carOrdinal = -1;
-  private _trackOrdinal = -1;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
   private _recordingEnabled = false;
   private readonly _recorder: KunosRecorder;
@@ -75,8 +70,7 @@ export class AccSharedMemoryReader {
     this._pipeline = new TripletPipeline();
     this._recorder = config.recorder ?? accRecorder;
     this._recordingDir = config.recordingDir;
-    this._parser = config.parser ??
-      new ParsingProcessor(this._carOrdinal, this._trackOrdinal);
+    this._parser = config.parser ?? new ParsingProcessor();
 
     if (this._recordingEnabled) {
       const recordPath = this._recorder.start(this._recordingDir);

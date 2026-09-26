@@ -2,18 +2,17 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "../../shared/games/init";
 import { serverReleaseFeatures } from "./config/release-features";
-import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
 import { injectDiscoveredLMUIdentity } from "../../shared/games/lmu";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
-import { reconcileDiscoveredCars, listDiscoveredCars } from "../db/discovered-cars";
-import { backfillAllRaceResults } from "../race-results/reconcile";
+import { listDiscoveredCars } from "../db/discovered-cars";
 import { backfillLMUSessionIdentity } from "../games/lmu/session-identity-backfill";
 import { listDiscoveredTracks } from "../db/discovered-tracks";
 import { deleteEmptySessions } from "../db/session-queries";
-import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
+import { setCacheMaxBytes, backfillNativeKunosSessionIdentity } from "../db/telemetry-replay-storage";
+import { backfillAllRaceResults } from "../race-results/reconcile";
 import { isFirstRun, loadSettings } from "./config/settings";
 import { wsManager, type WSData } from "./websocket-manager";
 import { udpListener } from "./udp-listener";
@@ -71,8 +70,6 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   }
 
   await initDb();
-  await reconcileDiscoveredCars();
-  injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
   const [iracingCars, iracingTracks] = await Promise.all([
     listDiscoveredCars("iracing"),
@@ -126,6 +123,13 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
     })
     .catch((error) => {
       console.error("[LMU] Session identity backfill failed:", error);
+    });
+  void backfillNativeKunosSessionIdentity()
+    .then((count) => {
+      console.log(`[Kunos] Native session identity backfill updated ${count} session(s)`);
+    })
+    .catch((error) => {
+      console.error("[Kunos] Native session identity backfill failed:", error);
     });
 
 

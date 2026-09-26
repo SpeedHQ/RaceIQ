@@ -142,7 +142,7 @@ export async function resolveTrackOutline(
     }
   }
 
-  const dbOutline = await getDbTrackOutline(ordinal, gameId as GameId);
+  const dbOutline = await getDbTrackOutline(String(ordinal), gameId as GameId);
   if (dbOutline) {
     return {
       points: dbOutline,
@@ -156,7 +156,7 @@ export async function resolveTrackOutline(
   // map support landed. This still goes through recordLapTrace(), the same
   // existing generator used at live lap completion.
   if (gameId === "iracing") {
-    const laps = await getLapSummariesByTrack(ordinal, "iracing");
+    const laps = await getLapSummariesByTrack(String(ordinal), "iracing");
     for (const lap of laps) {
       if (!lap.isValid) continue;
       const saved = await getLapById(lap.lapId);

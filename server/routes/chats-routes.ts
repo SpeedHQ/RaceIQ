@@ -29,10 +29,8 @@ interface LapSummary {
   isValid: boolean;
   carName: string;
   trackName: string;
-  trackOrdinal: number | null;
-  carOrdinal: number | null;
-  carId: number | string;
-  trackId: number | string;
+  carId: string;
+  trackId: string;
   gameId: string;
 }
 
@@ -65,16 +63,21 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: typeof lap.carId === "string" ? getLMUCar(lap.carId)?.name ?? lap.carId : resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: typeof lap.trackId === "string" ? getLMUTrack(lap.trackId)?.name ?? lap.trackId : resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
-    trackOrdinal: lap.trackOrdinal ?? null,
-    carOrdinal: lap.carOrdinal ?? null,
-    carId: lap.carId ?? lap.carOrdinal ?? -1,
-    trackId: lap.trackId ?? lap.trackOrdinal ?? -1,
+    carName: lap.gameId === "acc" || lap.gameId === "ac-evo"
+      ? lap.carId ?? ""
+      : typeof lap.carId === "string"
+        ? getLMUCar(lap.carId)?.name ?? lap.carId
+        : resolveCarName(Number(lap.carId) || 0, lap.gameId),
+    trackName: lap.gameId === "acc" || lap.gameId === "ac-evo"
+      ? lap.trackId ?? ""
+      : typeof lap.trackId === "string"
+        ? getLMUTrack(lap.trackId)?.name ?? lap.trackId
+        : resolveTrackName(Number(lap.trackId) || 0, lap.gameId),
+    carId: lap.carId ?? "",
+    trackId: lap.trackId ?? "",
     gameId: lap.gameId ?? "",
   };
 }
-
 export function createChatsRoutes(
   compactThread: typeof forkThreadWithSummary = forkThreadWithSummary,
 ) {
@@ -129,8 +132,16 @@ export function createChatsRoutes(
             if (!Number.isFinite(sessionId)) continue;
             const session = await getExperiment(sessionId);
             if (!session || session.gameId !== gameId) continue;
-            const carName = session.carName ?? resolveCarName(session.carOrdinal ?? 0, session.gameId);
-            const trackName = session.trackName ?? resolveTrackName(session.trackOrdinal ?? 0, session.gameId);
+            const carName = session.carName ?? (session.gameId === "acc" || session.gameId === "ac-evo"
+              ? session.carId ?? ""
+              : session.gameId === "lmu"
+                ? getLMUCar(session.carId ?? "")?.name ?? session.carId ?? ""
+                : resolveCarName(Number(session.carId) || 0, session.gameId));
+            const trackName = session.trackName ?? (session.gameId === "acc" || session.gameId === "ac-evo"
+              ? session.trackId ?? ""
+              : session.gameId === "lmu"
+                ? getLMUTrack(session.trackId ?? "")?.name ?? session.trackId ?? ""
+                : resolveTrackName(Number(session.trackId) || 0, session.gameId));
             rows.push({
               threadId: id,
               type: "tune",

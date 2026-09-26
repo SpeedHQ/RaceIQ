@@ -53,6 +53,7 @@ export const trackCatalogInfoRoutes = new Hono()
       const trackKey = decodeTrackKey(c.req.valid("param").ordinal);
       const { gameId } = c.req.valid("query");
       if (gameId === "lmu") return c.text(getLMUTrack(trackKey)?.name ?? trackKey);
+      if (gameId === "acc" || gameId === "ac-evo") return c.text(trackKey);
       const ordinal = Number(trackKey);
       if (!Number.isInteger(ordinal)) return c.text("Unknown track", 400);
       const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
@@ -84,7 +85,7 @@ export const trackCatalogRoutes = new Hono()
             outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
-            lapCount: lapCounts.get(id) ?? 0,
+            lapCount: lapCounts.get(String(id)) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -106,7 +107,7 @@ export const trackCatalogRoutes = new Hono()
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,
-            lapCount: lapCounts.get(id) ?? 0,
+            lapCount: lapCounts.get(String(id)) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -128,7 +129,7 @@ export const trackCatalogRoutes = new Hono()
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,
-            lapCount: lapCounts.get(id) ?? 0,
+            lapCount: lapCounts.get(String(id)) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -173,7 +174,7 @@ export const trackCatalogRoutes = new Hono()
           mapUrl: null,
           outlineSource: "generated",
           createdAt: track.createdAt,
-          lapCount: legacyLapCounts.get(track.ordinal) ?? 0,
+          lapCount: legacyLapCounts.get(String(track.ordinal)) ?? 0,
         }));
         return c.json([...tracks, ...discovered].sort((left, right) => left.name.localeCompare(right.name)));
       }
@@ -220,7 +221,7 @@ export const trackCatalogRoutes = new Hono()
                   : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
-            lapCount: lapCounts.get(info.ordinal) ?? 0,
+            lapCount: lapCounts.get(String(info.ordinal)) ?? 0,
           };
         });
         const discoveredOnly = (await listDiscoveredTracks("iracing"))
@@ -239,7 +240,7 @@ export const trackCatalogRoutes = new Hono()
             outlineSource: null,
             commonTrackName: null,
             createdAt: track.createdAt,
-            lapCount: lapCounts.get(track.ordinal) ?? 0,
+            lapCount: lapCounts.get(String(track.ordinal)) ?? 0,
           }));
         const tracks = [...catalogEntries, ...discoveredOnly];
         tracks.sort((a, b) => {
@@ -269,7 +270,7 @@ export const trackCatalogRoutes = new Hono()
           hasOutline: hasBundled,
           outlineSource: hasBundled ? "bundled" : null,
           createdAt: null,
-          lapCount: lapCounts.get(ordinal) ?? 0,
+          lapCount: lapCounts.get(String(ordinal)) ?? 0,
         };
       });
       // Sort: tracks with outlines first, then alphabetically

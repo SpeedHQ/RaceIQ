@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
@@ -326,12 +326,12 @@ export async function getSessionRawFile(sessionId: number, gameId: GameId): Prom
 export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId): AsyncGenerator<TelemetryPacket> {
   const session = await db.select({
     rawFile: sessions.rawFile, source: sessions.source, gameId: sessions.gameId,
-    carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal,
+    carId: sessions.carId, trackId: sessions.trackId,
   }).from(sessions).where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId))).get();
   if (!session?.rawFile) return;
   const source = {
     rawFile: session.rawFile, source: session.source, gameId: session.gameId as GameId,
-    carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal,
+    carId: session.carId ?? "", trackId: session.trackId ?? "",
   };
   if (session.rawFile.endsWith(".motec.zip")) {
     const loaded = await loadSessionSource(source);
@@ -372,6 +372,45 @@ export async function* iterateSessionTelemetry(sessionId: number, gameId: GameId
     }
     if (packet && !inContext) yield packet;
   }
+}
+/**
+ * Recover native ACC/AC Evo identity from historical embedded game pages.
+ * Existing non-ordinal text keys are authoritative; decimal fallback keys from
+ * the v62 cutover may be replaced only when raw capture yields a native value.
+ */
+export async function backfillNativeKunosSessionIdentity(): Promise<number> {
+  const rows = await db.select({
+    id: sessions.id,
+    gameId: sessions.gameId,
+    carId: sessions.carId,
+    trackId: sessions.trackId,
+  }).from(sessions).where(sql`${sessions.gameId} IN ('acc', 'ac-evo') AND ${sessions.rawFile} IS NOT NULL`).all();
+  let updated = 0;
+  for (const row of rows) {
+    const recoverCar = !row.carId || /^-?\d+$/.test(row.carId);
+    const recoverTrack = !row.trackId || /^-?\d+$/.test(row.trackId);
+    if (!recoverCar && !recoverTrack) continue;
+    let carId: string | null = null;
+    let trackId: string | null = null;
+    try {
+      for await (const packet of iterateSessionTelemetry(row.id, row.gameId as GameId)) {
+        const candidate = packet as TelemetryPacket & { CarId?: string; TrackId?: string };
+        if (recoverCar && !carId && candidate.CarId) carId = candidate.CarId;
+        if (recoverTrack && !trackId && candidate.TrackId) trackId = candidate.TrackId;
+        if ((!recoverCar || carId) && (!recoverTrack || trackId)) break;
+      }
+    } catch {
+      // A damaged or unavailable historical file remains addressable by its
+      // decimal legacy key; startup continues with other sessions.
+    }
+    const changes: { carId?: string; trackId?: string } = {};
+    if (carId && carId !== row.carId) changes.carId = carId;
+    if (trackId && trackId !== row.trackId) changes.trackId = trackId;
+    if (Object.keys(changes).length === 0) continue;
+    await db.update(sessions).set(changes).where(eq(sessions.id, row.id)).run();
+    updated++;
+  }
+  return updated;
 }
 function parseReplayFrame(frame: Buffer, serverGame: ReturnType<typeof getServerGame>, state: unknown): TelemetryPacket | null {
   try {

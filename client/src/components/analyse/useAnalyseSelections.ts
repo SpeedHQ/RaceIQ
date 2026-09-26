@@ -172,8 +172,8 @@ export function useAnalyseSelections(search: AnalyseSearch, gameId: Parameters<t
   useEffect(() => {
     if (initialCarName && selectedCar != null) setCarNames((p) => (p[selectedCar] === initialCarName ? p : { ...p, [selectedCar]: initialCarName }));
   }, [initialCarName, selectedCar]);
-  const missingTrackOrds = useMemo(() => gameId === "lmu" ? [] : [...new Set(laps.map((l) => l.trackOrdinal).filter((ord): ord is number => ord != null && !trackNames[ord]))], [laps, trackNames, gameId]);
-  const missingCarOrds = useMemo(() => gameId === "lmu" ? [] : [...new Set(laps.map((l) => l.carOrdinal).filter((ord): ord is number => ord != null && !carNames[ord]))], [laps, carNames, gameId]);
+  const missingTrackOrds = useMemo(() => [] as number[], []);
+  const missingCarOrds = useMemo(() => [] as number[], []);
   const { data: resolvedNames } = useResolveNames(missingTrackOrds, missingCarOrds);
   useEffect(() => {
     if (!resolvedNames) return;

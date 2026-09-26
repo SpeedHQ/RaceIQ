@@ -66,10 +66,7 @@ export const chatRoutes = new Hono()
     if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
 
     const settings = loadSettings();
-    const trackOrdinal = lap.trackOrdinal ?? 0;
-    // Official track segments first, then stored corners and telemetry detection,
-    // so AI card jumps use the same turn labels as Analyse.
-    const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry);
+    const corners = await resolveLapCorners(lap.trackId, lap.gameId, lap.telemetry);
 
     // Load tune if linked
     let parsedTune: Tune | undefined;

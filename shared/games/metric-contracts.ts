@@ -133,6 +133,7 @@ export function assertGameMetricContracts(
     const telemetry = adapter.telemetry;
     for (const [metric, spec] of Object.entries(telemetry)) {
       if (metric === "analysis" || !spec || typeof spec !== "object") continue;
+      if ("source" in spec && spec.source === "unavailable") continue;
       if (!("binding" in spec) || !spec.binding) {
         throw new Error(`${adapter.id}.${metric}: available metric missing binding`);
       }

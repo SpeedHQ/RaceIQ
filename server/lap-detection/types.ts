@@ -17,6 +17,8 @@ export type LapIndexPacket = Pick<
   | "sessionUID"
   | "IsRaceOn"
   | "TimestampMS"
+  | "CarId"
+  | "TrackId"
   | "CarOrdinal"
   | "TrackOrdinal"
   | "CarPerformanceIndex"

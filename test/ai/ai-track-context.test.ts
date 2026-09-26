@@ -103,7 +103,7 @@ describe("analyst prompt carries the curated track data", () => {
   const ord = ordinalFor("f1-2025", "spa")!;
   const track = resolveTrack("f1-2025", ord);
   const prompt = buildAnalystPrompt(
-    { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
+    { lapNumber: 1, lapTime: 104.5, isValid: true, carId: "1", trackId: String(ord), gameId: "f1-2025" },
     lapPackets("f1-2025"),
     [],
     "metric",
@@ -147,7 +147,7 @@ describe("analyst prompt carries the curated track data", () => {
 
   test("omitting sectors omits the block rather than emitting an empty one", () => {
     const noSectors = buildAnalystPrompt(
-      { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
+      { lapNumber: 1, lapTime: 104.5, isValid: true, carId: "1", trackId: String(ord), gameId: "f1-2025" },
       lapPackets("f1-2025"),
       [],
       "metric",
@@ -167,7 +167,7 @@ test("analyst prompt preserves arbitrary native sector times and boundaries", ()
   const ord = ordinalFor("f1-2025", "spa")!;
   const track = resolveTrack("f1-2025", ord);
   const prompt = buildAnalystPrompt(
-    { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
+    { lapNumber: 1, lapTime: 104.5, isValid: true, carId: "1", trackId: String(ord), gameId: "f1-2025" },
     lapPackets("f1-2025"),
     [],
     "metric",

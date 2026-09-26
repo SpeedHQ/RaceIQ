@@ -31,14 +31,11 @@ export function useReviewLaps(trackKey: number | string | null, carKey: number |
     queryKey: ["review-laps", gameId ?? null, trackKey, carKey, limit],
     queryFn: async () => {
       if (!gameId || trackKey == null || carKey == null) return [];
-      const lmu = gameId === "lmu";
       const res = await client.api.laps.review.$get({
         query: {
           gameId,
-          trackOrdinal: !lmu && typeof trackKey === "number" ? String(trackKey) : undefined,
-          carOrdinal: !lmu && typeof carKey === "number" ? String(carKey) : undefined,
-          trackId: lmu ? String(trackKey) : undefined,
-          carId: lmu ? String(carKey) : undefined,
+          trackId: String(trackKey),
+          carId: String(carKey),
           limit: String(limit),
         },
       });

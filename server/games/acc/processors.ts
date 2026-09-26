@@ -1,11 +1,8 @@
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { processPacket } from "../../telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
-import { AC_STATUS, GRAPHICS, STATIC } from "./structs";
-import { readWString } from "./utils";
+import { AC_STATUS, GRAPHICS } from "./structs";
 
 /** Gates triplet processing while ACC is outside a live or paused session. */
 export class StatusCheckProcessor implements TripletProcessor {
@@ -35,34 +32,12 @@ export class StatusCheckProcessor implements TripletProcessor {
 
 /** Parses ACC buffers and feeds normalized packets to the application pipeline. */
 export class ParsingProcessor implements TripletProcessor {
-  private carOrdinal: number;
-  private trackOrdinal: number;
-
-  constructor(
-    carOrdinal: number,
-    trackOrdinal: number,
-  ) {
-    this.carOrdinal = carOrdinal;
-    this.trackOrdinal = trackOrdinal;
-  }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<undefined> {
     try {
-      if (this.carOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
-        const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-        if (cm) this.carOrdinal = getAccCarByModel(cm)?.id ?? -1;
-      }
-      if (this.trackOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
-        const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
-        if (tn) this.trackOrdinal = getAccTrackByName(tn)?.id ?? -1;
-      }
-      const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
-        carOrdinal: this.carOrdinal,
-        trackOrdinal: this.trackOrdinal,
-        gameId: "acc",
-      });
+      const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData);
       if (packet) {
-        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
+        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, -1, -1, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, sourceFrame);
       }
     } catch (err) {
