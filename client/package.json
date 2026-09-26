@@ -14,6 +14,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "snapshot:test": "playwright test --update-snapshots",
+    "snapshot:compare": "bun ../scripts/ui/local-ui-diff.ts --storybook-only",
     "snapshot:test:docker": "bun ../scripts/ui/run-snapshot-in-docker.ts"
   },
   "dependencies": {

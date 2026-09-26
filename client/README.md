@@ -22,8 +22,9 @@ bun run build        # Vite production build plus TypeScript build
 bun run lint         # Oxc lint
 bun run test         # Explicitly runs ./test; root bunfig otherwise discovers root test/
 bun run storybook    # Storybook development server on port 6006
-bun run snapshot:test
+bun run snapshot:test       # Render ignored snapshots; no visual comparison
+bun run snapshot:compare    # Compare current stories against origin/main
 bun run snapshot:test:docker
 ```
 
-`bun run test` is the client package entry point and expands to `bun test ./test`, so it does not depend on root `bunfig.toml` discovery. `snapshot:test` renders Storybook snapshots on the host; `snapshot:test:docker` renders them in pinned Docker. Generated PNGs are ignored because CI renders base and PR revisions together before comparing them.
+`bun run test` is the client package entry point and expands to `bun test ./test`, so it does not depend on root `bunfig.toml` discovery. `snapshot:compare` renders base and current Storybook in the same environment, then writes differences to `.ui-diff/report/index.html` without committing baseline images. `snapshot:test` only captures local images. Direct `playwright test` without `--update-snapshots` requires baselines and will fail on a fresh checkout; CI compares base and PR renders dynamically. `snapshot:test:docker` renders in pinned Docker.

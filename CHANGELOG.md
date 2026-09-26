@@ -93,6 +93,7 @@
 ### Internal
 - Make standalone client tests compile translations before running; repair AI evaluation command and browser test typechecks for release validation.
 - Isolate each local Bun test process in its own database so concurrent release suites cannot wipe one another's state.
+- Expose a local Storybook base-versus-worktree comparison command without committed screenshot baselines.
 - Run `bun dev` concurrently in Git worktrees with branch-specific Portless URLs, independent backend ports, and worktree UDP ports without restarting shared proxy.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
 - Restore synthetic 3D tire-profile showcases for every simulator in Storybook
