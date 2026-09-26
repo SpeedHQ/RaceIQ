@@ -15,6 +15,8 @@
 
 ### Fixes
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
+- Keep 3D replay grid at 1-metre spacing and anchored to track coordinates through turns, without yaw-amplified motion or overlapping line flicker.
+- Group 3D per-wheel surface temperatures into one mirrored row like 2D tire diagrams, with carcass and core on separate rows instead of a vertical stat list.
 
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 

@@ -6,7 +6,7 @@ import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 
-const CARD_W = 240, ROW_H = 42, SCALE = 2;
+const CARD_W = 240, ROW_H = 34, SCALE = 2;
 export type WheelLabelConfig = {
   temperatureReadings: TireTemperatureReading[]; fmtTemp: (value: number) => string;
   temperatureThresholds: { cold: number; warm: number; hot: number }; displayBrakeTemp?: string | null;
@@ -18,14 +18,27 @@ export type WheelLabelResource = {
   texture: THREE.CanvasTexture; material: THREE.SpriteMaterial; policy: WheelLabelRefreshPolicy<string>;
   contentKey: string; baseScale: number; cardHeight: number;
 };
-function labelRows(config: WheelLabelConfig): { text: string; color: string }[] {
+type LabelRow = { label: string; values: { text: string; color: string }[] };
+function labelRows(config: WheelLabelConfig): LabelRow[] {
   const { temperatureReadings, temperatureThresholds } = config;
-  const rows: { text: string; color: string }[] = [{ text: `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}  ${(1 - config.wear) * 100 | 0}%`, color: severityRangeColor(config.wear, [0.3, 0.6]) }];
-  const label = (kind: string): string => kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface();
-  for (const reading of temperatureReadings) if (reading.kind === "surface" || reading.kind === "core" || reading.kind === "carcass" || reading.kind === "inner" || reading.kind === "middle" || reading.kind === "outer") rows.push({ text: `${label(reading.kind)}  ${reading.value == null ? "—" : config.fmtTemp(reading.value)}`, color: reading.value == null ? "var(--status-unavailable)" : tireTempColor(reading.value, temperatureThresholds) });
-  if (config.displayBrakeTemp) rows.push({ text: `Brake  ${config.displayBrakeTemp}`, color: brakeTempColor(config.brakeTemp, config.isRear) });
-  if (config.pressurePsi > 0) rows.push({ text: `${config.pressurePsi.toFixed(1)} psi`, color: tirePressureColor(config.pressurePsi, config.pressureOptimal) });
-  if (config.wearRate > 0.0001) rows.push({ text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" });
+  const value = (reading: TireTemperatureReading) => ({
+    text: reading.value == null ? "—" : config.fmtTemp(reading.value),
+    color: reading.value == null ? "var(--status-unavailable)" : tireTempColor(reading.value, temperatureThresholds),
+  });
+  const rows: LabelRow[] = [{
+    label: `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}`,
+    values: [{ text: `${Math.round((1 - config.wear) * 100)}%`, color: severityRangeColor(config.wear, [0.3, 0.6]) }],
+  }];
+  const bands = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  if (bands.length) rows.push({ label: m.label_surface(), values: bands.map(value) });
+  const label = (kind: string): string => kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface();
+  for (const reading of temperatureReadings) {
+    if (bands.length && (reading.kind === "inner" || reading.kind === "middle" || reading.kind === "outer" || reading.kind === "surface")) continue;
+    rows.push({ label: label(reading.kind), values: [value(reading)] });
+  }
+  if (config.displayBrakeTemp) rows.push({ label: "Brake", values: [{ text: config.displayBrakeTemp, color: brakeTempColor(config.brakeTemp, config.isRear) }] });
+  if (config.pressurePsi > 0) rows.push({ label: "Pressure", values: [{ text: `${config.pressurePsi.toFixed(1)} psi`, color: tirePressureColor(config.pressurePsi, config.pressureOptimal) }] });
+  if (config.wearRate > 0.0001) rows.push({ label: "Wear", values: [{ text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" }] });
   return rows;
 }
 export function createWheelLabelResource(scene: THREE.Scene, config: WheelLabelConfig): WheelLabelResource {
@@ -47,15 +60,26 @@ export function updateWheelLabelResource(resource: WheelLabelResource, config: W
   if (content === undefined && resource.contentKey) return;
   if (content !== undefined) resource.contentKey = content;
   const parsed = rows;
-  const h = 20 + parsed.length * ROW_H;
+  const h = 16 + parsed.length * ROW_H;
   if (resource.canvas.height !== h * SCALE) resource.canvas.height = h * SCALE;
   resource.ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0); resource.ctx.clearRect(0, 0, CARD_W, h);
   resource.ctx.fillStyle = "color-mix(in srgb, var(--app-bg) 78%, transparent)"; resource.ctx.fillRect(4, 4, CARD_W - 8, h - 8);
   resource.ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)"; resource.ctx.lineWidth = 2; resource.ctx.strokeRect(4, 4, CARD_W - 8, h - 8);
-  resource.ctx.textAlign = "center"; resource.ctx.textBaseline = "middle"; resource.ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
-  parsed.forEach((row, i) => { resource.ctx.fillStyle = row.color; resource.ctx.fillText(row.text, CARD_W / 2, 10 + ROW_H * (i + 0.5)); });
+  resource.ctx.textBaseline = "middle";
+  parsed.forEach((row, i) => {
+    const y = 8 + ROW_H * (i + 0.5);
+    resource.ctx.font = "var(--font-weight-bold) 20px var(--font-mono)";
+    resource.ctx.textAlign = "left"; resource.ctx.fillStyle = i === 0 ? "var(--app-text)" : "var(--app-text-muted)";
+    resource.ctx.fillText(row.label, 14, y);
+    resource.ctx.font = "var(--font-weight-bold) 18px var(--font-mono)";
+    row.values.forEach((item, index) => {
+      resource.ctx.textAlign = row.values.length === 1 ? "right" : "center";
+      resource.ctx.fillStyle = item.color;
+      resource.ctx.fillText(item.text, row.values.length === 1 ? CARD_W - 14 : 111 + index * 56, y, row.values.length === 1 ? 145 : 54);
+    });
+  });
   resource.texture.needsUpdate = true; resource.cardHeight = h;
-  const rear = config.isRear, cardX = parsed.some((row) => row.text.includes("Inner") || row.text.includes("Middle") || row.text.includes("Outer")) ? (rear ? -0.45 : 0.45) : 0;
+  const rear = config.isRear, cardX = parsed.some((row) => row.values.length > 1) ? (rear ? -0.45 : 0.45) : 0;
   resource.sprite.position.set(cardX, rear ? 0.65 : 1.25, config.side === "left" ? -0.95 : 0.95);
   resource.sprite.scale.set(resource.baseScale, resource.baseScale * h / CARD_W, 1);
 }

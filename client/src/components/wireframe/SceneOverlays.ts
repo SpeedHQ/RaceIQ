@@ -98,12 +98,14 @@ export class SceneOverlays {
     if (this.history === frames) {
       if (this.historyGeneration !== generation) {
         this.historyGeneration = generation;
+        this.grid.resetPose();
         this.previousSample = null;
       }
       return;
     }
     this.history = frames;
     this.historyGeneration = generation;
+    this.grid.resetPose();
     const curbs: { x: number; z: number }[] = [];
     const puddles: { x: number; z: number }[] = [];
     for (const frame of frames) {
@@ -125,9 +127,9 @@ export class SceneOverlays {
     this.updateHistory(frames, source?.seekGeneration ?? 0);
     const yaw = semanticNumber(frame, "motion.yaw") ?? 0;
     const px = semanticNumber(frame, "motion.position-x") ?? 0, pz = semanticNumber(frame, "motion.position-z") ?? 0;
-    const sin = Math.sin(yaw), cos = Math.cos(yaw);
     this.grid.group.visible = config.toggles.grid;
-    if (config.toggles.grid) this.grid.setPhase(px * sin + pz * cos, px * cos - pz * sin);
+    if (config.toggles.grid) this.grid.updatePose(px, pz, yaw);
+    else this.grid.resetPose();
     const wb = config.carModel.halfWheelbase, ft = config.carModel.halfFrontTrack, rt = config.carModel.halfRearTrack;
     const fRadius = config.carModel.frontTireRadius ?? config.carModel.tireRadius;
     const rRadius = config.carModel.rearTireRadius ?? config.carModel.tireRadius;

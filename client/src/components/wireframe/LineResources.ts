@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { color as tslColor, positionLocal, vec4 } from "three/tsl";
+import { color as tslColor, float, positionWorld, vec4 } from "three/tsl";
 import { Line2 } from "three/addons/lines/webgpu/Line2.js";
 import { LineGeometry } from "three/addons/lines/LineGeometry.js";
 import { Line2NodeMaterial } from "three/webgpu";
@@ -185,18 +185,34 @@ export function disposeRibbonPool(pool: RibbonPool): void {
   pool.slots.length = 0; pool.workRuns.length = 0; pool.material.dispose();
 }
 
-export type RetainedGrid = { group: THREE.Group; minor: THREE.LineSegments; major: THREE.LineSegments; setPhase(x: number, z: number): void; dispose(): void };
-/** Finite grid with TSL vertex-alpha fade at 8 units; 0.5 minor, 2-unit major spacing. */
-export function createRetainedGrid(size = 16): RetainedGrid {
+export type RetainedGrid = { group: THREE.Group; minor: THREE.LineSegments; major: THREE.LineSegments; updatePose(x: number, z: number, yaw: number): void; resetPose(): void; dispose(): void };
+/** Finite 1-metre grid with 2-metre accents and stationary 8-unit fade. */
+export function createRetainedGrid(size = 24): RetainedGrid {
   const group = new THREE.Group();
   const make = (step: number, tint: number, opacity: number) => {
     const positions: number[] = [];
-    for (let x = -size / 2; x <= size / 2 + 1e-6; x += step) positions.push(x, 0, -size / 2, x, 0, size / 2, -size / 2, 0, x, size / 2, 0, x);
+    for (let x = -size / 2; x <= size / 2 + 1e-6; x += step) {
+      // Coincident minor/major segments z-fight as grid moves across pixels.
+      if (step < 2 && Math.abs(x % 2) < 1e-6) continue;
+      positions.push(x, 0, -size / 2, x, 0, size / 2, -size / 2, 0, x, size / 2, 0, x);
+    }
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     const material = new THREE.LineBasicNodeMaterial({ color: tint, transparent: true, opacity, depthWrite: false });
-    material.colorNode = vec4(tslColor(tint), positionLocal.xz.length().smoothstep(8, 0));
+    material.colorNode = vec4(tslColor(tint), float(1).sub(positionWorld.xz.length().smoothstep(0, 8)));
     const mesh = new THREE.LineSegments(geometry, material); group.add(mesh); return mesh;
   };
-  const minor = make(0.5, 0x30343a, 0.65), major = make(2, 0x51565e, 0.8);
-  return { group, minor, major, setPhase(x, z) { group.position.set(-(x % 2), -0.45, -(z % 2)); }, dispose() { for (const mesh of [minor, major]) { mesh.geometry.dispose(); mesh.material.dispose(); } group.clear(); } };
+  const minor = make(1, 0x30343a, 0.65), major = make(2, 0x51565e, 0.8);
+  return {
+    group, minor, major,
+    updatePose(x, z, yaw) {
+      // World lattice stays fixed while car turns; reduce world coordinates before
+      // rotating so distant track origins cannot amplify yaw into grid motion.
+      const worldX = x % 2, worldZ = z % 2;
+      const sin = Math.sin(yaw), cos = Math.cos(yaw);
+      group.rotation.y = yaw;
+      group.position.set(-(worldX * sin + worldZ * cos), -0.45, -(worldX * cos - worldZ * sin));
+    },
+    resetPose() { group.position.set(0, -0.45, 0); group.rotation.y = 0; },
+    dispose() { for (const mesh of [minor, major]) { mesh.geometry.dispose(); mesh.material.dispose(); } group.clear(); },
+  };
 }
