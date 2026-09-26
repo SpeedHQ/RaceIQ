@@ -172,6 +172,7 @@ test/telemetry/resolver/basic.test.ts
 test/telemetry/resolver/derivations.test.ts
 test/telemetry/resolver/derived-values.test.ts
 test/telemetry/resolver/native-sources.test.ts
+test/tracks/acc-boundaries.test.ts
 test/tracks/compact-route.test.ts
 test/tracks/discovered-cars.test.ts
 test/tracks/guides/anchor-validity.test.ts
