@@ -19,6 +19,7 @@ Owns RaceIQ raw-session persistence: length-prefixed frame recording, gzip stora
 - Compression streams through a temporary gzip file and publishes it only after successful completion. The database path changes before the raw source is removed; failures preserve the source.
 - Compression, capture cleanup, reprocessing, and session/lap favourite updates share the maintenance lock. A cleanup plan cannot delete telemetry after a favourite update completes, and reprocessing cannot restore an archived capture path. Orphan cleanup acquires the same lock per file.
 - Automatic capture cleanup is off by default. When enabled in Storage settings, scheduled maintenance uses the selected 30/90/180/365-day age and retains session/lap metadata; manual cleanup remains available.
+- Reprocessing preserves favourites on matched replacement laps, keeping their captures protected from telemetry cleanup.
 - Recording paths and names are chosen by telemetry/runtime adapters. This domain must not change their naming, activation, or shutdown order.
 - Game adapters own frame recognition and parsing. Telemetry owns live pipeline behavior. Database modules own session/lap persistence. Race-result reconciliation runs only after a successful import.
 - Import rollback deletes sessions and their newly recorded files. Scheduled maintenance skips active recordings; background compression remains age-gated, while user-triggered compression also includes untracked `.bin` files.

@@ -9,6 +9,7 @@ import { useMotecTargets, type MotecTargetInfo } from "../../hooks/catalog-queri
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 import { SearchSelect } from "../ui/SearchSelect";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 
 function buildAnalyseLapOption(lap: LapMeta, locale?: "en" | "de") {
   return {
@@ -166,6 +167,7 @@ export const AnalyseLapHeader = memo(function AnalyseLapHeader({
             className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
             fallbackLabel={selectedLap ? buildAnalyseLapOption(selectedLap).label : selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
           />
+          {selectedLap && <FavoriteToggleButton target="lap" id={selectedLap.id} isFavorite={Boolean(selectedLap.isFavorite)} />}
           {selectedLapId != null && selectedLap?.source === "motec" && <MotecBadge />}
         </div>
 

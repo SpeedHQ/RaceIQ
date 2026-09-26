@@ -1,7 +1,6 @@
 import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -15,6 +14,7 @@ import { useGameRoute } from "@/stores/game";
 import { sortLaps } from "./helpers";
 import { NoteCell } from "./NoteCell";
 import type { SessionLapTableProps } from "./types";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 
 type ContextMenu = { x: number; y: number; lapId: number } | null;
 
@@ -22,10 +22,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const toggleFavorite = async (lapId: number, favorite: boolean) => {
-    const response = await client.api.laps[":id"].favorite.$patch({ param: { id: String(lapId) }, json: { favorite } });
-    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.laps });
-  };
+
   const [contextMenu, setContextMenu] = useState<ContextMenu>(null);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
   const bestSectorLaps = useMemo(
@@ -80,16 +77,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
                 <TD align="center" onClick={(event) => event.stopPropagation()}>
-                  <Button
-                    type="button"
-                    variant="app-ghost"
-                    size="icon-xs"
-                    aria-label={lap.isFavorite ? m.sessions_remove_lap_favorite() : m.sessions_add_lap_favorite()}
-                    title={lap.isFavorite ? m.sessions_remove_lap_favorite() : m.sessions_add_lap_favorite()}
-                    onClick={() => void toggleFavorite(lap.id, !lap.isFavorite)}
-                  >
-                    <Star className={lap.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
-                  </Button>
+                  <FavoriteToggleButton target="lap" id={lap.id} isFavorite={Boolean(lap.isFavorite)} />
                 </TD>
                 <TD numeric tone="primary">
                   {lap.lapNumber}

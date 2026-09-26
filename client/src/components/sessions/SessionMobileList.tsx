@@ -1,20 +1,18 @@
 import type { GameId } from "@shared/games/ids";
 import type { LapMeta, SessionMeta } from "@shared/racing/sessions/types";
-import { useQueryClient } from "@tanstack/react-query";
-import { Star } from "lucide-react";
 import { formatLapTime } from "@/components/LiveTelemetry";
 import { RaceResultLedger } from "@/components/race-results/RaceResultLedger";
+import { FavoriteToggleButton } from "../FavoriteToggleButton";
 import { Button } from "@/components/ui/button";
-import { queryKeys } from "@/hooks/query-keys";
 import { formatSessionType, sessionCarName, sessionTrackName } from "./helpers";
 import { MotecBadge } from "./MotecBadge";
 import { NoteCell } from "./NoteCell";
 import { SessionLapTable } from "./SessionLapTable";
 import { SessionResultMeta } from "./SessionResultMeta";
-import { client } from "@/lib/rpc";
 import type { LapSortKey, SessionSelectionEvent, SortDir } from "./types";
 import { getLocale } from "@/paraglide/runtime";
 import { m } from "@/paraglide/messages";
+
 
 export type SessionMobileListProps = {
   sessions: SessionMeta[];
@@ -69,11 +67,6 @@ export function SessionMobileList({
   setRecapSessionId,
   analyseSession,
 }: SessionMobileListProps) {
-  const queryClient = useQueryClient();
-  const toggleFavorite = async (session: SessionMeta) => {
-    const response = await client.api.sessions[":id"].favorite.$patch({ param: { id: String(session.id) }, json: { favorite: !session.isFavorite } });
-    if (response.ok) await queryClient.invalidateQueries({ queryKey: queryKeys.sessions });
-  };
   return (
     <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
       {isLoading ? (
@@ -117,19 +110,7 @@ export function SessionMobileList({
                         {new Date(session.createdAt).toLocaleDateString(getLocale())} {new Date(session.createdAt).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" })}
                         {session.source === "motec" && <MotecBadge />}
                       </div>
-                      <Button
-                        type="button"
-                        variant="app-ghost"
-                        size="icon-xs"
-                        aria-label={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
-                        title={session.isFavorite ? m.sessions_remove_session_favorite() : m.sessions_add_session_favorite()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void toggleFavorite(session);
-                        }}
-                      >
-                        <Star className={session.isFavorite ? "fill-current text-app-accent" : ""} aria-hidden="true" />
-                      </Button>
+                      <FavoriteToggleButton target="session" id={session.id} isFavorite={Boolean(session.isFavorite)} />
                       <Button
                         variant="app-outline"
                         size="app-sm"

@@ -169,7 +169,6 @@ describe("session cleanup edge cases", () => {
     expect(preview.fileCount).toBe(0);
     expect(preview.reclaimableBytes).toBe(0);
     expect(preview.games[0]?.sessions.map((session) => session.id)).toEqual([sessionId]);
-
     const result = await executeSessionCleanup({ mode: "selected", sessionIds: [sessionId] });
 
     expect(result.cleanedSessionIds).toEqual([sessionId]);
@@ -261,7 +260,6 @@ describe("session cleanup edge cases", () => {
     expect(existsSync(path)).toBe(false);
     expect((await db.select({ rawFile: sessions.rawFile }).from(sessions).where(eq(sessions.id, sessionId)).get())?.rawFile).toBeNull();
   });
-
 
   test("serializes compression behind cleanup so cleaned capture is not restored", async () => {
     const path = capturePath("overlap.bin");

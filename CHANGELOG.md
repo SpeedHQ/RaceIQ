@@ -16,6 +16,10 @@
 - Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
 - Filter Sessions by favourite status.
 
+- Storage settings and Sessions let drivers manually remove old or selected telemetry while preserving session and lap metadata and protecting favourites
+- Organize Storage settings into separate Cache and Storage tabs, with cleanup controls first
+- Filter Sessions by favourite status.
+
 ### Fixes
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
 
