@@ -83,6 +83,7 @@ const developmentProcesses = Bun.spawn(
   [
     "bunx",
     "concurrently",
+    "--kill-others",
     serverCommand.join(" "),
     "bun scripts/dev/client.ts",
   ],
@@ -94,4 +95,13 @@ const developmentProcesses = Bun.spawn(
   },
 );
 
-process.exit(await developmentProcesses.exited);
+let shuttingDown = false;
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.once(signal, () => {
+    shuttingDown = true;
+    developmentProcesses.kill(signal);
+  });
+}
+
+const exitCode = await developmentProcesses.exited;
+process.exit(shuttingDown ? 0 : exitCode === 0 ? 1 : exitCode);
