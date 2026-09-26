@@ -18,7 +18,7 @@ interface SegmentListProps {
   cursorIdx: number;
 }
 
-function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
+export function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[]) {
   if (segments.length === 0 || telemetry.length < 10) return null;
   const n = telemetry.length;
   const cumDist = new Array<number>(n);
@@ -72,7 +72,7 @@ function buildSegmentData(telemetry: SemanticAnalysisFrame[], segments: Segment[
     staticSegments.push({
       name: displayNames[si],
       type: seg.type,
-      time: (numeric(telemetry[endIdx], "timing.current-lap") ?? 0) - (numeric(telemetry[startIdx], "timing.current-lap") ?? 0),
+      time: (semanticNumber(telemetry[endIdx], "timing.current-lap") ?? 0) - (semanticNumber(telemetry[startIdx], "timing.current-lap") ?? 0),
       ranges: [{ startFrac: seg.startFrac, endFrac: seg.endFrac }],
     });
   }

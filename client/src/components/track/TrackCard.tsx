@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { drawTrack } from "@/lib/canvas/draw-track";
+import { drawTrack, type PitLine } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";

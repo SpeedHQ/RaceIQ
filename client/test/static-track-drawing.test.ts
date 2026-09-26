@@ -516,6 +516,8 @@ test("aligns LMU boundary geometry to selected lap coordinates", () => {
       ),
     ),
   ).toBeLessThan(0.001);
+});
+
 test("draws separate solid pit-road and pit-exit lines", () => {
   const strokes: Array<{ color: string; points: number; curves: number; width: number; alpha: number }> = [];
   let points = 0;
