@@ -1,5 +1,5 @@
 import { getGame } from "@shared/games/registry";
-import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
+import type { LapDetectorCoverage, LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import type { GameId } from "../../../../shared/games/ids";
 import { Check, Copy, Info } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -34,6 +34,7 @@ interface Props {
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
   lapInsights: LapInsight[];
+  detectorCoverage: LapDetectorCoverage[];
   onJumpToFrame: (idx: number) => void;
 }
 function UnavailableFeaturesTooltip({ frame, gameId }: { frame: SemanticAnalysisFrame; gameId: GameId }) {
@@ -101,7 +102,7 @@ export function buildAnalyseClipboardJson({ frame, packetNumber }: { frame: Sema
   }, null, 2);
 }
 
-export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
+export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame, packetNumber, startFuel, gameId, units, wearRate, lapInsights, detectorCoverage, onJumpToFrame }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentFrame) return;
@@ -156,7 +157,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentFrame,
         </div>
       </TabsContent>
       <TabsContent value="insights" className="min-h-0 flex-1 overflow-y-auto p-3">
-        <InsightPanel insights={lapInsights} onJumpToFrame={onJumpToFrame} />
+        <InsightPanel insights={lapInsights} detectorCoverage={detectorCoverage} onJumpToFrame={onJumpToFrame} />
       </TabsContent>
     </Tabs>
   );

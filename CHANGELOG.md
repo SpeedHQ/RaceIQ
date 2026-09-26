@@ -4,6 +4,7 @@
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
 
 ### Features
+- List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
 - Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support

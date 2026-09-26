@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { initGameAdapters } from "@shared/games/init";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { runInsightScanWithCoverage } from "@shared/racing/analysis/laps/insights/scan";
 import { detectAbsActivation, detectTractionControlActivation } from "@shared/racing/analysis/laps/insights/electronics";
 import { calibratedWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
 import type { F1ExtendedData } from "@shared/telemetry/f1-2025";
@@ -145,5 +146,11 @@ describe("static driver-aid activation detection", () => {
     const insights = analyzeLap([...traction, ...braking], "fm-2023");
     expect(insights.find((insight) => insight.id === "driving-abs-activation")?.evidenceSource).toBe("inferred");
     expect(insights.find((insight) => insight.id === "driving-traction-control-activation")?.evidenceSource).toBe("inferred");
+  });
+
+  test("coverage reports inferred TC without native aid channel", () => {
+    const check = runInsightScanWithCoverage(tractionRun(), "fm-2023").detectorCoverage
+      .find((item) => item.id === "driving-traction-control-activation");
+    expect(check?.status).toBe("finding");
   });
 });

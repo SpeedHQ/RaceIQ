@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { runInsightScanWithCoverage } from "@shared/racing/analysis/laps/insights/scan";
 import { initGameAdapters } from "@shared/games/init";
 import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
@@ -138,6 +139,20 @@ describe("analyzeLap wheel-state capabilities", () => {
 
     expect(find(insights, "tire-lockup-FL")).toBeUndefined();
     expect(find(insights, "driving-brake-traction-loss")).toBeUndefined();
+  });
+
+  test("coverage distinguishes observed lockups from unsupported wheel checks", () => {
+    const packets = lockedLap();
+    const forza = runInsightScanWithCoverage(packets, "fm-2023");
+    const iracing = runInsightScanWithCoverage(packets, "iracing");
+    expect(forza.detectorCoverage).toHaveLength(37);
+    expect(forza.detectorCoverage.find((check) => check.id === "tire-lockup")?.status).toBe("finding");
+    expect(iracing.detectorCoverage.find((check) => check.id === "tire-lockup")).toMatchObject({
+      status: "unavailable",
+      reason: "Continuous direct wheel-rotation telemetry unavailable",
+    });
+    expect(iracing.detectorCoverage.find((check) => check.id === "driving-abs-activation")?.status).toBe("unavailable");
+    expect(forza.detectorCoverage.find((check) => check.id === "tire-spin")?.status).toBe("checked");
   });
 });
 

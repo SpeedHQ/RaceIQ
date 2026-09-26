@@ -86,8 +86,56 @@ export interface LapInsight {
    */
   timeLossS?: number;
 }
+export interface LapDetectorCoverage {
+  id: string;
+  category: InsightCategory;
+  label: string;
+  status: "finding" | "checked" | "unavailable";
+  reason?: string;
+}
+
 
 /** Stable output slots. Family scans emit only slots they observed; merge by order after the lap. */
+export const INSIGHT_DETECTORS: readonly Omit<LapDetectorCoverage, "status" | "reason">[] = [
+  { id: "susp-overload", category: "suspension", label: "Suspension Overload" },
+  { id: "susp-imbalance", category: "suspension", label: "Suspension Imbalance" },
+  { id: "tire-overheat", category: "tires", label: "Tire Overheat" },
+  { id: "tire-core-overheat", category: "tires", label: "Tire Core Overheat" },
+  { id: "tire-surface", category: "tires", label: "Tire Surface Profile" },
+  { id: "tire-lockup", category: "tires", label: "Wheel Lockup" },
+  { id: "tire-spin", category: "tires", label: "Wheelspin" },
+  { id: "tire-wear-imbalance", category: "tires", label: "Tire Wear Imbalance" },
+  { id: "tire-temp-split", category: "tires", label: "Front/Rear Temp Split" },
+  { id: "tire-rapid-pressure-loss", category: "tires", label: "Rapid Tire Pressure Loss" },
+  { id: "tire-pressure-imbalance", category: "tires", label: "Tire Pressure Imbalance" },
+  { id: "driving-abs-activation", category: "driving", label: "ABS Activation" },
+  { id: "driving-traction-control-activation", category: "driving", label: "Traction Control Activation" },
+  { id: "driving-unused-drs", category: "driving", label: "Unused DRS" },
+  { id: "mech-ers-depletion", category: "mechanical", label: "ERS Depletion Under Load" },
+  { id: "driving-brake-traction-loss", category: "driving", label: "Brake Traction Loss" },
+  { id: "driving-rev-limiter", category: "driving", label: "Rev Limiter" },
+  { id: "driving-coasting", category: "driving", label: "Coasting" },
+  { id: "driving-trail-brake", category: "driving", label: "Trail Braking" },
+  { id: "driving-counter-steer", category: "driving", label: "Counter-Steer" },
+  { id: "driving-early-braking", category: "driving", label: "Coast After Braking" },
+  { id: "driving-over-slowing", category: "driving", label: "Corner Speed Reduction" },
+  { id: "driving-throttle-traction-loss", category: "driving", label: "Throttle Traction Loss" },
+  { id: "driving-early-throttle", category: "driving", label: "Corner Throttle Correction" },
+  { id: "driving-binary-throttle", category: "driving", label: "Abrupt Corner Throttle" },
+  { id: "driving-delayed-throttle-pickup", category: "driving", label: "Low Throttle After Unwind" },
+  { id: "driving-brake-drag", category: "driving", label: "Brake Drag" },
+  { id: "driving-downshift-over-rev", category: "driving", label: "Aggressive Downshifts" },
+  { id: "driving-late-braking-overshoot", category: "driving", label: "Late Braking Overshoot" },
+  { id: "driving-understeer-scrub", category: "driving", label: "Understeer Scrub" },
+  { id: "driving-oversteer-slide", category: "driving", label: "Oversteer Slide" },
+  { id: "driving-steering-sawing", category: "driving", label: "Steering Sawing" },
+  { id: "driving-throttle-micro-lifts", category: "driving", label: "Throttle Micro-Lifts" },
+  { id: "driving-kerb-riding", category: "driving", label: "Hard Kerb Strikes" },
+  { id: "mech-fuel", category: "mechanical", label: "Fuel" },
+  { id: "mech-peak-power", category: "mechanical", label: "Peak Power" },
+  { id: "mech-boost-anomaly", category: "mechanical", label: "Boost Drop" },
+];
+
 export const INSIGHT_ORDER = {
   overload: 0, imbalance: 1,
   overheat: 2, coreOverheat: 3, surfaceProfile: 4, lockups: 5, wheelspin: 6,

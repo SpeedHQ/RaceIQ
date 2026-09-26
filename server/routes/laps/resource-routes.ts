@@ -8,6 +8,10 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
+import { runInsightScanWithCoverage } from "../../../shared/racing/analysis/laps/insights/scan";
+import { processLap, restoreF1FrameIndices } from "../../../shared/racing/analysis/laps/insights/process";
+import { INSIGHT_DETECTORS } from "../../../shared/racing/analysis/laps/insights/types";
+import { resolveRacingLineReference } from "../../lap-analysis/insights";
 import { backfillLapInsights, getOrComputeLapInsights, recomputeLapInsights } from "../../lap-analysis/metrics-store";
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
@@ -76,7 +80,7 @@ export const resourceRoutes = new Hono()
       if (lap.parseError) {
         return c.json({
           lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
-          sectorStarts: null, insights: [], parseError: lap.parseError, envelopes: [],
+          sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
         });
       }
       const source = {
@@ -89,10 +93,13 @@ export const resourceRoutes = new Hono()
       const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
       const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const processed = processLap(lap.telemetry, meta.gameId);
+      const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
+      restoreF1FrameIndices(analysis.insights, processed.sourceIndices);
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
-        insights: await getOrComputeLapInsights(id) ?? [], parseError: lap.parseError ?? null,
+        insights: analysis.insights, detectorCoverage: analysis.detectorCoverage, parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
