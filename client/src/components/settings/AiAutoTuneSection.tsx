@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
+import { AiProviderPicker } from "./AiPickers";
 import type { AiAutoTuneState } from "./ai-state";
 export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
   const {
@@ -32,16 +33,15 @@ export function AiAutoTuneSection({ state }: { state: AiAutoTuneState }) {
           <Label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
           </Label>
-          <SearchSelect
+          <AiProviderPicker
             id="ai-auto-tune-provider"
             value={autoTuneProvider}
             onChange={(value) => {
               setAutoTuneProvider(value);
               setAutoTuneModel("");
             }}
-            options={[{ value: "", label: m.ai_provider_none() }, ...(aiProviders ?? []).map((p) => ({ value: p.id, label: p.name, disabled: !state.keyStatus[p.id] }))]}
-            className="w-full max-w-xs"
-            ariaLabel={m.ai_provider_label()}
+            providers={aiProviders}
+            keyStatus={state.keyStatus}
           />
         </div>
         {canShowAutoTuneModelPicker && (

@@ -10,6 +10,11 @@
 - Show the official Le Mans Ultimate logo in the sidebar and match its home-card color to the game brand
 - Match Assetto Corsa Evo and Competizione home-card logos and colors to sidebar
 - Focus Lap Analyse on the selected session by hiding car and track selectors across games
+- Fetch available OpenAI models using configured API key
+
+### Fixes
+- Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
+
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
 
 ### Fixes
