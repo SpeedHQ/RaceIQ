@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./snapshot-test";
 import { REUSABLE_UI_SNAPSHOT_CASES } from "./snapshot-cases";
 import { openStoryForSnapshot, waitForVisualReady } from "./storybook-ready";
 

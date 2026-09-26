@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./snapshot-test";
 import { THEME_SNAPSHOT_CASE } from "./snapshot-cases";
 import { openStory } from "./storybook-ready";
 

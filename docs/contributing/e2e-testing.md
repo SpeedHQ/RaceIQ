@@ -207,6 +207,7 @@ bun run snapshot:test
 ```
 
 Generated snapshot PNGs are gitignored. Pull-request CI renders the base and PR revisions on the same runner, compares those outputs directly, and publishes visual differences as review warnings.
+Snapshot tests intercept `/api/*` with explicit offline fixtures; unexpected requests fail instead of reaching a live backend. Add fixture responses when new stories depend on API data.
 
 Snapshots cover reusable primitives and dashboard stories. They do not cover route data or native adapter semantics.
 

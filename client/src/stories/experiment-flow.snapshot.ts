@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./snapshot-test";
 import { openStory } from "./storybook-ready";
 
 /**
@@ -85,10 +85,7 @@ for (const story of stories) {
     // (seeded queries, canvas track maps) before their first text lands.
     test.setTimeout(120_000);
 
-    // Only uncaught exceptions count. Storybook has no API server behind it, so
-    // these screens legitimately 404 on /api/* (settings, chat history, lap
-    // detail) and log a console error for each — asserting on console noise
-    // would make the test fail for the one thing that is expected here.
+    // API requests use deterministic fixtures; uncaught render errors still fail.
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
