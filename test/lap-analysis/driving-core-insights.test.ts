@@ -71,6 +71,26 @@ describe("corner control observations", () => {
       }
     });
 
+    test(`${hz} Hz: nearby throttle reversals merge within detector-specific gaps`, () => {
+      const packets = recording(hz, 3, (t) => ({
+        Steer: 50, AccelerationX: 8, AngularVelocityY: 0.32,
+        Accel: (t >= 0.5 && t < 0.7) || (t >= 0.95 && t < 1.15) ? 255 : 0,
+      }));
+      expect(detectEarlyThrottle(packets)?.frameIndices).toHaveLength(2);
+      expect(detectBinaryThrottle(packets)?.frameIndices).toHaveLength(1);
+    });
+
+    test(`${hz} Hz: short reversals merge for both detectors; distant ones remain separate`, () => {
+      for (const [secondStart, expected] of [[0.8, 1], [1.25, 2]] as const) {
+        const packets = recording(hz, 3, (t) => ({
+          Steer: 50, AccelerationX: 8, AngularVelocityY: 0.32,
+          Accel: (t >= 0.5 && t < 0.7) || (t >= secondStart && t < secondStart + 0.2) ? 255 : 0,
+        }));
+        expect(detectEarlyThrottle(packets)?.frameIndices).toHaveLength(expected);
+        expect(detectBinaryThrottle(packets)?.frameIndices).toHaveLength(expected);
+      }
+    });
+
     test(`${hz} Hz: traction evidence distinguishes normal loaded power`, () => {
       const packets = recording(hz, 2, () => ({ Steer: 50, Accel: 180, AccelerationX: 8, AngularVelocityY: 0.32 }));
       expect(detectEarlyThrottle(packets, packets.map(() => grip))).toBeNull();

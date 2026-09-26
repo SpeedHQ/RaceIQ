@@ -1,6 +1,6 @@
 # Static Lap Analysis Catalog
 
-Static lap analysis is deterministic, post-lap telemetry analysis. It emits `LapInsight` records; it does not call an AI model. Current persisted contract: `STATIC_LAP_ANALYSIS_VERSION = 4`. Segment metrics use `LAP_METRICS_ALGO_VERSION = 4`, including corrected signed Forza steering.
+Static lap analysis is deterministic, post-lap telemetry analysis. It emits `LapInsight` records; it does not call an AI model. Current persisted contract: `STATIC_LAP_ANALYSIS_VERSION = 5`. Segment metrics use `LAP_METRICS_ALGO_VERSION = 4`, including corrected signed Forza steering.
 
 ## Runtime contract
 

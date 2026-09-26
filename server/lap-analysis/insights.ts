@@ -9,7 +9,7 @@ import { tryGetServerGame } from "../games/registry";
  * Persisted static-insight contract. Bump whenever detector output changes.
  * Rows written by older versions are recomputed lazily or by the backfill route.
  */
-export const STATIC_LAP_ANALYSIS_VERSION = 4;
+export const STATIC_LAP_ANALYSIS_VERSION = 5;
 export function resolveLapSegments(gameId: GameId, trackId: number | string | null | undefined): NamedSegment[] {
   if (trackId == null) return [];
   const name = typeof trackId === "number" || /^\d+$/.test(trackId)

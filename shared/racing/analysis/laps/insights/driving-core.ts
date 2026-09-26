@@ -4,6 +4,35 @@ import type { AllWheelStates } from "../physics/vehicle";
 import { appendInsights, INSIGHT_ORDER, insightAt, type LapInsight, type OrderedInsight, eventDurations, midFrame, EventRun, type TimeLossCtx } from "./types";
 import { runSelectedInsightScan, type InsightAccumulator } from "./scan";
 
+function mergeThrottleEvents(
+  events: [number, number][],
+  telemetry: readonly TelemetryPacket[],
+  maxGapSeconds: number,
+): [number, number][] {
+  events.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const event of events) {
+    const last = merged[merged.length - 1];
+    if (!last) {
+      merged.push([...event]);
+      continue;
+    }
+    let gap = 0;
+    let continuous = true;
+    for (let i = last[1]; i < event[0]; i++) {
+      const seconds = (telemetry[i + 1].TimestampMS - telemetry[i].TimestampMS) / 1000;
+      if (!(seconds > 0 && seconds <= 0.1)) {
+        continuous = false;
+        break;
+      }
+      if (i > last[1]) gap += seconds;
+    }
+    if (continuous && gap <= maxGapSeconds + 1e-9) last[1] = Math.max(last[1], event[1]);
+    else merged.push([...event]);
+  }
+  return merged;
+}
+
 export function createCoreDrivingScan(
   telemetry: readonly TelemetryPacket[],
   ctx?: TimeLossCtx,
@@ -283,8 +312,8 @@ export function createCoreDrivingScan(
       const limiterEvents = limiter.events;
       const coastEvents = coasting.events;
       const trailEvents = brakeTrail.events;
-      const throttleEvents = [...earlyPower.events, ...earlyCorrectionEvents].sort((a, b) => a[0] - b[0]);
-      const binaryEvents = binaryCorrectionEvents.sort((a, b) => a[0] - b[0]);
+      const throttleEvents = mergeThrottleEvents([...earlyPower.events, ...earlyCorrectionEvents], telemetry, 0.15);
+      const binaryEvents = mergeThrottleEvents(binaryCorrectionEvents, telemetry, 0.3);
       const reference = ctx && ref ? { ...ctx, ref } : ctx;
       const coastLosses = reference
         ? coastEvents.map(([start, end], event) => coastBrakeEligible[event] !== false
