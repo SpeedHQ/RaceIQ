@@ -111,20 +111,27 @@ export function loadAccSvgBoundaryByName(slug: string): TrackBoundary | null {
   }
   const leftRaw = parsePath(svg, "left"),
     rightRaw = parsePath(svg, "right"),
-    centerRaw = parsePath(svg, "center-line"),
     racing = parsePath(svg, "racing-line"),
     pitRaw = parsePath(svg, "pit-lane");
-  if (!leftRaw || !rightRaw || !centerRaw || !racing) {
+  if (!leftRaw || !rightRaw || !racing) {
     boundaryCache.set(slug, null);
     return null;
   }
   const count = Math.max(3, Math.ceil(Math.max(length(leftRaw), length(rightRaw)) / 2));
   const left = align(sample(leftRaw, count), racing);
   const right = align(sample(rightRaw, count), racing);
+  // Source SVG center-line pairs spline control points by index even where
+  // opposite edge windings differ; it can cross the infield by hundreds of
+  // metres. Derive a centre from the aligned SVG edges instead.
+  const leftEdge = left.map((p) => ({ x: p.x, z: p.y }));
+  const rightEdge = right.map((p) => ({ x: p.x, z: p.y }));
   const result: TrackBoundary = {
-    leftEdge: left.map((p) => ({ x: p.x, z: p.y })),
-    rightEdge: right.map((p) => ({ x: p.x, z: p.y })),
-    centerLine: centerRaw.map((p) => ({ x: p.x, z: p.y })),
+    leftEdge,
+    rightEdge,
+    centerLine: leftEdge.map((p, i) => ({
+      x: (p.x + rightEdge[i].x) / 2,
+      z: (p.z + rightEdge[i].z) / 2,
+    })),
     pitLane: pitRaw?.map((p) => ({ x: p.x, z: p.y })) ?? null,
   };
   boundaryCache.set(slug, result);

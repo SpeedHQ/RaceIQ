@@ -17,7 +17,7 @@ ACC racing-line extraction and direct-bundled authoritative track geometry. Cent
 | --- | --- | --- |
 | `bun run scripts/games/acc/extract-tracks.ts` | Extract ACC fastlane racing lines | Installed ACC cache |
 
-The SVG assets supply left/right edges, centre line, racing line, and pit lane. Do not convert or commit JSON boundary assets. Existing curated centreline CSVs and corner rosters remain unchanged; their migration is separate from boundary rendering.
+SVG left/right splines are authoritative for track edges. Its embedded `center-line` can cross the infield because source export pairs spline control points with opposite windings (Monza deviates over 280 m); boundary APIs derive centre points from direction-aligned, equal-progress SVG edges instead. Pit lane and racing-line paths remain in SVG. Do not convert or commit boundary JSON. Existing curated centreline CSVs and corner rosters remain unchanged.
 
 ## Outputs
 

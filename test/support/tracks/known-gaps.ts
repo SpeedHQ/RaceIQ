@@ -60,7 +60,7 @@ export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
  * straightened or fused into a neighbour rather than faintly detected. Loosening
  * thresholds makes it worse (at 1/1400 Brands Hatch's Dingle Dell neighbours fuse
  * into one), because the loose pass only fills gaps and there is no gap here. The
- * SVG geometry already supplies track centres for boundary views. Curated
+ * Boundary views derive track centres from the bundled SVG edges. Curated
  * centerline CSVs and corner rosters still need per-track re-curation (issue #98);
  * migrated tracks are already gone from this list.
  *

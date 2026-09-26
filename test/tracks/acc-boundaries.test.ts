@@ -25,13 +25,20 @@ test("ACC bundled map edges follow the same closed track at driving width", () =
   }
 });
 
-test("ACC exposes SVG centre geometry independently of paired edge sampling", () => {
-  const boundaries = getTrackBoundariesByOrdinal(0, "acc")!;
-  expect(boundaries.centerLine?.length).toBeGreaterThan(100);
-  expect(boundaries.centerLine?.length).not.toBe(boundaries.leftEdge.length);
-  const start = boundaries.centerLine![0];
-  const closest = Math.min(...boundaries.leftEdge.map((point) => distance(start, point)));
-  expect(closest).toBeLessThan(50);
+test("ACC centre line stays on track near the timing origin", () => {
+  for (const ordinal of getAccTracks().keys()) {
+    const boundaries = getTrackBoundariesByOrdinal(ordinal, "acc")!;
+    const racingLine = getTrackRacelineByOrdinal(ordinal, "acc")!;
+    const center = boundaries.centerLine!;
+    expect(center.length, `ACC track ${ordinal} centre`).toBeGreaterThan(100);
+    expect(distance(center[0], racingLine[0]), `ACC track ${ordinal} centre start`).toBeLessThan(25);
+    for (let i = 0; i < center.length; i += 50) {
+      const left = boundaries.leftEdge[i];
+      const right = boundaries.rightEdge[i];
+      const width = distance(left, right);
+      expect(distance(center[i], left), `ACC track ${ordinal} centre at ${i}`).toBeLessThan(width / 2 + 1);
+    }
+  }
 });
 
 test("ACC racing line stays near independent map-spline edges", () => {

@@ -21,7 +21,7 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
-- Bundle ACC map-spline SVGs for track edges and centre lines instead of fastlane-derived boundary JSON; retain fastlane only as racing-line reference.
+- Bundle ACC map-spline SVGs for track edges; derive centre points from aligned SVG edges instead of incorrect embedded centre paths or fastlane-derived boundary JSON.
 - Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
 - Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.
 - Restore traction-state colors on 3D tire trails after the WebGPU scene-renderer migration.
