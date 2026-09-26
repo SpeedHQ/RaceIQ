@@ -35,7 +35,6 @@ import { ConnectionStatus } from "./ConnectionStatus";
 export interface AppSidebarProps {
   collapsed: boolean;
   connected: boolean;
-  driverName: string;
   forzaReceiving: boolean;
   hiddenGames: readonly string[];
   mobile: boolean;
@@ -145,7 +144,6 @@ const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
 export function AppSidebar({
   collapsed,
   connected,
-  driverName,
   forzaReceiving,
   hiddenGames,
   mobile,
@@ -331,9 +329,9 @@ export function AppSidebar({
               <span className={showCollapsed ? "sr-only" : "truncate"}>{updateLabel}</span>
             </SidebarAction>
           )}
-          <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>
+          <SidebarAction collapsed={showCollapsed} label={m.nav_settings()} onClick={handleSettings}>
             <Settings2 className="size-4" />
-            <span className={showCollapsed ? "sr-only" : "truncate"}>{driverName || m.nav_settings()}</span>
+            <span className={showCollapsed ? "sr-only" : "truncate"}>{m.nav_settings()}</span>
           </SidebarAction>
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={forzaReceiving} collapsed={showCollapsed} />
         </div>
