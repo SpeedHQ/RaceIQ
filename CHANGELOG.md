@@ -4,6 +4,7 @@
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
 
 ### Features
+- Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
