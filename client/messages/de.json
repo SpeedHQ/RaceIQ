@@ -254,6 +254,7 @@
   "sessions_remove_lap_favorite": "Runde aus Favoriten entfernen",
   "sessions_raw_telemetry_removed": "Rohtelemetrie entfernt",
   "sessions_export_lap": "Runde exportieren",
+  "sessions_replay_lap": "Replay",
   "sessions_export_session": "Session exportieren",
   "sessions_analyse_session": "Session analysieren",
   "sessions_col_notes": "Notizen",

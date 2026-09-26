@@ -114,7 +114,7 @@ export function SessionLapTable({ session, laps, sectorCount, lapSortKey, lapSor
                         navigate({ to: `${gameRoute}/sessions/${lap.sessionId}/replay/${lap.id}` as never });
                       }}
                     >
-                      {m.label_analyse()}
+                      {m.sessions_replay_lap()}
                     </Button>
                   </div>
                 </TD>
