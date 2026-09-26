@@ -415,15 +415,33 @@ export async function runOpenAi(
 }
 
 
-const OPENAI_MODELS = [
-  { id: "gpt-4o-mini", name: "GPT-4o Mini" },
-  { id: "gpt-4o", name: "GPT-4o" },
-  { id: "gpt-4.1-mini", name: "GPT-4.1 Mini" },
-  { id: "gpt-4.1-nano", name: "GPT-4.1 Nano" },
-];
-
-export function getOpenAiModels() {
-  return OPENAI_MODELS;
+/** Fetch models available to an OpenAI API key. */
+export async function getOpenAiModelsDetailed(apiKey: string): Promise<ModelListResult> {
+  try {
+    const url = "https://api.openai.com/v1/models";
+    console.info(`[AI] GET ${url}`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const message = `OpenAI models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
+    }
+    const data = await res.json() as { data?: Array<{ id?: unknown }> };
+    const models = (data.data ?? [])
+      .filter((model): model is { id: string } => typeof model.id === "string" && model.id.length > 0)
+      .map(({ id }) => ({ id, name: id }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    return { models, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[AI] OpenAI models list request errored:", message);
+    return { models: [], error: message };
+  }
 }
 
 /** Extract configured runtime context lengths from LM Studio model metadata. */
