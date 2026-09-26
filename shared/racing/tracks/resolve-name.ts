@@ -83,6 +83,31 @@ export function readUserOrBundled(gameId: string, relativePath: string): string 
 }
 
 const bundledPointCache = new Map<string, TrackPoint[] | null>();
+export function loadBundledPointCsvByName(
+  name: string,
+  gameId: string,
+  suffix: "centerline" | "raceline",
+): TrackPoint[] | null {
+  if (!/^[a-z0-9_-]+$/i.test(name)) return null;
+  const key = `${suffix}:${gameId}:${name}`;
+  const cached = bundledPointCache.get(key);
+  if (cached !== undefined) return cached;
+  let content = readDataFile(resolve(bundledTrackDir(gameId), `${name}-${suffix}.csv`));
+  if (!content && gameId === "ac-evo") {
+    content = readDataFile(resolve(bundledTrackDir("acc"), `${name}-${suffix}.csv`));
+  }
+  if (!content) {
+    bundledPointCache.set(key, null);
+    return null;
+  }
+  const points = content.split(/\r?\n/).slice(1).filter(Boolean).map((line) => {
+    const [x, z] = line.split(",").map(Number);
+    return { x, z };
+  });
+  const result = points.length > 10 ? points : null;
+  bundledPointCache.set(key, result);
+  return result;
+}
 
 export function loadBundledPointCsv(
   ordinal: number,

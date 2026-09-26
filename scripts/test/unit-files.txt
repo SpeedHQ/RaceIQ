@@ -6,6 +6,17 @@ test/client/speed.test.ts
 test/client/temperature.test.ts
 test/games/forza/forza-lzx.test.ts
 test/games/shared/win-timer-resolution.test.ts
+test/lap-analysis/tire-temperature-insights.test.ts
+test/lap-analysis/buffered-detectors.test.ts
+test/lap-analysis/aid-activation.test.ts
+test/lap-analysis/advanced-insight-timing.test.ts
+test/lap-analysis/driving-core-insights.test.ts
+test/lap-analysis/f1-opportunities.test.ts
+test/lap-analysis/heuristic-evidence.test.ts
+test/lap-analysis/rapid-pressure-loss.test.ts
+test/lap-analysis/wheel-calibration.test.ts
+test/lap-analysis/aligned-telemetry-codec.test.ts
+test/lap-analysis/aligned-telemetry.test.ts
 test/lap-analysis/comparison.test.ts
 test/lap-analysis/corner-data.test.ts
 test/lap-analysis/detection/game-compat.test.ts
@@ -16,6 +27,7 @@ test/lap-analysis/lap-insight-time-loss.test.ts
 test/lap-analysis/lap-path.test.ts
 test/lap-analysis/lap-quality.test.ts
 test/lap-analysis/lap-target.test.ts
+test/lap-analysis/racing-line-overshoot.test.ts
 test/lap-analysis/recap/consistency-personal-best.test.ts
 test/lap-analysis/recap/core-pace.test.ts
 test/lap-analysis/recap/edge-cases.test.ts
@@ -31,8 +43,6 @@ test/archive/bounded-unzip.test.ts
 test/client/aligned-telemetry-fidelity.test.ts
 test/client/analyse-chart-data.test.ts
 test/games/shared/parser.test.ts
-test/lap-analysis/aligned-telemetry-codec.test.ts
-test/lap-analysis/aligned-telemetry.test.ts
 test/lap-analysis/clean-lap-aggregate.test.ts
 test/lap-analysis/corner-resolution.test.ts
 test/laps/archive-detection.test.ts

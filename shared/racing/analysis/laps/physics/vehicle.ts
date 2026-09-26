@@ -5,6 +5,7 @@
  */
 
 import type { TelemetryPacket } from "../../../../telemetry/types";
+import { eventDurations } from "../insights/types";
 
 // ── Slip Ratio (longitudinal) ──────────────────────────────────────
 // SAE J670 definition: SR = (Vwheel - Vground) / max(Vwheel, Vground)
@@ -30,11 +31,30 @@ export function effectiveWheelRadius(pkt: TelemetryPacket): number {
   }
 
   const gs = pkt.Speed; // m/s
-  const rotSpeeds = [Math.abs(pkt.WheelRotationSpeedFL), Math.abs(pkt.WheelRotationSpeedFR), Math.abs(pkt.WheelRotationSpeedRL), Math.abs(pkt.WheelRotationSpeedRR)];
+  let slowest = Math.abs(pkt.WheelRotationSpeedFL);
+  let secondSlowest = Math.abs(pkt.WheelRotationSpeedFR);
+  if (slowest > secondSlowest) {
+    const swap = slowest;
+    slowest = secondSlowest;
+    secondSlowest = swap;
+  }
+  const rearLeft = Math.abs(pkt.WheelRotationSpeedRL);
+  if (rearLeft < slowest) {
+    secondSlowest = slowest;
+    slowest = rearLeft;
+  } else if (rearLeft < secondSlowest) {
+    secondSlowest = rearLeft;
+  }
+  const rearRight = Math.abs(pkt.WheelRotationSpeedRR);
+  if (rearRight < slowest) {
+    secondSlowest = slowest;
+    slowest = rearRight;
+  } else if (rearRight < secondSlowest) {
+    secondSlowest = rearRight;
+  }
   // Use the two slowest wheels — spinning wheels inflate the average and
-  // skew slip ratios, causing false lockup detection on non-driven axle
-  const sorted = [...rotSpeeds].sort((a, b) => a - b);
-  const baseRot = (sorted[0] + sorted[1]) / 2;
+  // skew slip ratios, causing false lockup detection on non-driven axle.
+  const baseRot = (slowest + secondSlowest) / 2;
   return baseRot > 5 && gs > 3 ? gs / baseRot : 0.33;
 }
 
@@ -242,24 +262,10 @@ export function steerBalanceFromSignals(signals: SemanticBalanceSignals): SteerB
   const yawActive = Math.abs(yawContrib) > 0.05;
   const slipConfident = Math.abs(uSlip) >= 0.15;
   const blended = 0.5 * uSlip + 0.5 * yawContrib;
-  const balanceRaw =
-    speed < SPEED_FLOOR
-      ? 0
-      : !slipAvailable
-        ? yawContrib
-        : !signalsAgree || !slipConfident
-          ? uSlip
-          : yawActive && Math.abs(blended) > Math.abs(uSlip)
-            ? blended
-            : uSlip;
+  const balanceRaw = speed < SPEED_FLOOR ? 0 : !slipAvailable ? yawContrib : !signalsAgree || !slipConfident ? uSlip : yawActive && Math.abs(blended) > Math.abs(uSlip) ? blended : uSlip;
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
   const moving = speed >= SPEED_FLOOR;
-  const state: SteerBalance["state"] =
-    moving && balance > CLASSIFY_THRESHOLD
-      ? "understeer"
-      : moving && balance < -CLASSIFY_THRESHOLD
-        ? "oversteer"
-        : "neutral";
+  const state: SteerBalance["state"] = moving && balance > CLASSIFY_THRESHOLD ? "understeer" : moving && balance < -CLASSIFY_THRESHOLD ? "oversteer" : "neutral";
   return {
     latG,
     yawRate: signals.yawRate,
@@ -341,6 +347,12 @@ export interface WheelState {
   state: "grip" | "lockup" | "spin" | "idle";
   slipRatio: number;
 }
+export interface AllWheelStates {
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
+}
 
 export function wheelState(
   wheelRotSpeed: number,
@@ -375,12 +387,7 @@ export interface WheelDynamicsFrame {
 }
 
 /** Semantic wheel-dynamics primitive. Units are canonical SI (m/s, rad/s, m). */
-export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
-  fl: WheelState;
-  fr: WheelState;
-  rl: WheelState;
-  rr: WheelState;
-} {
+export function wheelDynamicsFrame(frame: WheelDynamicsFrame): AllWheelStates {
   const { speedMps: gs, steer } = frame;
   const turningRight = steer > 5;
   const turningLeft = steer < -5;
@@ -393,12 +400,7 @@ export function wheelDynamicsFrame(frame: WheelDynamicsFrame): {
 }
 
 /** Historical packet compatibility wrapper. Live callers must use wheelDynamicsFrame. */
-export function allWheelStates(pkt: TelemetryPacket): {
-  fl: WheelState;
-  fr: WheelState;
-  rl: WheelState;
-  rr: WheelState;
-} {
+export function allWheelStates(pkt: TelemetryPacket): AllWheelStates {
   const r = effectiveWheelRadius(pkt);
   return wheelDynamicsFrame({
     speedMps: pkt.Speed,
@@ -411,6 +413,109 @@ export function allWheelStates(pkt: TelemetryPacket): {
     },
     wheelRadiusM: r,
   });
+}
+
+/**
+ * Causal lap-only wheel states. Learn radius from a sustained coast, never from
+ * the braking/traction sample being classified. Live packet helpers retain their
+ * existing behavior. Unknown radius is idle, not evidence of clean grip.
+ *
+ * Equal all-wheel spin cannot be identified from rotation agreement alone:
+ * controls, motion and persistence gate calibration, then radii stay frozen.
+ * Without a trustworthy coast or static radius, deliberately abstain.
+ */
+export function createWheelCalibration(): {
+  observe(packet: TelemetryPacket, previousPacket: TelemetryPacket | undefined, secondsToNext: number, previousSeconds: number, index: number): AllWheelStates;
+} {
+  let learned: number[] | undefined;
+  let candidate: number[] | undefined;
+  let cleanSeconds = 0;
+  let previousClean = false;
+  return {
+    observe(p, previousPacket, secondsToNext, previousSeconds, i) {
+    const rotations = [
+      Math.abs(p.WheelRotationSpeedFL), Math.abs(p.WheelRotationSpeedFR),
+      Math.abs(p.WheelRotationSpeedRL), Math.abs(p.WheelRotationSpeedRR),
+    ];
+    const continuous = i > 0 && previousSeconds > 0;
+    const validMotion = Number.isFinite(p.Speed) && p.Speed >= 1.5 &&
+      Number.isFinite(p.Steer) && rotations.every(Number.isFinite) &&
+      (p.gameId !== "f1-2025" || !!p.f1?.motionEx);
+    // A stopped wheel can be a real lockup under brakes; zero rotation while
+    // coasting/accelerating is instead unavailable telemetry, not calibration.
+    const dropout = rotations.some((rotation) => rotation < 0.5) &&
+      !(Number.isFinite(p.Brake) && p.Brake >= 5);
+    if (!continuous || !validMotion || dropout) {
+      learned = undefined;
+      candidate = undefined;
+      cleanSeconds = 0;
+      previousClean = false;
+    }
+
+    const minRotation = Math.min(...rotations);
+    const maxRotation = Math.max(...rotations);
+    const clean = validMotion && !dropout && p.Speed >= 10 &&
+      p.Accel >= 0 && p.Accel <= 25 && p.Brake >= 0 && p.Brake < 5 &&
+      p.HandBrake === 0 && Math.abs(p.Steer) <= 5 &&
+      Math.abs(p.AccelerationX) <= 0.1 * G && Math.abs(p.AngularVelocityY) <= 0.05 &&
+      minRotation > 5 && maxRotation / minRotation <= 1.05 &&
+      (!continuous || Math.abs(p.Speed - previousPacket!.Speed) / previousSeconds <= 2);
+
+    if (!learned && clean) {
+      const radii = rotations.map((rotation) => p.Speed / rotation);
+      // Broad physical bounds reject implausible/mis-scaled rotation channels;
+      // they are not fallback tire sizes.
+      const plausible = radii.every((radius) => radius >= 0.1 && radius <= 1);
+      const consistent = candidate && radii.every((radius, wheel) =>
+        Math.abs(radius / candidate![wheel] - 1) <= 0.02);
+      if (!plausible) {
+        candidate = undefined;
+        cleanSeconds = 0;
+      } else if (!consistent || !previousClean) {
+        candidate = radii;
+        cleanSeconds = 0;
+      } else {
+        cleanSeconds += previousSeconds;
+        if (cleanSeconds >= 0.5) learned = candidate;
+      }
+    } else if (!clean) {
+      candidate = undefined;
+      cleanSeconds = 0;
+    }
+    previousClean = clean;
+
+    const authoritative = p.acc?.tireRadius;
+    const states: WheelState[] = new Array(4);
+    for (let wheel = 0; wheel < 4; wheel++) {
+      const nativeRadius = authoritative?.[wheel];
+      const radius = nativeRadius !== undefined && Number.isFinite(nativeRadius) && nativeRadius > 0
+        ? nativeRadius
+        : learned?.[wheel];
+      // Reject discontinuous samples even with static radii. A first packet can
+      // be classified when its following interval establishes valid timing.
+      if (!validMotion || dropout || (!continuous && !(i === 0 && secondsToNext > 0)) ||
+          radius === undefined) {
+        states[wheel] = { state: "idle", slipRatio: 0 };
+      } else {
+        states[wheel] = wheelState(
+          rotations[wheel], p.Speed, radius, wheel < 2 ? p.Steer : 0,
+          wheel % 2 === 0 ? p.Steer > 5 : p.Steer < -5,
+        );
+      }
+    }
+    return { fl: states[0], fr: states[1], rl: states[2], rr: states[3] };
+    },
+  };
+}
+
+export function calibratedWheelStates(telemetry: readonly TelemetryPacket[]): AllWheelStates[] {
+  const dt = eventDurations(telemetry);
+  const calibration = createWheelCalibration();
+  const result: AllWheelStates[] = new Array(telemetry.length);
+  for (let i = 0; i < telemetry.length; i++) {
+    result[i] = calibration.observe(telemetry[i], telemetry[i - 1], dt[i], dt[i - 1] ?? 0, i);
+  }
+  return result;
 }
 
 // ── Cornering Efficiency ───────────────────────────────────────────

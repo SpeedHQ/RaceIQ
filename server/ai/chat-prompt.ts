@@ -10,7 +10,7 @@ import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-an
 import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
@@ -52,6 +52,8 @@ export function buildChatSystemPrompt(
   analysisJson?: string,
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
+  /** Versioned deterministic insights loaded from the per-lap cache. */
+  insights: LapInsight[] = [],
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
@@ -64,8 +66,7 @@ export function buildChatSystemPrompt(
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Precomputed insights
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  // Format versioned deterministic insights supplied by the persistence layer.
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights ---\n";

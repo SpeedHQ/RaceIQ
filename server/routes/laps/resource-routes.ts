@@ -8,7 +8,11 @@ import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
 import { analyseSemanticIds } from "../../../shared/games/metric-contracts";
-import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
+import { runInsightScanWithCoverage } from "../../../shared/racing/analysis/laps/insights/scan";
+import { processLap, restoreF1FrameIndices } from "../../../shared/racing/analysis/laps/insights/process";
+import { INSIGHT_DETECTORS } from "../../../shared/racing/analysis/laps/insights/types";
+import { resolveRacingLineReference } from "../../lap-analysis/insights";
+import { backfillLapInsights, getOrComputeLapInsights, recomputeLapInsights } from "../../lap-analysis/metrics-store";
 import { alignLapSet, prepareLapSetAlignmentIndex, type AlignmentLapInput } from "../../../shared/racing/laps/alignment/build";
 import { encodeAlignedLapSet } from "../../../shared/racing/laps/alignment/codec";
 import type { EncodedAlignedLapSet } from "../../../shared/racing/laps/alignment/types";
@@ -26,7 +30,7 @@ import { generateExport } from "../../lap-analysis/report";
 import { resolveTrack } from "../../tracks/info";
 import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
 import { resolveLapCorners } from "../../tracks/corner-resolution";
-import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema } from "./support";
+import { BulkDeleteSchema, LapsQuerySchema, ReviewLapsQuerySchema, ReviewLineSpreadQuerySchema, AlignedTelemetryRequestSchema, LapInsightBackfillSchema } from "./support";
 import { resolveTelemetryReplay } from "../../telemetry/replay";
 import { resolveLapF1Setup } from "../../ai/f1-setup-identity";
 
@@ -76,7 +80,7 @@ export const resourceRoutes = new Hono()
       if (lap.parseError) {
         return c.json({
           lapId: id, requestedSemanticIds: [], sectorTimes: meta.sectorTimes ?? null,
-          sectorStarts: null, insights: [], parseError: lap.parseError, envelopes: [],
+          sectorStarts: null, insights: [], detectorCoverage: INSIGHT_DETECTORS.map((detector) => ({ ...detector, status: "unavailable" as const, reason: "Lap telemetry could not be parsed" })), parseError: lap.parseError, envelopes: [],
         });
       }
       const source = {
@@ -89,10 +93,13 @@ export const resourceRoutes = new Hono()
       const rawCapture = source.gameId === "iracing" && source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
       const replay = resolveTelemetryReplay(id, source, lap.telemetry, semanticReplayIds(meta.gameId), rawCapture);
       const nativeLayout = getGame(meta.gameId).getNativeSectorLayout?.(lap.telemetry[0]);
+      const processed = processLap(lap.telemetry, meta.gameId);
+      const analysis = runInsightScanWithCoverage(processed.packets, meta.gameId, { racingLine: resolveRacingLineReference(meta.gameId, meta.trackId) });
+      restoreF1FrameIndices(analysis.insights, processed.sourceIndices);
       return c.json({
         lapId: replay.lapId, requestedSemanticIds: replay.requestedSemanticIds,
         sectorTimes: meta.sectorTimes ?? null, sectorStarts: nativeLayout?.starts ?? null,
-        insights: analyzeLap(lap.telemetry, meta.gameId), parseError: lap.parseError ?? null,
+        insights: analysis.insights, detectorCoverage: analysis.detectorCoverage, parseError: lap.parseError ?? null,
         envelopes: replay.envelopes.map((envelope) => ({
           sequence: Number(envelope.sequence),
           observedAt: { domain: "wall-clock", milliseconds: timestampMilliseconds(envelope.observedAt) },
@@ -104,6 +111,14 @@ export const resourceRoutes = new Hono()
     } catch (error) {
       return c.json({ error: error instanceof Error ? error.message : "Unable to replay telemetry" }, 422);
     }
+  })
+
+  .post("/api/lap-insights/backfill", zValidator("json", LapInsightBackfillSchema), async (c) =>
+    c.json(await backfillLapInsights(c.req.valid("json"))),
+  )
+  .post("/api/laps/:id/insights/rerun", zValidator("param", IdParamSchema), async (c) => {
+    const insights = await recomputeLapInsights(c.req.valid("param").id);
+    return insights ? c.json({ insights }) : c.json({ error: "Lap not found or has no telemetry" }, 404);
   })
 
   .post("/api/laps/bulk-delete", zValidator("json", BulkDeleteSchema), async (c) => {
@@ -235,7 +250,7 @@ export const resourceRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLap(packets, gameId);
+    const insights = await getOrComputeLapInsights(id) ?? [];
 
     return c.json({ ...lap, sectorTimes, insights });
   })

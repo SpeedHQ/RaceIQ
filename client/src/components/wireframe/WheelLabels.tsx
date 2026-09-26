@@ -58,7 +58,7 @@ export function createWheelLabelResource(scene: THREE.Scene, config: WheelLabelC
   const texture = new THREE.CanvasTexture(canvas);
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
   const sprite = new THREE.Sprite(material); sprite.renderOrder = 999; scene.add(sprite);
-  const resource: WheelLabelResource = { sprite, canvas, ctx, texture, material, policy: createWheelLabelRefreshPolicy<string>(), contentKey: "", baseScale: 0.72, cardHeight: 0 };
+  const resource: WheelLabelResource = { sprite, canvas, ctx, texture, material, policy: createWheelLabelRefreshPolicy<string>(), contentKey: "", baseScale: 1.05, cardHeight: 0 };
   updateWheelLabelResource(resource, config, 0, 0, true);
   return resource;
 }

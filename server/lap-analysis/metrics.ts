@@ -3,7 +3,9 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
+import { resolveRacingLineReference, STATIC_LAP_ANALYSIS_VERSION } from "./insights";
 import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import { processLap, restoreF1FrameIndices } from "../../shared/racing/analysis/laps/insights/process";
 import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
 import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
@@ -15,7 +17,7 @@ import type { TelemetryPacket } from "../../shared/telemetry/types";
  * from the old definition are discarded instead of silently mixing with new
  * ones inside a single experiment.
  */
-export const LAP_METRICS_ALGO_VERSION = 1;
+export const LAP_METRICS_ALGO_VERSION = 4;
 
 const MPH_TO_KMH = 1.609344;
 
@@ -72,6 +74,7 @@ export interface SegmentStat {
 /** What `lap_metrics` stores for one lap. */
 export interface LapMetrics {
   lapId: number;
+  insightVersion: number;
   algoVersion: number;
   insights: LapInsight[];
   segmentStats: SegmentStat[];
@@ -84,10 +87,8 @@ export interface LapMetrics {
  *
  * Passed in rather than hardcoded because the two are game-specific and the
  * game adapters already declare them (`steeringCenter` / `steeringRange`).
- * `computeStatsRange` previously baked in `(steer - 127) / 127`, which silently
- * assumed FM's convention for every game; `lap-analysis/corners.ts` reads the
- * adapter for the same two numbers. One source of truth, so a correction to an
- * adapter reaches both.
+ * Shared with corner detection, so parser/adapter scale corrections reach
+ * both metrics and corner segmentation.
  */
 export interface SteerScale {
   center: number;
@@ -97,7 +98,7 @@ export interface SteerScale {
 /** The steering convention declared by a game's adapter. */
 export function steerScaleFor(gameId: string | undefined): SteerScale {
   const adapter = gameId ? tryGetGame(gameId) : undefined;
-  return { center: adapter?.steeringCenter ?? 127, range: adapter?.steeringRange ?? 127 };
+  return { center: adapter?.steeringCenter ?? 0, range: adapter?.steeringRange ?? 127 };
 }
 
 /**
@@ -311,12 +312,22 @@ export function computeLapMetrics(
   lapId: number,
   packets: TelemetryPacket[],
   gameId: GameId,
+  trackId: number | string | null | undefined,
   segments: NamedSegment[],
+  insights?: LapInsight[],
 ): LapMetrics {
+  if (!insights) {
+    const processed = processLap(packets, gameId);
+    insights = analyzeLap(processed.packets, gameId, {
+      racingLine: resolveRacingLineReference(gameId, trackId),
+    });
+    restoreF1FrameIndices(insights, processed.sourceIndices);
+  }
   return {
     lapId,
     algoVersion: LAP_METRICS_ALGO_VERSION,
-    insights: analyzeLap(packets, gameId),
+    insightVersion: STATIC_LAP_ANALYSIS_VERSION,
+    insights,
     segmentStats: computeLapSegmentStats(packets, segments, steerScaleFor(gameId)),
     computedAt: new Date().toISOString(),
   };

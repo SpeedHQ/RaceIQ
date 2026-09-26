@@ -1,4 +1,4 @@
-import type { InsightCategory, LapInsight } from "@shared/racing/analysis/laps/insights/types";
+import type { InsightCategory, LapDetectorCoverage, LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
@@ -64,7 +64,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
   );
 }
 
-export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight[]; onJumpToFrame: (frameIdx: number) => void }) {
+export function InsightPanel({ insights, detectorCoverage, onJumpToFrame }: { insights: LapInsight[]; detectorCoverage: LapDetectorCoverage[]; onJumpToFrame: (frameIdx: number) => void }) {
   const categories: { key: InsightCategory; icon: string; label: string }[] = [
     { key: "suspension", icon: "🔧", label: m.insight_category_suspension() },
     { key: "tires", icon: "🛞", label: m.label_tires() },
@@ -75,6 +75,7 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
     <div className="flex flex-col gap-3">
       {categories.map(({ key, icon, label }) => {
         const items = insights.filter((i) => i.category === key);
+        const checks = detectorCoverage.filter((check) => check.category === key);
         return (
           <div key={key}>
             <div className="flex items-center gap-1.5 mb-1">
@@ -82,14 +83,30 @@ export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight
               <h4 className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold">{label}</h4>
               {items.length > 0 && <span className="text-app-micro bg-app-surface-alt text-app-text-secondary rounded-full px-1.5 tabular-nums">{items.length}</span>}
             </div>
-            {items.length === 0 ? (
-              <div className="text-app-caption text-app-text-dim pl-5">✓ {m.insight_no_issues()}</div>
-            ) : (
+            {items.length === 0 && (
+              <div className="text-app-caption text-app-text-dim pl-5">{m.insight_no_findings()}</div>
+            )}
+            {items.length > 0 && (
               <div className="flex flex-col gap-2">
                 {items.map((insight) => (
                   <InsightRow key={insight.id} insight={insight} onJump={onJumpToFrame} />
                 ))}
               </div>
+            )}
+            {checks.length > 0 && (
+              <details className="mt-2 pl-5 text-app-caption text-app-text-muted">
+                <summary className="cursor-pointer">{m.insight_checks()} ({checks.length})</summary>
+                <ul className="mt-1 space-y-1">
+                  {checks.map((check) => (
+                    <li key={check.id}>
+                      <span className="text-app-text">{check.label}</span>
+                      {" — "}
+                      {check.status === "finding" ? m.insight_check_finding() : check.status === "checked" ? m.insight_check_clear() : m.analyse_unavailable()}
+                      {check.reason && <span className="text-app-text-dim"> ({check.reason})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </div>
         );

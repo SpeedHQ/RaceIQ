@@ -4,6 +4,9 @@
 - Open lap replays through session-scoped links; old track/car/lap query links no longer work
 
 ### Features
+- List lap detector checks by category in Analyse, separating findings from checks with no finding and unavailable checks; infer aid checks where wheel telemetry supports them without native intervention channels
+- Chart per-wheel rotation speed (rad/s) in lap replay when rotation telemetry is available
+- Keep 3D scene springs and drivetrain on, remove their View switches, and show an opt-in racing-line switch (disabled when track data lacks a line).
 - Show inner, middle, and outer tire temperatures in mirrored per-wheel columns, with separate core readings in 2D and 3D views
 - Add Le Mans Ultimate support
 - Add a representative hybrid car model to Le Mans Ultimate 3D scenes
@@ -18,12 +21,25 @@
 - Render 3D replays, onboarding preview, and model comparisons with WebGPU where available and WebGL2 fallback; pause stops recurring scene draws.
 
 ### Fixes
+- Expose LMU racing lines already present in shipped track SVGs to 2D and 3D replay overlays.
+- Redraw Analyse telemetry charts when their container changes width, preventing stretched horizontal bands after layout transitions.
+- Restore traction-state colors on 3D tire trails after the WebGPU scene-renderer migration.
 - Display available surface and carcass temperature bands as separate readable 3D wheel-card rows; use single representative readings only when corresponding bands are absent.
 - Allow OpenAI-compatible endpoints without saved API keys for auto-tune and driver-profile AI settings, consistent with analysis and chat.
 - Keep 3D replay grid at 1-metre spacing and anchored to track coordinates through turns, without yaw-amplified motion or overlapping line flicker.
 - Group 3D per-wheel surface temperatures into one mirrored row like 2D tire diagrams, with carcass and core on separate rows instead of a vertical stat list.
 
 - Show recent sessions instead of individual laps on global and per-game home pages, including sessions without recorded laps
+
+- Lap analysis detects sustained oversteer slides
+- Lap analysis detects persistent left-right tire-pressure imbalance
+- ACC and AC Evo lap analysis detects late-braking corner overshoots against bundled racing lines
+- Lap analysis detects ABS and traction-control activations when simulators omit native intervention channels
+- Lap analysis distinguishes continuous tire surface and core heat, reports persistent tread-temperature patterns, and ignores pit-snapshot temperatures
+- Lap analysis detects sustained rapid tire-pressure loss while filtering cooling, pit stops, and tire changes
+- F1 lap analysis identifies DRS that remains closed during eligible full-throttle opportunities
+- F1 lap analysis reports ERS depletion corroborated by reduced electrical power and deployment
+- Lap analysis highlights low throttle after a stable corner exit without claiming unproven time loss
 
 ### Fixes
 - Show larger replay tires with three surface-temperature segments on each tread edge, gray side outlines, carcass layers, and core overlays only when available; remove slip-angle and slip-percent labels from wheels.
@@ -54,6 +70,20 @@
 - Improve telemetry recording performance and reduce memory use during live capture, session compression, and diagnostic recording shutdown.
 - Preserve Forza Motorsport sessions and active status through pit service, reconcile missing pit telemetry, mark pit-entry and pit-exit laps invalid using timing, fuel, and tire-service evidence, record final laps, and retain elapsed S1 time after telemetry resumes.
 
+- Forza lap analysis no longer treats normalized lateral-slip telemetry as physical slip angles
+- Lap analysis avoids wheelspin and traction-loss findings when a simulator does not provide wheel-rotation telemetry
+- Distinguish partial wheel lockups from wheelspin using independently calibrated tire radii
+- Keep sustained-event detection consistent across telemetry sample rates and recording gaps
+- Avoid flagging flat-out straights and smooth corner throttle as poor pedal control
+- Treat normal aid intervention and unverified corner observations as information rather than driver weaknesses
+- Apply equivalent tire-temperature thresholds in Celsius and Fahrenheit
+- Preserve usable corner racing-line evidence on straight-heavy laps
+- Avoid treating display-scaled suspension movement as physical bottoming
+- Correct Forza steering centering in lap metrics and driver-style analysis
+- Compute missing lap insights for explicitly requested driver profiles while keeping background refresh cache-only
+- Serialize per-lap insight reruns and metric cache writes so overlapping computations cannot overwrite rerun results
+
+
 ### Internal
 - Run `bun dev` concurrently in Git worktrees with branch-specific Portless URLs, independent backend ports, and worktree UDP ports without restarting shared proxy.
 - Ad-hoc sign compiled macOS builds so local Playwright servers launch instead of exiting before startup
@@ -65,6 +95,12 @@
 - Let seed tooling assemble numbered recording parts and stream large LMU capture imports.
 
 - Build developer-state snapshots only for active subscribers and serialize live telemetry at publication time.
+
+- Cache versioned static lap insights for reuse, stale backfill, and explicit reruns
+- Reuse per-frame wheel dynamics across static insight detectors
+- Avoid per-frame wheel-speed sorting during effective-radius calculation
+- Use linear-time rolling-window analysis for boost-drop detection
+- Represent racing-line availability with an explicit per-track semantic contract
 
 ## v0.18.0 - 2026-09-18
 

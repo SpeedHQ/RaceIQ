@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { F1StateAccumulator } from "../../../server/games/f1-2025/f1-state";
+import { initGameAdapters } from "@shared/games/init";
+import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
+import { processLap } from "@shared/racing/analysis/laps/insights/process";
+import type { TelemetryPacket } from "@shared/telemetry/types";
 import {
   F1_HEADER_SIZE,
   type F1Header,
@@ -52,6 +56,46 @@ describe("F1 telemetry contract", () => {
     expect(packet!.Power).toBeCloseTo(620_000);
     expect(packet!.TireTempFL).toBe(90);
     expect(packet!.TireCarcassTempFL).toBe(88);
+  });
+
+  test("real multi-packet snapshots support sustained DRS and ERS observations", () => {
+    initGameAdapters();
+    for (const drsActive of [false, true]) {
+      const accumulator = new F1StateAccumulator();
+      const motion = Buffer.alloc(60);
+      accumulator.feed({ ...header(0), sessionTime: 0 }, frame(motion));
+      accumulator.feed({ ...header(1), sessionTime: 0 }, frame(Buffer.alloc(9)));
+      accumulator.feed({ ...header(2), sessionTime: 0 }, frame(Buffer.alloc(57)));
+      accumulator.feed({ ...header(10), sessionTime: 0 }, frame(Buffer.alloc(46)));
+      const telemetry = Buffer.alloc(60);
+      telemetry.writeUInt16LE(216, 0);
+      telemetry.writeFloatLE(1, 2);
+      telemetry.writeInt8(6, 15);
+      telemetry.writeUInt16LE(10_000, 16);
+      telemetry.writeUInt8(drsActive ? 1 : 0, 18);
+      const status = Buffer.alloc(55);
+      status.writeUInt16LE(15_000, 17);
+      status.writeFloatLE(50, 5);
+      status.writeFloatLE(100, 9);
+      status.writeInt8(1, 28);
+      status.writeUInt8(2, 41);
+      const packets: TelemetryPacket[] = [];
+      for (let tick = 0; tick <= 80; tick++) {
+        const time = tick / 20;
+        status.writeUInt8(time >= 0.2 ? 1 : 0, 22);
+        status.writeFloatLE(10 - time * 0.01, 13);
+        status.writeFloatLE(Math.max(0, 100_000 * (1 - time)), 37);
+        status.writeFloatLE(100_000 * Math.min(time, 1), 50);
+        status.writeFloatLE(time >= 1 ? 1_000 : 120_000, 33);
+        for (const [packetId, data] of [[6, telemetry], [7, status], [0, motion]] as const) {
+          const packet = accumulator.feed({ ...header(packetId), sessionTime: time }, frame(data));
+          if (packet) packets.push(packet);
+        }
+      }
+      const insights = analyzeLap(processLap(packets, "f1-2025").packets, "f1-2025");
+      expect(insights.some((insight) => insight.id === "driving-unused-drs")).toBe(!drsActive);
+      expect(insights.some((insight) => insight.id === "mech-ers-depletion")).toBe(true);
+    }
   });
 
   test("preserves authoritative final classification packet", () => {

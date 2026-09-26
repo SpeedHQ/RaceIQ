@@ -13,7 +13,8 @@ const MAX_TRAIL_SAMPLES = 64;
 const MAX_TRAIL_INSTANCES = 256;
 export type TireTrailResource = { mesh: THREE.InstancedMesh; dummy: THREE.Object3D; offsets: [number, number][] };
 export function createTireTrailResource(scene: THREE.Scene, carModel: CarModelEnrichment): TireTrailResource {
-  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), MAX_TRAIL_INSTANCES);
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicNodeMaterial(), MAX_TRAIL_INSTANCES);
+  mesh.setColorAt(0, trailColorFromState("nominal", 0, 0));
   mesh.count = 0; mesh.frustumCulled = false; scene.add(mesh);
   return { mesh, dummy: new THREE.Object3D(), offsets: getWheelOffsets(carModel) };
 }

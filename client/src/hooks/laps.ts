@@ -5,6 +5,7 @@ import type { LineSpreadTrace } from "./experiments";
 import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { ComparisonData, AlignedTrace } from "../../../shared/racing/comparison/types";
 import type { AlignedLapSet } from "@shared/racing/laps/alignment/types";
+import type { LapDetectorCoverage } from "@shared/racing/analysis/laps/insights/types";
 import { useAlignedTelemetry } from "./aligned-telemetry";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
@@ -151,6 +152,7 @@ export interface SemanticLapTelemetry {
   sectorTimes?: number[] | null;
   sectorStarts?: number[] | null;
   insights?: unknown[];
+  detectorCoverage?: LapDetectorCoverage[];
   parseError?: string | null;
   envelopes: SemanticReplayFrame[];
 }

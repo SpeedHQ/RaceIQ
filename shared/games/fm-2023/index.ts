@@ -35,7 +35,7 @@ export const forzaAdapter: GameAdapter = {
   nativeSectors: false,
   appendsDelayedFinishFrame: true,
   authoritativeTrackLength: false,
-  steeringCenter: 127,
+  steeringCenter: 0,
   steeringRange: 127,
   tireHealthThresholds: { green: 0.70, yellow: 0.40 },
   tireTempThresholds: { cold: 75, warm: 115, hot: 150 },

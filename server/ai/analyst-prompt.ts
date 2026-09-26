@@ -6,7 +6,7 @@ import { resolveCarName } from "../../shared/racing/cars/resolve-name";
 import { fmCarSpecsCatalog } from "../../shared/racing/cars/fm";
 import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
@@ -156,6 +156,8 @@ export function buildAnalystPrompt(
   language: string = "en",
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: PromptSectors,
+  /** Versioned deterministic insights loaded from the per-lap cache. */
+  insights: LapInsight[] = [],
 ): string {
   const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
   const trackName = resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId);
@@ -166,8 +168,7 @@ export function buildAnalystPrompt(
     : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
-  // Run precomputed insight analysis
-  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
+  // Format versioned deterministic insights supplied by the persistence layer.
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";

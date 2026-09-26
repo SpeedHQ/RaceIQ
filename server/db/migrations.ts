@@ -1272,5 +1272,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`,
     ],
   },
+  // v61: Version deterministic static lap analysis independently from segment
+  // metrics. Existing rows start stale (0) and remain readable by older builds;
+  // current code recomputes them lazily or through the explicit backfill route.
+  {
+    version: 61,
+    name: "version static lap analysis",
+    sql: [
+      `ALTER TABLE lap_metrics ADD COLUMN insight_version INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 

@@ -55,6 +55,7 @@ function makeDeps(
     getLapById: async () => lap as never,
     getCorners: async () => [],
     detectCorners: () => [],
+    getOrComputeLapInsights: async () => [],
     getAnalysis: async () => cached,
     saveAnalysis: async (_lapId, analysis) => {
       saves.push(analysis);

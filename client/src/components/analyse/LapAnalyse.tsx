@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import type { AiPanelHandle } from "@/components/ai/AiPanel";
 import type { AnalysisHighlight } from "@/components/ai/analysis-types";
-import type { LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
+import type { LapDetectorCoverage, LapInsight } from "../../../../shared/racing/analysis/laps/insights/types";
 import { useCookieState } from "../../hooks/useCookieState";
 import { useLapPlayback } from "../../hooks/useLapPlayback";
 import { useUnits } from "../../hooks/useUnits";
@@ -302,6 +302,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
     return values.every((value): value is number => value != null) ? { FL: values[0], FR: values[1], RL: values[2], RR: values[3] } : null;
   }, [currentFrame, cursorIdx, semanticFrames]);
   const lapInsights = useMemo<LapInsight[]>(() => (semanticReplay?.insights ?? []) as LapInsight[], [semanticReplay]);
+  const detectorCoverage = useMemo<LapDetectorCoverage[]>(() => semanticReplay?.detectorCoverage ?? [], [semanticReplay]);
   const currentTime = playing ? interpolatedTimeRef.current : (semanticNumber(currentFrame, "timing.current-lap") ?? 0);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -528,6 +529,7 @@ function LapAnalyseInner({ sessionId, initialLapId }: { sessionId?: number; init
             units,
             wearRate,
             lapInsights,
+            detectorCoverage,
             onJumpToFrame: handleChartClick,
           }}
           aiSidebarProps={

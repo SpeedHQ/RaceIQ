@@ -16,6 +16,7 @@ import { resolveLapCorners, resolveLapSegments } from "../tracks/corner-resoluti
 import { loadSettings } from "../runtime/config/settings";
 import { configureAiProviderEnvironment } from "./openai-compatible-provider";
 import { buildAnalystPrompt } from "./analyst-prompt";
+import { getOrComputeLapInsights } from "../lap-analysis/metrics-store";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which
@@ -37,6 +38,7 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   const corners = await resolveLapCorners(trackOrdinal, lap.gameId, lap.telemetry, { segments });
 
   const settings = loadSettings();
+  const insights = await getOrComputeLapInsights(lap.id) ?? [];
   const prompt = buildAnalystPrompt(
     lap,
     lap.telemetry,
@@ -47,6 +49,8 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     segments,
     undefined,
     settings.language,
+    undefined,
+    insights,
   );
 
   const provider = settings.aiProvider;

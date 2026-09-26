@@ -69,6 +69,7 @@ export const AnalyseChartsPanel = memo(
         const chartW = w - leftPad - rightPad;
         const cx = Math.max(leftPad + 2, leftPad + xFrac * chartW);
         line.style.display = "";
+        line.style.height = `${scroll.scrollHeight}px`;
         line.style.left = `${Math.round(cx)}px`;
       },
       [semanticFrames.length],
@@ -114,6 +115,18 @@ export const AnalyseChartsPanel = memo(
           />
           <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
           <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: m.analyse_chart_steering() }]} {...common} height={80} />
+          {chartData.wheelRotationFL && chartData.wheelRotationFR && chartData.wheelRotationRL && chartData.wheelRotationRR && (
+            <TelemetryChart
+              series={[
+                { data: chartData.wheelRotationFL, color: WHEEL_COLOR_VARS[0], label: "Wheel Rotation FL (rad/s)" },
+                { data: chartData.wheelRotationFR, color: WHEEL_COLOR_VARS[1], label: "Wheel Rotation FR (rad/s)" },
+                { data: chartData.wheelRotationRL, color: WHEEL_COLOR_VARS[2], label: "Wheel Rotation RL (rad/s)" },
+                { data: chartData.wheelRotationRR, color: WHEEL_COLOR_VARS[3], label: "Wheel Rotation RR (rad/s)" },
+              ]}
+              {...common}
+              height={80}
+            />
+          )}
           {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: "DRS" }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (
             <TelemetryChart

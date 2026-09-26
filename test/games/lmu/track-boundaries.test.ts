@@ -32,4 +32,9 @@ describe("LMU track boundaries", () => {
       ),
     ).toBeLessThan(0.01);
   });
+  test("loads racing line from shipped SVG separately from center line", () => {
+    const boundaries = getLMUTrackBoundaries("spa_2023/spawec");
+    expect(boundaries?.raceLine?.length).toBeGreaterThan(10);
+    expect(boundaries!.raceLine).not.toEqual(boundaries!.centerLine);
+  });
 });
