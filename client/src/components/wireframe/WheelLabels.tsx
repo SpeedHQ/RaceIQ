@@ -1,237 +1,91 @@
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
-import { severityRangeColor } from "../../lib/colors";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
-import { brakeTempColor, tirePressureColor, tireTempColor } from "../../lib/vehicle-dynamics";
+import * as THREE from "three/webgpu";
 import type { TireTemperatureReading } from "../analyse/tire-temperature-profile";
+import { createWheelLabelRefreshPolicy, type WheelLabelRefreshPolicy } from "../../lib/wheel-label-refresh";
+import { brakeTempColor, tirePressureColor, tireTempColor } from "../../lib/vehicle-dynamics";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
+import { severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 
-const _tmpVec = new THREE.Vector3();
-const REF_DIST = 4;
-const MIN_FACTOR = 1;
-const MAX_FACTOR = 2.5;
-
-const CARD_W = 240;
-const ROW_H = 42;
-const PAD_Y = 10;
-const CANVAS_SCALE = 2;
-const BASE_SCALE = 0.72;
-
-function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, color: string) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy + s * 0.8);
-  ctx.bezierCurveTo(cx, cy + s * 0.3, cx - s, cy + s * 0.3, cx - s, cy - s * 0.2);
-  ctx.bezierCurveTo(cx - s, cy - s * 0.8, cx - s * 0.5, cy - s, cx, cy - s * 0.4);
-  ctx.bezierCurveTo(cx + s * 0.5, cy - s, cx + s, cy - s * 0.8, cx + s, cy - s * 0.2);
-  ctx.bezierCurveTo(cx + s, cy + s * 0.3, cx, cy + s * 0.3, cx, cy + s * 0.8);
-  ctx.closePath();
-  ctx.fill();
-}
-
-
-type TemperatureCell = { label: string; value: string; color: string };
-type Row =
-  | { kind: "health"; pct: string; color: string }
-  | ({ kind: "temp" } & TemperatureCell)
-  | { kind: "profile"; cells: TemperatureCell[] }
-  | { kind: "brake"; value: string; color: string }
-  | { kind: "pressure"; text: string; color: string }
-  | { kind: "wear"; text: string };
-
-export function WheelInfoCard({
-  temperatureReadings,
-  fmtTemp,
-  temperatureThresholds,
-  displayBrakeTemp,
-  wear,
-  wearRate,
-  brakeTemp,
-  pressurePsi,
-  pressureOptimal,
-  side,
-  isRear,
-}: {
-  temperatureReadings: TireTemperatureReading[];
-  fmtTemp: (value: number) => string;
-  temperatureThresholds: { cold: number; warm: number; hot: number };
-  displayBrakeTemp?: string | null;
-  wear: number;
-  wearRate: number;
-  brakeTemp: number;
-  pressurePsi: number;
-  pressureOptimal?: { min: number; max: number };
-  side: "left" | "right";
-  isRear: boolean;
-}) {
-  const healthPct = ((1 - wear) * 100).toFixed(0);
-  const healthColor = severityRangeColor(wear, [0.3, 0.6]);
-  const brakeText = displayBrakeTemp ?? null;
-  const brakeColor = brakeTempColor(brakeTemp, isRear);
-  const pressureText = pressurePsi > 0 ? `${pressurePsi.toFixed(1)} psi` : null;
-  const pressureColor = tirePressureColor(pressurePsi, pressureOptimal);
-  const wearText = wearRate > 0.0001 ? `-${(wearRate * 100).toFixed(2)}%/s` : null;
-  const hasProfile = temperatureReadings.some(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
-  const cardW = hasProfile ? 360 : CARD_W;
-  const baseScale = BASE_SCALE * cardW / CARD_W;
-  const { rows, cardH } = useMemo(() => {
-    const rows: Row[] = [{ kind: "health", pct: healthPct, color: healthColor }];
-    const cell = ({ kind, value }: TireTemperatureReading): TemperatureCell => ({
-      label: kind === "inner" ? m.label_inner() : kind === "middle" ? m.label_middle() : kind === "outer" ? m.label_outer() : kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface(),
-      value: value == null ? "—" : fmtTemp(value),
-      color: value == null ? "var(--status-unavailable)" : tireTempColor(value, temperatureThresholds),
-    });
-    for (const reading of temperatureReadings) {
-      if (reading.kind === "surface") rows.push({ kind: "temp", ...cell(reading) });
-    }
-    if (hasProfile) {
-      rows.push({ kind: "profile", cells: temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer").map(cell) });
-    }
-    for (const reading of temperatureReadings) {
-      if (reading.kind !== "surface" && (!hasProfile || reading.kind === "core" || reading.kind === "carcass")) rows.push({ kind: "temp", ...cell(reading) });
-    }
-    if (brakeText) rows.push({ kind: "brake", value: brakeText, color: brakeColor });
-    if (pressureText) rows.push({ kind: "pressure", text: pressureText, color: pressureColor });
-    if (wearText) rows.push({ kind: "wear", text: wearText });
-    return { rows, cardH: PAD_Y * 2 + rows.reduce((height, row) => height + (row.kind === "profile" ? ROW_H * 2 : ROW_H), 0) };
-  }, [brakeColor, brakeText, fmtTemp, hasProfile, healthColor, healthPct, pressureColor, pressureText, temperatureReadings, temperatureThresholds, wearText]);
-
-  const { canvas, ctx, texture, material } = useMemo(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = CARD_W * CANVAS_SCALE;
-    canvas.height = (PAD_Y * 2 + 2 * ROW_H) * CANVAS_SCALE;
-    const ctx = getSemanticCanvasContext(canvas);
-    const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-    });
-    return { canvas, ctx, texture, material };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!ctx) return;
-    if (canvas.width !== cardW * CANVAS_SCALE) canvas.width = cardW * CANVAS_SCALE;
-    if (canvas.height !== cardH * CANVAS_SCALE) canvas.height = cardH * CANVAS_SCALE;
-    ctx.setTransform(CANVAS_SCALE, 0, 0, CANVAS_SCALE, 0, 0);
-    ctx.clearRect(0, 0, cardW, cardH);
-
-    // Background card — subtle, high-contrast, rounded
-    drawRoundedRect(ctx, 4, 4, cardW - 8, cardH - 8, 16);
-    ctx.fillStyle = "color-mix(in srgb, var(--app-bg) 78%, transparent)";
-    ctx.fill();
-    ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    let rowTop = PAD_Y;
-    rows.forEach((row) => {
-      const y = rowTop + ROW_H / 2;
-      rowTop += row.kind === "profile" ? ROW_H * 2 : ROW_H;
-      if (row.kind === "health") {
-        ctx.textAlign = "left";
-        ctx.fillStyle = "var(--app-text-muted)";
-        ctx.font = "var(--font-weight-medium) var(--text-xl) var(--font-mono)";
-        ctx.fillText(`${isRear ? "R" : "F"}${side === "left" ? "L" : "R"}`, 12, y);
-        ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
-        const text = `${row.pct}%`;
-        const metrics = ctx.measureText(text);
-        const heartSize = 13;
-        const groupW = heartSize * 2 + 10 + metrics.width;
-        const left = cardW / 2 - groupW / 2;
-        drawHeart(ctx, left + heartSize, y, heartSize, row.color);
-        ctx.fillStyle = row.color;
-        ctx.textAlign = "left";
-        ctx.fillText(text, left + heartSize * 2 + 10, y);
-        ctx.textAlign = "center";
-      } else if (row.kind === "profile") {
-        const columnW = (cardW - 24) / 3;
-        row.cells.forEach((cell, index) => {
-          const x = 12 + columnW * (index + 0.5);
-          ctx.textAlign = "center";
-          ctx.fillStyle = "var(--app-text-muted)";
-          ctx.font = "var(--font-weight-medium) var(--text-xl) var(--font-mono)";
-          ctx.fillText(cell.label, x, y, columnW - 8);
-          ctx.fillStyle = cell.color;
-          ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
-          ctx.fillText(cell.value, x, y + ROW_H, columnW - 8);
-          ctx.fillRect(x - columnW / 2 + 4, y + ROW_H * 1.5 - 4, columnW - 8, 3);
-        });
-      } else if (row.kind === "temp") {
-        ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
-        ctx.fillStyle = row.color;
-        ctx.textAlign = "left";
-        ctx.fillText(row.label, 12, y, (cardW - 32) / 2);
-        ctx.textAlign = "right";
-        ctx.fillText(row.value, cardW - 12, y, (cardW - 32) / 2);
-      } else if (row.kind === "brake") {
-        ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
-        ctx.fillStyle = row.color;
-        ctx.textAlign = "left";
-        ctx.fillText("Brake", 12, y);
-        ctx.textAlign = "right";
-        ctx.fillText(row.value, cardW - 12, y);
-      } else if (row.kind === "pressure") {
-        ctx.font = "var(--font-weight-bold) var(--text-app-visualization-value) var(--font-mono)";
-        ctx.fillStyle = row.color;
-        ctx.textAlign = "center";
-        ctx.fillText(row.text, cardW / 2, y);
-      } else if (row.kind === "wear") {
-        ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
-        ctx.fillStyle = "var(--telemetry-wear)";
-        ctx.textAlign = "center";
-        ctx.fillText(row.text, cardW / 2, y);
-      }
-    });
-
-    texture.needsUpdate = true;
-  }, [canvas, cardH, cardW, ctx, isRear, rows, side, texture]);
-
-  useEffect(
-    () => () => {
-      material.dispose();
-      texture.dispose();
-    },
-    [material, texture],
-  );
-
-  const scaleY = baseScale * (cardH / cardW);
-  const spriteRef = useRef<THREE.Sprite>(null);
-
-  // Distance-normalise scale so far cards stay readable.
-  // Clamped so close-up cards don't shrink below baseline.
-  useFrame(({ camera }) => {
-    if (!spriteRef.current) return;
-    spriteRef.current.getWorldPosition(_tmpVec);
-    const dist = camera.position.distanceTo(_tmpVec);
-    const factor = Math.min(MAX_FACTOR, Math.max(MIN_FACTOR, dist / REF_DIST));
-    spriteRef.current.scale.set(baseScale * factor, scaleY * factor, 1);
+const CARD_W = 240, ROW_H = 34, SCALE = 2;
+export type WheelLabelConfig = {
+  temperatureReadings: TireTemperatureReading[]; fmtTemp: (value: number) => string;
+  temperatureThresholds: { cold: number; warm: number; hot: number }; displayBrakeTemp?: string | null;
+  wear: number; wearRate: number; brakeTemp: number; pressurePsi: number; pressureOptimal?: { min: number; max: number };
+  side: "left" | "right"; isRear: boolean;
+};
+export type WheelLabelResource = {
+  sprite: THREE.Sprite; canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D;
+  texture: THREE.CanvasTexture; material: THREE.SpriteMaterial; policy: WheelLabelRefreshPolicy<string>;
+  contentKey: string; baseScale: number; cardHeight: number;
+};
+type LabelRow = { label: string; values: { text: string; color: string }[] };
+function labelRows(config: WheelLabelConfig): LabelRow[] {
+  const { temperatureReadings, temperatureThresholds } = config;
+  const value = (reading: TireTemperatureReading) => ({
+    text: reading.value == null ? "—" : config.fmtTemp(reading.value),
+    color: reading.value == null ? "var(--status-unavailable)" : tireTempColor(reading.value, temperatureThresholds),
   });
-
-  // Rear cards sit ~0.6m lower so they don't stack on top of the front cards
-  // in screen space when the camera is directly behind (or in front of) the car.
-  const cardY = isRear ? 0.65 : 1.25;
-  const cardX = hasProfile ? (isRear ? -0.45 : 0.45) : 0;
-  const cardZ = hasProfile ? 1.15 : 0.95;
-  return <sprite ref={spriteRef} material={material} position={[cardX, cardY, side === "left" ? -cardZ : cardZ]} scale={[baseScale, scaleY, 1]} renderOrder={999} dispose={null} />;
+  const rows: LabelRow[] = [{
+    label: `${config.isRear ? "R" : "F"}${config.side === "left" ? "L" : "R"}`,
+    values: [{ text: `${Math.round((1 - config.wear) * 100)}%`, color: severityRangeColor(config.wear, [0.3, 0.6]) }],
+  }];
+  const bands = temperatureReadings.filter(({ kind }) => kind === "inner" || kind === "middle" || kind === "outer");
+  if (bands.length) rows.push({ label: m.label_surface(), values: bands.map(value) });
+  const label = (kind: string): string => kind === "core" ? m.label_core() : kind === "carcass" ? m.label_carcass() : m.label_surface();
+  for (const reading of temperatureReadings) {
+    if (bands.length && (reading.kind === "inner" || reading.kind === "middle" || reading.kind === "outer" || reading.kind === "surface")) continue;
+    rows.push({ label: label(reading.kind), values: [value(reading)] });
+  }
+  if (config.displayBrakeTemp) rows.push({ label: "Brake", values: [{ text: config.displayBrakeTemp, color: brakeTempColor(config.brakeTemp, config.isRear) }] });
+  if (config.pressurePsi > 0) rows.push({ label: "Pressure", values: [{ text: `${config.pressurePsi.toFixed(1)} psi`, color: tirePressureColor(config.pressurePsi, config.pressureOptimal) }] });
+  if (config.wearRate > 0.0001) rows.push({ label: "Wear", values: [{ text: `-${(config.wearRate * 100).toFixed(2)}%/s`, color: "var(--telemetry-wear)" }] });
+  return rows;
 }
+export function createWheelLabelResource(scene: THREE.Scene, config: WheelLabelConfig): WheelLabelResource {
+  const canvas = document.createElement("canvas"); canvas.width = CARD_W * SCALE; canvas.height = 256 * SCALE;
+  const ctx = getSemanticCanvasContext(canvas);
+  if (!ctx) throw new Error("Unable to create 3D wheel label canvas");
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
+  const sprite = new THREE.Sprite(material); sprite.renderOrder = 999; scene.add(sprite);
+  const resource: WheelLabelResource = { sprite, canvas, ctx, texture, material, policy: createWheelLabelRefreshPolicy<string>(), contentKey: "", baseScale: 0.72, cardHeight: 0 };
+  updateWheelLabelResource(resource, config, 0, 0, true);
+  return resource;
+}
+/** Coalesces live card changes to 100ms while playing; generation changes force immediate seek/pause/setting paints. */
+export function updateWheelLabelResource(resource: WheelLabelResource, config: WheelLabelConfig, now: number, generation: number, playbackActive: boolean): void {
+  const rows = labelRows(config), key = JSON.stringify(rows);
+  resource.policy.update(key, now, generation);
+  const content = resource.policy.consume(now, playbackActive, generation);
+  if (content === undefined && resource.contentKey) return;
+  if (content !== undefined) resource.contentKey = content;
+  const parsed = rows;
+  const h = 16 + parsed.length * ROW_H;
+  if (resource.canvas.height !== h * SCALE) resource.canvas.height = h * SCALE;
+  resource.ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0); resource.ctx.clearRect(0, 0, CARD_W, h);
+  resource.ctx.fillStyle = "color-mix(in srgb, var(--app-bg) 78%, transparent)"; resource.ctx.fillRect(4, 4, CARD_W - 8, h - 8);
+  resource.ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)"; resource.ctx.lineWidth = 2; resource.ctx.strokeRect(4, 4, CARD_W - 8, h - 8);
+  resource.ctx.textBaseline = "middle";
+  parsed.forEach((row, i) => {
+    const y = 8 + ROW_H * (i + 0.5);
+    resource.ctx.font = "var(--font-weight-bold) 20px var(--font-mono)";
+    resource.ctx.textAlign = "left"; resource.ctx.fillStyle = i === 0 ? "var(--app-text)" : "var(--app-text-muted)";
+    resource.ctx.fillText(row.label, 14, y);
+    resource.ctx.font = "var(--font-weight-bold) 18px var(--font-mono)";
+    row.values.forEach((item, index) => {
+      resource.ctx.textAlign = row.values.length === 1 ? "right" : "center";
+      resource.ctx.fillStyle = item.color;
+      resource.ctx.fillText(item.text, row.values.length === 1 ? CARD_W - 14 : 111 + index * 56, y, row.values.length === 1 ? 145 : 54);
+    });
+  });
+  resource.texture.needsUpdate = true; resource.cardHeight = h;
+  const rear = config.isRear, cardX = parsed.some((row) => row.values.length > 1) ? (rear ? -0.45 : 0.45) : 0;
+  resource.sprite.position.set(cardX, rear ? 0.65 : 1.25, config.side === "left" ? -0.95 : 0.95);
+  resource.sprite.scale.set(resource.baseScale, resource.baseScale * h / CARD_W, 1);
+}
+export function updateWheelLabelScale(resource: WheelLabelResource, camera: THREE.Camera): void {
+  const world = resource.sprite.getWorldPosition(new THREE.Vector3());
+  const factor = THREE.MathUtils.clamp(camera.position.distanceTo(world) / 4, 1, 2.5);
+  resource.sprite.scale.set(resource.baseScale * factor, resource.baseScale * resource.cardHeight / CARD_W * factor, 1);
+}
+export function disposeWheelLabelResource(resource: WheelLabelResource): void { resource.sprite.removeFromParent(); resource.material.dispose(); resource.texture.dispose(); }

@@ -43,11 +43,6 @@ export function visualWheelRotationSpeed(measuredRadS: unknown, speedMps: number
   return speedMps / radiusM;
 }
 
-/** Interpolate a 0–255 pedal channel into its rendered 3D line color. */
-export function pedalInputColor(inactive: THREE.Color, active: THREE.Color, rawInput: number): THREE.Color {
-  return inactive.clone().lerp(active, rawInput / 255);
-}
-
 // ── Color helpers ─────────────────────────────────────────────────────
 
 const threeColorCache = new Map<string, THREE.Color>();

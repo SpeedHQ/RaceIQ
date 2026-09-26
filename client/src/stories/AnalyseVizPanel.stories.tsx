@@ -6,6 +6,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { AnalyseTrackPanel } from "../components/analyse/AnalyseTrackPanel";
 import { AnalyseVizPanel } from "../components/analyse/AnalyseVizPanel";
 import type { SemanticAnalysisFrame } from "../components/analyse/track-map/types";
+import type { SceneSource } from "../components/wireframe/SceneRuntime";
 
 const frame: SemanticAnalysisFrame = {
   values: {
@@ -114,6 +115,7 @@ type Story = StoryObj<typeof AnalyseVizPanel>;
 function ThreeDPanelStory() {
   const cursorRef = useRef(0);
   const telemetryRef = useRef(telemetry);
+  const sceneSource = useMemo<SceneSource>(() => ({ framesRef: telemetryRef, cursorRef, playing: false, playbackSpeed: 1, seekGeneration: 0, recording: false }), []);
 
   return (
     <div className="h-screen w-screen bg-app-bg">
@@ -124,6 +126,7 @@ function ThreeDPanelStory() {
         semanticFrames={telemetry}
         cursorRef={cursorRef}
         displayTelemetryRef={telemetryRef}
+        sceneSource={sceneSource}
         cursorIdx={0}
         lapLine={null}
         boundaries={null}
@@ -144,6 +147,7 @@ function ProfileTemperaturesStory() {
   const frames = [profileFrameOne, profileFrameTwo];
   const displayTelemetryRef = useRef(frames);
   displayTelemetryRef.current = profileEnabled ? frames : [frame, frame];
+  const sceneSource = useMemo<SceneSource>(() => ({ framesRef: displayTelemetryRef, cursorRef, playing: false, playbackSpeed: 1, seekGeneration: 0, recording: false }), []);
   return (
     <div className="flex h-screen w-screen flex-col bg-app-bg">
       <div className="flex shrink-0 flex-wrap gap-4 p-2 text-app-text">
@@ -159,6 +163,7 @@ function ProfileTemperaturesStory() {
         semanticFrames={profileEnabled ? frames : [frame, frame]}
         displayTelemetryRef={displayTelemetryRef}
         cursorRef={cursorRef}
+        sceneSource={sceneSource}
         cursorIdx={cursorRef.current}
         lapLine={null}
         boundaries={null}
@@ -186,6 +191,7 @@ function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025", includeCore
   }, [variant, gameId, includeCore]);
   const telemetryRef = useRef(frames);
   telemetryRef.current = frames;
+  const sceneSource = useMemo<SceneSource>(() => ({ framesRef: telemetryRef, cursorRef, playing: false, playbackSpeed: 1, seekGeneration: 0, recording: false }), []);
   const variantLabel = variant === "bands" ? `Inner / Middle / Outer + ${gameId === "lmu" ? includeCore ? "Carcass + Core" : "Carcass" : "Core"}` : variant === "core" ? "Core only" : "Representative surface only";
   return (
     <div className="flex h-screen w-screen flex-col bg-app-bg">
@@ -199,6 +205,7 @@ function ProfileVariantStory({ variant, vizMode, gameId = "f1-2025", includeCore
         semanticFrames={frames}
         cursorRef={cursorRef}
         displayTelemetryRef={telemetryRef}
+        sceneSource={sceneSource}
         cursorIdx={0}
         lapLine={null}
         boundaries={null}

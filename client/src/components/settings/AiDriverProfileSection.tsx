@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
+import { AiProviderPicker } from "./AiPickers";
 import type { AiDriverProfileState } from "./ai-state";
 import { GEMINI_THINKING_BUDGET_OPTIONS } from "./ai-state";
 export function AiDriverProfileSection({ state }: { state: AiDriverProfileState }) {
@@ -51,7 +52,7 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
           <Label htmlFor="ai-driver-profile-provider" className="block text-xs text-app-text-muted mb-1">
             {m.ai_provider_label()}
           </Label>
-          <SearchSelect
+          <AiProviderPicker
             id="ai-driver-profile-provider"
             value={driverProfileProvider}
             onChange={(value) => {
@@ -59,9 +60,8 @@ export function AiDriverProfileSection({ state }: { state: AiDriverProfileState 
               setDriverProfileModel("");
               setDriverProfileThinkingBudget(null);
             }}
-            options={[{ value: "", label: m.ai_provider_none() }, ...(aiProviders ?? []).map((p) => ({ value: p.id, label: p.name, disabled: !state.keyStatus[p.id] }))]}
-            className="w-full max-w-xs"
-            ariaLabel={m.ai_provider_label()}
+            providers={aiProviders}
+            keyStatus={state.keyStatus}
           />
         </div>
         {canShowDriverProfileModelPicker && (

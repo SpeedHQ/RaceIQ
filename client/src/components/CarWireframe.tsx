@@ -1,5 +1,3 @@
-import { useGLTF } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
 import { tryGetGame } from "@shared/games/registry";
 import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
@@ -9,23 +7,23 @@ import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { TrackMapBoundaries } from "./analyse/track-map/types";
 import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, getLMUClassCarModel, loadCarModelConfigs } from "../data/car-models";
+import { useTirePressureOptimal } from "../hooks/catalog-queries";
 import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
-import { recordGpuSnapshot } from "../lib/crash-diagnostics";
 import { client } from "../lib/rpc";
-import { tireTempColor } from "../lib/vehicle-dynamics";
 import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
 import { useGameId } from "../stores/game";
 import type { SemanticAnalysisFrame } from "./analyse/track-map/types";
 import { Button } from "./ui/button";
 import { DropdownMenu } from "./ui/DropdownMenu";
-import { CarScene } from "./wireframe/CarScene";
+import { preloadCarModel } from "./wireframe/CarBody";
+import { SceneRuntime, type SceneSource } from "./wireframe/SceneRuntime";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
-useGLTF.preload("/models/aston_martin_vantage_gt3_optimised.glb");
-useGLTF.preload("/models/f1_2025_mclaren_mcl39_optimised.glb");
-useGLTF.preload("/models/peugeot_9x8_evo_2024_optimised.glb");
+preloadCarModel("/models/aston_martin_vantage_gt3_optimised.glb");
+preloadCarModel("/models/f1_2025_mclaren_mcl39_optimised.glb");
+preloadCarModel("/models/peugeot_9x8_evo_2024_optimised.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
   gameId: gameIdProp,
@@ -42,6 +40,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   minimal,
   hideControls,
   autoOrbit,
+  source,
+  onRuntime,
 }: {
   gameId?: GameId;
   lmuCarClass?: string;
@@ -53,8 +53,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   carOrdinal?: number;
   carModel?: CarModelEnrichment & { hasModel: boolean };
   tempLabel?: string;
-  cursorRef?: React.RefObject<number>;
-  telemetryRef?: React.RefObject<SemanticAnalysisFrame[]>;
+  source: SceneSource;
+  onRuntime?: (runtime: SceneRuntime | null) => void;
   showDimensions?: boolean;
   minimal?: boolean;
   hideControls?: boolean;
@@ -92,6 +92,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [carOrdinal, configsLoaded, isF1, isLMU, lmuCarClass, carModelProp]);
   const units = useUnits(gameId);
   const { displaySettings } = useSettings();
+  const pressureOptimal = useTirePressureOptimal(gameId, carOrdinal);
   const adapter = tryGetGame(gameId);
   const suspThresholds = adapter?.suspensionThresholds.values ?? [25, 65, 85];
   const temperatureMetric = resolveAnalysisTelemetry(adapter).tireTemperature;
@@ -109,13 +110,11 @@ export const CarWireframe = React.memo(function CarWireframe({
   });
   // Merge defaults so any keys added after the user's localStorage was first
   // written get sensible values instead of undefined.
-  // When controls are hidden (e.g. onboarding preview) force wheelInfo off —
-  // the user has no way to toggle it and the stat cards clutter the scene.
-  const toggles: ViewToggles = {
+  const toggles = useMemo<ViewToggles>(() => ({
     ...DEFAULT_TOGGLES,
     ...storedToggles,
-    ...(hideControls ? { wheelInfo: false, inputs: true } : {}),
-  };
+    ...(hideControls ? { inputs: true } : {}),
+  }), [storedToggles, hideControls]);
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const flippedBoundaries = useMemo(() => {
@@ -143,133 +142,40 @@ export const CarWireframe = React.memo(function CarWireframe({
   const anyViewToggle = viewToggleItems.some((item) => item.checked);
 
   const fpsRef = useRef<HTMLSpanElement>(null);
-  const fpsFrames = useRef(0);
-  const [fpsInitTime] = useState(() => performance.now());
-  const fpsLastTime = useRef(fpsInitTime);
-
-  // Keep current cap in a ref so the render gate picks up settings changes
-  // without re-creating the Canvas.
-  const fpsCapRef = useRef(displaySettings.renderFpsCap);
+  const canvasHostRef = useRef<HTMLDivElement>(null);
+  const runtimeRef = useRef<SceneRuntime | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
   useEffect(() => {
-    fpsCapRef.current = displaySettings.renderFpsCap;
-  }, [displaySettings.renderFpsCap]);
+    if (!canvasHostRef.current) return;
+    const runtime = new SceneRuntime(canvasHostRef.current, (error) => setRenderError(error.message), { fpsElement: fpsRef.current });
+    runtimeRef.current = runtime;
+    onRuntime?.(runtime);
+    void runtime.init();
+    return () => {
+      runtimeRef.current = null;
+      onRuntime?.(null);
+      runtime.dispose();
+    };
+  }, [onRuntime]);
+  useEffect(() => {
+    runtimeRef.current?.setSource(source);
+  }, [source]);
+  useEffect(() => {
+    runtimeRef.current?.updateConfig({
+      gameId, frame, telemetry, cursorIdx, outline, boundaries: flippedBoundaries,
+      toggles, viewPreset, carModel, modelOffsetX, hideModelWheels: !minimal,
+      autoOrbit: !!autoOrbit, fpsCap: displaySettings.renderFpsCap,
+      fmtTemp, suspThresholds, pressureOptimal, temperatureThresholds: units.thresholds, temperatureSemanticId,
+    });
+  }, [gameId, frame, telemetry, cursorIdx, outline, flippedBoundaries, toggles, viewPreset, carModel, modelOffsetX, minimal, autoOrbit, displaySettings.renderFpsCap, fmtTemp, suspThresholds, pressureOptimal, units.thresholds, temperatureSemanticId]);
 
   return (
     <div className="w-full h-full relative flex-1">
-      <div className="w-full h-full" role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => {
+      <div ref={canvasHostRef} className="w-full h-full" role="img" aria-label={`3D tire temperatures ${["FL", "FR", "RL", "RR"].map((wheel, index) => {
         const value = (frame.values[temperatureSemanticId] as number[] | undefined)?.[index];
         return `${wheel} ${value != null && Number.isFinite(value) ? fmtTemp(value) : m.analyse_unavailable()}`;
-      }).join(", ")}`}>
-      <Canvas
-        key="raceiq-car-renderer-v2"
-        camera={{ position: [4, 2.5, 4], fov: 50 }}
-        gl={{ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: !!(window as unknown as Record<string, unknown>).__recording }}
-        dpr={[1, 1.5]}
-        frameloop="always"
-        tabIndex={-1}
-        style={{ background: "transparent", outline: "none", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
-        onCreated={({ gl }) => {
-          type RenderGate = {
-            originalRender: typeof gl.render;
-            capRef: typeof fpsCapRef;
-            fpsElementRef: typeof fpsRef;
-            fpsFramesRef: typeof fpsFrames;
-            fpsLastTimeRef: typeof fpsLastTime;
-            nextRenderAt: number;
-            activeCap: number;
-            lastGpuLog: number;
-          };
-          const renderer = gl as typeof gl & { __raceIqRenderGate?: RenderGate };
-          const existingGate = renderer.__raceIqRenderGate;
-          if (existingGate) {
-            existingGate.capRef = fpsCapRef;
-            existingGate.fpsElementRef = fpsRef;
-            existingGate.fpsFramesRef = fpsFrames;
-            existingGate.fpsLastTimeRef = fpsLastTime;
-            return;
-          }
-
-          const gate: RenderGate = {
-            originalRender: gl.render.bind(gl),
-            capRef: fpsCapRef,
-            fpsElementRef: fpsRef,
-            fpsFramesRef: fpsFrames,
-            fpsLastTimeRef: fpsLastTime,
-            nextRenderAt: 0,
-            activeCap: 0,
-            lastGpuLog: 0,
-          };
-          renderer.__raceIqRenderGate = gate;
-          gl.render = (...args: Parameters<typeof gl.render>) => {
-            // Gate gl.render to the user's fps cap. Deadline scheduling
-            // alternates refresh ticks when the display rate is not a clean
-            // multiple of the cap instead of consistently landing below it.
-            const now = performance.now();
-            const recording = !!(window as unknown as Record<string, unknown>).__recording;
-            const cap = Math.max(15, Math.min(120, gate.capRef.current));
-            if (recording) {
-              gate.nextRenderAt = 0;
-            } else {
-              if (cap !== gate.activeCap) {
-                gate.activeCap = cap;
-                gate.nextRenderAt = now;
-              }
-              if (now + 1 < gate.nextRenderAt) return;
-              const interval = 1000 / cap;
-              gate.nextRenderAt += interval;
-              if (gate.nextRenderAt <= now) gate.nextRenderAt = now + interval;
-            }
-
-            gate.fpsFramesRef.current++;
-            if (now - gate.fpsLastTimeRef.current >= 1000) {
-              const elapsed = now - gate.fpsLastTimeRef.current;
-              const measuredFps = Math.round((gate.fpsFramesRef.current * 1000) / elapsed);
-              if (gate.fpsElementRef.current) gate.fpsElementRef.current.textContent = `${measuredFps} fps`;
-              gate.fpsFramesRef.current = 0;
-              gate.fpsLastTimeRef.current = now;
-            }
-
-            // Feed Three.js renderer counters into the crash-diagnostics
-            // breadcrumb once per second. gl.info.render is reset every
-            // frame by Three.js, so sample inside the render function.
-            if (now - gate.lastGpuLog >= 1000) {
-              gate.lastGpuLog = now;
-              recordGpuSnapshot({
-                memory: gl.info.memory,
-                programs: gl.info.programs,
-                render: gl.info.render,
-              });
-            }
-
-            return gate.originalRender(...args);
-          };
-        }}
-      >
-        <CarScene
-          gameId={gameId}
-          frame={frame}
-          telemetry={telemetry}
-          cursorIdx={cursorIdx}
-          outline={outline}
-          boundaries={flippedBoundaries}
-          toggles={toggles}
-          viewPreset={viewPreset}
-          carModel={carModel}
-          modelOffsetX={modelOffsetX}
-          fmtTemp={fmtTemp}
-          hideModelWheels={!minimal}
-          suspThresholds={suspThresholds}
-          autoOrbit={autoOrbit}
-          temperatureThresholds={units.thresholds}
-          tireColors={[
-            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[0]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[0], units.thresholds) : "var(--status-unavailable)",
-            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[1]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[1], units.thresholds) : "var(--status-unavailable)",
-            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[2]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[2], units.thresholds) : "var(--status-unavailable)",
-            Number.isFinite((frame.values[temperatureSemanticId] as number[] | undefined)?.[3]) ? tireTempColor((frame.values[temperatureSemanticId] as number[])[3], units.thresholds) : "var(--status-unavailable)",
-          ]}
-        />
-      </Canvas>
-      </div>
+      }).join(", ")}`} />
+      {renderError && <div role="alert" className="absolute inset-0 flex items-center justify-center bg-app-bg text-status-danger p-4">{renderError}</div>}
       <span ref={fpsRef} data-visual-test-hidden className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}

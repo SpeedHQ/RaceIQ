@@ -18,11 +18,12 @@ import { getTrackLengthMeters } from "../../shared/racing/tracks/recording/outli
 import { getLMUTrack } from "../../shared/games/lmu/catalog";
 import { withOnboardingOverride } from "../runtime/options";
 
-import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModels, getProviders } from "../ai/providers";
-import { getLocalApiKey } from "../ai/openai-compatible-provider";
+import { getGeminiModelsDetailed, getOpenAiCompatibleModelsDetailed, getOpenAiModelsDetailed, getProviders } from "../ai/providers";
+import { getAiProviderApiKey, getLocalApiKey } from "../ai/openai-compatible-provider";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedOpenAiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; key: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; key: string; at: number } | null = null;
 export type AiProviderDiscovery = {
@@ -148,6 +149,33 @@ export const settingsRoutes = new Hono()
       console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
     }
 
+    const shouldFetchOpenAi = useRequestedProviders
+      ? requestedProviders.has("openai")
+      : settings.aiProvider === "openai" || settings.chatProvider === "openai";
+    let openAiModels: { id: string; name: string }[] = [];
+    let openAiError: string | null = null;
+    if (shouldFetchOpenAi) {
+      const openAiKey = await getAiProviderApiKey("openai");
+      if (!openAiKey) {
+        openAiError = "OpenAI API key not set.";
+        cachedOpenAiModels = null;
+      } else if (!forceRefresh && cachedOpenAiModels?.key === openAiKey
+        && Date.now() - cachedOpenAiModels.at < MODELS_CACHE_TTL_MS) {
+        openAiModels = cachedOpenAiModels.models;
+      } else {
+        const fetchedOpenAi = await getOpenAiModelsDetailed(openAiKey);
+        openAiError = fetchedOpenAi.error;
+        openAiModels = fetchedOpenAi.models.length > 0
+          ? fetchedOpenAi.models
+          : cachedOpenAiModels?.key === openAiKey ? cachedOpenAiModels.models : [];
+        if (fetchedOpenAi.models.length > 0) {
+          cachedOpenAiModels = { key: openAiKey, models: openAiModels, at: Date.now() };
+        }
+      }
+    }
+
+
+
     const shouldFetchLocal = useRequestedProviders
       ? requestedProviders.has("openai-compatible")
       : settings.aiProvider === "openai-compatible" || settings.chatProvider === "openai-compatible";
@@ -195,9 +223,9 @@ export const settingsRoutes = new Hono()
 
     return c.json({
       "gemini": geminiModels,
-      "openai": getOpenAiModels(),
+      "openai": openAiModels,
       "openai-compatible": localModels,
-      "_errors": { gemini: geminiError, openai: null, "openai-compatible": localError },
+      "_errors": { gemini: geminiError, openai: openAiError, "openai-compatible": localError },
     });
   })
 
